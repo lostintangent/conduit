@@ -1,6 +1,6 @@
 {
-  "name": "flexterm",
-  "productName": "Flexterm",
+  "name": "conduit",
+  "productName": "Conduit",
   "version": "1.0.0",
   "description": "A terminal that's sort of mid. But also, kind of awesome!",
   "main": ".vite/build/main.js",
