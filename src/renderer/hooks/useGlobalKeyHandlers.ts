@@ -1,23 +1,33 @@
+import {
+  enterFocusMode,
+  exitFocusMode,
+  hasMultiplePanes,
+  navigateFocusedPane,
+} from "@/store/actions/focusMode";
 import { movePane, splitPane } from "@/store/actions/pane";
 import {
   navigatePane,
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
-import { tabsAtom } from "@/store/atoms";
+import { appPreferencesAtom, tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 
 type UseGlobalKeyHandlersResult = {
   isCommandPaletteOpen: boolean;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
+  showFocusModeInfo: boolean;
+  setShowFocusModeInfo: (show: boolean) => void;
 };
 
 export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [showFocusModeInfo, setShowFocusModeInfo] = useState(false);
   const tabs = useAtomValue(tabsAtom);
+  const [appPreferences, setAppPreferences] = useAtom(appPreferencesAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -56,6 +66,57 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       }
 
       if (isCommandPaletteOpen) {
+        return;
+      }
+
+      // Cmd+Shift+F: Toggle focus mode
+      if (event.metaKey && event.shiftKey && !event.altKey && key === "f") {
+        event.preventDefault();
+
+        const activeTab = tabs.find((tab) => tab.isActive);
+        if (!activeTab) return;
+
+        // Check if already in focus mode
+        if (activeTab.focusedPaneId) {
+          exitFocusMode(activeTab.id);
+          return;
+        }
+
+        // Show info dialog on first use
+        if (!appPreferences.hasSeenFocusModeInfo) {
+          setShowFocusModeInfo(true);
+          return;
+        }
+
+        // Check if multiple panes exist (is split)
+        if (hasMultiplePanes(activeTab)) {
+          // Enter focus mode on active pane
+          enterFocusMode(activeTab.id, activeTab.activePaneId);
+        } else {
+          // Not split yet - perform vertical split
+          void performSplit("column", false);
+        }
+
+        return;
+      }
+
+      // Cmd+Shift+D: Navigate to next pane (only in focus mode)
+      if (event.metaKey && event.shiftKey && !event.altKey && key === "d") {
+        const activeTab = tabs.find((tab) => tab.isActive);
+        if (!activeTab || !activeTab.focusedPaneId) return;
+
+        event.preventDefault();
+        navigateFocusedPane(activeTab.id, "next");
+        return;
+      }
+
+      // Cmd+Shift+G: Navigate to previous pane (only in focus mode)
+      if (event.metaKey && event.shiftKey && !event.altKey && key === "g") {
+        const activeTab = tabs.find((tab) => tab.isActive);
+        if (!activeTab || !activeTab.focusedPaneId) return;
+
+        event.preventDefault();
+        navigateFocusedPane(activeTab.id, "prev");
         return;
       }
 
@@ -131,6 +192,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [
+    appPreferences.hasSeenFocusModeInfo,
     focusTab,
     isCommandPaletteOpen,
     movePaneToTab,
@@ -143,5 +205,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     isCommandPaletteOpen,
     openCommandPalette,
     closeCommandPalette,
+    showFocusModeInfo,
+    setShowFocusModeInfo,
   };
 };

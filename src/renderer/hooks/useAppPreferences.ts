@@ -1,6 +1,6 @@
-import { useCallback, useEffect } from "react";
-import { useAtom } from "jotai";
 import { appPreferencesAtom } from "@/store/atoms";
+import { useAtom } from "jotai";
+import { useCallback, useEffect } from "react";
 
 const normalizeCommandHistory = (history: unknown): string[] => {
   if (!Array.isArray(history)) {
@@ -126,9 +126,20 @@ export const useAppPreferences = () => {
     [setPreferences]
   );
 
+  const updatePreferences = useCallback(
+    (updates: Partial<typeof preferences>) => {
+      setPreferences((current) => ({
+        ...current,
+        ...updates,
+      }));
+    },
+    [setPreferences]
+  );
+
   return {
     ...preferences,
     recordCommandHistoryEntry,
     removeCommandHistoryEntry,
+    updatePreferences,
   };
 };

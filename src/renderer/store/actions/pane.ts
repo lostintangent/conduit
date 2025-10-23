@@ -670,11 +670,16 @@ export function removePane(
           ? findFirstPaneId(newLayout)
           : tab.activePaneId;
 
+      // If the removed pane was in focus mode, exit focus mode
+      const focusedPaneId =
+        tab.focusedPaneId === paneId ? undefined : tab.focusedPaneId;
+
       return {
         ...tab,
         panes: newPanes,
         layout: newLayout,
         activePaneId: newActivePaneId,
+        focusedPaneId,
       };
     })
   );
