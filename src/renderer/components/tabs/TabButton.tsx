@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { Command, X } from "lucide-react";
 import { closeTab, focusTab } from "@/store/actions/tab";
+import { Command, X } from "lucide-react";
+import React, { useState } from "react";
 
 const cx = (...classes: Array<string | false>) =>
   classes.filter(Boolean).join(" ");
@@ -94,7 +94,10 @@ export const TabButton = ({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
-      <span className="overflow-hidden text-ellipsis" title={tooltip}>
+      <span
+        className="overflow-hidden text-ellipsis max-w-[200px]"
+        title={tooltip}
+      >
         {label}
       </span>
       <span className="text-white/40">|</span>

@@ -179,13 +179,13 @@ export function WebPane({
             <RefreshCw className="w-4 h-4 text-white" />
           )}
         </button>
-        <form onSubmit={handleUrlSubmit} className="flex-1 flex">
+        <form onSubmit={handleUrlSubmit} className="flex-1 flex min-w-0">
           <input
             type="text"
             value={inputUrl}
             onChange={handleUrlInputChange}
             onBlur={handleUrlInputBlur}
-            className="flex-1 px-3 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30"
+            className="flex-1 px-3 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
             placeholder="Enter URL..."
           />
         </form>
