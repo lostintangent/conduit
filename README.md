@@ -1,5 +1,7 @@
 # 🔌 Conduit
 
+<img width="1789" height="1181" alt="image" src="https://github.com/user-attachments/assets/dfe8ab53-21f5-47f8-97b6-cdc1b5d54ca9" />
+
 ## Current feature set
 
 1. Rich terminals
