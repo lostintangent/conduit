@@ -126,20 +126,9 @@ export const useAppPreferences = () => {
     [setPreferences]
   );
 
-  const updatePreferences = useCallback(
-    (updates: Partial<typeof preferences>) => {
-      setPreferences((current) => ({
-        ...current,
-        ...updates,
-      }));
-    },
-    [setPreferences]
-  );
-
   return {
     ...preferences,
     recordCommandHistoryEntry,
     removeCommandHistoryEntry,
-    updatePreferences,
   };
 };

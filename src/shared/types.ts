@@ -43,7 +43,6 @@ export type AppPreferences = {
   alwaysShowTabStrip: boolean;
   showOverviewRuler: boolean;
   homeDirectory: string | null;
-  hasSeenFocusModeInfo?: boolean;
 };
 
 export type BackgroundCommandRequest = {
