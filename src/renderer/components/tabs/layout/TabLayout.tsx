@@ -1,0 +1,421 @@
+import { TerminalPane } from "@/components/panes/TerminalPane";
+import { WebPane } from "@/components/panes/WebPane";
+import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
+import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
+import type {
+  LayoutResizeAxis,
+  LayoutResizeStartConfig,
+} from "@/hooks/useLayoutResizing";
+import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import { tabsAtom } from "@/store/atoms";
+import type {
+  LayoutNode,
+  LayoutPaneNode,
+  LayoutSplitNode,
+  SplitDirection,
+  Tab,
+} from "@/types";
+import { useAtom } from "jotai";
+import React, { useCallback, useState } from "react";
+
+const INTERSECTION_TOLERANCE = 0.08;
+
+type BoundaryInfo = {
+  leadingId: string;
+  trailingId: string;
+  leadingSize: number;
+  trailingSize: number;
+  position: number;
+};
+
+type IntersectionHandleConfig = {
+  key: string;
+  position: number;
+  direction: SplitDirection;
+  axes: LayoutResizeAxis[];
+  axisKeys: string[];
+};
+
+const getAxisKey = (axis: LayoutResizeAxis) =>
+  `${axis.containerNodeId}:${axis.direction}:${axis.leadingNodeId}:${axis.trailingNodeId}`;
+
+const collectBoundaries = (node: LayoutNode): BoundaryInfo[] => {
+  if (node.type !== "split" || node.children.length < 2) {
+    return [];
+  }
+
+  const sizes = node.children.map((child) => child.size ?? 1);
+  const total = sizes.reduce((sum, size) => sum + size, 0);
+  let cumulative = 0;
+
+  return node.children.slice(0, -1).map((child, index) => {
+    const currentSize = sizes[index];
+    cumulative += currentSize;
+    const nextNode = node.children[index + 1];
+    const nextSize = sizes[index + 1];
+    const position =
+      total > 0 ? cumulative / total : (index + 1) / node.children.length;
+
+    return {
+      leadingId: child.id,
+      trailingId: nextNode.id,
+      leadingSize: currentSize,
+      trailingSize: nextSize,
+      position,
+    };
+  });
+};
+
+const computeIntersectionHandles = (
+  previousSibling: LayoutNode,
+  currChild: LayoutNode,
+  parentDirection: SplitDirection
+): IntersectionHandleConfig[] => {
+  const perpendicularDirection: SplitDirection =
+    parentDirection === "row" ? "column" : "row";
+
+  const prevBoundaries =
+    previousSibling.type === "split" &&
+    previousSibling.direction === perpendicularDirection
+      ? collectBoundaries(previousSibling)
+      : [];
+
+  const currBoundaries =
+    currChild.type === "split" && currChild.direction === perpendicularDirection
+      ? collectBoundaries(currChild)
+      : [];
+
+  if (prevBoundaries.length === 0 && currBoundaries.length === 0) {
+    return [];
+  }
+
+  type IntersectionSeed = {
+    position: number;
+    axes: LayoutResizeAxis[];
+    axisKeys: string[];
+  };
+
+  const seeds: IntersectionSeed[] = [];
+
+  const mergeSeed = (boundary: BoundaryInfo, splitId: string) => {
+    const existing = seeds.find(
+      (seed) =>
+        Math.abs(seed.position - boundary.position) <= INTERSECTION_TOLERANCE
+    );
+
+    const axis: LayoutResizeAxis = {
+      containerNodeId: splitId,
+      direction: perpendicularDirection,
+      leadingNodeId: boundary.leadingId,
+      trailingNodeId: boundary.trailingId,
+      leadingSize: boundary.leadingSize,
+      trailingSize: boundary.trailingSize,
+    };
+    const key = getAxisKey(axis);
+
+    if (existing) {
+      existing.position = (existing.position + boundary.position) / 2;
+      if (!existing.axisKeys.includes(key)) {
+        existing.axes.push(axis);
+        existing.axisKeys.push(key);
+      }
+      return;
+    }
+
+    seeds.push({
+      position: boundary.position,
+      axes: [axis],
+      axisKeys: [key],
+    });
+  };
+
+  prevBoundaries.forEach((boundary) => mergeSeed(boundary, previousSibling.id));
+  currBoundaries.forEach((boundary) => mergeSeed(boundary, currChild.id));
+
+  return seeds.map((seed, index) => ({
+    key: `${previousSibling.id}-${currChild.id}-${index}`,
+    position: seed.position,
+    direction: perpendicularDirection,
+    axes: seed.axes,
+    axisKeys: seed.axisKeys,
+  }));
+};
+
+function buildGridTemplateStyles(
+  children: LayoutNode[],
+  direction: SplitDirection
+): React.CSSProperties {
+  const childCount = children.length || 1;
+  const hasSizes = children.some((child) => child.size !== undefined);
+
+  if (!hasSizes) {
+    return direction === "row"
+      ? { gridTemplateColumns: `repeat(${childCount}, minmax(0, 1fr))` }
+      : { gridTemplateRows: `repeat(${childCount}, minmax(0, 1fr))` };
+  }
+
+  const templateValue = children
+    .map((child) => (child.size !== undefined ? `${child.size}fr` : "1fr"))
+    .join(" ");
+
+  return direction === "row"
+    ? { gridTemplateColumns: templateValue }
+    : { gridTemplateRows: templateValue };
+}
+
+interface TabLayoutProps {
+  handleContextMenu: (
+    event: React.MouseEvent,
+    tabId: string,
+    paneId?: string
+  ) => void;
+  handleResizeStart: (
+    e: React.MouseEvent,
+    payload: LayoutResizeStartConfig
+  ) => void;
+  resizingNode: string | null;
+  handleWebViewUpdate: (
+    tabId: string,
+    paneId: string,
+    updates: { url?: string; title?: string }
+  ) => void;
+}
+
+export function TabLayout({
+  handleContextMenu,
+  handleResizeStart,
+  resizingNode,
+  handleWebViewUpdate,
+}: TabLayoutProps) {
+  const [tabs] = useAtom(tabsAtom);
+  const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
+
+  const setHoverKeys = useCallback(
+    (keys: string[]) => {
+      if (resizingNode === null) {
+        setHoveredAxisKeys(keys);
+      }
+    },
+    [resizingNode, setHoveredAxisKeys]
+  );
+
+  const renderPaneNode = useCallback(
+    (node: LayoutPaneNode, tab: Tab): React.ReactNode => {
+      const pane = tab.panes[node.paneId];
+      if (!pane) {
+        return null;
+      }
+
+      const isActivePane = tab.isActive && tab.activePaneId === pane.id;
+      const onPaneContextMenu = (event: React.MouseEvent) =>
+        handleContextMenu(event, tab.id, pane.id);
+      const onPaneActivate = () => activatePane(tab.id, pane.id);
+      const onWebViewContextMenu = (coords: {
+        clientX: number;
+        clientY: number;
+      }) => {
+        const syntheticEvent = {
+          preventDefault: () => {},
+          stopPropagation: () => {},
+          clientX: coords.clientX,
+          clientY: coords.clientY,
+        } as React.MouseEvent;
+        handleContextMenu(syntheticEvent, tab.id, pane.id);
+      };
+
+      return (
+        <div
+          data-node-id={node.id}
+          className="grid flex-1 min-h-0 min-w-0 overflow-hidden"
+          style={{
+            gridTemplateColumns: "minmax(0, 1fr)",
+            gridTemplateRows: "minmax(0, 1fr)",
+          }}
+        >
+          <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
+            {pane.type === "terminal" ? (
+              <TerminalPane
+                key={pane.sessionId}
+                sessionId={pane.sessionId}
+                isActive={isActivePane}
+                onActivate={onPaneActivate}
+                onContextMenu={onPaneContextMenu}
+                onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
+              />
+            ) : (
+              <div
+                className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                onContextMenu={onPaneContextMenu}
+                onMouseDown={onPaneActivate}
+              >
+                <WebPane
+                  key={pane.id}
+                  url={pane.url}
+                  disableInteraction={resizingNode !== null}
+                  onContextMenu={onWebViewContextMenu}
+                  onTitleChange={(nextTitle) =>
+                    handleWebViewUpdate(tab.id, pane.id, { title: nextTitle })
+                  }
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    },
+    [handleContextMenu, handleWebViewUpdate, resizingNode]
+  );
+
+  const renderSplitNode = useCallback(
+    (
+      node: LayoutSplitNode,
+      tab: Tab,
+      renderChild: (node: LayoutNode, tab: Tab) => React.ReactNode
+    ): React.ReactNode => {
+      // Generate the grid template for this split
+      const gridTemplate = buildGridTemplateStyles(
+        node.children,
+        node.direction
+      );
+
+      return (
+        /* Render the split container (the grid which positions the child panes) */
+        <div
+          data-node-id={node.id}
+          className="grid flex-1 min-h-0 min-w-0 gap-0 overflow-hidden"
+          style={gridTemplate}
+        >
+          {node.children.map((child, index) => {
+            const previousSibling =
+              index !== 0 ? node.children[index - 1] : null;
+            const isBeingResized = resizingNode === child.id;
+
+            const primaryAxis: LayoutResizeAxis | null = previousSibling
+              ? {
+                  containerNodeId: node.id,
+                  direction: node.direction,
+                  leadingNodeId: previousSibling.id,
+                  trailingNodeId: child.id,
+                  leadingSize: previousSibling.size ?? 1,
+                  trailingSize: child.size ?? 1,
+                }
+              : null;
+
+            const primaryAxisKey = primaryAxis ? getAxisKey(primaryAxis) : null;
+            const baseHighlightKeys =
+              primaryAxisKey !== null ? [primaryAxisKey] : [];
+            const isAxisHighlighted =
+              isBeingResized ||
+              (primaryAxisKey !== null &&
+                hoveredAxisKeys.includes(primaryAxisKey));
+
+            const highlightDividerClass = isAxisHighlighted
+              ? "bg-blue-500/60"
+              : "bg-transparent hover:bg-blue-500/40";
+
+            const intersectionHandles = primaryAxis
+              ? computeIntersectionHandles(
+                  previousSibling,
+                  child,
+                  node.direction
+                )
+              : [];
+
+            const clearHover = () => {
+              if (!isBeingResized) {
+                setHoverKeys([]);
+              }
+            };
+
+            return (
+              // Render the pane with optional dividers/handles
+              <div
+                key={child.id}
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${
+                  index !== 0
+                    ? node.direction === "row"
+                      ? "border-l border-white/[0.12]"
+                      : "border-t border-white/[0.12]"
+                    : ""
+                }`}
+              >
+                {primaryAxis && (
+                  <>
+                    <ResizeHandle
+                      direction={node.direction}
+                      highlightClass={highlightDividerClass}
+                      onMouseDown={(e) => {
+                        setHoverKeys(baseHighlightKeys);
+                        handleResizeStart(e, {
+                          tabId: tab.id,
+                          activeHandleId: child.id,
+                          axes: [primaryAxis],
+                        });
+                      }}
+                      onMouseLeave={clearHover}
+                    />
+                    <IntersectionHandles
+                      direction={node.direction}
+                      handles={intersectionHandles}
+                      baseHighlightKeys={baseHighlightKeys}
+                      onHandleMouseDown={(e, handle, highlightKeys) => {
+                        setHoverKeys(highlightKeys);
+                        handleResizeStart(e, {
+                          tabId: tab.id,
+                          activeHandleId: child.id,
+                          axes: [primaryAxis, ...handle.axes],
+                        });
+                      }}
+                      onHandleMouseEnter={(_, highlightKeys) => {
+                        setHoverKeys(highlightKeys);
+                      }}
+                      onHandleMouseLeave={clearHover}
+                    />
+                  </>
+                )}
+                {renderChild(child, tab)}
+              </div>
+            );
+          })}
+        </div>
+      );
+    },
+    [handleResizeStart, hoveredAxisKeys, resizingNode, setHoverKeys]
+  );
+
+  const renderLayout = useCallback(
+    (node: LayoutNode, tab: Tab) => {
+      if (node.type === "pane") {
+        return renderPaneNode(node, tab);
+      }
+      return renderSplitNode(node, tab, renderLayout);
+    },
+    [renderPaneNode, renderSplitNode]
+  );
+
+  return (
+    <div className="flex-1 flex relative min-h-0 overflow-hidden">
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          role="tabpanel"
+          aria-hidden={!tab.isActive}
+          className={
+            tab.isActive
+              ? "flex-1 flex min-h-0 min-w-0 overflow-hidden"
+              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden"
+          }
+        >
+          {renderLayout(tab.layout, tab)}
+        </div>
+      ))}
+      {tabs.length === 0 && (
+        <div className="flex-1 flex min-h-0 min-w-0" aria-live="polite">
+          <div className="flex-1 flex items-center justify-center text-[0.95rem] text-white/60 bg-white/[0.03] border border-dashed border-white/[0.08] rounded-lg m-2">
+            <span>Preparing terminal…</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

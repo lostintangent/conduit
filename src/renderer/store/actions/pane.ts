@@ -1,0 +1,700 @@
+import { tabsAtom } from "@/store/atoms";
+import { disposeSession } from "@/store/terminals";
+import type {
+  LayoutNode,
+  LayoutPaneNode,
+  LayoutSplitNode,
+  Pane,
+  SplitDirection,
+  Tab,
+  TerminalPane,
+} from "@/types";
+import { generateId } from "@/utils/id";
+import {
+  getPaneDirectionConfig,
+  walkLayout,
+  type PaneDirection,
+} from "@/utils/layout";
+import { getDefaultStore } from "jotai";
+
+const api = window.conduit;
+const store = getDefaultStore();
+
+// Internal utilities
+
+/**
+ * Check whether a specific layout node contains a pane.
+ * @param node The layout node to check.
+ * @param paneId The ID of the pane to look for.
+ * @returns True if the pane is found, false otherwise.
+ */
+function containsPane(node: LayoutNode, paneId: string): boolean {
+  let found = false;
+  walkLayout(node, ({ node: current }) => {
+    if (current.type === "pane" && current.paneId === paneId) {
+      found = true;
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
+function splitLayoutNode(
+  node: LayoutNode,
+  targetPaneId: string,
+  direction: SplitDirection,
+  newNode: LayoutNode,
+  insertBefore = false
+): { node: LayoutNode; modified: boolean } {
+  if (node.type === "pane") {
+    if (node.paneId === targetPaneId) {
+      return {
+        node: {
+          id: generateId(),
+          type: "split",
+          direction,
+          children: insertBefore ? [newNode, node] : [node, newNode],
+        },
+        modified: true,
+      };
+    }
+
+    return { node, modified: false };
+  }
+
+  const childIndex = node.children.findIndex((child) =>
+    containsPane(child, targetPaneId)
+  );
+  if (childIndex === -1) {
+    return { node, modified: false };
+  }
+
+  const targetChild = node.children[childIndex];
+
+  if (
+    node.direction === direction &&
+    targetChild.type === "pane" &&
+    targetChild.paneId === targetPaneId
+  ) {
+    const newChildren = [...node.children];
+    newChildren.splice(insertBefore ? childIndex : childIndex + 1, 0, newNode);
+    return {
+      node: {
+        ...node,
+        children: newChildren,
+      },
+      modified: true,
+    };
+  }
+
+  const { node: updatedChild, modified } = splitLayoutNode(
+    targetChild,
+    targetPaneId,
+    direction,
+    newNode,
+    insertBefore
+  );
+  if (modified) {
+    const newChildren = [...node.children];
+    newChildren[childIndex] = updatedChild;
+    return {
+      node: {
+        ...node,
+        children: newChildren,
+      },
+      modified: true,
+    };
+  }
+
+  if (targetChild.type === "pane" && targetChild.paneId === targetPaneId) {
+    const newChildren = [...node.children];
+    newChildren[childIndex] = {
+      id: generateId(),
+      type: "split",
+      direction,
+      children: insertBefore ? [newNode, targetChild] : [targetChild, newNode],
+    };
+    return {
+      node: {
+        ...node,
+        children: newChildren,
+      },
+      modified: true,
+    };
+  }
+
+  return { node, modified: false };
+}
+
+function removePaneFromLayoutNode(
+  node: LayoutNode,
+  targetPaneId: string
+): { node: LayoutNode | null; removed: boolean } {
+  const {
+    node: updatedNode,
+    removedPane,
+    modified,
+  } = extractPaneNode(node, targetPaneId);
+
+  if (!modified || !removedPane) {
+    return { node, removed: false };
+  }
+
+  return {
+    node: updatedNode,
+    removed: true,
+  };
+}
+
+function findFirstPaneId(node: LayoutNode): string {
+  if (node.type === "pane") {
+    return node.paneId;
+  }
+
+  return findFirstPaneId(node.children[0]);
+}
+
+type LayoutPathEntry = {
+  node: LayoutNode;
+  parent: LayoutSplitNode | null;
+  index: number;
+};
+
+function findLayoutPath(
+  node: LayoutNode,
+  predicate: (candidate: LayoutNode) => boolean,
+  parent: LayoutSplitNode | null = null,
+  index = 0
+): LayoutPathEntry[] | null {
+  const currentEntry: LayoutPathEntry = { node, parent, index };
+  if (predicate(node)) {
+    return [currentEntry];
+  }
+
+  if (node.type !== "split") {
+    return null;
+  }
+
+  for (let childIndex = 0; childIndex < node.children.length; childIndex += 1) {
+    const child = node.children[childIndex];
+    const childPath = findLayoutPath(child, predicate, node, childIndex);
+    if (childPath) {
+      return [currentEntry, ...childPath];
+    }
+  }
+
+  return null;
+}
+
+type ExtractPaneResult = {
+  node: LayoutNode | null;
+  removedPane: LayoutPaneNode | null;
+  modified: boolean;
+};
+
+function extractPaneNode(node: LayoutNode, paneId: string): ExtractPaneResult {
+  if (node.type === "pane") {
+    if (node.paneId === paneId) {
+      return { node: null, removedPane: node, modified: true };
+    }
+
+    return { node, removedPane: null, modified: false };
+  }
+
+  let modified = false;
+  let removedPane: LayoutPaneNode | null = null;
+  const newChildren: LayoutNode[] = [];
+
+  node.children.forEach((child) => {
+    if (removedPane) {
+      newChildren.push(child);
+      return;
+    }
+
+    const result = extractPaneNode(child, paneId);
+    if (result.modified) {
+      modified = true;
+    }
+    if (!removedPane && result.removedPane) {
+      removedPane = result.removedPane;
+    }
+    if (result.node) {
+      newChildren.push(result.node);
+    }
+  });
+
+  if (!modified || !removedPane) {
+    return { node, removedPane: null, modified: false };
+  }
+
+  if (newChildren.length === 0) {
+    return { node: null, removedPane, modified: true };
+  }
+
+  if (newChildren.length === 1) {
+    const soleChild = newChildren[0];
+    return { node: soleChild, removedPane, modified: true };
+  }
+
+  if (
+    newChildren.length === node.children.length &&
+    newChildren.every((child, idx) => child === node.children[idx])
+  ) {
+    return { node, removedPane, modified: true };
+  }
+
+  return {
+    node: {
+      ...node,
+      children: newChildren,
+    },
+    removedPane,
+    modified: true,
+  };
+}
+
+export function updatePaneProperty(
+  sessionId: string,
+  updates: Partial<TerminalPane>
+) {
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      let updated = false;
+      const panes = { ...tab.panes };
+
+      Object.values(panes).forEach((pane) => {
+        if (pane.type === "terminal" && pane.sessionId === sessionId) {
+          panes[pane.id] = {
+            ...pane,
+            ...updates,
+          };
+          updated = true;
+        }
+      });
+
+      if (!updated) {
+        return tab;
+      }
+
+      return {
+        ...tab,
+        panes,
+      };
+    })
+  );
+}
+
+export function movePane(
+  tabId: string,
+  paneId: string,
+  direction: PaneDirection
+) {
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      if (!tab.panes[paneId]) {
+        return tab;
+      }
+
+      const path = findLayoutPath(
+        tab.layout,
+        (candidate) => candidate.type === "pane" && candidate.paneId === paneId
+      );
+
+      if (!path || path.length < 2) {
+        return tab;
+      }
+
+      const { splitDirection: targetDirection, isForward } =
+        getPaneDirectionConfig(direction);
+
+      for (let i = path.length - 2; i >= 0; i -= 1) {
+        const ancestorEntry = path[i];
+        if (
+          ancestorEntry.node.type !== "split" ||
+          ancestorEntry.node.direction !== targetDirection
+        ) {
+          continue;
+        }
+
+        const childEntry = path[i + 1];
+        const neighborIndex = childEntry.index + (isForward ? 1 : -1);
+        if (
+          neighborIndex < 0 ||
+          neighborIndex >= ancestorEntry.node.children.length
+        ) {
+          continue;
+        }
+
+        const sourceNode = ancestorEntry.node.children[childEntry.index];
+        const originalChildSize = sourceNode.size;
+        const detachResult = extractPaneNode(sourceNode, paneId);
+        if (!detachResult.modified || !detachResult.removedPane) {
+          continue;
+        }
+
+        const neighborNodeId = ancestorEntry.node.children[neighborIndex].id;
+        const newChildren = [...ancestorEntry.node.children];
+
+        if (detachResult.node) {
+          const updatedChild =
+            originalChildSize !== undefined &&
+            detachResult.node.size === undefined
+              ? { ...detachResult.node, size: originalChildSize }
+              : detachResult.node;
+          newChildren[childEntry.index] = updatedChild;
+        } else {
+          newChildren.splice(childEntry.index, 1);
+        }
+
+        const neighborPosition = newChildren.findIndex(
+          (candidate) => candidate.id === neighborNodeId
+        );
+        if (neighborPosition === -1) {
+          continue;
+        }
+
+        const insertIndex = isForward ? neighborPosition + 1 : neighborPosition;
+        newChildren.splice(insertIndex, 0, detachResult.removedPane);
+
+        const updatedAncestor: LayoutNode = {
+          ...ancestorEntry.node,
+          children: newChildren,
+        };
+
+        let updatedNode: LayoutNode | null = updatedAncestor;
+        for (let j = i - 1; j >= 0; j -= 1) {
+          const parentEntry = path[j];
+          if (parentEntry.node.type !== "split") {
+            continue;
+          }
+
+          const childIndex = path[j + 1].index;
+          const parentChildren = [...parentEntry.node.children];
+
+          if (updatedNode) {
+            parentChildren[childIndex] = updatedNode;
+          } else {
+            parentChildren.splice(childIndex, 1);
+          }
+
+          if (parentChildren.length === 0) {
+            updatedNode = null;
+          } else if (parentChildren.length === 1) {
+            updatedNode = parentChildren[0];
+          } else {
+            updatedNode = {
+              ...parentEntry.node,
+              children: parentChildren,
+            };
+          }
+        }
+
+        if (!updatedNode) {
+          return tab;
+        }
+
+        return {
+          ...tab,
+          layout: updatedNode,
+        };
+      }
+
+      return tab;
+    })
+  );
+}
+
+type DetachPaneResult = {
+  pane: Pane;
+  tabClosed: boolean;
+};
+
+export function detachPane(
+  tabId: string,
+  paneId: string
+): DetachPaneResult | null {
+  const tabs = store.get(tabsAtom);
+  const targetTab = tabs.find((tab) => tab.id === tabId);
+  if (!targetTab) {
+    return null;
+  }
+
+  const targetPane = targetTab.panes[paneId];
+  if (!targetPane) {
+    return null;
+  }
+
+  let detachedPane: Pane | null = null;
+  let tabClosed = false;
+  let removedTabIndex = -1;
+  let removedTabWasActive = false;
+
+  store.set(tabsAtom, (current) => {
+    const next: Tab[] = [];
+
+    current.forEach((tab, index) => {
+      if (tab.id !== tabId) {
+        next.push(tab);
+        return;
+      }
+
+      removedTabIndex = index;
+      const pane = tab.panes[paneId];
+      if (!pane) {
+        next.push(tab);
+        return;
+      }
+
+      const { node: newLayout, removed } = removePaneFromLayoutNode(
+        tab.layout,
+        paneId
+      );
+
+      if (!removed) {
+        next.push(tab);
+        return;
+      }
+
+      detachedPane = pane;
+      const newPanes = { ...tab.panes };
+      delete newPanes[paneId];
+
+      if (!newLayout || Object.keys(newPanes).length === 0) {
+        tabClosed = true;
+        removedTabWasActive = tab.isActive;
+        return;
+      }
+
+      const newActivePaneId =
+        tab.activePaneId === paneId
+          ? findFirstPaneId(newLayout)
+          : tab.activePaneId;
+
+      next.push({
+        ...tab,
+        panes: newPanes,
+        layout: newLayout,
+        activePaneId: newActivePaneId,
+      });
+    });
+
+    if (tabClosed && removedTabWasActive && next.length > 0) {
+      const targetIndex =
+        removedTabIndex >= next.length ? next.length - 1 : removedTabIndex;
+      return next.map((tab, idx) => {
+        if (idx === targetIndex) {
+          return tab.isActive ? tab : { ...tab, isActive: true };
+        }
+        return tab.isActive ? { ...tab, isActive: false } : tab;
+      });
+    }
+
+    return next;
+  });
+
+  if (!detachedPane) {
+    return null;
+  }
+
+  return { pane: detachedPane, tabClosed };
+}
+
+export async function splitPane(
+  tabId: string,
+  paneId: string,
+  direction: SplitDirection,
+  insertBefore = false
+) {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab) {
+    return;
+  }
+
+  const sourcePane = tab.panes[paneId];
+  if (!sourcePane) {
+    return;
+  }
+
+  const defaultCwd =
+    sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
+
+  const result = await api.createTerminal(
+    defaultCwd ? { cwd: defaultCwd } : undefined
+  );
+  if (!result) {
+    return;
+  }
+
+  const newPaneId = generateId();
+  const newPaneState: Pane = {
+    id: newPaneId,
+    type: "terminal",
+    sessionId: result.sessionId,
+    cwd: result.cwd ?? null,
+    processTitle: result.title,
+  };
+
+  const newLayoutNode: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: newPaneId,
+  };
+
+  store.set(tabsAtom, (current) =>
+    current.map((currentTab) => {
+      if (currentTab.id !== tabId) {
+        return currentTab;
+      }
+
+      const { node: newLayout, modified } = splitLayoutNode(
+        currentTab.layout,
+        paneId,
+        direction,
+        newLayoutNode,
+        insertBefore
+      );
+
+      if (!modified) {
+        return currentTab;
+      }
+
+      return {
+        ...currentTab,
+        panes: {
+          ...currentTab.panes,
+          [newPaneId]: newPaneState,
+        },
+        layout: newLayout,
+        activePaneId: newPaneId,
+      };
+    })
+  );
+}
+
+export function openWebViewPane(tabId: string, paneId: string, url: string) {
+  const newPaneId = generateId();
+  const newPaneState: Pane = {
+    id: newPaneId,
+    type: "webview",
+    url,
+  };
+
+  const newLayoutNode: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: newPaneId,
+  };
+
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      const { node: newLayout, modified } = splitLayoutNode(
+        tab.layout,
+        paneId,
+        "row",
+        newLayoutNode,
+        false
+      );
+
+      if (!modified) {
+        return tab;
+      }
+
+      return {
+        ...tab,
+        panes: {
+          ...tab.panes,
+          [newPaneId]: newPaneState,
+        },
+        layout: newLayout,
+        activePaneId: newPaneId,
+      };
+    })
+  );
+}
+
+type RemovePaneOptions = {
+  skipTerminalClose?: boolean;
+};
+
+export function removePane(
+  tabId: string,
+  paneId: string,
+  options: RemovePaneOptions = {}
+) {
+  if (!api) {
+    return;
+  }
+
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      const pane = tab.panes[paneId];
+      if (!pane) {
+        return tab;
+      }
+
+      const { node: newLayout, removed } = removePaneFromLayoutNode(
+        tab.layout,
+        paneId
+      );
+
+      if (!removed || !newLayout) {
+        return tab;
+      }
+
+      if (pane.type === "terminal") {
+        if (!options.skipTerminalClose) {
+          api.closeTerminal(pane.sessionId);
+        }
+        disposeSession(pane.sessionId);
+      }
+
+      const newPanes = { ...tab.panes };
+      delete newPanes[paneId];
+
+      const newActivePaneId =
+        tab.activePaneId === paneId
+          ? findFirstPaneId(newLayout)
+          : tab.activePaneId;
+
+      return {
+        ...tab,
+        panes: newPanes,
+        layout: newLayout,
+        activePaneId: newActivePaneId,
+      };
+    })
+  );
+}
+
+export function activatePane(tabId: string, paneId: string) {
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      if (tab.activePaneId === paneId) {
+        return tab;
+      }
+
+      return {
+        ...tab,
+        activePaneId: paneId,
+      };
+    })
+  );
+}

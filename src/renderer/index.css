@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #1e1e1e;
+  --color-surface-elevated: #1f1f1f;
+  --color-surface-muted: #141414;
+  --color-input: #121212;
+  --color-border: #2b2b2b;
+  --color-border-muted: #333333;
+  --color-foreground: #d4d4d4;
+  --color-foreground-inverse: #1f1f1f;
+  --color-selection: #264f78;
+  --color-accent: #3b82f6;
+  --color-accent-start: #3f8cff;
+  --color-accent-end: #9358ff;
+  --color-focus-ring: rgba(63, 140, 255, 0.6);
+}
+
+:root {
+  color-scheme: dark;
+  background-color: var(--color-surface);
+  color: var(--color-foreground);
+  accent-color: var(--color-accent);
+}
+
+::selection {
+  background-color: var(--color-selection);
+  color: var(--color-foreground);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Fira Code', Menlo, monospace;
+  background-color: inherit;
+  color: inherit;
+}
+
+body {
+  display: flex;
+  min-height: 100%;
+}
+
+#root {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.terminal-container .xterm {
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.terminal-container .xterm-viewport {
+  width: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+}
+
+.terminal-container .xterm-screen {
+  width: 100% !important;
+}
+
+.terminal-container .xterm-screen canvas {
+  max-width: 100%;
+}
+
+.title-bar {
+  -webkit-app-region: drag;
+  user-select: none;
+  cursor: pointer;
+}
