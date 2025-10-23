@@ -78,7 +78,7 @@ const computeIntersectionHandles = (
 
   const prevBoundaries =
     previousSibling.type === "split" &&
-    previousSibling.direction === perpendicularDirection
+      previousSibling.direction === perpendicularDirection
       ? collectBoundaries(previousSibling)
       : [];
 
@@ -217,8 +217,8 @@ export function TabLayout({
         clientY: number;
       }) => {
         const syntheticEvent = {
-          preventDefault: () => {},
-          stopPropagation: () => {},
+          preventDefault: () => { },
+          stopPropagation: () => { },
           clientX: coords.clientX,
           clientY: coords.clientY,
         } as React.MouseEvent;
@@ -294,13 +294,13 @@ export function TabLayout({
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
-                  containerNodeId: node.id,
-                  direction: node.direction,
-                  leadingNodeId: previousSibling.id,
-                  trailingNodeId: child.id,
-                  leadingSize: previousSibling.size ?? 1,
-                  trailingSize: child.size ?? 1,
-                }
+                containerNodeId: node.id,
+                direction: node.direction,
+                leadingNodeId: previousSibling.id,
+                trailingNodeId: child.id,
+                leadingSize: previousSibling.size ?? 1,
+                trailingSize: child.size ?? 1,
+              }
               : null;
 
             const primaryAxisKey = primaryAxis ? getAxisKey(primaryAxis) : null;
@@ -317,10 +317,10 @@ export function TabLayout({
 
             const intersectionHandles = primaryAxis
               ? computeIntersectionHandles(
-                  previousSibling,
-                  child,
-                  node.direction
-                )
+                previousSibling,
+                child,
+                node.direction
+              )
               : [];
 
             const clearHover = () => {
@@ -333,13 +333,12 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${
-                  index !== 0
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${index !== 0
                     ? node.direction === "row"
                       ? "border-l border-white/[0.12]"
                       : "border-t border-white/[0.12]"
                     : ""
-                }`}
+                  }`}
               >
                 {primaryAxis && (
                   <>
@@ -412,8 +411,8 @@ export function TabLayout({
               clientY: number;
             }) => {
               const syntheticEvent = {
-                preventDefault: () => {},
-                stopPropagation: () => {},
+                preventDefault: () => { },
+                stopPropagation: () => { },
                 clientX: coords.clientX,
                 clientY: coords.clientY,
               } as React.MouseEvent;

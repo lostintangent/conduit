@@ -36,9 +36,9 @@ export function FocusModeIndicator({
       <div className="flex flex-col gap-0.5">
         <div className="font-semibold text-blue-400">Focus Mode{paneInfo}</div>
         <div className="text-white/60">
-          <kbd className="rounded bg-white/10 px-1 py-0.5 text-[10px]">⌘⇧D</kbd>
+          <kbd className="rounded bg-white/10 px-1 py-0.5 text-[10px]">⌘←</kbd>
           {" / "}
-          <kbd className="rounded bg-white/10 px-1 py-0.5 text-[10px]">⌘⇧G</kbd>
+          <kbd className="rounded bg-white/10 px-1 py-0.5 text-[10px]">⌘→</kbd>
           {" navigate • "}
           <kbd className="rounded bg-white/10 px-1 py-0.5 text-[10px]">⌘⇧F</kbd>
           {" exit"}

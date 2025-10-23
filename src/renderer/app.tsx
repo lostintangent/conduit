@@ -1,5 +1,4 @@
 import { CommandPalette } from "@/components/CommandPalette";
-import { FocusModeInfoDialog } from "@/components/FocusModeInfoDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
 import { TabTitleDialog } from "@/components/tabs/TabTitleDialog";
@@ -9,8 +8,7 @@ import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import { enterFocusMode, hasMultiplePanes } from "@/store/actions/focusMode";
-import { removePane, splitPane } from "@/store/actions/pane";
+import { removePane } from "@/store/actions/pane";
 import {
   closeTab,
   openTab,
@@ -29,7 +27,6 @@ export function App() {
     tabPosition,
     alwaysShowTabStrip,
     commandHistory,
-    updatePreferences,
     recordCommandHistoryEntry,
     removeCommandHistoryEntry,
   } = useAppPreferences();
@@ -38,8 +35,6 @@ export function App() {
     isCommandPaletteOpen,
     openCommandPalette,
     closeCommandPalette,
-    showFocusModeInfo,
-    setShowFocusModeInfo,
   } = useGlobalKeyHandlers();
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
@@ -390,32 +385,6 @@ export function App() {
         />
       )}
 
-      <FocusModeInfoDialog
-        isOpen={showFocusModeInfo}
-        onClose={() => setShowFocusModeInfo(false)}
-        onConfirm={(dontShowAgain) => {
-          if (dontShowAgain) {
-            updatePreferences({ hasSeenFocusModeInfo: true });
-          }
-          setShowFocusModeInfo(false);
-
-          // Trigger focus mode after dismissing dialog
-          const activeTab = tabs.find((tab) => tab.isActive);
-          if (activeTab) {
-            if (hasMultiplePanes(activeTab)) {
-              enterFocusMode(activeTab.id, activeTab.activePaneId);
-            } else {
-              // Perform vertical split
-              void splitPane(
-                activeTab.id,
-                activeTab.activePaneId,
-                "column",
-                false
-              );
-            }
-          }
-        }}
-      />
     </div>
   );
 }
