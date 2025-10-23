@@ -6,14 +6,16 @@ type Resizable = { size?: number };
 export type LayoutPaneNode = {
   type: "pane";
   paneId: string;
-} & Identifiable & Resizable;
+} & Identifiable &
+  Resizable;
 
 export type SplitDirection = "row" | "column";
 export type LayoutSplitNode = {
   type: "split";
   direction: SplitDirection;
   children: LayoutNode[];
-} & Identifiable & Resizable;
+} & Identifiable &
+  Resizable;
 
 export type LayoutNode = LayoutPaneNode | LayoutSplitNode;
 
@@ -38,7 +40,8 @@ export type Tab = {
   panes: Record<string, Pane>;
   layout: LayoutNode;
   isActive: boolean;
-  activePaneId: string;  
+  activePaneId: string;
+  focusedPaneId?: string;
   title?: string;
 } & Identifiable;
 

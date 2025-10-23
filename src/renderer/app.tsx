@@ -27,13 +27,15 @@ export function App() {
     tabPosition,
     alwaysShowTabStrip,
     commandHistory,
-
     recordCommandHistoryEntry,
     removeCommandHistoryEntry,
   } = useAppPreferences();
 
-  const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
-    useGlobalKeyHandlers();
+  const {
+    isCommandPaletteOpen,
+    openCommandPalette,
+    closeCommandPalette,
+  } = useGlobalKeyHandlers();
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
@@ -60,7 +62,7 @@ export function App() {
   useEffect(() => {
     const api = window.conduit;
     if (!api) {
-      return () => { };
+      return () => {};
     }
 
     const unsubscribeExit = api.onExit(({ sessionId }) => {
@@ -289,13 +291,7 @@ export function App() {
     }
 
     return items;
-  }, [
-    closeTab,
-    hasCustomLayout,
-    openTab,
-    resetLayoutSizes,
-    tabs,
-  ]);
+  }, [closeTab, hasCustomLayout, openTab, resetLayoutSizes, tabs]);
 
   const handleCloseTerminalModal = useCallback(() => {
     setTerminalModalState((current) => {
@@ -388,6 +384,7 @@ export function App() {
           onOpenAsTab={handleOpenModalAsTab}
         />
       )}
+
     </div>
   );
 }

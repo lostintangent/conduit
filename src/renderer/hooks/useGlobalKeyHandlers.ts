@@ -1,3 +1,10 @@
+import {
+  enterFocusMode,
+  exitFocusMode,
+  hasMultiplePanes,
+  isFocusModeActive,
+  navigateFocusedPane,
+} from "@/store/actions/focusMode";
 import { movePane, splitPane } from "@/store/actions/pane";
 import {
   navigatePane,
@@ -59,6 +66,31 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
+      // Cmd+Shift+F: Toggle focus mode
+      if (event.metaKey && event.shiftKey && !event.altKey && key === "f") {
+        event.preventDefault();
+
+        const activeTab = tabs.find((tab) => tab.isActive);
+        if (!activeTab) return;
+
+        // Check if already in focus mode
+        if (activeTab.focusedPaneId) {
+          exitFocusMode(activeTab.id);
+          return;
+        }
+
+        // Check if multiple panes exist (is split)
+        if (hasMultiplePanes(activeTab)) {
+          // Enter focus mode on active pane
+          enterFocusMode(activeTab.id, activeTab.activePaneId);
+        } else {
+          // Not split yet - perform vertical split
+          void performSplit("column", false);
+        }
+
+        return;
+      }
+
       if (!event.metaKey) {
         return;
       }
@@ -99,7 +131,23 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
             const config = splitConfig[direction];
             void performSplit(config.direction, config.insertBefore);
           } else {
-            navigatePane(activeTab.id, activeTab.activePaneId, direction);
+            if (isFocusModeActive(activeTab)) {
+              const focusModeDirectionMap: Record<
+                PaneNavigationDirection,
+                "next" | "prev"
+              > = {
+                left: "prev",
+                up: "prev",
+                right: "next",
+                down: "next",
+              };
+              navigateFocusedPane(
+                activeTab.id,
+                focusModeDirectionMap[direction]
+              );
+            } else {
+              navigatePane(activeTab.id, activeTab.activePaneId, direction);
+            }
           }
         }
         return;
