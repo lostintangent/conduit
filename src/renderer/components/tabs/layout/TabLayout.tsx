@@ -251,6 +251,7 @@ export function TabLayout({
                 <WebPane
                   key={pane.id}
                   url={pane.url}
+                  isActive={isActivePane}
                   disableInteraction={resizingNode !== null}
                   onContextMenu={onWebViewContextMenu}
                   onTitleChange={(nextTitle) =>

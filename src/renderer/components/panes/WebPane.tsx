@@ -1,18 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
 import type {
-  DidNavigateEvent,
-  DidNavigateInPageEvent,
+  ContextMenuParams,
   PageTitleUpdatedEvent,
   WebviewTag,
-  ContextMenuParams,
 } from "electron";
+import { Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 type WebPaneProps = {
   url: string;
   onTitleChange?: (title: string) => void;
   disableInteraction?: boolean;
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
+  isActive?: boolean;
 };
 
 export function WebPane({
@@ -20,6 +19,7 @@ export function WebPane({
   onTitleChange,
   disableInteraction = false,
   onContextMenu,
+  isActive = true,
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -48,7 +48,7 @@ export function WebPane({
         clientY: top + y,
       });
     };
-    
+
     webview.addEventListener("context-menu", handleWebViewContextMenu);
 
     return () => {
@@ -68,6 +68,9 @@ export function WebPane({
         style={disableInteraction ? { pointerEvents: "none" } : undefined}
         src={url}
       />
+      {!isActive && (
+        <div className="pointer-events-none absolute inset-0 bg-black/15" />
+      )}
       {isLoading && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
           <Loader2 className="h-8 w-8 text-white/80 animate-spin" />
