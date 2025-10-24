@@ -1,3 +1,4 @@
+import { ArrowBigUp, ArrowLeft, ArrowRight, Command } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type FocusModeIndicatorProps = {
@@ -25,11 +26,11 @@ export function FocusModeIndicator({
 
   const paneInfo =
     currentPaneIndex !== undefined && totalPanes !== undefined
-      ? ` • ${currentPaneIndex + 1} of ${totalPanes}`
+      ? ` (${currentPaneIndex + 1} of ${totalPanes})`
       : "";
 
   const baseButtonClass =
-    "rounded bg-white/10 px-1 py-0.5 text-[13px] text-white/80 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 hover:bg-white/20 cursor-pointer";
+    "rounded bg-white/10 px-1 py-1 text-white/80 items-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 hover:bg-white/20 cursor-pointer flex";
 
   return (
     <div
@@ -38,16 +39,17 @@ export function FocusModeIndicator({
       role="status"
       aria-live="polite"
     >
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         <div className="font-semibold text-blue-400">Focus Mode{paneInfo}</div>
-        <div>
+        <div className="flex gap-1 items-center">
           <button
             type="button"
             className={baseButtonClass}
             onClick={onPrevious}
             aria-label="Previous pane"
           >
-            ⌘←
+            <Command size={12} />
+            <ArrowLeft size={12} />
           </button>
           {" / "}
           <button
@@ -56,16 +58,18 @@ export function FocusModeIndicator({
             onClick={onNext}
             aria-label="Next pane"
           >
-            ⌘→
+            <Command size={12} />
+            <ArrowRight size={12} />
           </button>
           {" / "}
           <button
             type="button"
             className={baseButtonClass}
-            onClick={() => onExit()}
+            onClick={onExit}
             aria-label="Exit focus mode"
           >
-            ⌘⇧F (Exit)
+            <Command size={12} />
+            <ArrowBigUp size={12} />F (Exit)
           </button>
         </div>
       </div>
