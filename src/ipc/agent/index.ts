@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
-import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -75,12 +75,8 @@ async function runGit(
       stderr?: string | Buffer;
     };
 
-    const stdout = execError.stdout
-      ? execError.stdout.toString()
-      : "";
-    const stderr = execError.stderr
-      ? execError.stderr.toString()
-      : "";
+    const stdout = execError.stdout ? execError.stdout.toString() : "";
+    const stderr = execError.stderr ? execError.stderr.toString() : "";
 
     const message = stderr.trim().length > 0 ? stderr.trim() : stdout.trim();
     throw new Error(
@@ -109,7 +105,9 @@ export async function spawnAgentSession(
   payload: AgentSessionSpawnRequest
 ): Promise<AgentSessionInfo> {
   if (!payload.cwd) {
-    throw new Error("A current working directory is required to spawn a session");
+    throw new Error(
+      "A current working directory is required to spawn a session"
+    );
   }
 
   const repoRoot = await findRepoRoot(payload.cwd);
@@ -148,7 +146,12 @@ export async function spawnAgentSession(
   const shortId = sessionId.slice(0, 8);
   const branchName = `agent/${timestampSlug}-${branchBase}-${shortId}`;
   const worktreeSlug = `${timestampSlug}-${shortId}`;
-  const worktreePath = path.join(repoRoot, ".conduit", "worktrees", worktreeSlug);
+  const worktreePath = path.join(
+    repoRoot,
+    ".conduit",
+    "worktrees",
+    worktreeSlug
+  );
 
   await ensureParentDirectories(worktreePath);
 
@@ -212,7 +215,7 @@ export async function finalizeAgentSession(
   const session = agentSessions.get(payload.sessionId);
   if (!session) {
     throw new Error(
-      `Unable to finalize agent session ${payload.sessionId}; it no longer exists.`
+      `Unable to merge agent session ${payload.sessionId}; it no longer exists.`
     );
   }
 
@@ -224,10 +227,7 @@ export async function finalizeAgentSession(
     );
   }
 
-  const repoStatus = await runGit(session.repoRoot, [
-    "status",
-    "--porcelain",
-  ]);
+  const repoStatus = await runGit(session.repoRoot, ["status", "--porcelain"]);
   if (repoStatus.stdout.trim().length > 0) {
     throw new Error(
       "Primary repository has uncommitted changes. Please stash or commit before finalizing an agent session."
@@ -286,14 +286,16 @@ export async function finalizeAgentSession(
       session.worktreePath,
     ]);
 
-    await safeGitCommand(session.repoRoot, ["branch", "-D", session.branchName]);
+    await safeGitCommand(session.repoRoot, [
+      "branch",
+      "-D",
+      session.branchName,
+    ]);
 
     agentSessions.delete(payload.sessionId);
 
     return {
-      status: mergeStdout.includes("Already up to date")
-        ? "noop"
-        : "merged",
+      status: mergeStdout.includes("Already up to date") ? "noop" : "merged",
       message,
     };
   } catch (error) {
@@ -302,8 +304,7 @@ export async function finalizeAgentSession(
       await safeGitCommand(session.repoRoot, ["merge", "--abort"]);
       return {
         status: "conflict",
-        message:
-          `Merge conflicts detected while integrating ${session.branchName}. Resolve conflicts in ${session.repoRoot}, commit the result, then rerun finalize or abandon the session if you no longer need it.`,
+        message: `Merge conflicts detected while integrating ${session.branchName}. Resolve conflicts in ${session.repoRoot}, commit the result, then rerun merge and close or terminate the session.`,
       };
     }
 

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
 import type { AgentSessionInfo } from "@shared/types";
+import { useEffect, useMemo, useState } from "react";
 
 type AgentCleanupDialogProps = {
   isOpen: boolean;
@@ -60,7 +60,7 @@ export function AgentCleanupDialog({
         className="w-[520px] max-w-[94vw] rounded-xl border border-white/10 bg-surface-elevated p-5 text-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold">Abandon agent sessions</h2>
+        <h2 className="text-lg font-semibold">Manage agent sessions</h2>
         <p className="mt-1 text-sm text-white/70">
           Select one or more sessions to remove. Removing a session deletes its
           temporary worktree and branch without merging the changes.
@@ -108,7 +108,9 @@ export function AgentCleanupDialog({
         <div className="mt-5 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => onRemove(sortedSessions.map((session) => session.id))}
+            onClick={() =>
+              onRemove(sortedSessions.map((session) => session.id))
+            }
             className="rounded-md border border-white/20 px-3 py-2 text-sm font-medium text-white transition hover:border-white/40"
           >
             Remove all

@@ -1,5 +1,6 @@
-import { CommandPalette } from "@/components/CommandPalette";
 import { AgentCleanupDialog } from "@/components/AgentCleanupDialog";
+import { CommandPalette } from "@/components/CommandPalette";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import { SessionNameDialog } from "@/components/SessionNameDialog";
 import { SessionPickerDialog } from "@/components/SessionPickerDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
@@ -8,7 +9,6 @@ import { TabTitleDialog } from "@/components/tabs/TabTitleDialog";
 import { TerminalDialog } from "@/components/TerminalDialog";
 import { TitleBar } from "@/components/TitleBar";
 import { UrlDialog } from "@/components/UrlDialog";
-import { NotificationCenter } from "@/components/NotificationCenter";
 import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -22,8 +22,8 @@ import {
   updateTabProperty,
 } from "@/store/actions/tab";
 import { tabsAtom } from "@/store/atoms";
-import { disposeSession } from "@/store/terminals";
 import { enqueueNotification, updateNotification } from "@/store/notifications";
+import { disposeSession } from "@/store/terminals";
 import type { Command } from "@/types";
 import type { AgentSessionInfo, SavedSession } from "@shared/types";
 import { useAtom } from "jotai";
@@ -60,8 +60,9 @@ export function App() {
   const [showSessionPicker, setShowSessionPicker] = useState(false);
   const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
-  const [cleanupDialogSessions, setCleanupDialogSessions] =
-    useState<AgentSessionInfo[] | null>(null);
+  const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
+    AgentSessionInfo[] | null
+  >(null);
 
   useEffect(() => {
     return registerTabEventHandlers();
@@ -273,10 +274,7 @@ export function App() {
     (sessionId: string) => {
       tabs.forEach((tab) => {
         Object.entries(tab.panes).forEach(([paneId, pane]) => {
-          if (
-            pane.type === "terminal" &&
-            pane.agentSessionId === sessionId
-          ) {
+          if (pane.type === "terminal" && pane.agentSessionId === sessionId) {
             removePane(tab.id, paneId);
           }
         });
@@ -323,7 +321,8 @@ export function App() {
           closeAgentSessionPanes(session.id);
           successCount += 1;
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           failures.push(
             `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`
           );
@@ -449,9 +448,8 @@ export function App() {
 
     items.push({
       id: "cleanup-agent-sessions",
-      label: "Abandon agent session…",
-      description:
-        "Remove one or all agent worktrees without merging their changes",
+      label: "Manage agent sessions…",
+      description: "Remove one or all agent worktrees without merging",
       run: async () => {
         const api = window.conduit;
         if (!api) {
@@ -463,7 +461,7 @@ export function App() {
           if (sessions.length === 0) {
             enqueueNotification({
               kind: "info",
-              message: "No agent sessions to abandon.",
+              message: "No agent sessions.",
               autoCloseMs: 2500,
             });
             return;
@@ -471,7 +469,8 @@ export function App() {
 
           setCleanupDialogSessions(sessions);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           enqueueNotification({
             kind: "error",
             message: "Unable to list agent sessions",
@@ -521,20 +520,18 @@ export function App() {
       if (activePane.agentSessionId) {
         items.push({
           id: "finalize-agent-session",
-          label: "Finalize agent session",
-          description:
-            "Commit, merge, and close the isolated agent worktree for this pane",
+          label: "Merge and close agent session",
+          description: "Commit, merge, and close the isolated agent worktree",
           run: async () => {
             const api = window.conduit;
             if (!api) {
               return;
             }
 
-            const branchLabel =
-              activePane.agentBranchName ?? "agent session";
+            const branchLabel = activePane.agentBranchName ?? "agent session";
             const notificationId = enqueueNotification({
               kind: "info",
-              message: `Finalizing ${branchLabel}...`,
+              message: `Merging ${branchLabel}...`,
               persistent: true,
             });
 
@@ -568,7 +565,7 @@ export function App() {
                 error instanceof Error ? error.message : String(error);
               updateNotification(notificationId, {
                 kind: "error",
-                message: "Failed to finalize agent session",
+                message: "Failed to merge and close agent session",
                 details: message,
                 autoCloseMs: null,
               });
@@ -578,7 +575,7 @@ export function App() {
 
         items.push({
           id: "cleanup-agent-session",
-          label: "Abandon agent session",
+          label: "Terminate agent session",
           description: "Remove the isolated worktree without merging",
           run: async () => {
             const api = window.conduit;
@@ -586,8 +583,7 @@ export function App() {
               return;
             }
 
-            const branchLabel =
-              activePane.agentBranchName ?? "agent session";
+            const branchLabel = activePane.agentBranchName ?? "agent session";
             const notificationId = enqueueNotification({
               kind: "info",
               message: `Cleaning up ${branchLabel}...`,
@@ -602,7 +598,7 @@ export function App() {
               closePane(activeTab.id, activePane.id);
               updateNotification(notificationId, {
                 kind: "success",
-                message: "Agent session removed",
+                message: "Agent session terminated",
                 details: result.message,
                 autoCloseMs: 4000,
               });
