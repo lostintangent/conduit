@@ -1,5 +1,6 @@
 import { tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
+import { enqueueNotification } from "@/store/notifications";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -591,6 +592,62 @@ export async function splitPane(
       };
     })
   );
+}
+
+export async function splitPaneWithAgentSession(
+  tabId: string,
+  paneId: string,
+  direction: SplitDirection,
+  insertBefore = false
+) {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab) {
+    return;
+  }
+
+  const sourcePane = tab.panes[paneId];
+  if (!sourcePane) {
+    return;
+  }
+
+  const paneCwd =
+    sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
+
+  if (!paneCwd) {
+    return;
+  }
+
+  try {
+    const session = await api.spawnAgentSession({ cwd: paneCwd });
+    if (!session) {
+      return;
+    }
+
+    await splitPane(tabId, paneId, direction, insertBefore, {
+      terminalOptions: { cwd: session.worktreePath },
+      agentSession: session,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    if (errorMessage.includes("Unable to find a Git repository")) {
+      enqueueNotification({
+        kind: "error",
+        message: "No Git repository found",
+        details: "The current directory is not part of a Git repository. Agent sessions require a Git repository to create an isolated worktree.",
+        autoCloseMs: 5000,
+      });
+    } else {
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to spawn agent session",
+        details: errorMessage,
+        autoCloseMs: 5000,
+      });
+    }
+    console.error("Failed to spawn agent session during split", error);
+  }
 }
 
 export function openWebViewPane(tabId: string, paneId: string, url: string) {

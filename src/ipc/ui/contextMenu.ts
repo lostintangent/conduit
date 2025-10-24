@@ -4,6 +4,7 @@ export type ContextMenuOptions = {
   tabId: string;
   paneId?: string;
   canChangeTitle: boolean;
+  hasGitRepo?: boolean;
 };
 
 export function showContextMenu(
@@ -48,6 +49,31 @@ export function showContextMenu(
       accelerator: "Cmd+Shift+Down",
       click: () => sendActionToRenderer("split-bottom"),
     },
+    ...(options.hasGitRepo
+      ? [
+          { type: "separator" as const },
+          {
+            label: "Split left with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Left",
+            click: () => sendActionToRenderer("split-left-agent"),
+          },
+          {
+            label: "Split right with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Right",
+            click: () => sendActionToRenderer("split-right-agent"),
+          },
+          {
+            label: "Split top with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Up",
+            click: () => sendActionToRenderer("split-top-agent"),
+          },
+          {
+            label: "Split bottom with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Down",
+            click: () => sendActionToRenderer("split-bottom-agent"),
+          },
+        ]
+      : []),
     { type: "separator" },
     {
       label: "Move left",

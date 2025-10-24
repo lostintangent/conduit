@@ -343,6 +343,15 @@ export async function cleanupAgentSession(
   };
 }
 
+export async function hasGitRepository(cwd: string): Promise<boolean> {
+  try {
+    const repoRoot = await findRepoRoot(cwd);
+    return repoRoot !== null;
+  } catch {
+    return false;
+  }
+}
+
 export function initializeAgentHandlers() {
   ipcMain.handle("agent:spawn-session", async (_event, payload) => {
     return await spawnAgentSession(payload);
@@ -356,5 +365,9 @@ export function initializeAgentHandlers() {
 
   ipcMain.handle("agent:cleanup-session", async (_event, payload) => {
     return await cleanupAgentSession(payload);
+  });
+
+  ipcMain.handle("agent:has-git-repo", async (_event, cwd: string) => {
+    return await hasGitRepository(cwd);
   });
 }

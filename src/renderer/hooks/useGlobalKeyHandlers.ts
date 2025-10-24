@@ -4,7 +4,7 @@ import {
   isFocusModeActive,
   navigateFocusedPane
 } from "@/store/actions/focusMode";
-import { movePane, splitPane } from "@/store/actions/pane";
+import { movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import {
   navigatePane,
   type PaneNavigationDirection,
@@ -49,6 +49,24 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       focusTab(activeTab.id);
     },
     [focusTab, splitPane, tabs]
+  );
+
+  const performSplitWithAgentSession = useCallback(
+    async (direction: SplitDirection, insertBefore = false) => {
+      const activeTab = tabs.find((tab) => tab.isActive);
+      if (!activeTab) {
+        return;
+      }
+
+      await splitPaneWithAgentSession(
+        activeTab.id,
+        activeTab.activePaneId,
+        direction,
+        insertBefore
+      );
+      focusTab(activeTab.id);
+    },
+    [focusTab, tabs]
   );
 
   useEffect(() => {
@@ -111,6 +129,18 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
           event.preventDefault();
           if (event.altKey) {
             movePane(activeTab.id, activeTab.activePaneId, direction);
+          } else if (event.shiftKey && event.ctrlKey) {
+            const splitConfig: Record<
+              PaneNavigationDirection,
+              { direction: SplitDirection; insertBefore: boolean }
+            > = {
+              left: { direction: "row", insertBefore: true },
+              right: { direction: "row", insertBefore: false },
+              up: { direction: "column", insertBefore: true },
+              down: { direction: "column", insertBefore: false },
+            };
+            const config = splitConfig[direction];
+            void performSplitWithAgentSession(config.direction, config.insertBefore);
           } else if (event.shiftKey) {
             const splitConfig: Record<
               PaneNavigationDirection,
@@ -179,6 +209,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     movePaneToTab,
     openTab,
     performSplit,
+    performSplitWithAgentSession,
     tabs,
   ]);
 

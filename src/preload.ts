@@ -108,6 +108,7 @@ const conduitAPI = {
     tabId: string;
     paneId?: string;
     canChangeTitle: boolean;
+    hasGitRepo?: boolean;
   }) => ipcRenderer.send("ui:show-context-menu", options),
 
   addCommandHistoryEntry: (command: string) =>
@@ -151,6 +152,9 @@ const conduitAPI = {
 
   listAgentSessions: () =>
     ipcRenderer.invoke("agent:list-sessions") as Promise<AgentSessionInfo[]>,
+
+  hasGitRepository: (cwd: string) =>
+    ipcRenderer.invoke("agent:has-git-repo", cwd) as Promise<boolean>,
 
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
