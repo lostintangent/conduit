@@ -1,9 +1,8 @@
 import {
   enterFocusMode,
   exitFocusMode,
-  hasMultiplePanes,
   isFocusModeActive,
-  navigateFocusedPane,
+  navigateFocusedPane
 } from "@/store/actions/focusMode";
 import { movePane, splitPane } from "@/store/actions/pane";
 import {
@@ -56,6 +55,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     const handleKeydown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
 
+      // Cmd+Shift+P: Toggle command palette
       if (event.metaKey && event.shiftKey && !event.altKey && key === "p") {
         event.preventDefault();
         setCommandPaletteOpen((current) => !current);
@@ -73,21 +73,12 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         const activeTab = tabs.find((tab) => tab.isActive);
         if (!activeTab) return;
 
-        // Check if already in focus mode
         if (activeTab.mode === "focus") {
           exitFocusMode(activeTab.id);
           return;
         }
 
-        // Check if multiple panes exist (is split)
-        if (hasMultiplePanes(activeTab)) {
-          // Enter focus mode on active pane
-          enterFocusMode(activeTab.id, activeTab.activePaneId);
-        } else {
-          // Not split yet - perform vertical split
-          void performSplit("column", false);
-        }
-
+        enterFocusMode(activeTab.id, activeTab.activePaneId);
         return;
       }
 
@@ -95,6 +86,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
+      // Cmd+Alt+T: Move pane to new tab
       if (event.altKey && key === "t") {
         const activeTab = tabs.find((tab) => tab.isActive);
         if (activeTab && activeTab.activePaneId) {
@@ -111,6 +103,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         arrowdown: "down",
       };
 
+      // Cmd+Arrow: Navigate or move pane or split pane
       const direction = directionKeyMap[key];
       if (direction) {
         const activeTab = tabs.find((tab) => tab.isActive);
@@ -157,12 +150,14 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
+      // Cmd+T: Open new tab
       if (key === "t" && !event.altKey) {
         event.preventDefault();
         openTab();
         return;
       }
 
+      // Cmd+1, Cmd+2, ... Cmd+9: Focus tab by index
       const tabNumber = Number.parseInt(key, 10);
       if (Number.isNaN(tabNumber) || tabNumber < 1) {
         return;
