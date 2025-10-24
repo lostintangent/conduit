@@ -7,7 +7,11 @@ import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
 } from "@/hooks/useLayoutResizing";
-import { exitFocusMode, getAllPaneIds } from "@/store/actions/focusMode";
+import {
+  exitFocusMode,
+  getAllPaneIds,
+  navigateFocusedPane,
+} from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type {
@@ -335,10 +339,10 @@ export function TabLayout({
               <div
                 key={child.id}
                 className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${index !== 0
-                    ? node.direction === "row"
-                      ? "border-l border-white/[0.12]"
-                      : "border-t border-white/[0.12]"
-                    : ""
+                  ? node.direction === "row"
+                    ? "border-l border-white/[0.12]"
+                    : "border-t border-white/[0.12]"
+                  : ""
                   }`}
               >
                 {primaryAxis && (
@@ -407,6 +411,8 @@ export function TabLayout({
           {renderPaneNode(paneNode, tab)}
           <FocusModeIndicator
             onExit={() => exitFocusMode(tab.id)}
+            onPrevious={() => navigateFocusedPane(tab.id, "prev")}
+            onNext={() => navigateFocusedPane(tab.id, "next")}
             currentPaneIndex={currentIndex}
             totalPanes={paneIds.length}
           />
