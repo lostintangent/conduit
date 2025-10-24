@@ -10,6 +10,7 @@ import type {
 import { exitFocusMode, getAllPaneIds } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
+import { findPaneNodeByPaneId } from "@/utils/layout";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -394,94 +395,53 @@ export function TabLayout({
     [renderPaneNode, renderSplitNode]
   );
 
+  const renderFocusMode = useCallback(
+    (tab: Tab) => {
+      const focusedPaneId = tab.focusedPaneId;
+      const paneNode = findPaneNodeByPaneId(tab.layout, focusedPaneId);
+
+      const paneIds = getAllPaneIds(tab);
+      const currentIndex = paneIds.indexOf(focusedPaneId);
+
+      return (
+        <>
+          {renderPaneNode(paneNode, tab)}
+          <FocusModeIndicator
+            onExit={() => exitFocusMode(tab.id)}
+            currentPaneIndex={currentIndex}
+            totalPanes={paneIds.length}
+          />
+        </>
+      );
+    },
+    [renderPaneNode]
+  );
+
+  const renderTab = useCallback(
+    (tab: Tab): React.ReactNode => {
+      return (
+        <div
+          key={tab.id}
+          role="tabpanel"
+          aria-hidden={!tab.isActive}
+          className={
+            tab.isActive
+              ? "flex-1 flex min-h-0 min-w-0 overflow-hidden"
+              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden"
+          }
+        >
+          {tab.focusedPaneId
+            ? renderFocusMode(tab)
+            : renderLayout(tab.layout, tab)}
+        </div>
+      );
+    },
+    [renderFocusMode, renderLayout]
+  );
+
   return (
     <div className="flex-1 flex relative min-h-0 overflow-hidden">
-      {tabs.map((tab) => {
-        // Check if focus mode is active for this tab
-        if (tab.focusedPaneId && tab.isActive) {
-          const focusedPane = tab.panes[tab.focusedPaneId];
-          if (focusedPane) {
-            const paneIds = getAllPaneIds(tab);
-            const currentIndex = paneIds.indexOf(tab.focusedPaneId);
-            const onPaneContextMenu = (event: React.MouseEvent) =>
-              handleContextMenu(event, tab.id, focusedPane.id);
-            const onPaneActivate = () => activatePane(tab.id, focusedPane.id);
-            const onWebViewContextMenu = (coords: {
-              clientX: number;
-              clientY: number;
-            }) => {
-              const syntheticEvent = {
-                preventDefault: () => { },
-                stopPropagation: () => { },
-                clientX: coords.clientX,
-                clientY: coords.clientY,
-              } as React.MouseEvent;
-              handleContextMenu(syntheticEvent, tab.id, focusedPane.id);
-            };
-
-            return (
-              <div
-                key={tab.id}
-                role="tabpanel"
-                className="flex-1 flex min-h-0 min-w-0 overflow-hidden"
-              >
-                <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
-                  {focusedPane.type === "terminal" ? (
-                    <TerminalPane
-                      key={focusedPane.sessionId}
-                      sessionId={focusedPane.sessionId}
-                      isActive={true}
-                      onActivate={onPaneActivate}
-                      onContextMenu={onPaneContextMenu}
-                      onLinkClick={(url) =>
-                        openWebViewPane(tab.id, focusedPane.id, url)
-                      }
-                    />
-                  ) : (
-                    <div
-                      className="flex flex-1 w-full h-full min-h-0 min-w-0"
-                      onContextMenu={onPaneContextMenu}
-                      onMouseDown={onPaneActivate}
-                    >
-                      <WebPane
-                        key={focusedPane.id}
-                        url={focusedPane.url}
-                        disableInteraction={resizingNode !== null}
-                        onContextMenu={onWebViewContextMenu}
-                        onTitleChange={(nextTitle) =>
-                          handleWebViewUpdate(tab.id, focusedPane.id, {
-                            title: nextTitle,
-                          })
-                        }
-                      />
-                    </div>
-                  )}
-                </div>
-                <FocusModeIndicator
-                  onExit={() => exitFocusMode(tab.id)}
-                  currentPaneIndex={currentIndex}
-                  totalPanes={paneIds.length}
-                />
-              </div>
-            );
-          }
-        }
-
-        return (
-          <div
-            key={tab.id}
-            role="tabpanel"
-            aria-hidden={!tab.isActive}
-            className={
-              tab.isActive
-                ? "flex-1 flex min-h-0 min-w-0 overflow-hidden"
-                : "flex-1 hidden min-h-0 min-w-0 overflow-hidden"
-            }
-          >
-            {renderLayout(tab.layout, tab)}
-          </div>
-        );
-      })}
+      {tabs.map(renderTab)}
       {tabs.length === 0 && (
         <div className="flex-1 flex min-h-0 min-w-0" aria-live="polite">
           <div className="flex-1 flex items-center justify-center text-[0.95rem] text-white/60 bg-white/[0.03] border border-dashed border-white/[0.08] rounded-lg m-2">

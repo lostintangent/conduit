@@ -27,9 +27,8 @@ export function FocusModeIndicator({
 
   return (
     <div
-      className={`fixed top-4 right-4 z-[1000] flex items-center gap-2 rounded-lg border border-blue-500/40 bg-black/80 px-3 py-2 text-xs text-white/90 shadow-lg backdrop-blur-sm transition-opacity duration-200 ${
-        isVisible ? "opacity-100" : "opacity-0"
-      }`}
+      className={`absolute top-4 right-4 z-[1000] flex items-center gap-2 rounded-lg border border-blue-500/40 bg-black/80 px-3 py-2 text-xs text-white/90 shadow-lg backdrop-blur-sm transition-opacity duration-200 ${isVisible ? "opacity-100" : "opacity-0"
+        }`}
       role="status"
       aria-live="polite"
     >
