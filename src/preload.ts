@@ -10,7 +10,7 @@ import type {
   TerminalTitlePayload,
 } from "./shared/types";
 
-// Note: This file should never include any actual logic. It should simply be a 
+// Note: This file should never include any actual logic. It should simply be a
 // connection pass through to an IPC handler in the main process.
 
 function createEventListener<T>(
@@ -30,9 +30,10 @@ const conduitAPI = {
   /* Terminal methods (UI->main) */
 
   createTerminal: (options?: TerminalCreateOptions) =>
-    ipcRenderer.invoke("terminal:create", options) as Promise<
-      TerminalCreateResponse | null
-    >,
+    ipcRenderer.invoke(
+      "terminal:create",
+      options
+    ) as Promise<TerminalCreateResponse | null>,
 
   closeTerminal: (sessionId: string) =>
     ipcRenderer.send("terminal:close", { sessionId }),
@@ -118,6 +119,22 @@ const conduitAPI = {
 
   openExternal: (url: string) =>
     ipcRenderer.invoke("ui:open-url", url) as Promise<void>,
+
+  /* Session management methods */
+
+  hasSessions: () =>
+    ipcRenderer.invoke("session:has-sessions") as Promise<boolean>,
+
+  loadSessions: () =>
+    ipcRenderer.invoke("session:load-sessions") as Promise<unknown[]>,
+
+  saveSession: (name: string, tabs: unknown) =>
+    ipcRenderer.invoke("session:save-session", name, tabs) as Promise<
+      unknown[]
+    >,
+
+  deleteSession: (timestamp: number) =>
+    ipcRenderer.invoke("session:delete-session", timestamp) as Promise<void>,
 };
 
 export type ConduitAPI = typeof conduitAPI;

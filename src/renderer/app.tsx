@@ -1,4 +1,6 @@
 import { CommandPalette } from "@/components/CommandPalette";
+import { SessionNameDialog } from "@/components/SessionNameDialog";
+import { SessionPickerDialog } from "@/components/SessionPickerDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
 import { TabTitleDialog } from "@/components/tabs/TabTitleDialog";
@@ -20,6 +22,7 @@ import {
 import { tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { Command } from "@/types";
+import type { SavedSession } from "@shared/types";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -32,11 +35,8 @@ export function App() {
     removeCommandHistoryEntry,
   } = useAppPreferences();
 
-  const {
-    isCommandPaletteOpen,
-    openCommandPalette,
-    closeCommandPalette,
-  } = useGlobalKeyHandlers();
+  const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
+    useGlobalKeyHandlers();
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
@@ -53,12 +53,36 @@ export function App() {
     command: string;
   } | null>(null);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
+  const [hasSessionsAvailable, setHasSessionsAvailable] = useState(false);
+  const [showSessionPicker, setShowSessionPicker] = useState(false);
+  const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
+  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
 
   useEffect(() => {
     const cleanup = registerTabEventHandlers();
     openTab();
 
     return cleanup;
+  }, []);
+
+  // Check if sessions are available on mount
+  useEffect(() => {
+    const checkSessions = async () => {
+      const api = window.conduit;
+      if (!api) {
+        return;
+      }
+
+      const hasSessions = await api.hasSessions();
+      setHasSessionsAvailable(hasSessions);
+
+      if (hasSessions) {
+        const sessions = (await api.loadSessions()) as SavedSession[];
+        setSavedSessions(sessions);
+      }
+    };
+
+    void checkSessions();
   }, []);
 
   useEffect(() => {
@@ -254,15 +278,68 @@ export function App() {
     [tabs]
   );
 
+  const handleSaveSession = useCallback(
+    async (customName: string) => {
+      const api = window.conduit;
+      if (!api) {
+        return;
+      }
+
+      // Use custom name if provided, otherwise generate date-based name
+      let layoutName = customName.trim();
+      if (layoutName.length === 0) {
+        const now = new Date();
+        layoutName = `Layout ${now.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })}`;
+      }
+
+      const sessions = (await api.saveSession(
+        layoutName,
+        tabs
+      )) as SavedSession[];
+
+      setSavedSessions(sessions);
+      setHasSessionsAvailable(true);
+      setShowSessionNameDialog(false);
+    },
+    [tabs]
+  );
+
   const commandItems = useMemo<Command[]>(() => {
-    const items: Command[] = [
-      {
-        id: "new-tab",
-        label: "New Tab",
-        description: "Create a new terminal tab",
-        run: () => void openTab(),
+    const items: Command[] = [];
+
+    items.push({
+      id: "new-tab",
+      label: "New Tab",
+      description: "Create a new terminal tab",
+      run: () => void openTab(),
+    });
+
+    items.push({
+      id: "save-session",
+      label: "Save tab layout",
+      description: "Save current tab layout for later restoration",
+      run: () => {
+        setShowSessionNameDialog(true);
       },
-    ];
+    });
+
+    // Only show "Restore saved layout" if sessions exist
+    if (hasSessionsAvailable && savedSessions.length > 0) {
+      items.push({
+        id: "restore-session",
+        label: "Restore saved layout",
+        description: "Restore tabs from a saved layout",
+        run: () => {
+          setShowSessionPicker(true);
+        },
+      });
+    }
 
     const activeTab = tabs.find((tab) => tab.isActive);
 
@@ -320,7 +397,16 @@ export function App() {
     }
 
     return items;
-  }, [closeTab, hasCustomLayout, openTab, resetLayoutSizes, tabs]);
+  }, [
+    closeTab,
+    hasCustomLayout,
+    openTab,
+    resetLayoutSizes,
+    tabs,
+    hasSessionsAvailable,
+    savedSessions,
+    handleSaveSession,
+  ]);
 
   const handleCloseTerminalModal = useCallback(() => {
     setTerminalModalState((current) => {
@@ -418,6 +504,22 @@ export function App() {
         isOpen={isUrlDialogOpen}
         onClose={() => setIsUrlDialogOpen(false)}
         onSubmit={handleOpenWebPage}
+      />
+
+      <SessionNameDialog
+        isOpen={showSessionNameDialog}
+        onClose={() => setShowSessionNameDialog(false)}
+        onSave={handleSaveSession}
+      />
+
+      <SessionPickerDialog
+        isOpen={showSessionPicker}
+        onClose={() => setShowSessionPicker(false)}
+        sessions={savedSessions}
+        onSessionsUpdate={(sessions) => {
+          setSavedSessions(sessions);
+          setHasSessionsAvailable(sessions.length > 0);
+        }}
       />
     </div>
   );

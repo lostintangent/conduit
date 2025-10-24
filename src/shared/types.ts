@@ -50,3 +50,25 @@ export type BackgroundCommandRequest = {
   args?: string[];
   cwd?: string | null;
 };
+
+export type SavedSession = {
+  name: string;
+  timestamp: number;
+  tabs: Array<{
+    id: string;
+    title?: string;
+    mode: "layout" | "focus";
+    activePaneId: string;
+    panes: Array<{
+      id: string;
+      type: "terminal" | "webview";
+      cwd?: string | null;
+      url?: string;
+      webTitle?: string;
+      // For terminal panes - the command that was running
+      command?: string | null;
+    }>;
+    layout: unknown;
+  }>;
+  activeTabId?: string;
+};

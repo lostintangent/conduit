@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import started from "electron-squirrel-startup";
 import path from "node:path";
+import { initializeSessionHandlers } from "./ipc/session/handlers";
 import {
   cleanupTerminalSessions,
   initializeTerminalHandlers,
@@ -45,6 +46,7 @@ async function createWindow() {
   await initializeUIPreferences(mainWindow);
 
   initializeTerminalHandlers(sendToRenderer);
+  initializeSessionHandlers();
   initializeUIHandlers(mainWindow);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
