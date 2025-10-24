@@ -1,6 +1,6 @@
-import { FocusModeIndicator } from "@/components/FocusModeIndicator";
 import { TerminalPane } from "@/components/panes/TerminalPane";
 import { WebPane } from "@/components/panes/WebPane";
+import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
 import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
 import type {
