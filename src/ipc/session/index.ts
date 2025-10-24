@@ -50,6 +50,7 @@ async function saveSessionsFile(sessionsFile: SessionsFile): Promise<void> {
 export async function saveSession(
   name: string,
   tabs: Tab[],
+  activeTabId: string,
   terminalSessions: Map<string, any>
 ): Promise<SavedSession[]> {
   try {
@@ -112,7 +113,7 @@ export async function saveSession(
         }),
         layout: tab.layout,
       })),
-      activeTabId: tabs.find((tab) => tab.isActive)?.id,
+      activeTabId,
     };
 
     const sessionsFile = await loadSessionsFile();

@@ -11,11 +11,14 @@ export function initializeSessionHandlers() {
     return await loadSessions();
   });
 
-  ipcMain.handle("session:save-session", async (_event, name, tabs) => {
-    // Get terminal sessions from main process to access lastProcessName
-    const terminalSessions = getAllSessions();
-    return await saveSession(name, tabs, terminalSessions);
-  });
+  ipcMain.handle(
+    "session:save-session",
+    async (_event, name, tabs, activeTabId) => {
+      // Get terminal sessions from main process to access lastProcessName
+      const terminalSessions = getAllSessions();
+      return await saveSession(name, tabs, activeTabId, terminalSessions);
+    }
+  );
 
   ipcMain.handle("session:delete-session", async (_event, timestamp) => {
     await deleteSession(timestamp);

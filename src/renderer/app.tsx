@@ -106,7 +106,7 @@ export function App() {
   useEffect(() => {
     const api = window.conduit;
     if (!api) {
-      return () => {};
+      return () => { };
     }
 
     const unsubscribeExit = api.onExit(({ sessionId }) => {
@@ -341,9 +341,8 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${
-            failures.length > 1 ? "s" : ""
-          }`,
+          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
+            }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -400,14 +399,15 @@ export function App() {
 
       const sessions = (await api.saveSession(
         layoutName,
-        tabs
+        tabs,
+        activeTab.id
       )) as SavedSession[];
 
       setSavedSessions(sessions);
       setHasSessionsAvailable(true);
       setShowSessionNameDialog(false);
     },
-    [tabs]
+    [tabs, activeTab]
   );
 
   const commandItems = useMemo<Command[]>(() => {

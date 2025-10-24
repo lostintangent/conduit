@@ -1,4 +1,4 @@
-import { tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import type { SavedSession } from "@shared/types";
 import { getDefaultStore } from "jotai";
@@ -63,7 +63,6 @@ export async function restoreSession(sessionData: SavedSession): Promise<void> {
         panes,
         layout: sessionTab.layout as LayoutNode,
         mode: sessionTab.mode,
-        isActive: sessionTab.id === sessionData.activeTabId,
         activePaneId: sessionTab.activePaneId,
       };
 
@@ -74,5 +73,6 @@ export async function restoreSession(sessionData: SavedSession): Promise<void> {
   if (restoredTabs.length > 0) {
     // Clear existing tabs and replace with restored ones
     store.set(tabsAtom, restoredTabs);
+    store.set(activeTabIdAtom, sessionData.activeTabId);
   }
 }

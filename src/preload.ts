@@ -135,10 +135,13 @@ const conduitAPI = {
   loadSessions: () =>
     ipcRenderer.invoke("session:load-sessions") as Promise<unknown[]>,
 
-  saveSession: (name: string, tabs: unknown) =>
-    ipcRenderer.invoke("session:save-session", name, tabs) as Promise<
-      unknown[]
-    >,
+  saveSession: (name: string, tabs: unknown, activeTabId: string) =>
+    ipcRenderer.invoke(
+      "session:save-session",
+      name,
+      tabs,
+      activeTabId
+    ) as Promise<unknown[]>,
 
   deleteSession: (timestamp: number) =>
     ipcRenderer.invoke("session:delete-session", timestamp) as Promise<void>,
@@ -146,9 +149,10 @@ const conduitAPI = {
   /* Agent session management */
 
   spawnAgentSession: (payload: AgentSessionSpawnRequest) =>
-    ipcRenderer.invoke("agent:spawn-session", payload) as Promise<
-      AgentSessionInfo
-    >,
+    ipcRenderer.invoke(
+      "agent:spawn-session",
+      payload
+    ) as Promise<AgentSessionInfo>,
 
   listAgentSessions: () =>
     ipcRenderer.invoke("agent:list-sessions") as Promise<AgentSessionInfo[]>,
