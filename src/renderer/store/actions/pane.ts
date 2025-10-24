@@ -1,4 +1,4 @@
-import { tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import { enqueueNotification } from "@/store/notifications";
 import type {
@@ -434,7 +434,9 @@ export function detachPane(
   let detachedPane: Pane | null = null;
   let tabClosed = false;
   let removedTabIndex = -1;
+  const previousActiveTabId = store.get(activeTabIdAtom);
   let removedTabWasActive = false;
+  let nextActiveTabId: string | null | undefined = undefined;
 
   store.set(tabsAtom, (current) => {
     const next: Tab[] = [];
@@ -468,7 +470,7 @@ export function detachPane(
 
       if (!newLayout || Object.keys(newPanes).length === 0) {
         tabClosed = true;
-        removedTabWasActive = tab.isActive;
+        removedTabWasActive = tab.id === previousActiveTabId;
         return;
       }
 
@@ -485,19 +487,26 @@ export function detachPane(
       });
     });
 
-    if (tabClosed && removedTabWasActive && next.length > 0) {
-      const targetIndex =
-        removedTabIndex >= next.length ? next.length - 1 : removedTabIndex;
-      return next.map((tab, idx) => {
-        if (idx === targetIndex) {
-          return tab.isActive ? tab : { ...tab, isActive: true };
+    if (tabClosed) {
+      if (removedTabWasActive) {
+        if (next.length > 0) {
+          const targetIndex =
+            removedTabIndex >= next.length ? next.length - 1 : removedTabIndex;
+          nextActiveTabId = next[targetIndex]?.id ?? null;
+        } else {
+          nextActiveTabId = null;
         }
-        return tab.isActive ? { ...tab, isActive: false } : tab;
-      });
+      } else if (next.length === 0) {
+        nextActiveTabId = null;
+      }
     }
 
     return next;
   });
+
+  if (nextActiveTabId !== undefined) {
+    store.set(activeTabIdAtom, nextActiveTabId);
+  }
 
   if (!detachedPane) {
     return null;

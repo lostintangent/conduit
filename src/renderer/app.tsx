@@ -1,14 +1,14 @@
 import { AgentCleanupDialog } from "@/components/AgentCleanupDialog";
 import { CommandPalette } from "@/components/CommandPalette";
+import { OpenUrlDialog } from "@/components/dialogs/OpenUrlDialog";
+import { TabTitleDialog } from "@/components/dialogs/TabTitleDialog";
+import { TerminalDialog } from "@/components/dialogs/TerminalDialog";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { SessionNameDialog } from "@/components/SessionNameDialog";
 import { SessionPickerDialog } from "@/components/SessionPickerDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
-import { TabTitleDialog } from "@/components/tabs/TabTitleDialog";
-import { TerminalDialog } from "@/components/TerminalDialog";
 import { TitleBar } from "@/components/TitleBar";
-import { UrlDialog } from "@/components/UrlDialog";
 import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -21,12 +21,12 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { tabsAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom } from "@/store/atoms";
 import { enqueueNotification, updateNotification } from "@/store/notifications";
 import { disposeSession } from "@/store/terminals";
 import type { Command } from "@/types";
 import type { AgentSessionInfo, SavedSession } from "@shared/types";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function App() {
@@ -45,6 +45,7 @@ export function App() {
     useLayoutResizing();
 
   const [tabs, setTabs] = useAtom(tabsAtom);
+  const activeTab = useAtomValue(activeTabAtom);
   const [titleModalState, setTitleModalState] = useState<{
     tabId: string;
     initialValue: string;
@@ -367,20 +368,14 @@ export function App() {
 
   const handleOpenWebPage = useCallback(
     (url: string) => {
-      const activeTab = tabs.find((tab) => tab.isActive);
-      if (!activeTab) {
+      if (!activeTab || !activeTab.activePaneId) {
         return;
       }
 
-      const activePaneId = activeTab.activePaneId;
-      if (!activePaneId) {
-        return;
-      }
-
-      openWebViewPane(activeTab.id, activePaneId, url);
+      openWebViewPane(activeTab.id, activeTab.activePaneId, url);
       setIsUrlDialogOpen(false);
     },
-    [tabs]
+    [activeTab]
   );
 
   const handleSaveSession = useCallback(
@@ -480,8 +475,6 @@ export function App() {
         }
       },
     });
-
-    const activeTab = tabs.find((tab) => tab.isActive);
 
     if (activeTab && activeTab.activePaneId) {
       items.push({
@@ -637,18 +630,18 @@ export function App() {
 
     return items;
   }, [
+    activeTab,
     closeTab,
+    closePane,
+    enqueueNotification,
     hasCustomLayout,
+    hasSessionsAvailable,
     openTab,
     resetLayoutSizes,
-    tabs,
-    hasSessionsAvailable,
     savedSessions,
-    closePane,
     splitPane,
-    enqueueNotification,
+    tabs,
     updateNotification,
-    setCleanupDialogSessions,
   ]);
 
   const handleCloseTerminalModal = useCallback(() => {
@@ -743,7 +736,7 @@ export function App() {
         />
       )}
 
-      <UrlDialog
+      <OpenUrlDialog
         isOpen={isUrlDialogOpen}
         onClose={() => setIsUrlDialogOpen(false)}
         onSubmit={handleOpenWebPage}

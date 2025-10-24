@@ -1,4 +1,24 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  dialog {
+    margin: auto;
+  }
+}
 
 @theme {
   --color-surface: #1e1e1e;
@@ -21,6 +41,32 @@
   background-color: var(--color-surface);
   color: var(--color-foreground);
   accent-color: var(--color-accent);
+
+  --background: 0 0% 11.8%;
+  --foreground: 0 0% 83.1%;
+  --card: 0 0% 11.8%;
+  --card-foreground: 0 0% 83.1%;
+  --popover: 0 0% 11.8%;
+  --popover-foreground: 0 0% 83.1%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 0 0% 14.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 14.9%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 0 0% 14.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 14.9%;
+  --input: 0 0% 14.9%;
+  --ring: 0 0% 83.1%;
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+  --radius: 0.5rem;
 }
 
 ::selection {
@@ -36,7 +82,7 @@ html,
 body {
   height: 100%;
   margin: 0;
-  font-family: 'Fira Code', Menlo, monospace;
+  font-family: "Fira Code", Menlo, monospace;
   background-color: inherit;
   color: inherit;
 }
@@ -71,10 +117,4 @@ body {
 
 .terminal-container .xterm-screen canvas {
   max-width: 100%;
-}
-
-.title-bar {
-  -webkit-app-region: drag;
-  user-select: none;
-  cursor: pointer;
 }

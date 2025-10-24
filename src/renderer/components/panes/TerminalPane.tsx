@@ -22,6 +22,7 @@ export const TerminalPane = ({
   onLinkClick,
 }: TerminalPaneProps) => {
   const { showOverviewRuler } = useAtomValue(appPreferencesAtom);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
   const fitAddonRef = useRef<ReturnType<typeof getOrCreate>["fit"] | null>(
@@ -31,13 +32,16 @@ export const TerminalPane = ({
     width: 0,
     height: 0,
   });
-  const fitNowRef = useRef<() => void>(() => {});
+  const fitNowRef = useRef<() => void>(() => { });
+
   const [dimensions, setDimensions] = useState<{
     width: number;
     height: number;
   } | null>(null);
+
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchWidgetHandleRef = useRef<SearchWidgetHandle | null>(null);
+
   const focusTerminal = () => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
   };
@@ -251,10 +255,6 @@ export const TerminalPane = ({
         terminal={instanceRef.current}
         onClosed={focusTerminal}
       />
-
-      {!isActive && (
-        <div className="absolute inset-0 pointer-events-none bg-black/15" />
-      )}
 
       {dimensions && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">

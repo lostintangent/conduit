@@ -10,7 +10,7 @@ export const TitleBar = ({ backgroundClass }: TitleBarProps) => {
 
   return (
     <div
-      className={`title-bar h-[28px] flex items-center justify-center text-[0.8rem] text-white/40 font-medium ${backgroundClass} rounded-xl`}
+      className={`h-[28px] flex items-center justify-center text-[0.8rem] text-white/40 font-medium ${backgroundClass} rounded-xl [app-region:drag]`}
     >
       🔌 Conduit
     </div>

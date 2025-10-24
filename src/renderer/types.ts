@@ -48,7 +48,6 @@ export type Tab = {
   layout: LayoutNode;
   mode: TabMode;
 
-  isActive: boolean;
   activePaneId: string;
 
   title?: string;

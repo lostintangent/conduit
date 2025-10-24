@@ -1,5 +1,5 @@
 import { moveTab, openTab } from "@/store/actions/tab";
-import { appPreferencesAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, appPreferencesAtom, tabsAtom } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { useAtomValue } from "jotai";
 import { MoreHorizontal } from "lucide-react";
@@ -35,6 +35,7 @@ export const TabStrip = ({
   position = "top",
 }: TabStripProps) => {
   const tabs = useAtomValue(tabsAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const { homeDirectory } = useAtomValue(appPreferencesAtom);
 
   const [draggingTab, setDraggingTab] = useState<{
@@ -103,10 +104,10 @@ export const TabStrip = ({
           id: tab.id,
           label,
           tooltip,
-          isActive: tab.isActive,
+          isActive: tab.id === activeTabId,
         };
       }),
-    [tabs]
+    [activeTabId, tabs]
   );
 
   // TODO: See if we can remove this code in favor of mergining it with the descriptors and tabs w/placeholders memos
