@@ -36,12 +36,16 @@ export type WebViewPane = {
 
 export type Pane = TerminalPane | WebViewPane;
 
+type TabMode = "layout" | "focus";
+
 export type Tab = {
   panes: Record<string, Pane>;
   layout: LayoutNode;
+  mode: TabMode;
+
   isActive: boolean;
   activePaneId: string;
-  focusedPaneId?: string;
+
   title?: string;
 } & Identifiable;
 

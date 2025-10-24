@@ -43,6 +43,7 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
+      mode: "layout",
       isActive: true,
     },
   ]);
@@ -92,6 +93,7 @@ export function openTabFromExistingSession({
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
+      mode: "layout",
       isActive: true,
     },
   ]);

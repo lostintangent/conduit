@@ -9,7 +9,7 @@ const store = getDefaultStore();
  * Check if focus mode is currently active for a tab
  */
 export function isFocusModeActive(tab: Tab): boolean {
-  return tab.focusedPaneId !== undefined && tab.focusedPaneId !== null;
+  return tab.mode === "focus";
 }
 
 /**
@@ -52,7 +52,7 @@ export function enterFocusMode(tabId: string, paneId: string): void {
 
       return {
         ...tab,
-        focusedPaneId: paneId,
+        mode: "focus",
         activePaneId: paneId,
       };
     })
@@ -71,7 +71,7 @@ export function exitFocusMode(tabId: string): void {
 
       return {
         ...tab,
-        focusedPaneId: undefined,
+        mode: "layout",
       };
     })
   );
@@ -108,7 +108,7 @@ export function navigateFocusedPane(
         return tab;
       }
 
-      if (!tab.focusedPaneId) {
+      if (tab.mode !== "focus") {
         return tab;
       }
 
@@ -117,7 +117,7 @@ export function navigateFocusedPane(
         return tab;
       }
 
-      const currentIndex = paneIds.indexOf(tab.focusedPaneId);
+      const currentIndex = paneIds.indexOf(tab.activePaneId);
       if (currentIndex === -1) {
         return tab;
       }
@@ -133,7 +133,6 @@ export function navigateFocusedPane(
 
       return {
         ...tab,
-        focusedPaneId: nextPaneId,
         activePaneId: nextPaneId,
       };
     })

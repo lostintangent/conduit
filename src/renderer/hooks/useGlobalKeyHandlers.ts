@@ -74,7 +74,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         if (!activeTab) return;
 
         // Check if already in focus mode
-        if (activeTab.focusedPaneId) {
+        if (activeTab.mode === "focus") {
           exitFocusMode(activeTab.id);
           return;
         }

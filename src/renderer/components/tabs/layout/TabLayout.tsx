@@ -10,7 +10,6 @@ import type {
 import { exitFocusMode, getAllPaneIds } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
-import { findPaneNodeByPaneId } from "@/utils/layout";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -18,6 +17,7 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
+import { findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtom } from "jotai";
 import React, { useCallback, useState } from "react";
 
@@ -397,11 +397,10 @@ export function TabLayout({
 
   const renderFocusMode = useCallback(
     (tab: Tab) => {
-      const focusedPaneId = tab.focusedPaneId;
-      const paneNode = findPaneNodeByPaneId(tab.layout, focusedPaneId);
+      const paneNode = findPaneNodeByPaneId(tab.layout, tab.activePaneId);
 
       const paneIds = getAllPaneIds(tab);
-      const currentIndex = paneIds.indexOf(focusedPaneId);
+      const currentIndex = paneIds.indexOf(tab.activePaneId);
 
       return (
         <>
@@ -430,7 +429,7 @@ export function TabLayout({
               : "flex-1 hidden min-h-0 min-w-0 overflow-hidden"
           }
         >
-          {tab.focusedPaneId
+          {tab.mode === "focus"
             ? renderFocusMode(tab)
             : renderLayout(tab.layout, tab)}
         </div>
