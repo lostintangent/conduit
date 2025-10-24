@@ -174,12 +174,12 @@ export function SessionPickerDialog({
         tabIndex={-1}
       >
         <h2 className="mb-3 text-lg font-semibold text-white">
-          Restore Saved Layout
+          Restore Saved Workspace
         </h2>
 
         {sessions.length === 0 ? (
           <p className="rounded-md border border-dashed border-white/10 bg-white/5 px-3 py-2 text-sm text-white/50">
-            No saved sessions available.
+            No saved workspaces available.
           </p>
         ) : (
           <ul

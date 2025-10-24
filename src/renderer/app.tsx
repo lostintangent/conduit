@@ -106,7 +106,7 @@ export function App() {
   useEffect(() => {
     const api = window.conduit;
     if (!api) {
-      return () => { };
+      return () => {};
     }
 
     const unsubscribeExit = api.onExit(({ sessionId }) => {
@@ -341,8 +341,9 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
-            }`,
+          message: `Failed to remove ${failures.length} session${
+            failures.length > 1 ? "s" : ""
+          }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -422,7 +423,7 @@ export function App() {
 
     items.push({
       id: "save-session",
-      label: "Save tab layout",
+      label: "Save workspace",
       description: "Save current tab layout for later restoration",
       run: () => {
         setShowSessionNameDialog(true);
@@ -433,8 +434,8 @@ export function App() {
     if (hasSessionsAvailable && savedSessions.length > 0) {
       items.push({
         id: "restore-session",
-        label: "Restore saved layout",
-        description: "Restore tabs from a saved layout",
+        label: "Restore workspace",
+        description: "Restore tabs from a saved workspace",
         run: () => {
           setShowSessionPicker(true);
         },
