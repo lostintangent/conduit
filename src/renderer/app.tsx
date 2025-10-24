@@ -518,32 +518,6 @@ export function App() {
     if (activePane?.type === "terminal" && activePane.cwd) {
       const paneCwd = activePane.cwd;
 
-      items.push({
-        id: "spawn-agent-session",
-        label: "Spawn agent session",
-        description: "Split the pane with an isolated Git worktree",
-        run: async () => {
-          const api = window.conduit;
-          if (!api) {
-            return;
-          }
-
-          try {
-            const session = await api.spawnAgentSession({ cwd: paneCwd });
-            if (!session) {
-              return;
-            }
-
-            await splitPane(activeTab.id, activePane.id, "column", false, {
-              terminalOptions: { cwd: session.worktreePath },
-              agentSession: session,
-            });
-          } catch (error) {
-            console.error("Failed to spawn agent session", error);
-          }
-        },
-      });
-
       if (activePane.agentSessionId) {
         items.push({
           id: "finalize-agent-session",
