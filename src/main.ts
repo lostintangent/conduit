@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import started from "electron-squirrel-startup";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { initializeSessionHandlers } from "./ipc/session/handlers";
 import {
   cleanupTerminalSessions,
@@ -19,6 +20,43 @@ let mainWindow: BrowserWindow | null = null;
 if (started) {
   app.quit();
 }
+
+// GUI-launched builds often miss PATH; hydrate env so spawned terminals see user tools.
+function hydrateEnvFromLoginShell() {
+  if (process.platform === "win32") {
+    return;
+  }
+
+  const shell = process.env.SHELL ?? (process.platform === "darwin" ? "/bin/zsh" : "/bin/bash");
+
+  try {
+    const output = execFileSync(shell, ["-ilc", "printenv"], {
+      encoding: "utf8",
+    });
+
+    output.split("\n").forEach((line) => {
+      if (!line || !line.includes("=")) {
+        return;
+      }
+
+      const index = line.indexOf("=");
+      const key = line.slice(0, index);
+      const value = line.slice(index + 1);
+
+      if (key.length === 0 || value.length === 0) {
+        return;
+      }
+
+      if (key === "PATH" || !(key in process.env)) {
+        process.env[key] = value;
+      }
+    });
+  } catch (error) {
+    console.warn("Failed to read login shell environment, continuing with defaults.", error);
+  }
+}
+
+hydrateEnvFromLoginShell();
 
 function sendToRenderer(channel: string, payload: unknown) {
   if (!mainWindow || mainWindow.isDestroyed()) {
