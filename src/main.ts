@@ -1,9 +1,9 @@
 import { app, BrowserWindow } from "electron";
-import path from "node:path";
 import started from "electron-squirrel-startup";
+import path from "node:path";
 import {
-  initializeTerminalHandlers,
   cleanupTerminalSessions,
+  initializeTerminalHandlers,
 } from "./ipc/terminal";
 import { initializeUIHandlers, initializeUIPreferences } from "./ipc/ui";
 

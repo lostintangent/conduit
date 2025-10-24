@@ -13,6 +13,7 @@ const config: ForgeConfig = {
     asar: {
       unpack: "**/node_modules/node-pty/**/*",
     },
+    icon: "./build/icon", // no file extension required
   },
   rebuildConfig: {
     onlyModules: ["node-pty"],
@@ -27,8 +28,8 @@ const config: ForgeConfig = {
     },
   },
   makers: [
-    new MakerSquirrel({}),
     new MakerZIP({}, ["darwin"]),
+    new MakerSquirrel({}),
     new MakerRpm({}),
     new MakerDeb({}),
   ],

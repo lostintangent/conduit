@@ -670,11 +670,16 @@ export function removePane(
           ? findFirstPaneId(newLayout)
           : tab.activePaneId;
 
+      const removedActivePane = tab.activePaneId === paneId;
+      const newMode =
+        tab.mode === "focus" && removedActivePane ? "layout" : tab.mode;
+
       return {
         ...tab,
         panes: newPanes,
         layout: newLayout,
         activePaneId: newActivePaneId,
+        mode: newMode,
       };
     })
   );

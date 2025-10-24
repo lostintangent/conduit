@@ -1,3 +1,4 @@
+import { FocusModeIndicator } from "@/components/FocusModeIndicator";
 import { TerminalPane } from "@/components/panes/TerminalPane";
 import { WebPane } from "@/components/panes/WebPane";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
@@ -6,6 +7,11 @@ import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
 } from "@/hooks/useLayoutResizing";
+import {
+  exitFocusMode,
+  getAllPaneIds,
+  navigateFocusedPane,
+} from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type {
@@ -15,6 +21,7 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
+import { findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtom } from "jotai";
 import React, { useCallback, useState } from "react";
 
@@ -76,7 +83,7 @@ const computeIntersectionHandles = (
 
   const prevBoundaries =
     previousSibling.type === "split" &&
-    previousSibling.direction === perpendicularDirection
+      previousSibling.direction === perpendicularDirection
       ? collectBoundaries(previousSibling)
       : [];
 
@@ -215,8 +222,8 @@ export function TabLayout({
         clientY: number;
       }) => {
         const syntheticEvent = {
-          preventDefault: () => {},
-          stopPropagation: () => {},
+          preventDefault: () => { },
+          stopPropagation: () => { },
           clientX: coords.clientX,
           clientY: coords.clientY,
         } as React.MouseEvent;
@@ -293,13 +300,13 @@ export function TabLayout({
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
-                  containerNodeId: node.id,
-                  direction: node.direction,
-                  leadingNodeId: previousSibling.id,
-                  trailingNodeId: child.id,
-                  leadingSize: previousSibling.size ?? 1,
-                  trailingSize: child.size ?? 1,
-                }
+                containerNodeId: node.id,
+                direction: node.direction,
+                leadingNodeId: previousSibling.id,
+                trailingNodeId: child.id,
+                leadingSize: previousSibling.size ?? 1,
+                trailingSize: child.size ?? 1,
+              }
               : null;
 
             const primaryAxisKey = primaryAxis ? getAxisKey(primaryAxis) : null;
@@ -316,10 +323,10 @@ export function TabLayout({
 
             const intersectionHandles = primaryAxis
               ? computeIntersectionHandles(
-                  previousSibling,
-                  child,
-                  node.direction
-                )
+                previousSibling,
+                child,
+                node.direction
+              )
               : [];
 
             const clearHover = () => {
@@ -332,13 +339,12 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${
-                  index !== 0
-                    ? node.direction === "row"
-                      ? "border-l border-white/[0.12]"
-                      : "border-t border-white/[0.12]"
-                    : ""
-                }`}
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${index !== 0
+                  ? node.direction === "row"
+                    ? "border-l border-white/[0.12]"
+                    : "border-t border-white/[0.12]"
+                  : ""
+                  }`}
               >
                 {primaryAxis && (
                   <>
@@ -394,9 +400,32 @@ export function TabLayout({
     [renderPaneNode, renderSplitNode]
   );
 
-  return (
-    <div className="flex-1 flex relative min-h-0 overflow-hidden">
-      {tabs.map((tab) => (
+  const renderFocusMode = useCallback(
+    (tab: Tab) => {
+      const paneNode = findPaneNodeByPaneId(tab.layout, tab.activePaneId);
+
+      const paneIds = getAllPaneIds(tab);
+      const currentIndex = paneIds.indexOf(tab.activePaneId);
+
+      return (
+        <>
+          {renderPaneNode(paneNode, tab)}
+          <FocusModeIndicator
+            onExit={() => exitFocusMode(tab.id)}
+            onPrevious={() => navigateFocusedPane(tab.id, "prev")}
+            onNext={() => navigateFocusedPane(tab.id, "next")}
+            currentPaneIndex={currentIndex}
+            totalPanes={paneIds.length}
+          />
+        </>
+      );
+    },
+    [renderPaneNode]
+  );
+
+  const renderTab = useCallback(
+    (tab: Tab): React.ReactNode => {
+      return (
         <div
           key={tab.id}
           role="tabpanel"
@@ -407,9 +436,18 @@ export function TabLayout({
               : "flex-1 hidden min-h-0 min-w-0 overflow-hidden"
           }
         >
-          {renderLayout(tab.layout, tab)}
+          {tab.mode === "focus"
+            ? renderFocusMode(tab)
+            : renderLayout(tab.layout, tab)}
         </div>
-      ))}
+      );
+    },
+    [renderFocusMode, renderLayout]
+  );
+
+  return (
+    <div className="flex-1 flex relative min-h-0 overflow-hidden">
+      {tabs.map(renderTab)}
       {tabs.length === 0 && (
         <div className="flex-1 flex min-h-0 min-w-0" aria-live="polite">
           <div className="flex-1 flex items-center justify-center text-[0.95rem] text-white/60 bg-white/[0.03] border border-dashed border-white/[0.08] rounded-lg m-2">

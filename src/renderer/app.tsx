@@ -28,13 +28,15 @@ export function App() {
     tabPosition,
     alwaysShowTabStrip,
     commandHistory,
-
     recordCommandHistoryEntry,
     removeCommandHistoryEntry,
   } = useAppPreferences();
 
-  const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
-    useGlobalKeyHandlers();
+  const {
+    isCommandPaletteOpen,
+    openCommandPalette,
+    closeCommandPalette,
+  } = useGlobalKeyHandlers();
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
