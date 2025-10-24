@@ -27,7 +27,7 @@ import { enqueueNotification, updateNotification } from "@/store/notifications";
 import type { Command } from "@/types";
 import type { AgentSessionInfo, SavedSession } from "@shared/types";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function App() {
   const {
@@ -64,11 +64,22 @@ export function App() {
     useState<AgentSessionInfo[] | null>(null);
 
   useEffect(() => {
-    const cleanup = registerTabEventHandlers();
-    openTab();
-
-    return cleanup;
+    return registerTabEventHandlers();
   }, []);
+
+  const hasInitializedTabsRef = useRef(false);
+
+  useEffect(() => {
+    if (hasInitializedTabsRef.current) {
+      return;
+    }
+
+    hasInitializedTabsRef.current = true;
+
+    if (tabs.length === 0) {
+      void openTab();
+    }
+  }, [tabs, openTab]);
 
   // Check if sessions are available on mount
   useEffect(() => {
