@@ -1,8 +1,8 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 import type { MouseEvent } from "react";
 import { tabsAtom } from "@/store/atoms";
-import { movePane, splitPane } from "@/store/actions/pane";
+import { movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import { closeTab, movePaneToTab } from "@/store/actions/tab";
 
 type UseContextMenuParams = {
@@ -19,9 +19,27 @@ export const useContextMenu = ({
   canChangeTitle,
 }: UseContextMenuParams) => {
   const tabs = useAtomValue(tabsAtom);
+  const [hasGitRepoCache, setHasGitRepoCache] = useState<Record<string, boolean>>({});
+
+  const checkGitRepo = useCallback(async (cwd: string | null | undefined): Promise<boolean> => {
+    if (!cwd) return false;
+    
+    if (hasGitRepoCache[cwd] !== undefined) {
+      return hasGitRepoCache[cwd];
+    }
+
+    try {
+      const hasRepo = await api.hasGitRepository(cwd);
+      setHasGitRepoCache(prev => ({ ...prev, [cwd]: hasRepo }));
+      return hasRepo;
+    } catch (error) {
+      setHasGitRepoCache(prev => ({ ...prev, [cwd]: false }));
+      return false;
+    }
+  }, [hasGitRepoCache]);
 
   const handleContextMenu = useCallback(
-    (event: MouseEvent, tabId: string, paneId?: string) => {
+    async (event: MouseEvent, tabId: string, paneId?: string) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -32,13 +50,27 @@ export const useContextMenu = ({
 
       const allowTitleChange = canChangeTitle(tabId);
 
+      let hasGitRepo = false;
+      if (paneId) {
+        const pane = tab.panes[paneId];
+        if (pane && pane.type === "terminal") {
+          hasGitRepo = await checkGitRepo(pane.cwd);
+        }
+      } else {
+        const activePane = tab.panes[tab.activePaneId];
+        if (activePane && activePane.type === "terminal") {
+          hasGitRepo = await checkGitRepo(activePane.cwd);
+        }
+      }
+
       api.showContextMenu({
         tabId,
         paneId,
         canChangeTitle: allowTitleChange,
+        hasGitRepo,
       });
     },
-    [api, tabs, canChangeTitle]
+    [api, tabs, canChangeTitle, checkGitRepo]
   );
 
   useEffect(() => {
@@ -79,6 +111,26 @@ export const useContextMenu = ({
           case "split-top":
             if (resolvedPaneId) {
               void splitPane(tabId, resolvedPaneId, "column", true);
+            }
+            break;
+          case "split-right-agent":
+            if (resolvedPaneId) {
+              void splitPaneWithAgentSession(tabId, resolvedPaneId, "row");
+            }
+            break;
+          case "split-left-agent":
+            if (resolvedPaneId) {
+              void splitPaneWithAgentSession(tabId, resolvedPaneId, "row", true);
+            }
+            break;
+          case "split-bottom-agent":
+            if (resolvedPaneId) {
+              void splitPaneWithAgentSession(tabId, resolvedPaneId, "column");
+            }
+            break;
+          case "split-top-agent":
+            if (resolvedPaneId) {
+              void splitPaneWithAgentSession(tabId, resolvedPaneId, "column", true);
             }
             break;
           case "move-left":
@@ -129,6 +181,7 @@ export const useContextMenu = ({
     movePaneToTab,
     setTitleModal,
     splitPane,
+    splitPaneWithAgentSession,
   ]);
 
   return handleContextMenu;

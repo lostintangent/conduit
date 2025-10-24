@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  AgentSessionCleanupRequest,
+  AgentSessionCleanupResult,
+  AgentSessionFinalizeRequest,
+  AgentSessionFinalizeResult,
+  AgentSessionInfo,
+  AgentSessionSpawnRequest,
   AppPreferences,
   BackgroundCommandRequest,
   TerminalCreateOptions,
@@ -10,7 +16,7 @@ import type {
   TerminalTitlePayload,
 } from "./shared/types";
 
-// Note: This file should never include any actual logic. It should simply be a 
+// Note: This file should never include any actual logic. It should simply be a
 // connection pass through to an IPC handler in the main process.
 
 function createEventListener<T>(
@@ -30,9 +36,10 @@ const conduitAPI = {
   /* Terminal methods (UI->main) */
 
   createTerminal: (options?: TerminalCreateOptions) =>
-    ipcRenderer.invoke("terminal:create", options) as Promise<
-      TerminalCreateResponse | null
-    >,
+    ipcRenderer.invoke(
+      "terminal:create",
+      options
+    ) as Promise<TerminalCreateResponse | null>,
 
   closeTerminal: (sessionId: string) =>
     ipcRenderer.send("terminal:close", { sessionId }),
@@ -101,6 +108,7 @@ const conduitAPI = {
     tabId: string;
     paneId?: string;
     canChangeTitle: boolean;
+    hasGitRepo?: boolean;
   }) => ipcRenderer.send("ui:show-context-menu", options),
 
   addCommandHistoryEntry: (command: string) =>
@@ -118,6 +126,47 @@ const conduitAPI = {
 
   openExternal: (url: string) =>
     ipcRenderer.invoke("ui:open-url", url) as Promise<void>,
+
+  /* Session management methods */
+
+  hasSessions: () =>
+    ipcRenderer.invoke("session:has-sessions") as Promise<boolean>,
+
+  loadSessions: () =>
+    ipcRenderer.invoke("session:load-sessions") as Promise<unknown[]>,
+
+  saveSession: (name: string, tabs: unknown) =>
+    ipcRenderer.invoke("session:save-session", name, tabs) as Promise<
+      unknown[]
+    >,
+
+  deleteSession: (timestamp: number) =>
+    ipcRenderer.invoke("session:delete-session", timestamp) as Promise<void>,
+
+  /* Agent session management */
+
+  spawnAgentSession: (payload: AgentSessionSpawnRequest) =>
+    ipcRenderer.invoke("agent:spawn-session", payload) as Promise<
+      AgentSessionInfo
+    >,
+
+  listAgentSessions: () =>
+    ipcRenderer.invoke("agent:list-sessions") as Promise<AgentSessionInfo[]>,
+
+  hasGitRepository: (cwd: string) =>
+    ipcRenderer.invoke("agent:has-git-repo", cwd) as Promise<boolean>,
+
+  finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
+    ipcRenderer.invoke(
+      "agent:finalize-session",
+      payload
+    ) as Promise<AgentSessionFinalizeResult>,
+
+  cleanupAgentSession: (payload: AgentSessionCleanupRequest) =>
+    ipcRenderer.invoke(
+      "agent:cleanup-session",
+      payload
+    ) as Promise<AgentSessionCleanupResult>,
 };
 
 export type ConduitAPI = typeof conduitAPI;

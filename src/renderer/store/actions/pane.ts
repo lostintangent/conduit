@@ -1,5 +1,6 @@
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
+import { enqueueNotification } from "@/store/notifications";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -16,6 +17,7 @@ import {
   type PaneDirection,
 } from "@/utils/layout";
 import { getDefaultStore } from "jotai";
+import type { AgentSessionInfo, TerminalCreateOptions } from "@shared/types";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -513,11 +515,17 @@ export function detachPane(
   return { pane: detachedPane, tabClosed };
 }
 
+type SplitPaneOptions = {
+  terminalOptions?: TerminalCreateOptions;
+  agentSession?: AgentSessionInfo;
+};
+
 export async function splitPane(
   tabId: string,
   paneId: string,
   direction: SplitDirection,
-  insertBefore = false
+  insertBefore = false,
+  options: SplitPaneOptions = {}
 ) {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
@@ -533,9 +541,13 @@ export async function splitPane(
   const defaultCwd =
     sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
 
-  const result = await api.createTerminal(
-    defaultCwd ? { cwd: defaultCwd } : undefined
-  );
+  const requestOptions = options.terminalOptions
+    ? { ...options.terminalOptions }
+    : defaultCwd
+      ? { cwd: defaultCwd }
+      : undefined;
+
+  const result = await api.createTerminal(requestOptions);
   if (!result) {
     return;
   }
@@ -547,6 +559,11 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
+    agentSessionId: options.agentSession?.id,
+    agentBranchName: options.agentSession?.branchName,
+    agentBaseBranch: options.agentSession?.baseBranch ?? null,
+    agentRepoRoot: options.agentSession?.repoRoot,
+    agentWorktreePath: options.agentSession?.worktreePath,
   };
 
   const newLayoutNode: LayoutNode = {
@@ -584,6 +601,62 @@ export async function splitPane(
       };
     })
   );
+}
+
+export async function splitPaneWithAgentSession(
+  tabId: string,
+  paneId: string,
+  direction: SplitDirection,
+  insertBefore = false
+) {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab) {
+    return;
+  }
+
+  const sourcePane = tab.panes[paneId];
+  if (!sourcePane) {
+    return;
+  }
+
+  const paneCwd =
+    sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
+
+  if (!paneCwd) {
+    return;
+  }
+
+  try {
+    const session = await api.spawnAgentSession({ cwd: paneCwd });
+    if (!session) {
+      return;
+    }
+
+    await splitPane(tabId, paneId, direction, insertBefore, {
+      terminalOptions: { cwd: session.worktreePath },
+      agentSession: session,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    if (errorMessage.includes("Unable to find a Git repository")) {
+      enqueueNotification({
+        kind: "error",
+        message: "No Git repository found",
+        details: "The current directory is not part of a Git repository. Agent sessions require a Git repository to create an isolated worktree.",
+        autoCloseMs: 5000,
+      });
+    } else {
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to spawn agent session",
+        details: errorMessage,
+        autoCloseMs: 5000,
+      });
+    }
+    console.error("Failed to spawn agent session during split", error);
+  }
 }
 
 export function openWebViewPane(tabId: string, paneId: string, url: string) {

@@ -1,7 +1,11 @@
+import { AgentCleanupDialog } from "@/components/AgentCleanupDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { OpenUrlDialog } from "@/components/dialogs/OpenUrlDialog";
 import { TabTitleDialog } from "@/components/dialogs/TabTitleDialog";
 import { TerminalDialog } from "@/components/dialogs/TerminalDialog";
+import { NotificationCenter } from "@/components/NotificationCenter";
+import { SessionNameDialog } from "@/components/SessionNameDialog";
+import { SessionPickerDialog } from "@/components/SessionPickerDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
 import { TitleBar } from "@/components/TitleBar";
@@ -9,7 +13,7 @@ import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import { openWebViewPane, removePane } from "@/store/actions/pane";
+import { openWebViewPane, removePane, splitPane } from "@/store/actions/pane";
 import {
   closeTab,
   openTab,
@@ -18,10 +22,12 @@ import {
   updateTabProperty,
 } from "@/store/actions/tab";
 import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { enqueueNotification, updateNotification } from "@/store/notifications";
 import { disposeSession } from "@/store/terminals";
 import type { Command } from "@/types";
+import type { AgentSessionInfo, SavedSession } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function App() {
   const {
@@ -32,11 +38,8 @@ export function App() {
     removeCommandHistoryEntry,
   } = useAppPreferences();
 
-  const {
-    isCommandPaletteOpen,
-    openCommandPalette,
-    closeCommandPalette,
-  } = useGlobalKeyHandlers();
+  const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
+    useGlobalKeyHandlers();
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
@@ -54,18 +57,56 @@ export function App() {
     command: string;
   } | null>(null);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
+  const [hasSessionsAvailable, setHasSessionsAvailable] = useState(false);
+  const [showSessionPicker, setShowSessionPicker] = useState(false);
+  const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
+  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
+  const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
+    AgentSessionInfo[] | null
+  >(null);
 
   useEffect(() => {
-    const cleanup = registerTabEventHandlers();
-    openTab();
+    return registerTabEventHandlers();
+  }, []);
 
-    return cleanup;
+  const hasInitializedTabsRef = useRef(false);
+
+  useEffect(() => {
+    if (hasInitializedTabsRef.current) {
+      return;
+    }
+
+    hasInitializedTabsRef.current = true;
+
+    if (tabs.length === 0) {
+      void openTab();
+    }
+  }, [tabs, openTab]);
+
+  // Check if sessions are available on mount
+  useEffect(() => {
+    const checkSessions = async () => {
+      const api = window.conduit;
+      if (!api) {
+        return;
+      }
+
+      const hasSessions = await api.hasSessions();
+      setHasSessionsAvailable(hasSessions);
+
+      if (hasSessions) {
+        const sessions = (await api.loadSessions()) as SavedSession[];
+        setSavedSessions(sessions);
+      }
+    };
+
+    void checkSessions();
   }, []);
 
   useEffect(() => {
     const api = window.conduit;
     if (!api) {
-      return () => { };
+      return () => {};
     }
 
     const unsubscribeExit = api.onExit(({ sessionId }) => {
@@ -230,6 +271,94 @@ export function App() {
     [recordCommandHistoryEntry, terminalModalState]
   );
 
+  const closeAgentSessionPanes = useCallback(
+    (sessionId: string) => {
+      tabs.forEach((tab) => {
+        Object.entries(tab.panes).forEach(([paneId, pane]) => {
+          if (pane.type === "terminal" && pane.agentSessionId === sessionId) {
+            removePane(tab.id, paneId);
+          }
+        });
+      });
+    },
+    [tabs]
+  );
+
+  const handleAgentSessionCleanup = useCallback(
+    async (sessionIds: string[]) => {
+      const api = window.conduit;
+      if (!api || !cleanupDialogSessions || sessionIds.length === 0) {
+        setCleanupDialogSessions(null);
+        return;
+      }
+
+      const lookup = new Map(
+        cleanupDialogSessions.map((session) => [session.id, session])
+      );
+      const targets = sessionIds
+        .map((id) => lookup.get(id))
+        .filter((session): session is AgentSessionInfo => Boolean(session));
+
+      if (targets.length === 0) {
+        setCleanupDialogSessions(null);
+        return;
+      }
+
+      const plural = targets.length > 1;
+      const notificationId = enqueueNotification({
+        kind: "info",
+        message: plural
+          ? "Removing selected agent sessions..."
+          : `Removing ${targets[0].branchName}...`,
+        persistent: true,
+      });
+
+      let successCount = 0;
+      const failures: string[] = [];
+
+      for (const session of targets) {
+        try {
+          await api.cleanupAgentSession({ sessionId: session.id });
+          closeAgentSessionPanes(session.id);
+          successCount += 1;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          failures.push(
+            `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`
+          );
+        }
+      }
+
+      if (failures.length === 0) {
+        updateNotification(notificationId, {
+          kind: "success",
+          message: plural
+            ? `Removed ${successCount} agent sessions.`
+            : "Agent session removed.",
+          autoCloseMs: 3500,
+        });
+      } else {
+        updateNotification(notificationId, {
+          kind: "error",
+          message: `Failed to remove ${failures.length} session${
+            failures.length > 1 ? "s" : ""
+          }`,
+          details: failures.join("\n"),
+          autoCloseMs: null,
+        });
+      }
+
+      setCleanupDialogSessions(null);
+    },
+    [
+      cleanupDialogSessions,
+      closeAgentSessionPanes,
+      enqueueNotification,
+      updateNotification,
+    ]
+  );
+
   const handleShellCommand = useCallback(
     async (rawCommand: string) => {
       await runShellCommand(rawCommand, { trackHistory: true });
@@ -249,15 +378,103 @@ export function App() {
     [activeTab]
   );
 
+  const handleSaveSession = useCallback(
+    async (customName: string) => {
+      const api = window.conduit;
+      if (!api) {
+        return;
+      }
+
+      // Use custom name if provided, otherwise generate date-based name
+      let layoutName = customName.trim();
+      if (layoutName.length === 0) {
+        const now = new Date();
+        layoutName = `Layout ${now.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })}`;
+      }
+
+      const sessions = (await api.saveSession(
+        layoutName,
+        tabs
+      )) as SavedSession[];
+
+      setSavedSessions(sessions);
+      setHasSessionsAvailable(true);
+      setShowSessionNameDialog(false);
+    },
+    [tabs]
+  );
+
   const commandItems = useMemo<Command[]>(() => {
-    const items: Command[] = [
-      {
-        id: "new-tab",
-        label: "New Tab",
-        description: "Create a new terminal tab",
-        run: () => void openTab(),
+    const items: Command[] = [];
+
+    items.push({
+      id: "new-tab",
+      label: "New Tab",
+      description: "Create a new terminal tab",
+      run: () => void openTab(),
+    });
+
+    items.push({
+      id: "save-session",
+      label: "Save tab layout",
+      description: "Save current tab layout for later restoration",
+      run: () => {
+        setShowSessionNameDialog(true);
       },
-    ];
+    });
+
+    // Only show "Restore saved layout" if sessions exist
+    if (hasSessionsAvailable && savedSessions.length > 0) {
+      items.push({
+        id: "restore-session",
+        label: "Restore saved layout",
+        description: "Restore tabs from a saved layout",
+        run: () => {
+          setShowSessionPicker(true);
+        },
+      });
+    }
+
+    items.push({
+      id: "cleanup-agent-sessions",
+      label: "Manage agent sessions…",
+      description: "Remove one or all agent worktrees without merging",
+      run: async () => {
+        const api = window.conduit;
+        if (!api) {
+          return;
+        }
+
+        try {
+          const sessions = await api.listAgentSessions();
+          if (sessions.length === 0) {
+            enqueueNotification({
+              kind: "info",
+              message: "No agent sessions.",
+              autoCloseMs: 2500,
+            });
+            return;
+          }
+
+          setCleanupDialogSessions(sessions);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          enqueueNotification({
+            kind: "error",
+            message: "Unable to list agent sessions",
+            details: message,
+            autoCloseMs: null,
+          });
+        }
+      },
+    });
 
     if (activeTab && activeTab.activePaneId) {
       items.push({
@@ -293,6 +510,105 @@ export function App() {
     if (activePane?.type === "terminal" && activePane.cwd) {
       const paneCwd = activePane.cwd;
 
+      if (activePane.agentSessionId) {
+        items.push({
+          id: "finalize-agent-session",
+          label: "Merge and close agent session",
+          description: "Commit, merge, and close the isolated agent worktree",
+          run: async () => {
+            const api = window.conduit;
+            if (!api) {
+              return;
+            }
+
+            const branchLabel = activePane.agentBranchName ?? "agent session";
+            const notificationId = enqueueNotification({
+              kind: "info",
+              message: `Merging ${branchLabel}...`,
+              persistent: true,
+            });
+
+            try {
+              const result = await api.finalizeAgentSession({
+                sessionId: activePane.agentSessionId,
+              });
+
+              if (result.status === "conflict") {
+                updateNotification(notificationId, {
+                  kind: "error",
+                  message: "Merge conflicts detected",
+                  details: result.message,
+                  autoCloseMs: null,
+                });
+                return;
+              }
+
+              closePane(activeTab.id, activePane.id);
+              updateNotification(notificationId, {
+                kind: result.status === "noop" ? "info" : "success",
+                message:
+                  result.status === "noop"
+                    ? "Agent session had no new commits."
+                    : "Agent session merged successfully.",
+                details: result.message,
+                autoCloseMs: 5000,
+              });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              updateNotification(notificationId, {
+                kind: "error",
+                message: "Failed to merge and close agent session",
+                details: message,
+                autoCloseMs: null,
+              });
+            }
+          },
+        });
+
+        items.push({
+          id: "cleanup-agent-session",
+          label: "Terminate agent session",
+          description: "Remove the isolated worktree without merging",
+          run: async () => {
+            const api = window.conduit;
+            if (!api) {
+              return;
+            }
+
+            const branchLabel = activePane.agentBranchName ?? "agent session";
+            const notificationId = enqueueNotification({
+              kind: "info",
+              message: `Cleaning up ${branchLabel}...`,
+              persistent: true,
+            });
+
+            try {
+              const result = await api.cleanupAgentSession({
+                sessionId: activePane.agentSessionId,
+              });
+
+              closePane(activeTab.id, activePane.id);
+              updateNotification(notificationId, {
+                kind: "success",
+                message: "Agent session terminated",
+                details: result.message,
+                autoCloseMs: 4000,
+              });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              updateNotification(notificationId, {
+                kind: "error",
+                message: "Failed to clean up agent session",
+                details: message,
+                autoCloseMs: null,
+              });
+            }
+          },
+        });
+      }
+
       items.push({
         id: "open-in-vscode",
         label: "Open in VS Code",
@@ -313,7 +629,20 @@ export function App() {
     }
 
     return items;
-  }, [activeTab, closeTab, hasCustomLayout, openTab, resetLayoutSizes, tabs]);
+  }, [
+    activeTab,
+    closeTab,
+    closePane,
+    enqueueNotification,
+    hasCustomLayout,
+    hasSessionsAvailable,
+    openTab,
+    resetLayoutSizes,
+    savedSessions,
+    splitPane,
+    tabs,
+    updateNotification,
+  ]);
 
   const handleCloseTerminalModal = useCallback(() => {
     setTerminalModalState((current) => {
@@ -412,6 +741,29 @@ export function App() {
         onClose={() => setIsUrlDialogOpen(false)}
         onSubmit={handleOpenWebPage}
       />
+
+      <SessionNameDialog
+        isOpen={showSessionNameDialog}
+        onClose={() => setShowSessionNameDialog(false)}
+        onSave={handleSaveSession}
+      />
+
+      <SessionPickerDialog
+        isOpen={showSessionPicker}
+        onClose={() => setShowSessionPicker(false)}
+        sessions={savedSessions}
+        onSessionsUpdate={(sessions) => {
+          setSavedSessions(sessions);
+          setHasSessionsAvailable(sessions.length > 0);
+        }}
+      />
+      <AgentCleanupDialog
+        isOpen={cleanupDialogSessions !== null}
+        sessions={cleanupDialogSessions ?? []}
+        onClose={() => setCleanupDialogSessions(null)}
+        onRemove={handleAgentSessionCleanup}
+      />
+      <NotificationCenter />
     </div>
   );
 }
