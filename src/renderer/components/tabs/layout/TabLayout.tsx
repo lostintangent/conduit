@@ -13,7 +13,7 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -22,7 +22,7 @@ import type {
   Tab,
 } from "@/types";
 import { findPaneNodeByPaneId } from "@/utils/layout";
-import { useAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import React, { useCallback, useState } from "react";
 
 const INTERSECTION_TOLERANCE = 0.08;
@@ -194,7 +194,8 @@ export function TabLayout({
   resizingNode,
   handleWebViewUpdate,
 }: TabLayoutProps) {
-  const [tabs] = useAtom(tabsAtom);
+  const tabs = useAtomValue(tabsAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
 
   const setHoverKeys = useCallback(
@@ -213,7 +214,8 @@ export function TabLayout({
         return null;
       }
 
-      const isActivePane = tab.isActive && tab.activePaneId === pane.id;
+      const isActivePane =
+        tab.id === activeTabId && tab.activePaneId === pane.id;
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
       const onPaneActivate = () => activatePane(tab.id, pane.id);
@@ -271,7 +273,7 @@ export function TabLayout({
         </div>
       );
     },
-    [handleContextMenu, handleWebViewUpdate, resizingNode]
+    [activeTabId, handleContextMenu, handleWebViewUpdate, resizingNode]
   );
 
   const renderSplitNode = useCallback(
@@ -425,13 +427,14 @@ export function TabLayout({
 
   const renderTab = useCallback(
     (tab: Tab): React.ReactNode => {
+      const isActive = tab.id === activeTabId;
       return (
         <div
           key={tab.id}
           role="tabpanel"
-          aria-hidden={!tab.isActive}
+          aria-hidden={!isActive}
           className={
-            tab.isActive
+            isActive
               ? "flex-1 flex min-h-0 min-w-0 overflow-hidden"
               : "flex-1 hidden min-h-0 min-w-0 overflow-hidden"
           }
@@ -442,7 +445,7 @@ export function TabLayout({
         </div>
       );
     },
-    [renderFocusMode, renderLayout]
+    [activeTabId, renderFocusMode, renderLayout]
   );
 
   return (

@@ -10,7 +10,7 @@ import {
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
-import { tabsAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
@@ -23,7 +23,9 @@ type UseGlobalKeyHandlersResult = {
 
 export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
   const tabs = useAtomValue(tabsAtom);
+  const activeTab = useAtomValue(activeTabAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -35,7 +37,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const performSplit = useCallback(
     async (direction: SplitDirection, insertBefore = false) => {
-      const activeTab = tabs.find((tab) => tab.isActive);
       if (!activeTab) {
         return;
       }
@@ -48,7 +49,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       );
       focusTab(activeTab.id);
     },
-    [focusTab, splitPane, tabs]
+    [activeTab, focusTab, splitPane]
   );
 
   useEffect(() => {
@@ -70,7 +71,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       if (event.metaKey && event.shiftKey && !event.altKey && key === "f") {
         event.preventDefault();
 
-        const activeTab = tabs.find((tab) => tab.isActive);
         if (!activeTab) return;
 
         if (activeTab.mode === "focus") {
@@ -88,7 +88,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
       // Cmd+Alt+T: Move pane to new tab
       if (event.altKey && key === "t") {
-        const activeTab = tabs.find((tab) => tab.isActive);
         if (activeTab && activeTab.activePaneId) {
           event.preventDefault();
           movePaneToTab(activeTab.id, activeTab.activePaneId);
@@ -106,7 +105,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       // Cmd+Arrow: Navigate or move pane or split pane
       const direction = directionKeyMap[key];
       if (direction) {
-        const activeTab = tabs.find((tab) => tab.isActive);
         if (activeTab && activeTab.activePaneId) {
           event.preventDefault();
           if (event.altKey) {
@@ -174,6 +172,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [
+    activeTab,
     focusTab,
     isCommandPaletteOpen,
     movePaneToTab,

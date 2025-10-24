@@ -17,10 +17,10 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { tabsAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { Command } from "@/types";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export function App() {
@@ -42,6 +42,7 @@ export function App() {
     useLayoutResizing();
 
   const [tabs, setTabs] = useAtom(tabsAtom);
+  const activeTab = useAtomValue(activeTabAtom);
   const [titleModalState, setTitleModalState] = useState<{
     tabId: string;
     initialValue: string;
@@ -238,20 +239,14 @@ export function App() {
 
   const handleOpenWebPage = useCallback(
     (url: string) => {
-      const activeTab = tabs.find((tab) => tab.isActive);
-      if (!activeTab) {
+      if (!activeTab || !activeTab.activePaneId) {
         return;
       }
 
-      const activePaneId = activeTab.activePaneId;
-      if (!activePaneId) {
-        return;
-      }
-
-      openWebViewPane(activeTab.id, activePaneId, url);
+      openWebViewPane(activeTab.id, activeTab.activePaneId, url);
       setIsUrlDialogOpen(false);
     },
-    [tabs]
+    [activeTab]
   );
 
   const commandItems = useMemo<Command[]>(() => {
@@ -263,8 +258,6 @@ export function App() {
         run: () => void openTab(),
       },
     ];
-
-    const activeTab = tabs.find((tab) => tab.isActive);
 
     if (activeTab && activeTab.activePaneId) {
       items.push({
@@ -320,7 +313,7 @@ export function App() {
     }
 
     return items;
-  }, [closeTab, hasCustomLayout, openTab, resetLayoutSizes, tabs]);
+  }, [activeTab, closeTab, hasCustomLayout, openTab, resetLayoutSizes, tabs]);
 
   const handleCloseTerminalModal = useCallback(() => {
     setTerminalModalState((current) => {

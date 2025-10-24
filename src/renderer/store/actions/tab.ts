@@ -3,7 +3,7 @@ import {
   removePane,
   updatePaneProperty,
 } from "@/store/actions/pane";
-import { tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import { generateId } from "@/utils/id";
 import { getDefaultStore } from "jotai";
@@ -37,16 +37,16 @@ export async function openTab(
   };
 
   store.set(tabsAtom, (current) => [
-    ...current.map((tab) => ({ ...tab, isActive: false })),
+    ...current,
     {
       id: tabId,
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
       mode: "layout",
-      isActive: true,
     },
   ]);
+  store.set(activeTabIdAtom, tabId);
 
   if (initialCommand && initialCommand.length > 0) {
     const commandWithNewline =
@@ -87,16 +87,16 @@ export function openTabFromExistingSession({
   };
 
   store.set(tabsAtom, (current) => [
-    ...current.map((tab) => ({ ...tab, isActive: false })),
+    ...current,
     {
       id: tabId,
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
       mode: "layout",
-      isActive: true,
     },
   ]);
+  store.set(activeTabIdAtom, tabId);
 
   return { tabId, paneId };
 }
@@ -133,23 +133,27 @@ export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
 }
 
 export function focusTab(tabId: string) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => ({
-      ...tab,
-      isActive: tab.id === tabId,
-    }))
-  );
+  const tabs = store.get(tabsAtom);
+  if (!tabs.some((tab) => tab.id === tabId)) {
+    return;
+  }
+
+  store.set(activeTabIdAtom, tabId);
 }
 
 export function closeTab(tabId: string) {
   const sessionsToClose: string[] = [];
   let shouldOpenReplacement = false;
+  const previousActiveTabId = store.get(activeTabIdAtom);
+  let nextActiveTabId: string | null | undefined = undefined;
 
   store.set(tabsAtom, (current) => {
     const next: Tab[] = [];
+    let removedTabIndex = -1;
 
-    current.forEach((tab) => {
+    current.forEach((tab, index) => {
       if (tab.id === tabId) {
+        removedTabIndex = index;
         Object.values(tab.panes).forEach((pane) => {
           if (pane.type === "terminal") {
             sessionsToClose.push(pane.sessionId);
@@ -161,20 +165,28 @@ export function closeTab(tabId: string) {
       next.push(tab);
     });
 
+    if (removedTabIndex === -1) {
+      return current;
+    }
+
     if (next.length === 0) {
       shouldOpenReplacement = true;
+      nextActiveTabId = null;
       return [];
     }
 
-    const hasActive = next.some((tab) => tab.isActive);
-    if (hasActive) {
-      return next;
+    if (previousActiveTabId === tabId) {
+      const targetIndex =
+        removedTabIndex >= next.length ? next.length - 1 : removedTabIndex;
+      nextActiveTabId = next[targetIndex]?.id ?? null;
     }
 
-    return next.map((tab, index) =>
-      index === next.length - 1 ? { ...tab, isActive: true } : tab
-    );
+    return next;
   });
+
+  if (nextActiveTabId !== undefined) {
+    store.set(activeTabIdAtom, nextActiveTabId);
+  }
 
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
 
@@ -230,7 +242,7 @@ export function movePaneToTab(
 
 export function registerTabEventHandlers() {
   if (!api) {
-    return () => {};
+    return () => { };
   }
 
   const unsubscribeTitle = api.onTitle(({ sessionId, title }) => {
