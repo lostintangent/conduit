@@ -1,4 +1,5 @@
 import { CommandPalette } from "@/components/CommandPalette";
+import { AgentCleanupDialog } from "@/components/AgentCleanupDialog";
 import { SessionNameDialog } from "@/components/SessionNameDialog";
 import { SessionPickerDialog } from "@/components/SessionPickerDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
@@ -24,7 +25,7 @@ import { tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import { enqueueNotification, updateNotification } from "@/store/notifications";
 import type { Command } from "@/types";
-import type { SavedSession } from "@shared/types";
+import type { AgentSessionInfo, SavedSession } from "@shared/types";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -59,6 +60,8 @@ export function App() {
   const [showSessionPicker, setShowSessionPicker] = useState(false);
   const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
+  const [cleanupDialogSessions, setCleanupDialogSessions] =
+    useState<AgentSessionInfo[] | null>(null);
 
   useEffect(() => {
     const cleanup = registerTabEventHandlers();
@@ -255,6 +258,96 @@ export function App() {
     [recordCommandHistoryEntry, terminalModalState]
   );
 
+  const closeAgentSessionPanes = useCallback(
+    (sessionId: string) => {
+      tabs.forEach((tab) => {
+        Object.entries(tab.panes).forEach(([paneId, pane]) => {
+          if (
+            pane.type === "terminal" &&
+            pane.agentSessionId === sessionId
+          ) {
+            removePane(tab.id, paneId);
+          }
+        });
+      });
+    },
+    [tabs]
+  );
+
+  const handleAgentSessionCleanup = useCallback(
+    async (sessionIds: string[]) => {
+      const api = window.conduit;
+      if (!api || !cleanupDialogSessions || sessionIds.length === 0) {
+        setCleanupDialogSessions(null);
+        return;
+      }
+
+      const lookup = new Map(
+        cleanupDialogSessions.map((session) => [session.id, session])
+      );
+      const targets = sessionIds
+        .map((id) => lookup.get(id))
+        .filter((session): session is AgentSessionInfo => Boolean(session));
+
+      if (targets.length === 0) {
+        setCleanupDialogSessions(null);
+        return;
+      }
+
+      const plural = targets.length > 1;
+      const notificationId = enqueueNotification({
+        kind: "info",
+        message: plural
+          ? "Removing selected agent sessions..."
+          : `Removing ${targets[0].branchName}...`,
+        persistent: true,
+      });
+
+      let successCount = 0;
+      const failures: string[] = [];
+
+      for (const session of targets) {
+        try {
+          await api.cleanupAgentSession({ sessionId: session.id });
+          closeAgentSessionPanes(session.id);
+          successCount += 1;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          failures.push(
+            `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`
+          );
+        }
+      }
+
+      if (failures.length === 0) {
+        updateNotification(notificationId, {
+          kind: "success",
+          message: plural
+            ? `Removed ${successCount} agent sessions.`
+            : "Agent session removed.",
+          autoCloseMs: 3500,
+        });
+      } else {
+        updateNotification(notificationId, {
+          kind: "error",
+          message: `Failed to remove ${failures.length} session${
+            failures.length > 1 ? "s" : ""
+          }`,
+          details: failures.join("\n"),
+          autoCloseMs: null,
+        });
+      }
+
+      setCleanupDialogSessions(null);
+    },
+    [
+      cleanupDialogSessions,
+      closeAgentSessionPanes,
+      enqueueNotification,
+      updateNotification,
+    ]
+  );
+
   const handleShellCommand = useCallback(
     async (rawCommand: string) => {
       await runShellCommand(rawCommand, { trackHistory: true });
@@ -342,6 +435,41 @@ export function App() {
         },
       });
     }
+
+    items.push({
+      id: "cleanup-agent-sessions",
+      label: "Abandon agent session…",
+      description:
+        "Remove one or all agent worktrees without merging their changes",
+      run: async () => {
+        const api = window.conduit;
+        if (!api) {
+          return;
+        }
+
+        try {
+          const sessions = await api.listAgentSessions();
+          if (sessions.length === 0) {
+            enqueueNotification({
+              kind: "info",
+              message: "No agent sessions to abandon.",
+              autoCloseMs: 2500,
+            });
+            return;
+          }
+
+          setCleanupDialogSessions(sessions);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          enqueueNotification({
+            kind: "error",
+            message: "Unable to list agent sessions",
+            details: message,
+            autoCloseMs: null,
+          });
+        }
+      },
+    });
 
     const activeTab = tabs.find((tab) => tab.isActive);
 
@@ -537,6 +665,9 @@ export function App() {
     savedSessions,
     closePane,
     splitPane,
+    enqueueNotification,
+    updateNotification,
+    setCleanupDialogSessions,
   ]);
 
   const handleCloseTerminalModal = useCallback(() => {
@@ -651,6 +782,12 @@ export function App() {
           setSavedSessions(sessions);
           setHasSessionsAvailable(sessions.length > 0);
         }}
+      />
+      <AgentCleanupDialog
+        isOpen={cleanupDialogSessions !== null}
+        sessions={cleanupDialogSessions ?? []}
+        onClose={() => setCleanupDialogSessions(null)}
+        onRemove={handleAgentSessionCleanup}
       />
       <NotificationCenter />
     </div>
