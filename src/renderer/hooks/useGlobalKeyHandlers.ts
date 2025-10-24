@@ -105,17 +105,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      if (event.shiftKey && (key === "d" || key === "g")) {
-        const activeTab = tabs.find((tab) => tab.isActive);
-        if (activeTab && activeTab.activePaneId) {
-          event.preventDefault();
-          // D = forward (right/down), G = backward (left/up)
-          const direction = key === "d" ? "right" : "left";
-          navigatePane(activeTab.id, activeTab.activePaneId, direction);
-        }
-        return;
-      }
-
       if (event.shiftKey) {
         return;
       }
