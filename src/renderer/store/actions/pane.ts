@@ -16,6 +16,7 @@ import {
   type PaneDirection,
 } from "@/utils/layout";
 import { getDefaultStore } from "jotai";
+import type { AgentSessionInfo, TerminalCreateOptions } from "@shared/types";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -504,11 +505,17 @@ export function detachPane(
   return { pane: detachedPane, tabClosed };
 }
 
+type SplitPaneOptions = {
+  terminalOptions?: TerminalCreateOptions;
+  agentSession?: AgentSessionInfo;
+};
+
 export async function splitPane(
   tabId: string,
   paneId: string,
   direction: SplitDirection,
-  insertBefore = false
+  insertBefore = false,
+  options: SplitPaneOptions = {}
 ) {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
@@ -524,9 +531,13 @@ export async function splitPane(
   const defaultCwd =
     sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
 
-  const result = await api.createTerminal(
-    defaultCwd ? { cwd: defaultCwd } : undefined
-  );
+  const requestOptions = options.terminalOptions
+    ? { ...options.terminalOptions }
+    : defaultCwd
+      ? { cwd: defaultCwd }
+      : undefined;
+
+  const result = await api.createTerminal(requestOptions);
   if (!result) {
     return;
   }
@@ -538,6 +549,11 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
+    agentSessionId: options.agentSession?.id,
+    agentBranchName: options.agentSession?.branchName,
+    agentBaseBranch: options.agentSession?.baseBranch ?? null,
+    agentRepoRoot: options.agentSession?.repoRoot,
+    agentWorktreePath: options.agentSession?.worktreePath,
   };
 
   const newLayoutNode: LayoutNode = {

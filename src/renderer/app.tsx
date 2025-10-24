@@ -7,11 +7,12 @@ import { TabTitleDialog } from "@/components/tabs/TabTitleDialog";
 import { TerminalDialog } from "@/components/TerminalDialog";
 import { TitleBar } from "@/components/TitleBar";
 import { UrlDialog } from "@/components/UrlDialog";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import { openWebViewPane, removePane } from "@/store/actions/pane";
+import { openWebViewPane, removePane, splitPane } from "@/store/actions/pane";
 import {
   closeTab,
   openTab,
@@ -21,6 +22,7 @@ import {
 } from "@/store/actions/tab";
 import { tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
+import { enqueueNotification, updateNotification } from "@/store/notifications";
 import type { Command } from "@/types";
 import type { SavedSession } from "@shared/types";
 import { useAtom } from "jotai";
@@ -378,6 +380,134 @@ export function App() {
       const paneCwd = activePane.cwd;
 
       items.push({
+        id: "spawn-agent-session",
+        label: "Spawn agent session",
+        description: "Split the pane with an isolated Git worktree",
+        run: async () => {
+          const api = window.conduit;
+          if (!api) {
+            return;
+          }
+
+          try {
+            const session = await api.spawnAgentSession({ cwd: paneCwd });
+            if (!session) {
+              return;
+            }
+
+            await splitPane(activeTab.id, activePane.id, "column", false, {
+              terminalOptions: { cwd: session.worktreePath },
+              agentSession: session,
+            });
+          } catch (error) {
+            console.error("Failed to spawn agent session", error);
+          }
+        },
+      });
+
+      if (activePane.agentSessionId) {
+        items.push({
+          id: "finalize-agent-session",
+          label: "Finalize agent session",
+          description:
+            "Commit, merge, and close the isolated agent worktree for this pane",
+          run: async () => {
+            const api = window.conduit;
+            if (!api) {
+              return;
+            }
+
+            const branchLabel =
+              activePane.agentBranchName ?? "agent session";
+            const notificationId = enqueueNotification({
+              kind: "info",
+              message: `Finalizing ${branchLabel}...`,
+              persistent: true,
+            });
+
+            try {
+              const result = await api.finalizeAgentSession({
+                sessionId: activePane.agentSessionId,
+              });
+
+              if (result.status === "conflict") {
+                updateNotification(notificationId, {
+                  kind: "error",
+                  message: "Merge conflicts detected",
+                  details: result.message,
+                  autoCloseMs: null,
+                });
+                return;
+              }
+
+              closePane(activeTab.id, activePane.id);
+              updateNotification(notificationId, {
+                kind: result.status === "noop" ? "info" : "success",
+                message:
+                  result.status === "noop"
+                    ? "Agent session had no new commits."
+                    : "Agent session merged successfully.",
+                details: result.message,
+                autoCloseMs: 5000,
+              });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              updateNotification(notificationId, {
+                kind: "error",
+                message: "Failed to finalize agent session",
+                details: message,
+                autoCloseMs: null,
+              });
+            }
+          },
+        });
+
+        items.push({
+          id: "cleanup-agent-session",
+          label: "Abandon agent session",
+          description: "Remove the isolated worktree without merging",
+          run: async () => {
+            const api = window.conduit;
+            if (!api) {
+              return;
+            }
+
+            const branchLabel =
+              activePane.agentBranchName ?? "agent session";
+            const notificationId = enqueueNotification({
+              kind: "info",
+              message: `Cleaning up ${branchLabel}...`,
+              persistent: true,
+            });
+
+            try {
+              const result = await api.cleanupAgentSession({
+                sessionId: activePane.agentSessionId,
+              });
+
+              closePane(activeTab.id, activePane.id);
+              updateNotification(notificationId, {
+                kind: "success",
+                message: "Agent session removed",
+                details: result.message,
+                autoCloseMs: 4000,
+              });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              updateNotification(notificationId, {
+                kind: "error",
+                message: "Failed to clean up agent session",
+                details: message,
+                autoCloseMs: null,
+              });
+            }
+          },
+        });
+      }
+
+      items.push({
         id: "open-in-vscode",
         label: "Open in VS Code",
         description: "Open the active directory in Visual Studio Code",
@@ -405,7 +535,8 @@ export function App() {
     tabs,
     hasSessionsAvailable,
     savedSessions,
-    handleSaveSession,
+    closePane,
+    splitPane,
   ]);
 
   const handleCloseTerminalModal = useCallback(() => {
@@ -521,6 +652,7 @@ export function App() {
           setHasSessionsAvailable(sessions.length > 0);
         }}
       />
+      <NotificationCenter />
     </div>
   );
 }

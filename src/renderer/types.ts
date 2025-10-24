@@ -26,6 +26,11 @@ export type TerminalPane = {
   sessionId: string;
   cwd: string | null;
   processTitle: string;
+  agentSessionId?: string;
+  agentBranchName?: string;
+  agentBaseBranch?: string | null;
+  agentRepoRoot?: string;
+  agentWorktreePath?: string;
 } & Identifiable;
 
 export type WebViewPane = {

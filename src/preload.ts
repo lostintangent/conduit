@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  AgentSessionCleanupRequest,
+  AgentSessionCleanupResult,
+  AgentSessionFinalizeRequest,
+  AgentSessionFinalizeResult,
+  AgentSessionInfo,
+  AgentSessionSpawnRequest,
   AppPreferences,
   BackgroundCommandRequest,
   TerminalCreateOptions,
@@ -135,6 +141,28 @@ const conduitAPI = {
 
   deleteSession: (timestamp: number) =>
     ipcRenderer.invoke("session:delete-session", timestamp) as Promise<void>,
+
+  /* Agent session management */
+
+  spawnAgentSession: (payload: AgentSessionSpawnRequest) =>
+    ipcRenderer.invoke("agent:spawn-session", payload) as Promise<
+      AgentSessionInfo
+    >,
+
+  listAgentSessions: () =>
+    ipcRenderer.invoke("agent:list-sessions") as Promise<AgentSessionInfo[]>,
+
+  finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
+    ipcRenderer.invoke(
+      "agent:finalize-session",
+      payload
+    ) as Promise<AgentSessionFinalizeResult>,
+
+  cleanupAgentSession: (payload: AgentSessionCleanupRequest) =>
+    ipcRenderer.invoke(
+      "agent:cleanup-session",
+      payload
+    ) as Promise<AgentSessionCleanupResult>,
 };
 
 export type ConduitAPI = typeof conduitAPI;

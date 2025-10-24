@@ -6,6 +6,7 @@ import {
   cleanupTerminalSessions,
   initializeTerminalHandlers,
 } from "./ipc/terminal";
+import { initializeAgentHandlers } from "./ipc/agent";
 import { initializeUIHandlers, initializeUIPreferences } from "./ipc/ui";
 
 // Build-time constants injected by @electron-forge/plugin-vite.
@@ -48,6 +49,7 @@ async function createWindow() {
   initializeTerminalHandlers(sendToRenderer);
   initializeSessionHandlers();
   initializeUIHandlers(mainWindow);
+  initializeAgentHandlers();
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
