@@ -1,7 +1,7 @@
-import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
-import React, { useEffect, useRef, useState } from "react";
-import { useAtomValue } from "jotai";
 import { appPreferencesAtom } from "@/store/atoms";
+import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
+import { useAtomValue } from "jotai";
+import React, { useEffect, useRef, useState } from "react";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 
 import "@xterm/xterm/css/xterm.css";
@@ -251,6 +251,10 @@ export const TerminalPane = ({
         terminal={instanceRef.current}
         onClosed={focusTerminal}
       />
+
+      {!isActive && (
+        <div className="absolute inset-0 pointer-events-none bg-black/15" />
+      )}
 
       {dimensions && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">

@@ -4,11 +4,12 @@ import { TabStrip } from "@/components/tabs/TabStrip";
 import { TabTitleDialog } from "@/components/tabs/TabTitleDialog";
 import { TerminalDialog } from "@/components/TerminalDialog";
 import { TitleBar } from "@/components/TitleBar";
+import { UrlDialog } from "@/components/UrlDialog";
 import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import { removePane } from "@/store/actions/pane";
+import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
   closeTab,
   openTab,
@@ -51,6 +52,7 @@ export function App() {
     title: string;
     command: string;
   } | null>(null);
+  const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
 
   useEffect(() => {
     const cleanup = registerTabEventHandlers();
@@ -234,6 +236,24 @@ export function App() {
     [runShellCommand]
   );
 
+  const handleOpenWebPage = useCallback(
+    (url: string) => {
+      const activeTab = tabs.find((tab) => tab.isActive);
+      if (!activeTab) {
+        return;
+      }
+
+      const activePaneId = activeTab.activePaneId;
+      if (!activePaneId) {
+        return;
+      }
+
+      openWebViewPane(activeTab.id, activePaneId, url);
+      setIsUrlDialogOpen(false);
+    },
+    [tabs]
+  );
+
   const commandItems = useMemo<Command[]>(() => {
     const items: Command[] = [
       {
@@ -245,6 +265,15 @@ export function App() {
     ];
 
     const activeTab = tabs.find((tab) => tab.isActive);
+
+    if (activeTab && activeTab.activePaneId) {
+      items.push({
+        id: "open-web-page",
+        label: "Open web page",
+        description: "Open a web page in a split view",
+        run: () => setIsUrlDialogOpen(true),
+      });
+    }
     if (tabs.length > 1 && activeTab) {
       items.push({
         id: "close-tab",
@@ -385,6 +414,11 @@ export function App() {
         />
       )}
 
+      <UrlDialog
+        isOpen={isUrlDialogOpen}
+        onClose={() => setIsUrlDialogOpen(false)}
+        onSubmit={handleOpenWebPage}
+      />
     </div>
   );
 }
