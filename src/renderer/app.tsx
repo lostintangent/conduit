@@ -1,10 +1,10 @@
 import { CommandPalette } from "@/components/CommandPalette";
+import { OpenUrlDialog } from "@/components/dialogs/OpenUrlDialog";
+import { TabTitleDialog } from "@/components/dialogs/TabTitleDialog";
+import { TerminalDialog } from "@/components/dialogs/TerminalDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
-import { TabTitleDialog } from "@/components/tabs/TabTitleDialog";
-import { TerminalDialog } from "@/components/TerminalDialog";
 import { TitleBar } from "@/components/TitleBar";
-import { UrlDialog } from "@/components/UrlDialog";
 import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -65,7 +65,7 @@ export function App() {
   useEffect(() => {
     const api = window.conduit;
     if (!api) {
-      return () => {};
+      return () => { };
     }
 
     const unsubscribeExit = api.onExit(({ sessionId }) => {
@@ -407,7 +407,7 @@ export function App() {
         />
       )}
 
-      <UrlDialog
+      <OpenUrlDialog
         isOpen={isUrlDialogOpen}
         onClose={() => setIsUrlDialogOpen(false)}
         onSubmit={handleOpenWebPage}
