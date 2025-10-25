@@ -6,15 +6,17 @@ import { TabStrip } from "@/components/tabs/TabStrip";
 import { TitleBar } from "@/components/TitleBar";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { WorkspacePicker } from "@/components/WorkspacePicker";
+import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { openWebViewPane, removePane, splitPane } from "@/store/actions/pane";
+import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
   closeTab,
   openTab,
@@ -22,18 +24,19 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
-import type { Command } from "@/types";
-import type { AgentSessionInfo, Workspace } from "@shared/types";
+import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NotificationCenter } from "./components/NotificationCenter";
-import { closeWorkspace } from "./store/actions/workspace";
 
 const api = window.conduit;
 
 export function App() {
+  const [tabs, setTabs] = useAtom(tabsAtom);
+  const activeTab = useAtomValue(activeTabAtom);
+
   const {
     tabPosition,
     alwaysShowTabs,
@@ -48,10 +51,6 @@ export function App() {
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
 
-  const [tabs, setTabs] = useAtom(tabsAtom);
-  const activeTab = useAtomValue(activeTabAtom);
-  const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
-
   const [titleModalState, setTitleModalState] = useState<{
     tabId: string;
     initialValue: string;
@@ -63,19 +62,28 @@ export function App() {
     command: string;
   } | null>(null);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
-
-  const [hasWorkspaces, setHasWorkspaces] = useState(false);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
-
-  const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
-  const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =
-    useState(false);
-  const [showRenameWorkspaceDialog, setShowRenameWorkspaceDialog] =
-    useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
+
+  const {
+    workspaceName,
+    hasWorkspaces,
+    workspaces,
+    hasLastWorkspace,
+    showWorkspacePicker,
+    setShowWorkspacePicker,
+    showCreateWorkspaceDialog,
+    setShowCreateWorkspaceDialog,
+    showRenameWorkspaceDialog,
+    setShowRenameWorkspaceDialog,
+    saveWorkspace,
+    renameWorkspace,
+    updateWorkspaces,
+    closeWorkspace,
+    quickSaveWorkspace,
+    openLastWorkspace,
+  } = useWorkspaces();
 
   useEffect(() => {
     return registerTabEventHandlers();
@@ -94,24 +102,6 @@ export function App() {
       void openTab();
     }
   }, [tabs, openTab]);
-
-  // Check if sessions are available on mount
-  useEffect(() => {
-    const checkSessions = async () => {
-      const hasSessions = await api.hasSessions();
-      setHasWorkspaces(hasSessions);
-
-      if (hasSessions) {
-        const sessions = (await api.loadSessions()) as Workspace[];
-        setWorkspaces(sessions);
-      }
-
-      const hasLast = await api.hasLastWorkspace();
-      setHasLastWorkspace(hasLast);
-    };
-
-    void checkSessions();
-  }, []);
 
   useEffect(() => {
     const unsubscribeExit = api.onExit(({ sessionId }) => {
@@ -385,354 +375,21 @@ export function App() {
     [activeTab]
   );
 
-  const handleSaveSession = useCallback(
-    async (customName: string) => {
-      const api = window.conduit;
-      if (!api) {
-        return;
-      }
-
-      // Use custom name if provided, otherwise generate date-based name
-      let workspaceName = customName.trim();
-      if (workspaceName.length === 0) {
-        const now = new Date();
-        workspaceName = `Layout ${now.toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })}`;
-      }
-
-      const sessions = (await api.saveSession(
-        workspaceName,
-        tabs,
-        activeTab.id
-      )) as Workspace[];
-
-      setWorkspaces(sessions);
-      setHasWorkspaces(true);
-      setShowCreateWorkspaceDialog(false);
-      setWorkspaceName(workspaceName);
-    },
-    [tabs, activeTab, setWorkspaceName]
-  );
-
-  const handleRenameWorkspace = useCallback(
-    async (newName: string) => {
-      const trimmedName = newName.trim();
-      if (trimmedName.length === 0 || trimmedName === workspaceName) {
-        setShowRenameWorkspaceDialog(false);
-        return;
-      }
-
-      try {
-        const sessions = (await api.renameWorkspace(
-          workspaceName,
-          trimmedName
-        )) as Workspace[];
-
-        setWorkspaces(sessions);
-        setWorkspaceName(trimmedName);
-        setShowRenameWorkspaceDialog(false);
-      } catch (error) {
-        console.error("Failed to rename workspace:", error);
-      }
-    },
-    [workspaceName, setWorkspaceName]
-  );
-
-  const commandItems = useMemo<Command[]>(() => {
-    const items: Command[] = [];
-
-    items.push({
-      id: "new-tab",
-      label: "New Tab",
-      description: "Create a new terminal tab",
-      run: () => void openTab(),
-    });
-
-    items.push({
-      id: "save-session",
-      label: "Save workspace",
-      description: "Save current tab layout for later restoration",
-      run: async () => {
-        if (workspaceName) {
-          const sessions = (await api.saveSession(
-            workspaceName,
-            tabs,
-            activeTab.id
-          )) as Workspace[];
-
-          setWorkspaces(sessions);
-        } else {
-          // No workspace open, show dialog
-          setShowCreateWorkspaceDialog(true);
-        }
-      },
-    });
-
-    // Add "Continue last session" if a last workspace exists
-    if (hasLastWorkspace) {
-      items.push({
-        id: "open-last-session",
-        label: "Continue last session",
-        description: "Restore your workspace from when you last closed the app",
-        run: async () => {
-          const lastWorkspace =
-            (await api.loadLastWorkspace()) as Workspace | null;
-          if (lastWorkspace) {
-            const { openWorkspace } = await import("./store/actions/workspace");
-            await openWorkspace(lastWorkspace);
-          }
-        },
-      });
-    }
-
-    // Only show "Restore saved layout" if sessions exist
-    if (hasWorkspaces && workspaces.length > 0) {
-      items.push({
-        id: "restore-session",
-        label: "Open workspace",
-        description: "Restore tabs from a saved workspace",
-        run: () => {
-          setShowWorkspacePicker(true);
-        },
-      });
-    }
-
-    if (workspaceName) {
-      items.push({
-        id: "close-workspace",
-        label: "Close workspace",
-        description: "Close the current workspace",
-        run: async () => {
-          if (workspaceName) {
-            const sessions = (await api.saveSession(
-              workspaceName,
-              tabs,
-              activeTab?.id
-            )) as Workspace[];
-
-            setWorkspaces(sessions);
-          }
-          closeWorkspace();
-        },
-      });
-
-      items.push({
-        id: "rename-workspace",
-        label: "Rename workspace",
-        description: "Change the name of the current workspace",
-        run: () => setShowRenameWorkspaceDialog(true),
-      });
-    }
-
-    items.push({
-      id: "cleanup-agent-sessions",
-      label: "Manage agent sessions…",
-      description: "Remove one or all agent worktrees without merging",
-      run: async () => {
-        const api = window.conduit;
-        if (!api) {
-          return;
-        }
-
-        try {
-          const sessions = await api.listAgentSessions();
-          if (sessions.length === 0) {
-            enqueueNotification({
-              kind: "info",
-              message: "No agent sessions.",
-              autoCloseMs: 2500,
-            });
-            return;
-          }
-
-          setCleanupDialogSessions(sessions);
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          enqueueNotification({
-            kind: "error",
-            message: "Unable to list agent sessions",
-            details: message,
-            autoCloseMs: null,
-          });
-        }
-      },
-    });
-
-    if (activeTab && activeTab.activePaneId) {
-      items.push({
-        id: "open-web-page",
-        label: "Open web page",
-        description: "Open a web page in a split view",
-        run: () => setIsUrlDialogOpen(true),
-      });
-    }
-    if (tabs.length > 1 && activeTab) {
-      items.push({
-        id: "close-tab",
-        label: "Close Tab",
-        description: "Close the currently active tab",
-        run: () => closeTab(activeTab.id),
-      });
-    }
-
-    if (activeTab && hasCustomLayout(activeTab.id)) {
-      items.push({
-        id: "reset-layout",
-        label: "Reset layout",
-        description: "Restore the default pane sizes for this tab",
-        run: () => resetLayoutSizes(activeTab.id),
-      });
-    }
-
-    const activePane =
-      activeTab && activeTab.activePaneId
-        ? activeTab.panes[activeTab.activePaneId]
-        : undefined;
-
-    if (activePane?.type === "terminal" && activePane.cwd) {
-      const paneCwd = activePane.cwd;
-
-      if (activePane.agentSessionId) {
-        items.push({
-          id: "finalize-agent-session",
-          label: "Merge and close agent session",
-          description: "Commit, merge, and close the isolated agent worktree",
-          run: async () => {
-            const api = window.conduit;
-            if (!api) {
-              return;
-            }
-
-            const branchLabel = activePane.agentBranchName ?? "agent session";
-            const notificationId = enqueueNotification({
-              kind: "info",
-              message: `Merging ${branchLabel}...`,
-              persistent: true,
-            });
-
-            try {
-              const result = await api.finalizeAgentSession({
-                sessionId: activePane.agentSessionId,
-              });
-
-              if (result.status === "conflict") {
-                updateNotification(notificationId, {
-                  kind: "error",
-                  message: "Merge conflicts detected",
-                  details: result.message,
-                  autoCloseMs: null,
-                });
-                return;
-              }
-
-              closePane(activeTab.id, activePane.id);
-              updateNotification(notificationId, {
-                kind: result.status === "noop" ? "info" : "success",
-                message:
-                  result.status === "noop"
-                    ? "Agent session had no new commits."
-                    : "Agent session merged successfully.",
-                details: result.message,
-                autoCloseMs: 5000,
-              });
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : String(error);
-              updateNotification(notificationId, {
-                kind: "error",
-                message: "Failed to merge and close agent session",
-                details: message,
-                autoCloseMs: null,
-              });
-            }
-          },
-        });
-
-        items.push({
-          id: "cleanup-agent-session",
-          label: "Terminate agent session",
-          description: "Remove the isolated worktree without merging",
-          run: async () => {
-            const api = window.conduit;
-            if (!api) {
-              return;
-            }
-
-            const branchLabel = activePane.agentBranchName ?? "agent session";
-            const notificationId = enqueueNotification({
-              kind: "info",
-              message: `Cleaning up ${branchLabel}...`,
-              persistent: true,
-            });
-
-            try {
-              const result = await api.cleanupAgentSession({
-                sessionId: activePane.agentSessionId,
-              });
-
-              closePane(activeTab.id, activePane.id);
-              updateNotification(notificationId, {
-                kind: "success",
-                message: "Agent session terminated",
-                details: result.message,
-                autoCloseMs: 4000,
-              });
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : String(error);
-              updateNotification(notificationId, {
-                kind: "error",
-                message: "Failed to clean up agent session",
-                details: message,
-                autoCloseMs: null,
-              });
-            }
-          },
-        });
-      }
-
-      items.push({
-        id: "open-in-vscode",
-        label: "Open in VS Code",
-        description: "Open the active directory in Visual Studio Code",
-        run: async () => {
-          const api = window.conduit;
-          if (!api) {
-            return;
-          }
-
-          await api.runBackgroundCommand({
-            command: "code-insiders",
-            args: [paneCwd],
-            cwd: paneCwd,
-          });
-        },
-      });
-    }
-
-    return items;
-  }, [
-    activeTab,
-    closeTab,
-    closePane,
-    enqueueNotification,
+  const commandItems = useCommands({
     hasCustomLayout,
-    hasLastWorkspace,
-    hasWorkspaces,
-    openTab,
     resetLayoutSizes,
+    closePane,
+    setIsUrlDialogOpen,
+    setCleanupDialogSessions,
+    hasWorkspaces,
     workspaces,
-    splitPane,
-    tabs,
-    updateNotification,
-    workspaceName,
-  ]);
+    hasLastWorkspace,
+    setShowWorkspacePicker,
+    setShowRenameWorkspaceDialog,
+    quickSaveWorkspace,
+    openLastWorkspace,
+    closeWorkspace,
+  });
 
   const handleCloseTerminalModal = useCallback(() => {
     setTerminalModalState((current) => {
@@ -843,7 +500,7 @@ export function App() {
         isOpen={showCreateWorkspaceDialog}
         initialValue=""
         onClose={() => setShowCreateWorkspaceDialog(false)}
-        onSave={handleSaveSession}
+        onSave={(name) => saveWorkspace(name, tabs, activeTab.id)}
         title="Save workspace"
         placeholder="e.g., Frontend Dev, API Testing..."
       />
@@ -852,7 +509,7 @@ export function App() {
         isOpen={showRenameWorkspaceDialog}
         initialValue={workspaceName ?? ""}
         onClose={() => setShowRenameWorkspaceDialog(false)}
-        onSave={handleRenameWorkspace}
+        onSave={renameWorkspace}
         title="Rename workspace"
         placeholder="Enter new worspace name..."
       />
@@ -861,10 +518,7 @@ export function App() {
         isOpen={showWorkspacePicker}
         onClose={() => setShowWorkspacePicker(false)}
         sessions={workspaces}
-        onSessionsUpdate={(sessions) => {
-          setWorkspaces(sessions);
-          setHasWorkspaces(sessions.length > 0);
-        }}
+        onSessionsUpdate={updateWorkspaces}
       />
 
       <AgentCleanupDialog
