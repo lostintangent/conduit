@@ -20,4 +20,6 @@ export const activeTabAtom = atom<Tab | null>((get) => {
   return tabs.find((tab) => tab.id === activeTabId) ?? null;
 });
 
+export const workspaceNameAtom = atom<string>();
+
 export const notificationsAtom = atom<Notification[]>([]);

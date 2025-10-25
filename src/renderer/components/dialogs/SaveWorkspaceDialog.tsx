@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type SessionNameDialogProps = {
+type SaveWorkspaceDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onSave: (name: string) => void;
 };
 
-export function SessionNameDialog({
+export function SaveWorkspaceDialog({
   isOpen,
   onClose,
   onSave,
-}: SessionNameDialogProps) {
+}: SaveWorkspaceDialogProps) {
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -62,11 +62,11 @@ export function SessionNameDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="mb-3 text-lg font-semibold text-white">
-          Save Tab Layout
+          Save Workspace
         </h2>
 
         <p className="mb-3 text-sm text-white/70">
-          Give this layout a name (optional):
+          Give this workspace a name (optional):
         </p>
 
         <input

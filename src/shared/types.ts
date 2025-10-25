@@ -1,3 +1,5 @@
+import { Tab } from "@/types";
+
 export type UserSettings = {
   tabPosition: "top" | "bottom";
   alwaysShowTabs: boolean;
@@ -9,12 +11,8 @@ export type UserSettings = {
 export type Workspace = {
   name: string;
   timestamp: number;
-  tabs: Array<{
-    id: string;
-    title?: string;
-    mode: "layout" | "focus";
-    activePaneId: string;
-    panes: Array<{
+  tabs: (Omit<Tab, "panes"> & {
+    panes: {
       id: string;
       type: "terminal" | "webview";
       cwd?: string | null;
@@ -22,9 +20,8 @@ export type Workspace = {
       webTitle?: string;
       // For terminal panes - the command that was running
       command?: string | null;
-    }>;
-    layout: unknown;
-  }>;
+    }[];
+  })[];
   activeTabId?: string;
 };
 

@@ -1,20 +1,20 @@
-import { restoreSession } from "@/store/actions/session";
+import { openWorkspace } from "@/store/actions/workspace";
 import type { Workspace } from "@shared/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type SessionPickerDialogProps = {
+type WorkspacePickerDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   sessions: Workspace[];
   onSessionsUpdate: (sessions: Workspace[]) => void;
 };
 
-export function SessionPickerDialog({
+export function WorkspacePickerDialog({
   isOpen,
   onClose,
   sessions,
   onSessionsUpdate,
-}: SessionPickerDialogProps) {
+}: WorkspacePickerDialogProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,7 +47,7 @@ export function SessionPickerDialog({
         const session = sessions[selectedIndex];
         if (session) {
           void (async () => {
-            await restoreSession(session);
+            await openWorkspace(session);
             onClose();
           })();
         }
@@ -101,7 +101,7 @@ export function SessionPickerDialog({
   const handleRestoreSession = useCallback(
     (session: Workspace) => {
       void (async () => {
-        await restoreSession(session);
+        await openWorkspace(session);
         onClose();
       })();
     },
@@ -197,8 +197,8 @@ export function SessionPickerDialog({
                     aria-selected={isActive}
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={`flex w-full items-center rounded-md border transition ${isActive
-                        ? "border-white/30 bg-white/10 text-white"
-                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
+                      ? "border-white/30 bg-white/10 text-white"
+                      : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
                       }`}
                   >
                     <button

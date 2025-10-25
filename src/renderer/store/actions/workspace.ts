@@ -1,27 +1,21 @@
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import type { LayoutNode, Pane, Tab } from "@/types";
+import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
+import type { Pane, Tab } from "@/types";
 import type { Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
+import { closeTab } from "./tab";
 
+const api = window.conduit;
 const store = getDefaultStore();
 
-export async function restoreSession(sessionData: Workspace): Promise<void> {
-  const api = window.conduit;
-  if (!api) {
+export async function openWorkspace(workspace: Workspace) {
+  if (!workspace.tabs || workspace.tabs.length === 0) {
     return;
   }
 
-  if (!sessionData.tabs || sessionData.tabs.length === 0) {
-    return;
-  }
-
-  const restoredTabs: Tab[] = [];
-
-  for (const sessionTab of sessionData.tabs) {
+  const workspaceTabs: Tab[] = [];
+  for (const workspaceTab of workspace.tabs) {
     const panes: Record<string, Pane> = {};
-
-    // Restore panes
-    for (const sessionPane of sessionTab.panes) {
+    for (const sessionPane of workspaceTab.panes) {
       if (sessionPane.type === "terminal") {
         // Create a new terminal session with the saved cwd
         const result = await api.createTerminal(
@@ -58,21 +52,22 @@ export async function restoreSession(sessionData: Workspace): Promise<void> {
     // Only create the tab if we successfully restored at least one pane
     if (Object.keys(panes).length > 0) {
       const tab: Tab = {
-        id: sessionTab.id,
-        title: sessionTab.title,
+        ...workspaceTab,
         panes,
-        layout: sessionTab.layout as LayoutNode,
-        mode: sessionTab.mode,
-        activePaneId: sessionTab.activePaneId,
       };
 
-      restoredTabs.push(tab);
+      workspaceTabs.push(tab);
     }
   }
 
-  if (restoredTabs.length > 0) {
-    // Clear existing tabs and replace with restored ones
-    store.set(tabsAtom, restoredTabs);
-    store.set(activeTabIdAtom, sessionData.activeTabId);
+  if (workspaceTabs.length > 0) {
+    store.set(tabsAtom, workspaceTabs);
+    store.set(activeTabIdAtom, workspace.activeTabId);
+    store.set(workspaceNameAtom, workspace.name);
   }
+}
+
+export async function closeWorkspace() {
+  store.set(workspaceNameAtom, null);
+  store.get(tabsAtom).forEach((tab) => closeTab(tab.id));
 }

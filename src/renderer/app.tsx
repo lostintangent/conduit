@@ -1,11 +1,10 @@
 import { CommandPalette } from "@/components/CommandPalette";
 import { AgentCleanupDialog } from "@/components/dialogs/AgentCleanupDialog";
 import { OpenUrlDialog } from "@/components/dialogs/OpenUrlDialog";
-import { SessionNameDialog } from "@/components/dialogs/SessionNameDialog";
-import { SessionPickerDialog } from "@/components/dialogs/SessionPickerDialog";
+import { SaveWorkspaceDialog } from "@/components/dialogs/SaveWorkspaceDialog";
 import { TabTitleDialog } from "@/components/dialogs/TabTitleDialog";
 import { TerminalDialog } from "@/components/dialogs/TerminalDialog";
-import { NotificationCenter } from "@/components/NotificationCenter";
+import { WorkspacePickerDialog } from "@/components/dialogs/WorkspacePickerDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
 import { TitleBar } from "@/components/TitleBar";
@@ -22,12 +21,16 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { Command } from "@/types";
 import type { AgentSessionInfo, Workspace } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NotificationCenter } from "./components/NotificationCenter";
+import { closeWorkspace } from "./store/actions/workspace";
+
+const api = window.conduit;
 
 export function App() {
   const {
@@ -46,6 +49,8 @@ export function App() {
 
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
+
   const [titleModalState, setTitleModalState] = useState<{
     tabId: string;
     initialValue: string;
@@ -57,10 +62,12 @@ export function App() {
     command: string;
   } | null>(null);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
-  const [hasSessionsAvailable, setHasSessionsAvailable] = useState(false);
-  const [showSessionPicker, setShowSessionPicker] = useState(false);
-  const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
-  const [savedSessions, setSavedSessions] = useState<Workspace[]>([]);
+
+  const [hasWorkspaces, setHasWorkspaces] = useState(false);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+
+  const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
+  const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
@@ -86,17 +93,12 @@ export function App() {
   // Check if sessions are available on mount
   useEffect(() => {
     const checkSessions = async () => {
-      const api = window.conduit;
-      if (!api) {
-        return;
-      }
-
       const hasSessions = await api.hasSessions();
-      setHasSessionsAvailable(hasSessions);
+      setHasWorkspaces(hasSessions);
 
       if (hasSessions) {
         const sessions = (await api.loadSessions()) as Workspace[];
-        setSavedSessions(sessions);
+        setWorkspaces(sessions);
       }
     };
 
@@ -104,11 +106,6 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const api = window.conduit;
-    if (!api) {
-      return () => { };
-    }
-
     const unsubscribeExit = api.onExit(({ sessionId }) => {
       setTerminalModalState((current) => {
         if (!current || current.sessionId !== sessionId) {
@@ -385,10 +382,10 @@ export function App() {
       }
 
       // Use custom name if provided, otherwise generate date-based name
-      let layoutName = customName.trim();
-      if (layoutName.length === 0) {
+      let workspaceName = customName.trim();
+      if (workspaceName.length === 0) {
         const now = new Date();
-        layoutName = `Layout ${now.toLocaleString("en-US", {
+        workspaceName = `Layout ${now.toLocaleString("en-US", {
           month: "short",
           day: "numeric",
           hour: "numeric",
@@ -398,14 +395,15 @@ export function App() {
       }
 
       const sessions = (await api.saveSession(
-        layoutName,
+        workspaceName,
         tabs,
         activeTab.id
       )) as Workspace[];
 
-      setSavedSessions(sessions);
-      setHasSessionsAvailable(true);
-      setShowSessionNameDialog(false);
+      setWorkspaces(sessions);
+      setHasWorkspaces(true);
+      setShowCreateWorkspaceDialog(false);
+      setWorkspaceName(workspaceName);
     },
     [tabs, activeTab]
   );
@@ -425,19 +423,29 @@ export function App() {
       label: "Save workspace",
       description: "Save current tab layout for later restoration",
       run: () => {
-        setShowSessionNameDialog(true);
+        // TODO: If the user is already in a workspace, them simply update it
+        setShowCreateWorkspaceDialog(true);
       },
     });
 
     // Only show "Restore saved layout" if sessions exist
-    if (hasSessionsAvailable && savedSessions.length > 0) {
+    if (hasWorkspaces && workspaces.length > 0) {
       items.push({
         id: "restore-session",
-        label: "Restore workspace",
+        label: "Open workspace",
         description: "Restore tabs from a saved workspace",
         run: () => {
-          setShowSessionPicker(true);
+          setShowWorkspacePicker(true);
         },
+      });
+    }
+
+    if (workspaceName) {
+      items.push({
+        id: "close-workspace",
+        label: "Close workspace",
+        description: "Close the current workspace",
+        run: () => closeWorkspace()
       });
     }
 
@@ -635,10 +643,10 @@ export function App() {
     closePane,
     enqueueNotification,
     hasCustomLayout,
-    hasSessionsAvailable,
+    hasWorkspaces,
     openTab,
     resetLayoutSizes,
-    savedSessions,
+    workspaces,
     splitPane,
     tabs,
     updateNotification,
@@ -711,13 +719,7 @@ export function App() {
         />
       )}
 
-      <TabTitleDialog
-        isOpen={titleModalState !== null}
-        initialValue={titleModalState?.initialValue ?? ""}
-        onClose={() => setTitleModalState(null)}
-        onSave={handleTitleModalSave}
-      />
-
+      {/* Global UI */}
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={closeCommandPalette}
@@ -725,6 +727,17 @@ export function App() {
         onRunShellCommand={handleShellCommand}
         shellHistory={commandHistory}
         onRemoveShellHistoryEntry={removeCommandHistoryEntry}
+      />
+
+      <NotificationCenter />
+
+      {/* Dialogs */}
+
+      <TabTitleDialog
+        isOpen={titleModalState !== null}
+        initialValue={titleModalState?.initialValue ?? ""}
+        onClose={() => setTitleModalState(null)}
+        onSave={handleTitleModalSave}
       />
 
       {terminalModalState && (
@@ -742,19 +755,19 @@ export function App() {
         onSubmit={handleOpenWebPage}
       />
 
-      <SessionNameDialog
-        isOpen={showSessionNameDialog}
-        onClose={() => setShowSessionNameDialog(false)}
+      <SaveWorkspaceDialog
+        isOpen={showCreateWorkspaceDialog}
+        onClose={() => setShowCreateWorkspaceDialog(false)}
         onSave={handleSaveSession}
       />
 
-      <SessionPickerDialog
-        isOpen={showSessionPicker}
-        onClose={() => setShowSessionPicker(false)}
-        sessions={savedSessions}
+      <WorkspacePickerDialog
+        isOpen={showWorkspacePicker}
+        onClose={() => setShowWorkspacePicker(false)}
+        sessions={workspaces}
         onSessionsUpdate={(sessions) => {
-          setSavedSessions(sessions);
-          setHasSessionsAvailable(sessions.length > 0);
+          setWorkspaces(sessions);
+          setHasWorkspaces(sessions.length > 0);
         }}
       />
 
@@ -764,8 +777,6 @@ export function App() {
         onClose={() => setCleanupDialogSessions(null)}
         onRemove={handleAgentSessionCleanup}
       />
-
-      <NotificationCenter />
     </div>
   );
 }
