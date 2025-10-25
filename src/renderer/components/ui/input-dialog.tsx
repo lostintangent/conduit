@@ -7,39 +7,43 @@ import {
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 
-type TabTitleDialogProps = {
+type InputDialogProps = {
   isOpen: boolean;
   initialValue: string;
   onClose: () => void;
-  onSave: (title: string) => void;
+  onSave: (value: string) => void;
+  title: string;
+  placeholder: string;
 };
 
-export function TabTitleDialog({
+export function InputDialog({
   isOpen,
   initialValue = "",
   onClose,
   onSave,
-}: TabTitleDialogProps) {
-  const [title, setTitle] = useState(initialValue);
+  title,
+  placeholder,
+}: InputDialogProps) {
+  const [value, setValue] = useState(initialValue);
 
   useEffect(() => {
-    if (isOpen) setTitle(initialValue);
+    if (isOpen) setValue(initialValue);
   }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-surface-elevated border-border">
         <DialogHeader>
-          <DialogTitle>Change tab title</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={() => onSave(title)}>
+        <form onSubmit={() => onSave(value)}>
           <input
             autoFocus
             className="w-full py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-[var(--color-focus-ring)] focus:outline-offset-2"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter a title..."
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={placeholder}
           />
           <DialogFooter className="mt-4">
             <button

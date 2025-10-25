@@ -1,3 +1,4 @@
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Command } from "@/types";
 import {
   useCallback,
@@ -8,12 +9,23 @@ import {
   type KeyboardEvent,
 } from "react";
 
+function focusIfActive(element: HTMLLIElement | null, isActive: boolean) {
+  if (isActive && element) {
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }
+}
+
 type CommandPaletteProps = {
   isOpen: boolean;
   onClose: () => void;
+
   commandItems: Command[];
-  onRunShellCommand: (command: string) => Promise<void> | void;
+
   shellHistory: string[];
+  onRunShellCommand: (command: string) => Promise<void> | void;
   onRemoveShellHistoryEntry: (command: string) => Promise<void> | void;
 };
 
@@ -27,25 +39,15 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const [inputValue, setInputValue] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+
   const previousQueryRef = useRef<string>("");
-  const selectedItemRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
 
     setInputValue("");
     setSelectedIndex(0);
     previousQueryRef.current = "";
-
-    const focusHandle = requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    });
-
-    return () => cancelAnimationFrame(focusHandle);
   }, [isOpen]);
 
   const firstNonWhitespaceIndex = inputValue.search(/\S/);
@@ -56,15 +58,6 @@ export function CommandPalette({
     ? inputValue.slice(firstNonWhitespaceIndex + 1)
     : "";
   const commandQuery = isShellMode ? "" : inputValue.trim();
-
-  const normalizedShellHistory = useMemo(
-    () =>
-      shellHistory
-        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-        .filter((entry) => entry.length > 0)
-        .slice(0, 5),
-    [shellHistory]
-  );
 
   const filteredCommands = useMemo(() => {
     if (isShellMode) {
@@ -88,14 +81,13 @@ export function CommandPalette({
 
     const query = shellCommand.trim().toLowerCase();
     if (query.length === 0) {
-      return normalizedShellHistory;
+      return shellHistory;
     }
 
-    return normalizedShellHistory.filter((entry) =>
-      entry.toLowerCase().includes(query)
-    );
-  }, [isShellMode, normalizedShellHistory, shellCommand]);
+    return shellHistory.filter((entry) => entry.toLowerCase().includes(query));
+  }, [isShellMode, shellHistory, shellCommand]);
 
+  // Auto-adjust selected index if out of bounds
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -117,16 +109,6 @@ export function CommandPalette({
     isOpen,
     isShellMode,
   ]);
-
-  // Auto-scroll selected item into view
-  useEffect(() => {
-    if (selectedItemRef.current) {
-      selectedItemRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-    }
-  }, [selectedIndex]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -300,27 +282,11 @@ export function CommandPalette({
     ]
   );
 
-  const handleBackdropClick = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
-  const trimmedShellCommand = shellCommand.trim();
-
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={handleBackdropClick}
-    >
-      <div
-        className="w-[480px] max-w-[90vw] rounded-xl border border-white/10 bg-surface-elevated p-4 shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[480px] max-w-[90vw] p-4 gap-0 bg-surface-elevated border-white/10" showClose={false}>
         <input
-          ref={inputRef}
+          autoFocus
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
           onKeyDown={handleInputKeyDown}
@@ -339,25 +305,20 @@ export function CommandPalette({
                 return (
                   <li
                     key={`${historyCommand}-${index}`}
-                    ref={isActive ? selectedItemRef : null}
+                    ref={(e) => focusIfActive(e, isActive)}
                   >
                     <div
                       role="option"
                       aria-selected={isActive}
                       onMouseEnter={() => setSelectedIndex(index)}
-                      className={`flex w-full items-center rounded-md border transition ${
-                        isActive
-                          ? "border-yellow-500/60 bg-yellow-500/40 text-foreground-inverse"
-                          : "border-transparent text-white/80 hover:border-yellow-500/40 hover:bg-yellow-500/15"
-                      }`}
+                      className={`flex w-full items-center rounded-md border transition ${isActive
+                        ? "border-yellow-500/60 bg-yellow-500/40 text-foreground-inverse"
+                        : "border-transparent text-white/80 hover:border-yellow-500/40 hover:bg-yellow-500/15"
+                        }`}
                     >
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedIndex(index);
-                          runShell(historyCommand);
-                        }}
-                        onMouseEnter={() => setSelectedIndex(index)}
+                        onClick={() => runShell(historyCommand)}
                         className="flex flex-1 flex-col gap-1 px-3 py-2 text-left focus:outline-none"
                       >
                         <span className="text-sm font-medium">
@@ -380,7 +341,6 @@ export function CommandPalette({
                           });
                           void onRemoveShellHistoryEntry(historyCommand);
                         }}
-                        onMouseEnter={() => setSelectedIndex(index)}
                         aria-label="Remove command from history"
                         className="mr-2 rounded-md p-1 text-sm leading-none text-current transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
                       >
@@ -393,7 +353,7 @@ export function CommandPalette({
             </ul>
           ) : (
             <div className="mt-3 rounded-md border border-dashed border-yellow-500/40 bg-yellow-500/40 px-3 py-2 text-sm text-foreground-inverse">
-              {normalizedShellHistory.length === 0
+              {shellHistory.length === 0
                 ? "No recent shell commands yet."
                 : "No matching recent commands."}
             </div>
@@ -406,7 +366,10 @@ export function CommandPalette({
             {filteredCommands.map((command, index) => {
               const isActive = index === selectedIndex;
               return (
-                <li key={command.id} ref={isActive ? selectedItemRef : null}>
+                <li
+                  key={command.id}
+                  ref={(element) => focusIfActive(element, isActive)}
+                >
                   <button
                     type="button"
                     onClick={() => {
@@ -414,11 +377,10 @@ export function CommandPalette({
                       runCommand(command);
                     }}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`flex w-full flex-col gap-1 rounded-md border px-3 py-2 text-left transition cursor-pointer ${
-                      isActive
-                        ? "border-white/30 bg-white/10 text-white"
-                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
-                    }`}
+                    className={`flex w-full flex-col gap-1 rounded-md border px-3 py-2 text-left transition cursor-pointer ${isActive
+                      ? "border-white/30 bg-white/10 text-white"
+                      : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
+                      }`}
                     aria-selected={isActive}
                   >
                     <span className="text-sm font-medium">
@@ -439,7 +401,7 @@ export function CommandPalette({
             No matching commands.
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

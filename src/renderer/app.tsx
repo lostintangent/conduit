@@ -1,13 +1,11 @@
+import { AgentCleanupDialog } from "@/components/AgentCleanupDialog";
 import { CommandPalette } from "@/components/CommandPalette";
-import { AgentCleanupDialog } from "@/components/dialogs/AgentCleanupDialog";
-import { OpenUrlDialog } from "@/components/dialogs/OpenUrlDialog";
-import { SaveWorkspaceDialog } from "@/components/dialogs/SaveWorkspaceDialog";
-import { TabTitleDialog } from "@/components/dialogs/TabTitleDialog";
-import { TerminalDialog } from "@/components/dialogs/TerminalDialog";
-import { WorkspacePickerDialog } from "@/components/dialogs/WorkspacePickerDialog";
+import { QuickTerminal } from "@/components/QuickTerminal";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
 import { TitleBar } from "@/components/TitleBar";
+import { InputDialog } from "@/components/ui/input-dialog";
+import { WorkspacePicker } from "@/components/WorkspacePicker";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
@@ -30,7 +28,6 @@ import type { Command } from "@/types";
 import type { AgentSessionInfo, Workspace } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RenameWorkspaceDialog } from "./components/dialogs/RenameWorkspaceDialog";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { closeWorkspace } from "./store/actions/workspace";
 
@@ -41,7 +38,7 @@ export function App() {
     tabPosition,
     alwaysShowTabs,
     commandHistory,
-    recordCommandHistoryEntry,
+    addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
   } = useUserSettings();
 
@@ -244,11 +241,6 @@ export function App() {
         return;
       }
 
-      const api = window.conduit;
-      if (!api) {
-        return;
-      }
-
       if (terminalModalState) {
         api.closeTerminal(terminalModalState.sessionId);
         disposeSession(terminalModalState.sessionId);
@@ -357,9 +349,8 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${
-            failures.length > 1 ? "s" : ""
-          }`,
+          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
+            }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -430,14 +421,20 @@ export function App() {
 
   const handleRenameWorkspace = useCallback(
     async (newName: string) => {
+      const trimmedName = newName.trim();
+      if (trimmedName.length === 0 || trimmedName === workspaceName) {
+        setShowRenameWorkspaceDialog(false);
+        return;
+      }
+
       try {
         const sessions = (await api.renameWorkspace(
           workspaceName,
-          newName
+          trimmedName
         )) as Workspace[];
 
         setWorkspaces(sessions);
-        setWorkspaceName(newName);
+        setWorkspaceName(trimmedName);
         setShowRenameWorkspaceDialog(false);
       } catch (error) {
         console.error("Failed to rename workspace:", error);
@@ -815,15 +812,17 @@ export function App() {
 
       {/* Dialogs */}
 
-      <TabTitleDialog
+      <InputDialog
         isOpen={titleModalState !== null}
         initialValue={titleModalState?.initialValue ?? ""}
         onClose={() => setTitleModalState(null)}
         onSave={handleTitleModalSave}
+        title="Change tab title"
+        placeholder="Enter a title..."
       />
 
       {terminalModalState && (
-        <TerminalDialog
+        <QuickTerminal
           sessionId={terminalModalState.sessionId}
           cwd={terminalModalState.cwd}
           onClose={handleCloseTerminalModal}
@@ -831,26 +830,34 @@ export function App() {
         />
       )}
 
-      <OpenUrlDialog
+      <InputDialog
         isOpen={isUrlDialogOpen}
         onClose={() => setIsUrlDialogOpen(false)}
-        onSubmit={handleOpenWebPage}
+        onSave={(url) => handleOpenWebPage(url.trim())}
+        title="Open URL"
+        placeholder="Enter URL to open..."
+        initialValue=""
       />
 
-      <SaveWorkspaceDialog
+      <InputDialog
         isOpen={showCreateWorkspaceDialog}
+        initialValue=""
         onClose={() => setShowCreateWorkspaceDialog(false)}
         onSave={handleSaveSession}
+        title="Save workspace"
+        placeholder="e.g., Frontend Dev, API Testing..."
       />
 
-      <RenameWorkspaceDialog
+      <InputDialog
         isOpen={showRenameWorkspaceDialog}
-        currentName={workspaceName ?? ""}
+        initialValue={workspaceName ?? ""}
         onClose={() => setShowRenameWorkspaceDialog(false)}
-        onRename={handleRenameWorkspace}
+        onSave={handleRenameWorkspace}
+        title="Rename workspace"
+        placeholder="Enter new worspace name..."
       />
 
-      <WorkspacePickerDialog
+      <WorkspacePicker
         isOpen={showWorkspacePicker}
         onClose={() => setShowWorkspacePicker(false)}
         sessions={workspaces}
@@ -866,6 +873,7 @@ export function App() {
         onClose={() => setCleanupDialogSessions(null)}
         onRemove={handleAgentSessionCleanup}
       />
+
     </div>
   );
 }

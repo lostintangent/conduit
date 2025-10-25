@@ -2,19 +2,19 @@ import { openWorkspace } from "@/store/actions/workspace";
 import type { Workspace } from "@shared/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type WorkspacePickerDialogProps = {
+type WorkspacePickerDialog = {
   isOpen: boolean;
   onClose: () => void;
   sessions: Workspace[];
   onSessionsUpdate: (sessions: Workspace[]) => void;
 };
 
-export function WorkspacePickerDialog({
+export function WorkspacePicker({
   isOpen,
   onClose,
   sessions,
   onSessionsUpdate,
-}: WorkspacePickerDialogProps) {
+}: WorkspacePickerDialog) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 

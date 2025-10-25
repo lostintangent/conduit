@@ -2,19 +2,19 @@ import { TerminalPane } from "@/components/panes/TerminalPane";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ArrowUpRight } from "lucide-react";
 
-type TerminalDialogProps = {
+type QuickTerminalProps = {
   sessionId: string;
   cwd: string | null;
   onClose: () => void;
   onOpenAsTab: () => void;
 };
 
-export function TerminalDialog({
+export function QuickTerminal({
   sessionId,
   cwd,
   onClose,
   onOpenAsTab,
-}: TerminalDialogProps) {
+}: QuickTerminalProps) {
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[min(95vw,1000px)] h-[520px] min-h-[320px] max-h-[90vh] p-0 gap-0 bg-surface border-white/10">
