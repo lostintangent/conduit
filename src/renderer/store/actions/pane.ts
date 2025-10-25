@@ -12,6 +12,7 @@ import type {
 } from "@/types";
 import { generateId } from "@/utils/id";
 import {
+  findLayoutPath,
   getPaneDirectionConfig,
   walkLayout,
   type PaneDirection,
@@ -155,38 +156,6 @@ function findFirstPaneId(node: LayoutNode): string {
   }
 
   return findFirstPaneId(node.children[0]);
-}
-
-type LayoutPathEntry = {
-  node: LayoutNode;
-  parent: LayoutSplitNode | null;
-  index: number;
-};
-
-function findLayoutPath(
-  node: LayoutNode,
-  predicate: (candidate: LayoutNode) => boolean,
-  parent: LayoutSplitNode | null = null,
-  index = 0
-): LayoutPathEntry[] | null {
-  const currentEntry: LayoutPathEntry = { node, parent, index };
-  if (predicate(node)) {
-    return [currentEntry];
-  }
-
-  if (node.type !== "split") {
-    return null;
-  }
-
-  for (let childIndex = 0; childIndex < node.children.length; childIndex += 1) {
-    const child = node.children[childIndex];
-    const childPath = findLayoutPath(child, predicate, node, childIndex);
-    if (childPath) {
-      return [currentEntry, ...childPath];
-    }
-  }
-
-  return null;
 }
 
 type ExtractPaneResult = {

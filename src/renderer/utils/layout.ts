@@ -77,13 +77,13 @@ export function findPaneNodeByPaneId(
   return match;
 }
 
-type LayoutPathEntry = {
+export type LayoutPathEntry = {
   node: LayoutNode;
   parent: LayoutSplitNode | null;
   index: number;
 };
 
-function findLayoutPath(
+export function findLayoutPath(
   node: LayoutNode,
   predicate: (candidate: LayoutNode) => boolean,
   parent: LayoutSplitNode | null = null,
