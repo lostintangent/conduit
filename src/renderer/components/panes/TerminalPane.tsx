@@ -1,4 +1,4 @@
-import { userSettingsAtom } from "@/store/atoms";
+import { paneFlashAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
 import { useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
@@ -9,6 +9,8 @@ import "@xterm/xterm/css/xterm.css";
 type TerminalPaneProps = {
   sessionId: string;
   isActive: boolean;
+  paneId: string;
+  showBorder: boolean;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: () => void;
   onLinkClick?: (url: string) => void;
@@ -17,11 +19,14 @@ type TerminalPaneProps = {
 export const TerminalPane = ({
   sessionId,
   isActive,
+  paneId,
+  showBorder,
   onContextMenu,
   onActivate,
   onLinkClick,
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
+  const paneFlash = useAtomValue(paneFlashAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -41,6 +46,8 @@ export const TerminalPane = ({
 
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchWidgetHandleRef = useRef<SearchWidgetHandle | null>(null);
+
+  const [flashClass, setFlashClass] = useState<string>("");
 
   const focusTerminal = () => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
@@ -251,9 +258,32 @@ export const TerminalPane = ({
     terminal.options.overviewRulerWidth = desiredWidth;
   }, [showTerminalRuler, sessionId]);
 
+  // Handle flash effect
+  useEffect(() => {
+    if (!paneFlash || paneFlash.paneId !== paneId) {
+      // Clear flash class when this is no longer the flashing pane
+      if (flashClass) {
+        setFlashClass("");
+      }
+      return;
+    }
+
+    const className =
+      paneFlash.type === "origin" ? "pane-flash-origin" : "pane-flash-target";
+    setFlashClass(className);
+
+    // Clear the flash class after animation completes
+    const duration = paneFlash.type === "origin" ? 300 : 600;
+    const timeout = setTimeout(() => {
+      setFlashClass("");
+    }, duration);
+
+    return () => clearTimeout(timeout);
+  }, [paneFlash, paneId, flashClass]);
+
   return (
     <div
-      className="terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative"
+      className={`terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative ${isActive && showBorder ? "pane-active-border" : ""} ${flashClass}`}
       ref={containerRef}
       data-active={isActive}
       onContextMenu={onContextMenu}

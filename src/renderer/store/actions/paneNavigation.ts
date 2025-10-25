@@ -1,12 +1,12 @@
-import { getDefaultStore } from "jotai";
-import { tabsAtom } from "@/store/atoms";
-import type { LayoutNode } from "@/types";
 import { activatePane } from "@/store/actions/pane";
-import { walkLayout } from "@/utils/layout";
+import { paneFlashAtom, tabsAtom } from "@/store/atoms";
+import type { LayoutNode } from "@/types";
 import {
   getPaneDirectionConfig,
+  walkLayout,
   type PaneDirection,
 } from "@/utils/layout";
+import { getDefaultStore } from "jotai";
 
 export type PaneNavigationDirection = PaneDirection;
 
@@ -220,6 +220,22 @@ export const navigatePane = (
   if (!targetPaneId) {
     return false;
   }
+
+  // Flash origin pane once
+  store.set(paneFlashAtom, {
+    paneId,
+    type: "origin",
+    timestamp: Date.now(),
+  });
+
+  // Flash target pane twice after a short delay
+  setTimeout(() => {
+    store.set(paneFlashAtom, {
+      paneId: targetPaneId,
+      type: "target",
+      timestamp: Date.now(),
+    });
+  }, 150);
 
   activatePane(tabId, targetPaneId);
   return true;

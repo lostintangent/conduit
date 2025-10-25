@@ -1,3 +1,4 @@
+import { paneFlashAtom } from "@/store/atoms";
 import type {
   ContextMenuParams,
   DidNavigateEvent,
@@ -5,11 +6,14 @@ import type {
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, ArrowRight, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type WebPaneProps = {
   url: string;
+  paneId: string;
+  showBorder: boolean;
   onTitleChange?: (title: string) => void;
   disableInteraction?: boolean;
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
@@ -18,6 +22,8 @@ type WebPaneProps = {
 
 export function WebPane({
   url,
+  paneId,
+  showBorder,
   onTitleChange,
   disableInteraction = false,
   onContextMenu,
@@ -29,6 +35,8 @@ export function WebPane({
   const [inputUrl, setInputUrl] = useState<string>(url);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
+  const [flashClass, setFlashClass] = useState<string>("");
+  const paneFlash = useAtomValue(paneFlashAtom);
 
   useEffect(() => {
     setCurrentUrl(url);
@@ -145,8 +153,33 @@ export function WebPane({
     setInputUrl(currentUrl);
   }, [currentUrl]);
 
+  // Handle flash effect
+  useEffect(() => {
+    if (!paneFlash || paneFlash.paneId !== paneId) {
+      // Clear flash class when this is no longer the flashing pane
+      if (flashClass) {
+        setFlashClass("");
+      }
+      return;
+    }
+
+    const className =
+      paneFlash.type === "origin" ? "pane-flash-origin" : "pane-flash-target";
+    setFlashClass(className);
+
+    // Clear the flash class after animation completes
+    const duration = paneFlash.type === "origin" ? 300 : 600;
+    const timeout = setTimeout(() => {
+      setFlashClass("");
+    }, duration);
+
+    return () => clearTimeout(timeout);
+  }, [paneFlash, paneId, flashClass]);
+
   return (
-    <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0">
+    <div
+      className={`relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 ${isActive && showBorder ? "pane-active-border" : ""} ${flashClass}`}
+    >
       {/* URL Bar */}
       <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-elevated border-b border-white/10">
         <button

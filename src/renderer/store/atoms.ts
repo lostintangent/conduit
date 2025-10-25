@@ -23,3 +23,17 @@ export const activeTabAtom = atom<Tab | null>((get) => {
 export const workspaceNameAtom = atom<string>();
 
 export const notificationsAtom = atom<Notification[]>([]);
+
+export type PaneFlashState = {
+  paneId: string;
+  type: "origin" | "target";
+  timestamp: number;
+};
+
+export const paneFlashAtom = atom<
+  PaneFlashState | null,
+  [PaneFlashState | null],
+  void
+>(null, (_get, set, update) => {
+  set(paneFlashAtom, update);
+});
