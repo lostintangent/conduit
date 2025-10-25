@@ -10,6 +10,7 @@ import type { TerminalSession } from "../terminal/types";
 
 export type SessionsFile = {
   sessions: Workspace[];
+  lastWorkspace?: Workspace;
 };
 
 export type { Workspace as SavedSession };
@@ -380,15 +381,110 @@ export async function deleteSession(timestamp: number): Promise<void> {
   }
 }
 
+export async function saveLastWorkspace(
+  tabs: Tab[],
+  activeTabId: string | undefined,
+  terminalSessions: Map<string, TerminalSession>
+): Promise<void> {
+  try {
+    await ensureConduitDirectory();
+
+    const serializedTabs = await Promise.all(
+      tabs.map(async (tab) => {
+        const panes = await Promise.all(
+          Object.values(tab.panes).map(async (pane) => {
+            if (pane.type === "terminal") {
+              const terminalSession = terminalSessions.get(pane.sessionId);
+
+              let capturedCommand: string | null = null;
+              if (terminalSession) {
+                const activeCommand =
+                  await detectActiveCommand(terminalSession);
+                if (activeCommand && activeCommand.length > 0) {
+                  capturedCommand = activeCommand;
+                } else {
+                  capturedCommand = commandFromProcessTitle(
+                    terminalSession.lastProcessName
+                  );
+                }
+              }
+
+              return {
+                id: pane.id,
+                type: "terminal" as const,
+                cwd: pane.cwd,
+                command: capturedCommand,
+              };
+            }
+
+            return {
+              id: pane.id,
+              type: "webview" as const,
+              url: pane.url,
+              webTitle: pane.title,
+            };
+          })
+        );
+
+        return {
+          id: tab.id,
+          title: tab.title,
+          mode: tab.mode,
+          activePaneId: tab.activePaneId,
+          panes,
+          layout: tab.layout,
+        };
+      })
+    );
+
+    const lastWorkspace: Workspace = {
+      name: "__last_workspace__",
+      timestamp: Date.now(),
+      tabs: serializedTabs,
+      activeTabId,
+    };
+
+    const sessionsFile = await loadSessionsFile();
+    sessionsFile.lastWorkspace = lastWorkspace;
+
+    await saveSessionsFile(sessionsFile);
+    console.log("[Session Save] Last workspace saved successfully");
+  } catch (error) {
+    console.error("Failed to save last workspace:", error);
+  }
+}
+
+export async function loadLastWorkspace(): Promise<Workspace | null> {
+  try {
+    const sessionsFile = await loadSessionsFile();
+    return sessionsFile.lastWorkspace ?? null;
+  } catch (error) {
+    console.error("Failed to load last workspace:", error);
+    return null;
+  }
+}
+
+export async function hasLastWorkspace(): Promise<boolean> {
+  try {
+    const lastWorkspace = await loadLastWorkspace();
+    return lastWorkspace !== null;
+  } catch {
+    return false;
+  }
+}
+
 export async function renameWorkspace(
   currentName: string,
   newName: string
 ): Promise<Workspace[]> {
   try {
+    // Prevent renaming the special last workspace
+    if (currentName === "__last_workspace__") {
+      throw new Error("Cannot rename the last workspace");
+    }
+
     const sessionsFile = await loadSessionsFile();
-    const workspace = sessionsFile.sessions.find(
-      (s) => s.name === currentName
-    );
+    const workspace = sessionsFile.sessions.find((s) => s.name === currentName);
 
     if (!workspace) {
       throw new Error(`Workspace "${currentName}" not found`);
@@ -438,6 +534,22 @@ export function initializeWorkspaceHandlers() {
     "session:rename-workspace",
     async (_event, currentName, newName) => {
       return await renameWorkspace(currentName, newName);
+    }
+  );
+
+  ipcMain.handle("session:has-last-workspace", async () => {
+    return await hasLastWorkspace();
+  });
+
+  ipcMain.handle("session:load-last-workspace", async () => {
+    return await loadLastWorkspace();
+  });
+
+  ipcMain.handle(
+    "session:save-last-workspace",
+    async (_event, tabs, activeTabId) => {
+      const terminalSessions = getAllSessions();
+      await saveLastWorkspace(tabs, activeTabId, terminalSessions);
     }
   );
 }

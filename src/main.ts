@@ -83,6 +83,23 @@ async function createWindow() {
     );
   }
 
+  // Save last workspace before window closes
+  mainWindow.on("close", (event) => {
+    if (mainWindow) {
+      event.preventDefault();
+
+      // Request the renderer to save the last workspace
+      mainWindow.webContents.send("app:before-close");
+
+      // Give the renderer time to save, then close
+      setTimeout(() => {
+        if (mainWindow) {
+          mainWindow.destroy();
+        }
+      }, 1000);
+    }
+  });
+
   mainWindow.on("closed", () => {
     cleanupTerminalSessions();
     mainWindow = null;
@@ -97,6 +114,13 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on("before-quit", () => {
+  // Force close all windows without prompting
+  if (mainWindow) {
+    mainWindow.removeAllListeners("close");
+  }
 });
 
 app.on("window-all-closed", () => {

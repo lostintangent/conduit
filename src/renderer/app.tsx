@@ -69,6 +69,7 @@ export function App() {
 
   const [hasWorkspaces, setHasWorkspaces] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
 
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =
@@ -107,6 +108,9 @@ export function App() {
         const sessions = (await api.loadSessions()) as Workspace[];
         setWorkspaces(sessions);
       }
+
+      const hasLast = await api.hasLastWorkspace();
+      setHasLastWorkspace(hasLast);
     };
 
     void checkSessions();
@@ -124,10 +128,18 @@ export function App() {
       });
     });
 
+    const unsubscribeBeforeClose = api.onBeforeClose(() => {
+      // Save the current workspace state as "last workspace"
+      if (tabs.length > 0) {
+        void api.saveLastWorkspace(tabs, activeTab?.id);
+      }
+    });
+
     return () => {
       unsubscribeExit();
+      unsubscribeBeforeClose();
     };
-  }, []);
+  }, [tabs, activeTab]);
 
   const handleTitleModalSave = useCallback(
     (title: string) => {
@@ -345,8 +357,9 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
-            }`,
+          message: `Failed to remove ${failures.length} session${
+            failures.length > 1 ? "s" : ""
+          }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -462,6 +475,23 @@ export function App() {
         }
       },
     });
+
+    // Add "Continue last session" if a last workspace exists
+    if (hasLastWorkspace) {
+      items.push({
+        id: "open-last-session",
+        label: "Continue last session",
+        description: "Restore your workspace from when you last closed the app",
+        run: async () => {
+          const lastWorkspace =
+            (await api.loadLastWorkspace()) as Workspace | null;
+          if (lastWorkspace) {
+            const { openWorkspace } = await import("./store/actions/workspace");
+            await openWorkspace(lastWorkspace);
+          }
+        },
+      });
+    }
 
     // Only show "Restore saved layout" if sessions exist
     if (hasWorkspaces && workspaces.length > 0) {
@@ -696,6 +726,7 @@ export function App() {
     closePane,
     enqueueNotification,
     hasCustomLayout,
+    hasLastWorkspace,
     hasWorkspaces,
     openTab,
     resetLayoutSizes,
@@ -703,6 +734,7 @@ export function App() {
     splitPane,
     tabs,
     updateNotification,
+    workspaceName,
   ]);
 
   const handleCloseTerminalModal = useCallback(() => {

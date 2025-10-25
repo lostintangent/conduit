@@ -89,6 +89,10 @@ const conduitAPI = {
     }) => void
   ) => createEventListener("ui:context-menu-action", listener),
 
+  // Notify when the app is about to close
+  onBeforeClose: (listener: () => void) =>
+    createEventListener("app:before-close", listener),
+
   // Notify when the user changes the tab position setting
   onTabPositionChange: (listener: (position: "top" | "bottom") => void) =>
     createEventListener("ui:set-tab-position", listener),
@@ -148,6 +152,21 @@ const conduitAPI = {
 
   renameWorkspace: (currentName: string, newName: string) =>
     ipcRenderer.invoke("session:rename-workspace", currentName, newName),
+
+  hasLastWorkspace: () =>
+    ipcRenderer.invoke("session:has-last-workspace") as Promise<boolean>,
+
+  loadLastWorkspace: () =>
+    ipcRenderer.invoke("session:load-last-workspace") as Promise<
+      unknown | null
+    >,
+
+  saveLastWorkspace: (tabs: unknown, activeTabId: string) =>
+    ipcRenderer.invoke(
+      "session:save-last-workspace",
+      tabs,
+      activeTabId
+    ) as Promise<void>,
 
   /* Agent session management */
 
