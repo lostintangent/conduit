@@ -455,7 +455,18 @@ export function App() {
         id: "close-workspace",
         label: "Close workspace",
         description: "Close the current workspace",
-        run: () => closeWorkspace()
+        run: async () => {
+          if (workspaceName) {
+            const sessions = (await api.saveSession(
+              workspaceName,
+              tabs,
+              activeTab?.id
+            )) as Workspace[];
+
+            setWorkspaces(sessions);
+          }
+          closeWorkspace();
+        }
       });
     }
 

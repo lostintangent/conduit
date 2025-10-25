@@ -68,15 +68,6 @@ export async function openWorkspace(workspace: Workspace) {
 }
 
 export async function closeWorkspace() {
-  const workspaceName = store.get(workspaceNameAtom);
-
-  // Auto-save workspace before closing
-  if (workspaceName) {
-    const tabs = store.get(tabsAtom);
-    const activeTabId = store.get(activeTabIdAtom);
-    await api.saveSession(workspaceName, tabs, activeTabId);
-  }
-
   store.set(workspaceNameAtom, null);
   store.get(tabsAtom).forEach((tab) => closeTab(tab.id));
 }
