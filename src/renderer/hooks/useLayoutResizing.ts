@@ -1,13 +1,13 @@
-import { useCallback, useState } from "react";
-import { useAtom } from "jotai";
+import { tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
   LayoutSplitNode,
   SplitDirection,
 } from "@/types";
-import { tabsAtom } from "@/store/atoms";
 import { walkLayout } from "@/utils/layout";
+import { useAtom } from "jotai";
+import { useCallback, useState } from "react";
 
 export type LayoutResizeAxis = {
   containerNodeId: string;
@@ -136,6 +136,9 @@ export const useLayoutResizing = () => {
         totalSize: axis.leadingSize + axis.trailingSize,
       }));
 
+      let rafId: number | null = null;
+      let pendingUpdates: Map<string, number> | null = null;
+
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const sizeUpdates = new Map<string, number>();
 
@@ -170,10 +173,30 @@ export const useLayoutResizing = () => {
           }
         );
 
-        applySizeUpdates(tabId, sizeUpdates);
+        // Store pending updates and schedule RAF if not already scheduled
+        pendingUpdates = sizeUpdates;
+        if (rafId === null) {
+          rafId = requestAnimationFrame(() => {
+            if (pendingUpdates) {
+              applySizeUpdates(tabId, pendingUpdates);
+              pendingUpdates = null;
+            }
+            rafId = null;
+          });
+        }
       };
 
       const handleMouseUp = () => {
+        // Apply any final pending updates immediately
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        if (pendingUpdates) {
+          applySizeUpdates(tabId, pendingUpdates);
+          pendingUpdates = null;
+        }
+
         setResizingNode(null);
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);

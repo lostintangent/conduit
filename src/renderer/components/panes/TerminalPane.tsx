@@ -32,7 +32,7 @@ export const TerminalPane = ({
     width: 0,
     height: 0,
   });
-  const fitNowRef = useRef<() => void>(() => { });
+  const fitNowRef = useRef<() => void>(() => {});
 
   const [dimensions, setDimensions] = useState<{
     width: number;
@@ -73,6 +73,8 @@ export const TerminalPane = ({
 
     // --- Fit scheduler with rAF, exposes fitNowRef for other effects
     let rafId: number | null = null;
+    let resizeDebounceTimeout: NodeJS.Timeout | null = null;
+
     const scheduleFit = () => {
       const fitAddon = fitAddonRef.current;
       const terminal = instanceRef.current?.terminal;
@@ -110,7 +112,15 @@ export const TerminalPane = ({
 
         // Always refit even when dimensions match to accommodate font/DPR updates
         fitAddon.fit();
-        api.resize(sessionId, terminal.cols, terminal.rows);
+
+        // Debounce IPC resize calls to reduce overhead during continuous resizing
+        if (resizeDebounceTimeout !== null) {
+          clearTimeout(resizeDebounceTimeout);
+        }
+        resizeDebounceTimeout = setTimeout(() => {
+          api.resize(sessionId, terminal.cols, terminal.rows);
+          resizeDebounceTimeout = null;
+        }, 100);
 
         if (sizeChanged) {
           setDimensions({ width: w, height: h });
