@@ -1,11 +1,11 @@
-import { AgentCleanupDialog } from "@/components/AgentCleanupDialog";
-import { CommandPalette } from "@/components/CommandPalette";
-import { QuickTerminal } from "@/components/QuickTerminal";
+import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
+import { CommandPalette } from "@/components/shell/CommandPalette";
+import { QuickTerminal } from "@/components/shell/QuickTerminal";
+import { TitleBar } from "@/components/shell/TitleBar";
+import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
-import { TitleBar } from "@/components/TitleBar";
 import { InputDialog } from "@/components/ui/input-dialog";
-import { WorkspacePicker } from "@/components/WorkspacePicker";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -29,7 +29,7 @@ import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NotificationCenter } from "./components/NotificationCenter";
+import { NotificationCenter } from "./components/shell/NotificationCenter";
 
 const api = window.conduit;
 
@@ -517,7 +517,7 @@ export function App() {
       <WorkspacePicker
         isOpen={showWorkspacePicker}
         onClose={() => setShowWorkspacePicker(false)}
-        sessions={workspaces}
+        workspaces={workspaces}
         onSessionsUpdate={updateWorkspaces}
       />
 

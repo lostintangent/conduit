@@ -1,50 +1,37 @@
 import { openWorkspace } from "@/store/actions/workspace";
 import type { Workspace } from "@shared/types";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 type WorkspacePickerDialog = {
   isOpen: boolean;
   onClose: () => void;
-  sessions: Workspace[];
+  workspaces: Workspace[];
   onSessionsUpdate: (sessions: Workspace[]) => void;
 };
 
 export function WorkspacePicker({
   isOpen,
   onClose,
-  sessions,
+  workspaces,
   onSessionsUpdate,
 }: WorkspacePickerDialog) {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
 
     setSelectedIndex(0);
-
-    const focusHandle = requestAnimationFrame(() => {
-      dialogRef.current?.focus();
-    });
-
-    return () => cancelAnimationFrame(focusHandle);
   }, [isOpen]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
       const key = event.key.toLowerCase();
 
-      if (key === "escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
       if (key === "enter") {
         event.preventDefault();
-        const session = sessions[selectedIndex];
+        const session = workspaces[selectedIndex];
         if (session) {
           void (async () => {
             await openWorkspace(session);
@@ -57,7 +44,7 @@ export function WorkspacePicker({
       if (key === "arrowdown") {
         event.preventDefault();
         setSelectedIndex((current) =>
-          current >= sessions.length - 1 ? 0 : current + 1
+          current >= workspaces.length - 1 ? 0 : current + 1
         );
         return;
       }
@@ -65,13 +52,13 @@ export function WorkspacePicker({
       if (key === "arrowup") {
         event.preventDefault();
         setSelectedIndex((current) =>
-          current <= 0 ? sessions.length - 1 : current - 1
+          current <= 0 ? workspaces.length - 1 : current - 1
         );
       }
 
       if (key === "delete" || key === "backspace") {
         event.preventDefault();
-        const session = sessions[selectedIndex];
+        const session = workspaces[selectedIndex];
         if (session) {
           void (async () => {
             const api = window.conduit;
@@ -95,7 +82,7 @@ export function WorkspacePicker({
         }
       }
     },
-    [onClose, selectedIndex, sessions, onSessionsUpdate]
+    [onClose, selectedIndex, workspaces, onSessionsUpdate]
   );
 
   const handleRestoreSession = useCallback(
@@ -157,27 +144,20 @@ export function WorkspacePicker({
     }
   };
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        ref={dialogRef}
-        className="w-[480px] max-w-[90vw] rounded-xl border border-white/10 bg-surface-elevated p-4 shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent
+        className="w-[480px] max-w-[90vw] border-white/10 bg-surface-elevated"
         onKeyDown={handleKeyDown}
-        tabIndex={-1}
+        showClose={false}
       >
-        <h2 className="mb-3 text-lg font-semibold text-white">
-          Restore Saved Workspace
-        </h2>
+        <DialogHeader>
+          <DialogTitle className="text-white">
+            Restore Saved Workspace
+          </DialogTitle>
+        </DialogHeader>
 
-        {sessions.length === 0 ? (
+        {workspaces.length === 0 ? (
           <p className="rounded-md border border-dashed border-white/10 bg-white/5 px-3 py-2 text-sm text-white/50">
             No saved workspaces available.
           </p>
@@ -186,12 +166,12 @@ export function WorkspacePicker({
             className="max-h-[400px] space-y-2 overflow-y-auto"
             role="listbox"
           >
-            {sessions.map((session, index) => {
+            {workspaces.map((workspace, index) => {
               const isActive = index === selectedIndex;
-              const tabCount = session.tabs.length;
+              const tabCount = workspace.tabs.length;
 
               return (
-                <li key={session.timestamp}>
+                <li key={workspace.timestamp}>
                   <div
                     role="option"
                     aria-selected={isActive}
@@ -203,24 +183,24 @@ export function WorkspacePicker({
                   >
                     <button
                       type="button"
-                      onClick={() => handleRestoreSession(session)}
+                      onClick={() => handleRestoreSession(workspace)}
                       className="flex flex-1 flex-col gap-1 px-3 py-2 text-left focus:outline-none"
                     >
                       <span className="text-sm font-medium">
-                        {session.name}
+                        {workspace.name}
                       </span>
                       <span className="text-xs text-white/50">
                         {tabCount} tab{tabCount === 1 ? "" : "s"} •{" "}
-                        {formatTimestamp(session.timestamp)}
+                        {formatTimestamp(workspace.timestamp)}
                       </span>
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => handleDeleteSession(session, e)}
+                      onClick={(e) => handleDeleteSession(workspace, e)}
                       aria-label="Delete session"
                       className="mr-2 rounded-md p-1 text-sm leading-none text-current transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/30"
                     >
-                      ×
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </li>
@@ -228,11 +208,7 @@ export function WorkspacePicker({
             })}
           </ul>
         )}
-
-        <p className="mt-3 text-xs text-white/50">
-          Press Enter to restore, Delete to remove, Esc to cancel
-        </p>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
