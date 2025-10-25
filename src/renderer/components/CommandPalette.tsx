@@ -1,3 +1,4 @@
+import type { Command } from "@/types";
 import {
   useCallback,
   useEffect,
@@ -6,7 +7,6 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import type { Command } from "@/types";
 
 type CommandPaletteProps = {
   isOpen: boolean;
@@ -29,6 +29,7 @@ export function CommandPalette({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const previousQueryRef = useRef<string>("");
+  const selectedItemRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -116,6 +117,16 @@ export function CommandPalette({
     isOpen,
     isShellMode,
   ]);
+
+  // Auto-scroll selected item into view
+  useEffect(() => {
+    if (selectedItemRef.current) {
+      selectedItemRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [selectedIndex]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -326,7 +337,10 @@ export function CommandPalette({
               {filteredShellHistory.map((historyCommand, index) => {
                 const isActive = index === selectedIndex;
                 return (
-                  <li key={`${historyCommand}-${index}`}>
+                  <li
+                    key={`${historyCommand}-${index}`}
+                    ref={isActive ? selectedItemRef : null}
+                  >
                     <div
                       role="option"
                       aria-selected={isActive}
@@ -392,7 +406,7 @@ export function CommandPalette({
             {filteredCommands.map((command, index) => {
               const isActive = index === selectedIndex;
               return (
-                <li key={command.id}>
+                <li key={command.id} ref={isActive ? selectedItemRef : null}>
                   <button
                     type="button"
                     onClick={() => {
