@@ -380,6 +380,39 @@ export async function deleteSession(timestamp: number): Promise<void> {
   }
 }
 
+export async function renameWorkspace(
+  currentName: string,
+  newName: string
+): Promise<Workspace[]> {
+  try {
+    const sessionsFile = await loadSessionsFile();
+    const workspace = sessionsFile.sessions.find(
+      (s) => s.name === currentName
+    );
+
+    if (!workspace) {
+      throw new Error(`Workspace "${currentName}" not found`);
+    }
+
+    // Check if new name already exists
+    const existingWithNewName = sessionsFile.sessions.find(
+      (s) => s.name === newName
+    );
+    if (existingWithNewName) {
+      throw new Error(`Workspace "${newName}" already exists`);
+    }
+
+    // Update the workspace name
+    workspace.name = newName;
+
+    await saveSessionsFile(sessionsFile);
+    return sessionsFile.sessions;
+  } catch (error) {
+    console.error("Failed to rename workspace:", error);
+    throw error;
+  }
+}
+
 export function initializeWorkspaceHandlers() {
   ipcMain.handle("session:has-sessions", async () => {
     return await hasSessions();
@@ -400,4 +433,11 @@ export function initializeWorkspaceHandlers() {
   ipcMain.handle("session:delete-session", async (_event, timestamp) => {
     await deleteSession(timestamp);
   });
+
+  ipcMain.handle(
+    "session:rename-workspace",
+    async (_event, currentName, newName) => {
+      return await renameWorkspace(currentName, newName);
+    }
+  );
 }

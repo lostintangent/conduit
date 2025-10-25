@@ -146,6 +146,9 @@ const conduitAPI = {
   deleteSession: (timestamp: number) =>
     ipcRenderer.invoke("session:delete-session", timestamp) as Promise<void>,
 
+  renameWorkspace: (currentName: string, newName: string) =>
+    ipcRenderer.invoke("session:rename-workspace", currentName, newName),
+
   /* Agent session management */
 
   spawnAgentSession: (payload: AgentSessionSpawnRequest) =>

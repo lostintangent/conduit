@@ -12,7 +12,10 @@ import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { enqueueNotification, updateNotification } from "@/store/actions/notifications";
+import {
+  enqueueNotification,
+  updateNotification,
+} from "@/store/actions/notifications";
 import { openWebViewPane, removePane, splitPane } from "@/store/actions/pane";
 import {
   closeTab,
@@ -27,6 +30,7 @@ import type { Command } from "@/types";
 import type { AgentSessionInfo, Workspace } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RenameWorkspaceDialog } from "./components/dialogs/RenameWorkspaceDialog";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { closeWorkspace } from "./store/actions/workspace";
 
@@ -67,7 +71,10 @@ export function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
-  const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] = useState(false);
+  const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =
+    useState(false);
+  const [showRenameWorkspaceDialog, setShowRenameWorkspaceDialog] =
+    useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
@@ -408,6 +415,24 @@ export function App() {
     [tabs, activeTab, setWorkspaceName]
   );
 
+  const handleRenameWorkspace = useCallback(
+    async (newName: string) => {
+      try {
+        const sessions = (await api.renameWorkspace(
+          workspaceName,
+          newName
+        )) as Workspace[];
+
+        setWorkspaces(sessions);
+        setWorkspaceName(newName);
+        setShowRenameWorkspaceDialog(false);
+      } catch (error) {
+        console.error("Failed to rename workspace:", error);
+      }
+    },
+    [workspaceName, setWorkspaceName]
+  );
+
   const commandItems = useMemo<Command[]>(() => {
     const items: Command[] = [];
 
@@ -466,7 +491,14 @@ export function App() {
             setWorkspaces(sessions);
           }
           closeWorkspace();
-        }
+        },
+      });
+
+      items.push({
+        id: "rename-workspace",
+        label: "Rename workspace",
+        description: "Change the name of the current workspace",
+        run: () => setShowRenameWorkspaceDialog(true),
       });
     }
 
@@ -705,13 +737,10 @@ export function App() {
     });
   }, []);
 
-  const shouldShowTabs =
-    tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
+  const shouldShowTabs = tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
 
   const titleBarBg =
-    shouldShowTabs && tabPosition === "top"
-      ? "bg-surface-muted"
-      : "bg-surface";
+    shouldShowTabs && tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
 
   return (
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
@@ -780,6 +809,13 @@ export function App() {
         isOpen={showCreateWorkspaceDialog}
         onClose={() => setShowCreateWorkspaceDialog(false)}
         onSave={handleSaveSession}
+      />
+
+      <RenameWorkspaceDialog
+        isOpen={showRenameWorkspaceDialog}
+        currentName={workspaceName ?? ""}
+        onClose={() => setShowRenameWorkspaceDialog(false)}
+        onRename={handleRenameWorkspace}
       />
 
       <WorkspacePickerDialog
