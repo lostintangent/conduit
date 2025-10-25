@@ -14,6 +14,7 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { activeTabIdAtom, paneControlsVisibleAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
@@ -22,7 +23,7 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
-import { canMovePane, findPaneNodeByPaneId } from "@/utils/layout";
+import { findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useState } from "react";
 
@@ -282,10 +283,10 @@ export function TabLayout({
             <PaneControlButtons
               tabId={tab.id}
               paneId={pane.id}
-              canMoveLeft={canMovePane(tab.layout, pane.id, "left")}
-              canMoveRight={canMovePane(tab.layout, pane.id, "right")}
-              canMoveUp={canMovePane(tab.layout, pane.id, "up")}
-              canMoveDown={canMovePane(tab.layout, pane.id, "down")}
+              canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
+              canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
+              canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
+              canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
             />
           )}
         </div>

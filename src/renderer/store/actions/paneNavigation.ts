@@ -194,6 +194,26 @@ const findNeighborPaneId = (
   return wrapOptions.length > 0 ? wrapOptions[0].paneId : null;
 };
 
+/**
+ * Check if there is a neighbor pane in the specified direction.
+ * This is used to determine if move buttons should be shown.
+ */
+export const hasNeighborPane = (
+  layout: LayoutNode,
+  paneId: string,
+  direction: PaneNavigationDirection
+): boolean => {
+  const paneRects: PaneRect[] = [];
+  collectPaneRects(layout, paneRects);
+
+  if (paneRects.length <= 1) {
+    return false;
+  }
+
+  const targetPaneId = findNeighborPaneId(paneRects, paneId, direction);
+  return targetPaneId !== null;
+};
+
 export const navigatePane = (
   tabId: string,
   paneId: string,
