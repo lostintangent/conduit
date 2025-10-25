@@ -405,7 +405,7 @@ export function App() {
       setShowCreateWorkspaceDialog(false);
       setWorkspaceName(workspaceName);
     },
-    [tabs, activeTab]
+    [tabs, activeTab, setWorkspaceName]
   );
 
   const commandItems = useMemo<Command[]>(() => {
@@ -422,9 +422,19 @@ export function App() {
       id: "save-session",
       label: "Save workspace",
       description: "Save current tab layout for later restoration",
-      run: () => {
-        // TODO: If the user is already in a workspace, them simply update it
-        setShowCreateWorkspaceDialog(true);
+      run: async () => {
+        if (workspaceName) {
+          const sessions = (await api.saveSession(
+            workspaceName,
+            tabs,
+            activeTab.id
+          )) as Workspace[];
+
+          setWorkspaces(sessions);
+        } else {
+          // No workspace open, show dialog
+          setShowCreateWorkspaceDialog(true);
+        }
       },
     });
 

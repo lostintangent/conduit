@@ -329,7 +329,12 @@ export async function saveSession(
 
     const sessionsFile = await loadSessionsFile();
 
-    // Add new session to the beginning
+    // Remove existing workspace with the same name if it exists
+    sessionsFile.sessions = sessionsFile.sessions.filter(
+      (s) => s.name !== name
+    );
+
+    // Add new/updated session to the beginning
     sessionsFile.sessions.unshift(newSession);
 
     // Keep only the most recent 10 sessions
