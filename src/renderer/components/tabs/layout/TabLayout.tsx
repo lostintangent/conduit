@@ -13,7 +13,8 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { activeTabIdAtom, paneDragStateAtom, tabsAtom } from "@/store/atoms";
+import type { PaneDragState } from "@/hooks/usePaneDragMode";
+import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -186,6 +187,7 @@ interface TabLayoutProps {
     paneId: string,
     updates: { url?: string; title?: string }
   ) => void;
+  dragState: PaneDragState;
 }
 
 export function TabLayout({
@@ -193,10 +195,10 @@ export function TabLayout({
   handleResizeStart,
   resizingNode,
   handleWebViewUpdate,
+  dragState,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
-  const dragState = useAtomValue(paneDragStateAtom);
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
 
   const setHoverKeys = useCallback(

@@ -1,7 +1,13 @@
 import { swapPanes } from "@/store/actions/pane";
-import { paneDragStateAtom, type PaneDragState } from "@/store/atoms";
-import { getDefaultStore } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+type PaneDragMode = "idle" | "modifier_held" | "source_selected" | "dragging";
+
+export type PaneDragState = {
+  mode: PaneDragMode;
+  sourcePane: { tabId: string; paneId: string } | null;
+  targetPane: { tabId: string; paneId: string } | null;
+};
 
 const MODIFIER_HOLD_DURATION_MS = 500;
 
@@ -43,7 +49,11 @@ function findPaneUnderCursor(
  * Cancel: Any state → (key release or Escape) → IDLE
  */
 export function usePaneDragMode() {
-  const store = getDefaultStore();
+  const [dragState, setDragState] = useState<PaneDragState>({
+    mode: "idle",
+    sourcePane: null,
+    targetPane: null,
+  });
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const keysHeldRef = useRef({ meta: false, alt: false });
 
@@ -54,7 +64,7 @@ export function usePaneDragMode() {
     };
 
     const updateDragState = (updates: Partial<PaneDragState>) => {
-      store.set(paneDragStateAtom, (current) => ({ ...current, ...updates }));
+      setDragState((current) => ({ ...current, ...updates }));
     };
 
     const resetState = () => {
@@ -62,7 +72,7 @@ export function usePaneDragMode() {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      store.set(paneDragStateAtom, {
+      setDragState({
         mode: "idle",
         sourcePane: null,
         targetPane: null,
@@ -71,8 +81,7 @@ export function usePaneDragMode() {
     };
 
     const isActive = () => {
-      const state = store.get(paneDragStateAtom);
-      return state.mode === "source_selected" || state.mode === "dragging";
+      return dragState.mode === "source_selected" || dragState.mode === "dragging";
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -92,15 +101,18 @@ export function usePaneDragMode() {
         !bothWereHeld &&
         keysHeldRef.current.meta &&
         keysHeldRef.current.alt &&
-        store.get(paneDragStateAtom).mode === "idle"
+        dragState.mode === "idle"
       ) {
         updateDragState({ mode: "modifier_held" });
 
         timerRef.current = setTimeout(() => {
-          if (store.get(paneDragStateAtom).mode === "modifier_held") {
-            updateDragState({ mode: "source_selected" });
-            updateBodyStyle("source_selected");
-          }
+          setDragState((current) => {
+            if (current.mode === "modifier_held") {
+              updateBodyStyle("source_selected");
+              return { ...current, mode: "source_selected" };
+            }
+            return current;
+          });
         }, MODIFIER_HOLD_DURATION_MS);
       }
     };
@@ -121,24 +133,21 @@ export function usePaneDragMode() {
     };
 
     const handleMouseMove = (event: MouseEvent) => {
-      const state = store.get(paneDragStateAtom);
       if (!isActive()) return;
 
       const paneInfo = findPaneUnderCursor(event.clientX, event.clientY);
 
-      if (state.mode === "source_selected") {
+      if (dragState.mode === "source_selected") {
         updateDragState({ sourcePane: paneInfo });
-      } else if (state.mode === "dragging") {
+      } else if (dragState.mode === "dragging") {
         const isValidTarget =
-          paneInfo && paneInfo.paneId !== state.sourcePane?.paneId;
+          paneInfo && paneInfo.paneId !== dragState.sourcePane?.paneId;
         updateDragState({ targetPane: isValidTarget ? paneInfo : null });
       }
     };
 
     const handleMouseDown = (event: MouseEvent) => {
-      const state = store.get(paneDragStateAtom);
-
-      if (state.mode === "source_selected" && state.sourcePane) {
+      if (dragState.mode === "source_selected" && dragState.sourcePane) {
         event.preventDefault();
         event.stopPropagation();
         updateDragState({ mode: "dragging" });
@@ -147,23 +156,21 @@ export function usePaneDragMode() {
     };
 
     const handleMouseUp = (event: MouseEvent) => {
-      const state = store.get(paneDragStateAtom);
-
-      if (state.mode === "dragging") {
+      if (dragState.mode === "dragging") {
         event.preventDefault();
         event.stopPropagation();
 
         // Perform swap if valid
         if (
-          state.sourcePane &&
-          state.targetPane &&
-          state.sourcePane.paneId !== state.targetPane.paneId &&
-          state.sourcePane.tabId === state.targetPane.tabId
+          dragState.sourcePane &&
+          dragState.targetPane &&
+          dragState.sourcePane.paneId !== dragState.targetPane.paneId &&
+          dragState.sourcePane.tabId === dragState.targetPane.tabId
         ) {
           swapPanes(
-            state.sourcePane.tabId,
-            state.sourcePane.paneId,
-            state.targetPane.paneId
+            dragState.sourcePane.tabId,
+            dragState.sourcePane.paneId,
+            dragState.targetPane.paneId
           );
         }
 
@@ -195,5 +202,7 @@ export function usePaneDragMode() {
       window.removeEventListener("dragstart", preventDefaultIfActive, true);
       resetState();
     };
-  }, []);
+  }, [dragState]);
+
+  return dragState;
 }

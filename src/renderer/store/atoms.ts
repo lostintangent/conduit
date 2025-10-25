@@ -21,17 +21,3 @@ export const activeTabAtom = atom<Tab | null>((get) => {
 });
 
 export const notificationsAtom = atom<Notification[]>([]);
-
-export type PaneDragMode = "idle" | "modifier_held" | "source_selected" | "dragging";
-
-export type PaneDragState = {
-  mode: PaneDragMode;
-  sourcePane: { tabId: string; paneId: string } | null;
-  targetPane: { tabId: string; paneId: string } | null;
-};
-
-export const paneDragStateAtom = atom<PaneDragState>({
-  mode: "idle",
-  sourcePane: null,
-  targetPane: null,
-});

@@ -45,7 +45,7 @@ export function App() {
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
 
-  usePaneDragMode();
+  const paneDragState = usePaneDragMode();
 
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
@@ -704,6 +704,7 @@ export function App() {
         handleResizeStart={handleResizeStart}
         resizingNode={resizingNode}
         handleWebViewUpdate={handleWebViewUpdate}
+        dragState={paneDragState}
       />
 
       {shouldShowTabs && tabPosition === "bottom" && (
