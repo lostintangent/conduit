@@ -14,10 +14,10 @@ export async function initializeIpcHandlers(window: BrowserWindow) {
         }
     };
 
-    await initializeUserSettings(window);
+    const { refreshMenu } = await initializeUserSettings(window);
 
     initializeTerminalHandlers(sendToRenderer);
-    initializeWorkspaceHandlers();
+    initializeWorkspaceHandlers(refreshMenu);
     initializeUIHandlers(window);
     initializeAgentHandlers();
 }

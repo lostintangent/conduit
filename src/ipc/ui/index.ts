@@ -17,7 +17,12 @@ let userSettings: UserSettings = null;
 export async function initializeUserSettings(window: BrowserWindow) {
   userSettings = await loadSettings();
 
-  updateApplicationMenu(window, userSettings, saveSettings);
+  const refreshMenu = async () => updateApplicationMenu(window, userSettings, saveSettings);
+  await refreshMenu();
+
+  return {
+    refreshMenu,
+  };
 }
 
 /**

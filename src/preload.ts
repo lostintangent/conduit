@@ -80,6 +80,10 @@ const conduitAPI = {
   onNewTabRequest: (listener: () => void) =>
     createEventListener("ui:new-tab-request", listener),
 
+  // Notify when user requests to open a workspace (e.g. via menu)
+  onOpenWorkspaceRequest: (listener: (workspace: unknown) => void) =>
+    createEventListener("ui:open-workspace-request", listener),
+
   // Notify when the user clicks a context menu action
   onContextMenuAction: (
     listener: (payload: {

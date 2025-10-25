@@ -1,11 +1,14 @@
 import { BrowserWindow, Menu, app } from "electron";
-import type { UserSettings } from "../../shared/types";
+import type { UserSettings, Workspace } from "../../shared/types";
+import { loadSessions } from "../workspace";
 
-export function updateApplicationMenu(
+export async function updateApplicationMenu(
   window: BrowserWindow,
   settings: UserSettings,
   saveSettings: (settings: UserSettings) => Promise<void>
 ) {
+  const workspaces = await loadSessions();
+
   const template = [
     ...(process.platform === "darwin"
       ? [
@@ -37,6 +40,25 @@ export function updateApplicationMenu(
             }
           },
         },
+        ...(workspaces.length > 0
+          ? [
+            { type: "separator" },
+            {
+              label: "Open Workspace...",
+              submenu: workspaces.map((workspace: Workspace) => ({
+                label: workspace.name,
+                click: () => {
+                  if (!window.isDestroyed()) {
+                    window.webContents.send(
+                      "ui:open-workspace-request",
+                      workspace
+                    );
+                  }
+                },
+              })),
+            },
+          ]
+          : []),
         { type: "separator" },
         process.platform === "darwin" ? { role: "close" } : { role: "quit" },
       ],
@@ -57,7 +79,7 @@ export function updateApplicationMenu(
                 await saveSettings(settings);
 
                 window.webContents.send("ui:set-tab-position", "top");
-                updateApplicationMenu(window, settings, saveSettings);
+                await updateApplicationMenu(window, settings, saveSettings);
               },
             },
             {
@@ -69,7 +91,7 @@ export function updateApplicationMenu(
                 await saveSettings(settings);
 
                 window.webContents.send("ui:set-tab-position", "bottom");
-                updateApplicationMenu(window, settings, saveSettings);
+                await updateApplicationMenu(window, settings, saveSettings);
               },
             },
           ],
@@ -86,7 +108,7 @@ export function updateApplicationMenu(
               "ui:set-always-show-tabs",
               settings.alwaysShowTabs
             );
-            updateApplicationMenu(window, settings, saveSettings);
+            await updateApplicationMenu(window, settings, saveSettings);
           },
         },
         { type: "separator" },
@@ -103,7 +125,7 @@ export function updateApplicationMenu(
               settings.showTerminalRuler
             );
 
-            updateApplicationMenu(window, settings, saveSettings);
+            await updateApplicationMenu(window, settings, saveSettings);
           },
         },
         { type: "separator" },

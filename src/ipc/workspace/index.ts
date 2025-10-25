@@ -509,7 +509,7 @@ export async function renameWorkspace(
   }
 }
 
-export function initializeWorkspaceHandlers() {
+export function initializeWorkspaceHandlers(refreshApplicationMenu: () => Promise<void>) {
   ipcMain.handle("session:has-sessions", async () => {
     return await hasSessions();
   });
@@ -522,18 +522,25 @@ export function initializeWorkspaceHandlers() {
     "session:save-session",
     async (_event, name, tabs, activeTabId) => {
       const terminalSessions = getAllSessions();
-      return await saveSession(name, tabs, activeTabId, terminalSessions);
+      const result = await saveSession(name, tabs, activeTabId, terminalSessions);
+      await refreshApplicationMenu();
+
+      return result;
     }
   );
 
   ipcMain.handle("session:delete-session", async (_event, timestamp) => {
     await deleteSession(timestamp);
+    await refreshApplicationMenu();
   });
 
   ipcMain.handle(
     "session:rename-workspace",
     async (_event, currentName, newName) => {
-      return await renameWorkspace(currentName, newName);
+      const result = await renameWorkspace(currentName, newName);
+      await refreshApplicationMenu();
+
+      return result;
     }
   );
 

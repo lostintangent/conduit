@@ -6,7 +6,9 @@ import {
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import { generateId } from "@/utils/id";
+import type { Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
+import { openWorkspace } from "./workspace";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -276,10 +278,15 @@ export function registerTabEventHandlers() {
     void openTab();
   });
 
+  const unsubscribeOpenWorkspace = api.onOpenWorkspaceRequest((workspace: Workspace) =>
+    openWorkspace(workspace)
+  );
+
   return () => {
     unsubscribeTitle();
     unsubscribeCwd();
     unsubscribeExit();
     unsubscribeNewTab();
+    unsubscribeOpenWorkspace();
   };
 }

@@ -6,7 +6,7 @@
 
 1. Rich terminals
    1. All the features you'd expect 😄
-   1. Search the text history via `CMD+F`
+   1. Search the buffer history via `CMD+F`
    1. URL detection + click-to-open embedded webviews
    1. Open the `cwd` in VS Code
 1. Multi-tab support
@@ -18,16 +18,13 @@
    1. Navigate panes with `CMD+<direction>` and move them with `CMD+OPTION+<direction>`
    1. Resize each pane exactly as you want
    1. Enter "focus mode" to view a single pane at a time
+1. Workspaces
+   1. Save and restore your tab + pane configurations
+   1. Your workspace is automatically saved/restored when closing the app
 1. Command palette
    1. Spin up "quick terminals", which track your MRU command history
    1. Quickly create and close tabs
    1. Reset your active tab layout (after resizing it)
-
-### Potentially interesting follow-ups
-
-1. File tree per terminal w/editor panes
-1. Drag-and-drop panes
-1. Testing on Windows/Linux
 
 ## Getting started
 
