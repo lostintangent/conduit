@@ -12,6 +12,7 @@ import { TitleBar } from "@/components/TitleBar";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
+import { usePaneDragMode } from "@/hooks/usePaneDragMode";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { openWebViewPane, removePane, splitPane } from "@/store/actions/pane";
@@ -43,6 +44,8 @@ export function App() {
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
+
+  usePaneDragMode();
 
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);

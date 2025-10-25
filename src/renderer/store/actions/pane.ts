@@ -785,3 +785,59 @@ export function activatePane(tabId: string, paneId: string) {
     })
   );
 }
+
+/**
+ * Swap pane IDs in the layout tree recursively
+ */
+function swapPaneIdsInLayout(
+  node: LayoutNode,
+  id1: string,
+  id2: string
+): LayoutNode {
+  if (node.type === "pane") {
+    if (node.paneId === id1) {
+      return { ...node, paneId: id2 };
+    }
+    if (node.paneId === id2) {
+      return { ...node, paneId: id1 };
+    }
+    return node;
+  }
+
+  return {
+    ...node,
+    children: node.children.map((child) =>
+      swapPaneIdsInLayout(child, id1, id2)
+    ),
+  };
+}
+
+/**
+ * Swap two panes within the same tab
+ */
+export function swapPanes(tabId: string, paneId1: string, paneId2: string) {
+  if (paneId1 === paneId2) {
+    return;
+  }
+
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      // Verify both panes exist in the tab
+      if (!tab.panes[paneId1] || !tab.panes[paneId2]) {
+        return tab;
+      }
+
+      // Swap the pane IDs in the layout tree
+      const newLayout = swapPaneIdsInLayout(tab.layout, paneId1, paneId2);
+
+      return {
+        ...tab,
+        layout: newLayout,
+      };
+    })
+  );
+}

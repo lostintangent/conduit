@@ -13,7 +13,7 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, paneDragStateAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -196,6 +196,7 @@ export function TabLayout({
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
+  const dragState = useAtomValue(paneDragStateAtom);
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
 
   const setHoverKeys = useCallback(
@@ -232,10 +233,21 @@ export function TabLayout({
         handleContextMenu(syntheticEvent, tab.id, pane.id);
       };
 
+      const isDragSource =
+        dragState.mode !== "idle" &&
+        dragState.sourcePane?.paneId === pane.id &&
+        dragState.sourcePane?.tabId === tab.id;
+      const isDragTarget =
+        dragState.mode === "dragging" &&
+        dragState.targetPane?.paneId === pane.id &&
+        dragState.targetPane?.tabId === tab.id;
+
       return (
         <div
           data-node-id={node.id}
-          className="grid flex-1 min-h-0 min-w-0 overflow-hidden"
+          data-pane-id={pane.id}
+          data-tab-id={tab.id}
+          className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
           style={{
             gridTemplateColumns: "minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr)",
@@ -270,10 +282,32 @@ export function TabLayout({
               </div>
             )}
           </div>
+
+          {/* Drag overlay */}
+          {isDragSource && (
+            <div
+              className="absolute inset-0 border-4 border-blue-500 bg-blue-500/10 z-50 rounded-sm"
+              style={{ cursor: 'grabbing' }}
+            >
+              <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 text-xs font-semibold rounded shadow-lg pointer-events-none">
+                Source
+              </div>
+            </div>
+          )}
+          {isDragTarget && (
+            <div
+              className="absolute inset-0 border-4 border-green-500 bg-green-500/20 z-50 rounded-sm"
+              style={{ cursor: 'grabbing' }}
+            >
+              <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 text-xs font-semibold rounded shadow-lg pointer-events-none">
+                Drop Here
+              </div>
+            </div>
+          )}
         </div>
       );
     },
-    [activeTabId, handleContextMenu, handleWebViewUpdate, resizingNode]
+    [activeTabId, dragState, handleContextMenu, handleWebViewUpdate, resizingNode]
   );
 
   const renderSplitNode = useCallback(
