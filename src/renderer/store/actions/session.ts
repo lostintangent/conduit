@@ -1,11 +1,11 @@
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
-import type { SavedSession } from "@shared/types";
+import type { Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 
 const store = getDefaultStore();
 
-export async function restoreSession(sessionData: SavedSession): Promise<void> {
+export async function restoreSession(sessionData: Workspace): Promise<void> {
   const api = window.conduit;
   if (!api) {
     return;

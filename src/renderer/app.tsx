@@ -1,18 +1,19 @@
-import { AgentCleanupDialog } from "@/components/AgentCleanupDialog";
 import { CommandPalette } from "@/components/CommandPalette";
+import { AgentCleanupDialog } from "@/components/dialogs/AgentCleanupDialog";
 import { OpenUrlDialog } from "@/components/dialogs/OpenUrlDialog";
+import { SessionNameDialog } from "@/components/dialogs/SessionNameDialog";
+import { SessionPickerDialog } from "@/components/dialogs/SessionPickerDialog";
 import { TabTitleDialog } from "@/components/dialogs/TabTitleDialog";
 import { TerminalDialog } from "@/components/dialogs/TerminalDialog";
 import { NotificationCenter } from "@/components/NotificationCenter";
-import { SessionNameDialog } from "@/components/SessionNameDialog";
-import { SessionPickerDialog } from "@/components/SessionPickerDialog";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
 import { TitleBar } from "@/components/TitleBar";
-import { useAppPreferences } from "@/hooks/useAppPreferences";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { openWebViewPane, removePane, splitPane } from "@/store/actions/pane";
 import {
   closeTab,
@@ -22,21 +23,20 @@ import {
   updateTabProperty,
 } from "@/store/actions/tab";
 import { activeTabAtom, tabsAtom } from "@/store/atoms";
-import { enqueueNotification, updateNotification } from "@/store/notifications";
 import { disposeSession } from "@/store/terminals";
 import type { Command } from "@/types";
-import type { AgentSessionInfo, SavedSession } from "@shared/types";
+import type { AgentSessionInfo, Workspace } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function App() {
   const {
     tabPosition,
-    alwaysShowTabStrip,
+    alwaysShowTabs,
     commandHistory,
     recordCommandHistoryEntry,
     removeCommandHistoryEntry,
-  } = useAppPreferences();
+  } = useUserSettings();
 
   const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
     useGlobalKeyHandlers();
@@ -60,7 +60,7 @@ export function App() {
   const [hasSessionsAvailable, setHasSessionsAvailable] = useState(false);
   const [showSessionPicker, setShowSessionPicker] = useState(false);
   const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
-  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
+  const [savedSessions, setSavedSessions] = useState<Workspace[]>([]);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
@@ -95,7 +95,7 @@ export function App() {
       setHasSessionsAvailable(hasSessions);
 
       if (hasSessions) {
-        const sessions = (await api.loadSessions()) as SavedSession[];
+        const sessions = (await api.loadSessions()) as Workspace[];
         setSavedSessions(sessions);
       }
     };
@@ -106,7 +106,7 @@ export function App() {
   useEffect(() => {
     const api = window.conduit;
     if (!api) {
-      return () => {};
+      return () => { };
     }
 
     const unsubscribeExit = api.onExit(({ sessionId }) => {
@@ -211,7 +211,7 @@ export function App() {
       }
 
       if (tabs.length === 1) {
-        return alwaysShowTabStrip;
+        return alwaysShowTabs;
       }
 
       return false;
@@ -341,9 +341,8 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${
-            failures.length > 1 ? "s" : ""
-          }`,
+          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
+            }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -402,7 +401,7 @@ export function App() {
         layoutName,
         tabs,
         activeTab.id
-      )) as SavedSession[];
+      )) as Workspace[];
 
       setSavedSessions(sessions);
       setHasSessionsAvailable(true);
@@ -677,11 +676,11 @@ export function App() {
     });
   }, []);
 
-  const shouldShowTabStrip =
-    tabs.length > 0 && (alwaysShowTabStrip || tabs.length > 1);
+  const shouldShowTabs =
+    tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
 
   const titleBarBg =
-    shouldShowTabStrip && tabPosition === "top"
+    shouldShowTabs && tabPosition === "top"
       ? "bg-surface-muted"
       : "bg-surface";
 
@@ -689,7 +688,7 @@ export function App() {
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
       <TitleBar backgroundClass={titleBarBg} />
 
-      {shouldShowTabStrip && tabPosition === "top" && (
+      {shouldShowTabs && tabPosition === "top" && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
@@ -704,7 +703,7 @@ export function App() {
         handleWebViewUpdate={handleWebViewUpdate}
       />
 
-      {shouldShowTabStrip && tabPosition === "bottom" && (
+      {shouldShowTabs && tabPosition === "bottom" && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
@@ -758,12 +757,14 @@ export function App() {
           setHasSessionsAvailable(sessions.length > 0);
         }}
       />
+
       <AgentCleanupDialog
         isOpen={cleanupDialogSessions !== null}
         sessions={cleanupDialogSessions ?? []}
         onClose={() => setCleanupDialogSessions(null)}
         onRemove={handleAgentSessionCleanup}
       />
+
       <NotificationCenter />
     </div>
   );

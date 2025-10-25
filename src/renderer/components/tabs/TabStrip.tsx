@@ -1,5 +1,5 @@
 import { moveTab, openTab } from "@/store/actions/tab";
-import { activeTabIdAtom, appPreferencesAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { useAtomValue } from "jotai";
 import { MoreHorizontal } from "lucide-react";
@@ -36,7 +36,7 @@ export const TabStrip = ({
 }: TabStripProps) => {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
-  const { homeDirectory } = useAtomValue(appPreferencesAtom);
+  const { homeDirectory } = useAtomValue(userSettingsAtom);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;

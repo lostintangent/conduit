@@ -1,3 +1,35 @@
+export type UserSettings = {
+  tabPosition: "top" | "bottom";
+  alwaysShowTabs: boolean;
+  showTerminalRuler: boolean;
+  commandHistory: string[];
+  homeDirectory: string | null;
+};
+
+export type Workspace = {
+  name: string;
+  timestamp: number;
+  tabs: Array<{
+    id: string;
+    title?: string;
+    mode: "layout" | "focus";
+    activePaneId: string;
+    panes: Array<{
+      id: string;
+      type: "terminal" | "webview";
+      cwd?: string | null;
+      url?: string;
+      webTitle?: string;
+      // For terminal panes - the command that was running
+      command?: string | null;
+    }>;
+    layout: unknown;
+  }>;
+  activeTabId?: string;
+};
+
+/* IPC payloads/responses */
+
 export type TerminalPayload = {
   sessionId: string;
 };
@@ -37,40 +69,10 @@ export type TerminalInputPayload = TerminalPayload & {
   input: string;
 };
 
-export type AppPreferences = {
-  tabPosition: "top" | "bottom";
-  commandHistory: string[];
-  alwaysShowTabStrip: boolean;
-  showOverviewRuler: boolean;
-  homeDirectory: string | null;
-};
-
 export type BackgroundCommandRequest = {
   command: string;
   args?: string[];
   cwd?: string | null;
-};
-
-export type SavedSession = {
-  name: string;
-  timestamp: number;
-  tabs: Array<{
-    id: string;
-    title?: string;
-    mode: "layout" | "focus";
-    activePaneId: string;
-    panes: Array<{
-      id: string;
-      type: "terminal" | "webview";
-      cwd?: string | null;
-      url?: string;
-      webTitle?: string;
-      // For terminal panes - the command that was running
-      command?: string | null;
-    }>;
-    layout: unknown;
-  }>;
-  activeTabId?: string;
 };
 
 export type AgentSessionSpawnRequest = {

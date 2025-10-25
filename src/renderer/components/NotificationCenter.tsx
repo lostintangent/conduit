@@ -1,9 +1,10 @@
-import { useAtomValue } from "jotai";
 import {
   dismissNotification,
-  notificationsAtom,
-  type Notification,
-} from "@/store/notifications";
+} from "@/store/actions/notifications";
+import { notificationsAtom } from "@/store/atoms";
+import { Notification } from "@/types";
+
+import { useAtomValue } from "jotai";
 
 function notificationStyles(kind: Notification["kind"]) {
   switch (kind) {

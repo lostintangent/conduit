@@ -1,30 +1,17 @@
-import { atom } from "jotai";
+import { Notification } from "@/types";
+import { generateId } from "@/utils/id";
 import { getDefaultStore } from "jotai";
-
-export type NotificationKind = "info" | "success" | "error";
-
-export type Notification = {
-  id: string;
-  kind: NotificationKind;
-  message: string;
-  details?: string;
-  persistent?: boolean;
-  createdAt: number;
-};
+import { notificationsAtom } from "../atoms";
 
 const store = getDefaultStore();
-
-export const notificationsAtom = atom<Notification[]>([]);
-
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function scheduleAutoDismiss(id: string, timeout: number) {
   clearAutoDismiss(id);
+
   timers.set(
     id,
-    setTimeout(() => {
-      dismissNotification(id);
-    }, timeout)
+    setTimeout(() => dismissNotification(id), timeout)
   );
 }
 
@@ -36,37 +23,22 @@ function clearAutoDismiss(id: string) {
   }
 }
 
-function createId() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-
-  return Math.random().toString(36).slice(2, 10);
-}
-
 export function enqueueNotification(
-  notification: {
-    kind: NotificationKind;
-    message: string;
-    details?: string;
-    persistent?: boolean;
+  options: Omit<Notification, "id" | "createdAt"> & {
     autoCloseMs?: number;
   }
-): string {
-  const id = createId();
-  const entry: Notification = {
+) {
+  const id = generateId();
+  const notification: Notification = {
+    ...options,
     id,
-    kind: notification.kind,
-    message: notification.message,
-    details: notification.details,
-    persistent: notification.persistent,
     createdAt: Date.now(),
   };
 
-  store.set(notificationsAtom, (current) => [entry, ...current]);
+  store.set(notificationsAtom, (current) => [notification, ...current]);
 
-  if (notification.autoCloseMs && notification.autoCloseMs > 0) {
-    scheduleAutoDismiss(id, notification.autoCloseMs);
+  if (options.autoCloseMs && options.autoCloseMs > 0) {
+    scheduleAutoDismiss(id, options.autoCloseMs);
   }
 
   return id;
@@ -82,9 +54,9 @@ export function updateNotification(
     current.map((notification) =>
       notification.id === id
         ? {
-            ...notification,
-            ...updates,
-          }
+          ...notification,
+          ...updates,
+        }
         : notification
     )
   );
@@ -102,6 +74,7 @@ export function updateNotification(
 
 export function dismissNotification(id: string) {
   clearAutoDismiss(id);
+
   store.set(notificationsAtom, (current) =>
     current.filter((notification) => notification.id !== id)
   );
@@ -110,5 +83,6 @@ export function dismissNotification(id: string) {
 export function clearNotifications() {
   timers.forEach((timer) => clearTimeout(timer));
   timers.clear();
+
   store.set(notificationsAtom, []);
 }

@@ -6,7 +6,6 @@ import type {
   AgentSessionFinalizeResult,
   AgentSessionInfo,
   AgentSessionSpawnRequest,
-  AppPreferences,
   BackgroundCommandRequest,
   TerminalCreateOptions,
   TerminalCreateResponse,
@@ -14,6 +13,7 @@ import type {
   TerminalDataPayload,
   TerminalExitPayload,
   TerminalTitlePayload,
+  UserSettings,
 } from "./shared/types";
 
 // Note: This file should never include any actual logic. It should simply be a
@@ -93,16 +93,16 @@ const conduitAPI = {
   onTabPositionChange: (listener: (position: "top" | "bottom") => void) =>
     createEventListener("ui:set-tab-position", listener),
 
-  onAlwaysShowTabStripChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-always-show-tab-strip", listener),
+  onAlwaysShowTabsChange: (listener: (value: boolean) => void) =>
+    createEventListener<boolean>("ui:set-always-show-tabs", listener),
 
-  onShowOverviewRulerChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-show-overview-ruler", listener),
+  onShowTerminalRulerChange: (listener: (value: boolean) => void) =>
+    createEventListener<boolean>("ui:set-show-terminal-ruler", listener),
 
   /* UI-related methods (UI->main) */
 
-  getPreferences: () =>
-    ipcRenderer.invoke("ui:get-preferences") as Promise<AppPreferences>,
+  getSettings: () =>
+    ipcRenderer.invoke("ui:get-settings") as Promise<UserSettings>,
 
   showContextMenu: (options: {
     tabId: string;

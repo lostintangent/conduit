@@ -1,14 +1,8 @@
 import { app, BrowserWindow } from "electron";
 import started from "electron-squirrel-startup";
-import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { initializeSessionHandlers } from "./ipc/session/handlers";
-import {
-  cleanupTerminalSessions,
-  initializeTerminalHandlers,
-} from "./ipc/terminal";
-import { initializeAgentHandlers } from "./ipc/agent";
-import { initializeUIHandlers, initializeUIPreferences } from "./ipc/ui";
+import path from "node:path";
+import { cleanupTerminalSessions, initializeIpcHandlers } from "./ipc";
 
 // Build-time constants injected by @electron-forge/plugin-vite.
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -27,7 +21,9 @@ function hydrateEnvFromLoginShell() {
     return;
   }
 
-  const shell = process.env.SHELL ?? (process.platform === "darwin" ? "/bin/zsh" : "/bin/bash");
+  const shell =
+    process.env.SHELL ??
+    (process.platform === "darwin" ? "/bin/zsh" : "/bin/bash");
 
   try {
     const output = execFileSync(shell, ["-ilc", "printenv"], {
@@ -52,19 +48,14 @@ function hydrateEnvFromLoginShell() {
       }
     });
   } catch (error) {
-    console.warn("Failed to read login shell environment, continuing with defaults.", error);
+    console.warn(
+      "Failed to read login shell environment, continuing with defaults.",
+      error
+    );
   }
 }
 
 hydrateEnvFromLoginShell();
-
-function sendToRenderer(channel: string, payload: unknown) {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return;
-  }
-
-  mainWindow.webContents.send(channel, payload);
-}
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -82,12 +73,7 @@ async function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.on("will-navigate", (e) => e.preventDefault());
 
-  await initializeUIPreferences(mainWindow);
-
-  initializeTerminalHandlers(sendToRenderer);
-  initializeSessionHandlers();
-  initializeUIHandlers(mainWindow);
-  initializeAgentHandlers();
+  initializeIpcHandlers(mainWindow);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);

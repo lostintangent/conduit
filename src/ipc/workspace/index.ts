@@ -1,17 +1,18 @@
-import { app } from "electron";
+import { app, ipcMain } from "electron";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { Tab } from "../../renderer/types";
-import type { SavedSession } from "../../shared/types";
+import type { Workspace } from "../../shared/types";
+import { getAllSessions } from "../terminal/store";
 import type { TerminalSession } from "../terminal/types";
 
 export type SessionsFile = {
-  sessions: SavedSession[];
+  sessions: Workspace[];
 };
 
-export type { SavedSession };
+export type { Workspace as SavedSession };
 
 function getSessionPath(): string {
   const homeDir = app.getPath("home");
@@ -256,7 +257,7 @@ export async function saveSession(
   tabs: Tab[],
   activeTabId: string | undefined,
   terminalSessions: Map<string, TerminalSession>
-): Promise<SavedSession[]> {
+): Promise<Workspace[]> {
   try {
     await ensureConduitDirectory();
 
@@ -319,7 +320,7 @@ export async function saveSession(
       })
     );
 
-    const newSession: SavedSession = {
+    const newSession: Workspace = {
       name,
       timestamp: Date.now(),
       tabs: serializedTabs,
@@ -343,7 +344,7 @@ export async function saveSession(
   }
 }
 
-export async function loadSessions(): Promise<SavedSession[]> {
+export async function loadSessions(): Promise<Workspace[]> {
   try {
     const sessionsFile = await loadSessionsFile();
     return sessionsFile.sessions;
@@ -372,4 +373,26 @@ export async function deleteSession(timestamp: number): Promise<void> {
   } catch (error) {
     console.error("Failed to delete session:", error);
   }
+}
+
+export function initializeWorkspaceHandlers() {
+  ipcMain.handle("session:has-sessions", async () => {
+    return await hasSessions();
+  });
+
+  ipcMain.handle("session:load-sessions", async () => {
+    return await loadSessions();
+  });
+
+  ipcMain.handle(
+    "session:save-session",
+    async (_event, name, tabs, activeTabId) => {
+      const terminalSessions = getAllSessions();
+      return await saveSession(name, tabs, activeTabId, terminalSessions);
+    }
+  );
+
+  ipcMain.handle("session:delete-session", async (_event, timestamp) => {
+    await deleteSession(timestamp);
+  });
 }

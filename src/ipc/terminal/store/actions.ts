@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
-import { resolveShell, spawnTerminalProcess } from "../pty";
 import {
   getSession,
   removeSession,
   storeSession,
 } from ".";
+import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
+import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
   CreateSessionOptions,
   SendToRendererFn,
@@ -154,15 +154,8 @@ export const markSessionReady = (
 ) => {
   const session = getSession(sessionId);
   if (!session) {
-    console.warn(
-      `[main] Received ready signal for unknown session ${sessionId}`
-    );
     return;
   }
-
-  console.log(
-    `[main] Session ${sessionId} marked ready, flushing ${session.pendingOutput.length} buffered chunks`
-  );
 
   session.isRendererReady = true;
   if (session.readyFallback) {
@@ -170,14 +163,9 @@ export const markSessionReady = (
     session.readyFallback = undefined;
   }
   if (session.pendingOutput.length > 0) {
-    session.pendingOutput.forEach((data) => {
-      sendToRenderer("terminal:data", { sessionId: session.id, data });
-      console.log(
-        `[main] Flushed buffered data to session ${sessionId}:`,
-        data.length,
-        "bytes"
-      );
-    });
+    session.pendingOutput.forEach((data) =>
+      sendToRenderer("terminal:data", { sessionId: session.id, data }));
+
     session.pendingOutput = [];
   }
 };

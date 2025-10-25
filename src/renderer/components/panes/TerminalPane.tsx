@@ -1,4 +1,4 @@
-import { appPreferencesAtom } from "@/store/atoms";
+import { userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
 import { useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
@@ -21,7 +21,7 @@ export const TerminalPane = ({
   onActivate,
   onLinkClick,
 }: TerminalPaneProps) => {
-  const { showOverviewRuler } = useAtomValue(appPreferencesAtom);
+  const { showTerminalRuler } = useAtomValue(userSettingsAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -233,13 +233,13 @@ export const TerminalPane = ({
       return;
     }
 
-    const desiredWidth = showOverviewRuler ? 15 : 0;
+    const desiredWidth = showTerminalRuler ? 15 : 0;
     if (terminal.options.overviewRulerWidth === desiredWidth) {
       return;
     }
 
     terminal.options.overviewRulerWidth = desiredWidth;
-  }, [showOverviewRuler, sessionId]);
+  }, [showTerminalRuler, sessionId]);
 
   return (
     <div

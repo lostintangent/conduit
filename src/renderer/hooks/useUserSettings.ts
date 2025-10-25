@@ -1,4 +1,4 @@
-import { appPreferencesAtom } from "@/store/atoms";
+import { userSettingsAtom } from "@/store/atoms";
 import { useAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 
@@ -43,42 +43,42 @@ const appendCommandToHistory = (
 };
 
 const api = window.conduit;
-export const useAppPreferences = () => {
-  const [preferences, setPreferences] = useAtom(appPreferencesAtom);
+export function useUserSettings() {
+  const [userSettings, setUserSettings] = useAtom(userSettingsAtom);
 
   useEffect(() => {
-    const loadPreferences = async () => {
-      const preferences = await api.getPreferences();
-      setPreferences(preferences);
+    const loadUserSettings = async () => {
+      const userSettings = await api.getSettings();
+      setUserSettings(userSettings);
     };
 
-    loadPreferences();
+    loadUserSettings();
 
     const unsubscribeTabPosition = api.onTabPositionChange((position) =>
-      setPreferences((current) => ({
+      setUserSettings((current) => ({
         ...current,
         tabPosition: position,
       }))
     );
 
-    const unsubscribeAlwaysShow = api.onAlwaysShowTabStripChange((value) =>
-      setPreferences((current) => ({
+    const unsubscribeAlwaysShow = api.onAlwaysShowTabsChange((value) =>
+      setUserSettings((current) => ({
         ...current,
-        alwaysShowTabStrip: value === true,
+        alwaysShowTabs: value === true,
       }))
     );
 
-    const unsubscribeOverviewRuler = api.onShowOverviewRulerChange((value) =>
-      setPreferences((current) => ({
+    const unsubscribeTerminalRuler = api.onShowTerminalRulerChange((value) =>
+      setUserSettings((current) => ({
         ...current,
-        showOverviewRuler: value === true,
+        showTerminalRuler: value === true,
       }))
     );
 
     return () => {
       unsubscribeTabPosition();
       unsubscribeAlwaysShow();
-      unsubscribeOverviewRuler();
+      unsubscribeTerminalRuler();
     };
   }, []);
 
@@ -89,18 +89,18 @@ export const useAppPreferences = () => {
         return;
       }
 
-      setPreferences((current) => ({
+      setUserSettings((current) => ({
         ...current,
         commandHistory: appendCommandToHistory(current.commandHistory, trimmed),
       }));
 
       const updatedHistory = await api.addCommandHistoryEntry(trimmed);
-      setPreferences((current) => ({
+      setUserSettings((current) => ({
         ...current,
         commandHistory: normalizeCommandHistory(updatedHistory),
       }));
     },
-    [setPreferences]
+    [setUserSettings]
   );
 
   const removeCommandHistoryEntry = useCallback(
@@ -110,7 +110,7 @@ export const useAppPreferences = () => {
         return;
       }
 
-      setPreferences((current) => ({
+      setUserSettings((current) => ({
         ...current,
         commandHistory: current.commandHistory.filter(
           (entry) => entry !== trimmed
@@ -118,16 +118,16 @@ export const useAppPreferences = () => {
       }));
 
       const updatedHistory = await api.removeCommandHistoryEntry(trimmed);
-      setPreferences((current) => ({
+      setUserSettings((current) => ({
         ...current,
         commandHistory: normalizeCommandHistory(updatedHistory),
       }));
     },
-    [setPreferences]
+    [setUserSettings]
   );
 
   return {
-    ...preferences,
+    ...userSettings,
     recordCommandHistoryEntry,
     removeCommandHistoryEntry,
   };

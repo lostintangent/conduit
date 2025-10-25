@@ -21,6 +21,7 @@ export type AgentSessionRecord = AgentSessionInfo & {
 
 const agentSessions = new Map<string, AgentSessionRecord>();
 
+
 async function fileExists(target: string) {
   try {
     await stat(target);

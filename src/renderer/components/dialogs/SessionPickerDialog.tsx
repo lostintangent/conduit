@@ -1,12 +1,12 @@
 import { restoreSession } from "@/store/actions/session";
-import type { SavedSession } from "@shared/types";
+import type { Workspace } from "@shared/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type SessionPickerDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  sessions: SavedSession[];
-  onSessionsUpdate: (sessions: SavedSession[]) => void;
+  sessions: Workspace[];
+  onSessionsUpdate: (sessions: Workspace[]) => void;
 };
 
 export function SessionPickerDialog({
@@ -81,7 +81,7 @@ export function SessionPickerDialog({
 
             await api.deleteSession(session.timestamp);
             const updatedSessions =
-              (await api.loadSessions()) as SavedSession[];
+              (await api.loadSessions()) as Workspace[];
             onSessionsUpdate(updatedSessions);
 
             if (updatedSessions.length === 0) {
@@ -99,7 +99,7 @@ export function SessionPickerDialog({
   );
 
   const handleRestoreSession = useCallback(
-    (session: SavedSession) => {
+    (session: Workspace) => {
       void (async () => {
         await restoreSession(session);
         onClose();
@@ -109,7 +109,7 @@ export function SessionPickerDialog({
   );
 
   const handleDeleteSession = useCallback(
-    async (session: SavedSession, event: React.MouseEvent) => {
+    async (session: Workspace, event: React.MouseEvent) => {
       event.stopPropagation();
 
       const api = window.conduit;
@@ -118,7 +118,7 @@ export function SessionPickerDialog({
       }
 
       await api.deleteSession(session.timestamp);
-      const updatedSessions = (await api.loadSessions()) as SavedSession[];
+      const updatedSessions = (await api.loadSessions()) as Workspace[];
       onSessionsUpdate(updatedSessions);
 
       if (updatedSessions.length === 0) {
@@ -196,11 +196,10 @@ export function SessionPickerDialog({
                     role="option"
                     aria-selected={isActive}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`flex w-full items-center rounded-md border transition ${
-                      isActive
+                    className={`flex w-full items-center rounded-md border transition ${isActive
                         ? "border-white/30 bg-white/10 text-white"
                         : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
-                    }`}
+                      }`}
                   >
                     <button
                       type="button"

@@ -1,6 +1,6 @@
+import { enqueueNotification } from "@/store/actions/notifications";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
-import { enqueueNotification } from "@/store/notifications";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -16,8 +16,8 @@ import {
   walkLayout,
   type PaneDirection,
 } from "@/utils/layout";
-import { getDefaultStore } from "jotai";
 import type { AgentSessionInfo, TerminalCreateOptions } from "@shared/types";
+import { getDefaultStore } from "jotai";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -345,7 +345,7 @@ export function movePane(
         if (detachResult.node) {
           const updatedChild =
             originalChildSize !== undefined &&
-            detachResult.node.size === undefined
+              detachResult.node.size === undefined
               ? { ...detachResult.node, size: originalChildSize }
               : detachResult.node;
           newChildren[childEntry.index] = updatedChild;
@@ -639,7 +639,7 @@ export async function splitPaneWithAgentSession(
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     if (errorMessage.includes("Unable to find a Git repository")) {
       enqueueNotification({
         kind: "error",

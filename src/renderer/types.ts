@@ -60,3 +60,16 @@ export type Command = {
   description?: string;
   run: () => Promise<void> | void;
 } & Identifiable;
+
+/* Notification types */
+
+export type NotificationKind = "info" | "success" | "error";
+
+export type Notification = {
+  id: string;
+  kind: NotificationKind;
+  message: string;
+  details?: string;
+  persistent?: boolean;
+  createdAt: number;
+};

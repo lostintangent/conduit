@@ -1,29 +1,29 @@
 import { BrowserWindow, Menu, app } from "electron";
-import type { AppPreferences } from "../../shared/types";
+import type { UserSettings } from "../../shared/types";
 
 export function updateApplicationMenu(
   window: BrowserWindow,
-  preferences: AppPreferences,
-  savePreferences: (preferences: AppPreferences) => Promise<void>
+  settings: UserSettings,
+  saveSettings: (settings: UserSettings) => Promise<void>
 ) {
   const template = [
     ...(process.platform === "darwin"
       ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: "about" },
-              { type: "separator" },
-              { role: "services" },
-              { type: "separator" },
-              { role: "hide" },
-              { role: "hideOthers" },
-              { role: "unhide" },
-              { type: "separator" },
-              { role: "quit" },
-            ],
-          },
-        ]
+        {
+          label: app.name,
+          submenu: [
+            { role: "about" },
+            { type: "separator" },
+            { role: "services" },
+            { type: "separator" },
+            { role: "hide" },
+            { role: "hideOthers" },
+            { role: "unhide" },
+            { type: "separator" },
+            { role: "quit" },
+          ],
+        },
+      ]
       : []),
     {
       label: "File",
@@ -51,63 +51,63 @@ export function updateApplicationMenu(
             {
               label: "Top",
               type: "radio",
-              checked: preferences.tabPosition === "top",
+              checked: settings.tabPosition === "top",
               click: async () => {
-                preferences.tabPosition = "top";
-                await savePreferences(preferences);
+                settings.tabPosition = "top";
+                await saveSettings(settings);
 
                 window.webContents.send("ui:set-tab-position", "top");
-                updateApplicationMenu(window, preferences, savePreferences);
+                updateApplicationMenu(window, settings, saveSettings);
               },
             },
             {
               label: "Bottom",
               type: "radio",
-              checked: preferences.tabPosition === "bottom",
+              checked: settings.tabPosition === "bottom",
               click: async () => {
-                preferences.tabPosition = "bottom";
-                await savePreferences(preferences);
+                settings.tabPosition = "bottom";
+                await saveSettings(settings);
 
                 window.webContents.send("ui:set-tab-position", "bottom");
-                updateApplicationMenu(window, preferences, savePreferences);
+                updateApplicationMenu(window, settings, saveSettings);
               },
             },
           ],
         },
         {
-          label: "Always Show Tab Strip",
+          label: "Always Show Tabs",
           type: "checkbox",
-          checked: preferences.alwaysShowTabStrip,
+          checked: settings.alwaysShowTabs,
           click: async () => {
-            preferences.alwaysShowTabStrip = !preferences.alwaysShowTabStrip;
-            await savePreferences(preferences);
+            settings.alwaysShowTabs = !settings.alwaysShowTabs;
+            await saveSettings(settings);
 
             window.webContents.send(
-              "ui:set-always-show-tab-strip",
-              preferences.alwaysShowTabStrip
+              "ui:set-always-show-tabs",
+              settings.alwaysShowTabs
             );
-            updateApplicationMenu(window, preferences, savePreferences);
+            updateApplicationMenu(window, settings, saveSettings);
           },
         },
+        { type: "separator" },
         {
-          label: "Show Overview Ruler",
+          label: "Show Terminal Ruler",
           type: "checkbox",
-          checked: preferences.showOverviewRuler,
+          checked: settings.showTerminalRuler,
           click: async () => {
-            preferences.showOverviewRuler = !preferences.showOverviewRuler;
-            await savePreferences(preferences);
+            settings.showTerminalRuler = !settings.showTerminalRuler;
+            await saveSettings(settings);
 
             window.webContents.send(
-              "ui:set-show-overview-ruler",
-              preferences.showOverviewRuler
+              "ui:set-show-terminal-ruler",
+              settings.showTerminalRuler
             );
 
-            updateApplicationMenu(window, preferences, savePreferences);
+            updateApplicationMenu(window, settings, saveSettings);
           },
         },
         { type: "separator" },
         { role: "reload" },
-        { role: "forceReload" },
         { role: "toggleDevTools" },
         { type: "separator" },
         { role: "resetZoom" },

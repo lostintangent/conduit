@@ -1,30 +1,30 @@
 import { BrowserWindow, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
 import type {
-  AppPreferences,
   BackgroundCommandRequest,
+  UserSettings,
 } from "../../shared/types";
 import { updateApplicationMenu } from "./applicationMenu";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
-import { loadPreferences, savePreferences } from "./preferences";
+import { loadSettings, saveSettings } from "./settings";
 
-let currentPreferences: AppPreferences = null;
+let userSettings: UserSettings = null;
 
 /**
- * Loads the user's preferences and then initializes
+ * Loads the user's settings and then initializes
  * the application menu from them.
  */
-export async function initializeUIPreferences(window: BrowserWindow) {
-  currentPreferences = await loadPreferences();
+export async function initializeUserSettings(window: BrowserWindow) {
+  userSettings = await loadSettings();
 
-  updateApplicationMenu(window, currentPreferences, savePreferences);
+  updateApplicationMenu(window, userSettings, saveSettings);
 }
 
 /**
  * Registers the IPC handlers for the UI channel.
  */
 export function initializeUIHandlers(window: BrowserWindow) {
-  ipcMain.handle("ui:get-preferences", () => currentPreferences);
+  ipcMain.handle("ui:get-settings", () => userSettings);
 
   ipcMain.handle(
     "ui:add-command-history-entry",
@@ -32,35 +32,35 @@ export function initializeUIHandlers(window: BrowserWindow) {
       const trimmedCommand = command.trim();
       const updatedHistory = [
         trimmedCommand,
-        ...currentPreferences.commandHistory.filter(
+        ...userSettings.commandHistory.filter(
           (entry) => entry !== trimmedCommand
         ),
       ].slice(0, 5);
 
-      currentPreferences = {
-        ...currentPreferences,
+      userSettings = {
+        ...userSettings,
         commandHistory: updatedHistory,
       };
 
-      await savePreferences(currentPreferences);
+      await saveSettings(userSettings);
 
-      return currentPreferences.commandHistory;
+      return userSettings.commandHistory;
     }
   );
 
   ipcMain.handle(
     "ui:remove-command-history-entry",
     async (_, command: string) => {
-      currentPreferences = {
-        ...currentPreferences,
-        commandHistory: currentPreferences.commandHistory.filter(
+      userSettings = {
+        ...userSettings,
+        commandHistory: userSettings.commandHistory.filter(
           (entry) => entry !== command
         ),
       };
 
-      await savePreferences(currentPreferences);
+      await saveSettings(userSettings);
 
-      return currentPreferences.commandHistory;
+      return userSettings.commandHistory;
     }
   );
 
