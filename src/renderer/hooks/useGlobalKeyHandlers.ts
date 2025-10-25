@@ -10,9 +10,9 @@ import {
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, paneControlsVisibleAtom, tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 
 type UseGlobalKeyHandlersResult = {
@@ -26,6 +26,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const [paneControlsVisible, setPaneControlsVisible] = useAtom(paneControlsVisibleAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -82,6 +83,13 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       }
 
       if (isCommandPaletteOpen) {
+        return;
+      }
+
+      // Alt+Space: Toggle pane controls
+      if (event.altKey && !event.metaKey && !event.shiftKey && key === " ") {
+        event.preventDefault();
+        setPaneControlsVisible((current) => !current);
         return;
       }
 
@@ -209,6 +217,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     openTab,
     performSplit,
     performSplitWithAgentSession,
+    setPaneControlsVisible,
     tabs,
   ]);
 

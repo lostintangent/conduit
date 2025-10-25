@@ -2,6 +2,7 @@ import { TerminalPane } from "@/components/panes/TerminalPane";
 import { WebPane } from "@/components/panes/WebPane";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
+import { PaneControlButtons } from "@/components/tabs/layout/PaneControlButtons";
 import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
 import type {
   LayoutResizeAxis,
@@ -13,7 +14,7 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, paneControlsVisibleAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -21,7 +22,7 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
-import { findPaneNodeByPaneId } from "@/utils/layout";
+import { canMovePane, findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useState } from "react";
 
@@ -196,6 +197,7 @@ export function TabLayout({
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
+  const paneControlsVisible = useAtomValue(paneControlsVisibleAtom);
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
 
   const setHoverKeys = useCallback(
@@ -237,7 +239,7 @@ export function TabLayout({
       return (
         <div
           data-node-id={node.id}
-          className="grid flex-1 min-h-0 min-w-0 overflow-hidden"
+          className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
           style={{
             gridTemplateColumns: "minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr)",
@@ -276,10 +278,20 @@ export function TabLayout({
               </div>
             )}
           </div>
+          {paneControlsVisible && (
+            <PaneControlButtons
+              tabId={tab.id}
+              paneId={pane.id}
+              canMoveLeft={canMovePane(tab.layout, pane.id, "left")}
+              canMoveRight={canMovePane(tab.layout, pane.id, "right")}
+              canMoveUp={canMovePane(tab.layout, pane.id, "up")}
+              canMoveDown={canMovePane(tab.layout, pane.id, "down")}
+            />
+          )}
         </div>
       );
     },
-    [activeTabId, handleContextMenu, handleWebViewUpdate, resizingNode]
+    [activeTabId, handleContextMenu, handleWebViewUpdate, paneControlsVisible, resizingNode]
   );
 
   const renderSplitNode = useCallback(

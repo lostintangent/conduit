@@ -76,3 +76,80 @@ export function findPaneNodeByPaneId(
 
   return match;
 }
+
+type LayoutPathEntry = {
+  node: LayoutNode;
+  parent: LayoutSplitNode | null;
+  index: number;
+};
+
+function findLayoutPath(
+  node: LayoutNode,
+  predicate: (candidate: LayoutNode) => boolean,
+  parent: LayoutSplitNode | null = null,
+  index = 0
+): LayoutPathEntry[] | null {
+  const currentEntry: LayoutPathEntry = { node, parent, index };
+  if (predicate(node)) {
+    return [currentEntry];
+  }
+
+  if (node.type !== "split") {
+    return null;
+  }
+
+  for (let childIndex = 0; childIndex < node.children.length; childIndex += 1) {
+    const child = node.children[childIndex];
+    const childPath = findLayoutPath(child, predicate, node, childIndex);
+    if (childPath) {
+      return [currentEntry, ...childPath];
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Check if a pane can be moved in a specific direction.
+ */
+export function canMovePane(
+  layout: LayoutNode,
+  paneId: string,
+  direction: PaneDirection
+): boolean {
+  const path = findLayoutPath(
+    layout,
+    (candidate) => candidate.type === "pane" && candidate.paneId === paneId
+  );
+
+  if (!path || path.length < 2) {
+    return false;
+  }
+
+  const { splitDirection: targetDirection, isForward } =
+    getPaneDirectionConfig(direction);
+
+  for (let i = path.length - 2; i >= 0; i -= 1) {
+    const ancestorEntry = path[i];
+    if (
+      ancestorEntry.node.type !== "split" ||
+      ancestorEntry.node.direction !== targetDirection
+    ) {
+      continue;
+    }
+
+    const childEntry = path[i + 1];
+    const neighborIndex = childEntry.index + (isForward ? 1 : -1);
+    if (
+      neighborIndex < 0 ||
+      neighborIndex >= ancestorEntry.node.children.length
+    ) {
+      continue;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+

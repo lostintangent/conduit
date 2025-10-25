@@ -37,3 +37,5 @@ export const paneFlashAtom = atom<
 >(null, (_get, set, update) => {
   set(paneFlashAtom, update);
 });
+
+export const paneControlsVisibleAtom = atom<boolean>(false);
