@@ -1,4 +1,4 @@
-import { TerminalPane } from "@/components/panes/TerminalPane";
+import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ArrowUpRight } from "lucide-react";
 

@@ -1,4 +1,5 @@
 import { enqueueNotification } from "@/store/actions/notifications";
+import { closeTab } from "@/store/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type {
@@ -157,13 +158,13 @@ function findFirstPaneId(node: LayoutNode): string {
   return findFirstPaneId(node.children[0]);
 }
 
-type LayoutPathEntry = {
+export type LayoutPathEntry = {
   node: LayoutNode;
   parent: LayoutSplitNode | null;
   index: number;
 };
 
-function findLayoutPath(
+export function findLayoutPath(
   node: LayoutNode,
   predicate: (candidate: LayoutNode) => boolean,
   parent: LayoutSplitNode | null = null,
@@ -784,4 +785,21 @@ export function activatePane(tabId: string, paneId: string) {
       };
     })
   );
+}
+
+export function closePane(tabId: string, paneId: string) {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab) {
+    return;
+  }
+
+  // If this is the only pane in the tab, close the entire tab
+  if (Object.keys(tab.panes).length === 1) {
+    closeTab(tabId);
+    return;
+  }
+
+  // Otherwise, just remove the pane
+  removePane(tabId, paneId);
 }

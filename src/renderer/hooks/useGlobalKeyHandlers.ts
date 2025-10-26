@@ -10,9 +10,9 @@ import {
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, paneControlsAltHeldAtom, tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
-import { useAtomValue } from "jotai";
+import { useSetAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 
 type UseGlobalKeyHandlersResult = {
@@ -26,6 +26,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const setAltHeld = useSetAtom(paneControlsAltHeldAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -82,6 +83,13 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       }
 
       if (isCommandPaletteOpen) {
+        return;
+      }
+
+      // Alt+Space: Show pane controls while held
+      if (event.altKey && !event.metaKey && !event.shiftKey && key === " ") {
+        event.preventDefault();
+        setAltHeld(true);
         return;
       }
 
@@ -199,8 +207,22 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       }
     };
 
+    const handleKeyup = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      
+      // When Space is released, stop showing Alt+Space mode
+      if (key === " ") {
+        event.preventDefault();
+        setAltHeld(false);
+      }
+    };
+
     window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
+    window.addEventListener("keyup", handleKeyup);
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("keyup", handleKeyup);
+    };
   }, [
     activeTab,
     focusTab,
@@ -209,6 +231,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     openTab,
     performSplit,
     performSplitWithAgentSession,
+    setAltHeld,
     tabs,
   ]);
 

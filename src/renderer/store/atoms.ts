@@ -37,3 +37,10 @@ export const paneFlashAtom = atom<
 >(null, (_get, set, update) => {
   set(paneFlashAtom, update);
 });
+
+export const paneControlsToggledAtom = atom<boolean>(false);
+export const paneControlsAltHeldAtom = atom<boolean>(false);
+
+export const isInEditModeAtom = atom<boolean>((get) => {
+  return get(paneControlsToggledAtom) || get(paneControlsAltHeldAtom);
+});

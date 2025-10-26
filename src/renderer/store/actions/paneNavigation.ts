@@ -110,7 +110,8 @@ const toCandidate = (pane: PaneRect): Candidate => ({
 const findNeighborPaneId = (
   panes: PaneRect[],
   activePaneId: string,
-  direction: PaneNavigationDirection
+  direction: PaneNavigationDirection,
+  wrap = true
 ): string | null => {
   const current = panes.find((pane) => pane.paneId === activePaneId);
   if (!current) {
@@ -157,10 +158,10 @@ const findNeighborPaneId = (
     return isForward ? diff > CENTER_EPSILON : diff < -CENTER_EPSILON;
   });
 
-  const compareCandidates = (a: Candidate, b: Candidate, wrap = false) => {
+  const compareCandidates = (a: Candidate, b: Candidate, wrapSort = false) => {
     const primaryDiffA = Math.abs(a[axisKey] - currentAxis);
     const primaryDiffB = Math.abs(b[axisKey] - currentAxis);
-    if (!wrap && primaryDiffA !== primaryDiffB) {
+    if (!wrapSort && primaryDiffA !== primaryDiffB) {
       return primaryDiffA - primaryDiffB;
     }
 
@@ -178,6 +179,11 @@ const findNeighborPaneId = (
     return forwardCandidates[0].paneId;
   }
 
+  // If wrap is disabled, return null when no forward candidates
+  if (!wrap) {
+    return null;
+  }
+
   const wrapExtremum = isForward
     ? Math.min(...axisCandidates.map((candidate) => candidate[axisKey]))
     : Math.max(...axisCandidates.map((candidate) => candidate[axisKey]));
@@ -192,6 +198,27 @@ const findNeighborPaneId = (
 
   wrapOptions.sort((a, b) => compareCandidates(a, b, true));
   return wrapOptions.length > 0 ? wrapOptions[0].paneId : null;
+};
+
+/**
+ * Check if there is a neighbor pane in the specified direction.
+ * This is used to determine if move buttons should be shown.
+ * Unlike keyboard navigation, this does not wrap around.
+ */
+export const hasNeighborPane = (
+  layout: LayoutNode,
+  paneId: string,
+  direction: PaneNavigationDirection
+): boolean => {
+  const paneRects: PaneRect[] = [];
+  collectPaneRects(layout, paneRects);
+
+  if (paneRects.length <= 1) {
+    return false;
+  }
+
+  // Use findNeighborPaneId with wrap=false to check if there's a neighbor
+  return findNeighborPaneId(paneRects, paneId, direction, false) !== null;
 };
 
 export const navigatePane = (

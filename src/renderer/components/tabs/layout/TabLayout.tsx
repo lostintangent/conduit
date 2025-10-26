@@ -1,7 +1,8 @@
-import { TerminalPane } from "@/components/panes/TerminalPane";
-import { WebPane } from "@/components/panes/WebPane";
+import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
+import { WebPane } from "@/components/panes/web/WebPane";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
+import { PaneControlButtons } from "@/components/tabs/layout/PaneControlButtons";
 import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
 import type {
   LayoutResizeAxis,
@@ -13,7 +14,8 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import { hasNeighborPane } from "@/store/actions/paneNavigation";
+import { activeTabIdAtom, isInEditModeAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -21,7 +23,7 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
-import { findPaneNodeByPaneId } from "@/utils/layout";
+import { countPanesInLayout, findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useState } from "react";
 
@@ -83,7 +85,7 @@ const computeIntersectionHandles = (
 
   const prevBoundaries =
     previousSibling.type === "split" &&
-    previousSibling.direction === perpendicularDirection
+      previousSibling.direction === perpendicularDirection
       ? collectBoundaries(previousSibling)
       : [];
 
@@ -196,7 +198,9 @@ export function TabLayout({
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
+  const isInEditMode = useAtomValue(isInEditModeAtom);
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
+  const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
   const setHoverKeys = useCallback(
     (keys: string[]) => {
@@ -218,6 +222,7 @@ export function TabLayout({
         tab.id === activeTabId && tab.activePaneId === pane.id;
       const showBorder =
         Object.keys(tab.panes).length > 1 && tab.mode !== "focus";
+      const borderStyle = isInEditMode ? "dashed" : "solid";
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
       const onPaneActivate = () => activatePane(tab.id, pane.id);
@@ -226,8 +231,8 @@ export function TabLayout({
         clientY: number;
       }) => {
         const syntheticEvent = {
-          preventDefault: () => {},
-          stopPropagation: () => {},
+          preventDefault: () => { },
+          stopPropagation: () => { },
           clientX: coords.clientX,
           clientY: coords.clientY,
         } as React.MouseEvent;
@@ -237,11 +242,13 @@ export function TabLayout({
       return (
         <div
           data-node-id={node.id}
-          className="grid flex-1 min-h-0 min-w-0 overflow-hidden"
+          className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
           style={{
             gridTemplateColumns: "minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr)",
           }}
+          onMouseEnter={() => setHoveredPaneId(pane.id)}
+          onMouseLeave={() => setHoveredPaneId(null)}
         >
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
             {pane.type === "terminal" ? (
@@ -276,10 +283,22 @@ export function TabLayout({
               </div>
             )}
           </div>
+          {isInEditMode && (hoveredPaneId !== null ? hoveredPaneId === pane.id : isActivePane) && (
+            <PaneControlButtons
+              tabId={tab.id}
+              paneId={pane.id}
+              canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
+              canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
+              canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
+              canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
+              isOnlyPane={countPanesInLayout(tab.layout) === 1}
+              isOnlyTab={tabs.length === 1}
+            />
+          )}
         </div>
       );
     },
-    [activeTabId, handleContextMenu, handleWebViewUpdate, resizingNode]
+    [activeTabId, handleContextMenu, handleWebViewUpdate, hoveredPaneId, isInEditMode, resizingNode, tabs.length]
   );
 
   const renderSplitNode = useCallback(
@@ -308,13 +327,13 @@ export function TabLayout({
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
-                  containerNodeId: node.id,
-                  direction: node.direction,
-                  leadingNodeId: previousSibling.id,
-                  trailingNodeId: child.id,
-                  leadingSize: previousSibling.size ?? 1,
-                  trailingSize: child.size ?? 1,
-                }
+                containerNodeId: node.id,
+                direction: node.direction,
+                leadingNodeId: previousSibling.id,
+                trailingNodeId: child.id,
+                leadingSize: previousSibling.size ?? 1,
+                trailingSize: child.size ?? 1,
+              }
               : null;
 
             const primaryAxisKey = primaryAxis ? getAxisKey(primaryAxis) : null;
@@ -331,10 +350,10 @@ export function TabLayout({
 
             const intersectionHandles = primaryAxis
               ? computeIntersectionHandles(
-                  previousSibling,
-                  child,
-                  node.direction
-                )
+                previousSibling,
+                child,
+                node.direction
+              )
               : [];
 
             const clearHover = () => {
@@ -347,13 +366,12 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${
-                  index !== 0
-                    ? node.direction === "row"
-                      ? "border-l border-white/[0.12]"
-                      : "border-t border-white/[0.12]"
-                    : ""
-                }`}
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${index !== 0
+                  ? node.direction === "row"
+                    ? `border-l border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
+                    : `border-t border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
+                  : ""
+                  }`}
               >
                 {primaryAxis && (
                   <>
@@ -396,7 +414,7 @@ export function TabLayout({
         </div>
       );
     },
-    [handleResizeStart, hoveredAxisKeys, resizingNode, setHoverKeys]
+    [handleResizeStart, hoveredAxisKeys, isInEditMode, resizingNode, setHoverKeys]
   );
 
   const renderLayout = useCallback(
