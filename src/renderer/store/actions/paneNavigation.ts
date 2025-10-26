@@ -110,7 +110,8 @@ const toCandidate = (pane: PaneRect): Candidate => ({
 const findNeighborPaneId = (
   panes: PaneRect[],
   activePaneId: string,
-  direction: PaneNavigationDirection
+  direction: PaneNavigationDirection,
+  wrap = true
 ): string | null => {
   const current = panes.find((pane) => pane.paneId === activePaneId);
   if (!current) {
@@ -157,10 +158,10 @@ const findNeighborPaneId = (
     return isForward ? diff > CENTER_EPSILON : diff < -CENTER_EPSILON;
   });
 
-  const compareCandidates = (a: Candidate, b: Candidate, wrap = false) => {
+  const compareCandidates = (a: Candidate, b: Candidate, wrapSort = false) => {
     const primaryDiffA = Math.abs(a[axisKey] - currentAxis);
     const primaryDiffB = Math.abs(b[axisKey] - currentAxis);
-    if (!wrap && primaryDiffA !== primaryDiffB) {
+    if (!wrapSort && primaryDiffA !== primaryDiffB) {
       return primaryDiffA - primaryDiffB;
     }
 
@@ -176,6 +177,11 @@ const findNeighborPaneId = (
   if (forwardCandidates.length > 0) {
     forwardCandidates.sort((a, b) => compareCandidates(a, b));
     return forwardCandidates[0].paneId;
+  }
+
+  // If wrap is disabled, return null when no forward candidates
+  if (!wrap) {
+    return null;
   }
 
   const wrapExtremum = isForward
@@ -197,7 +203,7 @@ const findNeighborPaneId = (
 /**
  * Check if there is a neighbor pane in the specified direction.
  * This is used to determine if move buttons should be shown.
- * Unlike findNeighborPaneId, this does not wrap around.
+ * Unlike keyboard navigation, this does not wrap around.
  */
 export const hasNeighborPane = (
   layout: LayoutNode,
@@ -211,54 +217,8 @@ export const hasNeighborPane = (
     return false;
   }
 
-  const current = paneRects.find((pane) => pane.paneId === paneId);
-  if (!current) {
-    return false;
-  }
-
-  const { axis, isForward } = getPaneDirectionConfig(direction);
-  const currentCenterX = current.rect.x + current.rect.width / 2;
-  const currentCenterY = current.rect.y + current.rect.height / 2;
-
-  // Filter panes that overlap in the perpendicular axis
-  const axisCandidates = paneRects
-    .filter((pane) => pane.paneId !== paneId)
-    .filter((pane) => {
-      if (axis === "horizontal") {
-        return rangesOverlap(
-          current.rect.y,
-          current.rect.y + current.rect.height,
-          pane.rect.y,
-          pane.rect.y + pane.rect.height
-        );
-      }
-
-      return rangesOverlap(
-        current.rect.x,
-        current.rect.x + current.rect.width,
-        pane.rect.x,
-        pane.rect.x + pane.rect.width
-      );
-    });
-
-  if (axisCandidates.length === 0) {
-    return false;
-  }
-
-  const axisKey = axis === "horizontal" ? "centerX" : "centerY";
-  const currentAxis = axis === "horizontal" ? currentCenterX : currentCenterY;
-
-  // Check if there are any panes in the forward direction (no wrapping)
-  const forwardCandidates = axisCandidates.filter((candidate) => {
-    const candidateCenter =
-      axis === "horizontal"
-        ? candidate.rect.x + candidate.rect.width / 2
-        : candidate.rect.y + candidate.rect.height / 2;
-    const diff = candidateCenter - currentAxis;
-    return isForward ? diff > CENTER_EPSILON : diff < -CENTER_EPSILON;
-  });
-
-  return forwardCandidates.length > 0;
+  // Use findNeighborPaneId with wrap=false to check if there's a neighbor
+  return findNeighborPaneId(paneRects, paneId, direction, false) !== null;
 };
 
 export const navigatePane = (
