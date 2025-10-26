@@ -445,6 +445,7 @@ export function App() {
         handleResizeStart={handleResizeStart}
         resizingNode={resizingNode}
         handleWebViewUpdate={handleWebViewUpdate}
+        closePane={closePane}
       />
 
       {shouldShowTabs && tabPosition === "bottom" && (

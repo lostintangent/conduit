@@ -8,6 +8,7 @@ import {
   ArrowUp,
   SplitSquareHorizontal,
   SplitSquareVertical,
+  X,
 } from "lucide-react";
 import React from "react";
 
@@ -18,6 +19,7 @@ interface PaneControlButtonsProps {
   canMoveRight: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  onClose: (tabId: string, paneId: string) => void;
 }
 
 export function PaneControlButtons({
@@ -27,6 +29,7 @@ export function PaneControlButtons({
   canMoveRight,
   canMoveUp,
   canMoveDown,
+  onClose,
 }: PaneControlButtonsProps) {
   const handleSplit = (direction: SplitDirection, insertBefore: boolean) => {
     void splitPane(tabId, paneId, direction, insertBefore);
@@ -36,12 +39,27 @@ export function PaneControlButtons({
     movePane(tabId, paneId, direction);
   };
 
+  const handleClose = () => {
+    onClose(tabId, paneId);
+  };
+
   const buttonClass =
     "flex items-center justify-center w-8 h-8 bg-black/60 hover:bg-blue-500/80 border border-white/20 rounded transition-colors cursor-pointer backdrop-blur-sm";
   const iconClass = "w-4 h-4 text-white";
 
   return (
     <>
+      {/* Center close button */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+        <button
+          className={buttonClass}
+          onClick={handleClose}
+          title="Close pane"
+        >
+          <X className={iconClass} />
+        </button>
+      </div>
+
       {/* Top buttons */}
       <div className="absolute top-1 left-1/2 -translate-x-1/2 flex gap-1 z-10">
         <button

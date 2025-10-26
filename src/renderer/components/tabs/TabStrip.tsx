@@ -328,7 +328,10 @@ export const TabStrip = ({
         {tabsWithPlaceholders}
       </div>
 
-      {/* New tab button - directly after tabs */}
+      {/* Vertical divider */}
+      <div className="h-6 w-px bg-white/20 mx-2" />
+
+      {/* New tab button - after divider */}
       <button
         type="button"
         className="border-0 bg-white/8 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"

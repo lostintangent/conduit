@@ -188,6 +188,7 @@ interface TabLayoutProps {
     paneId: string,
     updates: { url?: string; title?: string }
   ) => void;
+  closePane: (tabId: string, paneId: string) => void;
 }
 
 export function TabLayout({
@@ -195,11 +196,13 @@ export function TabLayout({
   handleResizeStart,
   resizingNode,
   handleWebViewUpdate,
+  closePane,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const paneControlsVisible = useAtomValue(paneControlsVisibleAtom);
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
+  const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
   const setHoverKeys = useCallback(
     (keys: string[]) => {
@@ -245,6 +248,8 @@ export function TabLayout({
             gridTemplateColumns: "minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr)",
           }}
+          onMouseEnter={() => setHoveredPaneId(pane.id)}
+          onMouseLeave={() => setHoveredPaneId(null)}
         >
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
             {pane.type === "terminal" ? (
@@ -279,7 +284,7 @@ export function TabLayout({
               </div>
             )}
           </div>
-          {paneControlsVisible && (
+          {paneControlsVisible && (isActivePane || hoveredPaneId === pane.id) && (
             <PaneControlButtons
               tabId={tab.id}
               paneId={pane.id}
@@ -287,12 +292,13 @@ export function TabLayout({
               canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
               canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
+              onClose={closePane}
             />
           )}
         </div>
       );
     },
-    [activeTabId, handleContextMenu, handleWebViewUpdate, paneControlsVisible, resizingNode]
+    [activeTabId, closePane, handleContextMenu, handleWebViewUpdate, hoveredPaneId, paneControlsVisible, resizingNode]
   );
 
   const renderSplitNode = useCallback(
