@@ -2,7 +2,7 @@ import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
   paneControlsToggledAtom,
-  paneControlsVisibleAtom,
+  isInEditModeAtom,
   tabsAtom,
   userSettingsAtom
 } from "@/store/atoms";
@@ -44,7 +44,7 @@ export const TabStrip = ({
   const activeTabId = useAtomValue(activeTabIdAtom);
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const [paneControlsToggled, setPaneControlsToggled] = useAtom(paneControlsToggledAtom);
-  const paneControlsVisible = useAtomValue(paneControlsVisibleAtom);
+  const isInEditMode = useAtomValue(isInEditModeAtom);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -358,7 +358,7 @@ export const TabStrip = ({
         </button>
         <button
           type="button"
-          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${paneControlsVisible
+          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isInEditMode
             ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
             : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
             }`}

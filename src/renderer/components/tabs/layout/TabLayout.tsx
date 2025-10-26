@@ -13,9 +13,10 @@ import {
   getAllPaneIds,
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
-import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import { activatePane, openWebViewPane, removePane } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
-import { activeTabIdAtom, paneControlsVisibleAtom, tabsAtom } from "@/store/atoms";
+import { closeTab } from "@/store/actions/tab";
+import { activeTabIdAtom, isInEditModeAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -188,7 +189,6 @@ interface TabLayoutProps {
     paneId: string,
     updates: { url?: string; title?: string }
   ) => void;
-  closePane: (tabId: string, paneId: string) => void;
 }
 
 export function TabLayout({
@@ -196,13 +196,29 @@ export function TabLayout({
   handleResizeStart,
   resizingNode,
   handleWebViewUpdate,
-  closePane,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
-  const paneControlsVisible = useAtomValue(paneControlsVisibleAtom);
+  const isInEditMode = useAtomValue(isInEditModeAtom);
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
+
+  const closePane = useCallback(
+    (tabId: string, paneId: string) => {
+      const tab = tabs.find((t) => t.id === tabId);
+      if (!tab) {
+        return;
+      }
+
+      if (Object.keys(tab.panes).length === 1) {
+        closeTab(tabId);
+        return;
+      }
+
+      removePane(tabId, paneId);
+    },
+    [tabs]
+  );
 
   const setHoverKeys = useCallback(
     (keys: string[]) => {
@@ -224,6 +240,7 @@ export function TabLayout({
         tab.id === activeTabId && tab.activePaneId === pane.id;
       const showBorder =
         Object.keys(tab.panes).length > 1 && tab.mode !== "focus";
+      const borderStyle = isInEditMode ? "dashed" : "solid";
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
       const onPaneActivate = () => activatePane(tab.id, pane.id);
@@ -259,6 +276,7 @@ export function TabLayout({
                 paneId={pane.id}
                 isActive={isActivePane}
                 showBorder={showBorder}
+                borderStyle={borderStyle}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
@@ -275,6 +293,7 @@ export function TabLayout({
                   paneId={pane.id}
                   isActive={isActivePane}
                   showBorder={showBorder}
+                  borderStyle={borderStyle}
                   disableInteraction={resizingNode !== null}
                   onContextMenu={onWebViewContextMenu}
                   onTitleChange={(nextTitle) =>
@@ -284,7 +303,7 @@ export function TabLayout({
               </div>
             )}
           </div>
-          {paneControlsVisible && (hoveredPaneId !== null ? hoveredPaneId === pane.id : isActivePane) && (
+          {isInEditMode && (hoveredPaneId !== null ? hoveredPaneId === pane.id : isActivePane) && (
             <PaneControlButtons
               tabId={tab.id}
               paneId={pane.id}
@@ -300,7 +319,7 @@ export function TabLayout({
         </div>
       );
     },
-    [activeTabId, closePane, handleContextMenu, handleWebViewUpdate, hoveredPaneId, paneControlsVisible, resizingNode, tabs.length]
+    [activeTabId, closePane, handleContextMenu, handleWebViewUpdate, hoveredPaneId, isInEditMode, resizingNode, tabs.length]
   );
 
   const renderSplitNode = useCallback(

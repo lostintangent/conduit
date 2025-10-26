@@ -41,6 +41,6 @@ export const paneFlashAtom = atom<
 export const paneControlsToggledAtom = atom<boolean>(false);
 export const paneControlsAltHeldAtom = atom<boolean>(false);
 
-export const paneControlsVisibleAtom = atom<boolean>((get) => {
+export const isInEditModeAtom = atom<boolean>((get) => {
   return get(paneControlsToggledAtom) || get(paneControlsAltHeldAtom);
 });
