@@ -1,8 +1,14 @@
 import { moveTab, openTab } from "@/store/actions/tab";
-import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { 
+  activeTabIdAtom, 
+  paneControlsToggledAtom,
+  paneControlsVisibleAtom, 
+  tabsAtom, 
+  userSettingsAtom 
+} from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
-import { useAtomValue } from "jotai";
-import { MoreHorizontal } from "lucide-react";
+import { useAtom, useAtomValue } from "jotai";
+import { MoreHorizontal, Move } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { TabButton, TabPlaceholder } from "./TabButton";
 
@@ -37,6 +43,8 @@ export const TabStrip = ({
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const { homeDirectory } = useAtomValue(userSettingsAtom);
+  const [paneControlsToggled, setPaneControlsToggled] = useAtom(paneControlsToggledAtom);
+  const paneControlsVisible = useAtomValue(paneControlsVisibleAtom);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -322,6 +330,19 @@ export const TabStrip = ({
 
       {/* Action buttons */}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
+            paneControlsVisible
+              ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+              : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+          }`}
+          title="Toggle pane controls (Alt+Space)"
+          aria-label="Toggle pane controls"
+          onClick={() => setPaneControlsToggled((current) => !current)}
+        >
+          <Move size={18} />
+        </button>
         <button
           type="button"
           className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"

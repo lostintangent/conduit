@@ -38,4 +38,9 @@ export const paneFlashAtom = atom<
   set(paneFlashAtom, update);
 });
 
-export const paneControlsVisibleAtom = atom<boolean>(false);
+export const paneControlsToggledAtom = atom<boolean>(false);
+export const paneControlsAltHeldAtom = atom<boolean>(false);
+
+export const paneControlsVisibleAtom = atom<boolean>((get) => {
+  return get(paneControlsToggledAtom) || get(paneControlsAltHeldAtom);
+});
