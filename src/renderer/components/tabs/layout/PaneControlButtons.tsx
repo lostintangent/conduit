@@ -1,4 +1,4 @@
-import { movePane, splitPane } from "@/store/actions/pane";
+import { closePane, movePane, splitPane } from "@/store/actions/pane";
 import { movePaneToTab } from "@/store/actions/tab";
 import type { SplitDirection } from "@/types";
 import type { PaneDirection } from "@/utils/layout";
@@ -20,7 +20,6 @@ interface PaneControlButtonsProps {
   canMoveRight: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
-  onClose: (tabId: string, paneId: string) => void;
   isOnlyPane: boolean;
   isOnlyTab: boolean;
 }
@@ -32,7 +31,6 @@ export function PaneControlButtons({
   canMoveRight,
   canMoveUp,
   canMoveDown,
-  onClose,
   isOnlyPane,
   isOnlyTab,
 }: PaneControlButtonsProps) {
@@ -45,7 +43,7 @@ export function PaneControlButtons({
   };
 
   const handleClose = () => {
-    onClose(tabId, paneId);
+    closePane(tabId, paneId);
   };
 
   const handleMoveToNewTab = () => {

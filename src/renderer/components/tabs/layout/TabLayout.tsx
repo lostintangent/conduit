@@ -13,9 +13,8 @@ import {
   getAllPaneIds,
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
-import { activatePane, openWebViewPane, removePane } from "@/store/actions/pane";
+import { activatePane, openWebViewPane } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
-import { closeTab } from "@/store/actions/tab";
 import { activeTabIdAtom, isInEditModeAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
@@ -203,23 +202,6 @@ export function TabLayout({
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
-  const closePane = useCallback(
-    (tabId: string, paneId: string) => {
-      const tab = tabs.find((t) => t.id === tabId);
-      if (!tab) {
-        return;
-      }
-
-      if (Object.keys(tab.panes).length === 1) {
-        closeTab(tabId);
-        return;
-      }
-
-      removePane(tabId, paneId);
-    },
-    [tabs]
-  );
-
   const setHoverKeys = useCallback(
     (keys: string[]) => {
       if (resizingNode === null) {
@@ -311,7 +293,6 @@ export function TabLayout({
               canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
               canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
-              onClose={closePane}
               isOnlyPane={countPanesInLayout(tab.layout) === 1}
               isOnlyTab={tabs.length === 1}
             />

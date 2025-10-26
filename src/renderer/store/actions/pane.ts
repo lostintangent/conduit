@@ -1,4 +1,5 @@
 import { enqueueNotification } from "@/store/actions/notifications";
+import { closeTab } from "@/store/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type {
@@ -784,4 +785,21 @@ export function activatePane(tabId: string, paneId: string) {
       };
     })
   );
+}
+
+export function closePane(tabId: string, paneId: string) {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab) {
+    return;
+  }
+
+  // If this is the only pane in the tab, close the entire tab
+  if (Object.keys(tab.panes).length === 1) {
+    closeTab(tabId);
+    return;
+  }
+
+  // Otherwise, just remove the pane
+  removePane(tabId, paneId);
 }
