@@ -370,8 +370,8 @@ export function TabLayout({
                 key={child.id}
                 className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${index !== 0
                     ? node.direction === "row"
-                      ? "border-l border-white/[0.12]"
-                      : "border-t border-white/[0.12]"
+                      ? `border-l border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
+                      : `border-t border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
                     : ""
                   }`}
               >
@@ -416,7 +416,7 @@ export function TabLayout({
         </div>
       );
     },
-    [handleResizeStart, hoveredAxisKeys, resizingNode, setHoverKeys]
+    [handleResizeStart, hoveredAxisKeys, isInEditMode, resizingNode, setHoverKeys]
   );
 
   const renderLayout = useCallback(
