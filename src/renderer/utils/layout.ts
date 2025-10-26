@@ -77,3 +77,19 @@ export function findPaneNodeByPaneId(
   return match;
 }
 
+/**
+ * Count the number of panes in a layout tree
+ */
+export function countPanesInLayout(root: LayoutNode): number {
+  let count = 0;
+
+  walkLayout(root, ({ node }) => {
+    if (node.type === "pane") {
+      count += 1;
+    }
+    return true;
+  });
+
+  return count;
+}
+

@@ -21,6 +21,8 @@ interface PaneControlButtonsProps {
   canMoveUp: boolean;
   canMoveDown: boolean;
   onClose: (tabId: string, paneId: string) => void;
+  isOnlyPane: boolean;
+  isOnlyTab: boolean;
 }
 
 export function PaneControlButtons({
@@ -31,6 +33,8 @@ export function PaneControlButtons({
   canMoveUp,
   canMoveDown,
   onClose,
+  isOnlyPane,
+  isOnlyTab,
 }: PaneControlButtonsProps) {
   const handleSplit = (direction: SplitDirection, insertBefore: boolean) => {
     void splitPane(tabId, paneId, direction, insertBefore);
@@ -52,25 +56,36 @@ export function PaneControlButtons({
     "flex items-center justify-center w-8 h-8 bg-black/60 hover:bg-blue-500/80 border border-white/20 rounded transition-colors cursor-pointer backdrop-blur-sm";
   const iconClass = "w-4 h-4 text-white";
 
+  // Show move to new tab button if there are multiple panes in the tab
+  const showMoveToNewTab = !isOnlyPane;
+  // Show close button if there are multiple panes OR multiple tabs
+  const showClose = !isOnlyPane || !isOnlyTab;
+
   return (
     <>
       {/* Center buttons - Move to new tab and Close */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1 z-10">
-        <button
-          className={buttonClass}
-          onClick={handleMoveToNewTab}
-          title="Move pane to new tab (Alt+T)"
-        >
-          <CornerUpRight className={iconClass} />
-        </button>
-        <button
-          className={buttonClass}
-          onClick={handleClose}
-          title="Close pane (Alt+W)"
-        >
-          <X className={iconClass} />
-        </button>
-      </div>
+      {(showMoveToNewTab || showClose) && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1 z-10">
+          {showMoveToNewTab && (
+            <button
+              className={buttonClass}
+              onClick={handleMoveToNewTab}
+              title="Move pane to new tab (Alt+T)"
+            >
+              <CornerUpRight className={iconClass} />
+            </button>
+          )}
+          {showClose && (
+            <button
+              className={buttonClass}
+              onClick={handleClose}
+              title="Close pane (Alt+W)"
+            >
+              <X className={iconClass} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Top buttons */}
       <div className="absolute top-1 left-1/2 -translate-x-1/2 flex gap-1 z-10">

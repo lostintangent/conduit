@@ -23,7 +23,7 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
-import { findPaneNodeByPaneId } from "@/utils/layout";
+import { findPaneNodeByPaneId, countPanesInLayout } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useState } from "react";
 
@@ -293,12 +293,14 @@ export function TabLayout({
               canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
               onClose={closePane}
+              isOnlyPane={countPanesInLayout(tab.layout) === 1}
+              isOnlyTab={tabs.length === 1}
             />
           )}
         </div>
       );
     },
-    [activeTabId, closePane, handleContextMenu, handleWebViewUpdate, hoveredPaneId, paneControlsVisible, resizingNode]
+    [activeTabId, closePane, handleContextMenu, handleWebViewUpdate, hoveredPaneId, paneControlsVisible, resizingNode, tabs.length]
   );
 
   const renderSplitNode = useCallback(
