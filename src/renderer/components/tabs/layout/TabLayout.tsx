@@ -1,5 +1,5 @@
-import { TerminalPane } from "@/components/panes/TerminalPane";
-import { WebPane } from "@/components/panes/WebPane";
+import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
+import { WebPane } from "@/components/panes/web/WebPane";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
 import { PaneControlButtons } from "@/components/tabs/layout/PaneControlButtons";
@@ -369,10 +369,10 @@ export function TabLayout({
               <div
                 key={child.id}
                 className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${index !== 0
-                    ? node.direction === "row"
-                      ? `border-l border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
-                      : `border-t border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
-                    : ""
+                  ? node.direction === "row"
+                    ? `border-l border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
+                    : `border-t border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
+                  : ""
                   }`}
               >
                 {primaryAxis && (
