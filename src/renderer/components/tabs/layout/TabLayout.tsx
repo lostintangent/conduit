@@ -284,7 +284,7 @@ export function TabLayout({
               </div>
             )}
           </div>
-          {paneControlsVisible && (isActivePane || hoveredPaneId === pane.id) && (
+          {paneControlsVisible && (hoveredPaneId !== null ? hoveredPaneId === pane.id : isActivePane) && (
             <PaneControlButtons
               tabId={tab.id}
               paneId={pane.id}
