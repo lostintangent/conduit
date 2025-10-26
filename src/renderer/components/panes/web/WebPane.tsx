@@ -14,7 +14,6 @@ type WebPaneProps = {
   url: string;
   paneId: string;
   showBorder: boolean;
-  borderStyle?: "solid" | "dashed";
   onTitleChange?: (title: string) => void;
   disableInteraction?: boolean;
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
@@ -25,7 +24,6 @@ export function WebPane({
   url,
   paneId,
   showBorder,
-  borderStyle = "solid",
   onTitleChange,
   disableInteraction = false,
   onContextMenu,
@@ -180,7 +178,7 @@ export function WebPane({
 
   return (
     <div
-      className={`relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 ${isActive && showBorder ? (borderStyle === "dashed" ? "pane-active-border-dashed" : "pane-active-border") : ""} ${flashClass}`}
+      className={`relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 ${isActive && showBorder ? "pane-active-border" : ""} ${flashClass}`}
     >
       {/* URL Bar */}
       <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-elevated border-b border-white/10">

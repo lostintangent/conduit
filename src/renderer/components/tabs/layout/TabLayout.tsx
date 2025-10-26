@@ -258,7 +258,6 @@ export function TabLayout({
                 paneId={pane.id}
                 isActive={isActivePane}
                 showBorder={showBorder}
-                borderStyle={borderStyle}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
@@ -275,7 +274,6 @@ export function TabLayout({
                   paneId={pane.id}
                   isActive={isActivePane}
                   showBorder={showBorder}
-                  borderStyle={borderStyle}
                   disableInteraction={resizingNode !== null}
                   onContextMenu={onWebViewContextMenu}
                   onTitleChange={(nextTitle) =>

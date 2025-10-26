@@ -95,7 +95,6 @@ type TerminalPaneProps = {
   isActive: boolean;
   paneId: string;
   showBorder: boolean;
-  borderStyle?: "solid" | "dashed";
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: () => void;
   onLinkClick?: (url: string) => void;
@@ -106,7 +105,6 @@ export const TerminalPane = ({
   isActive,
   paneId,
   showBorder,
-  borderStyle = "solid",
   onContextMenu,
   onActivate,
   onLinkClick,
@@ -257,7 +255,7 @@ export const TerminalPane = ({
 
   return (
     <div
-      className={`terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative ${isActive && showBorder ? (borderStyle === "dashed" ? "pane-active-border-dashed" : "pane-active-border") : ""} ${flashClass}`}
+      className={`terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative ${isActive && showBorder ? "pane-active-border" : ""} ${flashClass}`}
       ref={containerRef}
       data-active={isActive}
       onContextMenu={onContextMenu}
