@@ -10,7 +10,6 @@ import {
   SplitSquareVertical,
   X,
 } from "lucide-react";
-import React from "react";
 
 interface PaneControlButtonsProps {
   tabId: string;
@@ -61,7 +60,7 @@ export function PaneControlButtons({
       </div>
 
       {/* Top buttons */}
-      <div className="absolute top-1 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", true)}
@@ -81,7 +80,7 @@ export function PaneControlButtons({
       </div>
 
       {/* Bottom buttons */}
-      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", false)}
@@ -101,7 +100,7 @@ export function PaneControlButtons({
       </div>
 
       {/* Left buttons */}
-      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+      <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", true)}
@@ -121,7 +120,7 @@ export function PaneControlButtons({
       </div>
 
       {/* Right buttons */}
-      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", false)}

@@ -1,14 +1,14 @@
 import { moveTab, openTab } from "@/store/actions/tab";
-import { 
-  activeTabIdAtom, 
+import {
+  activeTabIdAtom,
   paneControlsToggledAtom,
-  paneControlsVisibleAtom, 
-  tabsAtom, 
-  userSettingsAtom 
+  paneControlsVisibleAtom,
+  tabsAtom,
+  userSettingsAtom
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
-import { MoreHorizontal, Move } from "lucide-react";
+import { MoreHorizontal, Move, PlusSquare } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { TabButton, TabPlaceholder } from "./TabButton";
 
@@ -297,7 +297,7 @@ export const TabStrip = ({
     >
       {/* Tab buttons */}
       <div
-        className="flex items-stretch gap-1 flex-1 overflow-x-auto scrollbar-thin min-w-0"
+        className="flex items-stretch align-middle content-center gap-1 flex-1 overflow-x-auto scrollbar-thin min-w-0"
         role="tablist"
         onDragOver={(event) => {
           if (event.target !== event.currentTarget) {
@@ -326,23 +326,24 @@ export const TabStrip = ({
         }}
       >
         {tabsWithPlaceholders}
+
+        {/* Vertical divider */}
+        <div className="h-6 my-1 w-px bg-white/20 ml-2 mr-0.5" />
+
+        {/* New tab button - after divider */}
+        <button
+          type="button"
+          className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
+          title="New tab (⌘T)"
+          aria-label="New tab"
+          onClick={() => {
+            void openTab();
+          }}
+        >
+          <PlusSquare size={18} />
+        </button>
       </div>
 
-      {/* Vertical divider */}
-      <div className="h-6 w-px bg-white/20 mx-2" />
-
-      {/* New tab button - after divider */}
-      <button
-        type="button"
-        className="border-0 bg-white/8 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-        title="New tab (⌘T)"
-        aria-label="New tab"
-        onClick={() => {
-          void openTab();
-        }}
-      >
-        +
-      </button>
 
       {/* Action buttons - far right */}
       <div className="flex items-center gap-2 ml-auto">
@@ -357,11 +358,10 @@ export const TabStrip = ({
         </button>
         <button
           type="button"
-          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
-            paneControlsVisible
-              ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-              : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-          }`}
+          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${paneControlsVisible
+            ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+            : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+            }`}
           title="Toggle pane controls (Alt+Space)"
           aria-label="Toggle pane controls"
           onClick={() => setPaneControlsToggled((current) => !current)}
