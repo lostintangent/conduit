@@ -31,7 +31,7 @@ import type {
 } from "@/types";
 import { countPanesInLayout, findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
@@ -216,6 +216,17 @@ export function TabLayout({
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
   const { triggerHighlight, getHighlightClass } = usePaneHighlight();
+
+  const previousResizingNodeRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      previousResizingNodeRef.current !== null &&
+      resizingNode === null
+    ) {
+      setHoveredAxisKeys([]);
+    }
+    previousResizingNodeRef.current = resizingNode;
+  }, [resizingNode]);
 
   const highlightPane = useCallback(
     (tab: Tab | undefined, paneId: string | null | undefined) => {
