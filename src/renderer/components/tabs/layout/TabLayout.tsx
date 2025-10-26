@@ -1,4 +1,5 @@
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
+import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
@@ -15,7 +16,12 @@ import {
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
-import { activeTabIdAtom, isInEditModeAtom, tabsAtom } from "@/store/atoms";
+import {
+  activePaneIdAtom,
+  activeTabAtom,
+  isInEditModeAtom,
+  tabsAtom,
+} from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -25,9 +31,13 @@ import type {
 } from "@/types";
 import { countPanesInLayout, findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 const INTERSECTION_TOLERANCE = 0.08;
+
+const shouldShowPaneBorder = (tab: Tab): boolean => {
+  return Object.keys(tab.panes).length > 1 && tab.mode !== "focus";
+};
 
 type BoundaryInfo = {
   leadingId: string;
@@ -197,10 +207,51 @@ export function TabLayout({
   handleWebViewUpdate,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
-  const activeTabId = useAtomValue(activeTabIdAtom);
+  const activeTab = useAtomValue(activeTabAtom);
+  const activePaneId = useAtomValue(activePaneIdAtom);
+  const activeTabId = activeTab?.id ?? null;
   const isInEditMode = useAtomValue(isInEditModeAtom);
+  const { triggerHighlight, getHighlightClass } = usePaneHighlight();
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
+
+  const highlightPane = useCallback(
+    (tab: Tab | undefined, paneId: string | null | undefined) => {
+      if (!tab || !paneId) {
+        return;
+      }
+
+      if (!shouldShowPaneBorder(tab)) {
+        return;
+      }
+
+      triggerHighlight(paneId);
+    },
+    [triggerHighlight]
+  );
+
+  useEffect(() => {
+    if (!activeTab || !activePaneId) {
+      return;
+    }
+
+    highlightPane(activeTab, activePaneId);
+  }, [activeTab, activePaneId, highlightPane]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (!activeTab || !activePaneId) {
+        return;
+      }
+
+      highlightPane(activeTab, activePaneId);
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [activeTab, activePaneId, highlightPane]);
 
   const setHoverKeys = useCallback(
     (keys: string[]) => {
@@ -218,14 +269,12 @@ export function TabLayout({
         return null;
       }
 
-      const isActivePane =
-        tab.id === activeTabId && tab.activePaneId === pane.id;
-      const showBorder =
-        Object.keys(tab.panes).length > 1 && tab.mode !== "focus";
-      const borderStyle = isInEditMode ? "dashed" : "solid";
+      const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
+
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
       const onPaneActivate = () => activatePane(tab.id, pane.id);
+
       const onWebViewContextMenu = (coords: {
         clientX: number;
         clientY: number;
@@ -257,7 +306,6 @@ export function TabLayout({
                 sessionId={pane.sessionId}
                 paneId={pane.id}
                 isActive={isActivePane}
-                showBorder={showBorder}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
@@ -272,8 +320,6 @@ export function TabLayout({
                   key={pane.id}
                   url={pane.url}
                   paneId={pane.id}
-                  isActive={isActivePane}
-                  showBorder={showBorder}
                   disableInteraction={resizingNode !== null}
                   onContextMenu={onWebViewContextMenu}
                   onTitleChange={(nextTitle) =>
@@ -283,22 +329,34 @@ export function TabLayout({
               </div>
             )}
           </div>
-          {isInEditMode && (hoveredPaneId !== null ? hoveredPaneId === pane.id : isActivePane) && (
-            <PaneControlButtons
-              tabId={tab.id}
-              paneId={pane.id}
-              canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
-              canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
-              canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
-              canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
-              isOnlyPane={countPanesInLayout(tab.layout) === 1}
-              isOnlyTab={tabs.length === 1}
-            />
-          )}
+          {isInEditMode &&
+            (hoveredPaneId !== null
+              ? hoveredPaneId === pane.id
+              : isActivePane) && (
+              <PaneControlButtons
+                tabId={tab.id}
+                paneId={pane.id}
+                canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
+                canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
+                canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
+                canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
+                isOnlyPane={countPanesInLayout(tab.layout) === 1}
+                isOnlyTab={tabs.length === 1}
+              />
+            )}
         </div>
       );
     },
-    [activeTabId, handleContextMenu, handleWebViewUpdate, hoveredPaneId, isInEditMode, resizingNode, tabs.length]
+    [
+      activePaneId,
+      activeTabId,
+      handleContextMenu,
+      handleWebViewUpdate,
+      hoveredPaneId,
+      isInEditMode,
+      resizingNode,
+      tabs.length,
+    ]
   );
 
   const renderSplitNode = useCallback(
@@ -312,6 +370,8 @@ export function TabLayout({
         node.children,
         node.direction
       );
+
+      const tabShowsBorder = shouldShowPaneBorder(tab);
 
       return (
         /* Render the split container (the grid which positions the child panes) */
@@ -348,6 +408,11 @@ export function TabLayout({
               ? "bg-blue-500/60"
               : "bg-transparent hover:bg-blue-500/40";
 
+            const highlightClass =
+              child.type === "pane" && tabShowsBorder
+                ? getHighlightClass(child.paneId)
+                : "";
+
             const intersectionHandles = primaryAxis
               ? computeIntersectionHandles(
                 previousSibling,
@@ -366,11 +431,11 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${index !== 0
-                  ? node.direction === "row"
-                    ? `border-l border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
-                    : `border-t border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
-                  : ""
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${highlightClass} ${index !== 0
+                    ? node.direction === "row"
+                      ? `border-l border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
+                      : `border-t border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
+                    : ""
                   }`}
               >
                 {primaryAxis && (
@@ -414,7 +479,14 @@ export function TabLayout({
         </div>
       );
     },
-    [handleResizeStart, hoveredAxisKeys, isInEditMode, resizingNode, setHoverKeys]
+    [
+      getHighlightClass,
+      handleResizeStart,
+      hoveredAxisKeys,
+      isInEditMode,
+      resizingNode,
+      setHoverKeys,
+    ]
   );
 
   const renderLayout = useCallback(

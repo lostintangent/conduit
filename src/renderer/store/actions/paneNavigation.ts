@@ -1,5 +1,5 @@
 import { activatePane } from "@/store/actions/pane";
-import { paneFlashAtom, tabsAtom } from "@/store/atoms";
+import { tabsAtom } from "@/store/atoms";
 import type { LayoutNode } from "@/types";
 import {
   getPaneDirectionConfig,
@@ -247,12 +247,6 @@ export const navigatePane = (
   if (!targetPaneId) {
     return false;
   }
-
-  // Flash target pane only (no origin flash)
-  store.set(paneFlashAtom, {
-    paneId: targetPaneId,
-    timestamp: Date.now(),
-  });
 
   activatePane(tabId, targetPaneId);
   return true;
