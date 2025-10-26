@@ -328,8 +328,30 @@ export const TabStrip = ({
         {tabsWithPlaceholders}
       </div>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-2">
+      {/* New tab button - directly after tabs */}
+      <button
+        type="button"
+        className="border-0 bg-white/8 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
+        title="New tab (⌘T)"
+        aria-label="New tab"
+        onClick={() => {
+          void openTab();
+        }}
+      >
+        +
+      </button>
+
+      {/* Action buttons - far right */}
+      <div className="flex items-center gap-2 ml-auto">
+        <button
+          type="button"
+          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+          title="Show command palette (⌘⇧P)"
+          aria-label="Show command palette"
+          onClick={onOpenCommandPalette}
+        >
+          <MoreHorizontal size={18} />
+        </button>
         <button
           type="button"
           className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
@@ -342,26 +364,6 @@ export const TabStrip = ({
           onClick={() => setPaneControlsToggled((current) => !current)}
         >
           <Move size={18} />
-        </button>
-        <button
-          type="button"
-          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-          title="Show command palette (⌘⇧P)"
-          aria-label="Show command palette"
-          onClick={onOpenCommandPalette}
-        >
-          <MoreHorizontal size={18} />
-        </button>
-        <button
-          type="button"
-          className="border-0 bg-white/8 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-          title="New tab (⌘T)"
-          aria-label="New tab"
-          onClick={() => {
-            void openTab();
-          }}
-        >
-          +
         </button>
       </div>
     </div>
