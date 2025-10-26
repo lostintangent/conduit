@@ -119,35 +119,40 @@ body {
   max-width: 100%;
 }
 
-/* Always show border on active pane */
+/* Active pane border with fade-out animation */
 .pane-active-border {
   outline: 2px solid rgba(56, 83, 127, 0.8);
   outline-offset: -2px;
 }
 
-/* Flash animations for navigation transitions */
-@keyframes pane-flash-origin {
+/* Blue border fade out over 2 seconds */
+@keyframes pane-focus-fadeout {
   0% {
-    outline: 2px solid rgba(56, 83, 127, 0.8);
-    outline-offset: -2px;
+    outline: 3px solid rgba(59, 130, 246, 1);
+    outline-offset: -3px;
   }
   100% {
-    outline: 2px solid rgba(59, 130, 246, 0);
-    outline-offset: -2px;
+    outline: 3px solid rgba(59, 130, 246, 0);
+    outline-offset: -3px;
   }
 }
 
-@keyframes pane-flash-target {
+.pane-focus-indicator {
+  animation: pane-focus-fadeout 2s ease-out forwards;
+}
+
+/* Flash animation for pane navigation and focus changes */
+@keyframes pane-flash {
+  0% {
+    outline: 3px solid rgba(59, 130, 246, 1);
+    outline-offset: -3px;
+  }
   100% {
-    outline: 2px solid rgba(56, 83, 127, 0.8);
-    outline-offset: -2px;
+    outline: 3px solid rgba(59, 130, 246, 0);
+    outline-offset: -3px;
   }
 }
 
-.pane-flash-origin {
-  animation: pane-flash-origin 300ms ease-out;
-}
-
-.pane-flash-target {
-  animation: pane-flash-target 600ms ease-in-out;
+.pane-flash {
+  animation: pane-flash 2s ease-out forwards;
 }

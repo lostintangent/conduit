@@ -26,7 +26,6 @@ export const notificationsAtom = atom<Notification[]>([]);
 
 export type PaneFlashState = {
   paneId: string;
-  type: "origin" | "target";
   timestamp: number;
 };
 
@@ -36,6 +35,19 @@ export const paneFlashAtom = atom<
   void
 >(null, (_get, set, update) => {
   set(paneFlashAtom, update);
+});
+
+export type PaneFocusIndicatorState = {
+  paneId: string;
+  timestamp: number;
+};
+
+export const paneFocusIndicatorAtom = atom<
+  PaneFocusIndicatorState | null,
+  [PaneFocusIndicatorState | null],
+  void
+>(null, (_get, set, update) => {
+  set(paneFocusIndicatorAtom, update);
 });
 
 export const paneControlsToggledAtom = atom<boolean>(false);

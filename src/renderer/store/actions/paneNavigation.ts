@@ -248,21 +248,11 @@ export const navigatePane = (
     return false;
   }
 
-  // Flash origin pane once
+  // Flash target pane only (no origin flash)
   store.set(paneFlashAtom, {
-    paneId,
-    type: "origin",
+    paneId: targetPaneId,
     timestamp: Date.now(),
   });
-
-  // Flash target pane twice after a short delay
-  setTimeout(() => {
-    store.set(paneFlashAtom, {
-      paneId: targetPaneId,
-      type: "target",
-      timestamp: Date.now(),
-    });
-  }, 150);
 
   activatePane(tabId, targetPaneId);
   return true;

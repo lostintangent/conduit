@@ -1,6 +1,6 @@
-import { paneFlashAtom, userSettingsAtom } from "@/store/atoms";
+import { paneFlashAtom, paneFocusIndicatorAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createFitController, type FitController } from "./FitController";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
@@ -111,6 +111,8 @@ export const TerminalPane = ({
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
   const paneFlash = useAtomValue(paneFlashAtom);
+  const paneFocusIndicator = useAtomValue(paneFocusIndicatorAtom);
+  const setPaneFocusIndicator = useSetAtom(paneFocusIndicatorAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -126,6 +128,7 @@ export const TerminalPane = ({
   linkHandlerRef.current = onLinkClick;
 
   const [flashClass, setFlashClass] = useState<string>("");
+  const [showFocusIndicator, setShowFocusIndicator] = useState<boolean>(false);
 
   const focusTerminal = useCallback(() => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
@@ -214,7 +217,10 @@ export const TerminalPane = ({
       controller.schedule();
       terminal.focus();
     });
-  }, [isActive, sessionId]);
+
+    // Trigger focus indicator when pane becomes active
+    setPaneFocusIndicator({ paneId, timestamp: Date.now() });
+  }, [isActive, sessionId, paneId, setPaneFocusIndicator]);
 
   // Hide/show the terminal ruler based on the user
   // setting, which can be changed at any time.
@@ -230,32 +236,47 @@ export const TerminalPane = ({
     }
   }, [showTerminalRuler, sessionId]);
 
-  // Handle flash effect
+  // Handle flash effect (only in split pane mode)
   useEffect(() => {
-    if (!paneFlash || paneFlash.paneId !== paneId) {
-      // Clear flash class when this is no longer the flashing pane
+    if (!paneFlash || paneFlash.paneId !== paneId || !showBorder) {
+      // Clear flash class when this is no longer the flashing pane or not in split mode
       if (flashClass) {
         setFlashClass("");
       }
       return;
     }
 
-    const className =
-      paneFlash.type === "origin" ? "pane-flash-origin" : "pane-flash-target";
-    setFlashClass(className);
+    setFlashClass("pane-flash");
 
-    // Clear the flash class after animation completes
-    const duration = paneFlash.type === "origin" ? 300 : 600;
+    // Clear the flash class after animation completes (2 seconds)
     const timeout = setTimeout(() => {
       setFlashClass("");
-    }, duration);
+    }, 2000);
 
     return () => clearTimeout(timeout);
-  }, [paneFlash, paneId, flashClass]);
+  }, [paneFlash, paneId, flashClass, showBorder]);
+
+  // Handle focus indicator with fade-out (only in split pane mode)
+  useEffect(() => {
+    if (!paneFocusIndicator || paneFocusIndicator.paneId !== paneId || !showBorder) {
+      setShowFocusIndicator(false);
+      return;
+    }
+
+    setShowFocusIndicator(true);
+
+    // Clear indicator after animation completes (2 seconds)
+    const timeout = setTimeout(() => {
+      setShowFocusIndicator(false);
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [paneFocusIndicator, paneId, showBorder]);
 
   return (
     <div
-      className={`terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative ${isActive && showBorder ? "pane-active-border" : ""} ${flashClass}`}
+      className={`terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative ${showFocusIndicator && showBorder ? "pane-focus-indicator" : ""
+        } ${flashClass}`}
       ref={containerRef}
       data-active={isActive}
       onContextMenu={onContextMenu}

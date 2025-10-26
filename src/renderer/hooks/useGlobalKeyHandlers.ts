@@ -2,17 +2,25 @@ import {
   enterFocusMode,
   exitFocusMode,
   isFocusModeActive,
-  navigateFocusedPane
+  navigateFocusedPane,
 } from "@/store/actions/focusMode";
-import { movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
+import {
+  movePane,
+  splitPane,
+  splitPaneWithAgentSession,
+} from "@/store/actions/pane";
 import {
   navigatePane,
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
-import { activeTabAtom, paneControlsAltHeldAtom, tabsAtom } from "@/store/atoms";
+import {
+  activeTabAtom,
+  paneControlsAltHeldAtom,
+  tabsAtom,
+} from "@/store/atoms";
 import type { SplitDirection } from "@/types";
-import { useSetAtom, useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 
 type UseGlobalKeyHandlersResult = {
@@ -55,7 +63,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const performSplitWithAgentSession = useCallback(
     async (direction: SplitDirection, insertBefore = false) => {
-      const activeTab = tabs.find((tab) => tab.isActive);
       if (!activeTab) {
         return;
       }
@@ -68,7 +75,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       );
       focusTab(activeTab.id);
     },
-    [focusTab, tabs]
+    [activeTab, focusTab, splitPaneWithAgentSession]
   );
 
   useEffect(() => {
@@ -146,8 +153,11 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
               down: { direction: "column", insertBefore: false },
             };
             const config = splitConfig[direction];
-            void performSplitWithAgentSession(config.direction, config.insertBefore);
-          } else if (event.shiftKey) {
+            performSplitWithAgentSession(
+              config.direction,
+              config.insertBefore
+            );
+          } else if (event.shiftKey && !event.ctrlKey) {
             const splitConfig: Record<
               PaneNavigationDirection,
               { direction: SplitDirection; insertBefore: boolean }
@@ -209,7 +219,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
     const handleKeyup = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
-      
+
       // When Space is released, stop showing Alt+Space mode
       if (key === " ") {
         event.preventDefault();
