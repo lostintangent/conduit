@@ -211,13 +211,19 @@ export function TabLayout({
   const activePaneId = useAtomValue(activePaneIdAtom);
   const activeTabId = activeTab?.id ?? null;
   const isInEditMode = useAtomValue(isInEditModeAtom);
-  const { triggerHighlight, getHighlightClass } = usePaneHighlight();
+
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
+
+  const { triggerHighlight, getHighlightClass } = usePaneHighlight();
 
   const highlightPane = useCallback(
     (tab: Tab | undefined, paneId: string | null | undefined) => {
       if (!tab || !paneId) {
+        return;
+      }
+
+      if (isInEditMode || resizingNode !== null) {
         return;
       }
 
@@ -227,7 +233,7 @@ export function TabLayout({
 
       triggerHighlight(paneId);
     },
-    [triggerHighlight]
+    [isInEditMode, resizingNode, triggerHighlight]
   );
 
   useEffect(() => {
@@ -236,7 +242,7 @@ export function TabLayout({
     }
 
     highlightPane(activeTab, activePaneId);
-  }, [activeTab, activePaneId, highlightPane]);
+  }, [activeTab, activePaneId]);
 
   useEffect(() => {
     const handleWindowFocus = () => {
@@ -251,7 +257,7 @@ export function TabLayout({
     return () => {
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [activeTab, activePaneId, highlightPane]);
+  }, [activeTab, activePaneId]);
 
   const setHoverKeys = useCallback(
     (keys: string[]) => {
@@ -329,6 +335,9 @@ export function TabLayout({
               </div>
             )}
           </div>
+          {/*isInEditMode && (
+            <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
+          )*/}
           {isInEditMode &&
             (hoveredPaneId !== null
               ? hoveredPaneId === pane.id
@@ -385,6 +394,14 @@ export function TabLayout({
               index !== 0 ? node.children[index - 1] : null;
             const isBeingResized = resizingNode === child.id;
 
+            const borderSideClass =
+              node.direction === "row" ? "border-l" : "border-t";
+            const borderColorClass = isInEditMode
+              ? "border-blueprint border-dashed"
+              : "border-white/[0.12]";
+            const splitBorderClass =
+              index !== 0 ? `${borderSideClass} ${borderColorClass}` : "";
+
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
                 containerNodeId: node.id,
@@ -409,16 +426,12 @@ export function TabLayout({
               : "bg-transparent hover:bg-blue-500/40";
 
             const highlightClass =
-              child.type === "pane" && tabShowsBorder
+              !isInEditMode && child.type === "pane" && tabShowsBorder
                 ? getHighlightClass(child.paneId)
                 : "";
 
             const intersectionHandles = primaryAxis
-              ? computeIntersectionHandles(
-                previousSibling,
-                child,
-                node.direction
-              )
+              ? computeIntersectionHandles(previousSibling, child, node.direction)
               : [];
 
             const clearHover = () => {
@@ -431,12 +444,7 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${highlightClass} ${index !== 0
-                    ? node.direction === "row"
-                      ? `border-l border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
-                      : `border-t border-white/[0.12] ${isInEditMode ? "border-dashed" : ""}`
-                    : ""
-                  }`}
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${highlightClass} ${splitBorderClass}`}
               >
                 {primaryAxis && (
                   <>

@@ -42,32 +42,41 @@ export function PaneControlButtons({
     movePane(tabId, paneId, direction);
   };
 
-  const handleClose = () => {
-    closePane(tabId, paneId);
-  };
+  const groupBaseClass =
+    "bg-black/60 border border-blueprint border-dashed rounded-lg backdrop-blur-sm overflow-hidden";
 
-  const handleMoveToNewTab = () => {
-    movePaneToTab(tabId, paneId);
-  };
+  const dividerColorClass = "divide-blueprint";
+
+  const groupClasses = {
+    center: `${groupBaseClass} flex divide-x ${dividerColorClass} divide-dashed`,
+    top: `${groupBaseClass} flex divide-x ${dividerColorClass} divide-dashed rounded-t-none border-t-0`,
+    bottom: `${groupBaseClass} flex divide-x ${dividerColorClass} rounded-b-none divide-dashed border-b-0`,
+    left: `${groupBaseClass} flex flex-col divide-y ${dividerColorClass} rounded-l-none divide-dashed border-l-0`,
+    right: `${groupBaseClass} flex flex-col divide-y ${dividerColorClass} rounded-r-none divide-dashed border-r-0`,
+  } as const;
 
   const buttonClass =
-    "flex items-center justify-center w-8 h-8 bg-black/60 hover:bg-blue-500/80 border border-white/20 rounded transition-colors cursor-pointer backdrop-blur-sm";
+    "flex items-center justify-center w-8 h-8 rounded-none text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
+
   const iconClass = "w-4 h-4 text-white";
 
   // Show move to new tab button if there are multiple panes in the tab
   const showMoveToNewTab = !isOnlyPane;
+
   // Show close button if there are multiple panes OR multiple tabs
   const showClose = !isOnlyPane || !isOnlyTab;
 
   return (
     <>
-      {/* Center buttons - Move to new tab and Close */}
+      {/* Center buttons (Move to new tab and Close) */}
       {(showMoveToNewTab || showClose) && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1 z-10">
+        <div
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 ${groupClasses.center}`}
+        >
           {showMoveToNewTab && (
             <button
               className={buttonClass}
-              onClick={handleMoveToNewTab}
+              onClick={() => movePaneToTab(tabId, paneId)}
               title="Move pane to new tab (Alt+T)"
             >
               <CornerUpRight className={iconClass} />
@@ -76,7 +85,7 @@ export function PaneControlButtons({
           {showClose && (
             <button
               className={buttonClass}
-              onClick={handleClose}
+              onClick={() => closePane(tabId, paneId)}
               title="Close pane (Alt+W)"
             >
               <X className={iconClass} />
@@ -86,7 +95,9 @@ export function PaneControlButtons({
       )}
 
       {/* Top buttons */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+      <div
+        className={`absolute top-0 left-1/2 -translate-x-1/2 z-10 ${groupClasses.top}`}
+      >
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", true)}
@@ -94,6 +105,7 @@ export function PaneControlButtons({
         >
           <SplitSquareVertical className={iconClass} />
         </button>
+
         {canMoveUp && (
           <button
             className={buttonClass}
@@ -106,7 +118,9 @@ export function PaneControlButtons({
       </div>
 
       {/* Bottom buttons */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+      <div
+        className={`absolute bottom-0 left-1/2 -translate-x-1/2 z-10 ${groupClasses.bottom}`}
+      >
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", false)}
@@ -114,6 +128,7 @@ export function PaneControlButtons({
         >
           <SplitSquareVertical className={iconClass} />
         </button>
+
         {canMoveDown && (
           <button
             className={buttonClass}
@@ -126,7 +141,9 @@ export function PaneControlButtons({
       </div>
 
       {/* Left buttons */}
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+      <div
+        className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 ${groupClasses.left}`}
+      >
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", true)}
@@ -134,6 +151,7 @@ export function PaneControlButtons({
         >
           <SplitSquareHorizontal className={iconClass} />
         </button>
+
         {canMoveLeft && (
           <button
             className={buttonClass}
@@ -146,7 +164,9 @@ export function PaneControlButtons({
       </div>
 
       {/* Right buttons */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+      <div
+        className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 ${groupClasses.right}`}
+      >
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", false)}
@@ -154,6 +174,7 @@ export function PaneControlButtons({
         >
           <SplitSquareHorizontal className={iconClass} />
         </button>
+
         {canMoveRight && (
           <button
             className={buttonClass}

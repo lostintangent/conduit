@@ -1,14 +1,14 @@
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
-  paneControlsToggledAtom,
   isInEditModeAtom,
+  paneControlsToggledAtom,
   tabsAtom,
   userSettingsAtom
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
-import { LayoutDashboard, MoreHorizontal, PlusSquare } from "lucide-react";
+import { MoreHorizontal, PlusSquare, SquareDashedMousePointer } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { TabButton, TabPlaceholder } from "./TabButton";
 
@@ -366,7 +366,7 @@ export const TabStrip = ({
           aria-label="Toggle pane controls"
           onClick={() => setPaneControlsToggled((current) => !current)}
         >
-          <LayoutDashboard size={18} />
+          <SquareDashedMousePointer size={18} />
         </button>
       </div>
     </div>

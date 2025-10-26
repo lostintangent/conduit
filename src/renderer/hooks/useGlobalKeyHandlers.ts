@@ -17,6 +17,7 @@ import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
   paneControlsAltHeldAtom,
+  paneControlsToggledAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
@@ -35,6 +36,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const setAltHeld = useSetAtom(paneControlsAltHeldAtom);
+  const setPaneControlsToggled = useSetAtom(paneControlsToggledAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -125,6 +127,12 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
           event.preventDefault();
           movePaneToTab(activeTab.id, activeTab.activePaneId);
         }
+        return;
+      }
+
+      if (key === "e" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
+        event.preventDefault();
+        setPaneControlsToggled((current) => !current);
         return;
       }
 
@@ -242,6 +250,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     performSplit,
     performSplitWithAgentSession,
     setAltHeld,
+    setPaneControlsToggled,
     tabs,
   ]);
 

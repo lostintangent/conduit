@@ -34,6 +34,7 @@
   --color-accent-start: #3f8cff;
   --color-accent-end: #9358ff;
   --color-focus-ring: rgba(63, 140, 255, 0.6);
+  --color-blueprint: rgba(59, 130, 246, 1);
 }
 
 :root {
@@ -128,7 +129,7 @@ body {
 /* Pane highlight fade out over 2 seconds */
 @keyframes pane-highlight {
   0% {
-    outline: 3px solid rgba(59, 130, 246, 1);
+    outline: 3px solid var(--color-blueprint);
     outline-offset: -3px;
   }
   100% {
