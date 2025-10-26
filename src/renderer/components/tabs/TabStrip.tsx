@@ -8,7 +8,7 @@ import {
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
-import { MoreHorizontal, Move, PlusSquare } from "lucide-react";
+import { LayoutDashboard, MoreHorizontal, PlusSquare } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { TabButton, TabPlaceholder } from "./TabButton";
 
@@ -366,7 +366,7 @@ export const TabStrip = ({
           aria-label="Toggle pane controls"
           onClick={() => setPaneControlsToggled((current) => !current)}
         >
-          <Move size={18} />
+          <LayoutDashboard size={18} />
         </button>
       </div>
     </div>
