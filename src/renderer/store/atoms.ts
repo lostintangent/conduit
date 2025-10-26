@@ -13,7 +13,6 @@ export const userSettingsAtom = atom<UserSettings>({
 export const tabsAtom = atom<Tab[]>([]);
 
 export const activeTabIdAtom = atom<string>();
-
 export const activeTabAtom = atom<Tab | null>((get) => {
   const tabs = get(tabsAtom);
   const activeTabId = get(activeTabIdAtom);
@@ -29,9 +28,4 @@ export const workspaceNameAtom = atom<string>();
 
 export const notificationsAtom = atom<Notification[]>([]);
 
-export const paneControlsToggledAtom = atom<boolean>(false);
-export const paneControlsAltHeldAtom = atom<boolean>(false);
-
-export const isInEditModeAtom = atom<boolean>((get) => {
-  return get(paneControlsToggledAtom) || get(paneControlsAltHeldAtom);
-});
+export const isInEditModeAtom = atom<boolean>(false);

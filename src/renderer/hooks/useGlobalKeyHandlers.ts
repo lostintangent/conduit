@@ -16,8 +16,7 @@ import {
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
-  paneControlsAltHeldAtom,
-  paneControlsToggledAtom,
+  isInEditModeAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
@@ -35,8 +34,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const setAltHeld = useSetAtom(paneControlsAltHeldAtom);
-  const setPaneControlsToggled = useSetAtom(paneControlsToggledAtom);
+  const setIsInEditMode = useSetAtom(isInEditModeAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -95,13 +93,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Alt+Space: Show pane controls while held
-      if (event.altKey && !event.metaKey && !event.shiftKey && key === " ") {
-        event.preventDefault();
-        setAltHeld(true);
-        return;
-      }
-
       // Cmd+Shift+F: Toggle focus mode
       if (event.metaKey && event.shiftKey && !event.altKey && key === "f") {
         event.preventDefault();
@@ -132,7 +123,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
       if (key === "e" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
         event.preventDefault();
-        setPaneControlsToggled((current) => !current);
+        setIsInEditMode((current) => !current);
         return;
       }
 
@@ -225,21 +216,9 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       }
     };
 
-    const handleKeyup = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-
-      // When Space is released, stop showing Alt+Space mode
-      if (key === " ") {
-        event.preventDefault();
-        setAltHeld(false);
-      }
-    };
-
     window.addEventListener("keydown", handleKeydown);
-    window.addEventListener("keyup", handleKeyup);
     return () => {
       window.removeEventListener("keydown", handleKeydown);
-      window.removeEventListener("keyup", handleKeyup);
     };
   }, [
     activeTab,
@@ -249,8 +228,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     openTab,
     performSplit,
     performSplitWithAgentSession,
-    setAltHeld,
-    setPaneControlsToggled,
     tabs,
   ]);
 

@@ -2,7 +2,6 @@ import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
   isInEditModeAtom,
-  paneControlsToggledAtom,
   tabsAtom,
   userSettingsAtom
 } from "@/store/atoms";
@@ -43,8 +42,7 @@ export const TabStrip = ({
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const { homeDirectory } = useAtomValue(userSettingsAtom);
-  const [paneControlsToggled, setPaneControlsToggled] = useAtom(paneControlsToggledAtom);
-  const isInEditMode = useAtomValue(isInEditModeAtom);
+  const [isInEditMode, setIsInEditMode] = useAtom(isInEditModeAtom);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -364,7 +362,7 @@ export const TabStrip = ({
             }`}
           title="Toggle pane controls (Alt+Space)"
           aria-label="Toggle pane controls"
-          onClick={() => setPaneControlsToggled((current) => !current)}
+          onClick={() => setIsInEditMode((current) => !current)}
         >
           <SquareDashedMousePointer size={18} />
         </button>
