@@ -13,46 +13,19 @@ export const userSettingsAtom = atom<UserSettings>({
 export const tabsAtom = atom<Tab[]>([]);
 
 export const activeTabIdAtom = atom<string>();
-
 export const activeTabAtom = atom<Tab | null>((get) => {
   const tabs = get(tabsAtom);
   const activeTabId = get(activeTabIdAtom);
   return tabs.find((tab) => tab.id === activeTabId) ?? null;
 });
 
+export const activePaneIdAtom = atom<string | null>((get) => {
+  const activeTab = get(activeTabAtom);
+  return activeTab?.activePaneId ?? null;
+});
+
 export const workspaceNameAtom = atom<string>();
 
 export const notificationsAtom = atom<Notification[]>([]);
 
-export type PaneFlashState = {
-  paneId: string;
-  timestamp: number;
-};
-
-export const paneFlashAtom = atom<
-  PaneFlashState | null,
-  [PaneFlashState | null],
-  void
->(null, (_get, set, update) => {
-  set(paneFlashAtom, update);
-});
-
-export type PaneFocusIndicatorState = {
-  paneId: string;
-  timestamp: number;
-};
-
-export const paneFocusIndicatorAtom = atom<
-  PaneFocusIndicatorState | null,
-  [PaneFocusIndicatorState | null],
-  void
->(null, (_get, set, update) => {
-  set(paneFocusIndicatorAtom, update);
-});
-
-export const paneControlsToggledAtom = atom<boolean>(false);
-export const paneControlsAltHeldAtom = atom<boolean>(false);
-
-export const isInEditModeAtom = atom<boolean>((get) => {
-  return get(paneControlsToggledAtom) || get(paneControlsAltHeldAtom);
-});
+export const isInEditModeAtom = atom<boolean>(false);

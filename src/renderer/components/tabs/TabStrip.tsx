@@ -1,14 +1,13 @@
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
-  paneControlsToggledAtom,
   isInEditModeAtom,
   tabsAtom,
   userSettingsAtom
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
-import { LayoutDashboard, MoreHorizontal, PlusSquare } from "lucide-react";
+import { MoreHorizontal, PlusSquare, SquareDashedMousePointer } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { TabButton, TabPlaceholder } from "./TabButton";
 
@@ -43,8 +42,7 @@ export const TabStrip = ({
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const { homeDirectory } = useAtomValue(userSettingsAtom);
-  const [paneControlsToggled, setPaneControlsToggled] = useAtom(paneControlsToggledAtom);
-  const isInEditMode = useAtomValue(isInEditModeAtom);
+  const [isInEditMode, setIsInEditMode] = useAtom(isInEditModeAtom);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -364,9 +362,9 @@ export const TabStrip = ({
             }`}
           title="Toggle pane controls (Alt+Space)"
           aria-label="Toggle pane controls"
-          onClick={() => setPaneControlsToggled((current) => !current)}
+          onClick={() => setIsInEditMode((current) => !current)}
         >
-          <LayoutDashboard size={18} />
+          <SquareDashedMousePointer size={18} />
         </button>
       </div>
     </div>

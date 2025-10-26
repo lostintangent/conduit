@@ -34,6 +34,7 @@
   --color-accent-start: #3f8cff;
   --color-accent-end: #9358ff;
   --color-focus-ring: rgba(63, 140, 255, 0.6);
+  --color-blueprint: rgba(59, 130, 246, 1);
 }
 
 :root {
@@ -125,10 +126,10 @@ body {
   outline-offset: -2px;
 }
 
-/* Blue border fade out over 2 seconds */
-@keyframes pane-focus-fadeout {
+/* Pane highlight fade out over 2 seconds */
+@keyframes pane-highlight {
   0% {
-    outline: 3px solid rgba(59, 130, 246, 1);
+    outline: 3px solid var(--color-blueprint);
     outline-offset: -3px;
   }
   100% {
@@ -137,24 +138,8 @@ body {
   }
 }
 
-.pane-focus-indicator {
-  animation: pane-focus-fadeout 2s ease-out forwards;
-}
-
-/* Flash animation for pane navigation and focus changes */
-@keyframes pane-flash {
-  0% {
-    outline: 3px solid rgba(59, 130, 246, 1);
-    outline-offset: -3px;
-  }
-  100% {
-    outline: 3px solid rgba(59, 130, 246, 0);
-    outline-offset: -3px;
-  }
-}
-
-.pane-flash {
-  animation: pane-flash 2s ease-out forwards;
+.pane-highlight {
+  animation: pane-highlight 2s ease-out forwards;
 }
 
 /* Animated gradient border - rotates around the window */

@@ -24,10 +24,10 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, paneFocusIndicatorAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NotificationCenter } from "./components/shell/NotificationCenter";
 
@@ -36,7 +36,6 @@ const api = window.conduit;
 export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const setPaneFocusIndicator = useSetAtom(paneFocusIndicatorAtom);
 
   const {
     tabPosition,
@@ -89,25 +88,6 @@ export function App() {
   useEffect(() => {
     return registerTabEventHandlers();
   }, []);
-
-  // Handle window focus to flash the active pane indicator
-  useEffect(() => {
-    const handleWindowFocus = () => {
-      if (activeTab && activeTab.activePaneId) {
-        // Flash the focus indicator when window regains focus
-        setPaneFocusIndicator({
-          paneId: activeTab.activePaneId,
-          timestamp: Date.now(),
-        });
-      }
-    };
-
-    window.addEventListener("focus", handleWindowFocus);
-
-    return () => {
-      window.removeEventListener("focus", handleWindowFocus);
-    };
-  }, [activeTab, setPaneFocusIndicator]);
 
   const hasInitializedTabsRef = useRef(false);
 

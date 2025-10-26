@@ -1,4 +1,3 @@
-import { paneFlashAtom, paneFocusIndicatorAtom } from "@/store/atoms";
 import type {
   ContextMenuParams,
   DidNavigateEvent,
@@ -6,28 +5,23 @@ import type {
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
-import { useAtomValue, useSetAtom } from "jotai";
 import { ArrowLeft, ArrowRight, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type WebPaneProps = {
   url: string;
   paneId: string;
-  showBorder: boolean;
   onTitleChange?: (title: string) => void;
   disableInteraction?: boolean;
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
-  isActive?: boolean;
 };
 
 export function WebPane({
   url,
   paneId,
-  showBorder,
   onTitleChange,
   disableInteraction = false,
   onContextMenu,
-  isActive = true,
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -35,11 +29,6 @@ export function WebPane({
   const [inputUrl, setInputUrl] = useState<string>(url);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
-  const [flashClass, setFlashClass] = useState<string>("");
-  const [showFocusIndicator, setShowFocusIndicator] = useState<boolean>(false);
-  const paneFlash = useAtomValue(paneFlashAtom);
-  const paneFocusIndicator = useAtomValue(paneFocusIndicatorAtom);
-  const setPaneFocusIndicator = useSetAtom(paneFocusIndicatorAtom);
 
   useEffect(() => {
     setCurrentUrl(url);
@@ -156,61 +145,8 @@ export function WebPane({
     setInputUrl(currentUrl);
   }, [currentUrl]);
 
-  // Trigger focus indicator when pane becomes active
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-
-    setPaneFocusIndicator({ paneId, timestamp: Date.now() });
-  }, [isActive, paneId, setPaneFocusIndicator]);
-
-  // Handle flash effect (only in split pane mode)
-  useEffect(() => {
-    if (!paneFlash || paneFlash.paneId !== paneId || !showBorder) {
-      // Clear flash class when this is no longer the flashing pane or not in split mode
-      if (flashClass) {
-        setFlashClass("");
-      }
-      return;
-    }
-
-    setFlashClass("pane-flash");
-
-    // Clear the flash class after animation completes (2 seconds)
-    const timeout = setTimeout(() => {
-      setFlashClass("");
-    }, 2000);
-
-    return () => clearTimeout(timeout);
-  }, [paneFlash, paneId, flashClass, showBorder]);
-
-  // Handle focus indicator with fade-out (only in split pane mode)
-  useEffect(() => {
-    if (
-      !paneFocusIndicator ||
-      paneFocusIndicator.paneId !== paneId ||
-      !showBorder
-    ) {
-      setShowFocusIndicator(false);
-      return;
-    }
-
-    setShowFocusIndicator(true);
-
-    // Clear indicator after animation completes (2 seconds)
-    const timeout = setTimeout(() => {
-      setShowFocusIndicator(false);
-    }, 2000);
-
-    return () => clearTimeout(timeout);
-  }, [paneFocusIndicator, paneId, showBorder]);
-
   return (
-    <div
-      className={`relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 ${showFocusIndicator && showBorder ? "pane-focus-indicator" : ""
-        } ${flashClass}`}
-    >
+    <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0">
       {/* URL Bar */}
       <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-elevated border-b border-white/10">
         <button
