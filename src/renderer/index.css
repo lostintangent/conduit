@@ -156,3 +156,38 @@ body {
 .pane-flash {
   animation: pane-flash 2s ease-out forwards;
 }
+
+/* Animated gradient border - rotates around the window */
+@keyframes gradient-spin {
+  0% {
+    background-position: 0% 0%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.gradient-border-animated {
+  background: linear-gradient(
+    45deg,
+    #4ade80,
+    #3b82f6,
+    #8b5cf6,
+    #d946ef,
+    #f43f5e,
+    #fb923c,
+    #fbbf24,
+    #4ade80
+  );
+  background-size: 400% 400%;
+  animation: gradient-spin 240s ease-in-out infinite;
+}
