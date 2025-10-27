@@ -3,7 +3,7 @@ import { userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
-import { ChevronDown, FolderUp, Loader2 } from "lucide-react";
+import { ChevronDown, FolderUp, Loader2, RefreshCw } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
@@ -276,6 +276,34 @@ export function EditorPane({
     }
   }, [cwd, onCwdChange]);
 
+  const handleRefresh = useCallback(async () => {
+    if (hasOpenFile && filePath) {
+      // Refresh file content
+      try {
+        const content = await api.readFile(filePath);
+        const language = inferLanguageFromFilePath(filePath);
+        setCurrentContent(content);
+        setCurrentLanguage(language);
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        console.error("Failed to refresh file:", error);
+      }
+    } else {
+      // Refresh directory tree
+      setIsLoadingTree(true);
+      try {
+        const tree = await api.listDirectory(cwd);
+        setFileTree(tree);
+        fileTreeCache.set(cwd, tree);
+        setIsLoadingTree(false);
+      } catch (error) {
+        console.error("Failed to refresh directory:", error);
+        setFileTree([]);
+        setIsLoadingTree(false);
+      }
+    }
+  }, [hasOpenFile, filePath, cwd]);
+
   const canNavigateUp = useMemo(() => {
     const parentDir = path.dirname(cwd);
     return parentDir !== cwd && parentDir !== ".";
@@ -320,6 +348,14 @@ export function EditorPane({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+            title={hasOpenFile ? "Refresh file" : "Refresh directory"}
+          >
+            <RefreshCw size={14} className="text-white/60" />
+          </button>
           {hasOpenFile && (
             <button
               type="button"
