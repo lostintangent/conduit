@@ -7,8 +7,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { openWorkspace } from "@/store/actions/workspace";
 import {
-  activeTabAtom,
-  tabsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
   workspacesAtom,
@@ -37,8 +35,6 @@ export const TitleBar = ({
   const workspaceName = useAtomValue(workspaceNameAtom);
   const workspaces = useAtomValue(workspacesAtom);
   const hasChanges = useAtomValue(workspaceHasChangesAtom);
-  const tabs = useAtomValue(tabsAtom);
-  const activeTab = useAtomValue(activeTabAtom);
 
   const titleBarSuffix = workspaceName ? ` (${workspaceName})` : "";
 

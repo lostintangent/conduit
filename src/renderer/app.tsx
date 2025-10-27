@@ -450,11 +450,14 @@ export function App() {
     });
   }, []);
 
-  const handleTitleBarSaveWorkspace = useCallback(() => {
+  const handleTitleBarSaveWorkspace = useCallback(async () => {
     if (activeTab) {
-      quickSaveWorkspace(tabs, activeTab.id);
+      await quickSaveWorkspace(tabs, activeTab.id);
+      // Reset the has changes flag and update the reference snapshot
+      previousTabsRef.current = JSON.stringify(tabs);
+      setWorkspaceHasChanges(false);
     }
-  }, [activeTab, tabs, quickSaveWorkspace]);
+  }, [activeTab, tabs, quickSaveWorkspace, setWorkspaceHasChanges]);
 
   const handleTitleBarCloseWorkspace = useCallback(() => {
     closeWorkspace(tabs, activeTab?.id);
