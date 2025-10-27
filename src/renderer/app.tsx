@@ -423,20 +423,6 @@ export function App() {
     });
   }, []);
 
-  const handleTitleBarSaveWorkspace = useCallback(async () => {
-    if (activeTab) {
-      await quickSaveWorkspace(tabs, activeTab.id);
-    }
-  }, [activeTab, tabs, quickSaveWorkspace]);
-
-  const handleTitleBarCloseWorkspace = useCallback(() => {
-    closeWorkspace(tabs, activeTab?.id);
-  }, [tabs, activeTab, closeWorkspace]);
-
-  const handleTitleBarRenameWorkspace = useCallback(() => {
-    setShowRenameWorkspaceDialog(true);
-  }, [setShowRenameWorkspaceDialog]);
-
   const shouldShowTabs = tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
 
   const titleBarBg =
@@ -446,9 +432,13 @@ export function App() {
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
       <TitleBar
         backgroundClass={titleBarBg}
-        onSaveWorkspace={handleTitleBarSaveWorkspace}
-        onRenameWorkspace={handleTitleBarRenameWorkspace}
-        onCloseWorkspace={handleTitleBarCloseWorkspace}
+        onSaveWorkspace={async () => {
+          if (activeTab) {
+            await quickSaveWorkspace(tabs, activeTab.id);
+          }
+        }}
+        onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
+        onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
       />
 
       {shouldShowTabs && tabPosition === "top" && (
