@@ -1,6 +1,6 @@
-import { closeTab, focusTab } from "@/store/actions/tab";
+import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
 import { Command, X } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const cx = (...classes: Array<string | false>) =>
   classes.filter(Boolean).join(" ");
@@ -62,7 +62,54 @@ export const TabButton = ({
   onDragEnd,
 }: TabButtonProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const showCloseButton = isHovered && !disableClick;
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleDoubleClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setEditValue(label);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditValue("");
+  };
+
+  const handleSaveEdit = () => {
+    const trimmedValue = editValue.trim();
+    if (trimmedValue) {
+      updateTabProperty(tabId, { title: trimmedValue });
+    }
+    setIsEditing(false);
+    setEditValue("");
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+      handleSaveEdit();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      handleCancelEdit();
+    }
+  };
+
+  const handleBlur = () => {
+    handleCancelEdit();
+  };
 
   return (
     <button
@@ -97,8 +144,29 @@ export const TabButton = ({
       <span
         className="overflow-hidden text-ellipsis max-w-[200px]"
         title={tooltip}
+        onDoubleClick={handleDoubleClick}
       >
-        {label}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className="bg-white/20 text-white border-0 outline-none rounded px-1"
+            style={{
+              minWidth: "50px",
+              maxWidth: "200px",
+              width: `${Math.max(50, Math.min(200, editValue.length * 8 + 10))}px`,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          />
+        ) : (
+          label
+        )}
       </span>
       <span className="text-white/40">|</span>
       <span className="flex items-center gap-1 text-xs">
