@@ -1,5 +1,5 @@
 import type { Notification, Tab } from "@/types";
-import type { UserSettings } from "@shared/types";
+import type { UserSettings, Workspace } from "@shared/types";
 import { atom } from "jotai";
 
 export const userSettingsAtom = atom<UserSettings>({
@@ -26,6 +26,12 @@ export const activePaneIdAtom = atom<string | null>((get) => {
 
 export const workspaceNameAtom = atom<string>();
 
+export const workspacesAtom = atom<Workspace[]>([]);
+
 export const notificationsAtom = atom<Notification[]>([]);
 
 export const isInEditModeAtom = atom<boolean>(false);
+
+// Tracks whether the current workspace has unsaved changes
+// This is a derived atom that deep-compares tabs to detect changes
+export const workspaceHasChangesAtom = atom<boolean>(false);

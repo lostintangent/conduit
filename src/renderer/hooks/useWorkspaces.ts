@@ -1,4 +1,4 @@
-import { workspaceNameAtom } from "@/store/atoms";
+import { workspaceNameAtom, workspacesAtom } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
@@ -7,8 +7,8 @@ const api = window.conduit;
 
 export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
+  const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
   const [hasWorkspaces, setHasWorkspaces] = useState(false);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =

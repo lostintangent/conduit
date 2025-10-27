@@ -24,10 +24,10 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom, workspaceHasChangesAtom, workspaceNameAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NotificationCenter } from "./components/shell/NotificationCenter";
 
@@ -36,6 +36,8 @@ const api = window.conduit;
 export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const workspaceName = useAtomValue(workspaceNameAtom);
+  const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
 
   const {
     tabPosition,
@@ -127,6 +129,32 @@ export function App() {
       unsubscribeBeforeClose();
     };
   }, [tabs, activeTab]);
+
+  // Track workspace changes - compare tabs deeply to detect changes
+  const previousTabsRef = useRef<string>("");
+  useEffect(() => {
+    if (!workspaceName) {
+      setWorkspaceHasChanges(false);
+      return;
+    }
+
+    // Deep serialize tabs to detect any changes
+    const currentTabsSnapshot = JSON.stringify(tabs);
+    
+    if (previousTabsRef.current === "") {
+      // First time tracking this workspace
+      previousTabsRef.current = currentTabsSnapshot;
+      setWorkspaceHasChanges(false);
+    } else if (previousTabsRef.current !== currentTabsSnapshot) {
+      // Tabs have changed
+      setWorkspaceHasChanges(true);
+    }
+  }, [tabs, workspaceName, setWorkspaceHasChanges]);
+
+  // Reset change tracking when workspace changes
+  useEffect(() => {
+    previousTabsRef.current = "";
+  }, [workspaceName]);
 
   const handleTitleModalSave = useCallback(
     (title: string) => {
@@ -423,6 +451,16 @@ export function App() {
     });
   }, []);
 
+  const handleTitleBarSaveWorkspace = useCallback(() => {
+    if (activeTab) {
+      quickSaveWorkspace(tabs, activeTab.id);
+    }
+  }, [activeTab, tabs, quickSaveWorkspace]);
+
+  const handleTitleBarCloseWorkspace = useCallback(() => {
+    closeWorkspace(tabs, activeTab?.id);
+  }, [tabs, activeTab, closeWorkspace]);
+
   const shouldShowTabs = tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
 
   const titleBarBg =
@@ -430,7 +468,11 @@ export function App() {
 
   return (
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
-      <TitleBar backgroundClass={titleBarBg} />
+      <TitleBar
+        backgroundClass={titleBarBg}
+        onSaveWorkspace={handleTitleBarSaveWorkspace}
+        onCloseWorkspace={handleTitleBarCloseWorkspace}
+      />
 
       {shouldShowTabs && tabPosition === "top" && (
         <TabStrip
