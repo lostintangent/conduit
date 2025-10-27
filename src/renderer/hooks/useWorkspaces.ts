@@ -59,7 +59,8 @@ export function useWorkspaces() {
               })
               .catch((error) => {
                 console.error("Auto-save failed:", error);
-                // Timer will be cleared and retried on next change
+                // Clear timer reference on error
+                autoSaveTimerRef.current = null;
               });
           }
         }, 2000);
