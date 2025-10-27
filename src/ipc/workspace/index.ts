@@ -253,6 +253,97 @@ const commandFromProcessTitle = (
   return trimmed;
 };
 
+type TabPane = Tab["panes"][string];
+type SerializedTab = Workspace["tabs"][number];
+type SerializedPane = SerializedTab["panes"][number];
+
+type SerializeTabsOptions = {
+  logTerminalActivity?: boolean;
+};
+
+const serializePane = async (
+  pane: TabPane,
+  terminalSessions: Map<string, TerminalSession>,
+  options: SerializeTabsOptions
+): Promise<SerializedPane> => {
+  if (pane.type === "terminal") {
+    const terminalSession = terminalSessions.get(pane.sessionId);
+
+    let capturedCommand: string | null = null;
+    if (terminalSession) {
+      const activeCommand = await detectActiveCommand(terminalSession);
+      if (activeCommand && activeCommand.length > 0) {
+        capturedCommand = activeCommand;
+      } else {
+        capturedCommand = commandFromProcessTitle(
+          terminalSession.lastProcessName
+        );
+      }
+    }
+
+    if (options.logTerminalActivity) {
+      if (capturedCommand) {
+        console.log(
+          `[Session Save] Terminal ${pane.sessionId}: captured command="${capturedCommand}"`
+        );
+      } else {
+        const lastProcess = terminalSession?.lastProcessName ?? "";
+        console.log(
+          `[Session Save] Terminal ${pane.sessionId}: no active command detected (last process="${lastProcess}")`
+        );
+      }
+    }
+
+    return {
+      id: pane.id,
+      type: "terminal",
+      cwd: pane.cwd,
+      command: capturedCommand,
+    };
+  }
+
+  if (pane.type === "editor") {
+    return {
+      id: pane.id,
+      type: "editor",
+      cwd: pane.cwd,
+      filePath: pane.filePath,
+    };
+  }
+
+  return {
+    id: pane.id,
+    type: "webview",
+    url: pane.url,
+    webTitle: pane.title,
+  };
+};
+
+const serializeTabs = async (
+  tabs: Tab[],
+  terminalSessions: Map<string, TerminalSession>,
+  options: SerializeTabsOptions = {}
+): Promise<Workspace["tabs"]> => {
+  return Promise.all(
+    tabs.map(async (tab) => {
+      const panes = await Promise.all(
+        Object.values(tab.panes).map((pane) =>
+          serializePane(pane, terminalSessions, options)
+        )
+      );
+
+      return {
+        id: tab.id,
+        title: tab.title,
+        mode: tab.mode,
+        activePaneId: tab.activePaneId,
+        panes,
+        layout: tab.layout,
+      };
+    })
+  );
+};
+
 export async function saveSession(
   name: string,
   tabs: Tab[],
@@ -262,73 +353,9 @@ export async function saveSession(
   try {
     await ensureConduitDirectory();
 
-    const serializedTabs = await Promise.all(
-      tabs.map(async (tab) => {
-        const panes = await Promise.all(
-          Object.values(tab.panes).map(async (pane) => {
-            if (pane.type === "terminal") {
-              const terminalSession = terminalSessions.get(pane.sessionId);
-
-              let capturedCommand: string | null = null;
-              if (terminalSession) {
-                const activeCommand =
-                  await detectActiveCommand(terminalSession);
-                if (activeCommand && activeCommand.length > 0) {
-                  capturedCommand = activeCommand;
-                } else {
-                  capturedCommand = commandFromProcessTitle(
-                    terminalSession.lastProcessName
-                  );
-                }
-              }
-
-              if (capturedCommand) {
-                console.log(
-                  `[Session Save] Terminal ${pane.sessionId}: captured command="${capturedCommand}"`
-                );
-              } else {
-                const lastProcess = terminalSession?.lastProcessName ?? "";
-                console.log(
-                  `[Session Save] Terminal ${pane.sessionId}: no active command detected (last process="${lastProcess}")`
-                );
-              }
-
-              return {
-                id: pane.id,
-                type: "terminal" as const,
-                cwd: pane.cwd,
-                command: capturedCommand,
-              };
-            }
-
-            if (pane.type === "editor") {
-              return {
-                id: pane.id,
-                type: "editor" as const,
-                cwd: pane.cwd,
-                filePath: pane.filePath,
-              };
-            }
-
-            return {
-              id: pane.id,
-              type: "webview" as const,
-              url: pane.url,
-              webTitle: pane.title,
-            };
-          })
-        );
-
-        return {
-          id: tab.id,
-          title: tab.title,
-          mode: tab.mode,
-          activePaneId: tab.activePaneId,
-          panes,
-          layout: tab.layout,
-        };
-      })
-    );
+    const serializedTabs = await serializeTabs(tabs, terminalSessions, {
+      logTerminalActivity: true,
+    });
 
     const newSession: Workspace = {
       name,
@@ -398,62 +425,7 @@ export async function saveLastWorkspace(
   try {
     await ensureConduitDirectory();
 
-    const serializedTabs = await Promise.all(
-      tabs.map(async (tab) => {
-        const panes = await Promise.all(
-          Object.values(tab.panes).map(async (pane) => {
-            if (pane.type === "terminal") {
-              const terminalSession = terminalSessions.get(pane.sessionId);
-
-              let capturedCommand: string | null = null;
-              if (terminalSession) {
-                const activeCommand =
-                  await detectActiveCommand(terminalSession);
-                if (activeCommand && activeCommand.length > 0) {
-                  capturedCommand = activeCommand;
-                } else {
-                  capturedCommand = commandFromProcessTitle(
-                    terminalSession.lastProcessName
-                  );
-                }
-              }
-
-              return {
-                id: pane.id,
-                type: "terminal" as const,
-                cwd: pane.cwd,
-                command: capturedCommand,
-              };
-            }
-
-            if (pane.type === "editor") {
-              return {
-                id: pane.id,
-                type: "editor" as const,
-                cwd: pane.cwd,
-                filePath: pane.filePath,
-              };
-            }
-
-            return {
-              id: pane.id,
-              type: "webview" as const,
-              url: pane.url,
-              webTitle: pane.title,
-            };
-          })
-        );
-
-        return {
-          id: tab.id,
-          title: tab.title,
-          mode: tab.mode,
-          activePaneId: tab.activePaneId,
-          panes,
-          layout: tab.layout,
-        };
-      })
-    );
+    const serializedTabs = await serializeTabs(tabs, terminalSessions);
 
     const lastWorkspace: Workspace = {
       name: "__last_workspace__",

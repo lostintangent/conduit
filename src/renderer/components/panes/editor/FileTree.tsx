@@ -1,14 +1,14 @@
-import { useCallback, useState } from "react";
 import type { FileTreeNode } from "@shared/types";
 import {
   ChevronDown,
   ChevronRight,
   FileText,
   Folder,
+  FolderInput,
   FolderOpen,
   Loader2,
-  FolderInput,
 } from "lucide-react";
+import { useCallback, useState } from "react";
 
 const api = window.conduit;
 
@@ -66,13 +66,13 @@ function DirectoryTreeItem({ node, onFileSelect, onDirectoryChange, rootPath }: 
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [children, setChildren] = useState<FileTreeNode[] | undefined>(node.children);
-  
+
   const toggleOpen = useCallback(async () => {
     if (!isOpen && children === undefined) {
       // Need to load children
       setIsLoading(true);
       try {
-        const loadedChildren = await api.getFileTree(node.path);
+        const loadedChildren = await api.listDirectory(node.path);
         setChildren(loadedChildren);
       } catch (error) {
         console.error("Failed to load directory contents:", error);
@@ -88,7 +88,7 @@ function DirectoryTreeItem({ node, onFileSelect, onDirectoryChange, rootPath }: 
     e.stopPropagation();
     onDirectoryChange?.(node.path);
   }, [node.path, onDirectoryChange]);
-  
+
   const hasChildren = Array.isArray(children) && children.length > 0;
   const ArrowIcon = isOpen ? ChevronDown : ChevronRight;
   const FolderIcon = isOpen ? FolderOpen : Folder;

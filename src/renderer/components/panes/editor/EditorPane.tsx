@@ -17,7 +17,6 @@ import "monaco-editor/esm/vs/language/html/monaco.contribution";
 import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import "monaco-editor/esm/vs/language/typescript/monaco.contribution";
 import path from "path-browserify";
-import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const api = window.conduit;
@@ -31,12 +30,6 @@ function ensureMonacoConfigured() {
   if (isMonacoConfigured || typeof window === "undefined") {
     return;
   }
-
-  const globalObject = self as unknown as {
-    MonacoEnvironment?: {
-      getWorker: (id: string, label: string) => Worker;
-    };
-  };
 
   loader.config({ monaco });
 
@@ -125,8 +118,12 @@ export function EditorPane({
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
-  const [currentContent, setCurrentContent] = useState<string | undefined>(undefined);
-  const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(undefined);
+  const [currentContent, setCurrentContent] = useState<string | undefined>(
+    undefined
+  );
+  const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(
+    undefined
+  );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const hasOpenFile = Boolean(filePath && currentContent !== undefined);
@@ -209,7 +206,7 @@ export function EditorPane({
     setIsLoadingTree(true);
 
     api
-      .getFileTree(cwd)
+      .listDirectory(cwd)
       .then((tree) => {
         if (!cancelled) {
           setFileTree(tree);
@@ -281,7 +278,7 @@ export function EditorPane({
 
   const canNavigateUp = useMemo(() => {
     const parentDir = path.dirname(cwd);
-    return parentDir !== cwd && parentDir !== '.';
+    return parentDir !== cwd && parentDir !== ".";
   }, [cwd]);
 
   const displayPath = useMemo(() => {
@@ -309,13 +306,14 @@ export function EditorPane({
   }, [filePath, cwd, homeDirectory]);
 
   return (
-    <div
-      className="flex flex-1 min-h-0 min-w-0 flex-col bg-[#1e1e1e]"
-    >
+    <div className="flex flex-1 min-h-0 min-w-0 flex-col bg-[#1e1e1e]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted border-b border-white/10 text-[13px] text-white/70">
         <div className="flex items-center gap-2 truncate">
           {hasUnsavedChanges && (
-            <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Unsaved changes" />
+            <div
+              className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
+              title="Unsaved changes"
+            />
           )}
           <span className="truncate" title={filePath || cwd}>
             {displayPath}

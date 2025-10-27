@@ -8,7 +8,14 @@ import { updateApplicationMenu } from "./applicationMenu";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
 import { loadSettings, saveSettings } from "./settings";
 
-let userSettings: UserSettings = null;
+let userSettings: UserSettings | null = null;
+
+const requireUserSettings = (): UserSettings => {
+  if (!userSettings) {
+    throw new Error("User settings have not been initialized.");
+  }
+  return userSettings;
+};
 
 /**
  * Loads the user's settings and then initializes
@@ -17,7 +24,8 @@ let userSettings: UserSettings = null;
 export async function initializeUserSettings(window: BrowserWindow) {
   userSettings = await loadSettings();
 
-  const refreshMenu = async () => updateApplicationMenu(window, userSettings, saveSettings);
+  const refreshMenu = async () =>
+    updateApplicationMenu(window, requireUserSettings(), saveSettings);
   await refreshMenu();
 
   return {
@@ -29,56 +37,59 @@ export async function initializeUserSettings(window: BrowserWindow) {
  * Registers the IPC handlers for the UI channel.
  */
 export function initializeUIHandlers(window: BrowserWindow) {
-  ipcMain.handle("ui:get-settings", () => userSettings);
+  ipcMain.handle("ui:get-settings", () => requireUserSettings());
 
   ipcMain.handle(
     "ui:update-settings",
     async (_, updates: Partial<UserSettings>) => {
+      const currentSettings = requireUserSettings();
       userSettings = {
-        ...userSettings,
+        ...currentSettings,
         ...updates,
       };
 
       await saveSettings(userSettings);
-      return userSettings;
+      return requireUserSettings();
     }
   );
 
   ipcMain.handle(
     "ui:add-command-history-entry",
     async (_, command: string) => {
+      const currentSettings = requireUserSettings();
       const trimmedCommand = command.trim();
       const updatedHistory = [
         trimmedCommand,
-        ...userSettings.commandHistory.filter(
+        ...currentSettings.commandHistory.filter(
           (entry) => entry !== trimmedCommand
         ),
       ].slice(0, 5);
 
       userSettings = {
-        ...userSettings,
+        ...currentSettings,
         commandHistory: updatedHistory,
       };
 
       await saveSettings(userSettings);
 
-      return userSettings.commandHistory;
+      return requireUserSettings().commandHistory;
     }
   );
 
   ipcMain.handle(
     "ui:remove-command-history-entry",
     async (_, command: string) => {
+      const currentSettings = requireUserSettings();
       userSettings = {
-        ...userSettings,
-        commandHistory: userSettings.commandHistory.filter(
+        ...currentSettings,
+        commandHistory: currentSettings.commandHistory.filter(
           (entry) => entry !== command
         ),
       };
 
       await saveSettings(userSettings);
 
-      return userSettings.commandHistory;
+      return requireUserSettings().commandHistory;
     }
   );
 

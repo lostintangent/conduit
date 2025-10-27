@@ -140,7 +140,7 @@ async function readDirectory(
   return nodes;
 }
 
-export async function getFileTree(cwd: string): Promise<FileTreeNode[]> {
+export async function listDirectory(cwd: string): Promise<FileTreeNode[]> {
   const rootPath = path.resolve(cwd);
   const shouldIgnore = await createIgnorePredicate(rootPath);
   return readDirectory(rootPath, rootPath, shouldIgnore);

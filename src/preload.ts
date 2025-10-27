@@ -204,8 +204,8 @@ const conduitAPI = {
 
   /* File system methods (UI->main) */
 
-  getFileTree: (cwd: string) =>
-    ipcRenderer.invoke("fs:get-file-tree", cwd) as Promise<FileTreeNode[]>,
+  listDirectory: (cwd: string) =>
+    ipcRenderer.invoke("fs:list-directory", cwd) as Promise<FileTreeNode[]>,
 
   readFile: (filePath: string) =>
     ipcRenderer.invoke("fs:read-file", filePath) as Promise<string>,

@@ -1,9 +1,7 @@
 import { ipcMain } from "electron";
-import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
@@ -12,79 +10,19 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
 } from "../../shared/types";
-
-const execFileAsync = promisify(execFile);
+import {
+  fileExists,
+  findRepoRoot,
+  hasGitRepository,
+  runGit,
+  safeGitCommand,
+} from "./git";
 
 export type AgentSessionRecord = AgentSessionInfo & {
   worktreeSlug: string;
 };
 
 const agentSessions = new Map<string, AgentSessionRecord>();
-
-
-async function fileExists(target: string) {
-  try {
-    await stat(target);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return false;
-    }
-    throw error;
-  }
-}
-
-async function findRepoRoot(startPath: string): Promise<string | null> {
-  let current = path.resolve(startPath);
-
-  while (true) {
-    const gitPath = path.join(current, ".git");
-    if (await fileExists(gitPath)) {
-      return current;
-    }
-
-    const parent = path.dirname(current);
-    if (parent === current) {
-      return null;
-    }
-
-    current = parent;
-  }
-}
-
-async function runGit(
-  cwd: string,
-  args: string[]
-): Promise<{ stdout: string; stderr: string }> {
-  try {
-    const { stdout, stderr } = await execFileAsync("git", args, {
-      cwd,
-      env: {
-        ...process.env,
-        LC_ALL: "C",
-      },
-      windowsHide: true,
-    });
-
-    return {
-      stdout: stdout?.toString() ?? "",
-      stderr: stderr?.toString() ?? "",
-    };
-  } catch (error) {
-    const execError = error as NodeJS.ErrnoException & {
-      stdout?: string | Buffer;
-      stderr?: string | Buffer;
-    };
-
-    const stdout = execError.stdout ? execError.stdout.toString() : "";
-    const stderr = execError.stderr ? execError.stderr.toString() : "";
-
-    const message = stderr.trim().length > 0 ? stderr.trim() : stdout.trim();
-    throw new Error(
-      `Failed to run git ${args.join(" ")} (code ${execError.code ?? "unknown"}): ${message}`
-    );
-  }
-}
 
 function formatTimestampSlug(date: Date) {
   const pad = (value: number) => value.toString().padStart(2, "0");
@@ -200,14 +138,6 @@ export function listAgentSessions(): AgentSessionInfo[] {
   return Array.from(agentSessions.values()).map(
     ({ worktreeSlug: _ignored, ...session }) => ({ ...session })
   );
-}
-
-async function safeGitCommand(cwd: string, args: string[]) {
-  try {
-    await runGit(cwd, args);
-  } catch (error) {
-    console.warn(`Failed to run git ${args.join(" ")}:`, error);
-  }
 }
 
 export async function finalizeAgentSession(
@@ -345,15 +275,6 @@ export async function cleanupAgentSession(
   };
 }
 
-export async function hasGitRepository(cwd: string): Promise<boolean> {
-  try {
-    const repoRoot = await findRepoRoot(cwd);
-    return repoRoot !== null;
-  } catch {
-    return false;
-  }
-}
-
 export function initializeAgentHandlers() {
   ipcMain.handle("agent:spawn-session", async (_event, payload) => {
     return await spawnAgentSession(payload);
@@ -373,3 +294,5 @@ export function initializeAgentHandlers() {
     return await hasGitRepository(cwd);
   });
 }
+
+export { hasGitRepository };
