@@ -5,6 +5,7 @@ import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -68,6 +69,7 @@ export function App() {
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
+  const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
 
   const {
     workspaceName,
@@ -91,6 +93,33 @@ export function App() {
   useEffect(() => {
     return registerTabEventHandlers();
   }, []);
+
+  // Mouse position tracking for auto-hiding drawer
+  useEffect(() => {
+    // Only track mouse if we're using drawer mode (not alwaysShowTabs)
+    if (alwaysShowTabs) {
+      setIsTabDrawerOpen(false);
+      return;
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const TRIGGER_ZONE_HEIGHT = 30; // 30px from top or bottom
+      const windowHeight = window.innerHeight;
+
+      if (tabPosition === "top") {
+        // Show drawer when mouse is in top 30px
+        setIsTabDrawerOpen(e.clientY <= TRIGGER_ZONE_HEIGHT);
+      } else {
+        // Show drawer when mouse is in bottom 30px
+        setIsTabDrawerOpen(e.clientY >= windowHeight - TRIGGER_ZONE_HEIGHT);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [alwaysShowTabs, tabPosition]);
 
   const hasInitializedTabsRef = useRef(false);
 
@@ -426,10 +455,10 @@ export function App() {
     });
   }, []);
 
-  const shouldShowTabs = tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
+  const shouldUseDrawer = !alwaysShowTabs;
 
   const titleBarBg =
-    shouldShowTabs && tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
+    tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
 
   return (
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
@@ -449,12 +478,24 @@ export function App() {
         onUpdateSettings={updateSettings}
       />
 
-      {shouldShowTabs && tabPosition === "top" && (
+      {/* Top positioned tabs */}
+      {tabPosition === "top" && !shouldUseDrawer && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
           position={tabPosition}
         />
+      )}
+      {shouldUseDrawer && tabPosition === "top" && (
+        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+          <DrawerContent side="top">
+            <TabStrip
+              onOpenCommandPalette={openCommandPalette}
+              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+              position={tabPosition}
+            />
+          </DrawerContent>
+        </Drawer>
       )}
 
       <TabLayout
@@ -464,12 +505,24 @@ export function App() {
         handleWebViewUpdate={handleWebViewUpdate}
       />
 
-      {shouldShowTabs && tabPosition === "bottom" && (
+      {/* Bottom positioned tabs */}
+      {tabPosition === "bottom" && !shouldUseDrawer && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
           position={tabPosition}
         />
+      )}
+      {shouldUseDrawer && tabPosition === "bottom" && (
+        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+          <DrawerContent side="bottom">
+            <TabStrip
+              onOpenCommandPalette={openCommandPalette}
+              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+              position={tabPosition}
+            />
+          </DrawerContent>
+        </Drawer>
       )}
 
       {/* Global UI */}
