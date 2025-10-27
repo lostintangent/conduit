@@ -12,6 +12,11 @@ import {
   SplitSquareVertical,
   X,
 } from "lucide-react";
+import { useState } from "react";
+import {
+  PaneControlFanButtons,
+  type SplitButtonPosition,
+} from "./PaneControlFanButtons";
 
 interface PaneControlButtonsProps {
   tabId: string;
@@ -34,6 +39,9 @@ export function PaneControlButtons({
   isOnlyPane,
   isOnlyTab,
 }: PaneControlButtonsProps) {
+  const [hoveredSplitButton, setHoveredSplitButton] =
+    useState<SplitButtonPosition | null>(null);
+
   const handleSplit = (direction: SplitDirection, insertBefore: boolean) => {
     void splitPane(tabId, paneId, direction, insertBefore);
   };
@@ -101,6 +109,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", true)}
+          onMouseEnter={() => setHoveredSplitButton("top")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split above (Alt+Shift+↑)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -117,6 +127,18 @@ export function PaneControlButtons({
         )}
       </div>
 
+      {/* Fan-out menu for top split */}
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="top"
+        direction="column"
+        insertBefore={true}
+        hasMoveButton={canMoveUp}
+        isHovered={hoveredSplitButton === "top"}
+        onVisibilityChange={() => {}}
+      />
+
       {/* Bottom buttons */}
       <div
         className={`absolute bottom-0 left-1/2 -translate-x-1/2 z-10 ${groupClasses.bottom}`}
@@ -124,6 +146,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", false)}
+          onMouseEnter={() => setHoveredSplitButton("bottom")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split below (Alt+Shift+↓)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -140,6 +164,18 @@ export function PaneControlButtons({
         )}
       </div>
 
+      {/* Fan-out menu for bottom split */}
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="bottom"
+        direction="column"
+        insertBefore={false}
+        hasMoveButton={canMoveDown}
+        isHovered={hoveredSplitButton === "bottom"}
+        onVisibilityChange={() => {}}
+      />
+
       {/* Left buttons */}
       <div
         className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 ${groupClasses.left}`}
@@ -147,6 +183,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", true)}
+          onMouseEnter={() => setHoveredSplitButton("left")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split left (Alt+Shift+←)"
         >
           <SplitSquareHorizontal className={iconClass} />
@@ -163,6 +201,18 @@ export function PaneControlButtons({
         )}
       </div>
 
+      {/* Fan-out menu for left split */}
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="left"
+        direction="row"
+        insertBefore={true}
+        hasMoveButton={canMoveLeft}
+        isHovered={hoveredSplitButton === "left"}
+        onVisibilityChange={() => {}}
+      />
+
       {/* Right buttons */}
       <div
         className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 ${groupClasses.right}`}
@@ -170,6 +220,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", false)}
+          onMouseEnter={() => setHoveredSplitButton("right")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split right (Alt+Shift+→)"
         >
           <SplitSquareHorizontal className={iconClass} />
@@ -185,6 +237,18 @@ export function PaneControlButtons({
           </button>
         )}
       </div>
+
+      {/* Fan-out menu for right split */}
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="right"
+        direction="row"
+        insertBefore={false}
+        hasMoveButton={canMoveRight}
+        isHovered={hoveredSplitButton === "right"}
+        onVisibilityChange={() => {}}
+      />
     </>
   );
 }

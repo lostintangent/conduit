@@ -602,6 +602,8 @@ export async function splitPane(
       };
     })
   );
+
+  return newPaneState;
 }
 
 export async function splitPaneWithAgentSession(
