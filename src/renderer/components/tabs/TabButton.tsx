@@ -34,6 +34,7 @@ type TabButtonProps = {
   tabId: string;
   label: string;
   tooltip: string;
+  customTitle: string | undefined;
   index: number;
   isActive: boolean;
   disableClick: boolean;
@@ -54,6 +55,7 @@ export const TabButton = ({
   tabId,
   label,
   tooltip,
+  customTitle,
   index,
   isActive,
   disableClick,
@@ -82,7 +84,7 @@ export const TabButton = ({
     }
     event.preventDefault();
     event.stopPropagation();
-    setEditValue(label);
+    setEditValue(customTitle || "");
     setIsEditing(true);
   };
 
@@ -93,11 +95,8 @@ export const TabButton = ({
 
   const handleSaveEdit = () => {
     const trimmedValue = editValue.trim();
-    if (trimmedValue) {
-      updateTabProperty(tabId, { title: trimmedValue });
-    } else {
-      // If empty, keep the original label - no update needed
-    }
+    // Always update the title, even if empty (to clear it)
+    updateTabProperty(tabId, { title: trimmedValue || undefined });
     setIsEditing(false);
     setEditValue("");
   };
@@ -149,7 +148,7 @@ export const TabButton = ({
       onDragEnd={onDragEnd}
     >
       <span
-        className="overflow-hidden text-ellipsis max-w-[200px]"
+        className="overflow-hidden text-ellipsis max-w-[150px]"
         title={tooltip}
         onDoubleClick={handleDoubleClick}
       >
@@ -164,8 +163,8 @@ export const TabButton = ({
             className="bg-white/20 text-white border-0 outline-none rounded px-1"
             style={{
               minWidth: "50px",
-              maxWidth: "200px",
-              width: `${Math.max(50, Math.min(200, editValue.length * CHAR_WIDTH_PX + 10))}px`,
+              maxWidth: "150px",
+              width: `${Math.max(50, Math.min(150, editValue.length * CHAR_WIDTH_PX + 10))}px`,
             }}
             onClick={(e) => {
               e.stopPropagation();

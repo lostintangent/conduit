@@ -16,6 +16,7 @@ type TabDescriptor = {
   label: string;
   tooltip: string;
   isActive: boolean;
+  customTitle: string | undefined;
 };
 
 type TabStripProps = {
@@ -111,6 +112,7 @@ export const TabStrip = ({
           label,
           tooltip,
           isActive: tab.id === activeTabId,
+          customTitle: tab.title?.trim() || undefined,
         };
       }),
     [activeTabId, tabs]
@@ -251,6 +253,7 @@ export const TabStrip = ({
             tabId={tab.id}
             label={tab.label}
             tooltip={tab.tooltip}
+            customTitle={tab.customTitle}
             index={index}
             isActive={tab.isActive}
             disableClick={draggingTab !== null}
