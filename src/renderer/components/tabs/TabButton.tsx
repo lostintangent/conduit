@@ -5,6 +5,8 @@ import React, { useEffect, useRef, useState } from "react";
 const cx = (...classes: Array<string | false>) =>
   classes.filter(Boolean).join(" ");
 
+const CHAR_WIDTH_PX = 8;
+
 type TabPlaceholderProps = {
   width: number | null;
   onDragOver: (event: React.DragEvent<Element>) => void;
@@ -61,7 +63,6 @@ export const TabButton = ({
   onDrop,
   onDragEnd,
 }: TabButtonProps) => {
-  const CHAR_WIDTH_PX = 8;
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
