@@ -12,8 +12,11 @@ import {
   SplitSquareVertical,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { PaneControlFanButtons } from "./PaneControlFanButtons";
+import { useState } from "react";
+import {
+  PaneControlFanButtons,
+  type SplitButtonPosition,
+} from "./PaneControlFanButtons";
 
 interface PaneControlButtonsProps {
   tabId: string;
@@ -26,8 +29,6 @@ interface PaneControlButtonsProps {
   isOnlyTab: boolean;
 }
 
-type SplitButtonPosition = "top" | "bottom" | "left" | "right" | null;
-
 export function PaneControlButtons({
   tabId,
   paneId,
@@ -39,8 +40,7 @@ export function PaneControlButtons({
   isOnlyTab,
 }: PaneControlButtonsProps) {
   const [hoveredSplitButton, setHoveredSplitButton] =
-    useState<SplitButtonPosition>(null);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    useState<SplitButtonPosition | null>(null);
 
   const handleSplit = (direction: SplitDirection, insertBefore: boolean) => {
     void splitPane(tabId, paneId, direction, insertBefore);
@@ -49,34 +49,6 @@ export function PaneControlButtons({
   const handleMove = (direction: PaneDirection) => {
     movePane(tabId, paneId, direction);
   };
-
-  const handleMouseEnter = (position: SplitButtonPosition) => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    setHoveredSplitButton(position);
-  };
-
-  const handleMouseLeave = () => {
-    // Delay hiding to allow moving to the fanned buttons
-    hoverTimeoutRef.current = setTimeout(() => {
-      setHoveredSplitButton(null);
-    }, 350);
-  };
-
-  const handleFanMenuMouseEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const groupBaseClass =
     "bg-black/60 border border-blueprint border-dashed rounded-lg backdrop-blur-sm overflow-hidden";
@@ -137,8 +109,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", true)}
-          onMouseEnter={() => handleMouseEnter("top")}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={() => setHoveredSplitButton("top")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split above (Alt+Shift+↑)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -163,9 +135,8 @@ export function PaneControlButtons({
         direction="column"
         insertBefore={true}
         hasMoveButton={canMoveUp}
-        isVisible={hoveredSplitButton === "top"}
-        onMouseEnter={handleFanMenuMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        isHovered={hoveredSplitButton === "top"}
+        onVisibilityChange={() => {}}
       />
 
       {/* Bottom buttons */}
@@ -175,8 +146,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", false)}
-          onMouseEnter={() => handleMouseEnter("bottom")}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={() => setHoveredSplitButton("bottom")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split below (Alt+Shift+↓)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -201,9 +172,8 @@ export function PaneControlButtons({
         direction="column"
         insertBefore={false}
         hasMoveButton={canMoveDown}
-        isVisible={hoveredSplitButton === "bottom"}
-        onMouseEnter={handleFanMenuMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        isHovered={hoveredSplitButton === "bottom"}
+        onVisibilityChange={() => {}}
       />
 
       {/* Left buttons */}
@@ -213,8 +183,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", true)}
-          onMouseEnter={() => handleMouseEnter("left")}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={() => setHoveredSplitButton("left")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split left (Alt+Shift+←)"
         >
           <SplitSquareHorizontal className={iconClass} />
@@ -239,9 +209,8 @@ export function PaneControlButtons({
         direction="row"
         insertBefore={true}
         hasMoveButton={canMoveLeft}
-        isVisible={hoveredSplitButton === "left"}
-        onMouseEnter={handleFanMenuMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        isHovered={hoveredSplitButton === "left"}
+        onVisibilityChange={() => {}}
       />
 
       {/* Right buttons */}
@@ -251,8 +220,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", false)}
-          onMouseEnter={() => handleMouseEnter("right")}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={() => setHoveredSplitButton("right")}
+          onMouseLeave={() => setHoveredSplitButton(null)}
           title="Split right (Alt+Shift+→)"
         >
           <SplitSquareHorizontal className={iconClass} />
@@ -277,9 +246,8 @@ export function PaneControlButtons({
         direction="row"
         insertBefore={false}
         hasMoveButton={canMoveRight}
-        isVisible={hoveredSplitButton === "right"}
-        onMouseEnter={handleFanMenuMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        isHovered={hoveredSplitButton === "right"}
+        onVisibilityChange={() => {}}
       />
     </>
   );

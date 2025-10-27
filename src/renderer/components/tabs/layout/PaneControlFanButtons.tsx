@@ -7,6 +7,9 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
 
 const PANE_TYPES = [
   { id: "source-control", label: "Source Control", icon: GitBranch },
@@ -19,13 +22,12 @@ const PANE_TYPES = [
 interface PaneControlFanButtonsProps {
   tabId: string;
   paneId: string;
-  position: "top" | "bottom" | "left" | "right";
+  position: SplitButtonPosition;
   direction: SplitDirection;
   insertBefore: boolean;
   hasMoveButton: boolean;
-  isVisible: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  isHovered: boolean;
+  onVisibilityChange: (visible: boolean) => void;
 }
 
 export function PaneControlFanButtons({
@@ -35,10 +37,49 @@ export function PaneControlFanButtons({
   direction,
   insertBefore,
   hasMoveButton,
-  isVisible,
-  onMouseEnter,
-  onMouseLeave,
+  isHovered,
+  onVisibilityChange,
 }: PaneControlFanButtonsProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Show/hide fan buttons based on hover state with delay
+  useEffect(() => {
+    if (isHovered) {
+      // Clear any pending hide timeout
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      setIsVisible(true);
+      onVisibilityChange(true);
+    } else {
+      // Delay hiding to allow moving to the fanned buttons
+      hoverTimeoutRef.current = setTimeout(() => {
+        setIsVisible(false);
+        onVisibilityChange(false);
+      }, 350);
+    }
+
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, [isHovered, onVisibilityChange]);
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setIsVisible(true);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsVisible(false);
+      onVisibilityChange(false);
+    }, 350);
+  };
   const handlePaneTypeClick = async (paneTypeId: string) => {
     const api = window.conduit;
 
@@ -214,8 +255,8 @@ export function PaneControlFanButtons({
       <div
         className="absolute pointer-events-auto"
         style={getSemicircleStyle()}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
 
       {/* Fan-out buttons */}
@@ -232,8 +273,8 @@ export function PaneControlFanButtons({
               animationDelay: `${index * 30}ms`,
               animationFillMode: "forwards",
             }}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             onClick={() => void handlePaneTypeClick(paneType.id)}
             title={`Split ${position} - ${paneType.label}`}
           >
