@@ -181,11 +181,11 @@ body {
 @keyframes fan-in {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
+    scale: 0.3;
   }
   100% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    scale: 0.75;
   }
 }
 
