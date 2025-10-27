@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ArrowUpRight } from "lucide-react";
 import { useCallback, useState } from "react";
 import { generateId } from "@/utils/id";
+import type { FileTreeNode } from "@shared/types";
 
 export type PaneDescriptor =
   | {
@@ -82,6 +83,21 @@ export function QuickPaneDialog({
     [currentDescriptor.type]
   );
 
+  // Handle file open from within editor pane
+  const handleFileOpen = useCallback(
+    (node: FileTreeNode) => {
+      if (currentDescriptor.type === "editor") {
+        // Update the descriptor to open the file in the same quick pane
+        setCurrentDescriptor({
+          type: "editor",
+          cwd: currentDescriptor.cwd,
+          filePath: node.path,
+        });
+      }
+    },
+    [currentDescriptor]
+  );
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[min(95vw,1000px)] h-[520px] min-h-[320px] max-h-[90vh] p-0 gap-0 bg-surface border-white/10">
@@ -111,6 +127,7 @@ export function QuickPaneDialog({
                 handleEditorUpdate({ filePath })
               }
               onClearFile={() => handleEditorUpdate({ filePath: undefined })}
+              onFileOpen={handleFileOpen}
             />
           )}
           {currentDescriptor.type === "webview" && (

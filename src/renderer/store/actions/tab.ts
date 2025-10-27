@@ -63,6 +63,31 @@ export async function openTab(
   return { tabId, paneId, sessionId: result.sessionId };
 }
 
+// Helper function to create a tab with a pane
+function createTabWithPane(paneState: Pane): { tabId: string; paneId: string } {
+  const tabId = generateId();
+
+  const layout: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: paneState.id,
+  };
+
+  store.set(tabsAtom, (current) => [
+    ...current,
+    {
+      id: tabId,
+      panes: { [paneState.id]: paneState },
+      layout,
+      activePaneId: paneState.id,
+      mode: "layout",
+    },
+  ]);
+  store.set(activeTabIdAtom, tabId);
+
+  return { tabId, paneId: paneState.id };
+}
+
 export function openTabFromExistingSession({
   sessionId,
   cwd,
@@ -73,7 +98,6 @@ export function openTabFromExistingSession({
   title?: string | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
-  const tabId = generateId();
 
   const paneState: Pane = {
     id: paneId,
@@ -83,32 +107,13 @@ export function openTabFromExistingSession({
     processTitle: title ?? "Terminal",
   };
 
-  const layout: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId,
-  };
-
-  store.set(tabsAtom, (current) => [
-    ...current,
-    {
-      id: tabId,
-      panes: { [paneId]: paneState },
-      layout,
-      activePaneId: paneId,
-      mode: "layout",
-    },
-  ]);
-  store.set(activeTabIdAtom, tabId);
-
-  return { tabId, paneId };
+  return createTabWithPane(paneState);
 }
 
 export async function openTabFromPaneDescriptor(
   descriptor: PaneDescriptor
 ): Promise<{ tabId: string; paneId: string } | null> {
   const paneId = generateId();
-  const tabId = generateId();
 
   let paneState: Pane | null = null;
 
@@ -140,25 +145,7 @@ export async function openTabFromPaneDescriptor(
     return null;
   }
 
-  const layout: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId,
-  };
-
-  store.set(tabsAtom, (current) => [
-    ...current,
-    {
-      id: tabId,
-      panes: { [paneId]: paneState },
-      layout,
-      activePaneId: paneId,
-      mode: "layout",
-    },
-  ]);
-  store.set(activeTabIdAtom, tabId);
-
-  return { tabId, paneId };
+  return createTabWithPane(paneState);
 }
 
 export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
