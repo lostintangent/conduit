@@ -39,7 +39,16 @@ export type WebViewPane = {
   title?: string;
 } & Identifiable;
 
-export type Pane = TerminalPane | WebViewPane;
+export type EditorPane = {
+  type: "editor";
+  cwd: string;
+  filePath?: string;
+  relativePath?: string;
+  language?: string;
+  content?: string;
+} & Identifiable;
+
+export type Pane = TerminalPane | WebViewPane | EditorPane;
 
 type TabMode = "layout" | "focus";
 

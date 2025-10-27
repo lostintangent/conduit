@@ -218,6 +218,46 @@ export function App() {
     [setTabs]
   );
 
+  const handleEditorUpdate = useCallback(
+    (
+      tabId: string,
+      paneId: string,
+      updates: {
+        filePath?: string;
+        relativePath?: string;
+        language?: string;
+        content?: string;
+      }
+    ) => {
+      setTabs((current) =>
+        current.map((tab) => {
+          if (tab.id !== tabId) {
+            return tab;
+          }
+
+          const pane = tab.panes[paneId];
+          if (!pane || pane.type !== "editor") {
+            return tab;
+          }
+
+          const nextPane = {
+            ...pane,
+            ...updates,
+          };
+
+          return {
+            ...tab,
+            panes: {
+              ...tab.panes,
+              [paneId]: nextPane,
+            },
+          };
+        })
+      );
+    },
+    [setTabs]
+  );
+
   const closePane = useCallback(
     (tabId: string, paneId: string) => {
       const tab = tabs.find((t) => t.id === tabId);
@@ -503,6 +543,7 @@ export function App() {
         handleResizeStart={handleResizeStart}
         resizingNode={resizingNode}
         handleWebViewUpdate={handleWebViewUpdate}
+        handleEditorUpdate={handleEditorUpdate}
       />
 
       {/* Bottom positioned tabs */}

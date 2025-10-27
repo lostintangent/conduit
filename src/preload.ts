@@ -7,6 +7,7 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
   BackgroundCommandRequest,
+  FileTreeNode,
   TerminalCreateOptions,
   TerminalCreateResponse,
   TerminalCwdPayload,
@@ -200,6 +201,14 @@ const conduitAPI = {
       "agent:cleanup-session",
       payload
     ) as Promise<AgentSessionCleanupResult>,
+
+  /* File system methods (UI->main) */
+
+  getFileTree: (cwd: string) =>
+    ipcRenderer.invoke("fs:get-file-tree", cwd) as Promise<FileTreeNode[]>,
+
+  readFile: (filePath: string) =>
+    ipcRenderer.invoke("fs:read-file", filePath) as Promise<string>,
 };
 
 export type ConduitAPI = typeof conduitAPI;

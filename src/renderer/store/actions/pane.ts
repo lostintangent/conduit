@@ -713,6 +713,57 @@ export function openWebViewPane(
   );
 }
 
+export function openEditorPane(
+  tabId: string,
+  paneId: string,
+  cwd: string,
+  direction: SplitDirection = "row",
+  insertBefore = false
+) {
+  const newPaneId = generateId();
+  const newPaneState: Pane = {
+    id: newPaneId,
+    type: "editor",
+    cwd,
+  };
+
+  const newLayoutNode: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: newPaneId,
+  };
+
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      const { node: newLayout, modified } = splitLayoutNode(
+        tab.layout,
+        paneId,
+        direction,
+        newLayoutNode,
+        insertBefore
+      );
+
+      if (!modified) {
+        return tab;
+      }
+
+      return {
+        ...tab,
+        panes: {
+          ...tab.panes,
+          [newPaneId]: newPaneState,
+        },
+        layout: newLayout,
+        activePaneId: newPaneId,
+      };
+    })
+  );
+}
+
 type RemovePaneOptions = {
   skipTerminalClose?: boolean;
 };

@@ -1,4 +1,5 @@
-import { openWebViewPane, splitPane } from "@/store/actions/pane";
+import { openEditorPane, openWebViewPane, splitPane } from "@/store/actions/pane";
+import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import {
   FileCode,
@@ -7,6 +8,7 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
+import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
@@ -42,6 +44,12 @@ export function PaneControlFanButtons({
 }: PaneControlFanButtonsProps) {
   const [isVisible, setIsVisible] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tabs = useAtomValue(tabsAtom);
+  
+  // Get the current pane to determine its cwd
+  const currentPane = tabs
+    .find((tab) => tab.id === tabId)
+    ?.panes[paneId];
 
   // Show/hide fan buttons based on hover state with delay
   useEffect(() => {
@@ -83,6 +91,16 @@ export function PaneControlFanButtons({
   const handlePaneTypeClick = async (paneTypeId: string) => {
     const api = window.conduit;
 
+    // Get cwd from current pane if available
+    let cwd: string | undefined;
+    if (currentPane) {
+      if (currentPane.type === "terminal") {
+        cwd = currentPane.cwd ?? undefined;
+      } else if (currentPane.type === "editor") {
+        cwd = currentPane.cwd;
+      }
+    }
+
     switch (paneTypeId) {
       case "terminal":
         // Default terminal
@@ -92,6 +110,17 @@ export function PaneControlFanButtons({
       case "webview":
         // Open web view - could prompt for URL, for now use a default
         openWebViewPane(tabId, paneId, "https://google.com", direction, insertBefore);
+        break;
+
+      case "editor":
+        // Open editor pane with file tree
+        if (cwd) {
+          openEditorPane(tabId, paneId, cwd, direction, insertBefore);
+        } else {
+          // Fallback to home directory or create a terminal to get cwd
+          const homeDir = await api.getSettings().then(s => s.homeDirectory);
+          openEditorPane(tabId, paneId, homeDir || ".", direction, insertBefore);
+        }
         break;
 
       case "source-control": {
@@ -104,7 +133,6 @@ export function PaneControlFanButtons({
         break;
       }
 
-      case "editor":
       case "command":
       default:
         // Default to terminal for now

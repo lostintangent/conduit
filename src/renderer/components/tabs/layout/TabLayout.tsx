@@ -1,6 +1,7 @@
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
+import { EditorPane } from "@/components/panes/EditorPane";
 import { PaneControlButtons } from "@/components/tabs/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
@@ -198,6 +199,16 @@ interface TabLayoutProps {
     paneId: string,
     updates: { url?: string; title?: string }
   ) => void;
+  handleEditorUpdate: (
+    tabId: string,
+    paneId: string,
+    updates: {
+      filePath?: string;
+      relativePath?: string;
+      language?: string;
+      content?: string;
+    }
+  ) => void;
 }
 
 export function TabLayout({
@@ -205,6 +216,7 @@ export function TabLayout({
   handleResizeStart,
   resizingNode,
   handleWebViewUpdate,
+  handleEditorUpdate,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
@@ -326,6 +338,28 @@ export function TabLayout({
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
+              />
+            ) : pane.type === "editor" ? (
+              <EditorPane
+                key={pane.id}
+                cwd={pane.cwd}
+                filePath={pane.filePath}
+                relativePath={pane.relativePath}
+                language={pane.language}
+                content={pane.content}
+                onContextMenu={onPaneContextMenu}
+                onActivate={onPaneActivate}
+                onFileChange={(fileData) =>
+                  handleEditorUpdate(tab.id, pane.id, fileData)
+                }
+                onClearFile={() =>
+                  handleEditorUpdate(tab.id, pane.id, {
+                    filePath: undefined,
+                    relativePath: undefined,
+                    language: undefined,
+                    content: undefined,
+                  })
+                }
               />
             ) : (
               <div

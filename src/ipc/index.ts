@@ -1,5 +1,6 @@
 import { BrowserWindow } from "electron";
 import { initializeAgentHandlers } from "./agent";
+import { initializeFsHandlers } from "./fs";
 import {
     cleanupTerminalSessions,
     initializeTerminalHandlers,
@@ -19,6 +20,7 @@ export async function initializeIpcHandlers(window: BrowserWindow) {
     initializeTerminalHandlers(sendToRenderer);
     initializeWorkspaceHandlers(refreshMenu);
     initializeUIHandlers(window);
+    initializeFsHandlers();
     initializeAgentHandlers();
 }
 
