@@ -1,7 +1,7 @@
+import { FileTree } from "@/components/panes/editor/FileTree";
 import { userSettingsAtom } from "@/store/atoms";
-import { FileTree } from "@/components/FileTree";
-import type { FileTreeNode } from "@shared/types";
 import Editor, { loader } from "@monaco-editor/react";
+import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import { ChevronDown, FolderUp, Loader2 } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
@@ -16,9 +16,9 @@ import "monaco-editor/esm/vs/language/css/monaco.contribution";
 import "monaco-editor/esm/vs/language/html/monaco.contribution";
 import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import "monaco-editor/esm/vs/language/typescript/monaco.contribution";
+import path from "path-browserify";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import path from "path-browserify";
 
 const api = window.conduit;
 
@@ -106,8 +106,6 @@ function inferLanguageFromFilePath(filePath: string): string {
 type EditorPaneProps = {
   cwd: string;
   filePath?: string;
-  onContextMenu?: (event: MouseEvent<HTMLDivElement>) => void;
-  onActivate?: () => void;
   onFileChange?: (fileData: {
     filePath: string;
     language: string;
@@ -120,8 +118,6 @@ type EditorPaneProps = {
 export function EditorPane({
   cwd,
   filePath,
-  onContextMenu,
-  onActivate,
   onFileChange,
   onClearFile,
   onCwdChange,
@@ -315,8 +311,6 @@ export function EditorPane({
   return (
     <div
       className="flex flex-1 min-h-0 min-w-0 flex-col bg-[#1e1e1e]"
-      onContextMenu={onContextMenu}
-      onMouseDown={onActivate}
     >
       <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted border-b border-white/10 text-[13px] text-white/70">
         <div className="flex items-center gap-2 truncate">
@@ -326,16 +320,6 @@ export function EditorPane({
           <span className="truncate" title={filePath || cwd}>
             {displayPath}
           </span>
-          {!hasOpenFile && canNavigateUp && (
-            <button
-              type="button"
-              onClick={handleNavigateUp}
-              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-              title="Go up one directory"
-            >
-              <FolderUp size={14} className="text-white/60" />
-            </button>
-          )}
         </div>
         <div className="flex items-center gap-1">
           {hasOpenFile && (
@@ -346,6 +330,16 @@ export function EditorPane({
               title="Show file tree"
             >
               <ChevronDown size={14} className="text-white/60" />
+            </button>
+          )}
+          {!hasOpenFile && canNavigateUp && (
+            <button
+              type="button"
+              onClick={handleNavigateUp}
+              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+              title="Go up one directory"
+            >
+              <FolderUp size={14} className="text-white/60" />
             </button>
           )}
         </div>
@@ -378,11 +372,11 @@ export function EditorPane({
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
             ) : fileTree.length > 0 ? (
-              <FileTree 
-                items={fileTree} 
-                onFileSelect={handleFileSelect} 
+              <FileTree
+                items={fileTree}
+                onFileSelect={handleFileSelect}
                 onDirectoryChange={handleDirectoryChange}
-                rootPath={cwd} 
+                rootPath={cwd}
               />
             ) : (
               <div className="flex items-center justify-center w-full text-white/50">

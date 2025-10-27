@@ -1,7 +1,7 @@
+import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
-import { EditorPane } from "@/components/panes/EditorPane";
 import { PaneControlButtons } from "@/components/tabs/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
@@ -338,24 +338,28 @@ export function TabLayout({
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
               />
             ) : pane.type === "editor" ? (
-              <EditorPane
-                key={pane.id}
-                cwd={pane.cwd}
-                filePath={pane.filePath}
+              <div
+                className="flex flex-1 w-full h-full min-h-0 min-w-0"
                 onContextMenu={onPaneContextMenu}
-                onActivate={onPaneActivate}
-                onFileChange={(fileData) =>
-                  handleEditorUpdate(tab.id, pane.id, { filePath: fileData.filePath })
-                }
-                onClearFile={() =>
-                  handleEditorUpdate(tab.id, pane.id, {
-                    filePath: undefined,
-                  })
-                }
-                onCwdChange={(cwd) =>
-                  handleEditorUpdate(tab.id, pane.id, { cwd })
-                }
-              />
+                onMouseDown={onPaneActivate}
+              >
+                <EditorPane
+                  key={pane.id}
+                  cwd={pane.cwd}
+                  filePath={pane.filePath}
+                  onFileChange={(fileData) =>
+                    handleEditorUpdate(tab.id, pane.id, { filePath: fileData.filePath })
+                  }
+                  onClearFile={() =>
+                    handleEditorUpdate(tab.id, pane.id, {
+                      filePath: undefined,
+                    })
+                  }
+                  onCwdChange={(cwd) =>
+                    handleEditorUpdate(tab.id, pane.id, { cwd })
+                  }
+                />
+              </div>
             ) : (
               <div
                 className="flex flex-1 w-full h-full min-h-0 min-w-0"
