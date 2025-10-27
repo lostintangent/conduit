@@ -400,7 +400,7 @@ export function EditorPane({
             }
           />
         ) : (
-          <div className="flex flex-1 overflow-auto p-4">
+          <div className="flex flex-1 overflow-auto p-2">
             {isLoadingTree ? (
               <div className="flex items-center justify-center w-full text-white/70">
                 <Loader2 className="w-6 h-6 animate-spin" />

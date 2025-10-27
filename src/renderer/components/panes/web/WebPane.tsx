@@ -125,7 +125,12 @@ export function WebPane({
 
       // Add protocol if missing
       if (!targetUrl.match(/^[a-z]+:\/\//i)) {
-        targetUrl = `https://${targetUrl}`;
+        const lowerTarget = targetUrl.toLowerCase();
+        const host = lowerTarget.split("/")[0];
+        const isLocalhost =
+          host === "localhost" || host.startsWith("localhost:");
+        const protocol = isLocalhost ? "http" : "https";
+        targetUrl = `${protocol}://${targetUrl}`;
       }
 
       webviewRef.current?.loadURL(targetUrl);
