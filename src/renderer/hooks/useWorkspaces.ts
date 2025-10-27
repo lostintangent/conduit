@@ -1,4 +1,4 @@
-import { tabsAtom, userSettingsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom, userSettingsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,6 +9,7 @@ export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
   const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
   const tabs = useAtomValue(tabsAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const userSettings = useAtomValue(userSettingsAtom);
   const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
   const [hasWorkspaces, setHasWorkspaces] = useState(false);
@@ -49,18 +50,22 @@ export function useWorkspaces() {
 
         // Schedule auto-save after 2 seconds
         autoSaveTimerRef.current = setTimeout(() => {
-          const activeTabId = tabs.find((t) => t.id)?.id;
           if (activeTabId) {
-            api.saveSession(workspaceName, tabs, activeTabId).then((sessions) => {
-              setWorkspaces(sessions as Workspace[]);
-              previousTabsRef.current = JSON.stringify(tabs);
-              setWorkspaceHasChanges(false);
-            });
+            api.saveSession(workspaceName, tabs, activeTabId)
+              .then((sessions) => {
+                setWorkspaces(sessions as Workspace[]);
+                previousTabsRef.current = JSON.stringify(tabs);
+                setWorkspaceHasChanges(false);
+              })
+              .catch((error) => {
+                console.error("Auto-save failed:", error);
+                // Timer will be cleared and retried on next change
+              });
           }
         }, 2000);
       }
     }
-  }, [tabs, workspaceName, userSettings.autoSaveWorkspaces, setWorkspaceHasChanges]);
+  }, [tabs, workspaceName, activeTabId, userSettings.autoSaveWorkspaces, setWorkspaceHasChanges, setWorkspaces]);
 
   // Reset change tracking when workspace changes
   useEffect(() => {
