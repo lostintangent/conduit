@@ -86,16 +86,19 @@ export function QuickPaneDialog({
   // Handle file open from within editor pane
   const handleFileOpen = useCallback(
     (node: FileTreeNode) => {
-      if (currentDescriptor.type === "editor") {
-        // Update the descriptor to open the file in the same quick pane
-        setCurrentDescriptor({
-          type: "editor",
-          cwd: currentDescriptor.cwd,
-          filePath: node.path,
-        });
-      }
+      setCurrentDescriptor((prev) => {
+        if (prev.type === "editor") {
+          // Update the descriptor to open the file in the same quick pane
+          return {
+            type: "editor",
+            cwd: prev.cwd,
+            filePath: node.path,
+          };
+        }
+        return prev;
+      });
     },
-    [currentDescriptor]
+    []
   );
 
   return (
