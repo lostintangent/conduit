@@ -93,8 +93,8 @@ export function App() {
 
   // Mouse position tracking for auto-hiding drawer
   useEffect(() => {
-    // Only track mouse if we're using drawer mode (not alwaysShowTabs and multiple tabs)
-    if (alwaysShowTabs || tabs.length <= 1) {
+    // Only track mouse if we're using drawer mode (not alwaysShowTabs and have tabs)
+    if (alwaysShowTabs || tabs.length === 0) {
       setIsDrawerOpen(false);
       return;
     }
@@ -452,8 +452,8 @@ export function App() {
     });
   }, []);
 
-  const shouldShowTabs = tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
-  const shouldUseDrawer = tabs.length > 0 && !alwaysShowTabs && tabs.length > 1;
+  const shouldShowTabs = tabs.length > 0;
+  const shouldUseDrawer = tabs.length > 0 && !alwaysShowTabs;
 
   const titleBarBg =
     shouldShowTabs && tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
