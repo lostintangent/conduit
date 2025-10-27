@@ -93,8 +93,8 @@ export function App() {
 
   // Mouse position tracking for auto-hiding drawer
   useEffect(() => {
-    // Only track mouse if we're not in always show mode and have tabs
-    if (alwaysShowTabs || tabs.length === 0) {
+    // Only track mouse if we're using drawer mode (not alwaysShowTabs and multiple tabs)
+    if (alwaysShowTabs || tabs.length <= 1) {
       setIsDrawerOpen(false);
       return;
     }
