@@ -66,7 +66,7 @@ export function App() {
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
 
   const {
     workspaceName,
@@ -95,7 +95,7 @@ export function App() {
   useEffect(() => {
     // Only track mouse if we're using drawer mode (not alwaysShowTabs)
     if (alwaysShowTabs) {
-      setIsDrawerOpen(false);
+      setIsTabDrawerOpen(false);
       return;
     }
 
@@ -105,10 +105,10 @@ export function App() {
 
       if (tabPosition === "top") {
         // Show drawer when mouse is in top 30px
-        setIsDrawerOpen(e.clientY <= TRIGGER_ZONE_HEIGHT);
+        setIsTabDrawerOpen(e.clientY <= TRIGGER_ZONE_HEIGHT);
       } else {
         // Show drawer when mouse is in bottom 30px
-        setIsDrawerOpen(e.clientY >= windowHeight - TRIGGER_ZONE_HEIGHT);
+        setIsTabDrawerOpen(e.clientY >= windowHeight - TRIGGER_ZONE_HEIGHT);
       }
     };
 
@@ -479,7 +479,7 @@ export function App() {
         />
       )}
       {shouldUseDrawer && tabPosition === "top" && (
-        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
           <DrawerContent side="top">
             <TabStrip
               onOpenCommandPalette={openCommandPalette}
@@ -506,7 +506,7 @@ export function App() {
         />
       )}
       {shouldUseDrawer && tabPosition === "bottom" && (
-        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
           <DrawerContent side="bottom">
             <TabStrip
               onOpenCommandPalette={openCommandPalette}
