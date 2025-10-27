@@ -36,9 +36,9 @@ const DrawerContent = React.forwardRef<
   DrawerContentProps
 >(({ side = "bottom", className, children, ...props }, ref) => {
   const sideClasses = {
-    top: "top-0 left-0 right-0 data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+    top: "top-0 left-0 right-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2",
     bottom:
-      "bottom-0 left-0 right-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+      "bottom-0 left-0 right-0 data-[state=closed]:slide-out-to-bottom-2 data-[state=open]:slide-in-from-bottom-2",
   };
 
   return (
