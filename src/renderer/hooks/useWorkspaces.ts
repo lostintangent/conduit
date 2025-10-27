@@ -23,7 +23,7 @@ export function useWorkspaces() {
   // Track workspace changes - compare tabs deeply to detect changes
   const previousTabsRef = useRef<string>("");
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   useEffect(() => {
     if (!workspaceName) {
       setWorkspaceHasChanges(false);
@@ -42,7 +42,7 @@ export function useWorkspaces() {
       setWorkspaceHasChanges(true);
 
       // If auto-save is enabled, schedule a save
-      if (userSettings.autoSaveWorkspaces && tabs.length > 0) {
+      if (workspaceName && userSettings.autoSaveWorkspaces) {
         // Clear any existing timer
         if (autoSaveTimerRef.current) {
           clearTimeout(autoSaveTimerRef.current);
@@ -71,7 +71,7 @@ export function useWorkspaces() {
   // Reset change tracking when workspace changes
   useEffect(() => {
     previousTabsRef.current = "";
-    
+
     // Clear auto-save timer when workspace changes
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -171,7 +171,7 @@ export function useWorkspaces() {
       )) as Workspace[];
       updateWorkspaces(sessions);
     }
-    
+
     const { closeWorkspace: closeWorkspaceAction } = await import("@/store/actions/workspace");
     closeWorkspaceAction();
   }, [workspaceName, updateWorkspaces]);
@@ -184,7 +184,7 @@ export function useWorkspaces() {
         activeTabId
       )) as Workspace[];
       updateWorkspaces(sessions);
-      
+
       // Reset the has changes flag and update the reference snapshot after successful save
       const savedSnapshot = JSON.stringify(tabs);
       previousTabsRef.current = savedSnapshot;

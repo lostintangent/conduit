@@ -3,13 +3,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { openWorkspace } from "@/store/actions/workspace";
 import {
@@ -160,27 +155,6 @@ export const TitleBar = ({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            {/* Tab position submenu */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Tab position</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup value={tabPosition}>
-                  <DropdownMenuRadioItem
-                    value="top"
-                    onClick={() => onUpdateSettings({ tabPosition: "top" })}
-                  >
-                    Top
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem
-                    value="bottom"
-                    onClick={() => onUpdateSettings({ tabPosition: "bottom" })}
-                  >
-                    Bottom
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
             <DropdownMenuCheckboxItem
               checked={alwaysShowTabs}
               onClick={() =>
@@ -205,7 +179,7 @@ export const TitleBar = ({
                 onUpdateSettings({ autoSaveWorkspaces: !autoSaveWorkspaces })
               }
             >
-              Auto save workspaces
+              Auto-save workspaces
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
