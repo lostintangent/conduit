@@ -143,7 +143,7 @@ export const TitleBar = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="h-5 w-px bg-white/10 mt-1" />
+        <div className="h-5 w-px bg-white/10 mt-[6px]" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
