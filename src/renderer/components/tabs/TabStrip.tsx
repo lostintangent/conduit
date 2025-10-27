@@ -392,13 +392,27 @@ export const TabStrip = ({
         >
           <PlusSquare size={18} />
         </button>
+      </div>
+
+
+      {/* Action buttons - far right */}
+      <div className="flex items-center gap-2 ml-auto">
+        <button
+          type="button"
+          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+          title="Show command palette (⌘⇧P)"
+          aria-label="Show command palette"
+          onClick={onOpenCommandPalette}
+        >
+          <MoreHorizontal size={18} />
+        </button>
 
         {/* Quick pane dropdown button */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
+              className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
               title="Quick pane"
               aria-label="Quick pane"
             >
@@ -417,20 +431,7 @@ export const TabStrip = ({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
 
-
-      {/* Action buttons - far right */}
-      <div className="flex items-center gap-2 ml-auto">
-        <button
-          type="button"
-          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-          title="Show command palette (⌘⇧P)"
-          aria-label="Show command palette"
-          onClick={onOpenCommandPalette}
-        >
-          <MoreHorizontal size={18} />
-        </button>
         <button
           type="button"
           className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isInDesignMode

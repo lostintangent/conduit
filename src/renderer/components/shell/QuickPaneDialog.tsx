@@ -6,23 +6,9 @@ import { ArrowUpRight } from "lucide-react";
 import { useCallback, useState } from "react";
 import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
+import type { Pane } from "@/types";
 
-export type PaneDescriptor =
-  | {
-      type: "terminal";
-      sessionId: string;
-      cwd: string | null;
-    }
-  | {
-      type: "editor";
-      cwd: string;
-      filePath?: string;
-    }
-  | {
-      type: "webview";
-      url: string;
-      title?: string;
-    };
+export type PaneDescriptor = Omit<Pane, "id">;
 
 type QuickPaneDialogProps = {
   paneDescriptor: PaneDescriptor;
