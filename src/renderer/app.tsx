@@ -24,10 +24,10 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom, workspaceHasChangesAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NotificationCenter } from "./components/shell/NotificationCenter";
 
@@ -36,7 +36,6 @@ const api = window.conduit;
 export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
 
   const {
     tabPosition,
@@ -128,32 +127,6 @@ export function App() {
       unsubscribeBeforeClose();
     };
   }, [tabs, activeTab]);
-
-  // Track workspace changes - compare tabs deeply to detect changes
-  const previousTabsRef = useRef<string>("");
-  useEffect(() => {
-    if (!workspaceName) {
-      setWorkspaceHasChanges(false);
-      return;
-    }
-
-    // Deep serialize tabs to detect any changes
-    const currentTabsSnapshot = JSON.stringify(tabs);
-
-    if (previousTabsRef.current === "") {
-      // First time tracking this workspace
-      previousTabsRef.current = currentTabsSnapshot;
-      setWorkspaceHasChanges(false);
-    } else if (previousTabsRef.current !== currentTabsSnapshot) {
-      // Tabs have changed
-      setWorkspaceHasChanges(true);
-    }
-  }, [tabs, workspaceName, setWorkspaceHasChanges]);
-
-  // Reset change tracking when workspace changes
-  useEffect(() => {
-    previousTabsRef.current = "";
-  }, [workspaceName]);
 
   const handleTitleModalSave = useCallback(
     (title: string) => {
@@ -452,18 +425,9 @@ export function App() {
 
   const handleTitleBarSaveWorkspace = useCallback(async () => {
     if (activeTab) {
-      try {
-        await quickSaveWorkspace(tabs, activeTab.id);
-        // Reset the has changes flag and update the reference snapshot after successful save
-        const savedSnapshot = JSON.stringify(tabs);
-        previousTabsRef.current = savedSnapshot;
-        setWorkspaceHasChanges(false);
-      } catch (error) {
-        console.error('Failed to save workspace:', error);
-        // Don't reset the change indicator if save failed
-      }
+      await quickSaveWorkspace(tabs, activeTab.id);
     }
-  }, [activeTab, tabs, quickSaveWorkspace, setWorkspaceHasChanges]);
+  }, [activeTab, tabs, quickSaveWorkspace]);
 
   const handleTitleBarCloseWorkspace = useCallback(() => {
     closeWorkspace(tabs, activeTab?.id);
