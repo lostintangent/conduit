@@ -12,8 +12,8 @@ import {
   workspacesAtom,
 } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
-import { useAtomValue } from "jotai";
-import { Cable, Check, LayoutDashboard } from "lucide-react";
+import { useAtom, useAtomValue } from "jotai";
+import { Cable, Check, LayoutDashboard, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 
 type TitleBarProps = {
@@ -35,7 +35,7 @@ export const TitleBar = ({
   }
 
   const workspaceName = useAtomValue(workspaceNameAtom);
-  const workspaces = useAtomValue(workspacesAtom);
+  const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
   const hasChanges = useAtomValue(workspaceHasChangesAtom);
 
   const titleBarSuffix = workspaceName ? ` (${workspaceName})` : "";
@@ -49,6 +49,21 @@ export const TitleBar = ({
       void openWorkspace(workspace);
     },
     [workspaceName]
+  );
+
+  const handleDeleteWorkspace = useCallback(
+    async (workspace: Workspace, event: React.MouseEvent) => {
+      event.stopPropagation();
+      
+      if (!api) {
+        return;
+      }
+
+      await api.deleteSession(workspace.timestamp);
+      const updatedWorkspaces = (await api.loadSessions()) as Workspace[];
+      setWorkspaces(updatedWorkspaces);
+    },
+    [api, setWorkspaces]
   );
 
   return (
@@ -92,8 +107,16 @@ export const TitleBar = ({
                       }
                     >
                       <span>{workspace.name}</span>
-                      {isCurrentWorkspace && (
+                      {isCurrentWorkspace ? (
                         <Check className="w-4 h-4" />
+                      ) : (
+                        <button
+                          onClick={(e) => handleDeleteWorkspace(workspace, e)}
+                          className="p-1 rounded hover:bg-white/20 transition-colors"
+                          aria-label="Delete workspace"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
                     </DropdownMenuItem>
                   );
