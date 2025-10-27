@@ -49,27 +49,9 @@ function useFanMenuState() {
     }
   }, [clearHideTimeout]);
 
-  const showPosition = useCallback((position: SplitButtonPosition) => {
-    clearHideTimeout();
-    setHoveredPosition(position);
-  }, [clearHideTimeout]);
-
-  const hidePosition = useCallback((position: SplitButtonPosition) => {
-    handleVisibilityChange(position, false);
-  }, [handleVisibilityChange]);
-
-  const hideCurrentPosition = useCallback(() => {
-    if (hoveredPosition) {
-      handleVisibilityChange(hoveredPosition, false);
-    }
-  }, [hoveredPosition, handleVisibilityChange]);
-
   return {
     hoveredPosition,
     handleVisibilityChange,
-    showPosition,
-    hidePosition,
-    hideCurrentPosition,
   };
 }
 
@@ -97,9 +79,6 @@ export function PaneControlButtons({
   const {
     hoveredPosition: hoveredSplitButton,
     handleVisibilityChange,
-    showPosition,
-    hidePosition,
-    hideCurrentPosition,
   } = useFanMenuState();
 
   const handleSplit = (direction: SplitDirection, insertBefore: boolean) => {
@@ -138,7 +117,11 @@ export function PaneControlButtons({
   return (
     <div
       className="absolute inset-0"
-      onMouseLeave={hideCurrentPosition}
+      onMouseLeave={() => {
+        if (hoveredSplitButton) {
+          handleVisibilityChange(hoveredSplitButton, false);
+        }
+      }}
       style={{ pointerEvents: 'none' }}
     >
       {/* Center buttons (Move to new tab and Close) */}
@@ -174,8 +157,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", true)}
-          onMouseEnter={() => showPosition("top")}
-          onMouseLeave={() => hidePosition("top")}
+          onMouseEnter={() => handleVisibilityChange("top", true)}
+          onMouseLeave={() => handleVisibilityChange("top", false)}
           title="Split above (Alt+Shift+↑)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -211,8 +194,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", false)}
-          onMouseEnter={() => showPosition("bottom")}
-          onMouseLeave={() => hidePosition("bottom")}
+          onMouseEnter={() => handleVisibilityChange("bottom", true)}
+          onMouseLeave={() => handleVisibilityChange("bottom", false)}
           title="Split below (Alt+Shift+↓)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -248,8 +231,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", true)}
-          onMouseEnter={() => showPosition("left")}
-          onMouseLeave={() => hidePosition("left")}
+          onMouseEnter={() => handleVisibilityChange("left", true)}
+          onMouseLeave={() => handleVisibilityChange("left", false)}
           title="Split left (Alt+Shift+←)"
         >
           <SplitSquareHorizontal className={iconClass} />
@@ -285,8 +268,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", false)}
-          onMouseEnter={() => showPosition("right")}
-          onMouseLeave={() => hidePosition("right")}
+          onMouseEnter={() => handleVisibilityChange("right", true)}
+          onMouseLeave={() => handleVisibilityChange("right", false)}
           title="Split right (Alt+Shift+→)"
         >
           <SplitSquareHorizontal className={iconClass} />
