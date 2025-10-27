@@ -61,6 +61,7 @@ export const TabButton = ({
   onDrop,
   onDragEnd,
 }: TabButtonProps) => {
+  const CHAR_WIDTH_PX = 8;
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
@@ -75,6 +76,9 @@ export const TabButton = ({
   }, [isEditing]);
 
   const handleDoubleClick = (event: React.MouseEvent) => {
+    if (disableClick || isEditing) {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     setEditValue(label);
@@ -90,6 +94,8 @@ export const TabButton = ({
     const trimmedValue = editValue.trim();
     if (trimmedValue) {
       updateTabProperty(tabId, { title: trimmedValue });
+    } else {
+      // If empty, keep the original label - no update needed
     }
     setIsEditing(false);
     setEditValue("");
@@ -158,7 +164,7 @@ export const TabButton = ({
             style={{
               minWidth: "50px",
               maxWidth: "200px",
-              width: `${Math.max(50, Math.min(200, editValue.length * 8 + 10))}px`,
+              width: `${Math.max(50, Math.min(200, editValue.length * CHAR_WIDTH_PX + 10))}px`,
             }}
             onClick={(e) => {
               e.stopPropagation();
