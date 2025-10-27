@@ -452,10 +452,16 @@ export function App() {
 
   const handleTitleBarSaveWorkspace = useCallback(async () => {
     if (activeTab) {
-      await quickSaveWorkspace(tabs, activeTab.id);
-      // Reset the has changes flag and update the reference snapshot
-      previousTabsRef.current = JSON.stringify(tabs);
-      setWorkspaceHasChanges(false);
+      try {
+        await quickSaveWorkspace(tabs, activeTab.id);
+        // Reset the has changes flag and update the reference snapshot after successful save
+        const savedSnapshot = JSON.stringify(tabs);
+        previousTabsRef.current = savedSnapshot;
+        setWorkspaceHasChanges(false);
+      } catch (error) {
+        console.error('Failed to save workspace:', error);
+        // Don't reset the change indicator if save failed
+      }
     }
   }, [activeTab, tabs, quickSaveWorkspace, setWorkspaceHasChanges]);
 
