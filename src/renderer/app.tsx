@@ -430,7 +430,16 @@ export function App() {
 
   return (
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
-      <TitleBar backgroundClass={titleBarBg} />
+      <TitleBar
+        backgroundClass={titleBarBg}
+        onSaveWorkspace={async () => {
+          if (activeTab) {
+            await quickSaveWorkspace(tabs, activeTab.id);
+          }
+        }}
+        onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
+        onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
+      />
 
       {shouldShowTabs && tabPosition === "top" && (
         <TabStrip

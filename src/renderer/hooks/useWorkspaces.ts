@@ -1,20 +1,49 @@
-import { workspaceNameAtom } from "@/store/atoms";
+import { tabsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
-import { useAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 
 export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
+  const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
+  const tabs = useAtomValue(tabsAtom);
+  const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
   const [hasWorkspaces, setHasWorkspaces] = useState(false);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =
     useState(false);
   const [showRenameWorkspaceDialog, setShowRenameWorkspaceDialog] =
     useState(false);
+
+  // Track workspace changes - compare tabs deeply to detect changes
+  const previousTabsRef = useRef<string>("");
+  
+  useEffect(() => {
+    if (!workspaceName) {
+      setWorkspaceHasChanges(false);
+      return;
+    }
+
+    // Deep serialize tabs to detect any changes
+    const currentTabsSnapshot = JSON.stringify(tabs);
+
+    if (previousTabsRef.current === "") {
+      // First time tracking this workspace
+      previousTabsRef.current = currentTabsSnapshot;
+      setWorkspaceHasChanges(false);
+    } else if (previousTabsRef.current !== currentTabsSnapshot) {
+      // Tabs have changed
+      setWorkspaceHasChanges(true);
+    }
+  }, [tabs, workspaceName, setWorkspaceHasChanges]);
+
+  // Reset change tracking when workspace changes
+  useEffect(() => {
+    previousTabsRef.current = "";
+  }, [workspaceName]);
 
   useEffect(() => {
     const checkSessions = async () => {
@@ -112,10 +141,15 @@ export function useWorkspaces() {
         activeTabId
       )) as Workspace[];
       updateWorkspaces(sessions);
+      
+      // Reset the has changes flag and update the reference snapshot after successful save
+      const savedSnapshot = JSON.stringify(tabs);
+      previousTabsRef.current = savedSnapshot;
+      setWorkspaceHasChanges(false);
     } else {
       setShowCreateWorkspaceDialog(true);
     }
-  }, [workspaceName, updateWorkspaces]);
+  }, [workspaceName, updateWorkspaces, setWorkspaceHasChanges]);
 
   const openLastWorkspace = useCallback(async () => {
     const lastWorkspace = (await api.loadLastWorkspace()) as Workspace | null;
