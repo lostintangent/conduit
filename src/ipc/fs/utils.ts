@@ -4,8 +4,6 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { FileTreeNode } from "../../shared/types";
 
-const MAX_DIRECTORY_DEPTH = 6;
-
 type IgnorePredicate = (fullPath: string) => Promise<boolean>;
 
 function getGitRoot(startPath: string): Promise<string | null> {
@@ -78,14 +76,8 @@ async function createIgnorePredicate(
 async function readDirectory(
   rootPath: string,
   targetPath: string,
-  depth: number,
-  seen: Set<string>,
   shouldIgnore: IgnorePredicate
 ): Promise<FileTreeNode[]> {
-  if (depth > MAX_DIRECTORY_DEPTH) {
-    return [];
-  }
-
   let dirEntries: Dirent[];
   try {
     dirEntries = await fs.readdir(targetPath, { withFileTypes: true });
@@ -121,25 +113,11 @@ async function readDirectory(
     }
 
     if (entry.isDirectory()) {
-      if (seen.has(normalizedFullPath)) {
-        continue;
-      }
-
-      seen.add(normalizedFullPath);
-      const children = await readDirectory(
-        rootPath,
-        normalizedFullPath,
-        depth + 1,
-        seen,
-        shouldIgnore
-      );
-
       nodes.push({
         name: entry.name,
         path: normalizedFullPath,
         relativePath,
         type: "directory",
-        children,
       });
       continue;
     }
@@ -165,13 +143,7 @@ async function readDirectory(
 export async function getFileTree(cwd: string): Promise<FileTreeNode[]> {
   const rootPath = path.resolve(cwd);
   const shouldIgnore = await createIgnorePredicate(rootPath);
-  return readDirectory(
-    rootPath,
-    rootPath,
-    0,
-    new Set([rootPath]),
-    shouldIgnore
-  );
+  return readDirectory(rootPath, rootPath, shouldIgnore);
 }
 
 export async function readFile(filePath: string): Promise<string> {

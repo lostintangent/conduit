@@ -278,7 +278,7 @@ export function EditorPane({
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
             ) : fileTree.length > 0 ? (
-              <FileTree items={fileTree} onFileSelect={handleFileSelect} />
+              <FileTree items={fileTree} onFileSelect={handleFileSelect} rootPath={cwd} />
             ) : (
               <div className="flex items-center justify-center w-full text-white/50">
                 No files found
