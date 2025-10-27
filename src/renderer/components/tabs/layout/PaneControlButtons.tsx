@@ -11,7 +11,13 @@ import {
   SplitSquareHorizontal,
   SplitSquareVertical,
   X,
+  GitBranch,
+  FileCode,
+  Terminal,
+  Globe,
+  Zap,
 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
 interface PaneControlButtonsProps {
   tabId: string;
@@ -24,6 +30,16 @@ interface PaneControlButtonsProps {
   isOnlyTab: boolean;
 }
 
+type SplitButtonPosition = "top" | "bottom" | "left" | "right" | null;
+
+const PANE_TYPES = [
+  { id: "source-control", label: "Source Control", icon: GitBranch },
+  { id: "editor", label: "Editor", icon: FileCode },
+  { id: "terminal", label: "Terminal", icon: Terminal },
+  { id: "webview", label: "Web View", icon: Globe },
+  { id: "command", label: "Command", icon: Zap },
+] as const;
+
 export function PaneControlButtons({
   tabId,
   paneId,
@@ -34,6 +50,10 @@ export function PaneControlButtons({
   isOnlyPane,
   isOnlyTab,
 }: PaneControlButtonsProps) {
+  const [hoveredSplitButton, setHoveredSplitButton] =
+    useState<SplitButtonPosition>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleSplit = (direction: SplitDirection, insertBefore: boolean) => {
     void splitPane(tabId, paneId, direction, insertBefore);
   };
@@ -41,6 +61,38 @@ export function PaneControlButtons({
   const handleMove = (direction: PaneDirection) => {
     movePane(tabId, paneId, direction);
   };
+
+  const handleMouseEnter = (position: SplitButtonPosition) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setHoveredSplitButton(position);
+  };
+
+  const handleMouseLeave = () => {
+    // Delay hiding to allow moving to the fanned buttons
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredSplitButton(null);
+    }, 150);
+  };
+
+  const handleFanMenuMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+  };
+
+  const handleFanMenuMouseLeave = () => {
+    setHoveredSplitButton(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const groupBaseClass =
     "bg-black/60 border border-blueprint border-dashed rounded-lg backdrop-blur-sm overflow-hidden";
@@ -65,6 +117,97 @@ export function PaneControlButtons({
 
   // Show close button if there are multiple panes OR multiple tabs
   const showClose = !isOnlyPane || !isOnlyTab;
+
+  // Calculate fan-out button positions
+  const getFanButtonPosition = (
+    index: number,
+    position: SplitButtonPosition,
+    hasMoveButton: boolean
+  ) => {
+    const radius = 48; // Distance from center
+    const buttonCount = PANE_TYPES.length;
+
+    // Determine the arc center offset based on whether move button exists
+    let centerOffset = 0;
+    if (hasMoveButton) {
+      // If there's a move button, the split button is at index 0, so offset accordingly
+      centerOffset = 16; // Half of button width (32px / 2)
+    }
+
+    // Calculate angle for each button in a 180° arc
+    // Start at one end and end at the other
+    const startAngle = position === "top" ? 180 : position === "bottom" ? 0 : position === "left" ? 90 : -90;
+    const angleStep = 180 / (buttonCount - 1);
+    const angle = (startAngle + angleStep * index) * (Math.PI / 180);
+
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+
+    // Adjust positioning based on direction
+    switch (position) {
+      case "top":
+        return {
+          left: `calc(50% + ${x - centerOffset}px)`,
+          top: `${-y}px`,
+        };
+      case "bottom":
+        return {
+          left: `calc(50% + ${x - centerOffset}px)`,
+          bottom: `${y}px`,
+        };
+      case "left":
+        return {
+          left: `${-x}px`,
+          top: `calc(50% + ${y - centerOffset}px)`,
+        };
+      case "right":
+        return {
+          right: `${x}px`,
+          top: `calc(50% + ${y - centerOffset}px)`,
+        };
+      default:
+        return {};
+    }
+  };
+
+  const renderFanOutButtons = (
+    position: SplitButtonPosition,
+    direction: SplitDirection,
+    insertBefore: boolean,
+    hasMoveButton: boolean
+  ) => {
+    if (hoveredSplitButton !== position) return null;
+
+    return (
+      <div
+        className="absolute inset-0 pointer-events-none z-20"
+        onMouseEnter={handleFanMenuMouseEnter}
+        onMouseLeave={handleFanMenuMouseLeave}
+      >
+        {PANE_TYPES.map((paneType, index) => {
+          const pos = getFanButtonPosition(index, position, hasMoveButton);
+          const Icon = paneType.icon;
+
+          return (
+            <button
+              key={paneType.id}
+              className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-lg backdrop-blur-sm transition-all duration-200 ease-out opacity-0 scale-75 animate-fan-in`}
+              style={{
+                ...pos,
+                transform: "translate(-50%, -50%)",
+                animationDelay: `${index * 30}ms`,
+                animationFillMode: "forwards",
+              }}
+              onClick={() => handleSplit(direction, insertBefore)}
+              title={`Split ${position} - ${paneType.label}`}
+            >
+              <Icon className={iconClass} />
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -101,6 +244,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", true)}
+          onMouseEnter={() => handleMouseEnter("top")}
+          onMouseLeave={handleMouseLeave}
           title="Split above (Alt+Shift+↑)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -117,6 +262,11 @@ export function PaneControlButtons({
         )}
       </div>
 
+      {/* Fan-out menu for top split */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20">
+        {renderFanOutButtons("top", "column", true, canMoveUp)}
+      </div>
+
       {/* Bottom buttons */}
       <div
         className={`absolute bottom-0 left-1/2 -translate-x-1/2 z-10 ${groupClasses.bottom}`}
@@ -124,6 +274,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("column", false)}
+          onMouseEnter={() => handleMouseEnter("bottom")}
+          onMouseLeave={handleMouseLeave}
           title="Split below (Alt+Shift+↓)"
         >
           <SplitSquareVertical className={iconClass} />
@@ -140,6 +292,11 @@ export function PaneControlButtons({
         )}
       </div>
 
+      {/* Fan-out menu for bottom split */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20">
+        {renderFanOutButtons("bottom", "column", false, canMoveDown)}
+      </div>
+
       {/* Left buttons */}
       <div
         className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 ${groupClasses.left}`}
@@ -147,6 +304,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", true)}
+          onMouseEnter={() => handleMouseEnter("left")}
+          onMouseLeave={handleMouseLeave}
           title="Split left (Alt+Shift+←)"
         >
           <SplitSquareHorizontal className={iconClass} />
@@ -163,6 +322,11 @@ export function PaneControlButtons({
         )}
       </div>
 
+      {/* Fan-out menu for left split */}
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 z-20">
+        {renderFanOutButtons("left", "row", true, canMoveLeft)}
+      </div>
+
       {/* Right buttons */}
       <div
         className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 ${groupClasses.right}`}
@@ -170,6 +334,8 @@ export function PaneControlButtons({
         <button
           className={buttonClass}
           onClick={() => handleSplit("row", false)}
+          onMouseEnter={() => handleMouseEnter("right")}
+          onMouseLeave={handleMouseLeave}
           title="Split right (Alt+Shift+→)"
         >
           <SplitSquareHorizontal className={iconClass} />
@@ -184,6 +350,11 @@ export function PaneControlButtons({
             <ArrowRight className={iconClass} />
           </button>
         )}
+      </div>
+
+      {/* Fan-out menu for right split */}
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 z-20">
+        {renderFanOutButtons("right", "row", false, canMoveRight)}
       </div>
     </>
   );
