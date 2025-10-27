@@ -393,6 +393,7 @@ export function TabLayout({
                 canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
                 isOnlyPane={countPanesInLayout(tab.layout) === 1}
                 isOnlyTab={tabs.length === 1}
+                isInFocusMode={tab.mode === "focus"}
               />
             )}
         </div>
