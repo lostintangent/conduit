@@ -76,11 +76,9 @@ export function PaneControlFanButtons({
   const BUTTON_RADIUS = 48;
   const SEMICIRCLE_RADIUS = 60;
   const MIN_DISTANCE = 30;
-  const BUTTON_HALF_WIDTH = 16;
 
-  // Calculate offset for move button
+  // Calculate offset for move button - wrapper centers on split button
   const offset = hasMoveButton ? "calc(50% - 16px)" : "50%";
-  const centerOffset = hasMoveButton ? BUTTON_HALF_WIDTH : 0;
 
   if (!isVisible) return null;
 
@@ -101,32 +99,47 @@ export function PaneControlFanButtons({
   // Calculate fan-out button positions
   const getFanButtonPosition = (index: number) => {
     const buttonCount = PANE_TYPES.length;
-    const angleStep = 180 / (buttonCount - 1);
-    const angle = (getStartAngle() + angleStep * index) * (Math.PI / 180);
+
+    // Reduce arc angle when there's a move button to avoid overlap
+    const arcAngle = hasMoveButton ? 150 : 180;
+    const angleStep = arcAngle / (buttonCount - 1);
+
+    // Shift the arc away from the move button
+    // Move button is always on the "inside" (closer to center of pane group)
+    // For bottom/left: shift away (positive offset)
+    // For top/right: no offset (arc starts at beginning)
+    let angleOffset = 0;
+    if (hasMoveButton) {
+      const unusedAngle = 180 - arcAngle;
+      angleOffset = (position === "bottom" || position === "left") ? unusedAngle : 0;
+    }
+    const angle = (getStartAngle() + angleOffset + angleStep * index) * (Math.PI / 180);
 
     const x = Math.cos(angle) * BUTTON_RADIUS;
     const y = Math.sin(angle) * BUTTON_RADIUS;
 
+    // When there's a move button, the buttons are positioned relative to the wrapper
+    // which is already offset, so we don't need additional offset here
     switch (position) {
       case "top":
         return {
-          left: `calc(50% + ${x - centerOffset}px)`,
+          left: `calc(50% + ${x}px)`,
           top: `${-y + MIN_DISTANCE}px`,
         };
       case "bottom":
         return {
-          left: `calc(50% + ${x - centerOffset}px)`,
+          left: `calc(50% + ${x}px)`,
           bottom: `${y}px`,
         };
       case "left":
         return {
           left: `${-x + MIN_DISTANCE}px`,
-          top: `calc(50% + ${y - centerOffset}px)`,
+          top: `calc(50% + ${y}px)`,
         };
       case "right":
         return {
           right: `${x}px`,
-          top: `calc(50% + ${y - centerOffset}px)`,
+          top: `calc(50% + ${y}px)`,
         };
     }
   };
@@ -146,6 +159,9 @@ export function PaneControlFanButtons({
   };
 
   // Calculate semicircle hover area
+  // Offset by button size to avoid covering the split button
+  const BUTTON_SIZE = 32; // Split button is 32px (w-8)
+
   const getSemicircleStyle = () => {
     const horizontalStyle = {
       width: `${SEMICIRCLE_RADIUS * 2}px`,
@@ -165,26 +181,26 @@ export function PaneControlFanButtons({
       case "top":
         return {
           ...horizontalStyle,
-          top: 0,
-          clipPath: "ellipse(100% 100% at 50% 100%)",
+          top: BUTTON_SIZE,
+          clipPath: "ellipse(100% 100% at 50% 0%)",
         };
       case "bottom":
         return {
           ...horizontalStyle,
-          bottom: 0,
-          clipPath: "ellipse(100% 100% at 50% 0%)",
+          bottom: BUTTON_SIZE,
+          clipPath: "ellipse(100% 100% at 50% 100%)",
         };
       case "left":
         return {
           ...verticalStyle,
-          left: 0,
-          clipPath: "ellipse(100% 100% at 100% 50%)",
+          left: BUTTON_SIZE,
+          clipPath: "ellipse(100% 100% at 0% 50%)",
         };
       case "right":
         return {
           ...verticalStyle,
-          right: 0,
-          clipPath: "ellipse(100% 100% at 0% 50%)",
+          right: BUTTON_SIZE,
+          clipPath: "ellipse(100% 100% at 100% 50%)",
         };
     }
   };
