@@ -24,7 +24,7 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom, workspaceHasChangesAtom, workspaceNameAtom } from "@/store/atoms";
+import { activeTabAtom, tabsAtom, workspaceHasChangesAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -139,7 +139,7 @@ export function App() {
 
     // Deep serialize tabs to detect any changes
     const currentTabsSnapshot = JSON.stringify(tabs);
-    
+
     if (previousTabsRef.current === "") {
       // First time tracking this workspace
       previousTabsRef.current = currentTabsSnapshot;
