@@ -34,7 +34,7 @@ type TabButtonProps = {
   tabId: string;
   label: string;
   tooltip: string;
-  customTitle: string | undefined;
+  title: string | undefined;
   index: number;
   isActive: boolean;
   disableClick: boolean;
@@ -55,7 +55,7 @@ export const TabButton = ({
   tabId,
   label,
   tooltip,
-  customTitle,
+  title,
   index,
   isActive,
   disableClick,
@@ -84,7 +84,7 @@ export const TabButton = ({
     }
     event.preventDefault();
     event.stopPropagation();
-    setEditValue(customTitle || "");
+    setEditValue(title || "");
     setIsEditing(true);
   };
 
