@@ -16,7 +16,7 @@ import {
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
-  isInEditModeAtom,
+  isInDesignModeAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
@@ -34,7 +34,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const setIsInEditMode = useSetAtom(isInEditModeAtom);
+  const setIsInDesignMode = useSetAtom(isInDesignModeAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -121,9 +121,10 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      if (key === "e" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
+      // Cmd+D: Toggle design mode
+      if (key === "d" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
         event.preventDefault();
-        setIsInEditMode((current) => !current);
+        setIsInDesignMode((current) => !current);
         return;
       }
 

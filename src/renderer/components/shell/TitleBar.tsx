@@ -66,7 +66,7 @@ export const TitleBar = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="relative p-1 rounded text-white mt-2 hover:bg-white/10 transition-colors"
+              className="relative p-1 rounded text-white mt-1 hover:bg-white/10 transition-colors"
               aria-label="Workspace menu"
             >
               <LayoutDashboard className="w-4 h-4" />

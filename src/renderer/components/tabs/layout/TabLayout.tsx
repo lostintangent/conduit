@@ -1,9 +1,9 @@
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
+import { PaneControlButtons } from "@/components/tabs/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
-import { PaneControlButtons } from "@/components/tabs/layout/PaneControlButtons";
 import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
 import type {
   LayoutResizeAxis,
@@ -19,7 +19,7 @@ import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import {
   activePaneIdAtom,
   activeTabAtom,
-  isInEditModeAtom,
+  isInDesignModeAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type {
@@ -210,7 +210,7 @@ export function TabLayout({
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const activeTabId = activeTab?.id ?? null;
-  const isInEditMode = useAtomValue(isInEditModeAtom);
+  const isInDesignMode = useAtomValue(isInDesignModeAtom);
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
@@ -234,7 +234,7 @@ export function TabLayout({
         return;
       }
 
-      if (isInEditMode || resizingNode !== null) {
+      if (isInDesignMode || resizingNode !== null) {
         return;
       }
 
@@ -244,7 +244,7 @@ export function TabLayout({
 
       triggerHighlight(paneId);
     },
-    [isInEditMode, resizingNode, triggerHighlight]
+    [isInDesignMode, resizingNode, triggerHighlight]
   );
 
   useEffect(() => {
@@ -346,10 +346,12 @@ export function TabLayout({
               </div>
             )}
           </div>
-          {/*isInEditMode && (
+
+          {isInDesignMode && (
             <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
-          )*/}
-          {isInEditMode &&
+          )}
+
+          {isInDesignMode &&
             (hoveredPaneId !== null
               ? hoveredPaneId === pane.id
               : isActivePane) && (
@@ -373,7 +375,7 @@ export function TabLayout({
       handleContextMenu,
       handleWebViewUpdate,
       hoveredPaneId,
-      isInEditMode,
+      isInDesignMode,
       resizingNode,
       tabs.length,
     ]
@@ -407,7 +409,7 @@ export function TabLayout({
 
             const borderSideClass =
               node.direction === "row" ? "border-l" : "border-t";
-            const borderColorClass = isInEditMode
+            const borderColorClass = isInDesignMode
               ? "border-blueprint border-dashed"
               : "border-white/[0.12]";
             const splitBorderClass =
@@ -437,7 +439,7 @@ export function TabLayout({
               : "bg-transparent hover:bg-blue-500/40";
 
             const highlightClass =
-              !isInEditMode && child.type === "pane" && tabShowsBorder
+              !isInDesignMode && child.type === "pane" && tabShowsBorder
                 ? getHighlightClass(child.paneId)
                 : "";
 
@@ -502,7 +504,7 @@ export function TabLayout({
       getHighlightClass,
       handleResizeStart,
       hoveredAxisKeys,
-      isInEditMode,
+      isInDesignMode,
       resizingNode,
       setHoverKeys,
     ]
