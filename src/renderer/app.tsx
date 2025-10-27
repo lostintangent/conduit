@@ -36,7 +36,6 @@ const api = window.conduit;
 export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const workspaceName = useAtomValue(workspaceNameAtom);
   const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
 
   const {
