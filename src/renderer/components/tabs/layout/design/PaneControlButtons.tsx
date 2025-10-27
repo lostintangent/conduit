@@ -1,3 +1,4 @@
+import { enterFocusMode, exitFocusMode } from "@/store/actions/focusMode";
 import { closePane, movePane, splitPane } from "@/store/actions/pane";
 import { movePaneToTab } from "@/store/actions/tab";
 import type { SplitDirection } from "@/types";
@@ -8,6 +9,8 @@ import {
   ArrowRight,
   ArrowUp,
   CornerUpRight,
+  Expand,
+  Shrink,
   SplitSquareHorizontal,
   SplitSquareVertical,
   X,
@@ -64,6 +67,7 @@ interface PaneControlButtonsProps {
   canMoveDown: boolean;
   isOnlyPane: boolean;
   isOnlyTab: boolean;
+  isInFocusMode: boolean;
 }
 
 export function PaneControlButtons({
@@ -75,6 +79,7 @@ export function PaneControlButtons({
   canMoveDown,
   isOnlyPane,
   isOnlyTab,
+  isInFocusMode,
 }: PaneControlButtonsProps) {
   const {
     hoveredPosition: hoveredSplitButton,
@@ -87,6 +92,14 @@ export function PaneControlButtons({
 
   const handleMove = (direction: PaneDirection) => {
     movePane(tabId, paneId, direction);
+  };
+
+  const handleToggleFocusMode = () => {
+    if (isInFocusMode) {
+      exitFocusMode(tabId);
+    } else {
+      enterFocusMode(tabId, paneId);
+    }
   };
 
   const groupBaseClass =
@@ -124,8 +137,8 @@ export function PaneControlButtons({
       }}
       style={{ pointerEvents: 'none' }}
     >
-      {/* Center buttons (Move to new tab and Close) */}
-      {(showMoveToNewTab || showClose) && (
+      {/* Center buttons (Move to new tab, Focus mode, and Close) */}
+      {(showMoveToNewTab || showClose || !isOnlyPane) && (
         <div
           className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 ${groupClasses.center}`}
         >
@@ -136,6 +149,19 @@ export function PaneControlButtons({
               title="Move pane to new tab (Alt+T)"
             >
               <CornerUpRight className={iconClass} />
+            </button>
+          )}
+          {!isOnlyPane && (
+            <button
+              className={buttonClass}
+              onClick={handleToggleFocusMode}
+              title={isInFocusMode ? "Exit focus mode (Alt+F)" : "Enter focus mode (Alt+F)"}
+            >
+              {isInFocusMode ? (
+                <Shrink className={iconClass} />
+              ) : (
+                <Expand className={iconClass} />
+              )}
             </button>
           )}
           {showClose && (

@@ -112,6 +112,13 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
+      // Cmd+Alt: Enter design mode (hold)
+      if (event.altKey && !event.shiftKey && !event.ctrlKey && (key === "meta" || key === "alt")) {
+        event.preventDefault();
+        setIsInDesignMode(true);
+        return;
+      }
+
       // Cmd+Alt+T: Move pane to new tab
       if (event.altKey && key === "t") {
         if (activeTab && activeTab.activePaneId) {
@@ -217,9 +224,20 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       }
     };
 
+    const handleKeyup = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+
+      // Exit design mode when Cmd or Alt is released
+      if (key === "meta" || key === "alt") {
+        setIsInDesignMode(false);
+      }
+    };
+
     window.addEventListener("keydown", handleKeydown);
+    window.addEventListener("keyup", handleKeyup);
     return () => {
       window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("keyup", handleKeyup);
     };
   }, [
     activeTab,
@@ -230,6 +248,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     performSplit,
     performSplitWithAgentSession,
     tabs,
+    setIsInDesignMode,
   ]);
 
   return {
