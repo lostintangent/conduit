@@ -33,6 +33,8 @@ import type {
 import { countPanesInLayout, findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
+import type { FileTreeNode } from "@shared/types";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
@@ -207,6 +209,7 @@ interface TabLayoutProps {
       filePath?: string;
     }
   ) => void;
+  onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
 }
 
 export function TabLayout({
@@ -215,6 +218,7 @@ export function TabLayout({
   resizingNode,
   handleWebViewUpdate,
   handleEditorUpdate,
+  onOpenQuickPane,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
@@ -315,6 +319,20 @@ export function TabLayout({
         handleContextMenu(syntheticEvent, tab.id, pane.id);
       };
 
+      const handleFileOpen = useCallback(
+        (node: FileTreeNode) => {
+          if (!onOpenQuickPane || pane.type !== "editor") {
+            return;
+          }
+          onOpenQuickPane({
+            type: "editor",
+            cwd: pane.cwd,
+            filePath: node.path,
+          });
+        },
+        [onOpenQuickPane, pane]
+      );
+
       return (
         <div
           data-node-id={node.id}
@@ -358,6 +376,7 @@ export function TabLayout({
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
                   }
+                  onFileOpen={handleFileOpen}
                 />
               </div>
             ) : (

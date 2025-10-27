@@ -9,6 +9,7 @@ import { generateId } from "@/utils/id";
 import type { Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import { openWorkspace } from "./workspace";
+import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -81,6 +82,63 @@ export function openTabFromExistingSession({
     cwd: cwd ?? null,
     processTitle: title ?? "Terminal",
   };
+
+  const layout: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId,
+  };
+
+  store.set(tabsAtom, (current) => [
+    ...current,
+    {
+      id: tabId,
+      panes: { [paneId]: paneState },
+      layout,
+      activePaneId: paneId,
+      mode: "layout",
+    },
+  ]);
+  store.set(activeTabIdAtom, tabId);
+
+  return { tabId, paneId };
+}
+
+export async function openTabFromPaneDescriptor(
+  descriptor: PaneDescriptor
+): Promise<{ tabId: string; paneId: string } | null> {
+  const paneId = generateId();
+  const tabId = generateId();
+
+  let paneState: Pane | null = null;
+
+  if (descriptor.type === "terminal") {
+    paneState = {
+      id: paneId,
+      type: "terminal",
+      sessionId: descriptor.sessionId,
+      cwd: descriptor.cwd,
+      processTitle: "Terminal",
+    };
+  } else if (descriptor.type === "editor") {
+    paneState = {
+      id: paneId,
+      type: "editor",
+      cwd: descriptor.cwd,
+      filePath: descriptor.filePath,
+    };
+  } else if (descriptor.type === "webview") {
+    paneState = {
+      id: paneId,
+      type: "webview",
+      url: descriptor.url,
+      title: descriptor.title,
+    };
+  }
+
+  if (!paneState) {
+    return null;
+  }
 
   const layout: LayoutNode = {
     id: generateId(),
