@@ -469,6 +469,10 @@ export function App() {
     closeWorkspace(tabs, activeTab?.id);
   }, [tabs, activeTab, closeWorkspace]);
 
+  const handleTitleBarRenameWorkspace = useCallback(() => {
+    setShowRenameWorkspaceDialog(true);
+  }, [setShowRenameWorkspaceDialog]);
+
   const shouldShowTabs = tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
 
   const titleBarBg =
@@ -479,6 +483,7 @@ export function App() {
       <TitleBar
         backgroundClass={titleBarBg}
         onSaveWorkspace={handleTitleBarSaveWorkspace}
+        onRenameWorkspace={handleTitleBarRenameWorkspace}
         onCloseWorkspace={handleTitleBarCloseWorkspace}
       />
 

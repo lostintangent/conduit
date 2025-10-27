@@ -19,12 +19,14 @@ import { useCallback } from "react";
 type TitleBarProps = {
   backgroundClass: string;
   onSaveWorkspace: () => void;
+  onRenameWorkspace: () => void;
   onCloseWorkspace: () => void;
 };
 
 export const TitleBar = ({
   backgroundClass,
   onSaveWorkspace,
+  onRenameWorkspace,
   onCloseWorkspace,
 }: TitleBarProps) => {
   const api = window.conduit;
@@ -40,9 +42,13 @@ export const TitleBar = ({
 
   const handleOpenWorkspace = useCallback(
     (workspace: Workspace) => {
+      // No-op if clicking on the current workspace
+      if (workspace.name === workspaceName) {
+        return;
+      }
       void openWorkspace(workspace);
     },
-    []
+    [workspaceName]
   );
 
   return (
@@ -73,18 +79,25 @@ export const TitleBar = ({
             {/* List of workspaces */}
             {workspaces.length > 0 && (
               <>
-                {workspaces.map((workspace) => (
-                  <DropdownMenuItem
-                    key={workspace.timestamp}
-                    onClick={() => handleOpenWorkspace(workspace)}
-                    className="flex items-center justify-between"
-                  >
-                    <span>{workspace.name}</span>
-                    {workspaceName === workspace.name && (
-                      <Check className="w-4 h-4" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
+                {workspaces.map((workspace) => {
+                  const isCurrentWorkspace = workspaceName === workspace.name;
+                  return (
+                    <DropdownMenuItem
+                      key={workspace.timestamp}
+                      onClick={() => handleOpenWorkspace(workspace)}
+                      className={
+                        isCurrentWorkspace
+                          ? "flex items-center justify-between bg-gradient-to-br from-accent-start to-accent-end text-white"
+                          : "flex items-center justify-between"
+                      }
+                    >
+                      <span>{workspace.name}</span>
+                      {isCurrentWorkspace && (
+                        <Check className="w-4 h-4" />
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
                 <DropdownMenuSeparator />
               </>
             )}
@@ -93,6 +106,16 @@ export const TitleBar = ({
             <DropdownMenuItem onClick={onSaveWorkspace}>
               Save workspace
             </DropdownMenuItem>
+
+            {/* Rename workspace - only enabled when in a workspace */}
+            <DropdownMenuItem
+              onClick={onRenameWorkspace}
+              disabled={!workspaceName}
+            >
+              Rename workspace
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
 
             {/* Close workspace - only enabled when in a workspace */}
             <DropdownMenuItem
