@@ -39,6 +39,13 @@ export async function openWorkspace(workspace: Workspace) {
             api.sendKeypress(result.sessionId, commandWithNewline);
           }
         }
+      } else if (sessionPane.type === "editor") {
+        panes[sessionPane.id] = {
+          id: sessionPane.id,
+          type: "editor",
+          cwd: sessionPane.cwd || "",
+          filePath: sessionPane.filePath,
+        };
       } else if (sessionPane.type === "webview") {
         panes[sessionPane.id] = {
           id: sessionPane.id,

@@ -3,7 +3,7 @@ import { FileTree } from "@/components/FileTree";
 import type { FileTreeNode } from "@shared/types";
 import Editor, { loader } from "@monaco-editor/react";
 import { useAtomValue } from "jotai";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, FolderUp, Loader2 } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
@@ -18,6 +18,7 @@ import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import "monaco-editor/esm/vs/language/typescript/monaco.contribution";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import path from "path-browserify";
 
 const api = window.conduit;
 
@@ -105,36 +106,95 @@ function inferLanguageFromFilePath(filePath: string): string {
 type EditorPaneProps = {
   cwd: string;
   filePath?: string;
-  relativePath?: string;
-  language?: string;
-  content?: string;
   onContextMenu?: (event: MouseEvent<HTMLDivElement>) => void;
   onActivate?: () => void;
   onFileChange?: (fileData: {
     filePath: string;
-    relativePath: string;
     language: string;
     content: string;
   }) => void;
   onClearFile?: () => void;
+  onCwdChange?: (cwd: string) => void;
 };
 
 export function EditorPane({
   cwd,
   filePath,
-  relativePath,
-  language,
-  content,
   onContextMenu,
   onActivate,
   onFileChange,
   onClearFile,
+  onCwdChange,
 }: EditorPaneProps) {
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
+  const [currentContent, setCurrentContent] = useState<string | undefined>(undefined);
+  const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(undefined);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const hasOpenFile = Boolean(filePath && content !== undefined);
+  const hasOpenFile = Boolean(filePath && currentContent !== undefined);
+
+  // Load file content when filePath changes
+  useEffect(() => {
+    if (!filePath) {
+      setCurrentContent(undefined);
+      setCurrentLanguage(undefined);
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    api
+      .readFile(filePath)
+      .then((content) => {
+        if (!cancelled) {
+          const language = inferLanguageFromFilePath(filePath);
+          setCurrentContent(content);
+          setCurrentLanguage(language);
+          setHasUnsavedChanges(false);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load file:", error);
+        if (!cancelled) {
+          setCurrentContent(undefined);
+          setCurrentLanguage(undefined);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
+
+  // Save file handler
+  const handleSave = useCallback(async () => {
+    if (!filePath || !hasUnsavedChanges || currentContent === undefined) {
+      return;
+    }
+
+    try {
+      await api.writeFile(filePath, currentContent);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error("Failed to save file:", error);
+    }
+  }, [filePath, currentContent, hasUnsavedChanges]);
+
+  // Ctrl+S keyboard handler
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+        event.preventDefault();
+        handleSave();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
 
   useEffect(() => {
     if (!cwd || hasOpenFile) {
@@ -186,7 +246,6 @@ export function EditorPane({
 
         onFileChange?.({
           filePath: node.path,
-          relativePath: node.relativePath,
           language: detectedLanguage,
           content: fileContent,
         });
@@ -201,33 +260,57 @@ export function EditorPane({
     onClearFile?.();
   }, [onClearFile]);
 
+  const handleEditorChange = useCallback(
+    (value: string | undefined) => {
+      const originalContent = currentContent;
+      setCurrentContent(value);
+      setHasUnsavedChanges(value !== originalContent);
+    },
+    [currentContent]
+  );
+
+  const handleDirectoryChange = useCallback(
+    (newPath: string) => {
+      onCwdChange?.(newPath);
+    },
+    [onCwdChange]
+  );
+
+  const handleNavigateUp = useCallback(() => {
+    const parentDir = path.dirname(cwd);
+    if (parentDir && parentDir !== cwd) {
+      onCwdChange?.(parentDir);
+    }
+  }, [cwd, onCwdChange]);
+
+  const canNavigateUp = useMemo(() => {
+    const parentDir = path.dirname(cwd);
+    return parentDir !== cwd && parentDir !== '.';
+  }, [cwd]);
+
   const displayPath = useMemo(() => {
-    if (!filePath && !relativePath) {
-      return cwd;
-    }
-
-    const originalPath = filePath ?? relativePath ?? cwd;
+    const pathToDisplay = filePath || cwd;
     if (!homeDirectory) {
-      return originalPath;
+      return pathToDisplay;
     }
 
-    const normalizedOriginal = originalPath.replace(/\\/g, "/");
+    const normalizedPath = pathToDisplay.replace(/\\/g, "/");
     const normalizedHome = homeDirectory.replace(/\\/g, "/");
 
-    if (normalizedOriginal === normalizedHome) {
+    if (normalizedPath === normalizedHome) {
       return "~";
     }
 
     const homeWithSlash = normalizedHome.endsWith("/")
       ? normalizedHome
       : `${normalizedHome}/`;
-    if (normalizedOriginal.startsWith(homeWithSlash)) {
-      const suffix = normalizedOriginal.slice(homeWithSlash.length);
+    if (normalizedPath.startsWith(homeWithSlash)) {
+      const suffix = normalizedPath.slice(homeWithSlash.length);
       return suffix ? `~/${suffix}` : "~";
     }
 
-    return originalPath;
-  }, [filePath, relativePath, cwd, homeDirectory]);
+    return pathToDisplay;
+  }, [filePath, cwd, homeDirectory]);
 
   return (
     <div
@@ -236,30 +319,47 @@ export function EditorPane({
       onMouseDown={onActivate}
     >
       <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted border-b border-white/10 text-[13px] text-white/70">
-        <span className="truncate" title={filePath || cwd}>
-          {displayPath}
-        </span>
-        {hasOpenFile && (
-          <button
-            type="button"
-            onClick={handleClearFile}
-            className="ml-2 p-1 rounded hover:bg-white/10 transition-colors"
-            title="Show file tree"
-          >
-            <ChevronDown size={14} className="text-white/60" />
-          </button>
-        )}
+        <div className="flex items-center gap-2 truncate">
+          {hasUnsavedChanges && (
+            <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Unsaved changes" />
+          )}
+          <span className="truncate" title={filePath || cwd}>
+            {displayPath}
+          </span>
+          {!hasOpenFile && canNavigateUp && (
+            <button
+              type="button"
+              onClick={handleNavigateUp}
+              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+              title="Go up one directory"
+            >
+              <FolderUp size={14} className="text-white/60" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {hasOpenFile && (
+            <button
+              type="button"
+              onClick={handleClearFile}
+              className="p-1 rounded hover:bg-white/10 transition-colors"
+              title="Show file tree"
+            >
+              <ChevronDown size={14} className="text-white/60" />
+            </button>
+          )}
+        </div>
       </div>
       <div className="flex flex-1 min-h-0 min-w-0">
         {hasOpenFile ? (
           <Editor
             key={filePath}
-            value={content}
-            language={language}
+            value={currentContent}
+            onChange={handleEditorChange}
+            language={currentLanguage}
             path={filePath}
             theme="vs-dark"
             options={{
-              readOnly: true,
               minimap: { enabled: false },
               smoothScrolling: true,
               scrollBeyondLastLine: false,
@@ -267,7 +367,7 @@ export function EditorPane({
             }}
             loading={
               <div className="flex h-full w-full items-center justify-center text-white/70">
-                Loading {relativePath}...
+                Loading file...
               </div>
             }
           />
@@ -278,7 +378,12 @@ export function EditorPane({
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
             ) : fileTree.length > 0 ? (
-              <FileTree items={fileTree} onFileSelect={handleFileSelect} rootPath={cwd} />
+              <FileTree 
+                items={fileTree} 
+                onFileSelect={handleFileSelect} 
+                onDirectoryChange={handleDirectoryChange}
+                rootPath={cwd} 
+              />
             ) : (
               <div className="flex items-center justify-center w-full text-white/50">
                 No files found

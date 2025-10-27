@@ -203,10 +203,8 @@ interface TabLayoutProps {
     tabId: string,
     paneId: string,
     updates: {
+      cwd?: string;
       filePath?: string;
-      relativePath?: string;
-      language?: string;
-      content?: string;
     }
   ) => void;
 }
@@ -344,21 +342,18 @@ export function TabLayout({
                 key={pane.id}
                 cwd={pane.cwd}
                 filePath={pane.filePath}
-                relativePath={pane.relativePath}
-                language={pane.language}
-                content={pane.content}
                 onContextMenu={onPaneContextMenu}
                 onActivate={onPaneActivate}
                 onFileChange={(fileData) =>
-                  handleEditorUpdate(tab.id, pane.id, fileData)
+                  handleEditorUpdate(tab.id, pane.id, { filePath: fileData.filePath })
                 }
                 onClearFile={() =>
                   handleEditorUpdate(tab.id, pane.id, {
                     filePath: undefined,
-                    relativePath: undefined,
-                    language: undefined,
-                    content: undefined,
                   })
+                }
+                onCwdChange={(cwd) =>
+                  handleEditorUpdate(tab.id, pane.id, { cwd })
                 }
               />
             ) : (

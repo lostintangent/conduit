@@ -57,6 +57,7 @@
     "lucide-react": "^0.545.0",
     "monaco-editor": "^0.54.0",
     "node-pty": "^1.0.0",
+    "path-browserify": "^1.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.3.1",

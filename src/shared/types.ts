@@ -15,12 +15,14 @@ export type Workspace = {
   tabs: (Omit<Tab, "panes"> & {
     panes: {
       id: string;
-      type: "terminal" | "webview";
+      type: "terminal" | "webview" | "editor";
       cwd?: string | null;
       url?: string;
       webTitle?: string;
       // For terminal panes - the command that was running
       command?: string | null;
+      // For editor panes
+      filePath?: string;
     }[];
   })[];
   activeTabId?: string;

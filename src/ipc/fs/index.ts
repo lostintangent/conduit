@@ -27,4 +27,21 @@ export function initializeFsHandlers() {
       throw error;
     }
   });
+
+  ipcMain.handle("fs:write-file", async (_, filePath: string, content: string) => {
+    if (!filePath || typeof filePath !== "string") {
+      throw new Error("File path must be a non-empty string.");
+    }
+
+    if (typeof content !== "string") {
+      throw new Error("Content must be a string.");
+    }
+
+    try {
+      await require("node:fs").promises.writeFile(filePath, content, "utf8");
+    } catch (error) {
+      console.error("Failed to write file", filePath, error);
+      throw error;
+    }
+  });
 }

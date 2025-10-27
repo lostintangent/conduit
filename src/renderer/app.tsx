@@ -223,10 +223,8 @@ export function App() {
       tabId: string,
       paneId: string,
       updates: {
+        cwd?: string;
         filePath?: string;
-        relativePath?: string;
-        language?: string;
-        content?: string;
       }
     ) => {
       setTabs((current) =>

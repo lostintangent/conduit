@@ -209,6 +209,9 @@ const conduitAPI = {
 
   readFile: (filePath: string) =>
     ipcRenderer.invoke("fs:read-file", filePath) as Promise<string>,
+
+  writeFile: (filePath: string, content: string) =>
+    ipcRenderer.invoke("fs:write-file", filePath, content) as Promise<void>,
 };
 
 export type ConduitAPI = typeof conduitAPI;

@@ -301,6 +301,15 @@ export async function saveSession(
               };
             }
 
+            if (pane.type === "editor") {
+              return {
+                id: pane.id,
+                type: "editor" as const,
+                cwd: pane.cwd,
+                filePath: pane.filePath,
+              };
+            }
+
             return {
               id: pane.id,
               type: "webview" as const,
@@ -414,6 +423,15 @@ export async function saveLastWorkspace(
                 type: "terminal" as const,
                 cwd: pane.cwd,
                 command: capturedCommand,
+              };
+            }
+
+            if (pane.type === "editor") {
+              return {
+                id: pane.id,
+                type: "editor" as const,
+                cwd: pane.cwd,
+                filePath: pane.filePath,
               };
             }
 
