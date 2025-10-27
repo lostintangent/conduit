@@ -49,36 +49,36 @@ export function PaneControlFanButtons({
       // Clear any pending hide timeout
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
       }
       setIsVisible(true);
-      onVisibilityChange(true);
-    } else {
-      // Delay hiding to allow moving to the fanned buttons
-      hoverTimeoutRef.current = setTimeout(() => {
-        setIsVisible(false);
-        onVisibilityChange(false);
-      }, 350);
+    } else if (isVisible) {
+      // Hide immediately - parent will manage the delay
+      setIsVisible(false);
     }
 
     return () => {
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
       }
     };
-  }, [isHovered, onVisibilityChange]);
+  }, [isHovered, isVisible]);
 
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
     }
+    // Always update state to visible
     setIsVisible(true);
+    // Always notify parent we're hovering
+    onVisibilityChange(true);
   };
 
   const handleMouseLeave = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsVisible(false);
-      onVisibilityChange(false);
-    }, 350);
+    // Notify parent immediately, let parent manage timeout
+    onVisibilityChange(false);
   };
   const handlePaneTypeClick = async (paneTypeId: string) => {
     const api = window.conduit;
@@ -115,13 +115,13 @@ export function PaneControlFanButtons({
 
   // Shared constants
   const BUTTON_RADIUS = 48;
-  const SEMICIRCLE_RADIUS = 60;
+  const FAN_BUTTON_SIZE = 32; // w-8 = 32px
+  // Semicircle needs to extend beyond button centers to encompass the full buttons
+  const SEMICIRCLE_RADIUS = BUTTON_RADIUS + FAN_BUTTON_SIZE / 2; // 48 + 16 = 64px
   const MIN_DISTANCE = 30;
 
   // Calculate offset for move button - wrapper centers on split button
   const offset = hasMoveButton ? "calc(50% - 16px)" : "50%";
-
-  if (!isVisible) return null;
 
   const buttonClass =
     "flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
@@ -200,58 +200,58 @@ export function PaneControlFanButtons({
   };
 
   // Calculate semicircle hover area
-  // Offset by button size to avoid covering the split button
-  const BUTTON_SIZE = 32; // Split button is 32px (w-8)
+  // Extends from the button edge to cover the area where fan buttons appear
+  // Uses wider, flatter ellipse to create proper arc shape that encompasses fan buttons
+  // Offset by 32px to start after the split button (avoids blocking button interactions)
+  const SPLIT_BUTTON_SIZE = 32; // w-8 h-8 = 32px
 
   const getSemicircleStyle = () => {
-    const horizontalStyle = {
-      width: `${SEMICIRCLE_RADIUS * 2}px`,
-      height: `${SEMICIRCLE_RADIUS}px`,
-      left: "50%",
-      transform: "translateX(-50%)",
-    };
-
-    const verticalStyle = {
-      width: `${SEMICIRCLE_RADIUS}px`,
-      height: `${SEMICIRCLE_RADIUS * 2}px`,
-      top: "50%",
-      transform: "translateY(-50%)",
-    };
-
     switch (position) {
       case "top":
         return {
-          ...horizontalStyle,
-          top: BUTTON_SIZE,
-          clipPath: "ellipse(100% 100% at 50% 0%)",
+          width: "135px",
+          height: "75px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          top: SPLIT_BUTTON_SIZE,
+          clipPath: "ellipse(50% 100% at 50% 0%)",
         };
       case "bottom":
         return {
-          ...horizontalStyle,
-          bottom: BUTTON_SIZE,
-          clipPath: "ellipse(100% 100% at 50% 100%)",
+          width: "135px",
+          height: "75px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          bottom: SPLIT_BUTTON_SIZE,
+          clipPath: "ellipse(50% 100% at 50% 100%)",
         };
       case "left":
         return {
-          ...verticalStyle,
-          left: BUTTON_SIZE,
-          clipPath: "ellipse(100% 100% at 0% 50%)",
+          width: "75px",
+          height: "135px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          left: SPLIT_BUTTON_SIZE,
+          clipPath: "ellipse(100% 50% at 0% 50%)",
         };
       case "right":
         return {
-          ...verticalStyle,
-          right: BUTTON_SIZE,
-          clipPath: "ellipse(100% 100% at 100% 50%)",
+          width: "75px",
+          height: "135px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          right: SPLIT_BUTTON_SIZE,
+          clipPath: "ellipse(100% 50% at 100% 50%)",
         };
     }
   };
 
   return (
     <div
-      className="absolute pointer-events-none z-20"
+      className="absolute pointer-events-none z-30"
       style={getWrapperStyle()}
     >
-      {/* Invisible semicircle hover area */}
+      {/* Invisible semicircle hover area - always present to bridge hover from split button */}
       <div
         className="absolute pointer-events-auto"
         style={getSemicircleStyle()}
@@ -260,7 +260,7 @@ export function PaneControlFanButtons({
       />
 
       {/* Fan-out buttons */}
-      {PANE_TYPES.map((paneType, index) => {
+      {isVisible && PANE_TYPES.map((paneType, index) => {
         const pos = getFanButtonPosition(index);
         const Icon = paneType.icon;
 
@@ -282,6 +282,7 @@ export function PaneControlFanButtons({
           </button>
         );
       })}
+
     </div>
   );
 }
