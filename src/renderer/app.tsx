@@ -93,8 +93,8 @@ export function App() {
 
   // Mouse position tracking for auto-hiding drawer
   useEffect(() => {
-    // Only track mouse if we're using drawer mode (not alwaysShowTabs and have tabs)
-    if (alwaysShowTabs || tabs.length === 0) {
+    // Only track mouse if we're using drawer mode (not alwaysShowTabs)
+    if (alwaysShowTabs) {
       setIsDrawerOpen(false);
       return;
     }
@@ -116,7 +116,7 @@ export function App() {
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
     };
-  }, [alwaysShowTabs, tabPosition, tabs.length]);
+  }, [alwaysShowTabs, tabPosition]);
 
   const hasInitializedTabsRef = useRef(false);
 
@@ -452,11 +452,10 @@ export function App() {
     });
   }, []);
 
-  const shouldShowTabs = tabs.length > 0;
-  const shouldUseDrawer = tabs.length > 0 && !alwaysShowTabs;
+  const shouldUseDrawer = !alwaysShowTabs;
 
   const titleBarBg =
-    shouldShowTabs && tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
+    tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
 
   return (
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
@@ -472,7 +471,7 @@ export function App() {
       />
 
       {/* Top positioned tabs */}
-      {shouldShowTabs && tabPosition === "top" && !shouldUseDrawer && (
+      {tabPosition === "top" && !shouldUseDrawer && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
@@ -499,7 +498,7 @@ export function App() {
       />
 
       {/* Bottom positioned tabs */}
-      {shouldShowTabs && tabPosition === "bottom" && !shouldUseDrawer && (
+      {tabPosition === "bottom" && !shouldUseDrawer && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
