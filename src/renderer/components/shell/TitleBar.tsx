@@ -108,14 +108,14 @@ export const TitleBar = ({
                     >
                       <span>{workspace.name}</span>
                       {isCurrentWorkspace ? (
-                        <Check className="w-4 h-4" />
+                        <Check className="w-4 h-4 mr-1" />
                       ) : (
                         <button
                           onClick={(e) => handleDeleteWorkspace(workspace, e)}
-                          className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                          className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 group"
                           aria-label="Delete workspace"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 group-hover:text-red-500" />
                         </button>
                       )}
                     </DropdownMenuItem>
