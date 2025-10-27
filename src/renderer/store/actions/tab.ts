@@ -226,20 +226,37 @@ export function movePaneToTab(
   }
 
   const pane = sourceTab.panes[paneId];
-  if (!pane || pane.type !== "terminal") {
+  if (!pane) {
     return null;
   }
 
   const detachResult = detachPane(tabId, paneId);
-  if (!detachResult || detachResult.pane.type !== "terminal") {
+  if (!detachResult) {
     return null;
   }
 
-  return openTabFromExistingSession({
-    sessionId: detachResult.pane.sessionId,
-    cwd: detachResult.pane.cwd,
-    title: detachResult.pane.processTitle,
-  });
+  const paneState: Pane = { ...detachResult.pane };
+  const newTabId = generateId();
+  const layout: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: paneState.id,
+  };
+
+  const newTab: Tab = {
+    id: newTabId,
+    panes: {
+      [paneState.id]: paneState,
+    },
+    layout,
+    activePaneId: paneState.id,
+    mode: "layout",
+  };
+
+  store.set(tabsAtom, (current) => [...current, newTab]);
+  store.set(activeTabIdAtom, newTabId);
+
+  return { tabId: newTabId, paneId: paneState.id };
 }
 
 export function registerTabEventHandlers() {

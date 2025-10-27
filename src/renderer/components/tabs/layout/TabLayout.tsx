@@ -372,6 +372,9 @@ export function TabLayout({
                   paneId={pane.id}
                   disableInteraction={resizingNode !== null}
                   onContextMenu={onWebViewContextMenu}
+                  onUrlChange={(nextUrl) =>
+                    handleWebViewUpdate(tab.id, pane.id, { url: nextUrl })
+                  }
                   onTitleChange={(nextTitle) =>
                     handleWebViewUpdate(tab.id, pane.id, { title: nextTitle })
                   }

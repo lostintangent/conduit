@@ -12,6 +12,7 @@ type WebPaneProps = {
   url: string;
   paneId: string;
   onTitleChange?: (title: string) => void;
+  onUrlChange?: (url: string) => void;
   disableInteraction?: boolean;
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
 };
@@ -20,6 +21,7 @@ export function WebPane({
   url,
   paneId,
   onTitleChange,
+  onUrlChange,
   disableInteraction = false,
   onContextMenu,
 }: WebPaneProps) {
@@ -29,10 +31,36 @@ export function WebPane({
   const [inputUrl, setInputUrl] = useState<string>(url);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
+  const hasInitializedRef = useRef(false);
+  const currentUrlRef = useRef(url);
 
   useEffect(() => {
+    currentUrlRef.current = currentUrl;
+  }, [currentUrl]);
+
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview) {
+      return;
+    }
+
+    if (!hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      webview.setAttribute("src", url);
+      setCurrentUrl(url);
+      setInputUrl(url);
+      currentUrlRef.current = url;
+      return;
+    }
+
+    if (url === currentUrlRef.current) {
+      return;
+    }
+
+    currentUrlRef.current = url;
     setCurrentUrl(url);
     setInputUrl(url);
+    webview.loadURL(url);
   }, [url]);
 
   useEffect(() => {
@@ -48,17 +76,33 @@ export function WebPane({
     const handleStartLoading = () => setIsLoading(true);
 
     const handleDidNavigate = (event: DidNavigateEvent) => {
-      setCurrentUrl(event.url);
-      setInputUrl(event.url);
+      const nextUrl = event.url;
+      const previousUrl = currentUrlRef.current;
+      setCurrentUrl(nextUrl);
+      setInputUrl(nextUrl);
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
+      if (previousUrl !== nextUrl) {
+        currentUrlRef.current = nextUrl;
+        onUrlChange?.(nextUrl);
+      } else {
+        currentUrlRef.current = nextUrl;
+      }
     };
 
     const handleDidNavigateInPage = (event: DidNavigateInPageEvent) => {
-      setCurrentUrl(event.url);
-      setInputUrl(event.url);
+      const nextUrl = event.url;
+      const previousUrl = currentUrlRef.current;
+      setCurrentUrl(nextUrl);
+      setInputUrl(nextUrl);
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
+      if (previousUrl !== nextUrl) {
+        currentUrlRef.current = nextUrl;
+        onUrlChange?.(nextUrl);
+      } else {
+        currentUrlRef.current = nextUrl;
+      }
     };
 
     webview.addEventListener("did-start-loading", handleStartLoading);
@@ -74,6 +118,10 @@ export function WebPane({
     const handleWebViewContextMenu = (
       event: Event & { params?: ContextMenuParams }
     ) => {
+      if (!event.params) {
+        return;
+      }
+
       event.preventDefault();
 
       const { left, top } = webview.getBoundingClientRect();
@@ -99,7 +147,7 @@ export function WebPane({
       webview.removeEventListener("page-title-updated", notifyTitleChange);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
     };
-  }, [onTitleChange, onContextMenu]);
+  }, [onTitleChange, onContextMenu, onUrlChange]);
 
   const handleGoBack = useCallback(() => {
     webviewRef.current?.goBack();
@@ -153,7 +201,7 @@ export function WebPane({
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0">
       {/* URL Bar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-elevated border-b border-white/10">
+      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
         <button
           type="button"
           onClick={handleGoBack}
@@ -202,7 +250,6 @@ export function WebPane({
           ref={webviewRef}
           className="flex-1 w-full h-full min-w-0 min-h-0 border-0 bg-white/[0.02]"
           style={disableInteraction ? { pointerEvents: "none" } : undefined}
-          src={url}
         />
         {isLoading && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
