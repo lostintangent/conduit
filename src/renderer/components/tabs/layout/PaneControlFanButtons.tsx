@@ -72,37 +72,46 @@ export function PaneControlFanButtons({
     }
   };
 
+  // Shared constants
+  const BUTTON_RADIUS = 48;
+  const SEMICIRCLE_RADIUS = 60;
+  const MIN_DISTANCE = 30;
+  const BUTTON_HALF_WIDTH = 16;
+
+  // Calculate offset for move button
+  const offset = hasMoveButton ? "calc(50% - 16px)" : "50%";
+  const centerOffset = hasMoveButton ? BUTTON_HALF_WIDTH : 0;
+
+  if (!isVisible) return null;
+
+  const buttonClass =
+    "flex items-center justify-center w-8 h-8 rounded-none text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
+  const iconClass = "w-4 h-4 text-white";
+
+  // Get the starting angle for the 180° arc based on position
+  const getStartAngle = () => {
+    switch (position) {
+      case "top": return 180;
+      case "bottom": return 0;
+      case "left": return 90;
+      case "right": return -90;
+    }
+  };
+
   // Calculate fan-out button positions
   const getFanButtonPosition = (index: number) => {
-    const radius = 48; // Distance from center
     const buttonCount = PANE_TYPES.length;
-    const minDistance = 30; // Minimum distance from the split button to keep buttons visible
-
-    // Determine the arc center offset based on whether move button exists
-    let centerOffset = 0;
-    if (hasMoveButton) {
-      // If there's a move button, the split button is at index 0, so offset accordingly
-      centerOffset = 16; // Half of button width (32px / 2)
-    }
-
-    // Calculate angle for each button in a 180° arc
-    // Start at one end and end at the other
-    const startAngle =
-      position === "top" ? 180 : position === "bottom" ? 0 : position === "left" ? 90 : -90;
     const angleStep = 180 / (buttonCount - 1);
-    const angle = (startAngle + angleStep * index) * (Math.PI / 180);
+    const angle = (getStartAngle() + angleStep * index) * (Math.PI / 180);
 
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
+    const x = Math.cos(angle) * BUTTON_RADIUS;
+    const y = Math.sin(angle) * BUTTON_RADIUS;
 
-    // Adjust positioning based on direction
-    // For top/left, we add minDistance to ensure buttons don't go off-screen
-    // For bottom/right, the CSS properties naturally keep them on-screen
     switch (position) {
       case "top":
         return {
           left: `calc(50% + ${x - centerOffset}px)`,
-          top: `${-y + minDistance}px`,
+          top: `${-y + MIN_DISTANCE}px`,
         };
       case "bottom":
         return {
@@ -111,7 +120,7 @@ export function PaneControlFanButtons({
         };
       case "left":
         return {
-          left: `${-x + minDistance}px`,
+          left: `${-x + MIN_DISTANCE}px`,
           top: `calc(50% + ${y - centerOffset}px)`,
         };
       case "right":
@@ -119,67 +128,71 @@ export function PaneControlFanButtons({
           right: `${x}px`,
           top: `calc(50% + ${y - centerOffset}px)`,
         };
-      default:
-        return {};
     }
   };
 
-  if (!isVisible) return null;
+  // Calculate wrapper positioning (centers on the split button)
+  const getWrapperStyle = () => {
+    switch (position) {
+      case "top":
+        return { top: 0, left: offset, transform: "translateX(-50%)" };
+      case "bottom":
+        return { bottom: 0, left: offset, transform: "translateX(-50%)" };
+      case "left":
+        return { left: 0, top: offset, transform: "translateY(-50%)" };
+      case "right":
+        return { right: 0, top: offset, transform: "translateY(-50%)" };
+    }
+  };
 
-  const buttonClass =
-    "flex items-center justify-center w-8 h-8 rounded-none text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
-  const iconClass = "w-4 h-4 text-white";
-
-  // Calculate semicircle background dimensions
+  // Calculate semicircle hover area
   const getSemicircleStyle = () => {
-    const radius = 60; // Slightly larger than button radius to encompass all buttons
+    const horizontalStyle = {
+      width: `${SEMICIRCLE_RADIUS * 2}px`,
+      height: `${SEMICIRCLE_RADIUS}px`,
+      left: "50%",
+      transform: "translateX(-50%)",
+    };
+
+    const verticalStyle = {
+      width: `${SEMICIRCLE_RADIUS}px`,
+      height: `${SEMICIRCLE_RADIUS * 2}px`,
+      top: "50%",
+      transform: "translateY(-50%)",
+    };
 
     switch (position) {
       case "top":
         return {
-          width: `${radius * 2}px`,
-          height: `${radius}px`,
-          left: "50%",
-          top: "0",
-          transform: "translateX(-50%)",
-          clipPath: "ellipse(100% 100% at 50% 100%)", // Semicircle opening downward
+          ...horizontalStyle,
+          top: 0,
+          clipPath: "ellipse(100% 100% at 50% 100%)",
         };
       case "bottom":
         return {
-          width: `${radius * 2}px`,
-          height: `${radius}px`,
-          left: "50%",
-          bottom: "0",
-          transform: "translateX(-50%)",
-          clipPath: "ellipse(100% 100% at 50% 0%)", // Semicircle opening upward
+          ...horizontalStyle,
+          bottom: 0,
+          clipPath: "ellipse(100% 100% at 50% 0%)",
         };
       case "left":
         return {
-          width: `${radius}px`,
-          height: `${radius * 2}px`,
-          left: "0",
-          top: "50%",
-          transform: "translateY(-50%)",
-          clipPath: "ellipse(100% 100% at 100% 50%)", // Semicircle opening rightward
+          ...verticalStyle,
+          left: 0,
+          clipPath: "ellipse(100% 100% at 100% 50%)",
         };
       case "right":
         return {
-          width: `${radius}px`,
-          height: `${radius * 2}px`,
-          right: "0",
-          top: "50%",
-          transform: "translateY(-50%)",
-          clipPath: "ellipse(100% 100% at 0% 50%)", // Semicircle opening leftward
+          ...verticalStyle,
+          right: 0,
+          clipPath: "ellipse(100% 100% at 0% 50%)",
         };
-      default:
-        return {};
     }
   };
 
   return (
     <div
       className="absolute pointer-events-none z-20"
-      style={{ left: 0, top: 0 }}
+      style={getWrapperStyle()}
     >
       {/* Invisible semicircle hover area */}
       <div

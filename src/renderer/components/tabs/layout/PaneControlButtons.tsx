@@ -156,25 +156,17 @@ export function PaneControlButtons({
       </div>
 
       {/* Fan-out menu for top split */}
-      <div
-        className="absolute top-0 z-20"
-        style={{
-          left: canMoveUp ? "calc(50% - 16px)" : "50%",
-          transform: "translateX(-50%)",
-        }}
-      >
-        <PaneControlFanButtons
-          tabId={tabId}
-          paneId={paneId}
-          position="top"
-          direction="column"
-          insertBefore={true}
-          hasMoveButton={canMoveUp}
-          isVisible={hoveredSplitButton === "top"}
-          onMouseEnter={handleFanMenuMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
-      </div>
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="top"
+        direction="column"
+        insertBefore={true}
+        hasMoveButton={canMoveUp}
+        isVisible={hoveredSplitButton === "top"}
+        onMouseEnter={handleFanMenuMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
 
       {/* Bottom buttons */}
       <div
@@ -202,25 +194,17 @@ export function PaneControlButtons({
       </div>
 
       {/* Fan-out menu for bottom split */}
-      <div
-        className="absolute bottom-0 z-20"
-        style={{
-          left: canMoveDown ? "calc(50% - 16px)" : "50%",
-          transform: "translateX(-50%)",
-        }}
-      >
-        <PaneControlFanButtons
-          tabId={tabId}
-          paneId={paneId}
-          position="bottom"
-          direction="column"
-          insertBefore={false}
-          hasMoveButton={canMoveDown}
-          isVisible={hoveredSplitButton === "bottom"}
-          onMouseEnter={handleFanMenuMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
-      </div>
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="bottom"
+        direction="column"
+        insertBefore={false}
+        hasMoveButton={canMoveDown}
+        isVisible={hoveredSplitButton === "bottom"}
+        onMouseEnter={handleFanMenuMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
 
       {/* Left buttons */}
       <div
@@ -248,25 +232,17 @@ export function PaneControlButtons({
       </div>
 
       {/* Fan-out menu for left split */}
-      <div
-        className="absolute left-0 z-20"
-        style={{
-          top: canMoveLeft ? "calc(50% - 16px)" : "50%",
-          transform: "translateY(-50%)",
-        }}
-      >
-        <PaneControlFanButtons
-          tabId={tabId}
-          paneId={paneId}
-          position="left"
-          direction="row"
-          insertBefore={true}
-          hasMoveButton={canMoveLeft}
-          isVisible={hoveredSplitButton === "left"}
-          onMouseEnter={handleFanMenuMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
-      </div>
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="left"
+        direction="row"
+        insertBefore={true}
+        hasMoveButton={canMoveLeft}
+        isVisible={hoveredSplitButton === "left"}
+        onMouseEnter={handleFanMenuMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
 
       {/* Right buttons */}
       <div
@@ -294,25 +270,17 @@ export function PaneControlButtons({
       </div>
 
       {/* Fan-out menu for right split */}
-      <div
-        className="absolute right-0 z-20"
-        style={{
-          top: canMoveRight ? "calc(50% - 16px)" : "50%",
-          transform: "translateY(-50%)",
-        }}
-      >
-        <PaneControlFanButtons
-          tabId={tabId}
-          paneId={paneId}
-          position="right"
-          direction="row"
-          insertBefore={false}
-          hasMoveButton={canMoveRight}
-          isVisible={hoveredSplitButton === "right"}
-          onMouseEnter={handleFanMenuMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
-      </div>
+      <PaneControlFanButtons
+        tabId={tabId}
+        paneId={paneId}
+        position="right"
+        direction="row"
+        insertBefore={false}
+        hasMoveButton={canMoveRight}
+        isVisible={hoveredSplitButton === "right"}
+        onMouseEnter={handleFanMenuMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      />
     </>
   );
 }
