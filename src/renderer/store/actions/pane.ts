@@ -662,7 +662,13 @@ export async function splitPaneWithAgentSession(
   }
 }
 
-export function openWebViewPane(tabId: string, paneId: string, url: string) {
+export function openWebViewPane(
+  tabId: string,
+  paneId: string,
+  url: string,
+  direction: SplitDirection = "row",
+  insertBefore = false
+) {
   const newPaneId = generateId();
   const newPaneState: Pane = {
     id: newPaneId,
@@ -685,9 +691,9 @@ export function openWebViewPane(tabId: string, paneId: string, url: string) {
       const { node: newLayout, modified } = splitLayoutNode(
         tab.layout,
         paneId,
-        "row",
+        direction,
         newLayoutNode,
-        false
+        insertBefore
       );
 
       if (!modified) {

@@ -91,7 +91,7 @@ export function PaneControlFanButtons({
 
       case "webview":
         // Open web view - could prompt for URL, for now use a default
-        openWebViewPane(tabId, paneId, "https://google.com");
+        openWebViewPane(tabId, paneId, "https://google.com", direction, insertBefore);
         break;
 
       case "source-control": {
@@ -124,7 +124,7 @@ export function PaneControlFanButtons({
   if (!isVisible) return null;
 
   const buttonClass =
-    "flex items-center justify-center w-8 h-8 rounded-none text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
+    "flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
   const iconClass = "w-4 h-4 text-white";
 
   // Get the starting angle for the 180° arc based on position
@@ -267,7 +267,7 @@ export function PaneControlFanButtons({
         return (
           <button
             key={paneType.id}
-            className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-lg backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
+            className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
             style={{
               ...pos,
               animationDelay: `${index * 30}ms`,
