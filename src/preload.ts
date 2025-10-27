@@ -112,6 +112,9 @@ const conduitAPI = {
   getSettings: () =>
     ipcRenderer.invoke("ui:get-settings") as Promise<UserSettings>,
 
+  updateSettings: (updates: Partial<UserSettings>) =>
+    ipcRenderer.invoke("ui:update-settings", updates) as Promise<UserSettings>,
+
   showContextMenu: (options: {
     tabId: string;
     paneId?: string;

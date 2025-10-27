@@ -32,6 +32,19 @@ export function initializeUIHandlers(window: BrowserWindow) {
   ipcMain.handle("ui:get-settings", () => userSettings);
 
   ipcMain.handle(
+    "ui:update-settings",
+    async (_, updates: Partial<UserSettings>) => {
+      userSettings = {
+        ...userSettings,
+        ...updates,
+      };
+
+      await saveSettings(userSettings);
+      return userSettings;
+    }
+  );
+
+  ipcMain.handle(
     "ui:add-command-history-entry",
     async (_, command: string) => {
       const trimmedCommand = command.trim();

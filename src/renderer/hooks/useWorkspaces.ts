@@ -1,4 +1,4 @@
-import { tabsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom, userSettingsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,6 +9,8 @@ export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
   const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
   const tabs = useAtomValue(tabsAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
+  const userSettings = useAtomValue(userSettingsAtom);
   const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
   const [hasWorkspaces, setHasWorkspaces] = useState(false);
   const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
@@ -20,7 +22,8 @@ export function useWorkspaces() {
 
   // Track workspace changes - compare tabs deeply to detect changes
   const previousTabsRef = useRef<string>("");
-  
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (!workspaceName) {
       setWorkspaceHasChanges(false);
@@ -37,13 +40,53 @@ export function useWorkspaces() {
     } else if (previousTabsRef.current !== currentTabsSnapshot) {
       // Tabs have changed
       setWorkspaceHasChanges(true);
+
+      // If auto-save is enabled, schedule a save
+      if (workspaceName && userSettings.autoSaveWorkspaces) {
+        // Clear any existing timer
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+        }
+
+        // Schedule auto-save after 2 seconds
+        autoSaveTimerRef.current = setTimeout(() => {
+          if (activeTabId) {
+            api.saveSession(workspaceName, tabs, activeTabId)
+              .then((sessions) => {
+                setWorkspaces(sessions as Workspace[]);
+                previousTabsRef.current = JSON.stringify(tabs);
+                setWorkspaceHasChanges(false);
+              })
+              .catch((error) => {
+                console.error("Auto-save failed:", error);
+                // Clear timer reference on error
+                autoSaveTimerRef.current = null;
+              });
+          }
+        }, 2000);
+      }
     }
-  }, [tabs, workspaceName, setWorkspaceHasChanges]);
+  }, [tabs, workspaceName, activeTabId, userSettings.autoSaveWorkspaces, setWorkspaceHasChanges, setWorkspaces]);
 
   // Reset change tracking when workspace changes
   useEffect(() => {
     previousTabsRef.current = "";
+
+    // Clear auto-save timer when workspace changes
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
   }, [workspaceName]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const checkSessions = async () => {
@@ -128,7 +171,7 @@ export function useWorkspaces() {
       )) as Workspace[];
       updateWorkspaces(sessions);
     }
-    
+
     const { closeWorkspace: closeWorkspaceAction } = await import("@/store/actions/workspace");
     closeWorkspaceAction();
   }, [workspaceName, updateWorkspaces]);
@@ -141,7 +184,7 @@ export function useWorkspaces() {
         activeTabId
       )) as Workspace[];
       updateWorkspaces(sessions);
-      
+
       // Reset the has changes flag and update the reference snapshot after successful save
       const savedSnapshot = JSON.stringify(tabs);
       previousTabsRef.current = savedSnapshot;

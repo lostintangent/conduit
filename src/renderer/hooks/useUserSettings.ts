@@ -53,8 +53,15 @@ export function useUserSettings() {
     updateSetting("commandHistory", commandHistory);
   }
 
+  async function updateSettings(updates: Partial<typeof userSettings>) {
+    const newSettings = await api.updateSettings(updates);
+    setUserSettings(newSettings);
+  }
+
   return {
     ...userSettings,
+
+    updateSettings,
 
     addCommandHistoryEntry: (command: string) =>
       updateCommandHistory(command, "add"),
