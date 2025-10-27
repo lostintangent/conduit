@@ -1,8 +1,14 @@
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openWorkspace } from "@/store/actions/workspace";
@@ -13,7 +19,7 @@ import {
 } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtomValue } from "jotai";
-import { Cable, Check, LayoutDashboard } from "lucide-react";
+import { Cable, Check, LayoutDashboard, Settings } from "lucide-react";
 import { useCallback } from "react";
 
 type TitleBarProps = {
@@ -21,6 +27,16 @@ type TitleBarProps = {
   onSaveWorkspace: () => void;
   onRenameWorkspace: () => void;
   onCloseWorkspace: () => void;
+  tabPosition: "top" | "bottom";
+  alwaysShowTabs: boolean;
+  showTerminalRuler: boolean;
+  autoSaveWorkspaces: boolean;
+  onUpdateSettings: (updates: {
+    tabPosition?: "top" | "bottom";
+    alwaysShowTabs?: boolean;
+    showTerminalRuler?: boolean;
+    autoSaveWorkspaces?: boolean;
+  }) => void;
 };
 
 export const TitleBar = ({
@@ -28,6 +44,11 @@ export const TitleBar = ({
   onSaveWorkspace,
   onRenameWorkspace,
   onCloseWorkspace,
+  tabPosition,
+  alwaysShowTabs,
+  showTerminalRuler,
+  autoSaveWorkspaces,
+  onUpdateSettings,
 }: TitleBarProps) => {
   const api = window.conduit;
   if (api?.platform !== "darwin") {
@@ -61,8 +82,8 @@ export const TitleBar = ({
       {/* Center - title */}
       <div className="[app-region:drag] flex gap-2 items-center"><Cable size={14} /> Conduit{titleBarSuffix}</div>
 
-      {/* Right side - workspace menu */}
-      <div className="flex-1 flex justify-end [app-region:no-drag]">
+      {/* Right side - workspace menu and settings */}
+      <div className="flex-1 flex justify-end gap-2 [app-region:no-drag]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -70,7 +91,7 @@ export const TitleBar = ({
               aria-label="Workspace menu"
             >
               <LayoutDashboard className="w-4 h-4" />
-              {hasChanges && (
+              {hasChanges && !autoSaveWorkspaces && (
                 <span className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full" />
               )}
             </button>
@@ -124,6 +145,68 @@ export const TitleBar = ({
             >
               Close workspace
             </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="h-5 w-px bg-white/10 mt-1" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="p-1 rounded text-white mt-1 hover:bg-white/10 transition-colors"
+              aria-label="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {/* Tab position submenu */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Tab position</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup value={tabPosition}>
+                  <DropdownMenuRadioItem
+                    value="top"
+                    onClick={() => onUpdateSettings({ tabPosition: "top" })}
+                  >
+                    Top
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem
+                    value="bottom"
+                    onClick={() => onUpdateSettings({ tabPosition: "bottom" })}
+                  >
+                    Bottom
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            <DropdownMenuCheckboxItem
+              checked={alwaysShowTabs}
+              onClick={() =>
+                onUpdateSettings({ alwaysShowTabs: !alwaysShowTabs })
+              }
+            >
+              Always show tabs
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuCheckboxItem
+              checked={showTerminalRuler}
+              onClick={() =>
+                onUpdateSettings({ showTerminalRuler: !showTerminalRuler })
+              }
+            >
+              Show terminal ruler
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuCheckboxItem
+              checked={autoSaveWorkspaces}
+              onClick={() =>
+                onUpdateSettings({ autoSaveWorkspaces: !autoSaveWorkspaces })
+              }
+            >
+              Auto save workspaces
+            </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

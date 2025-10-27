@@ -4,6 +4,7 @@ export type UserSettings = {
   tabPosition: "top" | "bottom";
   alwaysShowTabs: boolean;
   showTerminalRuler: boolean;
+  autoSaveWorkspaces: boolean;
   commandHistory: string[];
   homeDirectory: string | null;
 };

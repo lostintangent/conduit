@@ -10,6 +10,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   alwaysShowTabs: true,
   commandHistory: [],
   showTerminalRuler: true,
+  autoSaveWorkspaces: false,
 };
 
 export async function loadSettings(): Promise<UserSettings> {

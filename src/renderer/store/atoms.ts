@@ -6,6 +6,7 @@ export const userSettingsAtom = atom<UserSettings>({
   tabPosition: "bottom",
   alwaysShowTabs: true,
   showTerminalRuler: true,
+  autoSaveWorkspaces: false,
   commandHistory: [],
   homeDirectory: null,
 });

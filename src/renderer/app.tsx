@@ -40,7 +40,10 @@ export function App() {
   const {
     tabPosition,
     alwaysShowTabs,
+    showTerminalRuler,
+    autoSaveWorkspaces,
     commandHistory,
+    updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
   } = useUserSettings();
@@ -439,6 +442,11 @@ export function App() {
         }}
         onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
         onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
+        tabPosition={tabPosition}
+        alwaysShowTabs={alwaysShowTabs}
+        showTerminalRuler={showTerminalRuler}
+        autoSaveWorkspaces={autoSaveWorkspaces}
+        onUpdateSettings={updateSettings}
       />
 
       {shouldShowTabs && tabPosition === "top" && (

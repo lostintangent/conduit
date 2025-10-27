@@ -1,4 +1,4 @@
-import { tabsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom } from "@/store/atoms";
+import { tabsAtom, userSettingsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,6 +9,7 @@ export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
   const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
   const tabs = useAtomValue(tabsAtom);
+  const userSettings = useAtomValue(userSettingsAtom);
   const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
   const [hasWorkspaces, setHasWorkspaces] = useState(false);
   const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
@@ -20,6 +21,7 @@ export function useWorkspaces() {
 
   // Track workspace changes - compare tabs deeply to detect changes
   const previousTabsRef = useRef<string>("");
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
     if (!workspaceName) {
@@ -37,13 +39,48 @@ export function useWorkspaces() {
     } else if (previousTabsRef.current !== currentTabsSnapshot) {
       // Tabs have changed
       setWorkspaceHasChanges(true);
+
+      // If auto-save is enabled, schedule a save
+      if (userSettings.autoSaveWorkspaces && tabs.length > 0) {
+        // Clear any existing timer
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+        }
+
+        // Schedule auto-save after 2 seconds
+        autoSaveTimerRef.current = setTimeout(() => {
+          const activeTabId = tabs.find((t) => t.id)?.id;
+          if (activeTabId) {
+            api.saveSession(workspaceName, tabs, activeTabId).then((sessions) => {
+              setWorkspaces(sessions as Workspace[]);
+              previousTabsRef.current = JSON.stringify(tabs);
+              setWorkspaceHasChanges(false);
+            });
+          }
+        }, 2000);
+      }
     }
-  }, [tabs, workspaceName, setWorkspaceHasChanges]);
+  }, [tabs, workspaceName, userSettings.autoSaveWorkspaces, setWorkspaceHasChanges]);
 
   // Reset change tracking when workspace changes
   useEffect(() => {
     previousTabsRef.current = "";
+    
+    // Clear auto-save timer when workspace changes
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
   }, [workspaceName]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const checkSessions = async () => {
