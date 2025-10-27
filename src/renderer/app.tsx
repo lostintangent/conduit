@@ -5,6 +5,7 @@ import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
+import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -65,6 +66,7 @@ export function App() {
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const {
     workspaceName,
@@ -88,6 +90,33 @@ export function App() {
   useEffect(() => {
     return registerTabEventHandlers();
   }, []);
+
+  // Mouse position tracking for auto-hiding drawer
+  useEffect(() => {
+    // Only track mouse if we're not in always show mode and have tabs
+    if (alwaysShowTabs || tabs.length === 0) {
+      setIsDrawerOpen(false);
+      return;
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const TRIGGER_ZONE_HEIGHT = 30; // 30px from top or bottom
+      const windowHeight = window.innerHeight;
+
+      if (tabPosition === "top") {
+        // Show drawer when mouse is in top 30px
+        setIsDrawerOpen(e.clientY <= TRIGGER_ZONE_HEIGHT);
+      } else {
+        // Show drawer when mouse is in bottom 30px
+        setIsDrawerOpen(e.clientY >= windowHeight - TRIGGER_ZONE_HEIGHT);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [alwaysShowTabs, tabPosition, tabs.length]);
 
   const hasInitializedTabsRef = useRef(false);
 
@@ -424,6 +453,7 @@ export function App() {
   }, []);
 
   const shouldShowTabs = tabs.length > 0 && (alwaysShowTabs || tabs.length > 1);
+  const shouldUseDrawer = tabs.length > 0 && !alwaysShowTabs && tabs.length > 1;
 
   const titleBarBg =
     shouldShowTabs && tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
@@ -441,12 +471,24 @@ export function App() {
         onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
       />
 
-      {shouldShowTabs && tabPosition === "top" && (
+      {/* Top positioned tabs */}
+      {shouldShowTabs && tabPosition === "top" && !shouldUseDrawer && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
           position={tabPosition}
         />
+      )}
+      {shouldUseDrawer && tabPosition === "top" && (
+        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+          <DrawerContent side="top">
+            <TabStrip
+              onOpenCommandPalette={openCommandPalette}
+              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+              position={tabPosition}
+            />
+          </DrawerContent>
+        </Drawer>
       )}
 
       <TabLayout
@@ -456,12 +498,24 @@ export function App() {
         handleWebViewUpdate={handleWebViewUpdate}
       />
 
-      {shouldShowTabs && tabPosition === "bottom" && (
+      {/* Bottom positioned tabs */}
+      {shouldShowTabs && tabPosition === "bottom" && !shouldUseDrawer && (
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
           position={tabPosition}
         />
+      )}
+      {shouldUseDrawer && tabPosition === "bottom" && (
+        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+          <DrawerContent side="bottom">
+            <TabStrip
+              onOpenCommandPalette={openCommandPalette}
+              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+              position={tabPosition}
+            />
+          </DrawerContent>
+        </Drawer>
       )}
 
       {/* Global UI */}
