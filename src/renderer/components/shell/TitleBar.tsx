@@ -112,7 +112,7 @@ export const TitleBar = ({
                       ) : (
                         <button
                           onClick={(e) => handleDeleteWorkspace(workspace, e)}
-                          className="p-1 rounded hover:bg-white/20 transition-colors"
+                          className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
                           aria-label="Delete workspace"
                         >
                           <Trash2 className="w-4 h-4" />
