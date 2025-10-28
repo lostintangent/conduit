@@ -614,9 +614,6 @@ export function TabLayout({
       const isActive = tab.id === activeTabId;
       const isInFocusMode = tab.mode === "focus";
       
-      const paneIds = getAllPaneIds(tab);
-      const currentIndex = paneIds.indexOf(tab.activePaneId);
-      
       return (
         <div
           key={tab.id}
@@ -629,15 +626,20 @@ export function TabLayout({
           }
         >
           {renderLayout(tab.layout, tab)}
-          {isInFocusMode && (
-            <FocusModeIndicator
-              onExit={() => exitFocusMode(tab.id)}
-              onPrevious={() => navigateFocusedPane(tab.id, "prev")}
-              onNext={() => navigateFocusedPane(tab.id, "next")}
-              currentPaneIndex={currentIndex}
-              totalPanes={paneIds.length}
-            />
-          )}
+          {isInFocusMode && (() => {
+            const paneIds = getAllPaneIds(tab);
+            const currentIndex = paneIds.indexOf(tab.activePaneId);
+            
+            return (
+              <FocusModeIndicator
+                onExit={() => exitFocusMode(tab.id)}
+                onPrevious={() => navigateFocusedPane(tab.id, "prev")}
+                onNext={() => navigateFocusedPane(tab.id, "next")}
+                currentPaneIndex={currentIndex}
+                totalPanes={paneIds.length}
+              />
+            );
+          })()}
         </div>
       );
     },
