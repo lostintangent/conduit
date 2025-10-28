@@ -2,7 +2,6 @@ import type { FileTreeNode } from "@shared/types";
 import {
   ChevronDown,
   ChevronRight,
-  FileText,
   Folder,
   FolderInput,
   FolderOpen,
@@ -10,67 +9,25 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { FileTreeItem } from "./FileTreeItem";
 
 const api = window.conduit;
 
-type FileTreeProps = {
-  items: FileTreeNode[];
-  onFileSelect?: (node: FileTreeNode) => void;
-  onDirectoryChange?: (path: string) => void;
-  rootPath: string;
-};
-
-export function FileTree({ items, onFileSelect, onDirectoryChange, rootPath }: FileTreeProps) {
-  return (
-    <nav className="text-sm text-white/80">
-      <ul className="space-y-1">
-        {items.map((item) => (
-          <FileTreeItem
-            key={item.relativePath || item.path}
-            node={item}
-            onFileSelect={onFileSelect}
-            onDirectoryChange={onDirectoryChange}
-            rootPath={rootPath}
-          />
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
-type FileTreeItemProps = {
+type DirectoryItemProps = {
   node: FileTreeNode;
   onFileSelect?: (node: FileTreeNode) => void;
   onDirectoryChange?: (path: string) => void;
+  onFileOpen?: (node: FileTreeNode) => void;
   rootPath: string;
 };
 
-type DirectoryNode = Extract<FileTreeNode, { type: "directory" }>;
-type FileNode = Extract<FileTreeNode, { type: "file" }>;
-
-function FileTreeItem({ node, onFileSelect, onDirectoryChange, rootPath }: FileTreeItemProps) {
-  const isDirectory = node.type === "directory";
-  if (isDirectory) {
-    return <DirectoryTreeItem node={node} onFileSelect={onFileSelect} onDirectoryChange={onDirectoryChange} rootPath={rootPath} />;
-  }
-  return <FileLeaf node={node} onSelect={onFileSelect} />;
-}
-
-type DirectoryTreeItemProps = {
-  node: DirectoryNode;
-  onFileSelect?: (node: FileTreeNode) => void;
-  onDirectoryChange?: (path: string) => void;
-  rootPath: string;
-};
-
-function DirectoryTreeItem({ node, onFileSelect, onDirectoryChange, rootPath }: DirectoryTreeItemProps) {
+export function DirectoryItem({ node, onFileSelect, onDirectoryChange, onFileOpen, rootPath }: DirectoryItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [children, setChildren] = useState<FileTreeNode[] | undefined>(node.children);
 
   const toggleOpen = useCallback(async () => {
     if (!isOpen && children === undefined) {
-      // Need to load children
       setIsLoading(true);
       try {
         const loadedChildren = await api.listDirectory(node.path);
@@ -145,6 +102,7 @@ function DirectoryTreeItem({ node, onFileSelect, onDirectoryChange, rootPath }: 
                 node={child}
                 onFileSelect={onFileSelect}
                 onDirectoryChange={onDirectoryChange}
+                onFileOpen={onFileOpen}
                 rootPath={rootPath}
               />
             ))
@@ -153,32 +111,6 @@ function DirectoryTreeItem({ node, onFileSelect, onDirectoryChange, rootPath }: 
           )}
         </ul>
       )}
-    </li>
-  );
-}
-
-type FileLeafProps = {
-  node: FileNode;
-  onSelect?: (node: FileTreeNode) => void;
-};
-
-function FileLeaf({ node, onSelect }: FileLeafProps) {
-  const handleClick = useCallback(() => {
-    onSelect?.(node);
-  }, [node, onSelect]);
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={handleClick}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
-      >
-        <FileText className="shrink-0 text-white/60" size={14} />
-        <span className="truncate" title={node.relativePath}>
-          {node.name}
-        </span>
-      </button>
     </li>
   );
 }

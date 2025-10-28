@@ -2,7 +2,8 @@ import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
-import { PaneControlButtons } from "@/components/tabs/layout/design/PaneControlButtons";
+import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import { PaneControlButtons } from "@/components/tabs/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
 import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
@@ -20,7 +21,7 @@ import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import {
   activePaneIdAtom,
   activeTabAtom,
-  isInDesignModeAtom,
+  applicationModeAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type {
@@ -207,6 +208,7 @@ interface TabLayoutProps {
       filePath?: string;
     }
   ) => void;
+  onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
 }
 
 export function TabLayout({
@@ -215,12 +217,15 @@ export function TabLayout({
   resizingNode,
   handleWebViewUpdate,
   handleEditorUpdate,
+  onOpenQuickPane,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const activeTabId = activeTab?.id ?? null;
-  const isInDesignMode = useAtomValue(isInDesignModeAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
+  const isInDesignMode = applicationMode === "design";
+  const shouldShowTerminalDimensions = applicationMode === "normal";
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
@@ -336,6 +341,7 @@ export function TabLayout({
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
+                showDimensions={shouldShowTerminalDimensions}
               />
             ) : pane.type === "editor" ? (
               <div
@@ -358,6 +364,11 @@ export function TabLayout({
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
                   }
+                  onFileOpen={(node) => onOpenQuickPane({
+                    type: "editor",
+                    cwd: pane?.cwd,
+                    filePath: node.path,
+                  })}
                 />
               </div>
             ) : (
@@ -413,6 +424,7 @@ export function TabLayout({
       handleWebViewUpdate,
       hoveredPaneId,
       isInDesignMode,
+      shouldShowTerminalDimensions,
       resizingNode,
       tabs.length,
     ]

@@ -1,13 +1,28 @@
+import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
-  isInDesignModeAtom,
+  applicationModeAtom,
   tabsAtom,
-  userSettingsAtom
+  userSettingsAtom,
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
-import { MoreHorizontal, PlusSquare, SquareDashedMousePointer } from "lucide-react";
+import {
+  FileEdit,
+  Globe,
+  MoreHorizontal,
+  PlusSquare,
+  SquareDashedMousePointer,
+  Terminal,
+  Zap,
+} from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { TabButton, TabPlaceholder } from "./TabButton";
 
@@ -22,6 +37,7 @@ type TabDescriptor = {
 type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
+  onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   position?: "top" | "bottom";
 };
 
@@ -38,12 +54,14 @@ const resolveActivePane = (tab: Tab): Pane | undefined => {
 export const TabStrip = ({
   onOpenCommandPalette,
   onTabContextMenu,
+  onOpenQuickPane,
   position = "top",
 }: TabStripProps) => {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const { homeDirectory } = useAtomValue(userSettingsAtom);
-  const [isInDesignMode, setIsInDesignMode] = useAtom(isInDesignModeAtom);
+  const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const isDesignMode = applicationMode === "design";
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -290,6 +308,41 @@ export const TabStrip = ({
     placeholderIndex,
   ]);
 
+  const handleOpenQuickTerminal = useCallback(async () => {
+    const api = window.conduit;
+    const result = await api.createTerminal(
+      homeDirectory ? { cwd: homeDirectory } : undefined
+    );
+    if (!result || !onOpenQuickPane) {
+      return;
+    }
+    onOpenQuickPane({
+      type: "terminal",
+      sessionId: result.sessionId,
+      cwd: result.cwd ?? null,
+    });
+  }, [homeDirectory, onOpenQuickPane]);
+
+  const handleOpenQuickEditor = useCallback(() => {
+    if (!homeDirectory || !onOpenQuickPane) {
+      return;
+    }
+    onOpenQuickPane({
+      type: "editor",
+      cwd: homeDirectory,
+    });
+  }, [homeDirectory, onOpenQuickPane]);
+
+  const handleOpenQuickWeb = useCallback(() => {
+    if (!onOpenQuickPane) {
+      return;
+    }
+    onOpenQuickPane({
+      type: "webview",
+      url: "https://www.google.com",
+    });
+  }, [onOpenQuickPane]);
+
   const borderClass = position === "top" ? "border-b" : "border-t rounded-b-xl";
 
   return (
@@ -357,15 +410,48 @@ export const TabStrip = ({
         >
           <MoreHorizontal size={18} />
         </button>
+
+        {/* Quick pane dropdown button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+              title="Quick pane"
+              aria-label="Quick pane"
+            >
+              <Zap size={18} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-w-[10rem]">
+            <DropdownMenuItem onClick={handleOpenQuickTerminal}>
+              <Terminal size={16} className="mr-3" />
+              Terminal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleOpenQuickEditor}>
+              <FileEdit size={16} className="mr-3" />
+              Editor
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleOpenQuickWeb}>
+              <Globe size={16} className="mr-3" />
+              Web
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <button
           type="button"
-          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isInDesignMode
+          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
             ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
             : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
             }`}
           title="Toggle pane controls (Alt+Space)"
           aria-label="Toggle pane controls"
-          onClick={() => setIsInDesignMode((current) => !current)}
+          onClick={() =>
+            setApplicationMode((current) =>
+              current === "design" ? "normal" : "design"
+            )
+          }
         >
           <SquareDashedMousePointer size={18} />
         </button>

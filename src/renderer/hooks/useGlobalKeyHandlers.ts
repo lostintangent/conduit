@@ -16,7 +16,7 @@ import {
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
-  isInDesignModeAtom,
+  applicationModeAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
@@ -34,7 +34,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const setIsInDesignMode = useSetAtom(isInDesignModeAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
+  const setApplicationMode = useSetAtom(applicationModeAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -115,7 +116,9 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       // Cmd+Alt: Enter design mode (hold)
       if (event.altKey && !event.shiftKey && !event.ctrlKey && (key === "meta" || key === "alt")) {
         event.preventDefault();
-        setIsInDesignMode(true);
+        if (applicationMode !== "quick") {
+          setApplicationMode("design");
+        }
         return;
       }
 
@@ -131,7 +134,12 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       // Cmd+D: Toggle design mode
       if (key === "d" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
         event.preventDefault();
-        setIsInDesignMode((current) => !current);
+        if (applicationMode === "quick") {
+          return;
+        }
+        setApplicationMode((current) =>
+          current === "design" ? "normal" : "design"
+        );
         return;
       }
 
@@ -228,8 +236,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       const key = event.key.toLowerCase();
 
       // Exit design mode when Cmd or Alt is released
-      if (key === "meta" || key === "alt") {
-        setIsInDesignMode(false);
+      if ((key === "meta" || key === "alt") && applicationMode === "design") {
+        setApplicationMode("normal");
       }
     };
 
@@ -248,7 +256,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     performSplit,
     performSplitWithAgentSession,
     tabs,
-    setIsInDesignMode,
+    applicationMode,
+    setApplicationMode,
   ]);
 
   return {

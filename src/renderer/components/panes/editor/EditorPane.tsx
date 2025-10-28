@@ -1,4 +1,4 @@
-import { FileTree } from "@/components/panes/editor/FileTree";
+import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
@@ -106,6 +106,7 @@ type EditorPaneProps = {
   }) => void;
   onClearFile?: () => void;
   onCwdChange?: (cwd: string) => void;
+  onFileOpen?: (node: FileTreeNode) => void;
 };
 
 export function EditorPane({
@@ -114,6 +115,7 @@ export function EditorPane({
   onFileChange,
   onClearFile,
   onCwdChange,
+  onFileOpen,
 }: EditorPaneProps) {
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
@@ -410,6 +412,7 @@ export function EditorPane({
                 items={fileTree}
                 onFileSelect={handleFileSelect}
                 onDirectoryChange={handleDirectoryChange}
+                onFileOpen={onFileOpen}
                 rootPath={cwd}
               />
             ) : (

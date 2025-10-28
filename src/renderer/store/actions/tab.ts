@@ -1,3 +1,4 @@
+import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import {
   detachPane,
   removePane,
@@ -62,6 +63,31 @@ export async function openTab(
   return { tabId, paneId, sessionId: result.sessionId };
 }
 
+// Helper function to create a tab with a pane
+function createTabWithPane(paneState: Pane): { tabId: string; paneId: string } {
+  const tabId = generateId();
+
+  const layout: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: paneState.id,
+  };
+
+  store.set(tabsAtom, (current) => [
+    ...current,
+    {
+      id: tabId,
+      panes: { [paneState.id]: paneState },
+      layout,
+      activePaneId: paneState.id,
+      mode: "layout",
+    },
+  ]);
+  store.set(activeTabIdAtom, tabId);
+
+  return { tabId, paneId: paneState.id };
+}
+
 export function openTabFromExistingSession({
   sessionId,
   cwd,
@@ -72,7 +98,6 @@ export function openTabFromExistingSession({
   title?: string | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
-  const tabId = generateId();
 
   const paneState: Pane = {
     id: paneId,
@@ -82,25 +107,45 @@ export function openTabFromExistingSession({
     processTitle: title ?? "Terminal",
   };
 
-  const layout: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId,
-  };
+  return createTabWithPane(paneState);
+}
 
-  store.set(tabsAtom, (current) => [
-    ...current,
-    {
-      id: tabId,
-      panes: { [paneId]: paneState },
-      layout,
-      activePaneId: paneId,
-      mode: "layout",
-    },
-  ]);
-  store.set(activeTabIdAtom, tabId);
+export async function openTabFromPaneDescriptor(
+  descriptor: PaneDescriptor
+): Promise<{ tabId: string; paneId: string } | null> {
+  const paneId = generateId();
 
-  return { tabId, paneId };
+  let paneState: Pane | null = null;
+
+  if (descriptor.type === "terminal") {
+    paneState = {
+      id: paneId,
+      type: "terminal",
+      sessionId: descriptor.sessionId,
+      cwd: descriptor.cwd,
+      processTitle: "Terminal",
+    };
+  } else if (descriptor.type === "editor") {
+    paneState = {
+      id: paneId,
+      type: "editor",
+      cwd: descriptor.cwd,
+      filePath: descriptor.filePath,
+    };
+  } else if (descriptor.type === "webview") {
+    paneState = {
+      id: paneId,
+      type: "webview",
+      url: descriptor.url,
+      title: descriptor.title,
+    };
+  }
+
+  if (!paneState) {
+    return null;
+  }
+
+  return createTabWithPane(paneState);
 }
 
 export function updateTabProperty(tabId: string, updates: Partial<Tab>) {

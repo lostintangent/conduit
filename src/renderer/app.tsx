@@ -1,6 +1,9 @@
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
-import { QuickTerminal } from "@/components/shell/QuickTerminal";
+import {
+  QuickDialog,
+  type PaneDescriptor,
+} from "@/components/shell/QuickDialog";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
@@ -21,7 +24,7 @@ import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
   closeTab,
   openTab,
-  openTabFromExistingSession,
+  openTabFromPaneDescriptor,
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
@@ -59,12 +62,9 @@ export function App() {
     tabId: string;
     initialValue: string;
   } | null>(null);
-  const [terminalModalState, setTerminalModalState] = useState<{
-    sessionId: string;
-    cwd: string | null;
-    title: string;
-    command: string;
-  } | null>(null);
+  const [quickPaneState, setQuickPaneState] = useState<PaneDescriptor | null>(
+    null
+  );
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
@@ -137,8 +137,12 @@ export function App() {
 
   useEffect(() => {
     const unsubscribeExit = api.onExit(({ sessionId }) => {
-      setTerminalModalState((current) => {
-        if (!current || current.sessionId !== sessionId) {
+      setQuickPaneState((current) => {
+        if (
+          !current ||
+          current.type !== "terminal" ||
+          current.sessionId !== sessionId
+        ) {
           return current;
         }
 
@@ -301,10 +305,10 @@ export function App() {
         return;
       }
 
-      if (terminalModalState) {
-        api.closeTerminal(terminalModalState.sessionId);
-        disposeSession(terminalModalState.sessionId);
-        setTerminalModalState(null);
+      if (quickPaneState?.type === "terminal") {
+        api.closeTerminal(quickPaneState.sessionId);
+        disposeSession(quickPaneState.sessionId);
+        setQuickPaneState(null);
       }
 
       const requestedCwd =
@@ -325,18 +329,17 @@ export function App() {
           : `${command}\n`;
       api.sendKeypress(result.sessionId, commandWithNewline);
 
-      setTerminalModalState({
+      setQuickPaneState({
+        type: "terminal",
         sessionId: result.sessionId,
         cwd: result.cwd ?? requestedCwd ?? null,
-        title: result.title,
-        command,
       });
 
       if (options.trackHistory) {
         await recordCommandHistoryEntry(command);
       }
     },
-    [recordCommandHistoryEntry, terminalModalState]
+    [recordCommandHistoryEntry, quickPaneState]
   );
 
   const closeAgentSessionPanes = useCallback(
@@ -445,6 +448,10 @@ export function App() {
     [activeTab]
   );
 
+  const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
+    setQuickPaneState(descriptor);
+  }, []);
+
   const commandItems = useCommands({
     hasCustomLayout,
     resetLayoutSizes,
@@ -461,37 +468,31 @@ export function App() {
     closeWorkspace,
   });
 
-  const handleCloseTerminalModal = useCallback(() => {
-    setTerminalModalState((current) => {
+  const handleCloseQuickPane = useCallback(() => {
+    setQuickPaneState((current) => {
       if (!current) {
         return current;
       }
 
-      const { sessionId } = current;
-      const api = window.conduit;
-      if (api) {
-        api.closeTerminal(sessionId);
+      if (current.type === "terminal") {
+        const api = window.conduit;
+        if (api) {
+          api.closeTerminal(current.sessionId);
+        }
+        disposeSession(current.sessionId);
       }
-      disposeSession(sessionId);
+
       return null;
     });
   }, []);
 
-  const handleOpenModalAsTab = useCallback(() => {
-    setTerminalModalState((current) => {
-      if (!current) {
-        return current;
-      }
-
-      openTabFromExistingSession({
-        sessionId: current.sessionId,
-        cwd: current.cwd,
-        title: current.title,
-      });
-
-      return null;
-    });
-  }, []);
+  const handleOpenQuickPaneAsTab = useCallback(
+    async (descriptor: PaneDescriptor) => {
+      setQuickPaneState(null);
+      await openTabFromPaneDescriptor(descriptor);
+    },
+    []
+  );
 
   const shouldUseDrawer = !alwaysShowTabs;
 
@@ -521,6 +522,7 @@ export function App() {
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+          onOpenQuickPane={handleOpenQuickPane}
           position={tabPosition}
         />
       )}
@@ -530,6 +532,7 @@ export function App() {
             <TabStrip
               onOpenCommandPalette={openCommandPalette}
               onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+              onOpenQuickPane={handleOpenQuickPane}
               position={tabPosition}
             />
           </DrawerContent>
@@ -542,6 +545,7 @@ export function App() {
         resizingNode={resizingNode}
         handleWebViewUpdate={handleWebViewUpdate}
         handleEditorUpdate={handleEditorUpdate}
+        onOpenQuickPane={handleOpenQuickPane}
       />
 
       {/* Bottom positioned tabs */}
@@ -549,6 +553,7 @@ export function App() {
         <TabStrip
           onOpenCommandPalette={openCommandPalette}
           onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+          onOpenQuickPane={handleOpenQuickPane}
           position={tabPosition}
         />
       )}
@@ -558,6 +563,7 @@ export function App() {
             <TabStrip
               onOpenCommandPalette={openCommandPalette}
               onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+              onOpenQuickPane={handleOpenQuickPane}
               position={tabPosition}
             />
           </DrawerContent>
@@ -587,12 +593,11 @@ export function App() {
         placeholder="Enter a title..."
       />
 
-      {terminalModalState && (
-        <QuickTerminal
-          sessionId={terminalModalState.sessionId}
-          cwd={terminalModalState.cwd}
-          onClose={handleCloseTerminalModal}
-          onOpenAsTab={handleOpenModalAsTab}
+      {quickPaneState && (
+        <QuickDialog
+          paneDescriptor={quickPaneState}
+          onClose={handleCloseQuickPane}
+          onOpenAsTab={handleOpenQuickPaneAsTab}
         />
       )}
 
