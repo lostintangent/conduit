@@ -50,6 +50,18 @@ export class MenuRegistry {
   }
 
   /**
+   * Unregister all menu items for a command
+   */
+  unregister(commandId: string): void {
+    for (const [menuId, items] of this.items.entries()) {
+      this.items.set(
+        menuId,
+        items.filter(item => item.commandId !== commandId)
+      );
+    }
+  }
+
+  /**
    * Clear all menu items
    */
   clear(): void {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ContextKey } from '../ContextKey';
 import { ContextLevel, AggregateMode } from '../types';
+import { When } from '../../whenClauses/When';
 
 describe('ContextKey', () => {
   it('should construct with key and default value', () => {
@@ -295,7 +296,6 @@ describe('ContextKey when clause methods', () => {
 
   describe('complex when clause combinations', () => {
     it('should work with When.and()', () => {
-      const { When } = require('../../whenClauses/When');
       const key1 = new ContextKey('key1', false);
       const key2 = new ContextKey('key2', false);
 
@@ -307,7 +307,6 @@ describe('ContextKey when clause methods', () => {
     });
 
     it('should work with When.or()', () => {
-      const { When } = require('../../whenClauses/When');
       const key1 = new ContextKey('key1', false);
       const key2 = new ContextKey('key2', false);
 
@@ -319,7 +318,6 @@ describe('ContextKey when clause methods', () => {
     });
 
     it('should create complex nested expressions', () => {
-      const { When } = require('../../whenClauses/When');
       const focus = new ContextKey('focus', false);
       const count = new ContextKey('count', 0);
       const mode = new ContextKey('mode', '');

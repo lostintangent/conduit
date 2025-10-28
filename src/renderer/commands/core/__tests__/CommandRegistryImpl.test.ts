@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CommandRegistry } from '../CommandRegistryImpl';
 import { ContextKeyService } from '../../contextKeys/ContextKeyServiceImpl';
 import { ContextKey } from '../../contextKeys/ContextKey';
+import { KeybindingRegistry } from '../../keybindings/KeybindingRegistry';
+import { MenuRegistry } from '../../menus/MenuRegistry';
+import { MenuId } from '../../menus/types';
+import { When } from '../../whenClauses/When';
 import type { CommandDescriptor } from '../types';
 
 describe('CommandRegistry', () => {
@@ -272,7 +276,6 @@ describe('CommandRegistry', () => {
 
     it('should evaluate complex when clauses', async () => {
       const runFn = vi.fn();
-      const { When } = require('../../whenClauses/When');
       const enabled = new ContextKey('enabled', false);
       const count = new ContextKey('count', 0);
 
@@ -438,6 +441,72 @@ describe('CommandRegistry', () => {
       await registry.executeCommand('test.command');
 
       expect(runFn).toHaveBeenCalled();
+    });
+  });
+
+  describe('dispose()', () => {
+    it('should remove command from registry', () => {
+      const command: CommandDescriptor = {
+        id: 'test.command',
+        title: 'Test Command',
+        run: () => {}
+      };
+
+      const disposable = registry.registerCommand(command);
+
+      expect(registry.hasCommand('test.command')).toBe(true);
+
+      disposable.dispose();
+
+      expect(registry.hasCommand('test.command')).toBe(false);
+    });
+
+    it('should cleanup keybindings when disposed', () => {
+      const keybindingRegistry = new KeybindingRegistry();
+      const registryWithKeybindings = new CommandRegistry(
+        contextKeyService,
+        keybindingRegistry
+      );
+
+      const command: CommandDescriptor = {
+        id: 'test.command',
+        title: 'Test Command',
+        keybinding: { key: 'Ctrl+T' },
+        run: () => {}
+      };
+
+      const disposable = registryWithKeybindings.registerCommand(command);
+
+      expect(keybindingRegistry.getKeybindingsForCommand('test.command')).toHaveLength(1);
+
+      disposable.dispose();
+
+      expect(keybindingRegistry.getKeybindingsForCommand('test.command')).toHaveLength(0);
+    });
+
+    it('should cleanup menus when disposed', () => {
+      const menuRegistry = new MenuRegistry();
+      const keybindingRegistry = new KeybindingRegistry();
+      const registryWithMenus = new CommandRegistry(
+        contextKeyService,
+        keybindingRegistry,
+        menuRegistry
+      );
+
+      const command: CommandDescriptor = {
+        id: 'test.command',
+        title: 'Test Command',
+        menu: { id: MenuId.CommandPalette },
+        run: () => {}
+      };
+
+      const disposable = registryWithMenus.registerCommand(command);
+
+      expect(menuRegistry.getMenuItems(MenuId.CommandPalette)).toHaveLength(1);
+
+      disposable.dispose();
+
+      expect(menuRegistry.getMenuItems(MenuId.CommandPalette)).toHaveLength(0);
     });
   });
 });

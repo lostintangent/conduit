@@ -53,7 +53,16 @@ export class CommandRegistry implements ICommandRegistry {
     return {
       dispose: () => {
         this.commands.delete(descriptor.id);
-        // TODO: Cleanup keybindings and menus
+
+        // Cleanup keybindings
+        if (this.keybindingRegistry) {
+          this.keybindingRegistry.unregister(descriptor.id);
+        }
+
+        // Cleanup menus
+        if (this.menuRegistry) {
+          this.menuRegistry.unregister(descriptor.id);
+        }
       }
     };
   }

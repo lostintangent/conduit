@@ -214,6 +214,56 @@ describe('MenuRegistry', () => {
     });
   });
 
+  describe('unregister()', () => {
+    it('should remove all menu items for a command', () => {
+      registry.register('command1', { id: MenuId.CommandPalette });
+      registry.register('command1', { id: MenuId.PaneContext });
+      registry.register('command2', { id: MenuId.CommandPalette });
+
+      expect(registry.getMenuItems(MenuId.CommandPalette)).toHaveLength(2);
+      expect(registry.getMenuItems(MenuId.PaneContext)).toHaveLength(1);
+
+      registry.unregister('command1');
+
+      expect(registry.getMenuItems(MenuId.CommandPalette)).toHaveLength(1);
+      expect(registry.getMenuItems(MenuId.CommandPalette)[0].commandId).toBe('command2');
+      expect(registry.getMenuItems(MenuId.PaneContext)).toHaveLength(0);
+    });
+
+    it('should not affect other commands', () => {
+      registry.register('command1', { id: MenuId.CommandPalette });
+      registry.register('command2', { id: MenuId.CommandPalette });
+      registry.register('command3', { id: MenuId.CommandPalette });
+
+      registry.unregister('command2');
+
+      const items = registry.getMenuItems(MenuId.CommandPalette);
+      expect(items).toHaveLength(2);
+      expect(items.some(item => item.commandId === 'command1')).toBe(true);
+      expect(items.some(item => item.commandId === 'command3')).toBe(true);
+    });
+
+    it('should handle unregistering non-existent command', () => {
+      registry.register('command1', { id: MenuId.CommandPalette });
+
+      registry.unregister('nonexistent.command');
+
+      expect(registry.getMenuItems(MenuId.CommandPalette)).toHaveLength(1);
+    });
+
+    it('should remove items from multiple menus', () => {
+      registry.register('command1', { id: MenuId.CommandPalette });
+      registry.register('command1', { id: MenuId.PaneContext });
+      registry.register('command1', { id: MenuId.TabContext });
+
+      registry.unregister('command1');
+
+      expect(registry.getMenuItems(MenuId.CommandPalette)).toHaveLength(0);
+      expect(registry.getMenuItems(MenuId.PaneContext)).toHaveLength(0);
+      expect(registry.getMenuItems(MenuId.TabContext)).toHaveLength(0);
+    });
+  });
+
   describe('clear()', () => {
     it('should clear all menus', () => {
       registry.register('command1', { id: MenuId.CommandPalette });
