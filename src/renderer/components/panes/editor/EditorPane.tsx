@@ -1,4 +1,4 @@
-import { FileTree } from "@/components/panes/editor/FileTree";
+import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
