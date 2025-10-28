@@ -61,6 +61,7 @@ function useFanMenuState() {
 interface PaneControlButtonsProps {
   tabId: string;
   paneId: string;
+  paneNumber: number;
   canMoveLeft: boolean;
   canMoveRight: boolean;
   canMoveUp: boolean;
@@ -68,11 +69,14 @@ interface PaneControlButtonsProps {
   isOnlyPane: boolean;
   isOnlyTab: boolean;
   isInFocusMode: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }
 
 export function PaneControlButtons({
   tabId,
   paneId,
+  paneNumber,
   canMoveLeft,
   canMoveRight,
   canMoveUp,
@@ -80,6 +84,8 @@ export function PaneControlButtons({
   isOnlyPane,
   isOnlyTab,
   isInFocusMode,
+  onDragStart,
+  onDragEnd,
 }: PaneControlButtonsProps) {
   const {
     hoveredPosition: hoveredSplitButton,
@@ -137,11 +143,21 @@ export function PaneControlButtons({
       }}
       style={{ pointerEvents: 'none' }}
     >
-      {/* Center buttons (Move to new tab, Focus mode, and Close) */}
+      {/* Center buttons (Drag handle, Move to new tab, Focus mode, and Close) */}
       {(showMoveToNewTab || showClose || !isOnlyPane) && (
         <div
           className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 ${groupClasses.center}`}
         >
+          {/* Drag handle with pane number */}
+          <div
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            className={`${buttonClass} cursor-grab active:cursor-grabbing font-mono text-xs font-bold`}
+            title={`Drag to move pane (Pane ${paneNumber})`}
+          >
+            {paneNumber}
+          </div>
           {showMoveToNewTab && (
             <button
               className={buttonClass}

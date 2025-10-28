@@ -466,6 +466,10 @@ export function TabLayout({
       const isHoveredDuringDrag =
         draggedPaneId !== null && hoveredPaneId === pane.id && !isDragging;
 
+      // Calculate pane number (1-based index)
+      const allPaneIds = getAllPaneIds(tab);
+      const paneNumber = allPaneIds.indexOf(pane.id) + 1;
+
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
       const onPaneActivate = () => activatePane(tab.id, pane.id);
@@ -571,9 +575,6 @@ export function TabLayout({
             gridTemplateColumns: "minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr)",
           }}
-          draggable={isInDesignMode}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -650,7 +651,7 @@ export function TabLayout({
           {/* Drop zone overlay with hatch pattern */}
           {isInDesignMode && isHoveredDuringDrag && dropZone && (
             <div
-              className="pointer-events-none absolute z-20"
+              className="pointer-events-none absolute z-30"
               style={{
                 top: dropZone === "top" ? 0 : dropZone === "bottom" ? "50%" : 0,
                 left: dropZone === "left" ? 0 : dropZone === "right" ? "50%" : 0,
@@ -675,6 +676,7 @@ export function TabLayout({
               <PaneControlButtons
                 tabId={tab.id}
                 paneId={pane.id}
+                paneNumber={paneNumber}
                 canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
                 canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
                 canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
@@ -682,6 +684,8 @@ export function TabLayout({
                 isOnlyPane={countPanesInLayout(tab.layout) === 1}
                 isOnlyTab={tabs.length === 1}
                 isInFocusMode={tab.mode === "focus"}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
               />
             )}
         </div>
