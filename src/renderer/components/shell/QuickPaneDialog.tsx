@@ -2,11 +2,13 @@ import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { WebPane } from "@/components/panes/web/WebPane";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { applicationModeAtom } from "@/store/atoms";
 import type { Pane } from "@/types";
 import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
 import { ArrowUpRight, X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSetAtom } from "jotai";
 
 export type PaneDescriptor = Omit<Pane, "id">;
 
@@ -21,11 +23,21 @@ export function QuickPaneDialog({
   onClose,
   onOpenAsTab,
 }: QuickPaneDialogProps) {
+  const setApplicationMode = useSetAtom(applicationModeAtom);
   const [currentDescriptor, setCurrentDescriptor] =
     useState<PaneDescriptor>(paneDescriptor);
 
   // Generate a stable paneId for the quick pane
   const [quickPaneId] = useState(() => generateId());
+
+  useEffect(() => {
+    setApplicationMode("quick");
+    return () => {
+      setApplicationMode((current) =>
+        current === "quick" ? "normal" : current
+      );
+    };
+  }, [setApplicationMode]);
 
   // Handle updates from editor pane
   const handleEditorUpdate = useCallback(
@@ -79,7 +91,11 @@ export function QuickPaneDialog({
       >
         <div className="flex flex-1 w-full h-full min-h-0 min-w-0 overflow-hidden">
           {currentDescriptor.type === "terminal" && (
-            <TerminalPane sessionId={currentDescriptor.sessionId} isActive />
+            <TerminalPane
+              sessionId={currentDescriptor.sessionId}
+              paneId={quickPaneId}
+              isActive
+            />
           )}
           {currentDescriptor.type === "editor" && (
             <EditorPane

@@ -31,4 +31,6 @@ export const workspaceHasChangesAtom = atom<boolean>(false);
 
 export const notificationsAtom = atom<Notification[]>([]);
 
-export const isInDesignModeAtom = atom<boolean>(false);
+export type ApplicationMode = "normal" | "design" | "quick";
+
+export const applicationModeAtom = atom<ApplicationMode>("normal");

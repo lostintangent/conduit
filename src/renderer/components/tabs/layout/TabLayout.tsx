@@ -21,7 +21,7 @@ import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import {
   activePaneIdAtom,
   activeTabAtom,
-  isInDesignModeAtom,
+  applicationModeAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type {
@@ -223,7 +223,9 @@ export function TabLayout({
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const activeTabId = activeTab?.id ?? null;
-  const isInDesignMode = useAtomValue(isInDesignModeAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
+  const isInDesignMode = applicationMode === "design";
+  const shouldShowTerminalDimensions = applicationMode === "normal";
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
@@ -331,15 +333,16 @@ export function TabLayout({
         >
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
             {pane.type === "terminal" ? (
-              <TerminalPane
-                key={pane.sessionId}
-                sessionId={pane.sessionId}
-                paneId={pane.id}
-                isActive={isActivePane}
-                onActivate={onPaneActivate}
-                onContextMenu={onPaneContextMenu}
-                onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
-              />
+            <TerminalPane
+              key={pane.sessionId}
+              sessionId={pane.sessionId}
+              paneId={pane.id}
+              isActive={isActivePane}
+              onActivate={onPaneActivate}
+              onContextMenu={onPaneContextMenu}
+              onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
+              showDimensions={shouldShowTerminalDimensions}
+            />
             ) : pane.type === "editor" ? (
               <div
                 className="flex flex-1 w-full h-full min-h-0 min-w-0"
@@ -421,6 +424,7 @@ export function TabLayout({
       handleWebViewUpdate,
       hoveredPaneId,
       isInDesignMode,
+      shouldShowTerminalDimensions,
       resizingNode,
       tabs.length,
     ]

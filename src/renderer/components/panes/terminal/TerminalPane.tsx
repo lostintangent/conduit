@@ -97,6 +97,7 @@ type TerminalPaneProps = {
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: () => void;
   onLinkClick?: (url: string) => void;
+  showDimensions?: boolean;
 };
 
 export const TerminalPane = ({
@@ -106,6 +107,7 @@ export const TerminalPane = ({
   onContextMenu,
   onActivate,
   onLinkClick,
+  showDimensions = true,
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
 
@@ -240,7 +242,7 @@ export const TerminalPane = ({
         onClosed={focusTerminal}
       />
 
-      {dimensions && (
+      {showDimensions && dimensions && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
           <div className="bg-black/80 text-white px-6 py-3 rounded-lg text-lg font-semibold border border-white/20 shadow-lg">
             {dimensions.width} × {dimensions.height}
