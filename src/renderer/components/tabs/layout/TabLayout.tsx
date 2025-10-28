@@ -328,8 +328,8 @@ export function TabLayout({
         clientY: number;
       }) => {
         const syntheticEvent = {
-          preventDefault: () => {},
-          stopPropagation: () => {},
+          preventDefault: () => { },
+          stopPropagation: () => { },
           clientX: coords.clientX,
           clientY: coords.clientY,
         } as React.MouseEvent;
@@ -339,6 +339,9 @@ export function TabLayout({
       // Get drag and drop handlers from the hook
       const dragHandlers = createDragHandlers(pane.id, tab.id);
       const dropHandlers = createDropHandlers(pane.id, tab.id);
+
+      const shouldRenderControls = isInDesignMode &&
+        (draggedPaneId == pane.id || (!isHoveredDuringDrag && (hoveredPaneId !== null ? hoveredPaneId === pane.id : isActivePane)));
 
       return (
         <div
@@ -422,25 +425,21 @@ export function TabLayout({
           {/* Drop zone overlay */}
           {renderDropZone(pane.id)}
 
-          {isInDesignMode &&
-            !isHoveredDuringDrag &&
-            (hoveredPaneId !== null
-              ? hoveredPaneId === pane.id
-              : isActivePane) && (
-              <PaneControlButtons
-                tabId={tab.id}
-                paneId={pane.id}
-                paneNumber={paneNumber}
-                canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
-                canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
-                canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
-                canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
-                isOnlyPane={countPanesInLayout(tab.layout) === 1}
-                isOnlyTab={tabs.length === 1}
-                isInFocusMode={tab.mode === "focus"}
-                {...dragHandlers}
-              />
-            )}
+          {shouldRenderControls && (
+            <PaneControlButtons
+              tabId={tab.id}
+              paneId={pane.id}
+              paneNumber={paneNumber}
+              canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
+              canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
+              canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
+              canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
+              isOnlyPane={countPanesInLayout(tab.layout) === 1}
+              isOnlyTab={tabs.length === 1}
+              isInFocusMode={tab.mode === "focus"}
+              {...dragHandlers}
+            />
+          )}
         </div>
       );
     },

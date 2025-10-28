@@ -206,9 +206,6 @@ export function usePaneDragDrop({
       onDragEnd: () => {
         setDraggedPaneId(null);
         setDropZone(null);
-        // Clear hoveredPaneId to reset hover state after drag
-        // This ensures pane controls will show correctly on next hover
-        setHoveredPaneId(null);
       },
     }),
     [isInDesignMode]
@@ -238,7 +235,14 @@ export function usePaneDragDrop({
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
-          if (!isInDesignMode || !draggedPaneId || !dropZone) {
+          if (!isInDesignMode || !draggedPaneId) {
+            return;
+          }
+
+          if (!dropZone) {
+            setDraggedPaneId(null);
+            setDropZone(null);
+            setHoveredPaneId(null);
             return;
           }
 
