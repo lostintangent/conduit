@@ -335,7 +335,6 @@ const serializeTabs = async (
       return {
         id: tab.id,
         title: tab.title,
-        mode: tab.mode,
         activePaneId: tab.activePaneId,
         panes,
         layout: tab.layout,

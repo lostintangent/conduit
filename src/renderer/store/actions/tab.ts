@@ -46,7 +46,6 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
-      mode: "layout",
     },
   ]);
   store.set(activeTabIdAtom, tabId);
@@ -80,7 +79,6 @@ function createTabWithPane(paneState: Pane): { tabId: string; paneId: string } {
       panes: { [paneState.id]: paneState },
       layout,
       activePaneId: paneState.id,
-      mode: "layout",
     },
   ]);
   store.set(activeTabIdAtom, tabId);
@@ -295,7 +293,6 @@ export function movePaneToTab(
     },
     layout,
     activePaneId: paneState.id,
-    mode: "layout",
   };
 
   store.set(tabsAtom, (current) => [...current, newTab]);

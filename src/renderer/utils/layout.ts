@@ -93,3 +93,18 @@ export function countPanesInLayout(root: LayoutNode): number {
   return count;
 }
 
+/**
+ * Check if a layout node contains a specific pane ID
+ */
+export function layoutContainsPaneId(
+  node: LayoutNode,
+  paneId: string
+): boolean {
+  if (node.type === "pane") {
+    return node.paneId === paneId;
+  }
+
+  // For split nodes, check children recursively
+  return node.children.some((child) => layoutContainsPaneId(child, paneId));
+}
+

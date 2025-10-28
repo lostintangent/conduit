@@ -47,12 +47,9 @@ export type EditorPane = {
 
 export type Pane = TerminalPane | WebViewPane | EditorPane;
 
-type TabMode = "layout" | "focus";
-
 export type Tab = {
   panes: Record<string, Pane>;
   layout: LayoutNode;
-  mode: TabMode;
 
   activePaneId: string;
 

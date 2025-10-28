@@ -94,14 +94,20 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Cmd+Shift+F: Toggle focus mode
-      if (event.metaKey && event.shiftKey && !event.altKey && key === "f") {
+      // Cmd+Alt+F: Toggle focus mode
+      const shouldToggleFocusMode =
+        event.metaKey &&
+        event.altKey &&
+        !event.shiftKey &&
+        event.code === "KeyF";
+
+      if (shouldToggleFocusMode) {
         event.preventDefault();
 
         if (!activeTab) return;
 
-        if (activeTab.mode === "focus") {
-          exitFocusMode(activeTab.id);
+        if (applicationMode === "focus") {
+          exitFocusMode();
           return;
         }
 
@@ -176,7 +182,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
             const config = splitConfig[direction];
             void performSplit(config.direction, config.insertBefore);
           } else {
-            if (isFocusModeActive(activeTab)) {
+            if (isFocusModeActive()) {
               const focusModeDirectionMap: Record<
                 PaneNavigationDirection,
                 "next" | "prev"
@@ -187,7 +193,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
                 down: "next",
               };
               navigateFocusedPane(
-                activeTab.id,
                 focusModeDirectionMap[direction]
               );
             } else {
