@@ -206,7 +206,8 @@ export function usePaneDragDrop({
       onDragEnd: () => {
         setDraggedPaneId(null);
         setDropZone(null);
-        setHoveredPaneId(null);
+        // Don't clear hoveredPaneId - let normal mouse events handle it
+        // to avoid losing hover state when drag ends over a pane
       },
     }),
     [isInDesignMode]
@@ -231,7 +232,8 @@ export function usePaneDragDrop({
         },
         onDragLeave: () => {
           setDropZone(null);
-          setHoveredPaneId(null);
+          // Don't clear hoveredPaneId here - it will be updated by onDragOver
+          // of the next pane, or left as-is if dragging outside/back to origin
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
