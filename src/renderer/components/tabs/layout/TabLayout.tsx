@@ -38,6 +38,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
+const GRID_TEMPLATE_TRANSITION_STYLE: React.CSSProperties = {
+  transitionProperty: "grid-template-columns, grid-template-rows",
+  transitionDuration: "160ms",
+  transitionTimingFunction: "ease",
+};
+
 const shouldShowPaneBorder = (tab: Tab, applicationMode: string): boolean => {
   return Object.keys(tab.panes).length > 1 && applicationMode !== "focus";
 };
@@ -508,7 +514,7 @@ export function TabLayout({
         <div
           data-node-id={node.id}
           className="grid flex-1 min-h-0 min-w-0 gap-0 overflow-hidden"
-          style={gridTemplate}
+          style={{ ...GRID_TEMPLATE_TRANSITION_STYLE, ...gridTemplate }}
         >
           {node.children.map((child, index) => {
             const previousSibling =
