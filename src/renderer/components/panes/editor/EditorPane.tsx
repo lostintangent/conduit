@@ -3,7 +3,7 @@ import { userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
-import { ChevronDown, FolderUp, Loader2, RefreshCw, Undo, Redo } from "lucide-react";
+import { ChevronDown, FolderUp, Loader2, RefreshCw, Undo, Redo, Save } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
@@ -430,6 +430,15 @@ export function EditorPane({
                 <Redo size={14} className="text-white/60" />
               </button>
               <div className="h-4 w-px bg-white/10 shrink-0" />
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!canUndo}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Save"
+              >
+                <Save size={14} className="text-white/60" />
+              </button>
               <button
                 type="button"
                 onClick={handleRefresh}
