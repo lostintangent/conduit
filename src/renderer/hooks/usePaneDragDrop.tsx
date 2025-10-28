@@ -206,6 +206,7 @@ export function usePaneDragDrop({
       onDragEnd: () => {
         setDraggedPaneId(null);
         setDropZone(null);
+        setHoveredPaneId(null);
       },
     }),
     [isInDesignMode]
@@ -235,14 +236,6 @@ export function usePaneDragDrop({
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
           if (!isInDesignMode || !draggedPaneId || !dropZone) {
-            return;
-          }
-
-          // Don't drop on self
-          if (draggedPaneId === paneId) {
-            setDraggedPaneId(null);
-            setDropZone(null);
-            setHoveredPaneId(null);
             return;
           }
 
