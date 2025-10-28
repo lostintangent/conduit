@@ -229,18 +229,17 @@ export function TabLayout({
   const shouldShowTerminalDimensions = applicationMode === "normal";
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
+  const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
   const { triggerHighlight, getHighlightClass } = usePaneHighlight();
 
   // Use the drag and drop hook
   const {
     draggedPaneId,
-    hoveredPaneId,
-    setHoveredPaneId,
     createDragHandlers,
     createDropHandlers,
     renderDropZone,
-  } = usePaneDragDrop();
+  } = usePaneDragDrop({ hoveredPaneId, setHoveredPaneId });
 
   const previousResizingNodeRef = useRef<string | null>(null);
   useEffect(() => {

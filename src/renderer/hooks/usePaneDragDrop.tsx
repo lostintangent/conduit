@@ -13,10 +13,13 @@ const DROP_ZONE_THRESHOLD = 0.4; // 40% threshold for edge detection
 
 type DropZone = "top" | "bottom" | "left" | "right" | null;
 
-interface UsePaneDragDropReturn {
-  draggedPaneId: string | null;
+interface UsePaneDragDropParams {
   hoveredPaneId: string | null;
   setHoveredPaneId: (id: string | null) => void;
+}
+
+interface UsePaneDragDropReturn {
+  draggedPaneId: string | null;
   createDragHandlers: (paneId: string, tabId: string) => {
     onDragStart: (e: React.DragEvent) => void;
     onDragEnd: () => void;
@@ -29,10 +32,12 @@ interface UsePaneDragDropReturn {
   renderDropZone: (paneId: string) => React.ReactNode;
 }
 
-export function usePaneDragDrop(): UsePaneDragDropReturn {
+export function usePaneDragDrop({
+  hoveredPaneId,
+  setHoveredPaneId,
+}: UsePaneDragDropParams): UsePaneDragDropReturn {
   const [draggedPaneId, setDraggedPaneId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone>(null);
-  const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
   const applicationMode = useAtomValue(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
@@ -217,11 +222,15 @@ export function usePaneDragDrop(): UsePaneDragDropReturn {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
 
+          // Update hovered pane since mouse events don't fire during drag
+          setHoveredPaneId(paneId);
+
           const zone = getDropZone(e, e.currentTarget as HTMLElement);
           setDropZone(zone);
         },
         onDragLeave: () => {
           setDropZone(null);
+          setHoveredPaneId(null);
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
@@ -285,6 +294,7 @@ export function usePaneDragDrop(): UsePaneDragDropReturn {
       isInDesignMode,
       dropZone,
       getDropZone,
+      setHoveredPaneId,
       splitPaneWithExisting,
     ]
   );
@@ -321,8 +331,6 @@ export function usePaneDragDrop(): UsePaneDragDropReturn {
 
   return {
     draggedPaneId,
-    hoveredPaneId,
-    setHoveredPaneId,
     createDragHandlers,
     createDropHandlers,
     renderDropZone,
