@@ -10,6 +10,14 @@ import { TabLayout } from "@/components/tabs/layout/TabLayout";
 import { TabStrip } from "@/components/tabs/TabStrip";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
+import { KeybindingsEditor } from "@/components/keybindings";
+import {
+  initializeCommandSystem,
+  getCommandRegistry,
+  getKeybindingRegistry,
+  type ICommandRegistry,
+  type KeybindingRegistry,
+} from "@/commands";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -47,6 +55,7 @@ export function App() {
     showTerminalRuler,
     autoSaveWorkspaces,
     commandHistory,
+    homeDirectory,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -70,6 +79,11 @@ export function App() {
     AgentSessionInfo[] | null
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
+  const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
+  const [commandSystem, setCommandSystem] = useState<{
+    commandRegistry: ICommandRegistry;
+    keybindingRegistry: KeybindingRegistry;
+  } | null>(null);
 
   const {
     workspaceName,
@@ -89,6 +103,15 @@ export function App() {
     quickSaveWorkspace,
     openLastWorkspace,
   } = useWorkspaces();
+
+  // Initialize command system
+  useEffect(() => {
+    initializeCommandSystem();
+    setCommandSystem({
+      commandRegistry: getCommandRegistry(),
+      keybindingRegistry: getKeybindingRegistry(),
+    });
+  }, []);
 
   useEffect(() => {
     return registerTabEventHandlers();
@@ -510,7 +533,7 @@ export function App() {
         }}
         onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
         onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
-        tabPosition={tabPosition}
+        onOpenKeyboardShortcuts={() => setShowKeybindingsEditor(true)}
         alwaysShowTabs={alwaysShowTabs}
         showTerminalRuler={showTerminalRuler}
         autoSaveWorkspaces={autoSaveWorkspaces}
@@ -641,6 +664,28 @@ export function App() {
         onClose={() => setCleanupDialogSessions(null)}
         onRemove={handleAgentSessionCleanup}
       />
+
+      {showKeybindingsEditor && commandSystem && homeDirectory ? (
+        <KeybindingsEditor
+          onClose={() => setShowKeybindingsEditor(false)}
+          commandRegistry={commandSystem.commandRegistry}
+          keybindingRegistry={commandSystem.keybindingRegistry}
+          homeDirectory={homeDirectory}
+        />
+      ) : showKeybindingsEditor ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
+            <h2 className="text-white text-xl mb-4">Command system not initialized</h2>
+            <p className="text-gray-400 mb-4">The command system is still initializing. Please try again.</p>
+            <button
+              onClick={() => setShowKeybindingsEditor(false)}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

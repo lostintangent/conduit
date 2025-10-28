@@ -2,19 +2,9 @@ import { parseKeybindingsFile, isRemovalBinding, getRemovalCommandId } from './k
 import type { KeybindingRegistry } from './KeybindingRegistry';
 
 /**
- * Conduit API interface (exposed via Electron preload)
- */
-declare global {
-  interface Window {
-    conduit?: {
-      readFile?: (filePath: string) => Promise<string | null>;
-      watchFile?: (filePath: string, callback: () => void) => { dispose: () => void } | undefined;
-    };
-  }
-}
-
-/**
  * Load user keybindings from file
+ *
+ * Note: window.conduit API is defined globally in src/renderer/global.d.ts
  */
 export async function loadUserKeybindings(
   keybindingRegistry: KeybindingRegistry,
