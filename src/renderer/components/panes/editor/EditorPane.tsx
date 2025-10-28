@@ -325,14 +325,9 @@ export function EditorPane({
     updateUndoRedoState();
 
     // Listen for content changes to update undo/redo state
-    const disposable = editor.onDidChangeModelContent(() => {
+    editor.onDidChangeModelContent(() => {
       updateUndoRedoState();
     });
-
-    // Cleanup on unmount
-    return () => {
-      disposable.dispose();
-    };
   }, []);
 
   const handleUndo = useCallback(() => {
