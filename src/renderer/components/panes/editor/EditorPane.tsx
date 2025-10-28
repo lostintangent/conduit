@@ -323,7 +323,12 @@ export function EditorPane({
     // Clean up previous disposable if it exists
     if (disposableRef.current) {
       disposableRef.current.dispose();
+      disposableRef.current = null;
     }
+
+    // Reset state when remounting
+    setCanUndo(false);
+    setCanRedo(false);
 
     editorRef.current = editor;
     
@@ -333,6 +338,10 @@ export function EditorPane({
       if (model) {
         setCanUndo(model.canUndo());
         setCanRedo(model.canRedo());
+      } else {
+        // Model is null/undefined, disable both buttons
+        setCanUndo(false);
+        setCanRedo(false);
       }
     };
 
