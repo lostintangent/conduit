@@ -74,13 +74,19 @@ export function PaneControlFanButtons({
   }, [isHovered, isVisible]);
 
   const handleMouseEnter = () => {
+    // Only maintain visibility if fan is already visible
+    // This prevents the semicircle from triggering initial opening
+    if (!isVisible) {
+      return;
+    }
+
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-    // Always update state to visible
+    // Maintain visible state
     setIsVisible(true);
-    // Always notify parent we're hovering
+    // Notify parent we're still hovering
     onVisibilityChange(true);
   };
 
