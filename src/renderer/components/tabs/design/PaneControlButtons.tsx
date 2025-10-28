@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ArrowUp,
   CornerUpRight,
+  Grip,
   Expand,
   Shrink,
   SplitSquareHorizontal,
@@ -68,6 +69,8 @@ interface PaneControlButtonsProps {
   isOnlyPane: boolean;
   isOnlyTab: boolean;
   isInFocusMode: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }
 
 export function PaneControlButtons({
@@ -80,6 +83,8 @@ export function PaneControlButtons({
   isOnlyPane,
   isOnlyTab,
   isInFocusMode,
+  onDragStart,
+  onDragEnd,
 }: PaneControlButtonsProps) {
   const {
     hoveredPosition: hoveredSplitButton,
@@ -139,40 +144,57 @@ export function PaneControlButtons({
     >
       {/* Center buttons (Move to new tab, Focus mode, and Close) */}
       {(showMoveToNewTab || showClose || !isOnlyPane) && (
-        <div
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 ${groupClasses.center}`}
-        >
-          {showMoveToNewTab && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
+          <div className={groupClasses.center}>
+            {showMoveToNewTab && (
+              <button
+                className={buttonClass}
+                onClick={() => movePaneToTab(tabId, paneId)}
+                title="Move pane to new tab (Alt+T)"
+              >
+                <CornerUpRight className={iconClass} />
+              </button>
+            )}
+            {!isOnlyPane && (
+              <button
+                className={buttonClass}
+                onClick={handleToggleFocusMode}
+                title={
+                  isInFocusMode
+                    ? "Exit focus mode (Alt+F)"
+                    : "Enter focus mode (Alt+F)"
+                }
+              >
+                {isInFocusMode ? (
+                  <Shrink className={iconClass} />
+                ) : (
+                  <Expand className={iconClass} />
+                )}
+              </button>
+            )}
+            {showClose && (
+              <button
+                className={buttonClass}
+                onClick={() => closePane(tabId, paneId)}
+                title="Close pane (Alt+W)"
+              >
+                <X className={iconClass} />
+              </button>
+            )}
+          </div>
+          {/* Drag handle */}
+          <div className={`${groupBaseClass} flex`}>
             <button
-              className={buttonClass}
-              onClick={() => movePaneToTab(tabId, paneId)}
-              title="Move pane to new tab (Alt+T)"
+              draggable
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              className={`${buttonClass} cursor-grab active:cursor-grabbing`}
+              title="Drag to move pane"
+              type="button"
             >
-              <CornerUpRight className={iconClass} />
+              <Grip className={iconClass} />
             </button>
-          )}
-          {!isOnlyPane && (
-            <button
-              className={buttonClass}
-              onClick={handleToggleFocusMode}
-              title={isInFocusMode ? "Exit focus mode (Alt+F)" : "Enter focus mode (Alt+F)"}
-            >
-              {isInFocusMode ? (
-                <Shrink className={iconClass} />
-              ) : (
-                <Expand className={iconClass} />
-              )}
-            </button>
-          )}
-          {showClose && (
-            <button
-              className={buttonClass}
-              onClick={() => closePane(tabId, paneId)}
-              title="Close pane (Alt+W)"
-            >
-              <X className={iconClass} />
-            </button>
-          )}
+          </div>
         </div>
       )}
 

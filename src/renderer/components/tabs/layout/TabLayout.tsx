@@ -11,6 +11,7 @@ import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
 } from "@/hooks/useLayoutResizing";
+import { usePaneDragDrop } from "@/hooks/usePaneDragDrop";
 import {
   exitFocusMode,
   getAllPaneIds,
@@ -232,12 +233,17 @@ export function TabLayout({
 
   const { triggerHighlight, getHighlightClass } = usePaneHighlight();
 
+  const {
+    draggedPaneId,
+    dragHoverPaneId,
+    createDragHandlers,
+    createDropHandlers,
+    renderDropZone,
+  } = usePaneDragDrop({ onDropComplete: setHoveredPaneId });
+
   const previousResizingNodeRef = useRef<string | null>(null);
   useEffect(() => {
-    if (
-      previousResizingNodeRef.current !== null &&
-      resizingNode === null
-    ) {
+    if (previousResizingNodeRef.current !== null && resizingNode === null) {
       setHoveredAxisKeys([]);
     }
     previousResizingNodeRef.current = resizingNode;
@@ -320,6 +326,19 @@ export function TabLayout({
         handleContextMenu(syntheticEvent, tab.id, pane.id);
       };
 
+      const dragHandlers = createDragHandlers(pane.id, tab.id);
+      const dropHandlers = createDropHandlers(pane.id, tab.id);
+
+      // While in design mode, show the pane controls if the current pane meets any of:
+      // 1. It's currently being dragged
+      // 2. It's currently being hovered (not during a drag operation)
+      // 3. It's the active pane (not during a drag operation)
+      const shouldRenderControls =
+        isInDesignMode &&
+        (draggedPaneId === pane.id ||
+          (!draggedPaneId && hoveredPaneId === pane.id) ||
+          (!draggedPaneId && !hoveredPaneId && isActivePane));
+
       return (
         <div
           data-node-id={node.id}
@@ -328,6 +347,7 @@ export function TabLayout({
             gridTemplateColumns: "minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr)",
           }}
+          {...dropHandlers}
           onMouseEnter={() => setHoveredPaneId(pane.id)}
           onMouseLeave={() => setHoveredPaneId(null)}
         >
@@ -354,7 +374,9 @@ export function TabLayout({
                   cwd={pane.cwd}
                   filePath={pane.filePath}
                   onFileChange={(fileData) =>
-                    handleEditorUpdate(tab.id, pane.id, { filePath: fileData.filePath })
+                    handleEditorUpdate(tab.id, pane.id, {
+                      filePath: fileData.filePath,
+                    })
                   }
                   onClearFile={() =>
                     handleEditorUpdate(tab.id, pane.id, {
@@ -364,11 +386,13 @@ export function TabLayout({
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
                   }
-                  onFileOpen={(node) => onOpenQuickPane({
-                    type: "editor",
-                    cwd: pane?.cwd,
-                    filePath: node.path,
-                  })}
+                  onFileOpen={(node) =>
+                    onOpenQuickPane({
+                      type: "editor",
+                      cwd: pane?.cwd,
+                      filePath: node.path,
+                    })
+                  }
                 />
               </div>
             ) : (
@@ -398,35 +422,44 @@ export function TabLayout({
             <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
           )}
 
-          {isInDesignMode &&
-            (hoveredPaneId !== null
-              ? hoveredPaneId === pane.id
-              : isActivePane) && (
-              <PaneControlButtons
-                tabId={tab.id}
-                paneId={pane.id}
-                canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
-                canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
-                canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
-                canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
-                isOnlyPane={countPanesInLayout(tab.layout) === 1}
-                isOnlyTab={tabs.length === 1}
-                isInFocusMode={tab.mode === "focus"}
-              />
-            )}
+          {/* Drop zone overlay */}
+          {renderDropZone(pane.id)}
+
+          {shouldRenderControls && (
+            <PaneControlButtons
+              tabId={tab.id}
+              paneId={pane.id}
+              canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
+              canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
+              canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
+              canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
+              isOnlyPane={countPanesInLayout(tab.layout) === 1}
+              isOnlyTab={tabs.length === 1}
+              isInFocusMode={tab.mode === "focus"}
+              {...dragHandlers}
+            />
+          )}
         </div>
       );
     },
     [
       activePaneId,
       activeTabId,
+      createDragHandlers,
+      createDropHandlers,
       handleContextMenu,
+      handleEditorUpdate,
       handleWebViewUpdate,
-      hoveredPaneId,
       isInDesignMode,
+      onOpenQuickPane,
+      renderDropZone,
       shouldShowTerminalDimensions,
       resizingNode,
-      tabs.length,
+      setHoveredPaneId,
+      tabs,
+      draggedPaneId,
+      dragHoverPaneId,
+      hoveredPaneId,
     ]
   );
 
@@ -493,7 +526,11 @@ export function TabLayout({
                 : "";
 
             const intersectionHandles = primaryAxis
-              ? computeIntersectionHandles(previousSibling, child, node.direction)
+              ? computeIntersectionHandles(
+                previousSibling,
+                child,
+                node.direction
+              )
               : [];
 
             const clearHover = () => {
