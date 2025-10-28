@@ -235,14 +235,12 @@ export function TabLayout({
   // Use the drag and drop hook
   const {
     draggedPaneId,
-    draggedTabId,
-    dropZone,
     hoveredPaneId,
     setHoveredPaneId,
     createDragHandlers,
     createDropHandlers,
     renderDropZone,
-  } = usePaneDragDrop({ isInDesignMode });
+  } = usePaneDragDrop();
 
   const previousResizingNodeRef = useRef<string | null>(null);
   useEffect(() => {
@@ -314,7 +312,7 @@ export function TabLayout({
       }
 
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
-      const isDragging = draggedPaneId === pane.id && draggedTabId === tab.id;
+      const isDragging = draggedPaneId === pane.id;
       const isHoveredDuringDrag =
         draggedPaneId !== null && hoveredPaneId === pane.id && !isDragging;
 

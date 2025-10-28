@@ -1,26 +1,20 @@
 import { detachPane } from "@/store/actions/pane";
-import { tabsAtom } from "@/store/atoms";
+import { applicationModeAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   Pane,
   SplitDirection,
 } from "@/types";
 import { generateId } from "@/utils/id";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useState } from "react";
 
-const DROP_ZONE_THRESHOLD = 0.2; // 20% threshold for edge detection
+const DROP_ZONE_THRESHOLD = 0.4; // 40% threshold for edge detection
 
 type DropZone = "top" | "bottom" | "left" | "right" | null;
 
-interface UsePaneDragDropParams {
-  isInDesignMode: boolean;
-}
-
 interface UsePaneDragDropReturn {
   draggedPaneId: string | null;
-  draggedTabId: string | null;
-  dropZone: DropZone;
   hoveredPaneId: string | null;
   setHoveredPaneId: (id: string | null) => void;
   createDragHandlers: (paneId: string, tabId: string) => {
@@ -35,14 +29,14 @@ interface UsePaneDragDropReturn {
   renderDropZone: (paneId: string) => React.ReactNode;
 }
 
-export function usePaneDragDrop({
-  isInDesignMode,
-}: UsePaneDragDropParams): UsePaneDragDropReturn {
+export function usePaneDragDrop(): UsePaneDragDropReturn {
   const [draggedPaneId, setDraggedPaneId] = useState<string | null>(null);
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone>(null);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
+  const applicationMode = useAtomValue(applicationModeAtom);
+  const isInDesignMode = applicationMode === "design";
   const setTabs = useSetAtom(tabsAtom);
 
   // Helper to determine drop zone based on mouse position
@@ -234,7 +228,7 @@ export function usePaneDragDrop({
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
-          if (!isInDesignMode || !draggedPaneId || !draggedTabId || !dropZone) {
+          if (!isInDesignMode || !draggedPaneId || !dropZone) {
             return;
           }
 
@@ -271,8 +265,8 @@ export function usePaneDragDrop({
               return;
           }
 
-          // Detach the pane from its original location
-          const detachResult = detachPane(draggedTabId, draggedPaneId);
+          // Detach the pane from its original location (uses current active tab)
+          const detachResult = detachPane(tabId, draggedPaneId);
           if (!detachResult) return;
 
           // Split the target pane with the dragged pane
@@ -304,7 +298,7 @@ export function usePaneDragDrop({
   // Render the drop zone overlay for a specific pane
   const renderDropZone = useCallback(
     (paneId: string): React.ReactNode => {
-      const isDragging = draggedPaneId === paneId && draggedTabId !== null;
+      const isDragging = draggedPaneId === paneId;
       const isHoveredDuringDrag =
         draggedPaneId !== null && hoveredPaneId === paneId && !isDragging;
 
@@ -328,13 +322,11 @@ export function usePaneDragDrop({
         />
       );
     },
-    [draggedPaneId, draggedTabId, hoveredPaneId, isInDesignMode, dropZone]
+    [draggedPaneId, hoveredPaneId, isInDesignMode, dropZone]
   );
 
   return {
     draggedPaneId,
-    draggedTabId,
-    dropZone,
     hoveredPaneId,
     setHoveredPaneId,
     createDragHandlers,
