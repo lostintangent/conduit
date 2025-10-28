@@ -1,4 +1,4 @@
-import { ArrowBigUp, ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type FocusModeIndicatorProps = {
@@ -26,7 +26,7 @@ export function FocusModeIndicator({
 
   const paneInfo =
     currentPaneIndex !== undefined && totalPanes !== undefined
-      ? ` (${currentPaneIndex + 1} of ${totalPanes})`
+      ? `${currentPaneIndex + 1} of ${totalPanes}`
       : "";
 
   return (
@@ -38,7 +38,7 @@ export function FocusModeIndicator({
     >
       <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
         <span className="text-xs text-white/90 font-medium">
-          Focus Mode{paneInfo}
+          {paneInfo}
         </span>
         <button
           type="button"
@@ -65,7 +65,7 @@ export function FocusModeIndicator({
           aria-label="Exit focus mode"
           title="Exit focus mode (⌘⇧F)"
         >
-          <ArrowBigUp size={16} />
+          <Shrink size={16} />
         </button>
       </div>
     </div>

@@ -39,9 +39,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 const INTERSECTION_TOLERANCE = 0.08;
 
 const GRID_TEMPLATE_TRANSITION_STYLE: React.CSSProperties = {
-  transitionProperty: "grid-template-columns, grid-template-rows",
-  transitionDuration: "160ms",
-  transitionTimingFunction: "ease",
+  transition: "grid-template-columns 160ms ease, grid-template-rows 160ms ease",
 };
 
 const shouldShowPaneBorder = (tab: Tab, applicationMode: string): boolean => {
