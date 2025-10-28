@@ -5,9 +5,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { enterFocusMode } from "@/store/actions/focusMode";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
+  activeTabAtom,
   applicationModeAtom,
   tabsAtom,
   userSettingsAtom,
@@ -15,6 +17,7 @@ import {
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
 import {
+  Expand,
   FileEdit,
   Globe,
   MoreHorizontal,
@@ -59,9 +62,11 @@ export const TabStrip = ({
 }: TabStripProps) => {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
+  const activeTab = useAtomValue(activeTabAtom);
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
+  const isInFocusMode = applicationMode === "focus";
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -82,21 +87,32 @@ export const TabStrip = ({
   };
 
   const formatPathForLabel = useCallback(
-    (cwd: string | null) => {
-      if (!cwd) {
+    (pathValue: string | null | undefined) => {
+      if (!pathValue) {
         return null;
       }
 
-      if (homeDirectory && cwd === homeDirectory) {
+      if (!homeDirectory) {
+        return pathValue;
+      }
+
+      const normalizedPath = pathValue.replace(/\\/g, "/");
+      const normalizedHome = homeDirectory.replace(/\\/g, "/");
+
+      if (normalizedPath === normalizedHome) {
         return "~";
       }
 
-      if (homeDirectory && cwd.startsWith(homeDirectory)) {
-        const suffix = cwd.slice(homeDirectory.length);
-        return suffix ? `~${suffix}` : "~";
+      const homeWithSlash = normalizedHome.endsWith("/")
+        ? normalizedHome
+        : `${normalizedHome}/`;
+
+      if (normalizedPath.startsWith(homeWithSlash)) {
+        const suffix = normalizedPath.slice(homeWithSlash.length);
+        return suffix ? `~/${suffix}` : "~";
       }
 
-      return cwd;
+      return pathValue;
     },
     [homeDirectory]
   );
@@ -120,6 +136,15 @@ export const TabStrip = ({
           const title = activePane.title?.trim();
           fallbackLabel = title && title.length > 0 ? title : activePane.url;
           tooltipBase = fallbackLabel;
+        } else if (activePane?.type === "editor") {
+          const editorPath = activePane.filePath ?? activePane.cwd ?? null;
+          if (editorPath) {
+            fallbackLabel = formatPathForLabel(editorPath) ?? editorPath;
+            tooltipBase = editorPath;
+          } else {
+            fallbackLabel = "Editor";
+            tooltipBase = fallbackLabel;
+          }
         }
 
         const label = tab.title?.trim() ? tab.title.trim() : fallbackLabel;
@@ -343,11 +368,23 @@ export const TabStrip = ({
     });
   }, [onOpenQuickPane]);
 
+  const handleEnterFocusMode = useCallback(() => {
+    if (!activeTab) {
+      return;
+    }
+    enterFocusMode(activeTab.id, activeTab.activePaneId);
+  }, [activeTab]);
+
   const borderClass = position === "top" ? "border-b" : "border-t rounded-b-xl";
 
   return (
     <div
-      className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border min-h-10 w-full min-w-0`}
+      className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
+      style={{
+        minHeight: isInFocusMode ? "0" : "2.5rem",
+        maxHeight: isInFocusMode ? "0" : "2.5rem",
+        opacity: isInFocusMode ? 0 : 1,
+      }}
     >
       {/* Tab buttons */}
       <div
@@ -438,6 +475,18 @@ export const TabStrip = ({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Expand button for focus mode */}
+        <button
+          type="button"
+          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Enter focus mode (⌘⌥F)"
+          aria-label="Enter focus mode"
+          onClick={handleEnterFocusMode}
+          disabled={!activeTab}
+        >
+          <Expand size={18} />
+        </button>
 
         <button
           type="button"

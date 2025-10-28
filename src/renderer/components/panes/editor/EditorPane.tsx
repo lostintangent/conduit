@@ -3,7 +3,7 @@ import { userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
-import { ChevronDown, FolderUp, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, FolderUp, Loader2, RefreshCw, Undo, Redo, Save } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
@@ -17,7 +17,7 @@ import "monaco-editor/esm/vs/language/html/monaco.contribution";
 import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import "monaco-editor/esm/vs/language/typescript/monaco.contribution";
 import path from "path-browserify";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
 
@@ -123,10 +123,17 @@ export function EditorPane({
   const [currentContent, setCurrentContent] = useState<string | undefined>(
     undefined
   );
+  const [originalContent, setOriginalContent] = useState<string | undefined>(
+    undefined
+  );
   const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(
     undefined
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const disposableRef = useRef<monaco.IDisposable | null>(null);
 
   const hasOpenFile = Boolean(filePath && currentContent !== undefined);
 
@@ -134,6 +141,7 @@ export function EditorPane({
   useEffect(() => {
     if (!filePath) {
       setCurrentContent(undefined);
+      setOriginalContent(undefined);
       setCurrentLanguage(undefined);
       setHasUnsavedChanges(false);
       return;
@@ -147,6 +155,7 @@ export function EditorPane({
         if (!cancelled) {
           const language = inferLanguageFromFilePath(filePath);
           setCurrentContent(content);
+          setOriginalContent(content);
           setCurrentLanguage(language);
           setHasUnsavedChanges(false);
         }
@@ -155,6 +164,7 @@ export function EditorPane({
         console.error("Failed to load file:", error);
         if (!cancelled) {
           setCurrentContent(undefined);
+          setOriginalContent(undefined);
           setCurrentLanguage(undefined);
         }
       });
@@ -172,6 +182,7 @@ export function EditorPane({
 
     try {
       await api.writeFile(filePath, currentContent);
+      setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error("Failed to save file:", error);
@@ -190,6 +201,15 @@ export function EditorPane({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
+
+  // Cleanup disposable on unmount
+  useEffect(() => {
+    return () => {
+      if (disposableRef.current) {
+        disposableRef.current.dispose();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!cwd || hasOpenFile) {
@@ -257,11 +277,10 @@ export function EditorPane({
 
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
-      const originalContent = currentContent;
       setCurrentContent(value);
       setHasUnsavedChanges(value !== originalContent);
     },
-    [currentContent]
+    [originalContent]
   );
 
   const handleDirectoryChange = useCallback(
@@ -285,6 +304,7 @@ export function EditorPane({
         const content = await api.readFile(filePath);
         const language = inferLanguageFromFilePath(filePath);
         setCurrentContent(content);
+        setOriginalContent(content);
         setCurrentLanguage(language);
         setHasUnsavedChanges(false);
       } catch (error) {
@@ -305,6 +325,53 @@ export function EditorPane({
       }
     }
   }, [hasOpenFile, filePath, cwd]);
+
+  const handleEditorMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
+    // Clean up previous disposable if it exists
+    if (disposableRef.current) {
+      disposableRef.current.dispose();
+      disposableRef.current = null;
+    }
+
+    // Reset state when remounting
+    setCanUndo(false);
+    setCanRedo(false);
+
+    editorRef.current = editor;
+    
+    // Update undo/redo state when editor content changes
+    const updateUndoRedoState = () => {
+      const model = editor.getModel();
+      if (model) {
+        setCanUndo(model.canUndo());
+        setCanRedo(model.canRedo());
+      } else {
+        // Model is null/undefined, disable both buttons
+        setCanUndo(false);
+        setCanRedo(false);
+      }
+    };
+
+    // Initial state
+    updateUndoRedoState();
+
+    // Listen for content changes to update undo/redo state
+    disposableRef.current = editor.onDidChangeModelContent(() => {
+      updateUndoRedoState();
+    });
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.trigger('keyboard', 'undo', null);
+    }
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.trigger('keyboard', 'redo', null);
+    }
+  }, []);
 
   const canNavigateUp = useMemo(() => {
     const parentDir = path.dirname(cwd);
@@ -348,16 +415,73 @@ export function EditorPane({
           <span className="truncate" title={filePath || cwd}>
             {displayPath}
           </span>
+          {hasOpenFile ? (
+            <>
+              <div className="h-4 w-px bg-white/10 shrink-0" />
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Undo"
+              >
+                <Undo size={14} className="text-white/60" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                disabled={!canRedo}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Redo"
+              >
+                <Redo size={14} className="text-white/60" />
+              </button>
+              <div className="h-4 w-px bg-white/10 shrink-0" />
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Save"
+              >
+                <Save size={14} className="text-white/60" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                title="Refresh file"
+              >
+                <RefreshCw size={14} className="text-white/60" />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="h-4 w-px bg-white/10 shrink-0" />
+              <div className="flex items-center gap-1 shrink-0">
+                {canNavigateUp && (
+                  <button
+                    type="button"
+                    onClick={handleNavigateUp}
+                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                    title="Go up one directory"
+                  >
+                    <FolderUp size={14} className="text-white/60" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                  title="Refresh directory"
+                >
+                  <RefreshCw size={14} className="text-white/60" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-            title={hasOpenFile ? "Refresh file" : "Refresh directory"}
-          >
-            <RefreshCw size={14} className="text-white/60" />
-          </button>
           {hasOpenFile && (
             <button
               type="button"
@@ -368,16 +492,6 @@ export function EditorPane({
               <ChevronDown size={14} className="text-white/60" />
             </button>
           )}
-          {!hasOpenFile && canNavigateUp && (
-            <button
-              type="button"
-              onClick={handleNavigateUp}
-              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-              title="Go up one directory"
-            >
-              <FolderUp size={14} className="text-white/60" />
-            </button>
-          )}
         </div>
       </div>
       <div className="flex flex-1 min-h-0 min-w-0">
@@ -386,6 +500,7 @@ export function EditorPane({
             key={filePath}
             value={currentContent}
             onChange={handleEditorChange}
+            onMount={handleEditorMount}
             language={currentLanguage}
             path={filePath}
             theme="vs-dark"
