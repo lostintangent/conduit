@@ -1,4 +1,4 @@
-import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
+import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -2,8 +2,8 @@ import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
-import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
-import { PaneControlButtons } from "@/components/tabs/layout/design/PaneControlButtons";
+import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import { PaneControlButtons } from "@/components/tabs/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
 import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
@@ -333,16 +333,16 @@ export function TabLayout({
         >
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
             {pane.type === "terminal" ? (
-            <TerminalPane
-              key={pane.sessionId}
-              sessionId={pane.sessionId}
-              paneId={pane.id}
-              isActive={isActivePane}
-              onActivate={onPaneActivate}
-              onContextMenu={onPaneContextMenu}
-              onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
-              showDimensions={shouldShowTerminalDimensions}
-            />
+              <TerminalPane
+                key={pane.sessionId}
+                sessionId={pane.sessionId}
+                paneId={pane.id}
+                isActive={isActivePane}
+                onActivate={onPaneActivate}
+                onContextMenu={onPaneContextMenu}
+                onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
+                showDimensions={shouldShowTerminalDimensions}
+              />
             ) : pane.type === "editor" ? (
               <div
                 className="flex flex-1 w-full h-full min-h-0 min-w-0"

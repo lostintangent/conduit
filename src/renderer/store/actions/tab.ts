@@ -1,3 +1,4 @@
+import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import {
   detachPane,
   removePane,
@@ -9,7 +10,6 @@ import { generateId } from "@/utils/id";
 import type { Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import { openWorkspace } from "./workspace";
-import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
 
 const api = window.conduit;
 const store = getDefaultStore();

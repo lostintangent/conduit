@@ -6,23 +6,23 @@ import { applicationModeAtom } from "@/store/atoms";
 import type { Pane } from "@/types";
 import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
+import { useSetAtom } from "jotai";
 import { ArrowUpRight, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useSetAtom } from "jotai";
 
 export type PaneDescriptor = Omit<Pane, "id">;
 
-type QuickPaneDialogProps = {
+type QuickDialogProps = {
   paneDescriptor: PaneDescriptor;
   onClose: () => void;
   onOpenAsTab: (descriptor: PaneDescriptor) => void;
 };
 
-export function QuickPaneDialog({
+export function QuickDialog({
   paneDescriptor,
   onClose,
   onOpenAsTab,
-}: QuickPaneDialogProps) {
+}: QuickDialogProps) {
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const [currentDescriptor, setCurrentDescriptor] =
     useState<PaneDescriptor>(paneDescriptor);

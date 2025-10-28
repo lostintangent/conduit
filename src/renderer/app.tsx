@@ -1,9 +1,9 @@
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import {
-  QuickPaneDialog,
+  QuickDialog,
   type PaneDescriptor,
-} from "@/components/shell/QuickPaneDialog";
+} from "@/components/shell/QuickDialog";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { TabLayout } from "@/components/tabs/layout/TabLayout";
@@ -594,7 +594,7 @@ export function App() {
       />
 
       {quickPaneState && (
-        <QuickPaneDialog
+        <QuickDialog
           paneDescriptor={quickPaneState}
           onClose={handleCloseQuickPane}
           onOpenAsTab={handleOpenQuickPaneAsTab}
