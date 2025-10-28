@@ -242,6 +242,7 @@ export function usePaneDragDrop({
           if (draggedPaneId === paneId) {
             setDraggedPaneId(null);
             setDropZone(null);
+            setHoveredPaneId(null);
             return;
           }
 
