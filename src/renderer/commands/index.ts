@@ -13,6 +13,7 @@ export { MenuRegistry } from './menus/MenuRegistry';
 export { When } from './whenClauses/When';
 export { useKeybindingDispatch } from './keybindings/useKeybindingDispatch';
 export { useMenu } from './menus/useMenu';
+export { useCommandPaletteData } from './commandPalette/useCommandPaletteData';
 
 export type { CommandDescriptor, CommandContext } from './core/types';
 export type { WhenClause } from './whenClauses/WhenClause';
@@ -21,6 +22,7 @@ export type { IContextKeyService } from './contextKeys/ContextKeyService';
 export type { KeybindingDescriptor, KeyChord, ResolvedKeybinding } from './keybindings/types';
 export type { MenuId, MenuContribution, MenuItem } from './menus/types';
 export type { MenuItemData } from './menus/useMenu';
+export type { CommandPaletteItem } from './commandPalette/useCommandPaletteData';
 
 // Global instances (to be initialized in app startup)
 let commandRegistry: ICommandRegistry | null = null;
