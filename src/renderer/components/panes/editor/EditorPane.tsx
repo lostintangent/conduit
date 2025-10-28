@@ -3,7 +3,7 @@ import { userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
-import { ChevronDown, FolderUp, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, FolderUp, Loader2, RefreshCw, Undo, Redo } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
@@ -17,7 +17,7 @@ import "monaco-editor/esm/vs/language/html/monaco.contribution";
 import "monaco-editor/esm/vs/language/json/monaco.contribution";
 import "monaco-editor/esm/vs/language/typescript/monaco.contribution";
 import path from "path-browserify";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
 
@@ -127,6 +127,9 @@ export function EditorPane({
     undefined
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   const hasOpenFile = Boolean(filePath && currentContent !== undefined);
 
@@ -306,6 +309,44 @@ export function EditorPane({
     }
   }, [hasOpenFile, filePath, cwd]);
 
+  const handleEditorMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
+    editorRef.current = editor;
+    
+    // Update undo/redo state when editor content changes
+    const updateUndoRedoState = () => {
+      const model = editor.getModel();
+      if (model) {
+        setCanUndo(model.canUndo());
+        setCanRedo(model.canRedo());
+      }
+    };
+
+    // Initial state
+    updateUndoRedoState();
+
+    // Listen for content changes to update undo/redo state
+    const disposable = editor.onDidChangeModelContent(() => {
+      updateUndoRedoState();
+    });
+
+    // Cleanup on unmount
+    return () => {
+      disposable.dispose();
+    };
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.trigger('keyboard', 'undo', null);
+    }
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.trigger('keyboard', 'redo', null);
+    }
+  }, []);
+
   const canNavigateUp = useMemo(() => {
     const parentDir = path.dirname(cwd);
     return parentDir !== cwd && parentDir !== ".";
@@ -348,6 +389,28 @@ export function EditorPane({
           <span className="truncate" title={filePath || cwd}>
             {displayPath}
           </span>
+          {hasOpenFile && (
+            <>
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Undo"
+              >
+                <Undo size={14} className="text-white/60" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                disabled={!canRedo}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Redo"
+              >
+                <Redo size={14} className="text-white/60" />
+              </button>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -386,6 +449,7 @@ export function EditorPane({
             key={filePath}
             value={currentContent}
             onChange={handleEditorChange}
+            onMount={handleEditorMount}
             language={currentLanguage}
             path={filePath}
             theme="vs-dark"
