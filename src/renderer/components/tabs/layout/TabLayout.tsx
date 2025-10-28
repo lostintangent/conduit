@@ -309,10 +309,6 @@ export function TabLayout({
 
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
 
-      // Calculate pane number (1-based index)
-      const allPaneIds = getAllPaneIds(tab);
-      const paneNumber = allPaneIds.indexOf(pane.id) + 1;
-
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
       const onPaneActivate = () => activatePane(tab.id, pane.id);
@@ -433,7 +429,6 @@ export function TabLayout({
             <PaneControlButtons
               tabId={tab.id}
               paneId={pane.id}
-              paneNumber={paneNumber}
               canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
               canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
               canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}

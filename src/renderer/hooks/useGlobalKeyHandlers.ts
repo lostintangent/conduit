@@ -113,15 +113,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Cmd+Alt: Enter design mode (hold)
-      if (event.altKey && !event.shiftKey && !event.ctrlKey && (key === "meta" || key === "alt")) {
-        event.preventDefault();
-        if (applicationMode !== "quick") {
-          setApplicationMode("design");
-        }
-        return;
-      }
-
       // Cmd+Alt+T: Move pane to new tab
       if (event.altKey && key === "t") {
         if (activeTab && activeTab.activePaneId) {
