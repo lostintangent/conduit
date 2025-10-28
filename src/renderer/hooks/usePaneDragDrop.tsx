@@ -206,8 +206,9 @@ export function usePaneDragDrop({
       onDragEnd: () => {
         setDraggedPaneId(null);
         setDropZone(null);
-        // Don't clear hoveredPaneId - let normal mouse events handle it
-        // to avoid losing hover state when drag ends over a pane
+        // Clear hoveredPaneId to reset hover state after drag
+        // This ensures pane controls will show correctly on next hover
+        setHoveredPaneId(null);
       },
     }),
     [isInDesignMode]
