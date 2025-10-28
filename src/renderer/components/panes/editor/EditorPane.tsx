@@ -130,6 +130,7 @@ export function EditorPane({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const disposableRef = useRef<monaco.IDisposable | null>(null);
 
   const hasOpenFile = Boolean(filePath && currentContent !== undefined);
 
@@ -193,6 +194,15 @@ export function EditorPane({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
+
+  // Cleanup disposable on unmount
+  useEffect(() => {
+    return () => {
+      if (disposableRef.current) {
+        disposableRef.current.dispose();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!cwd || hasOpenFile) {
@@ -310,6 +320,11 @@ export function EditorPane({
   }, [hasOpenFile, filePath, cwd]);
 
   const handleEditorMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
+    // Clean up previous disposable if it exists
+    if (disposableRef.current) {
+      disposableRef.current.dispose();
+    }
+
     editorRef.current = editor;
     
     // Update undo/redo state when editor content changes
@@ -325,7 +340,7 @@ export function EditorPane({
     updateUndoRedoState();
 
     // Listen for content changes to update undo/redo state
-    editor.onDidChangeModelContent(() => {
+    disposableRef.current = editor.onDidChangeModelContent(() => {
       updateUndoRedoState();
     });
   }, []);
