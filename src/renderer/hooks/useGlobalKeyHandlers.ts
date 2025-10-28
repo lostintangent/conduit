@@ -232,20 +232,10 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       }
     };
 
-    const handleKeyup = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-
-      // Exit design mode when Cmd or Alt is released (from Cmd+Alt hold)
-      if ((key === "meta" || key === "alt") && applicationMode === "design") {
-        setApplicationMode("normal");
-      }
-    };
 
     window.addEventListener("keydown", handleKeydown);
-    window.addEventListener("keyup", handleKeyup);
     return () => {
       window.removeEventListener("keydown", handleKeydown);
-      window.removeEventListener("keyup", handleKeyup);
     };
   }, [
     activeTab,
