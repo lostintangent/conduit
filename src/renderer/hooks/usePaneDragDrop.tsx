@@ -283,6 +283,9 @@ export function usePaneDragDrop({
             insertBefore
           );
 
+          // Set the dropped pane as hovered to show its controls
+          setHoveredPaneId(draggedPaneId);
+
           // Clear drag state
           setDraggedPaneId(null);
           setDropZone(null);
