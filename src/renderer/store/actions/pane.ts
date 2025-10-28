@@ -1,3 +1,4 @@
+import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
@@ -813,15 +814,17 @@ export function removePane(
           : tab.activePaneId;
 
       const removedActivePane = tab.activePaneId === paneId;
-      const newMode =
-        tab.mode === "focus" && removedActivePane ? "layout" : tab.mode;
+      
+      // If we're removing the active pane while in focus mode, exit focus mode
+      if (removedActivePane && isFocusModeActive()) {
+        exitFocusMode();
+      }
 
       return {
         ...tab,
         panes: newPanes,
         layout: newLayout,
         activePaneId: newActivePaneId,
-        mode: newMode,
       };
     })
   );

@@ -32,14 +32,14 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
-import { countPanesInLayout } from "@/utils/layout";
+import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
-const shouldShowPaneBorder = (tab: Tab): boolean => {
-  return Object.keys(tab.panes).length > 1 && tab.mode !== "focus";
+const shouldShowPaneBorder = (tab: Tab, applicationMode: string): boolean => {
+  return Object.keys(tab.panes).length > 1 && applicationMode !== "focus";
 };
 
 type BoundaryInfo = {
@@ -165,10 +165,28 @@ const computeIntersectionHandles = (
 
 function buildGridTemplateStyles(
   children: LayoutNode[],
-  direction: SplitDirection
+  direction: SplitDirection,
+  activePaneId?: string,
+  isInFocusMode?: boolean
 ): React.CSSProperties {
   const childCount = children.length || 1;
   const hasSizes = children.some((child) => child.size !== undefined);
+
+  // In focus mode, make non-active panes 0fr so the active pane fills the space
+  if (isInFocusMode && activePaneId) {
+    const templateValue = children
+      .map((child) => {
+        // Check if this child contains the active pane
+        const containsActivePane = layoutContainsPaneId(child, activePaneId);
+        
+        return containsActivePane ? "1fr" : "0fr";
+      })
+      .join(" ");
+
+    return direction === "row"
+      ? { gridTemplateColumns: templateValue }
+      : { gridTemplateRows: templateValue };
+  }
 
   if (!hasSizes) {
     return direction === "row"
@@ -308,7 +326,7 @@ export function TabLayout({
       }
 
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
-      const isInFocusMode = tab.mode === "focus";
+      const isInFocusMode = applicationMode === "focus";
       const isHiddenInFocusMode = isInFocusMode && !isActivePane;
 
       const onPaneContextMenu = (event: React.MouseEvent) =>
@@ -438,7 +456,7 @@ export function TabLayout({
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
               isOnlyPane={countPanesInLayout(tab.layout) === 1}
               isOnlyTab={tabs.length === 1}
-              isInFocusMode={tab.mode === "focus"}
+              isInFocusMode={applicationMode === "focus"}
               {...dragHandlers}
             />
           )}
@@ -448,6 +466,7 @@ export function TabLayout({
     [
       activePaneId,
       activeTabId,
+      applicationMode,
       createDragHandlers,
       createDropHandlers,
       handleContextMenu,
@@ -472,13 +491,17 @@ export function TabLayout({
       tab: Tab,
       renderChild: (node: LayoutNode, tab: Tab) => React.ReactNode
     ): React.ReactNode => {
+      const isInFocusMode = applicationMode === "focus";
+      
       // Generate the grid template for this split
       const gridTemplate = buildGridTemplateStyles(
         node.children,
-        node.direction
+        node.direction,
+        tab.activePaneId,
+        isInFocusMode
       );
 
-      const tabShowsBorder = shouldShowPaneBorder(tab);
+      const tabShowsBorder = shouldShowPaneBorder(tab, applicationMode);
 
       return (
         /* Render the split container (the grid which positions the child panes) */
@@ -590,6 +613,7 @@ export function TabLayout({
       );
     },
     [
+      applicationMode,
       getHighlightClass,
       handleResizeStart,
       hoveredAxisKeys,
@@ -612,7 +636,7 @@ export function TabLayout({
   const renderTab = useCallback(
     (tab: Tab): React.ReactNode => {
       const isActive = tab.id === activeTabId;
-      const isInFocusMode = tab.mode === "focus";
+      const isInFocusMode = applicationMode === "focus";
       
       return (
         <div
@@ -626,15 +650,15 @@ export function TabLayout({
           }
         >
           {renderLayout(tab.layout, tab)}
-          {isInFocusMode && (() => {
+          {isInFocusMode && isActive && (() => {
             const paneIds = getAllPaneIds(tab);
             const currentIndex = paneIds.indexOf(tab.activePaneId);
             
             return (
               <FocusModeIndicator
-                onExit={() => exitFocusMode(tab.id)}
-                onPrevious={() => navigateFocusedPane(tab.id, "prev")}
-                onNext={() => navigateFocusedPane(tab.id, "next")}
+                onExit={() => exitFocusMode()}
+                onPrevious={() => navigateFocusedPane("prev")}
+                onNext={() => navigateFocusedPane("next")}
                 currentPaneIndex={currentIndex}
                 totalPanes={paneIds.length}
               />
@@ -643,7 +667,7 @@ export function TabLayout({
         </div>
       );
     },
-    [activeTabId, renderLayout]
+    [activeTabId, applicationMode, renderLayout]
   );
 
   return (

@@ -1,4 +1,4 @@
-import { tabsAtom } from "@/store/atoms";
+import { applicationModeAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import { getDefaultStore } from "jotai";
@@ -6,10 +6,10 @@ import { getDefaultStore } from "jotai";
 const store = getDefaultStore();
 
 /**
- * Check if focus mode is currently active for a tab
+ * Check if focus mode is currently active
  */
-export function isFocusModeActive(tab: Tab): boolean {
-  return tab.mode === "focus";
+export function isFocusModeActive(): boolean {
+  return store.get(applicationModeAtom) === "focus";
 }
 
 /**
@@ -39,57 +39,45 @@ export function getAllPaneIds(tab: Tab): string[] {
  * Enter focus mode for a specific pane
  */
 export function enterFocusMode(tabId: string, paneId: string): void {
-  store.set(tabsAtom, (tabs) =>
-    tabs.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  
+  if (!tab || !tab.panes[paneId]) {
+    return;
+  }
 
-      // Verify the pane exists
-      if (!tab.panes[paneId]) {
-        return tab;
-      }
+  // Set the active pane if needed
+  if (tab.activePaneId !== paneId) {
+    store.set(tabsAtom, (tabs) =>
+      tabs.map((t) => {
+        if (t.id !== tabId) {
+          return t;
+        }
+        return {
+          ...t,
+          activePaneId: paneId,
+        };
+      })
+    );
+  }
 
-      return {
-        ...tab,
-        mode: "focus",
-        activePaneId: paneId,
-      };
-    })
-  );
+  // Enter focus mode
+  store.set(applicationModeAtom, "focus");
 }
 
 /**
- * Exit focus mode for a tab
+ * Exit focus mode
  */
-export function exitFocusMode(tabId: string): void {
-  store.set(tabsAtom, (tabs) =>
-    tabs.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
-
-      return {
-        ...tab,
-        mode: "layout",
-      };
-    })
-  );
+export function exitFocusMode(): void {
+  store.set(applicationModeAtom, "normal");
 }
 
 /**
  * Toggle focus mode for a tab
  */
 export function toggleFocusMode(tabId: string, paneId: string): void {
-  const tabs = store.get(tabsAtom);
-  const tab = tabs.find((t) => t.id === tabId);
-
-  if (!tab) {
-    return;
-  }
-
-  if (isFocusModeActive(tab)) {
-    exitFocusMode(tabId);
+  if (isFocusModeActive()) {
+    exitFocusMode();
   } else {
     enterFocusMode(tabId, paneId);
   }
@@ -99,40 +87,50 @@ export function toggleFocusMode(tabId: string, paneId: string): void {
  * Navigate to the next or previous pane in focus mode
  */
 export function navigateFocusedPane(
-  tabId: string,
   direction: "next" | "prev"
 ): void {
+  const applicationMode = store.get(applicationModeAtom);
+  if (applicationMode !== "focus") {
+    return;
+  }
+
+  const activeTabId = store.get(activeTabIdAtom);
+  if (!activeTabId) {
+    return;
+  }
+
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === activeTabId);
+  if (!tab) {
+    return;
+  }
+
+  const paneIds = getAllPaneIds(tab);
+  if (paneIds.length <= 1) {
+    return;
+  }
+
+  const currentIndex = paneIds.indexOf(tab.activePaneId);
+  if (currentIndex === -1) {
+    return;
+  }
+
+  let nextIndex: number;
+  if (direction === "next") {
+    nextIndex = (currentIndex + 1) % paneIds.length;
+  } else {
+    nextIndex = (currentIndex - 1 + paneIds.length) % paneIds.length;
+  }
+
+  const nextPaneId = paneIds[nextIndex];
+
   store.set(tabsAtom, (tabs) =>
-    tabs.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
+    tabs.map((t) => {
+      if (t.id !== activeTabId) {
+        return t;
       }
-
-      if (tab.mode !== "focus") {
-        return tab;
-      }
-
-      const paneIds = getAllPaneIds(tab);
-      if (paneIds.length <= 1) {
-        return tab;
-      }
-
-      const currentIndex = paneIds.indexOf(tab.activePaneId);
-      if (currentIndex === -1) {
-        return tab;
-      }
-
-      let nextIndex: number;
-      if (direction === "next") {
-        nextIndex = (currentIndex + 1) % paneIds.length;
-      } else {
-        nextIndex = (currentIndex - 1 + paneIds.length) % paneIds.length;
-      }
-
-      const nextPaneId = paneIds[nextIndex];
-
       return {
-        ...tab,
+        ...t,
         activePaneId: nextPaneId,
       };
     })

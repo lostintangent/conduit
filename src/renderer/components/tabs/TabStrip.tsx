@@ -62,6 +62,7 @@ export const TabStrip = ({
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
+  const isInFocusMode = applicationMode === "focus";
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -347,7 +348,12 @@ export const TabStrip = ({
 
   return (
     <div
-      className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border min-h-10 w-full min-w-0`}
+      className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
+      style={{
+        minHeight: isInFocusMode ? "0" : "2.5rem",
+        maxHeight: isInFocusMode ? "0" : "2.5rem",
+        opacity: isInFocusMode ? 0 : 1,
+      }}
     >
       {/* Tab buttons */}
       <div

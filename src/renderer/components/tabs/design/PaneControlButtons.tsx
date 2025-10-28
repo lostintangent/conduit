@@ -101,7 +101,7 @@ export function PaneControlButtons({
 
   const handleToggleFocusMode = () => {
     if (isInFocusMode) {
-      exitFocusMode(tabId);
+      exitFocusMode();
     } else {
       enterFocusMode(tabId, paneId);
     }

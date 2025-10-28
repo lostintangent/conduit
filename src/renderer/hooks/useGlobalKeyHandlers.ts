@@ -100,8 +100,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
         if (!activeTab) return;
 
-        if (activeTab.mode === "focus") {
-          exitFocusMode(activeTab.id);
+        if (applicationMode === "focus") {
+          exitFocusMode();
           return;
         }
 
@@ -176,7 +176,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
             const config = splitConfig[direction];
             void performSplit(config.direction, config.insertBefore);
           } else {
-            if (isFocusModeActive(activeTab)) {
+            if (isFocusModeActive()) {
               const focusModeDirectionMap: Record<
                 PaneNavigationDirection,
                 "next" | "prev"
@@ -187,7 +187,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
                 down: "next",
               };
               navigateFocusedPane(
-                activeTab.id,
                 focusModeDirectionMap[direction]
               );
             } else {
