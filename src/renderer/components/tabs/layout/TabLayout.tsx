@@ -648,10 +648,10 @@ export function TabLayout({
             <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
           )}
 
-          {/* Drop zone overlay with hatch pattern */}
+          {/* Drop zone overlay */}
           {isInDesignMode && isHoveredDuringDrag && dropZone && (
             <div
-              className="pointer-events-none absolute z-30"
+              className="pointer-events-none absolute z-30 bg-blueprint/40"
               style={{
                 top: dropZone === "top" ? 0 : dropZone === "bottom" ? "50%" : 0,
                 left: dropZone === "left" ? 0 : dropZone === "right" ? "50%" : 0,
@@ -661,9 +661,6 @@ export function TabLayout({
                   dropZone === "left" || dropZone === "right" ? "50%" : "100%",
                 height:
                   dropZone === "top" || dropZone === "bottom" ? "50%" : "100%",
-                background:
-                  "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(59, 130, 246, 0.3) 10px, rgba(59, 130, 246, 0.3) 20px)",
-                backgroundColor: "rgba(59, 130, 246, 0.2)",
               }}
             />
           )}
