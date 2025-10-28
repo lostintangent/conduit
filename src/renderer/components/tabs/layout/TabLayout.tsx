@@ -364,10 +364,10 @@ export function TabLayout({
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
                   }
-                  onFileOpen={() => onOpenQuickPane({
+                  onFileOpen={(node) => onOpenQuickPane({
                     type: "editor",
                     cwd: pane?.cwd,
-                    filePath: pane.filePath,
+                    filePath: node.path,
                   })}
                 />
               </div>
