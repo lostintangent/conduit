@@ -1,6 +1,7 @@
 import type { ICommandRegistry } from './CommandRegistry';
 import type { CommandDescriptor, CommandContext, Disposable } from './types';
 import type { IContextKeyService } from '../contextKeys/ContextKeyService';
+import type { KeybindingRegistry } from '../keybindings/KeybindingRegistry';
 
 /**
  * Implementation of the command registry
@@ -8,7 +9,10 @@ import type { IContextKeyService } from '../contextKeys/ContextKeyService';
 export class CommandRegistry implements ICommandRegistry {
   private commands = new Map<string, CommandDescriptor>();
 
-  constructor(private contextKeyService: IContextKeyService) {}
+  constructor(
+    private contextKeyService: IContextKeyService,
+    private keybindingRegistry?: KeybindingRegistry
+  ) {}
 
   registerCommand<TContext extends CommandContext = CommandContext>(
     descriptor: CommandDescriptor<TContext>
@@ -21,7 +25,17 @@ export class CommandRegistry implements ICommandRegistry {
     // Store command
     this.commands.set(descriptor.id, descriptor as CommandDescriptor);
 
-    // TODO Phase 4: Register keybindings
+    // Register keybindings
+    if (this.keybindingRegistry && descriptor.keybinding) {
+      const bindings = Array.isArray(descriptor.keybinding)
+        ? descriptor.keybinding
+        : [descriptor.keybinding];
+
+      for (const binding of bindings) {
+        this.keybindingRegistry.register(descriptor.id, binding);
+      }
+    }
+
     // TODO Phase 5: Register menu contributions
 
     // Return disposable

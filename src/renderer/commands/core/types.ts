@@ -1,4 +1,5 @@
 import type { WhenClause } from '../whenClauses/WhenClause';
+import type { KeybindingDescriptor } from '../keybindings/types';
 
 /**
  * Base context available to all commands
@@ -41,8 +42,8 @@ export interface CommandDescriptor<TContext extends CommandContext = CommandCont
   /** When clause (command enabled when true) */
   when?: WhenClause;
 
-  /** Keyboard shortcuts (will be defined in Phase 4) */
-  keybinding?: any; // KeybindingDescriptor | KeybindingDescriptor[]
+  /** Keyboard shortcuts */
+  keybinding?: KeybindingDescriptor | KeybindingDescriptor[];
 
   /** Menu contributions (will be defined in Phase 5) */
   menu?: any; // MenuContribution | MenuContribution[]

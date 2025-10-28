@@ -1,25 +1,31 @@
 import { CommandRegistry } from './core/CommandRegistryImpl';
 import { ContextKeyService } from './contextKeys/ContextKeyServiceImpl';
+import { KeybindingRegistry } from './keybindings/KeybindingRegistry';
 import type { ICommandRegistry } from './core/CommandRegistry';
 import type { IContextKeyService } from './contextKeys/ContextKeyService';
 import type { CommandContext, CommandDescriptor } from './core/types';
 
 export { CommandRegistry } from './core/CommandRegistryImpl';
 export { ContextKeyService } from './contextKeys/ContextKeyServiceImpl';
+export { KeybindingRegistry } from './keybindings/KeybindingRegistry';
 export { When } from './whenClauses/When';
+export { useKeybindingDispatch } from './keybindings/useKeybindingDispatch';
 
 export type { CommandDescriptor, CommandContext } from './core/types';
 export type { WhenClause } from './whenClauses/WhenClause';
 export type { ICommandRegistry } from './core/CommandRegistry';
 export type { IContextKeyService } from './contextKeys/ContextKeyService';
+export type { KeybindingDescriptor, KeyChord, ResolvedKeybinding } from './keybindings/types';
 
 // Global instances (to be initialized in app startup)
 let commandRegistry: ICommandRegistry | null = null;
 let contextKeyService: IContextKeyService | null = null;
+let keybindingRegistry: KeybindingRegistry | null = null;
 
 export function initializeCommandSystem() {
   contextKeyService = new ContextKeyService();
-  commandRegistry = new CommandRegistry(contextKeyService);
+  keybindingRegistry = new KeybindingRegistry();
+  commandRegistry = new CommandRegistry(contextKeyService, keybindingRegistry);
 }
 
 export function getCommandRegistry(): ICommandRegistry {
@@ -34,6 +40,13 @@ export function getContextKeyService(): IContextKeyService {
     throw new Error('Command system not initialized. Call initializeCommandSystem() first.');
   }
   return contextKeyService;
+}
+
+export function getKeybindingRegistry(): KeybindingRegistry {
+  if (!keybindingRegistry) {
+    throw new Error('Command system not initialized. Call initializeCommandSystem() first.');
+  }
+  return keybindingRegistry;
 }
 
 // Convenience functions
