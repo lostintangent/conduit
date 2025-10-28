@@ -131,8 +131,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Cmd+D: Toggle design mode
-      if (key === "d" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
+      // Cmd+Alt+D: Toggle design mode (permanent)
+      if (key === "d" && event.altKey && !event.shiftKey && !event.ctrlKey) {
         event.preventDefault();
         if (applicationMode === "quick") {
           return;
@@ -140,6 +140,15 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         setApplicationMode((current) =>
           current === "design" ? "normal" : "design"
         );
+        return;
+      }
+
+      // Cmd+D: Enter design mode (temporary, hold)
+      if (key === "d" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
+        event.preventDefault();
+        if (applicationMode !== "quick") {
+          setApplicationMode("design");
+        }
         return;
       }
 
@@ -235,8 +244,13 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     const handleKeyup = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
 
-      // Exit design mode when Cmd or Alt is released
+      // Exit design mode when Cmd or Alt is released (from Cmd+Alt hold)
       if ((key === "meta" || key === "alt") && applicationMode === "design") {
+        setApplicationMode("normal");
+      }
+
+      // Exit design mode when D is released (from Cmd+D hold)
+      if (key === "d" && applicationMode === "design") {
         setApplicationMode("normal");
       }
     };
