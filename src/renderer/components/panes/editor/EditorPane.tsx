@@ -399,7 +399,7 @@ export function EditorPane({
     <div className="flex flex-1 min-h-0 min-w-0 flex-col bg-[#1e1e1e]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted border-b border-white/10 text-[13px] text-white/70">
         <div className="flex items-center gap-2 truncate">
-          {hasUnsavedChanges && (
+          {canUndo && (
             <div
               className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
               title="Unsaved changes"
@@ -410,6 +410,7 @@ export function EditorPane({
           </span>
           {hasOpenFile && (
             <>
+              <div className="h-4 w-px bg-white/10 shrink-0" />
               <button
                 type="button"
                 onClick={handleUndo}
@@ -428,18 +429,29 @@ export function EditorPane({
               >
                 <Redo size={14} className="text-white/60" />
               </button>
+              <div className="h-4 w-px bg-white/10 shrink-0" />
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                title="Refresh file"
+              >
+                <RefreshCw size={14} className="text-white/60" />
+              </button>
             </>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-            title={hasOpenFile ? "Refresh file" : "Refresh directory"}
-          >
-            <RefreshCw size={14} className="text-white/60" />
-          </button>
+          {!hasOpenFile && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+              title="Refresh directory"
+            >
+              <RefreshCw size={14} className="text-white/60" />
+            </button>
+          )}
           {hasOpenFile && (
             <button
               type="button"
