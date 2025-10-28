@@ -430,26 +430,6 @@ export function TabLayout({
               };
             }
 
-            // If target is directly a pane child, wrap it
-            if (targetChild.type === "pane" && targetChild.paneId === targetPaneId) {
-              const newChildren = [...node.children];
-              newChildren[childIndex] = {
-                id: generateId(),
-                type: "split",
-                direction,
-                children: insertBefore
-                  ? [newLayoutNode, targetChild]
-                  : [targetChild, newLayoutNode],
-              };
-              return {
-                node: {
-                  ...node,
-                  children: newChildren,
-                },
-                modified: true,
-              };
-            }
-
             return { node, modified: false };
           };
 
@@ -528,9 +508,7 @@ export function TabLayout({
       };
 
       const handleDragLeave = () => {
-        if (hoveredPaneId === pane.id) {
-          setDropZone(null);
-        }
+        setDropZone(null);
       };
 
       const handleDrop = (e: React.DragEvent) => {
@@ -571,13 +549,6 @@ export function TabLayout({
           default:
             return;
         }
-
-        // Get the dragged pane and detach it
-        const draggedTab = tabs.find((t) => t.id === draggedTabId);
-        if (!draggedTab) return;
-
-        const draggedPane = draggedTab.panes[draggedPaneId];
-        if (!draggedPane) return;
 
         // Detach the pane from its original location
         const detachResult = detachPane(draggedTabId, draggedPaneId);
@@ -724,9 +695,11 @@ export function TabLayout({
       dropZone,
       getDropZone,
       handleContextMenu,
+      handleEditorUpdate,
       handleWebViewUpdate,
       hoveredPaneId,
       isInDesignMode,
+      onOpenQuickPane,
       shouldShowTerminalDimensions,
       resizingNode,
       splitPaneWithExisting,
