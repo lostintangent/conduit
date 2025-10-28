@@ -87,21 +87,32 @@ export const TabStrip = ({
   };
 
   const formatPathForLabel = useCallback(
-    (cwd: string | null) => {
-      if (!cwd) {
+    (pathValue: string | null | undefined) => {
+      if (!pathValue) {
         return null;
       }
 
-      if (homeDirectory && cwd === homeDirectory) {
+      if (!homeDirectory) {
+        return pathValue;
+      }
+
+      const normalizedPath = pathValue.replace(/\\/g, "/");
+      const normalizedHome = homeDirectory.replace(/\\/g, "/");
+
+      if (normalizedPath === normalizedHome) {
         return "~";
       }
 
-      if (homeDirectory && cwd.startsWith(homeDirectory)) {
-        const suffix = cwd.slice(homeDirectory.length);
-        return suffix ? `~${suffix}` : "~";
+      const homeWithSlash = normalizedHome.endsWith("/")
+        ? normalizedHome
+        : `${normalizedHome}/`;
+
+      if (normalizedPath.startsWith(homeWithSlash)) {
+        const suffix = normalizedPath.slice(homeWithSlash.length);
+        return suffix ? `~/${suffix}` : "~";
       }
 
-      return cwd;
+      return pathValue;
     },
     [homeDirectory]
   );
@@ -125,6 +136,15 @@ export const TabStrip = ({
           const title = activePane.title?.trim();
           fallbackLabel = title && title.length > 0 ? title : activePane.url;
           tooltipBase = fallbackLabel;
+        } else if (activePane?.type === "editor") {
+          const editorPath = activePane.filePath ?? activePane.cwd ?? null;
+          if (editorPath) {
+            fallbackLabel = formatPathForLabel(editorPath) ?? editorPath;
+            tooltipBase = editorPath;
+          } else {
+            fallbackLabel = "Editor";
+            tooltipBase = fallbackLabel;
+          }
         }
 
         const label = tab.title?.trim() ? tab.title.trim() : fallbackLabel;

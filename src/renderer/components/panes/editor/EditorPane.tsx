@@ -415,7 +415,7 @@ export function EditorPane({
           <span className="truncate" title={filePath || cwd}>
             {displayPath}
           </span>
-          {hasOpenFile && (
+          {hasOpenFile ? (
             <>
               <div className="h-4 w-px bg-white/10 shrink-0" />
               <button
@@ -455,19 +455,33 @@ export function EditorPane({
                 <RefreshCw size={14} className="text-white/60" />
               </button>
             </>
+          ) : (
+            <>
+              <div className="h-4 w-px bg-white/10 shrink-0" />
+              <div className="flex items-center gap-1 shrink-0">
+                {canNavigateUp && (
+                  <button
+                    type="button"
+                    onClick={handleNavigateUp}
+                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                    title="Go up one directory"
+                  >
+                    <FolderUp size={14} className="text-white/60" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                  title="Refresh directory"
+                >
+                  <RefreshCw size={14} className="text-white/60" />
+                </button>
+              </div>
+            </>
           )}
         </div>
         <div className="flex items-center gap-1">
-          {!hasOpenFile && (
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-              title="Refresh directory"
-            >
-              <RefreshCw size={14} className="text-white/60" />
-            </button>
-          )}
           {hasOpenFile && (
             <button
               type="button"
@@ -476,16 +490,6 @@ export function EditorPane({
               title="Show file tree"
             >
               <ChevronDown size={14} className="text-white/60" />
-            </button>
-          )}
-          {!hasOpenFile && canNavigateUp && (
-            <button
-              type="button"
-              onClick={handleNavigateUp}
-              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-              title="Go up one directory"
-            >
-              <FolderUp size={14} className="text-white/60" />
             </button>
           )}
         </div>
