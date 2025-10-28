@@ -2,11 +2,11 @@ import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { WebPane } from "@/components/panes/web/WebPane";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { ArrowUpRight } from "lucide-react";
-import { useCallback, useState } from "react";
+import type { Pane } from "@/types";
 import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
-import type { Pane } from "@/types";
+import { ArrowUpRight, X } from "lucide-react";
+import { useCallback, useState } from "react";
 
 export type PaneDescriptor = Omit<Pane, "id">;
 
@@ -26,22 +26,6 @@ export function QuickPaneDialog({
 
   // Generate a stable paneId for the quick pane
   const [quickPaneId] = useState(() => generateId());
-
-  const handleOpenAsTab = useCallback(() => {
-    onOpenAsTab(currentDescriptor);
-  }, [currentDescriptor, onOpenAsTab]);
-
-  // Get display label for header
-  const getDisplayLabel = () => {
-    switch (currentDescriptor.type) {
-      case "terminal":
-        return currentDescriptor.cwd || "Terminal";
-      case "editor":
-        return currentDescriptor.filePath || currentDescriptor.cwd;
-      case "webview":
-        return currentDescriptor.title || currentDescriptor.url;
-    }
-  };
 
   // Handle updates from editor pane
   const handleEditorUpdate = useCallback(
@@ -89,21 +73,11 @@ export function QuickPaneDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-[min(95vw,1000px)] h-[520px] min-h-[320px] max-h-[90vh] p-0 gap-0 bg-surface border-white/10">
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-xs text-white/60">
-          <span>{getDisplayLabel()}</span>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={handleOpenAsTab}
-              title="Open as tab"
-              className="rounded-md p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white mr-6 mt-0.5"
-            >
-              <ArrowUpRight size={16} />
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-1 min-h-0 min-w-0">
+      <DialogContent
+        showClose={false}
+        className="flex max-w-[min(95vw,1000px)] h-[720px] min-h-[320px] max-h-[90vh] overflow-hidden p-0 bg-surface border-white/10"
+      >
+        <div className="flex flex-1 w-full h-full min-h-0 min-w-0 overflow-hidden">
           {currentDescriptor.type === "terminal" && (
             <TerminalPane sessionId={currentDescriptor.sessionId} isActive />
           )}
@@ -128,7 +102,29 @@ export function QuickPaneDialog({
             />
           )}
         </div>
+
+        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
+            <button
+              type="button"
+              onClick={() => onOpenAsTab(currentDescriptor)}
+              title="Open in tab"
+              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+            >
+              <ArrowUpRight size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              title="Close quick pane"
+              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 }

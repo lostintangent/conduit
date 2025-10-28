@@ -1,3 +1,10 @@
+import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
@@ -8,20 +15,16 @@ import {
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
 import {
-  Zap,
+  FileEdit,
+  Globe,
   MoreHorizontal,
   PlusSquare,
   SquareDashedMousePointer,
+  Terminal,
+  Zap,
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { TabButton, TabPlaceholder } from "./TabButton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
 
 type TabDescriptor = {
   id: string;
@@ -419,14 +422,17 @@ export const TabStrip = ({
               <Zap size={18} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="max-w-[10rem]">
             <DropdownMenuItem onClick={handleOpenQuickTerminal}>
+              <Terminal size={16} className="mr-3" />
               Terminal
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleOpenQuickEditor}>
+              <FileEdit size={16} className="mr-3" />
               Editor
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleOpenQuickWeb}>
+              <Globe size={16} className="mr-3" />
               Web
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -2,6 +2,7 @@ import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
+import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
 import { PaneControlButtons } from "@/components/tabs/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
@@ -33,8 +34,6 @@ import type {
 import { countPanesInLayout, findPaneNodeByPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { PaneDescriptor } from "@/components/shell/QuickPaneDialog";
-import type { FileTreeNode } from "@shared/types";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
@@ -319,20 +318,6 @@ export function TabLayout({
         handleContextMenu(syntheticEvent, tab.id, pane.id);
       };
 
-      const handleFileOpen = useCallback(
-        (node: FileTreeNode) => {
-          if (!onOpenQuickPane || pane.type !== "editor") {
-            return;
-          }
-          onOpenQuickPane({
-            type: "editor",
-            cwd: pane.cwd,
-            filePath: node.path,
-          });
-        },
-        [onOpenQuickPane, pane]
-      );
-
       return (
         <div
           data-node-id={node.id}
@@ -376,7 +361,11 @@ export function TabLayout({
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
                   }
-                  onFileOpen={handleFileOpen}
+                  onFileOpen={() => onOpenQuickPane({
+                    type: "editor",
+                    cwd: pane?.cwd,
+                    filePath: pane.filePath,
+                  })}
                 />
               </div>
             ) : (
