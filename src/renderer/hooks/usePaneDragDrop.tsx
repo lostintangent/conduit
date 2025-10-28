@@ -14,12 +14,12 @@ const DROP_ZONE_THRESHOLD = 0.4; // 40% threshold for edge detection
 type DropZone = "top" | "bottom" | "left" | "right" | null;
 
 interface UsePaneDragDropParams {
-  hoveredPaneId: string | null;
-  setHoveredPaneId: (id: string | null) => void;
+  onDropComplete: (paneId: string) => void;
 }
 
 interface UsePaneDragDropReturn {
   draggedPaneId: string | null;
+  dragHoverPaneId: string | null;
   createDragHandlers: (paneId: string, tabId: string) => {
     onDragStart: (e: React.DragEvent) => void;
     onDragEnd: () => void;
@@ -33,11 +33,11 @@ interface UsePaneDragDropReturn {
 }
 
 export function usePaneDragDrop({
-  hoveredPaneId,
-  setHoveredPaneId,
+  onDropComplete,
 }: UsePaneDragDropParams): UsePaneDragDropReturn {
   const [draggedPaneId, setDraggedPaneId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone>(null);
+  const [dragHoverPaneId, setDragHoverPaneId] = useState<string | null>(null);
 
   const applicationMode = useAtomValue(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
@@ -222,16 +222,15 @@ export function usePaneDragDrop({
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
 
-          // Update hovered pane since mouse events don't fire during drag
-          setHoveredPaneId(paneId);
+          setDragHoverPaneId(paneId);
 
           const zone = getDropZone(e, e.currentTarget as HTMLElement);
           setDropZone(zone);
         },
         onDragLeave: () => {
           setDropZone(null);
-          // Don't clear hoveredPaneId here - it will be updated by onDragOver
-          // of the next pane, or left as-is if dragging outside/back to origin
+
+          setDragHoverPaneId((current) => current === paneId ? null : current);
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
@@ -239,10 +238,11 @@ export function usePaneDragDrop({
             return;
           }
 
-          if (!dropZone) {
+          const isSelfDrop = draggedPaneId === paneId;
+          if (!dropZone || isSelfDrop) {
             setDraggedPaneId(null);
             setDropZone(null);
-            setHoveredPaneId(null);
+            setDragHoverPaneId(null);
             return;
           }
 
@@ -284,12 +284,13 @@ export function usePaneDragDrop({
             insertBefore
           );
 
-          // Set the dropped pane as hovered to show its controls
-          setHoveredPaneId(draggedPaneId);
-
           // Clear drag state
           setDraggedPaneId(null);
           setDropZone(null);
+          setDragHoverPaneId(null);
+
+          // Notify that drop is complete
+          onDropComplete(draggedPaneId);
         },
       };
     },
@@ -298,8 +299,8 @@ export function usePaneDragDrop({
       isInDesignMode,
       dropZone,
       getDropZone,
-      setHoveredPaneId,
       splitPaneWithExisting,
+      onDropComplete,
     ]
   );
 
@@ -308,7 +309,7 @@ export function usePaneDragDrop({
     (paneId: string): React.ReactNode => {
       const isDragging = draggedPaneId === paneId;
       const isHoveredDuringDrag =
-        draggedPaneId !== null && hoveredPaneId === paneId && !isDragging;
+        draggedPaneId !== null && dragHoverPaneId === paneId && !isDragging;
 
       if (!isInDesignMode || !isHoveredDuringDrag || !dropZone) {
         return null;
@@ -330,11 +331,12 @@ export function usePaneDragDrop({
         />
       );
     },
-    [draggedPaneId, hoveredPaneId, isInDesignMode, dropZone]
+    [draggedPaneId, dragHoverPaneId, isInDesignMode, dropZone]
   );
 
   return {
     draggedPaneId,
+    dragHoverPaneId,
     createDragHandlers,
     createDropHandlers,
     renderDropZone,

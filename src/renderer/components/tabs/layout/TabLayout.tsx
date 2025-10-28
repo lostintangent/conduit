@@ -233,20 +233,17 @@ export function TabLayout({
 
   const { triggerHighlight, getHighlightClass } = usePaneHighlight();
 
-  // Use the drag and drop hook
   const {
     draggedPaneId,
+    dragHoverPaneId,
     createDragHandlers,
     createDropHandlers,
     renderDropZone,
-  } = usePaneDragDrop({ hoveredPaneId, setHoveredPaneId });
+  } = usePaneDragDrop({ onDropComplete: setHoveredPaneId });
 
   const previousResizingNodeRef = useRef<string | null>(null);
   useEffect(() => {
-    if (
-      previousResizingNodeRef.current !== null &&
-      resizingNode === null
-    ) {
+    if (previousResizingNodeRef.current !== null && resizingNode === null) {
       setHoveredAxisKeys([]);
     }
     previousResizingNodeRef.current = resizingNode;
@@ -311,9 +308,6 @@ export function TabLayout({
       }
 
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
-      const isDragging = draggedPaneId === pane.id;
-      const isHoveredDuringDrag =
-        draggedPaneId !== null && hoveredPaneId === pane.id && !isDragging;
 
       // Calculate pane number (1-based index)
       const allPaneIds = getAllPaneIds(tab);
@@ -336,12 +330,18 @@ export function TabLayout({
         handleContextMenu(syntheticEvent, tab.id, pane.id);
       };
 
-      // Get drag and drop handlers from the hook
       const dragHandlers = createDragHandlers(pane.id, tab.id);
       const dropHandlers = createDropHandlers(pane.id, tab.id);
 
-      const shouldRenderControls = isInDesignMode &&
-        (draggedPaneId == pane.id || (!isHoveredDuringDrag && (hoveredPaneId !== null ? hoveredPaneId === pane.id : isActivePane)));
+      // While in design mode, show the pane controls if the current pane meets any of:
+      // 1. It's currently being dragged
+      // 2. It's currently being hovered (not during a drag operation)
+      // 3. It's the active pane (not during a drag operation)
+      const shouldRenderControls =
+        isInDesignMode &&
+        (draggedPaneId === pane.id ||
+          (!draggedPaneId && hoveredPaneId === pane.id) ||
+          (!draggedPaneId && !hoveredPaneId && isActivePane));
 
       return (
         <div
@@ -378,7 +378,9 @@ export function TabLayout({
                   cwd={pane.cwd}
                   filePath={pane.filePath}
                   onFileChange={(fileData) =>
-                    handleEditorUpdate(tab.id, pane.id, { filePath: fileData.filePath })
+                    handleEditorUpdate(tab.id, pane.id, {
+                      filePath: fileData.filePath,
+                    })
                   }
                   onClearFile={() =>
                     handleEditorUpdate(tab.id, pane.id, {
@@ -388,11 +390,13 @@ export function TabLayout({
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
                   }
-                  onFileOpen={(node) => onOpenQuickPane({
-                    type: "editor",
-                    cwd: pane?.cwd,
-                    filePath: node.path,
-                  })}
+                  onFileOpen={(node) =>
+                    onOpenQuickPane({
+                      type: "editor",
+                      cwd: pane?.cwd,
+                      filePath: node.path,
+                    })
+                  }
                 />
               </div>
             ) : (
@@ -458,6 +462,9 @@ export function TabLayout({
       resizingNode,
       setHoveredPaneId,
       tabs,
+      draggedPaneId,
+      dragHoverPaneId,
+      hoveredPaneId,
     ]
   );
 
@@ -524,7 +531,11 @@ export function TabLayout({
                 : "";
 
             const intersectionHandles = primaryAxis
-              ? computeIntersectionHandles(previousSibling, child, node.direction)
+              ? computeIntersectionHandles(
+                previousSibling,
+                child,
+                node.direction
+              )
               : [];
 
             const clearHover = () => {
