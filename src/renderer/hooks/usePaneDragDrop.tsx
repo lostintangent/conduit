@@ -31,7 +31,6 @@ interface UsePaneDragDropReturn {
 
 export function usePaneDragDrop(): UsePaneDragDropReturn {
   const [draggedPaneId, setDraggedPaneId] = useState<string | null>(null);
-  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone>(null);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
@@ -198,11 +197,9 @@ export function usePaneDragDrop(): UsePaneDragDropReturn {
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", paneId);
         setDraggedPaneId(paneId);
-        setDraggedTabId(tabId);
       },
       onDragEnd: () => {
         setDraggedPaneId(null);
-        setDraggedTabId(null);
         setDropZone(null);
       },
     }),
@@ -212,7 +209,7 @@ export function usePaneDragDrop(): UsePaneDragDropReturn {
   // Create drop handlers for a specific pane
   const createDropHandlers = useCallback(
     (paneId: string, tabId: string) => {
-      const isDragging = draggedPaneId === paneId && draggedTabId === tabId;
+      const isDragging = draggedPaneId === paneId;
 
       return {
         onDragOver: (e: React.DragEvent) => {
@@ -235,7 +232,6 @@ export function usePaneDragDrop(): UsePaneDragDropReturn {
           // Don't drop on self
           if (draggedPaneId === paneId) {
             setDraggedPaneId(null);
-            setDraggedTabId(null);
             setDropZone(null);
             return;
           }
@@ -280,14 +276,12 @@ export function usePaneDragDrop(): UsePaneDragDropReturn {
 
           // Clear drag state
           setDraggedPaneId(null);
-          setDraggedTabId(null);
           setDropZone(null);
         },
       };
     },
     [
       draggedPaneId,
-      draggedTabId,
       isInDesignMode,
       dropZone,
       getDropZone,
