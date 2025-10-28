@@ -1,5 +1,6 @@
 import type { WhenClause } from '../whenClauses/WhenClause';
 import type { KeybindingDescriptor } from '../keybindings/types';
+import type { MenuContribution } from '../menus/types';
 
 /**
  * Base context available to all commands
@@ -45,8 +46,8 @@ export interface CommandDescriptor<TContext extends CommandContext = CommandCont
   /** Keyboard shortcuts */
   keybinding?: KeybindingDescriptor | KeybindingDescriptor[];
 
-  /** Menu contributions (will be defined in Phase 5) */
-  menu?: any; // MenuContribution | MenuContribution[]
+  /** Menu contributions */
+  menu?: MenuContribution | MenuContribution[];
 
   /** Command handler - can return a value or void */
   run: (context: TContext, ...args: unknown[]) => unknown | Promise<unknown>;

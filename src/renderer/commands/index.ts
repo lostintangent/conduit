@@ -1,6 +1,7 @@
 import { CommandRegistry } from './core/CommandRegistryImpl';
 import { ContextKeyService } from './contextKeys/ContextKeyServiceImpl';
 import { KeybindingRegistry } from './keybindings/KeybindingRegistry';
+import { MenuRegistry } from './menus/MenuRegistry';
 import type { ICommandRegistry } from './core/CommandRegistry';
 import type { IContextKeyService } from './contextKeys/ContextKeyService';
 import type { CommandContext, CommandDescriptor } from './core/types';
@@ -8,24 +9,30 @@ import type { CommandContext, CommandDescriptor } from './core/types';
 export { CommandRegistry } from './core/CommandRegistryImpl';
 export { ContextKeyService } from './contextKeys/ContextKeyServiceImpl';
 export { KeybindingRegistry } from './keybindings/KeybindingRegistry';
+export { MenuRegistry } from './menus/MenuRegistry';
 export { When } from './whenClauses/When';
 export { useKeybindingDispatch } from './keybindings/useKeybindingDispatch';
+export { useMenu } from './menus/useMenu';
 
 export type { CommandDescriptor, CommandContext } from './core/types';
 export type { WhenClause } from './whenClauses/WhenClause';
 export type { ICommandRegistry } from './core/CommandRegistry';
 export type { IContextKeyService } from './contextKeys/ContextKeyService';
 export type { KeybindingDescriptor, KeyChord, ResolvedKeybinding } from './keybindings/types';
+export type { MenuId, MenuContribution, MenuItem } from './menus/types';
+export type { MenuItemData } from './menus/useMenu';
 
 // Global instances (to be initialized in app startup)
 let commandRegistry: ICommandRegistry | null = null;
 let contextKeyService: IContextKeyService | null = null;
 let keybindingRegistry: KeybindingRegistry | null = null;
+let menuRegistry: MenuRegistry | null = null;
 
 export function initializeCommandSystem() {
   contextKeyService = new ContextKeyService();
   keybindingRegistry = new KeybindingRegistry();
-  commandRegistry = new CommandRegistry(contextKeyService, keybindingRegistry);
+  menuRegistry = new MenuRegistry();
+  commandRegistry = new CommandRegistry(contextKeyService, keybindingRegistry, menuRegistry);
 }
 
 export function getCommandRegistry(): ICommandRegistry {
@@ -47,6 +54,13 @@ export function getKeybindingRegistry(): KeybindingRegistry {
     throw new Error('Command system not initialized. Call initializeCommandSystem() first.');
   }
   return keybindingRegistry;
+}
+
+export function getMenuRegistry(): MenuRegistry {
+  if (!menuRegistry) {
+    throw new Error('Command system not initialized. Call initializeCommandSystem() first.');
+  }
+  return menuRegistry;
 }
 
 // Convenience functions
