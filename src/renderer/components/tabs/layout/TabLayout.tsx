@@ -4,7 +4,7 @@ import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import { PaneControlButtons } from "@/components/tabs/design/PaneControlButtons";
-import { FocusModeIndicator } from "@/components/tabs/layout/FocusModeIndicator";
+import { FocusModeIndicator } from "@/components/tabs/focus/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
 import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
 import type {
@@ -493,7 +493,7 @@ export function TabLayout({
       renderChild: (node: LayoutNode, tab: Tab) => React.ReactNode
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
-      
+
       // Generate the grid template for this split
       const gridTemplate = buildGridTemplateStyles(
         node.children,
@@ -509,7 +509,11 @@ export function TabLayout({
         <div
           data-node-id={node.id}
           className="grid flex-1 min-h-0 min-w-0 gap-0 overflow-hidden"
-          style={{ ...GRID_TEMPLATE_TRANSITION_STYLE, ...gridTemplate }}
+          style={
+            resizingNode === null
+              ? { ...GRID_TEMPLATE_TRANSITION_STYLE, ...gridTemplate }
+              : gridTemplate
+          }
         >
           {node.children.map((child, index) => {
             const previousSibling =
@@ -553,12 +557,14 @@ export function TabLayout({
                 ? getHighlightClass(child.paneId)
                 : "";
 
-            const intersectionHandles = primaryAxis
+            const shouldRenderHandles = primaryAxis !== null && !isInFocusMode;
+
+            const intersectionHandles = shouldRenderHandles && primaryAxis
               ? computeIntersectionHandles(
-                previousSibling,
-                child,
-                node.direction
-              )
+                  previousSibling,
+                  child,
+                  node.direction
+                )
               : [];
 
             const clearHover = () => {
@@ -573,7 +579,7 @@ export function TabLayout({
                 key={child.id}
                 className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${highlightClass} ${splitBorderClass}`}
               >
-                {primaryAxis && (
+                {shouldRenderHandles && primaryAxis && (
                   <>
                     <ResizeHandle
                       direction={node.direction}
@@ -639,7 +645,7 @@ export function TabLayout({
     (tab: Tab): React.ReactNode => {
       const isActive = tab.id === activeTabId;
       const isInFocusMode = applicationMode === "focus";
-      
+
       return (
         <div
           key={tab.id}
@@ -655,7 +661,7 @@ export function TabLayout({
           {isInFocusMode && isActive && (() => {
             const paneIds = getAllPaneIds(tab);
             const currentIndex = paneIds.indexOf(tab.activePaneId);
-            
+
             return (
               <FocusModeIndicator
                 onExit={() => exitFocusMode()}
@@ -663,6 +669,9 @@ export function TabLayout({
                 onNext={() => navigateFocusedPane("next")}
                 currentPaneIndex={currentIndex}
                 totalPanes={paneIds.length}
+                layout={tab.layout}
+                activePaneId={tab.activePaneId}
+                onSelectPane={(paneId) => activatePane(tab.id, paneId)}
               />
             );
           })()}
