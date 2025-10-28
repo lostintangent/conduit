@@ -32,7 +32,7 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
-import { countPanesInLayout, findPaneNodeByPaneId } from "@/utils/layout";
+import { countPanesInLayout } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
@@ -308,6 +308,8 @@ export function TabLayout({
       }
 
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
+      const isInFocusMode = tab.mode === "focus";
+      const isHiddenInFocusMode = isInFocusMode && !isActivePane;
 
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
@@ -346,6 +348,7 @@ export function TabLayout({
           style={{
             gridTemplateColumns: "minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr)",
+            display: isHiddenInFocusMode ? "none" : undefined,
           }}
           {...dropHandlers}
           onMouseEnter={() => setHoveredPaneId(pane.id)}
@@ -606,32 +609,14 @@ export function TabLayout({
     [renderPaneNode, renderSplitNode]
   );
 
-  const renderFocusMode = useCallback(
-    (tab: Tab) => {
-      const paneNode = findPaneNodeByPaneId(tab.layout, tab.activePaneId);
-
-      const paneIds = getAllPaneIds(tab);
-      const currentIndex = paneIds.indexOf(tab.activePaneId);
-
-      return (
-        <>
-          {renderPaneNode(paneNode, tab)}
-          <FocusModeIndicator
-            onExit={() => exitFocusMode(tab.id)}
-            onPrevious={() => navigateFocusedPane(tab.id, "prev")}
-            onNext={() => navigateFocusedPane(tab.id, "next")}
-            currentPaneIndex={currentIndex}
-            totalPanes={paneIds.length}
-          />
-        </>
-      );
-    },
-    [renderPaneNode]
-  );
-
   const renderTab = useCallback(
     (tab: Tab): React.ReactNode => {
       const isActive = tab.id === activeTabId;
+      const isInFocusMode = tab.mode === "focus";
+      
+      const paneIds = getAllPaneIds(tab);
+      const currentIndex = paneIds.indexOf(tab.activePaneId);
+      
       return (
         <div
           key={tab.id}
@@ -639,17 +624,24 @@ export function TabLayout({
           aria-hidden={!isActive}
           className={
             isActive
-              ? "flex-1 flex min-h-0 min-w-0 overflow-hidden"
-              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden"
+              ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
+              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
           }
         >
-          {tab.mode === "focus"
-            ? renderFocusMode(tab)
-            : renderLayout(tab.layout, tab)}
+          {renderLayout(tab.layout, tab)}
+          {isInFocusMode && (
+            <FocusModeIndicator
+              onExit={() => exitFocusMode(tab.id)}
+              onPrevious={() => navigateFocusedPane(tab.id, "prev")}
+              onNext={() => navigateFocusedPane(tab.id, "next")}
+              currentPaneIndex={currentIndex}
+              totalPanes={paneIds.length}
+            />
+          )}
         </div>
       );
     },
-    [activeTabId, renderFocusMode, renderLayout]
+    [activeTabId, renderLayout]
   );
 
   return (
