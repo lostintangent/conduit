@@ -520,8 +520,9 @@ export function TabLayout({
             const borderColorClass = isInDesignMode
               ? "border-blueprint border-dashed"
               : "border-white/[0.12]";
+            // Don't show borders in focus mode
             const splitBorderClass =
-              index !== 0 ? `${borderSideClass} ${borderColorClass}` : "";
+              index !== 0 && !isInFocusMode ? `${borderSideClass} ${borderColorClass}` : "";
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
