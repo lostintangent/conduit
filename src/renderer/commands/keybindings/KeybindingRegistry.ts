@@ -71,6 +71,13 @@ export class KeybindingRegistry {
   }
 
   /**
+   * Unregister all keybindings for a command
+   */
+  unregister(commandId: string): void {
+    this.keybindings = this.keybindings.filter(kb => kb.commandId !== commandId);
+  }
+
+  /**
    * Clear all keybindings
    */
   clear(): void {

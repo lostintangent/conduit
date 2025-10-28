@@ -209,6 +209,59 @@ describe('KeybindingRegistry', () => {
     });
   });
 
+  describe('unregister()', () => {
+    it('should remove all keybindings for a command', () => {
+      registry.register('command1', { key: 'Ctrl+T' });
+      registry.register('command1', { key: 'Cmd+T' });
+      registry.register('command2', { key: 'Ctrl+P' });
+
+      expect(registry.getKeybindingsForCommand('command1')).toHaveLength(2);
+
+      registry.unregister('command1');
+
+      expect(registry.getKeybindingsForCommand('command1')).toHaveLength(0);
+      expect(registry.getKeybindingsForCommand('command2')).toHaveLength(1);
+    });
+
+    it('should not affect other commands', () => {
+      registry.register('command1', { key: 'Ctrl+T' });
+      registry.register('command2', { key: 'Ctrl+P' });
+      registry.register('command3', { key: 'Ctrl+O' });
+
+      registry.unregister('command2');
+
+      expect(registry.getKeybindingsForCommand('command1')).toHaveLength(1);
+      expect(registry.getKeybindingsForCommand('command2')).toHaveLength(0);
+      expect(registry.getKeybindingsForCommand('command3')).toHaveLength(1);
+    });
+
+    it('should handle unregistering non-existent command', () => {
+      registry.register('command1', { key: 'Ctrl+T' });
+
+      registry.unregister('nonexistent.command');
+
+      expect(registry.getKeybindingsForCommand('command1')).toHaveLength(1);
+    });
+
+    it('should remove keybinding from findCommand results', () => {
+      registry.register('command1', { key: 'Ctrl+T' });
+
+      const event = new KeyboardEvent('keydown', {
+        key: 't',
+        ctrlKey: true,
+        shiftKey: false,
+        altKey: false,
+        metaKey: false
+      });
+
+      expect(registry.findCommand(event)).toBe('command1');
+
+      registry.unregister('command1');
+
+      expect(registry.findCommand(event)).toBeUndefined();
+    });
+  });
+
   describe('clear()', () => {
     it('should clear all keybindings', () => {
       registry.register('command1', { key: 'Ctrl+T' });

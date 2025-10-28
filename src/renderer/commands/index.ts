@@ -14,6 +14,9 @@ export { When } from './whenClauses/When';
 export { useKeybindingDispatch } from './keybindings/useKeybindingDispatch';
 export { useMenu } from './menus/useMenu';
 export { useCommandPaletteData } from './commandPalette/useCommandPaletteData';
+export { loadUserKeybindings } from './keybindings/userKeybindings';
+export { watchKeybindingsFile } from './keybindings/watchKeybindings';
+export { parseKeybindingsFile, isRemovalBinding, getRemovalCommandId } from './keybindings/keybindingsFile';
 
 export type { CommandDescriptor, CommandContext } from './core/types';
 export type { WhenClause } from './whenClauses/WhenClause';
@@ -23,6 +26,7 @@ export type { KeybindingDescriptor, KeyChord, ResolvedKeybinding } from './keybi
 export type { MenuId, MenuContribution, MenuItem } from './menus/types';
 export type { MenuItemData } from './menus/useMenu';
 export type { CommandPaletteItem } from './commandPalette/useCommandPaletteData';
+export type { UserKeybinding } from './keybindings/keybindingsFile';
 
 // Global instances (to be initialized in app startup)
 let commandRegistry: ICommandRegistry | null = null;
