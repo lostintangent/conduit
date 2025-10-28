@@ -94,8 +94,14 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Cmd+Shift+F: Toggle focus mode
-      if (event.metaKey && event.shiftKey && !event.altKey && key === "f") {
+      // Cmd+Alt+F: Toggle focus mode
+      const shouldToggleFocusMode =
+        event.metaKey &&
+        event.altKey &&
+        !event.shiftKey &&
+        event.code === "KeyF";
+
+      if (shouldToggleFocusMode) {
         event.preventDefault();
 
         if (!activeTab) return;

@@ -428,18 +428,6 @@ export const TabStrip = ({
           <MoreHorizontal size={18} />
         </button>
 
-        {/* Expand button for focus mode */}
-        <button
-          type="button"
-          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Enter focus mode (⌘⇧F)"
-          aria-label="Enter focus mode"
-          onClick={handleEnterFocusMode}
-          disabled={!activeTab}
-        >
-          <Expand size={18} />
-        </button>
-
         {/* Quick pane dropdown button */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -467,6 +455,18 @@ export const TabStrip = ({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Expand button for focus mode */}
+        <button
+          type="button"
+          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Enter focus mode (⌘⌥F)"
+          aria-label="Enter focus mode"
+          onClick={handleEnterFocusMode}
+          disabled={!activeTab}
+        >
+          <Expand size={18} />
+        </button>
 
         <button
           type="button"

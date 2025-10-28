@@ -173,34 +173,32 @@ function buildGridTemplateStyles(
   activePaneId?: string,
   isInFocusMode?: boolean
 ): React.CSSProperties {
-  const childCount = children.length || 1;
-  const hasSizes = children.some((child) => child.size !== undefined);
+  const buildTemplateString = (values: number[]): string => {
+    if (values.length === 0) {
+      return "minmax(0, 1fr)";
+    }
+
+    return values
+      .map((value) => `minmax(0, ${Math.max(value, 0)}fr)`)
+      .join(" ");
+  };
 
   // In focus mode, make non-active panes 0fr so the active pane fills the space
   if (isInFocusMode && activePaneId) {
-    const templateValue = children
-      .map((child) => {
-        // Check if this child contains the active pane
-        const containsActivePane = layoutContainsPaneId(child, activePaneId);
-        
-        return containsActivePane ? "1fr" : "0fr";
-      })
-      .join(" ");
+    const templateValue = buildTemplateString(
+      children.map((child) =>
+        layoutContainsPaneId(child, activePaneId) ? 1 : 0
+      )
+    );
 
     return direction === "row"
       ? { gridTemplateColumns: templateValue }
       : { gridTemplateRows: templateValue };
   }
 
-  if (!hasSizes) {
-    return direction === "row"
-      ? { gridTemplateColumns: `repeat(${childCount}, minmax(0, 1fr))` }
-      : { gridTemplateRows: `repeat(${childCount}, minmax(0, 1fr))` };
-  }
-
-  const templateValue = children
-    .map((child) => (child.size !== undefined ? `${child.size}fr` : "1fr"))
-    .join(" ");
+  const templateValue = buildTemplateString(
+    children.map((child) => child.size ?? 1)
+  );
 
   return direction === "row"
     ? { gridTemplateColumns: templateValue }

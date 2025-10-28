@@ -17,6 +17,7 @@ export function FocusModeIndicator({
   totalPanes,
 }: FocusModeIndicatorProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const hasMultiplePanes = (totalPanes ?? 0) > 1;
 
   useEffect(() => {
     // Fade in animation
@@ -42,19 +43,21 @@ export function FocusModeIndicator({
         </span>
         <button
           type="button"
-          className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:text-white/80"
           onClick={onPrevious}
           aria-label="Previous pane"
           title="Previous pane (⌘←)"
+          disabled={!hasMultiplePanes}
         >
           <ArrowLeft size={16} />
         </button>
         <button
           type="button"
-          className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:text-white/80"
           onClick={onNext}
           aria-label="Next pane"
           title="Next pane (⌘→)"
+          disabled={!hasMultiplePanes}
         >
           <ArrowRight size={16} />
         </button>
@@ -63,7 +66,7 @@ export function FocusModeIndicator({
           className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           onClick={onExit}
           aria-label="Exit focus mode"
-          title="Exit focus mode (⌘⇧F)"
+          title="Exit focus mode (⌘⌥F)"
         >
           <Shrink size={16} />
         </button>

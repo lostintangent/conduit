@@ -133,6 +133,15 @@ export function PaneControlButtons({
       {(showMoveToNewTab || showClose) && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
           <div className={groupClasses.center}>
+            {showMoveToNewTab && (
+              <button
+                className={buttonClass}
+                onClick={() => movePaneToTab(tabId, paneId)}
+                title="Move pane to new tab (Alt+T)"
+              >
+                <CornerUpRight className={iconClass} />
+              </button>
+            )}
             <button
               draggable
               onDragStart={onDragStart}
@@ -143,15 +152,6 @@ export function PaneControlButtons({
             >
               <Grip className={iconClass} />
             </button>
-            {showMoveToNewTab && (
-              <button
-                className={buttonClass}
-                onClick={() => movePaneToTab(tabId, paneId)}
-                title="Move pane to new tab (Alt+T)"
-              >
-                <CornerUpRight className={iconClass} />
-              </button>
-            )}
             {showClose && (
               <button
                 className={buttonClass}
