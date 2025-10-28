@@ -123,6 +123,9 @@ export function EditorPane({
   const [currentContent, setCurrentContent] = useState<string | undefined>(
     undefined
   );
+  const [originalContent, setOriginalContent] = useState<string | undefined>(
+    undefined
+  );
   const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(
     undefined
   );
@@ -138,6 +141,7 @@ export function EditorPane({
   useEffect(() => {
     if (!filePath) {
       setCurrentContent(undefined);
+      setOriginalContent(undefined);
       setCurrentLanguage(undefined);
       setHasUnsavedChanges(false);
       return;
@@ -151,6 +155,7 @@ export function EditorPane({
         if (!cancelled) {
           const language = inferLanguageFromFilePath(filePath);
           setCurrentContent(content);
+          setOriginalContent(content);
           setCurrentLanguage(language);
           setHasUnsavedChanges(false);
         }
@@ -159,6 +164,7 @@ export function EditorPane({
         console.error("Failed to load file:", error);
         if (!cancelled) {
           setCurrentContent(undefined);
+          setOriginalContent(undefined);
           setCurrentLanguage(undefined);
         }
       });
@@ -176,6 +182,7 @@ export function EditorPane({
 
     try {
       await api.writeFile(filePath, currentContent);
+      setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error("Failed to save file:", error);
@@ -270,11 +277,10 @@ export function EditorPane({
 
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
-      const originalContent = currentContent;
       setCurrentContent(value);
       setHasUnsavedChanges(value !== originalContent);
     },
-    [currentContent]
+    [originalContent]
   );
 
   const handleDirectoryChange = useCallback(
@@ -298,6 +304,7 @@ export function EditorPane({
         const content = await api.readFile(filePath);
         const language = inferLanguageFromFilePath(filePath);
         setCurrentContent(content);
+        setOriginalContent(content);
         setCurrentLanguage(language);
         setHasUnsavedChanges(false);
       } catch (error) {
@@ -399,7 +406,7 @@ export function EditorPane({
     <div className="flex flex-1 min-h-0 min-w-0 flex-col bg-[#1e1e1e]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted border-b border-white/10 text-[13px] text-white/70">
         <div className="flex items-center gap-2 truncate">
-          {canUndo && (
+          {hasUnsavedChanges && (
             <div
               className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
               title="Unsaved changes"
@@ -433,7 +440,7 @@ export function EditorPane({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={!canUndo}
+                disabled={!hasUnsavedChanges}
                 className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Save"
               >
