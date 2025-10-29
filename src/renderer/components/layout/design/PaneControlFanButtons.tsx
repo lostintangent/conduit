@@ -1,11 +1,11 @@
-import { openEditorPane, openWebViewPane, splitPane } from "@/store/actions/pane";
+import { openEditorPane, openWebViewPane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import {
   FileCode,
   GitBranch,
   Globe,
-  Terminal,
+  Bot,
   Zap,
 } from "lucide-react";
 import { useAtomValue } from "jotai";
@@ -16,7 +16,7 @@ export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
 const PANE_TYPES = [
   { id: "source-control", label: "Source Control", icon: GitBranch },
   { id: "editor", label: "Editor", icon: FileCode },
-  { id: "terminal", label: "Terminal", icon: Terminal },
+  { id: "terminal", label: "Agent Session", icon: Bot },
   { id: "webview", label: "Web View", icon: Globe },
   { id: "command", label: "Command", icon: Zap },
 ] as const;
@@ -109,8 +109,8 @@ export function PaneControlFanButtons({
 
     switch (paneTypeId) {
       case "terminal":
-        // Default terminal
-        await splitPane(tabId, paneId, direction, insertBefore);
+        // Start agent session in split pane
+        await splitPaneWithAgentSession(tabId, paneId, direction, insertBefore);
         break;
 
       case "webview":
