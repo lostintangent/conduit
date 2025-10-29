@@ -6,6 +6,7 @@ export type UserSettings = {
   showTerminalRuler: boolean;
   autoSaveWorkspaces: boolean;
   commandHistory: string[];
+  urlHistory: string[];
   homeDirectory: string | null;
 };
 

@@ -9,6 +9,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   tabPosition: "bottom",
   alwaysShowTabs: true,
   commandHistory: [],
+  urlHistory: [],
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
 };
