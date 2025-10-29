@@ -11,6 +11,33 @@ const PUBLIC_KEY_PATH = path.join(KEYS_DIR, "id_rsa.pub");
 const PRIVATE_KEY_PATH = path.join(KEYS_DIR, "id_rsa");
 
 /**
+ * Read GITHUB_TOKEN from .env.local if available
+ */
+async function getGitHubToken(): Promise<string | null> {
+  try {
+    const configPath = path.join(app.getAppPath(), ".env.local");
+    const content = await fs.readFile(configPath, "utf-8");
+    
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
+      
+      const [key, ...valueParts] = trimmed.split("=");
+      if (key === "TOKEN") {
+        return valueParts.join("=").trim();
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("[SSH] Failed to read .env.local for GITHUB_TOKEN:", error);
+    return null;
+  }
+}
+
+/**
  * Check if SSH keys exist in the keys folder
  */
 export async function hasSSHKeys(): Promise<boolean> {
@@ -64,10 +91,19 @@ export async function setupSSHKeyInVM(
     // Ensure managerUrl ends with / for proper URL construction
     const baseUrl = managerUrl.endsWith("/") ? managerUrl : `${managerUrl}/`;
     
-    // Use cat with here-string to append the key to authorized_keys
-    // This is a single exec call that appends without needing to read first
+    // Build the setup command - append SSH key and optionally set GITHUB_TOKEN
     const execUrl = `${baseUrl}api/vms/${vmId}/exec`;
     console.log("[SSH] Sending exec request to:", execUrl);
+    
+    const githubToken = await getGitHubToken();
+    let setupCommand = `cat >> ~/.ssh/authorized_keys <<< '${publicKey}'`;
+    
+    if (githubToken) {
+      console.log("[SSH] Will also set up GITHUB_TOKEN in VM bashrc...");
+      setupCommand += ` && echo 'export GITHUB_TOKEN="${githubToken}"' >> ~/.bashrc`;
+    } else {
+      console.log("[SSH] No GITHUB_TOKEN found in .env.local, skipping token setup");
+    }
     
     const response = await fetch(execUrl, {
       method: "POST",
@@ -77,7 +113,7 @@ export async function setupSSHKeyInVM(
       },
       body: JSON.stringify({
         command: "bash",
-        args: ["-c", `cat >> ~/.ssh/authorized_keys <<< '${publicKey}'`],
+        args: ["-c", setupCommand],
         timeout_seconds: 10,
       }),
     });
@@ -100,6 +136,10 @@ export async function setupSSHKeyInVM(
     }
 
     console.log("[SSH] SSH key successfully appended to authorized_keys");
+    if (githubToken) {
+      console.log("[SSH] GITHUB_TOKEN successfully added to bashrc");
+    }
+
     return true;
   } catch (error) {
     console.error("[SSH] Failed to setup SSH key:", error);
