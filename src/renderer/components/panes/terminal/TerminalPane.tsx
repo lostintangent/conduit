@@ -139,8 +139,10 @@ export const TerminalPane = ({
     return { currentPane: undefined, currentTab: undefined };
   }, [tabs, paneId]);
   
-  const isAgentSession = currentPane?.type === "terminal" && !!currentPane.agentSessionId;
-  const agentSessionId = currentPane?.type === "terminal" ? currentPane.agentSessionId : undefined;
+  // This component is specifically for terminal panes, so we can safely cast
+  const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
+  const isAgentSession = !!terminalPane?.agentSessionId;
+  const agentSessionId = terminalPane?.agentSessionId;
 
   const focusTerminal = useCallback(() => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
