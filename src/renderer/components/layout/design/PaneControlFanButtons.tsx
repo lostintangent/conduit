@@ -1,14 +1,14 @@
 import { openEditorPane, openWebViewPane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
+import { useAtomValue } from "jotai";
 import {
+  Bot,
   FileCode,
   GitBranch,
   Globe,
-  Bot,
   Zap,
 } from "lucide-react";
-import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
@@ -45,7 +45,7 @@ export function PaneControlFanButtons({
   const [isVisible, setIsVisible] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tabs = useAtomValue(tabsAtom);
-  
+
   // Get the current pane to determine its cwd
   const currentPane = tabs
     .find((tab) => tab.id === tabId)
@@ -109,7 +109,6 @@ export function PaneControlFanButtons({
 
     switch (paneTypeId) {
       case "terminal":
-        // Start agent session in split pane
         await splitPaneWithAgentSession(tabId, paneId, direction, insertBefore);
         break;
 

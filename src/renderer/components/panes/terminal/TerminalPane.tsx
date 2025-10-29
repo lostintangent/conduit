@@ -1,10 +1,10 @@
-import { userSettingsAtom, tabsAtom } from "@/store/atoms";
-import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
-import { closePane } from "@/store/actions/pane";
 import { enqueueNotification } from "@/store/actions/notifications";
+import { closePane } from "@/store/actions/pane";
+import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Trash2 } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFitController, type FitController } from "./FitController";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 
@@ -138,7 +138,7 @@ export const TerminalPane = ({
     }
     return { currentPane: undefined, currentTab: undefined };
   }, [tabs, paneId]);
-  
+
   // This component is specifically for terminal panes, so we can safely cast
   const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
   const isAgentSession = !!terminalPane?.agentSessionId;
@@ -163,7 +163,7 @@ export const TerminalPane = ({
 
     try {
       const result = await api.finalizeAgentSession({ sessionId: agentSessionId });
-      
+
       if (result.status === "conflict") {
         enqueueNotification({
           kind: "error",
@@ -178,7 +178,7 @@ export const TerminalPane = ({
           details: result.message,
           autoCloseMs: 3000,
         });
-        
+
         closePane(currentTab.id, paneId);
       }
     } catch (error) {
@@ -200,14 +200,14 @@ export const TerminalPane = ({
 
     try {
       const result = await api.cleanupAgentSession({ sessionId: agentSessionId });
-      
+
       enqueueNotification({
         kind: "success",
         message: "Agent session deleted",
         details: result.message,
         autoCloseMs: 3000,
       });
-      
+
       closePane(currentTab.id, paneId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -336,7 +336,7 @@ export const TerminalPane = ({
       )}
 
       {isAgentSession && (
-        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">
+        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white z-[1000]">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
             <button
               type="button"
