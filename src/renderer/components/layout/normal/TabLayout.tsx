@@ -4,8 +4,8 @@ import { IntersectionHandles } from "@/components/layout/normal/IntersectionHand
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import {
+  PaneHighlight,
   shouldShowPaneBorder,
-  usePaneHighlight,
 } from "@/components/layout/normal/usePaneHighlight";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
@@ -250,10 +250,6 @@ export function TabLayout({
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
-  const { getPaneHighlight } = usePaneHighlight({
-    isResizing: resizingNode !== null,
-  });
-
   const {
     draggedPaneId,
     dragHoverPaneId,
@@ -406,7 +402,7 @@ export function TabLayout({
           )}
 
           {/* Pane highlight overlay */}
-          {getPaneHighlight(pane.id)}
+          <PaneHighlight paneId={pane.id} isResizing={resizingNode !== null} />
 
           {/* Drop zone overlay */}
           {renderDropZone(pane.id)}
@@ -446,7 +442,6 @@ export function TabLayout({
       draggedPaneId,
       dragHoverPaneId,
       hoveredPaneId,
-      getPaneHighlight,
     ]
   );
 

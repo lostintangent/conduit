@@ -20,7 +20,7 @@ type PaneHighlightOptions = {
   isResizing?: boolean;
 };
 
-export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
+function usePaneHighlightLogic({ isResizing = false }: PaneHighlightOptions = {}) {
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const applicationMode = useAtomValue(applicationModeAtom);
@@ -82,19 +82,6 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
     triggerHighlight,
   ]);
 
-  const getPaneHighlight = useCallback(
-    (paneId: string): React.ReactNode => {
-      if (paneId !== highlightedPaneId) {
-        return null;
-      }
-
-      return (
-        <div className="pointer-events-none absolute inset-0 z-10 animate-[pane-highlight_2s_ease-out_forwards]" />
-      );
-    },
-    [highlightedPaneId]
-  );
-
   useEffect(() => {
     return () => {
       clearExistingTimeout();
@@ -116,7 +103,22 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
     };
   }, [highlightActivePane]);
 
-  return {
-    getPaneHighlight,
-  };
+  return highlightedPaneId;
+}
+
+type PaneHighlightProps = {
+  paneId: string;
+  isResizing?: boolean;
+};
+
+export function PaneHighlight({ paneId, isResizing = false }: PaneHighlightProps) {
+  const highlightedPaneId = usePaneHighlightLogic({ isResizing });
+
+  if (paneId !== highlightedPaneId) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 animate-[pane-highlight_2s_ease-out_forwards]" />
+  );
 }
