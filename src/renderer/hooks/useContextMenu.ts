@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import { tabsAtom } from "@/store/atoms";
 import { movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import { closeTab, movePaneToTab } from "@/store/actions/tab";
+import { focusPane } from "@/store/actions/focusMode";
 
 type UseContextMenuParams = {
   closePane: (tabId: string, paneId: string) => void;
@@ -92,6 +93,11 @@ export const useContextMenu = ({
         switch (action) {
           case "change-title":
             setTitleModal(tabId, tab.title ?? "");
+            break;
+          case "focus-pane":
+            if (resolvedPaneId) {
+              focusPane(tabId, resolvedPaneId);
+            }
             break;
           case "split-right":
             if (resolvedPaneId) {

@@ -84,6 +84,13 @@ export function toggleFocusMode(tabId: string, paneId: string): void {
 }
 
 /**
+ * Focus a specific pane by setting it as active and entering focus mode
+ */
+export function focusPane(tabId: string, paneId: string): void {
+  enterFocusMode(tabId, paneId);
+}
+
+/**
  * Navigate to the next or previous pane in focus mode
  */
 export function navigateFocusedPane(

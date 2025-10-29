@@ -1,5 +1,5 @@
 import { detachPane } from "@/store/actions/pane";
-import { enterFocusMode } from "@/store/actions/focusMode";
+import { focusPane } from "@/store/actions/focusMode";
 import { applicationModeAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
@@ -268,7 +268,7 @@ export function usePaneDragDrop({
           // Check if this is a focus mode drag
           if (isFocusModeDragEvent(e)) {
             // Set the dropped pane as active and enter focus mode
-            enterFocusMode(tabId, paneId);
+            focusPane(tabId, paneId);
             // Clear focus mode drag state
             setIsFocusModeDrag(false);
             setDragHoverPaneId(null);
