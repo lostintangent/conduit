@@ -1,15 +1,15 @@
 import { ipcMain } from "electron";
 import type {
-  CreateVMPayload,
-  ListVMsPayload,
-  DeleteVMPayload,
+    CreateVMPayload,
+    DeleteVMPayload,
+    ListVMsPayload,
 } from "../../shared/types";
 import {
-  createVM as createVMClient,
-  listVMs as listVMsClient,
-  deleteVM as deleteVMClient,
-  getVM as getVMClient,
-  reloadConfig,
+    createVM as createVMClient,
+    deleteVM as deleteVMClient,
+    getVM as getVMClient,
+    listVMs as listVMsClient,
+    reloadConfig,
 } from "./client";
 
 /**

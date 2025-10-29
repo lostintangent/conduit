@@ -6,6 +6,10 @@ import {
   removeSession,
   storeSession,
 } from ".";
+import {
+  createVM,
+  getSSHConnectionInfo,
+} from "../../vm/client";
 import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
@@ -13,10 +17,6 @@ import type {
   SendToRendererFn,
   TerminalSession,
 } from "../types";
-import {
-  createVM,
-  getSSHConnectionInfo,
-} from "../../vm/client";
 
 const disposeSessionResources = (session: TerminalSession) => {
   session.oscBuffer = "";

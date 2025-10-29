@@ -4,8 +4,8 @@ import type {
   TerminalPayload,
   TerminalResizePayload,
 } from "../../shared/types";
-import { closeSession, createSession, markSessionReady } from "./store/actions";
 import { getAllSessions, getSession } from "./store";
+import { closeSession, createSession, markSessionReady } from "./store/actions";
 import type { CreateSessionOptions, SendToRendererFn } from "./types";
 
 export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
