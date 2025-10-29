@@ -45,6 +45,14 @@ export function usePaneDragDrop({
   const isInDesignMode = applicationMode === "design";
   const setTabs = useSetAtom(tabsAtom);
 
+  // Helper to check if a drag event is a focus mode drag
+  const isFocusModeDragEvent = useCallback(
+    (e: React.DragEvent): boolean => {
+      return e.dataTransfer.types.includes("application/x-conduit-focus-mode");
+    },
+    []
+  );
+
   // Helper to determine drop zone based on mouse position
   const getDropZone = useCallback(
     (event: React.DragEvent, element: HTMLElement): DropZone => {
@@ -221,9 +229,7 @@ export function usePaneDragDrop({
       return {
         onDragOver: (e: React.DragEvent) => {
           // Check if this is a focus mode drag
-          const isFocusModeDragCheck = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
-          
-          if (isFocusModeDragCheck) {
+          if (isFocusModeDragEvent(e)) {
             // Allow focus mode drop in any mode
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
@@ -241,19 +247,25 @@ export function usePaneDragDrop({
           const zone = getDropZone(e, e.currentTarget as HTMLElement);
           setDropZone(zone);
         },
-        onDragLeave: () => {
+        onDragLeave: (e: React.DragEvent) => {
+          // Only reset state if we're actually leaving the pane, not moving to a child element
+          const relatedTarget = e.relatedTarget;
+          if (
+            relatedTarget instanceof Node &&
+            e.currentTarget.contains(relatedTarget)
+          ) {
+            return;
+          }
+
           setDropZone(null);
           setIsFocusModeDrag(false);
-
           setDragHoverPaneId((current) => current === paneId ? null : current);
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
           
           // Check if this is a focus mode drag
-          const isFocusModeDragCheck = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
-          
-          if (isFocusModeDragCheck) {
+          if (isFocusModeDragEvent(e)) {
             // Set the dropped pane as active and enter focus mode
             enterFocusMode(tabId, paneId);
             // Clear focus mode drag state
@@ -329,6 +341,7 @@ export function usePaneDragDrop({
       getDropZone,
       splitPaneWithExisting,
       onDropComplete,
+      isFocusModeDragEvent,
     ]
   );
 
