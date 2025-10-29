@@ -9,6 +9,8 @@ import {
 } from '@/commands';
 import { registerApplicationCommands } from '@/commands/applicationCommands';
 import { loadUserKeybindings } from '@/commands/keybindings/userKeybindings';
+import { watchKeybindingsFile } from '@/commands/keybindings/watchKeybindings';
+import { updateKeybindingsAtom } from '@/commands/keybindings/updateKeybindingsAtom';
 import { keybindingsAtom } from '@/store/atoms';
 import { enterFocusMode } from '@/store/actions/focusMode';
 import type { ApplicationMode } from '@/store/atoms';
@@ -117,6 +119,31 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     // Signal that context builder is ready - this causes keyboard listener to attach on next render
     setContextBuilderReady(true);
   }, [commandSystem, activeTab, applicationMode, setApplicationMode]);
+
+  // Watch keybindings file for external changes
+  useEffect(() => {
+    if (!commandSystem?.keybindingRegistry || !homeDirectory) {
+      return;
+    }
+
+    const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
+
+    const unwatch = watchKeybindingsFile(keybindingsPath, async () => {
+      try {
+        console.log('Keybindings file changed, reloading...');
+        // Reload keybindings from file
+        await loadUserKeybindings(commandSystem.keybindingRegistry, keybindingsPath);
+        // Update global atom for reactive components
+        updateKeybindingsAtom();
+      } catch (error) {
+        console.error('Failed to reload keybindings after file change:', error);
+      }
+    });
+
+    return () => {
+      unwatch();
+    };
+  }, [commandSystem, homeDirectory]);
 
   // Return null until ready to prevent premature keyboard listener attachment
   if (!commandSystem || !contextBuilderReady) {

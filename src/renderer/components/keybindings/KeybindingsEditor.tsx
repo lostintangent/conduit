@@ -7,6 +7,8 @@
 
 import { AlertTriangle, Check, Copy, Edit2, RotateCcw, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useAtomValue } from 'jotai';
+import { keybindingsAtom } from '@/store/atoms';
 import type { ICommandRegistry } from '../../commands/core/CommandRegistry';
 import type { CommandDescriptor } from '../../commands/core/types';
 import type { KeybindingRegistry } from '../../commands/keybindings/KeybindingRegistry';
@@ -14,7 +16,6 @@ import { parseKeybindingsFile } from '../../commands/keybindings/keybindingsFile
 import type { ResolvedKeybinding } from '../../commands/keybindings/types';
 import { updateKeybindingsAtom } from '../../commands/keybindings/updateKeybindingsAtom';
 import { loadUserKeybindings } from '../../commands/keybindings/userKeybindings';
-import { watchKeybindingsFile } from '../../commands/keybindings/watchKeybindings';
 import { KeybindingRecorder } from './KeybindingRecorder';
 
 interface KeybindingsEditorProps {
@@ -43,8 +44,10 @@ export function KeybindingsEditor({
   const [searchQuery, setSearchQuery] = useState('');
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'user' | 'conflicts'>('all');
-  const [refreshKey, setRefreshKey] = useState(0);
   const [copiedCommandId, setCopiedCommandId] = useState<string | null>(null);
+
+  // Subscribe to keybindingsAtom for reactive updates when file changes
+  const globalKeybindings = useAtomValue(keybindingsAtom);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -58,29 +61,7 @@ export function KeybindingsEditor({
   }, [onClose, editingCommandId]);
 
   // Note: User keybindings are now loaded on app startup in useCommandSystem hook
-  // This effect is no longer needed here
-
-  // Watch keybindings file for external changes
-  useEffect(() => {
-    const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
-
-    const unwatch = watchKeybindingsFile(keybindingsPath, async () => {
-      try {
-        // Reload keybindings from file
-        await loadUserKeybindings(keybindingRegistry, keybindingsPath);
-        // Update global atom for reactive components
-        updateKeybindingsAtom();
-        // Trigger UI refresh
-        setRefreshKey(prev => prev + 1);
-      } catch (error) {
-        console.error('Failed to reload keybindings after file change:', error);
-      }
-    });
-
-    return () => {
-      unwatch();
-    };
-  }, [keybindingRegistry, homeDirectory]);
+  // File watching is also handled globally in useCommandSystem hook
 
   // Helper function to format keybinding display
   const formatKeybindingDisplay = (binding: ResolvedKeybinding): string => {
@@ -188,7 +169,7 @@ export function KeybindingsEditor({
         conflictingCommands
       };
     });
-  }, [commandRegistry, keybindingRegistry, refreshKey]);
+  }, [commandRegistry, keybindingRegistry, globalKeybindings]);
 
   // Filter rows
   const filteredRows = useMemo(() => {
@@ -293,6 +274,7 @@ export function KeybindingsEditor({
       cwd: homeDirectory,
       filePath: keybindingsPath,
     });
+    onClose();
   };
 
   const handleRemoveKeybinding = async (commandId: string) => {
