@@ -17,6 +17,7 @@ export interface CommandContext {
   readonly notifications: any;
   readonly settings: any;
   readonly contextKeys: any;
+  readonly view: any;
 
   // State accessors
   readonly activeTab: any | null;

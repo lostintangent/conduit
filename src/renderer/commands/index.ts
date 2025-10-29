@@ -69,6 +69,15 @@ export function getMenuRegistry(): MenuRegistry {
   return menuRegistry;
 }
 
+// Non-throwing getters for use in hooks (return null if not initialized)
+export function tryGetCommandRegistry(): ICommandRegistry | null {
+  return commandRegistry;
+}
+
+export function tryGetKeybindingRegistry(): KeybindingRegistry | null {
+  return keybindingRegistry;
+}
+
 // Convenience functions
 export function registerCommand<TContext extends CommandContext = CommandContext>(
   descriptor: CommandDescriptor<TContext>

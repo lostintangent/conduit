@@ -1,5 +1,6 @@
 import type { Notification, Tab } from "@/types";
 import type { UserSettings, Workspace } from "@shared/types";
+import type { ResolvedKeybinding } from "@/commands/keybindings/types";
 import { atom } from "jotai";
 
 export const userSettingsAtom = atom<UserSettings>({
@@ -34,3 +35,9 @@ export const notificationsAtom = atom<Notification[]>([]);
 export type ApplicationMode = "normal" | "design" | "quick" | "focus";
 
 export const applicationModeAtom = atom<ApplicationMode>("normal");
+
+/**
+ * Keybindings atom - stores all resolved keybindings grouped by command ID
+ * Updated when keybindings are loaded or reloaded from user configuration
+ */
+export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(new Map());

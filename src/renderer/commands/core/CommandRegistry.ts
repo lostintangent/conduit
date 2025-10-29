@@ -31,4 +31,9 @@ export interface ICommandRegistry {
    * Check if a command exists
    */
   hasCommand(commandId: string): boolean;
+
+  /**
+   * Set the context builder function to provide real app state
+   */
+  setContextBuilder(builder: () => CommandContext): void;
 }

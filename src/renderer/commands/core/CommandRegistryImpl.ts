@@ -108,9 +108,22 @@ export class CommandRegistry implements ICommandRegistry {
     return this.commands.has(commandId);
   }
 
+  private contextBuilder?: () => CommandContext;
+
+  /**
+   * Set the context builder function
+   * This should be called during app initialization to provide real state
+   */
+  setContextBuilder(builder: () => CommandContext): void {
+    this.contextBuilder = builder;
+  }
+
   private buildContext(): CommandContext {
-    // TODO: Build real context from services
-    // For now, return minimal context
+    if (this.contextBuilder) {
+      return this.contextBuilder();
+    }
+
+    // Fallback to minimal context if no builder set
     return {
       tabs: null as any,
       panes: null as any,
@@ -121,6 +134,7 @@ export class CommandRegistry implements ICommandRegistry {
       notifications: null as any,
       settings: null as any,
       contextKeys: this.contextKeyService,
+      view: null as any,
       activeTab: null,
       activePaneId: null,
       workspaceName: undefined

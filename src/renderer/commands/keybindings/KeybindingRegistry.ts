@@ -71,6 +71,21 @@ export class KeybindingRegistry {
   }
 
   /**
+   * Get all keybindings grouped by command ID
+   */
+  getAllKeybindings(): Map<string, ResolvedKeybinding[]> {
+    const map = new Map<string, ResolvedKeybinding[]>();
+
+    for (const binding of this.keybindings) {
+      const existing = map.get(binding.commandId) ?? [];
+      existing.push(binding);
+      map.set(binding.commandId, existing);
+    }
+
+    return map;
+  }
+
+  /**
    * Unregister all keybindings for a command
    */
   unregister(commandId: string): void {

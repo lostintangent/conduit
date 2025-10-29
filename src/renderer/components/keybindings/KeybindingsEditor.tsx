@@ -15,6 +15,7 @@ import type { ResolvedKeybinding } from '../../commands/keybindings/types';
 import { loadUserKeybindings } from '../../commands/keybindings/userKeybindings';
 import { parseKeybindingsFile } from '../../commands/keybindings/keybindingsFile';
 import { watchKeybindingsFile } from '../../commands/keybindings/watchKeybindings';
+import { updateKeybindingsAtom } from '../../commands/keybindings/updateKeybindingsAtom';
 
 interface KeybindingsEditorProps {
   onClose: () => void;
@@ -59,6 +60,7 @@ export function KeybindingsEditor({
       try {
         const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
         await loadUserKeybindings(keybindingRegistry, keybindingsPath);
+        updateKeybindingsAtom(); // Update global atom for reactive components
         setRefreshKey(prev => prev + 1);
       } catch (error) {
         console.error('Failed to load user keybindings:', error);
@@ -75,6 +77,8 @@ export function KeybindingsEditor({
       try {
         // Reload keybindings from file
         await loadUserKeybindings(keybindingRegistry, keybindingsPath);
+        // Update global atom for reactive components
+        updateKeybindingsAtom();
         // Trigger UI refresh
         setRefreshKey(prev => prev + 1);
       } catch (error) {
