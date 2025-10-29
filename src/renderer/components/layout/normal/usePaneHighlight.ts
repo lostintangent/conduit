@@ -8,6 +8,8 @@ import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const HIGHLIGHT_DURATION_MS = 2000;
+const HIGHLIGHT_OUTLINE_WIDTH = "3px";
+const HIGHLIGHT_OUTLINE_OFFSET = "-3px";
 
 export const shouldShowPaneBorder = (
   tab: Tab,
@@ -92,8 +94,8 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
         <div
           className="pointer-events-none absolute inset-0 z-20 animate-[pane-highlight_2s_ease-out_forwards]"
           style={{
-            outline: "3px solid var(--color-blueprint)",
-            outlineOffset: "-3px",
+            outline: `${HIGHLIGHT_OUTLINE_WIDTH} solid var(--color-blueprint)`,
+            outlineOffset: HIGHLIGHT_OUTLINE_OFFSET,
           }}
         />
       );
