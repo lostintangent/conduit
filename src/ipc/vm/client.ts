@@ -1,17 +1,9 @@
-import { app } from "electron";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { loadConfig, reloadConfig as reloadVMConfig } from "./config";
 
 /**
  * VM API Client for interacting with the Firecracker Manager
  * Based on the VM API documentation
  */
-
-export type VMConfig = {
-  managerUrl: string;
-  token: string;
-  defaultImageId: string;
-};
 
 export type VM = {
   id: string;
@@ -55,58 +47,6 @@ export type SSHConnectionInfo = {
   port: number;
   username: string;
 };
-
-let cachedConfig: VMConfig | null = null;
-
-/**
- * Load VM configuration from .env.local file
- */
-export async function loadConfig(): Promise<VMConfig> {
-  if (cachedConfig) {
-    return cachedConfig;
-  }
-
-  const configPath = path.join(app.getAppPath(), ".env.local");
-  
-  try {
-    const content = await fs.readFile(configPath, "utf-8");
-    const config: Partial<VMConfig> = {};
-
-    content.split("\n").forEach((line) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) {
-        return;
-      }
-
-      const [key, ...valueParts] = trimmed.split("=");
-      const value = valueParts.join("=").trim();
-
-      if (key === "NODE") {
-        config.managerUrl = value;
-      } else if (key === "TOKEN") {
-        config.token = value;
-      } else if (key === "IMAGE_ID") {
-        config.defaultImageId = value;
-      }
-    });
-
-    if (!config.managerUrl || !config.token || !config.defaultImageId) {
-      throw new Error(
-        "Missing required configuration. Ensure NODE, TOKEN, and IMAGE_ID are set in .env.local"
-      );
-    }
-
-    cachedConfig = config as VMConfig;
-    return cachedConfig;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(
-        ".env.local file not found. Please create it with NODE, TOKEN, and IMAGE_ID"
-      );
-    }
-    throw error;
-  }
-}
 
 /**
  * Make an API call to the VM manager
@@ -244,5 +184,5 @@ export function getSSHConnectionInfo(vm: VM): SSHConnectionInfo {
  * Reload configuration (useful after .env.local changes)
  */
 export function reloadConfig(): void {
-  cachedConfig = null;
+  reloadVMConfig();
 }
