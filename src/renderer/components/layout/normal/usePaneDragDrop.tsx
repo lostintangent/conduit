@@ -1,4 +1,5 @@
 import { detachPane } from "@/store/actions/pane";
+import { enterFocusMode } from "@/store/actions/focusMode";
 import { applicationModeAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
@@ -218,6 +219,16 @@ export function usePaneDragDrop({
 
       return {
         onDragOver: (e: React.DragEvent) => {
+          // Check if this is a focus mode drag
+          const isFocusModeDrag = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
+          
+          if (isFocusModeDrag) {
+            // Allow focus mode drop in any mode
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            return;
+          }
+
           if (!isInDesignMode || !draggedPaneId || isDragging) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
@@ -234,6 +245,16 @@ export function usePaneDragDrop({
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
+          
+          // Check if this is a focus mode drag
+          const isFocusModeDrag = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
+          
+          if (isFocusModeDrag) {
+            // Set the dropped pane as active and enter focus mode
+            enterFocusMode(tabId, paneId);
+            return;
+          }
+
           if (!isInDesignMode || !draggedPaneId) {
             return;
           }

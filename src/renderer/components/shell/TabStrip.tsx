@@ -484,6 +484,12 @@ export const TabStrip = ({
           aria-label="Enter focus mode"
           onClick={handleEnterFocusMode}
           disabled={!activeTab}
+          draggable={!!activeTab}
+          onDragStart={(e) => {
+            if (!activeTab) return;
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("application/x-conduit-focus-mode", "true");
+          }}
         >
           <Expand size={18} />
         </button>
