@@ -77,7 +77,7 @@ export const createSession = async (
       
       if (keysAvailable) {
         console.log("[SSH] Found SSH keys, installing in VM...");
-        const { loadConfig } = await import("../../vm/client");
+        const { loadConfig } = await import("../../vm/config");
         const config = await loadConfig();
         useSSHKey = await setupSSHKeyInVM(vm.id, config.managerUrl, config.token);
         
