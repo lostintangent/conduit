@@ -1,6 +1,6 @@
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closePane } from "@/store/actions/pane";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
 import { useAtomValue } from "jotai";
 import { Check, Trash2 } from "lucide-react";
@@ -114,6 +114,7 @@ export const TerminalPane = ({
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -142,6 +143,7 @@ export const TerminalPane = ({
   // This component is specifically for terminal panes, so we can safely cast
   const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
   const isAgentSession = !!terminalPane?.agentSessionId;
+  const shouldShowAgentControls = isAgentSession && applicationMode === "normal";
   const agentSessionId = terminalPane?.agentSessionId;
 
   const focusTerminal = useCallback(() => {
@@ -335,7 +337,7 @@ export const TerminalPane = ({
         </div>
       )}
 
-      {isAgentSession && (
+      {shouldShowAgentControls && (
         <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white z-[1000]">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
             <button

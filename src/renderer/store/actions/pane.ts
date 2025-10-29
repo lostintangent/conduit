@@ -540,14 +540,30 @@ export async function splitPane(
     return;
   }
 
-  const defaultCwd =
-    sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
+  const sourceTerminalPane =
+    sourcePane.type === "terminal" ? sourcePane : undefined;
+
+  const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
 
   const requestOptions = options.terminalOptions
     ? { ...options.terminalOptions }
     : defaultCwd
       ? { cwd: defaultCwd }
       : undefined;
+
+  const agentSessionId =
+    options.agentSession?.id ?? sourceTerminalPane?.agentSessionId;
+  const agentBranchName =
+    options.agentSession?.branchName ?? sourceTerminalPane?.agentBranchName;
+  const agentBaseBranch =
+    options.agentSession?.baseBranch ??
+    sourceTerminalPane?.agentBaseBranch ??
+    null;
+  const agentRepoRoot =
+    options.agentSession?.repoRoot ?? sourceTerminalPane?.agentRepoRoot;
+  const agentWorktreePath =
+    options.agentSession?.worktreePath ??
+    sourceTerminalPane?.agentWorktreePath;
 
   const result = await api.createTerminal(requestOptions);
   if (!result) {
@@ -561,11 +577,11 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
-    agentSessionId: options.agentSession?.id,
-    agentBranchName: options.agentSession?.branchName,
-    agentBaseBranch: options.agentSession?.baseBranch ?? null,
-    agentRepoRoot: options.agentSession?.repoRoot,
-    agentWorktreePath: options.agentSession?.worktreePath,
+    agentSessionId,
+    agentBranchName,
+    agentBaseBranch,
+    agentRepoRoot,
+    agentWorktreePath,
   };
 
   const newLayoutNode: LayoutNode = {
