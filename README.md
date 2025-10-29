@@ -85,9 +85,7 @@ Run global commands at any time (`cmd+shift+p`), including spinning up quick ter
 1. ???
 1. Profit 🚀
 
-### Cloud terminals
-
-If you want to make use of cloud terminals, you need to also perform the following steps:
+Additionally, if you want to make use of cloud terminals, you need to also perform the following steps:
 
 1. Generate a [GitHub PAT](https://github.com/settings/personal-access-tokens/new)
-1. Edit `.env.local.example` to include the PAT, and rename it to `.env.local`
+1. Copy the `.env.local.example` file, rename it to `.env.local`, and then paste your PAT into it
