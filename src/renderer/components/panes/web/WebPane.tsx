@@ -11,6 +11,9 @@ import { useUserSettings } from "@/hooks/useUserSettings";
 
 const api = window.conduit;
 
+// Delay before hiding history dropdown to allow clicking on items
+const HISTORY_DROPDOWN_HIDE_DELAY = 200;
+
 type WebPaneProps = {
   url: string;
   paneId: string;
@@ -206,7 +209,7 @@ export function WebPane({
     // Reset to current URL if user didn't submit
     setInputUrl(currentUrl);
     // Delay hiding history to allow clicking on items
-    setTimeout(() => setShowHistory(false), 200);
+    setTimeout(() => setShowHistory(false), HISTORY_DROPDOWN_HIDE_DELAY);
   }, [currentUrl]);
 
   const handleUrlInputFocus = useCallback(() => {
