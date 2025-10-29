@@ -47,3 +47,4 @@ typings/
 # Electron-Forge
 out/
 dist/
+.env.local
