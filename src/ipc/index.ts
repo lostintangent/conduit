@@ -6,6 +6,7 @@ import {
     initializeTerminalHandlers,
 } from "./terminal";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
+import { initializeVMHandlers } from "./vm";
 import { initializeWorkspaceHandlers } from "./workspace";
 
 export async function initializeIpcHandlers(window: BrowserWindow) {
@@ -22,6 +23,7 @@ export async function initializeIpcHandlers(window: BrowserWindow) {
     initializeUIHandlers(window);
     initializeFsHandlers();
     initializeAgentHandlers();
+    initializeVMHandlers();
 }
 
 export { cleanupTerminalSessions };

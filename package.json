@@ -10,7 +10,8 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
-    "rebuild": "electron-rebuild"
+    "rebuild": "electron-rebuild",
+    "postinstall": "node scripts/setup-keys.js"
   },
   "keywords": [],
   "author": {

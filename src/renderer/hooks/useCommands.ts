@@ -6,7 +6,7 @@ import {
   completeAgentSession,
   deleteAgentSession,
 } from "@/store/actions/pane";
-import { closeTab, openTab } from "@/store/actions/tab";
+import { closeTab, openTab, openTabFromExistingSession } from "@/store/actions/tab";
 import { activeTabAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import type { Command } from "@/types";
 import { useAtomValue } from "jotai";
@@ -141,6 +141,52 @@ export function useCommands({
         label: "Open web page",
         description: "Open a web page in a split view",
         run: () => setIsUrlDialogOpen(true),
+      });
+
+      items.push({
+        id: "create-vm-terminal",
+        label: "Create VM terminal",
+        description: "Create a new terminal connected to a remote VM",
+        run: async () => {
+          const notificationId = enqueueNotification({
+            kind: "info",
+            message: "Creating VM...",
+            persistent: true,
+          });
+
+          try {
+            // Create a terminal with VM options
+            const result = await api.createTerminal({
+              isRemoteVM: true,
+            });
+
+            if (!result) {
+              throw new Error("Failed to create VM terminal");
+            }
+
+            updateNotification(notificationId, {
+              kind: "success",
+              message: `VM terminal created: ${result.vmMetadata?.vmId}`,
+              autoCloseMs: 4000,
+            });
+
+            // Open a new tab with the existing VM terminal session
+            openTabFromExistingSession({
+              sessionId: result.sessionId,
+              cwd: result.cwd,
+              title: result.title,
+            });
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            updateNotification(notificationId, {
+              kind: "error",
+              message: "Failed to create VM terminal",
+              details: message,
+              autoCloseMs: null,
+            });
+          }
+        },
       });
     }
     if (tabs.length > 1 && activeTab) {

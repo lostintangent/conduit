@@ -7,7 +7,10 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
   BackgroundCommandRequest,
+  CreateVMPayload,
+  DeleteVMPayload,
   FileTreeNode,
+  ListVMsPayload,
   TerminalCreateOptions,
   TerminalCreateResponse,
   TerminalCwdPayload,
@@ -15,6 +18,7 @@ import type {
   TerminalExitPayload,
   TerminalTitlePayload,
   UserSettings,
+  VMInfo,
 } from "./shared/types";
 
 // Note: This file should never include any actual logic. It should simply be a
@@ -215,6 +219,23 @@ const conduitAPI = {
 
   writeFile: (filePath: string, content: string) =>
     ipcRenderer.invoke("fs:write-file", filePath, content) as Promise<void>,
+
+  /* VM methods (UI->main) */
+
+  createVM: (payload?: CreateVMPayload) =>
+    ipcRenderer.invoke("vm:create", payload) as Promise<VMInfo>,
+
+  listVMs: (payload?: ListVMsPayload) =>
+    ipcRenderer.invoke("vm:list", payload) as Promise<VMInfo[]>,
+
+  getVM: (vmId: string) =>
+    ipcRenderer.invoke("vm:get", vmId) as Promise<VMInfo>,
+
+  deleteVM: (payload: DeleteVMPayload) =>
+    ipcRenderer.invoke("vm:delete", payload) as Promise<void>,
+
+  reloadVMConfig: () =>
+    ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,
 };
 
 export type ConduitAPI = typeof conduitAPI;

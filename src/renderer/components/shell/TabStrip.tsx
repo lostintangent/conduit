@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { enterFocusMode } from "@/store/actions/focusMode";
+import { enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -18,6 +19,7 @@ import {
 import type { Pane, Tab } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
 import {
+  Cloud,
   Expand,
   FileEdit,
   Globe,
@@ -359,6 +361,46 @@ export const TabStrip = ({
     });
   }, [homeDirectory, onOpenQuickPane]);
 
+  const handleOpenQuickCloudTerminal = useCallback(async () => {
+    const api = window.conduit;
+    
+    const notificationId = enqueueNotification({
+      kind: "info",
+      message: "Creating cloud VM...",
+      persistent: true,
+    });
+
+    try {
+      const result = await api.createTerminal({
+        isRemoteVM: true,
+      });
+
+      if (!result || !onOpenQuickPane) {
+        throw new Error("Failed to create VM terminal");
+      }
+
+      updateNotification(notificationId, {
+        kind: "success",
+        message: `Cloud VM created: ${result.vmMetadata?.vmId}`,
+        autoCloseMs: 4000,
+      });
+
+      onOpenQuickPane({
+        type: "terminal",
+        sessionId: result.sessionId,
+        cwd: result.cwd ?? null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      updateNotification(notificationId, {
+        kind: "error",
+        message: "Failed to create cloud VM",
+        details: message,
+        autoCloseMs: null,
+      });
+    }
+  }, [onOpenQuickPane]);
+
   const handleOpenQuickEditor = useCallback(() => {
     if (!homeDirectory || !onOpenQuickPane) {
       return;
@@ -467,10 +509,14 @@ export const TabStrip = ({
               <Zap size={18} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-w-[10rem]">
+          <DropdownMenuContent align="end" className="max-w-40">
             <DropdownMenuItem onClick={handleOpenQuickTerminal}>
               <Terminal size={16} className="mr-3" />
               Terminal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
+              <Cloud size={16} className="mr-3" />
+              Terminal (Cloud)
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleOpenQuickEditor}>
               <FileEdit size={16} className="mr-3" />
