@@ -7,8 +7,7 @@ import type { Tab } from "@/types";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const HIGHLIGHT_DURATION_MS = 2000;
-const HIGHLIGHT_CLASS = "animate-[pane-highlight_2s_ease-out_forwards]";
+const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.css @keyframes pane-highlight
 
 export const shouldShowPaneBorder = (
   tab: Tab,
@@ -21,7 +20,7 @@ type PaneHighlightOptions = {
   isResizing?: boolean;
 };
 
-export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
+function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const applicationMode = useAtomValue(applicationModeAtom);
@@ -83,13 +82,6 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
     triggerHighlight,
   ]);
 
-  const getHighlightClass = useCallback(
-    (paneId: string): string => {
-      return paneId === highlightedPaneId ? HIGHLIGHT_CLASS : "";
-    },
-    [highlightedPaneId]
-  );
-
   useEffect(() => {
     return () => {
       clearExistingTimeout();
@@ -111,7 +103,22 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
     };
   }, [highlightActivePane]);
 
-  return {
-    getHighlightClass,
-  };
+  return highlightedPaneId;
+}
+
+type PaneHighlightProps = {
+  paneId: string;
+  isResizing?: boolean;
+};
+
+export function PaneHighlight({ paneId, isResizing = false }: PaneHighlightProps) {
+  const highlightedPaneId = usePaneHighlight({ isResizing });
+
+  if (paneId !== highlightedPaneId) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 animate-[pane-highlight_2s_ease-out_forwards]" />
+  );
 }

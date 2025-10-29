@@ -1,12 +1,12 @@
 import { PaneControlButtons } from "@/components/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/layout/focus/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/layout/normal/IntersectionHandles";
+import {
+  PaneHighlight,
+  shouldShowPaneBorder,
+} from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
-import {
-  shouldShowPaneBorder,
-  usePaneHighlight,
-} from "@/components/layout/normal/usePaneHighlight";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { WebPane } from "@/components/panes/web/WebPane";
@@ -250,10 +250,6 @@ export function TabLayout({
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
-  const { getHighlightClass } = usePaneHighlight({
-    isResizing: resizingNode !== null,
-  });
-
   const {
     draggedPaneId,
     dragHoverPaneId,
@@ -405,6 +401,9 @@ export function TabLayout({
             <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
           )}
 
+          {/* Pane highlight overlay */}
+          <PaneHighlight paneId={pane.id} isResizing={resizingNode !== null} />
+
           {/* Drop zone overlay */}
           {renderDropZone(pane.id)}
 
@@ -514,11 +513,6 @@ export function TabLayout({
               ? "bg-blue-500/60"
               : "bg-transparent hover:bg-blue-500/40";
 
-            const highlightClass =
-              !isInDesignMode && child.type === "pane" && tabShowsBorder
-                ? getHighlightClass(child.paneId)
-                : "";
-
             const shouldRenderHandles = primaryAxis !== null && !isInFocusMode;
 
             const intersectionHandles =
@@ -540,7 +534,7 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${highlightClass} ${splitBorderClass}`}
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${splitBorderClass}`}
               >
                 {shouldRenderHandles && primaryAxis && (
                   <>
@@ -585,7 +579,6 @@ export function TabLayout({
     },
     [
       applicationMode,
-      getHighlightClass,
       handleResizeStart,
       hoveredAxisKeys,
       isInDesignMode,
