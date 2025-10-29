@@ -2,8 +2,18 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { loadUserKeybindings } from '@/commands/keybindings/userKeybindings';
+import {
+  loadUserKeybindings,
+  saveUserKeybinding,
+  removeUserKeybinding,
+  restoreDefaultKeybindings,
+  getUserKeybindingsPath
+} from '@/commands/keybindings/userKeybindings';
 import { KeybindingRegistry } from '@/commands/keybindings/KeybindingRegistry';
+import { CommandRegistry } from '@/commands/core/CommandRegistryImpl';
+import { ContextKeyService } from '@/commands/contextKeys/ContextKeyServiceImpl';
+import type { ICommandRegistry } from '@/commands/core/CommandRegistry';
+import * as updateKeybindingsAtomModule from '@/commands/keybindings/updateKeybindingsAtom';
 
 describe('loadUserKeybindings', () => {
   let registry: KeybindingRegistry;
@@ -158,5 +168,358 @@ describe('loadUserKeybindings', () => {
     expect(registry.getKeybindingsForCommand('cmd3')).toHaveLength(1);
     // cmd4 should be added
     expect(registry.getKeybindingsForCommand('cmd4')).toHaveLength(1);
+  });
+});
+
+describe('getUserKeybindingsPath', () => {
+  it('should construct correct path', () => {
+    const path = getUserKeybindingsPath('/home/user');
+    expect(path).toBe('/home/user/.conduit/keybindings.json');
+  });
+
+  it('should handle different home directories', () => {
+    expect(getUserKeybindingsPath('/Users/alice')).toBe('/Users/alice/.conduit/keybindings.json');
+    expect(getUserKeybindingsPath('/home/bob')).toBe('/home/bob/.conduit/keybindings.json');
+    expect(getUserKeybindingsPath('C:\\Users\\charlie')).toBe('C:\\Users\\charlie/.conduit/keybindings.json');
+  });
+});
+
+describe('saveUserKeybinding', () => {
+  let registry: KeybindingRegistry;
+  let originalConduit: typeof window.conduit;
+  let updateAtomSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    registry = new KeybindingRegistry();
+    originalConduit = window.conduit;
+    updateAtomSpy = vi.spyOn(updateKeybindingsAtomModule, 'updateKeybindingsAtom').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    window.conduit = originalConduit;
+    updateAtomSpy.mockRestore();
+  });
+
+  it('should save new keybinding to file', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue('[]');
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
+
+    expect(mockReadFile).toHaveBeenCalledWith('/test/keybindings.json');
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/test/keybindings.json',
+      expect.stringContaining('"key": "Ctrl+T"')
+    );
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/test/keybindings.json',
+      expect.stringContaining('"command": "test.command"')
+    );
+  });
+
+  it('should override existing binding for same command', async () => {
+    const existingBindings = [
+      { key: 'Ctrl+T', command: 'test.command' },
+      { key: 'Alt+K', command: 'other.command' }
+    ];
+
+    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(existingBindings));
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await saveUserKeybinding('test.command', 'Shift+T', '/test/keybindings.json', registry);
+
+    const writtenContent = mockWriteFile.mock.calls[0][1];
+    const parsed = JSON.parse(writtenContent);
+
+    // Should have 2 bindings: other.command and updated test.command
+    expect(parsed).toHaveLength(2);
+    expect(parsed.find((b: any) => b.command === 'test.command').key).toBe('Shift+T');
+    expect(parsed.find((b: any) => b.command === 'other.command').key).toBe('Alt+K');
+  });
+
+  it('should update registry with USER_KEYBINDING_WEIGHT', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue('[]');
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
+
+    const bindings = registry.getKeybindingsForCommand('test.command');
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0].weight).toBe(1000);
+  });
+
+  it('should update global atom', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue('[]');
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
+
+    expect(updateAtomSpy).toHaveBeenCalled();
+  });
+
+  it('should handle file that does not exist (ENOENT)', async () => {
+    const mockReadFile = vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { message: 'ENOENT: file not found' }));
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
+
+    // Should still write the file
+    expect(mockWriteFile).toHaveBeenCalled();
+  });
+
+  it('should handle missing window.conduit.writeFile', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue('[]');
+
+    window.conduit = {
+      readFile: mockReadFile
+    };
+
+    await expect(
+      saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry)
+    ).rejects.toThrow('window.conduit.writeFile is not available');
+  });
+});
+
+describe('removeUserKeybinding', () => {
+  let registry: KeybindingRegistry;
+  let commandRegistry: ICommandRegistry;
+  let originalConduit: typeof window.conduit;
+  let updateAtomSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    const contextKeyService = new ContextKeyService();
+    registry = new KeybindingRegistry();
+    commandRegistry = new CommandRegistry(contextKeyService);
+    originalConduit = window.conduit;
+    updateAtomSpy = vi.spyOn(updateKeybindingsAtomModule, 'updateKeybindingsAtom').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    window.conduit = originalConduit;
+    updateAtomSpy.mockRestore();
+  });
+
+  it('should remove binding from file', async () => {
+    const existingBindings = [
+      { key: 'Ctrl+T', command: 'test.command' },
+      { key: 'Alt+K', command: 'other.command' }
+    ];
+
+    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(existingBindings));
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
+
+    const writtenContent = mockWriteFile.mock.calls[0][1];
+    const parsed = JSON.parse(writtenContent);
+
+    // Should only have other.command
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].command).toBe('other.command');
+  });
+
+  it('should restore default keybindings', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify([{ key: 'Ctrl+T', command: 'test.command' }]));
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    // Register command with default keybinding
+    commandRegistry.registerCommand({
+      id: 'test.command',
+      title: 'Test Command',
+      keybinding: { key: 'Alt+T' },
+      run: () => {}
+    });
+
+    await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
+
+    // Should have restored default
+    const bindings = registry.getKeybindingsForCommand('test.command');
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0].weight).toBe(0); // Default weight
+  });
+
+  it('should update global atom', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue('[]');
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
+
+    expect(updateAtomSpy).toHaveBeenCalled();
+  });
+
+  it('should handle file that does not exist', async () => {
+    const mockReadFile = vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { message: 'ENOENT: file not found' }));
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
+
+    // Should still write (empty array)
+    expect(mockWriteFile).toHaveBeenCalled();
+  });
+
+  it('should handle command with no defaults', async () => {
+    const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify([{ key: 'Ctrl+T', command: 'test.command' }]));
+    const mockWriteFile = vi.fn().mockResolvedValue(undefined);
+
+    window.conduit = {
+      readFile: mockReadFile,
+      writeFile: mockWriteFile
+    };
+
+    // Register command WITHOUT default keybinding
+    commandRegistry.registerCommand({
+      id: 'test.command',
+      title: 'Test Command',
+      run: () => {}
+    });
+
+    await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
+
+    // Should have no bindings after removal
+    const bindings = registry.getKeybindingsForCommand('test.command');
+    expect(bindings).toHaveLength(0);
+  });
+});
+
+describe('restoreDefaultKeybindings', () => {
+  let registry: KeybindingRegistry;
+  let commandRegistry: ICommandRegistry;
+
+  beforeEach(() => {
+    const contextKeyService = new ContextKeyService();
+    registry = new KeybindingRegistry();
+    commandRegistry = new CommandRegistry(contextKeyService);
+  });
+
+  it('should restore single default keybinding', () => {
+    // Register command with default
+    commandRegistry.registerCommand({
+      id: 'test.command',
+      title: 'Test Command',
+      keybinding: { key: 'Ctrl+T' },
+      run: () => {}
+    });
+
+    // Add user override
+    registry.register('test.command', { key: 'Alt+T' }, 1000);
+
+    restoreDefaultKeybindings('test.command', commandRegistry, registry);
+
+    const bindings = registry.getKeybindingsForCommand('test.command');
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0].weight).toBe(0);
+  });
+
+  it('should restore multiple default keybindings', () => {
+    // Register command with multiple defaults
+    commandRegistry.registerCommand({
+      id: 'test.command',
+      title: 'Test Command',
+      keybinding: [
+        { key: 'Ctrl+T' },
+        { key: 'Cmd+T', mac: 'Cmd+T' }
+      ],
+      run: () => {}
+    });
+
+    restoreDefaultKeybindings('test.command', commandRegistry, registry);
+
+    const bindings = registry.getKeybindingsForCommand('test.command');
+    expect(bindings.length).toBeGreaterThanOrEqual(2);
+    bindings.forEach(binding => {
+      expect(binding.weight).toBe(0);
+    });
+  });
+
+  it('should handle command with no defaults', () => {
+    // Register command WITHOUT keybinding
+    commandRegistry.registerCommand({
+      id: 'test.command',
+      title: 'Test Command',
+      run: () => {}
+    });
+
+    restoreDefaultKeybindings('test.command', commandRegistry, registry);
+
+    const bindings = registry.getKeybindingsForCommand('test.command');
+    expect(bindings).toHaveLength(0);
+  });
+
+  it('should unregister existing bindings first', () => {
+    // Register command with default
+    commandRegistry.registerCommand({
+      id: 'test.command',
+      title: 'Test Command',
+      keybinding: { key: 'Ctrl+T' },
+      run: () => {}
+    });
+
+    // Add multiple user overrides
+    registry.register('test.command', { key: 'Alt+T' }, 1000);
+    registry.register('test.command', { key: 'Shift+T' }, 1000);
+
+    expect(registry.getKeybindingsForCommand('test.command').length).toBeGreaterThan(1);
+
+    restoreDefaultKeybindings('test.command', commandRegistry, registry);
+
+    // Should only have the default now
+    const bindings = registry.getKeybindingsForCommand('test.command');
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0].weight).toBe(0);
+  });
+
+  it('should handle command that does not exist', () => {
+    // Should not throw
+    expect(() => {
+      restoreDefaultKeybindings('nonexistent.command', commandRegistry, registry);
+    }).not.toThrow();
+
+    const bindings = registry.getKeybindingsForCommand('nonexistent.command');
+    expect(bindings).toHaveLength(0);
   });
 });
