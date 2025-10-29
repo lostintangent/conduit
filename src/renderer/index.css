@@ -192,3 +192,14 @@ body {
 .animate-fan-in {
   animation: fan-in 0.2s ease-out;
 }
+
+/* Electron window drag region utilities */
+.app-region-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.app-region-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
