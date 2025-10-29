@@ -1,4 +1,5 @@
 import {
+  dismissNotification,
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
@@ -164,17 +165,13 @@ export function useCommands({
               throw new Error("Failed to create VM terminal");
             }
 
-            updateNotification(notificationId, {
-              kind: "success",
-              message: `VM terminal created: ${result.vmMetadata?.vmId}`,
-              autoCloseMs: 4000,
-            });
-
+            dismissNotification(notificationId);
             // Open a new tab with the existing VM terminal session
             openTabFromExistingSession({
               sessionId: result.sessionId,
               cwd: result.cwd,
               title: result.title,
+              vmMetadata: result.vmMetadata ?? undefined,
             });
           } catch (error) {
             const message =

@@ -7,8 +7,8 @@ import type { Pane } from "@/types";
 import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
 import { useSetAtom } from "jotai";
-import { ArrowUpRight, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowUpRight, Cloud, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type PaneDescriptor = Omit<Pane, "id">;
 
@@ -83,6 +83,19 @@ export function QuickDialog({
     []
   );
 
+  const isVmTerminal = useMemo(
+    () =>
+      currentDescriptor.type === "terminal" &&
+      !!currentDescriptor.vmMetadata?.vmId,
+    [currentDescriptor]
+  );
+  const vmTitle = useMemo(() => {
+    if (!isVmTerminal) {
+      return undefined;
+    }
+    return `Connected to VM ${currentDescriptor.vmMetadata?.vmId ?? ""}`;
+  }, [currentDescriptor, isVmTerminal]);
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent
@@ -120,7 +133,13 @@ export function QuickDialog({
         </div>
 
         <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
+          <div
+            className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur"
+            title={vmTitle}
+          >
+            {isVmTerminal && (
+              <Cloud size={16} className="text-white/80 mr-2" aria-hidden="true" />
+            )}
             <button
               type="button"
               onClick={() => onOpenAsTab(currentDescriptor)}

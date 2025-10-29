@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { enterFocusMode } from "@/store/actions/focusMode";
-import { enqueueNotification, updateNotification } from "@/store/actions/notifications";
+import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -363,7 +363,7 @@ export const TabStrip = ({
 
   const handleOpenQuickCloudTerminal = useCallback(async () => {
     const api = window.conduit;
-    
+
     const notificationId = enqueueNotification({
       kind: "info",
       message: "Creating cloud VM...",
@@ -379,16 +379,13 @@ export const TabStrip = ({
         throw new Error("Failed to create VM terminal");
       }
 
-      updateNotification(notificationId, {
-        kind: "success",
-        message: `Cloud VM created: ${result.vmMetadata?.vmId}`,
-        autoCloseMs: 4000,
-      });
+      dismissNotification(notificationId);
 
       onOpenQuickPane({
         type: "terminal",
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
+        vmMetadata: result.vmMetadata ?? undefined,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

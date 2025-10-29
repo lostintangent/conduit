@@ -90,10 +90,12 @@ export function openTabFromExistingSession({
   sessionId,
   cwd,
   title,
+  vmMetadata,
 }: {
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
+  vmMetadata?: Pane["vmMetadata"] | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -103,6 +105,7 @@ export function openTabFromExistingSession({
     sessionId,
     cwd: cwd ?? null,
     processTitle: title ?? "Terminal",
+    vmMetadata: vmMetadata ?? undefined,
   };
 
   return createTabWithPane(paneState);
@@ -121,7 +124,8 @@ export async function openTabFromPaneDescriptor(
       type: "terminal",
       sessionId: descriptor.sessionId,
       cwd: descriptor.cwd,
-      processTitle: "Terminal",
+      processTitle: descriptor.processTitle,
+      vmMetadata: descriptor.vmMetadata,
     };
   } else if (descriptor.type === "editor") {
     paneState = {

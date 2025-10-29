@@ -3,14 +3,13 @@ import {
   completeAgentSession,
   deleteAgentSession,
 } from "@/store/actions/pane";
-import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
-import { getHashedColor } from "@/utils/theme";
 import { useAtomValue } from "jotai";
-import { Check, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFitController, type FitController } from "./FitController";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
+import { SandboxIndicator } from "./SandboxIndicator";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -118,7 +117,6 @@ export const TerminalPane = ({
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
-  const applicationMode = useAtomValue(applicationModeAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -146,23 +144,9 @@ export const TerminalPane = ({
 
   // This component is specifically for terminal panes, so we can safely cast
   const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
-  const isAgentSession = !!terminalPane?.agentSessionId;
-  const shouldShowAgentControls = isAgentSession && applicationMode === "normal";
 
-  const agentSessionId = terminalPane?.agentSessionId;
-  const agentSessionColor = useMemo(
-    () => (agentSessionId ? getHashedColor(agentSessionId) : undefined),
-    [agentSessionId]
-  );
-  const agentOverlayStyle = useMemo(
-    () =>
-      agentSessionColor
-        ? {
-          backgroundColor: agentSessionColor,
-        }
-        : undefined,
-    [agentSessionColor]
-  );
+  const agentSessionId = terminalPane?.agentSessionId ?? null;
+  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
 
   const focusTerminal = useCallback(() => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
@@ -357,31 +341,12 @@ export const TerminalPane = ({
         </div>
       )}
 
-      {shouldShowAgentControls && (
-        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white z-[1000]">
-          <div
-            className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur"
-            style={agentOverlayStyle}
-          >
-            <button
-              type="button"
-              onClick={handleCompleteAgentSession}
-              title="Complete agent session"
-              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-            >
-              <Check size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={handleDeleteAgentSession}
-              title="Delete agent session"
-              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+      <SandboxIndicator
+        vmId={vmId}
+        agentSessionId={agentSessionId}
+        onCompleteAgentSession={handleCompleteAgentSession}
+        onDeleteAgentSession={handleDeleteAgentSession}
+      />
     </div>
   );
 };

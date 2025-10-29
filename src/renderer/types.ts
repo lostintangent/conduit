@@ -1,3 +1,5 @@
+import type { VMMetadata } from "@shared/types";
+
 type Identifiable = { id: string };
 type Resizable = { size?: number };
 
@@ -26,6 +28,7 @@ export type TerminalPane = {
   sessionId: string;
   cwd: string | null;
   processTitle: string;
+  vmMetadata?: VMMetadata;
   agentSessionId?: string;
   agentBranchName?: string;
   agentBaseBranch?: string | null;

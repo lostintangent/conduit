@@ -3,6 +3,7 @@ import {
 } from "@/store/actions/notifications";
 import { notificationsAtom } from "@/store/atoms";
 import { Notification } from "@/types";
+import { X } from "lucide-react";
 
 import { useAtomValue } from "jotai";
 
@@ -47,9 +48,10 @@ export function NotificationCenter() {
             <button
               type="button"
               onClick={() => dismissNotification(notification.id)}
-              className="rounded-md px-1 text-xs uppercase tracking-wide text-white/70 hover:text-white"
+              className="rounded-md p-1 text-white/70 transition-colors hover:text-white"
+              aria-label="Close notification"
             >
-              Close
+              <X className="h-4 w-4" strokeWidth={2} />
             </button>
           </div>
         </div>
