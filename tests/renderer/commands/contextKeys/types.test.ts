@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ContextLevel, AggregateMode } from '../types';
+import { ContextLevel, AggregateMode } from '@/commands/contextKeys/types';
 
 describe('ContextLevel enum', () => {
   it('should have Pane level', () => {

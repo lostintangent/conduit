@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { loadUserKeybindings } from '../userKeybindings';
-import { KeybindingRegistry } from '../KeybindingRegistry';
+import { loadUserKeybindings } from '@/commands/keybindings/userKeybindings';
+import { KeybindingRegistry } from '@/commands/keybindings/KeybindingRegistry';
 
 describe('loadUserKeybindings', () => {
   let registry: KeybindingRegistry;

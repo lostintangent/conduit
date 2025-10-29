@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { DerivedContextKey } from '../DerivedContextKey';
-import { AggregateMode } from '../types';
+import { DerivedContextKey } from '@/commands/contextKeys/DerivedContextKey';
+import { AggregateMode } from '@/commands/contextKeys/types';
 
 describe('DerivedContextKey', () => {
   it('should construct with key, sourceKey, and aggregateMode', () => {

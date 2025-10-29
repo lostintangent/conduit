@@ -3,7 +3,7 @@ import {
   parseKeybindingsFile,
   isRemovalBinding,
   getRemovalCommandId
-} from '../keybindingsFile';
+} from '@/commands/keybindings/keybindingsFile';
 
 describe('parseKeybindingsFile', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;

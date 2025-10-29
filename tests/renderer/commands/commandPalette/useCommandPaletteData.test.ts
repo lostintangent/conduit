@@ -3,12 +3,12 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCommandPaletteData } from '../useCommandPaletteData';
-import { CommandRegistry } from '../../core/CommandRegistryImpl';
-import { ContextKeyService } from '../../contextKeys/ContextKeyServiceImpl';
-import { ContextKey } from '../../contextKeys/ContextKey';
-import { ContextLevel } from '../../contextKeys/types';
-import { When } from '../../whenClauses/When';
+import { useCommandPaletteData } from '@/commands/commandPalette/useCommandPaletteData';
+import { CommandRegistry } from '@/commands/core/CommandRegistryImpl';
+import { ContextKeyService } from '@/commands/contextKeys/ContextKeyServiceImpl';
+import { ContextKey } from '@/commands/contextKeys/ContextKey';
+import { ContextLevel } from '@/commands/contextKeys/types';
+import { When } from '@/commands/whenClauses/When';
 
 describe('useCommandPaletteData', () => {
   let commandRegistry: CommandRegistry;

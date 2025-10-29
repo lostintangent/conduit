@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { registerApplicationCommands, ApplicationCommands } from '../applicationCommands';
-import type { ICommandRegistry } from '../core/CommandRegistry';
-import type { CommandDescriptor, CommandContext } from '../core/types';
+import { registerApplicationCommands, ApplicationCommands } from '@/commands/applicationCommands';
+import type { ICommandRegistry } from '@/commands/core/CommandRegistry';
+import type { CommandDescriptor, CommandContext } from '@/commands/core/types';
 
 describe('applicationCommands', () => {
   let mockRegistry: ICommandRegistry;
@@ -155,7 +155,7 @@ describe('applicationCommands', () => {
 
     it('should have simplified keybinding', () => {
       expect(command.keybinding).toBeDefined();
-      expect(command.keybinding).toHaveProperty('key', 'Alt+Space');
+      expect(command.keybinding).toHaveProperty('key', 'Cmd+D');
 
       // Should not have platform-specific overrides
       const binding = command.keybinding as any;

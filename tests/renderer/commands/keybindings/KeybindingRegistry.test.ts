@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { KeybindingRegistry } from '../KeybindingRegistry';
-import type { KeybindingDescriptor } from '../types';
+import { KeybindingRegistry } from '@/commands/keybindings/KeybindingRegistry';
+import type { KeybindingDescriptor } from '@/commands/keybindings/types';
 
 describe('KeybindingRegistry', () => {
   let registry: KeybindingRegistry;

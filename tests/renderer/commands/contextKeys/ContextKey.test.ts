@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { ContextKey } from '../ContextKey';
-import { ContextLevel, AggregateMode } from '../types';
-import { When } from '../../whenClauses/When';
+import { ContextKey } from '@/commands/contextKeys/ContextKey';
+import { ContextLevel, AggregateMode } from '@/commands/contextKeys/types';
+import { When } from '@/commands/whenClauses/When';
 
 describe('ContextKey', () => {
   it('should construct with key and default value', () => {

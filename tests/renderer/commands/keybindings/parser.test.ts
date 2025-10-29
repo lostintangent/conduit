@@ -7,7 +7,7 @@ import {
   normalizeKey,
   formatChord,
   formatKeybinding
-} from '../parser';
+} from '@/commands/keybindings/parser';
 
 describe('parseChord()', () => {
   it('should parse single key', () => {
@@ -299,7 +299,7 @@ describe('formatChord()', () => {
 
   it('should format Cmd+Shift+P', () => {
     const chord = { ctrl: false, shift: true, alt: false, meta: true, key: 'p' };
-    expect(formatChord(chord)).toBe('Alt+Shift+Cmd+P');
+    expect(formatChord(chord)).toBe('Shift+Cmd+P');
   });
 });
 

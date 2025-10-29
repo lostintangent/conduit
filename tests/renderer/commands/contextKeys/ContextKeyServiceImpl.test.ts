@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ContextKeyService } from '../ContextKeyServiceImpl';
-import { ContextKey } from '../ContextKey';
-import { DerivedContextKey } from '../DerivedContextKey';
-import { AggregateMode, ContextLevel } from '../types';
+import { ContextKeyService } from '@/commands/contextKeys/ContextKeyServiceImpl';
+import { ContextKey } from '@/commands/contextKeys/ContextKey';
+import { DerivedContextKey } from '@/commands/contextKeys/DerivedContextKey';
+import { AggregateMode, ContextLevel } from '@/commands/contextKeys/types';
 
 describe('ContextKeyService', () => {
   let service: ContextKeyService;

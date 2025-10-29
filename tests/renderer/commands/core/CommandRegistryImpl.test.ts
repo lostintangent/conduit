@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CommandRegistry } from '../CommandRegistryImpl';
-import { ContextKeyService } from '../../contextKeys/ContextKeyServiceImpl';
-import { ContextKey } from '../../contextKeys/ContextKey';
-import { KeybindingRegistry } from '../../keybindings/KeybindingRegistry';
-import { MenuRegistry } from '../../menus/MenuRegistry';
-import { MenuId } from '../../menus/types';
-import { When } from '../../whenClauses/When';
-import type { CommandDescriptor } from '../types';
+import { CommandRegistry } from '@/commands/core/CommandRegistryImpl';
+import { ContextKeyService } from '@/commands/contextKeys/ContextKeyServiceImpl';
+import { ContextKey } from '@/commands/contextKeys/ContextKey';
+import { KeybindingRegistry } from '@/commands/keybindings/KeybindingRegistry';
+import { MenuRegistry } from '@/commands/menus/MenuRegistry';
+import { MenuId } from '@/commands/menus/types';
+import { When } from '@/commands/whenClauses/When';
+import type { CommandDescriptor } from '@/commands/core/types';
 
 describe('CommandRegistry', () => {
   let registry: CommandRegistry;

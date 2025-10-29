@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { When } from '../When';
+import { When } from '@/commands/whenClauses/When';
 
 describe('When.and()', () => {
   it('should return true when all expressions are true', () => {

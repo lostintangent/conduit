@@ -3,14 +3,14 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useMenu } from '../useMenu';
-import { MenuRegistry } from '../MenuRegistry';
-import { MenuId } from '../types';
-import { ContextKeyService } from '../../contextKeys/ContextKeyServiceImpl';
-import { CommandRegistry } from '../../core/CommandRegistryImpl';
-import { ContextKey } from '../../contextKeys/ContextKey';
-import { ContextLevel } from '../../contextKeys/types';
-import { When } from '../../whenClauses/When';
+import { useMenu } from '@/commands/menus/useMenu';
+import { MenuRegistry } from '@/commands/menus/MenuRegistry';
+import { MenuId } from '@/commands/menus/types';
+import { ContextKeyService } from '@/commands/contextKeys/ContextKeyServiceImpl';
+import { CommandRegistry } from '@/commands/core/CommandRegistryImpl';
+import { ContextKey } from '@/commands/contextKeys/ContextKey';
+import { ContextLevel } from '@/commands/contextKeys/types';
+import { When } from '@/commands/whenClauses/When';
 
 describe('useMenu', () => {
   let menuRegistry: MenuRegistry;

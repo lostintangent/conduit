@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MenuRegistry } from '../MenuRegistry';
-import { MenuId } from '../types';
-import type { MenuContribution } from '../types';
-import { When } from '../../whenClauses/When';
+import { MenuRegistry } from '@/commands/menus/MenuRegistry';
+import { MenuId } from '@/commands/menus/types';
+import type { MenuContribution } from '@/commands/menus/types';
+import { When } from '@/commands/whenClauses/When';
 
 describe('MenuRegistry', () => {
   let registry: MenuRegistry;
