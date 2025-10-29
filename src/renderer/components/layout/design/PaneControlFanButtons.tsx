@@ -1,14 +1,14 @@
-import { openEditorPane, openWebViewPane, splitPane } from "@/store/actions/pane";
+import { openEditorPane, openWebViewPane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
+import { useAtomValue } from "jotai";
 import {
+  Bot,
   FileCode,
   GitBranch,
   Globe,
-  Terminal,
   Zap,
 } from "lucide-react";
-import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
@@ -16,7 +16,7 @@ export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
 const PANE_TYPES = [
   { id: "source-control", label: "Source Control", icon: GitBranch },
   { id: "editor", label: "Editor", icon: FileCode },
-  { id: "terminal", label: "Terminal", icon: Terminal },
+  { id: "terminal", label: "Agent Session", icon: Bot },
   { id: "webview", label: "Web View", icon: Globe },
   { id: "command", label: "Command", icon: Zap },
 ] as const;
@@ -45,7 +45,7 @@ export function PaneControlFanButtons({
   const [isVisible, setIsVisible] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tabs = useAtomValue(tabsAtom);
-  
+
   // Get the current pane to determine its cwd
   const currentPane = tabs
     .find((tab) => tab.id === tabId)
@@ -109,8 +109,7 @@ export function PaneControlFanButtons({
 
     switch (paneTypeId) {
       case "terminal":
-        // Default terminal
-        await splitPane(tabId, paneId, direction, insertBefore);
+        await splitPaneWithAgentSession(tabId, paneId, direction, insertBefore);
         break;
 
       case "webview":
