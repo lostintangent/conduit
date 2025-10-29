@@ -15,6 +15,55 @@ import { ContextKeyService } from '@/commands/contextKeys/ContextKeyServiceImpl'
 import type { ICommandRegistry } from '@/commands/core/CommandRegistry';
 import * as updateKeybindingsAtomModule from '@/commands/keybindings/updateKeybindingsAtom';
 
+// Helper to create a minimal mock of window.conduit
+function createMockConduit(overrides: Partial<typeof window.conduit> = {}): typeof window.conduit {
+  return {
+    platform: 'darwin',
+    createTerminal: vi.fn(),
+    closeTerminal: vi.fn(),
+    sendKeypress: vi.fn(),
+    resize: vi.fn(),
+    markTerminalReady: vi.fn(),
+    onData: vi.fn(),
+    onTitle: vi.fn(),
+    onCwd: vi.fn(),
+    onExit: vi.fn(),
+    onNewTabRequest: vi.fn(),
+    onOpenWorkspaceRequest: vi.fn(),
+    onContextMenuAction: vi.fn(),
+    onBeforeClose: vi.fn(),
+    onTabPositionChange: vi.fn(),
+    onAlwaysShowTabsChange: vi.fn(),
+    onShowTerminalRulerChange: vi.fn(),
+    getSettings: vi.fn(),
+    updateSettings: vi.fn(),
+    showContextMenu: vi.fn(),
+    addCommandHistoryEntry: vi.fn(),
+    removeCommandHistoryEntry: vi.fn(),
+    addUrlToHistory: vi.fn(),
+    runBackgroundCommand: vi.fn(),
+    openExternal: vi.fn(),
+    hasSessions: vi.fn(),
+    loadSessions: vi.fn(),
+    saveSession: vi.fn(),
+    deleteSession: vi.fn(),
+    renameWorkspace: vi.fn(),
+    hasLastWorkspace: vi.fn(),
+    loadLastWorkspace: vi.fn(),
+    saveLastWorkspace: vi.fn(),
+    spawnAgentSession: vi.fn(),
+    listAgentSessions: vi.fn(),
+    hasGitRepository: vi.fn(),
+    finalizeAgentSession: vi.fn(),
+    cleanupAgentSession: vi.fn(),
+    listDirectory: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    watchFile: vi.fn(),
+    ...overrides,
+  } as typeof window.conduit;
+}
+
 describe('loadUserKeybindings', () => {
   let registry: KeybindingRegistry;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
@@ -22,7 +71,7 @@ describe('loadUserKeybindings', () => {
 
   beforeEach(() => {
     registry = new KeybindingRegistry();
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {}) as any;
     originalConduit = window.conduit;
   });
 
@@ -39,9 +88,7 @@ describe('loadUserKeybindings', () => {
       ])
     );
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile });
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -55,9 +102,7 @@ describe('loadUserKeybindings', () => {
       JSON.stringify([{ key: 'Ctrl+T', command: 'test.command' }])
     );
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile });
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -74,9 +119,7 @@ describe('loadUserKeybindings', () => {
       JSON.stringify([{ key: '', command: '-test.command' }])
     );
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile });
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -87,9 +130,7 @@ describe('loadUserKeybindings', () => {
   it('should handle file read error', async () => {
     const mockReadFile = vi.fn().mockRejectedValue(new Error('File not found'));
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile });
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -99,9 +140,7 @@ describe('loadUserKeybindings', () => {
   it('should return early when readFile returns null', async () => {
     const mockReadFile = vi.fn().mockResolvedValue(null);
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile });
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -119,7 +158,7 @@ describe('loadUserKeybindings', () => {
   });
 
   it('should return early when readFile is undefined', async () => {
-    window.conduit = {};
+    window.conduit = createMockConduit();
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -130,9 +169,7 @@ describe('loadUserKeybindings', () => {
   it('should handle invalid JSON gracefully', async () => {
     const mockReadFile = vi.fn().mockResolvedValue('invalid json {]');
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile });
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -154,9 +191,7 @@ describe('loadUserKeybindings', () => {
       ])
     );
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile });
 
     await loadUserKeybindings(registry, '/path/to/keybindings.json');
 
@@ -192,7 +227,7 @@ describe('saveUserKeybinding', () => {
   beforeEach(() => {
     registry = new KeybindingRegistry();
     originalConduit = window.conduit;
-    updateAtomSpy = vi.spyOn(updateKeybindingsAtomModule, 'updateKeybindingsAtom').mockImplementation(() => {});
+    updateAtomSpy = vi.spyOn(updateKeybindingsAtomModule, 'updateKeybindingsAtom').mockImplementation(() => {}) as any;
   });
 
   afterEach(() => {
@@ -204,10 +239,7 @@ describe('saveUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue('[]');
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
 
@@ -231,10 +263,7 @@ describe('saveUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(existingBindings));
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await saveUserKeybinding('test.command', 'Shift+T', '/test/keybindings.json', registry);
 
@@ -251,10 +280,7 @@ describe('saveUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue('[]');
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
 
@@ -267,10 +293,7 @@ describe('saveUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue('[]');
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
 
@@ -281,10 +304,7 @@ describe('saveUserKeybinding', () => {
     const mockReadFile = vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { message: 'ENOENT: file not found' }));
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry);
 
@@ -295,9 +315,7 @@ describe('saveUserKeybinding', () => {
   it('should handle missing window.conduit.writeFile', async () => {
     const mockReadFile = vi.fn().mockResolvedValue('[]');
 
-    window.conduit = {
-      readFile: mockReadFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: undefined as any });
 
     await expect(
       saveUserKeybinding('test.command', 'Ctrl+T', '/test/keybindings.json', registry)
@@ -316,7 +334,7 @@ describe('removeUserKeybinding', () => {
     registry = new KeybindingRegistry();
     commandRegistry = new CommandRegistry(contextKeyService);
     originalConduit = window.conduit;
-    updateAtomSpy = vi.spyOn(updateKeybindingsAtomModule, 'updateKeybindingsAtom').mockImplementation(() => {});
+    updateAtomSpy = vi.spyOn(updateKeybindingsAtomModule, 'updateKeybindingsAtom').mockImplementation(() => {}) as any;
   });
 
   afterEach(() => {
@@ -333,10 +351,7 @@ describe('removeUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify(existingBindings));
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
 
@@ -352,10 +367,7 @@ describe('removeUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify([{ key: 'Ctrl+T', command: 'test.command' }]));
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     // Register command with default keybinding
     commandRegistry.registerCommand({
@@ -377,10 +389,7 @@ describe('removeUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue('[]');
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
 
@@ -391,10 +400,7 @@ describe('removeUserKeybinding', () => {
     const mockReadFile = vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { message: 'ENOENT: file not found' }));
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     await removeUserKeybinding('test.command', '/test/keybindings.json', commandRegistry, registry);
 
@@ -406,10 +412,7 @@ describe('removeUserKeybinding', () => {
     const mockReadFile = vi.fn().mockResolvedValue(JSON.stringify([{ key: 'Ctrl+T', command: 'test.command' }]));
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
-    window.conduit = {
-      readFile: mockReadFile,
-      writeFile: mockWriteFile
-    };
+    window.conduit = createMockConduit({ readFile: mockReadFile, writeFile: mockWriteFile });
 
     // Register command WITHOUT default keybinding
     commandRegistry.registerCommand({

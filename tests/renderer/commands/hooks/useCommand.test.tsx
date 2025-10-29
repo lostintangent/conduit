@@ -283,7 +283,7 @@ describe('getCommandDisplayTitle', () => {
   it('should return title only when no keybinding exists', () => {
     const cmd = {
       title: 'Test Command',
-      primaryKeybinding: null,
+      primaryKeybinding: null as string | null,
     };
 
     expect(getCommandDisplayTitle(cmd)).toBe('Test Command');
