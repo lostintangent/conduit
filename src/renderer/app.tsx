@@ -669,6 +669,7 @@ export function App() {
           commandRegistry={commandSystem.commandRegistry}
           keybindingRegistry={commandSystem.keybindingRegistry}
           homeDirectory={homeDirectory}
+          onOpenQuickPane={handleOpenQuickPane}
         />
       ) : showKeybindingsEditor ? (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

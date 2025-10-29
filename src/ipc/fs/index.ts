@@ -1,5 +1,9 @@
-import { ipcMain } from "electron";
+import { ipcMain, BrowserWindow } from "electron";
+import { FSWatcher } from "node:fs";
 import { listDirectory, readFile } from "./utils";
+
+// Store active file watchers
+const fileWatchers = new Map<string, FSWatcher>();
 
 export function initializeFsHandlers() {
   ipcMain.handle("fs:list-directory", async (_, cwd: string) => {
@@ -34,6 +38,41 @@ export function initializeFsHandlers() {
     } catch (error) {
       console.error("Failed to write file", filePath, error);
       throw error;
+    }
+  });
+
+  ipcMain.handle("fs:watch-file", async (event, filePath: string, watcherId: string) => {
+    try {
+      const fs = require("node:fs");
+
+      // Check if file exists before watching
+      if (!fs.existsSync(filePath)) {
+        console.log(`File ${filePath} does not exist yet, will watch parent directory`);
+      }
+
+      // Create watcher
+      const watcher = fs.watch(filePath, (eventType: string) => {
+        if (eventType === 'change') {
+          // Notify renderer process
+          const window = BrowserWindow.getAllWindows()[0];
+          if (window) {
+            window.webContents.send("fs:file-changed", { watcherId, filePath });
+          }
+        }
+      });
+
+      // Store watcher
+      fileWatchers.set(watcherId, watcher);
+    } catch (error) {
+      console.error("Failed to watch file", filePath, error);
+    }
+  });
+
+  ipcMain.handle("fs:unwatch-file", async (_, watcherId: string) => {
+    const watcher = fileWatchers.get(watcherId);
+    if (watcher) {
+      watcher.close();
+      fileWatchers.delete(watcherId);
     }
   });
 }

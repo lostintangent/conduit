@@ -5,23 +5,24 @@
  * Similar to VS Code's Keyboard Shortcuts editor (Cmd+K Cmd+S).
  */
 
-import { useState, useMemo, useEffect } from 'react';
-import { Search, Edit2, X, AlertTriangle, RotateCcw, Copy, Check } from 'lucide-react';
-import { KeybindingRecorder } from './KeybindingRecorder';
+import { AlertTriangle, Check, Copy, Edit2, RotateCcw, Search, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ICommandRegistry } from '../../commands/core/CommandRegistry';
-import type { KeybindingRegistry } from '../../commands/keybindings/KeybindingRegistry';
 import type { CommandDescriptor } from '../../commands/core/types';
-import type { ResolvedKeybinding } from '../../commands/keybindings/types';
+import type { KeybindingRegistry } from '../../commands/keybindings/KeybindingRegistry';
 import { parseKeybindingsFile } from '../../commands/keybindings/keybindingsFile';
-import { watchKeybindingsFile } from '../../commands/keybindings/watchKeybindings';
+import type { ResolvedKeybinding } from '../../commands/keybindings/types';
 import { updateKeybindingsAtom } from '../../commands/keybindings/updateKeybindingsAtom';
 import { loadUserKeybindings } from '../../commands/keybindings/userKeybindings';
+import { watchKeybindingsFile } from '../../commands/keybindings/watchKeybindings';
+import { KeybindingRecorder } from './KeybindingRecorder';
 
 interface KeybindingsEditorProps {
   onClose: () => void;
   commandRegistry: ICommandRegistry;
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
+  onOpenQuickPane?: (descriptor: { type: 'editor'; cwd: string; filePath?: string }) => void;
 }
 
 interface KeybindingRow {
@@ -36,7 +37,8 @@ export function KeybindingsEditor({
   onClose,
   commandRegistry,
   keybindingRegistry,
-  homeDirectory
+  homeDirectory,
+  onOpenQuickPane
 }: KeybindingsEditorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
@@ -282,6 +284,17 @@ export function KeybindingsEditor({
     }
   };
 
+  const handleOpenKeybindingsFile = () => {
+    if (!onOpenQuickPane) return;
+
+    const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
+    onOpenQuickPane({
+      type: 'editor',
+      cwd: homeDirectory,
+      filePath: keybindingsPath,
+    });
+  };
+
   const handleRemoveKeybinding = async (commandId: string) => {
     try {
       const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
@@ -381,7 +394,7 @@ export function KeybindingsEditor({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setFilterMode('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${
                 filterMode === 'all'
                   ? 'bg-gradient-to-br from-secondary-start to-secondary-end text-white'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -391,7 +404,7 @@ export function KeybindingsEditor({
             </button>
             <button
               onClick={() => setFilterMode('user')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${
                 filterMode === 'user'
                   ? 'bg-gradient-to-br from-secondary-start to-secondary-end text-white'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -401,7 +414,7 @@ export function KeybindingsEditor({
             </button>
             <button
               onClick={() => setFilterMode('conflicts')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${
                 filterMode === 'conflicts'
                   ? 'bg-gradient-to-br from-secondary-start to-secondary-end text-white'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -555,7 +568,14 @@ export function KeybindingsEditor({
         <div className="px-6 py-4 border-t border-gray-700 bg-gray-800/50">
           <p className="text-xs text-gray-500">
             Click the edit icon to change a keybinding. User modifications are saved to{' '}
-            <code className="text-gray-400">~/.conduit/keybindings.json</code>
+            <button
+              onClick={handleOpenKeybindingsFile}
+              className="text-gray-400 hover:text-blue-400 transition-colors cursor-pointer underline decoration-dotted underline-offset-2"
+              disabled={!onOpenQuickPane}
+              title={onOpenQuickPane ? 'Click to open file in editor' : undefined}
+            >
+              <code>~/.conduit/keybindings.json</code>
+            </button>
           </p>
         </div>
       </div>
