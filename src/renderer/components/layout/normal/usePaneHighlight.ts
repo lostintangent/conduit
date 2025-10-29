@@ -7,7 +7,7 @@ import type { Tab } from "@/types";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const HIGHLIGHT_DURATION_MS = 2000;
+const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.css @keyframes pane-highlight
 
 export const shouldShowPaneBorder = (
   tab: Tab,
