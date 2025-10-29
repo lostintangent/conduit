@@ -126,7 +126,7 @@ body {
   outline-offset: -2px;
 }
 
-/* Pane highlight fade out over 2 seconds */
+/* Pane highlight fade out over 2 seconds - duration matches HIGHLIGHT_DURATION_MS in usePaneHighlight.ts */
 @keyframes pane-highlight {
   0% {
     outline: 3px solid var(--color-blueprint);

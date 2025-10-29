@@ -77,6 +77,29 @@ export function initializeUIHandlers(window: BrowserWindow) {
   );
 
   ipcMain.handle(
+    "ui:add-url-to-history",
+    async (_, url: string) => {
+      const currentSettings = requireUserSettings();
+      const trimmedUrl = url.trim();
+      const updatedHistory = [
+        trimmedUrl,
+        ...currentSettings.urlHistory.filter(
+          (entry) => entry !== trimmedUrl
+        ),
+      ].slice(0, 5);
+
+      userSettings = {
+        ...currentSettings,
+        urlHistory: updatedHistory,
+      };
+
+      await saveSettings(userSettings);
+
+      return requireUserSettings().urlHistory;
+    }
+  );
+
+  ipcMain.handle(
     "ui:remove-command-history-entry",
     async (_, command: string) => {
       const currentSettings = requireUserSettings();

@@ -9,6 +9,7 @@ export const userSettingsAtom = atom<UserSettings>({
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
   commandHistory: [],
+  urlHistory: [],
   homeDirectory: null,
 });
 

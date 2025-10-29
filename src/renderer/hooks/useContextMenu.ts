@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { useAtomValue } from "jotai";
-import type { MouseEvent } from "react";
-import { tabsAtom } from "@/store/atoms";
+import { enterFocusMode } from "@/store/actions/focusMode";
 import { movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import { closeTab, movePaneToTab } from "@/store/actions/tab";
+import { tabsAtom } from "@/store/atoms";
+import { useAtomValue } from "jotai";
+import type { MouseEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type UseContextMenuParams = {
   closePane: (tabId: string, paneId: string) => void;
@@ -23,7 +24,7 @@ export const useContextMenu = ({
 
   const checkGitRepo = useCallback(async (cwd: string | null | undefined): Promise<boolean> => {
     if (!cwd) return false;
-    
+
     if (hasGitRepoCache[cwd] !== undefined) {
       return hasGitRepoCache[cwd];
     }
@@ -92,6 +93,11 @@ export const useContextMenu = ({
         switch (action) {
           case "change-title":
             setTitleModal(tabId, tab.title ?? "");
+            break;
+          case "focus-pane":
+            if (resolvedPaneId) {
+              enterFocusMode(tabId, resolvedPaneId);
+            }
             break;
           case "split-right":
             if (resolvedPaneId) {

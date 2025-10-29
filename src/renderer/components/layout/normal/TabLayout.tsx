@@ -1,17 +1,20 @@
+import { PaneControlButtons } from "@/components/layout/design/PaneControlButtons";
+import { FocusModeIndicator } from "@/components/layout/focus/FocusModeIndicator";
+import { IntersectionHandles } from "@/components/layout/normal/IntersectionHandles";
+import {
+  PaneHighlight,
+  shouldShowPaneBorder,
+} from "@/components/layout/normal/PaneHighlight";
+import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
+import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import { usePaneHighlight } from "@/components/panes/usePaneHighlight";
 import { WebPane } from "@/components/panes/web/WebPane";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
-import { PaneControlButtons } from "@/components/tabs/design/PaneControlButtons";
-import { FocusModeIndicator } from "@/components/tabs/focus/FocusModeIndicator";
-import { IntersectionHandles } from "@/components/tabs/layout/IntersectionHandles";
-import { ResizeHandle } from "@/components/tabs/layout/ResizeHandle";
 import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
 } from "@/hooks/useLayoutResizing";
-import { usePaneDragDrop } from "@/hooks/usePaneDragDrop";
 import {
   exitFocusMode,
   getAllPaneIds,
@@ -40,10 +43,6 @@ const INTERSECTION_TOLERANCE = 0.08;
 
 const GRID_TEMPLATE_TRANSITION_STYLE: React.CSSProperties = {
   transition: "grid-template-columns 160ms ease, grid-template-rows 160ms ease",
-};
-
-const shouldShowPaneBorder = (tab: Tab, applicationMode: string): boolean => {
-  return Object.keys(tab.panes).length > 1 && applicationMode !== "focus";
 };
 
 type BoundaryInfo = {
@@ -251,8 +250,6 @@ export function TabLayout({
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
-  const { triggerHighlight, getHighlightClass } = usePaneHighlight();
-
   const {
     draggedPaneId,
     dragHoverPaneId,
@@ -262,54 +259,13 @@ export function TabLayout({
   } = usePaneDragDrop({ onDropComplete: setHoveredPaneId });
 
   const previousResizingNodeRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (previousResizingNodeRef.current !== null && resizingNode === null) {
       setHoveredAxisKeys([]);
     }
     previousResizingNodeRef.current = resizingNode;
   }, [resizingNode]);
-
-  const highlightPane = useCallback(
-    (tab: Tab | undefined, paneId: string | null | undefined) => {
-      if (!tab || !paneId) {
-        return;
-      }
-
-      if (isInDesignMode || resizingNode !== null) {
-        return;
-      }
-
-      if (!shouldShowPaneBorder(tab)) {
-        return;
-      }
-
-      triggerHighlight(paneId);
-    },
-    [isInDesignMode, resizingNode, triggerHighlight]
-  );
-
-  useEffect(() => {
-    if (!activeTab || !activePaneId) {
-      return;
-    }
-
-    highlightPane(activeTab, activePaneId);
-  }, [activeTab, activePaneId]);
-
-  useEffect(() => {
-    const handleWindowFocus = () => {
-      if (!activeTab || !activePaneId) {
-        return;
-      }
-
-      highlightPane(activeTab, activePaneId);
-    };
-
-    window.addEventListener("focus", handleWindowFocus);
-    return () => {
-      window.removeEventListener("focus", handleWindowFocus);
-    };
-  }, [activeTab, activePaneId]);
 
   const setHoverKeys = useCallback(
     (keys: string[]) => {
@@ -445,6 +401,9 @@ export function TabLayout({
             <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
           )}
 
+          {/* Pane highlight overlay */}
+          <PaneHighlight paneId={pane.id} isResizing={resizingNode !== null} />
+
           {/* Drop zone overlay */}
           {renderDropZone(pane.id)}
 
@@ -511,7 +470,7 @@ export function TabLayout({
           className="grid flex-1 min-h-0 min-w-0 gap-0 overflow-hidden"
           style={
             resizingNode === null
-              ? { ...GRID_TEMPLATE_TRANSITION_STYLE, ...gridTemplate }
+              ? { ...gridTemplate } // ...GRID_TEMPLATE_TRANSITION_STYLE } (Disabling this for now due to jank)
               : gridTemplate
           }
         >
@@ -527,7 +486,9 @@ export function TabLayout({
               : "border-white/[0.12]";
             // Don't show borders in focus mode
             const splitBorderClass =
-              index !== 0 && !isInFocusMode ? `${borderSideClass} ${borderColorClass}` : "";
+              index !== 0 && !isInFocusMode
+                ? `${borderSideClass} ${borderColorClass}`
+                : "";
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
@@ -552,20 +513,16 @@ export function TabLayout({
               ? "bg-blue-500/60"
               : "bg-transparent hover:bg-blue-500/40";
 
-            const highlightClass =
-              !isInDesignMode && child.type === "pane" && tabShowsBorder
-                ? getHighlightClass(child.paneId)
-                : "";
-
             const shouldRenderHandles = primaryAxis !== null && !isInFocusMode;
 
-            const intersectionHandles = shouldRenderHandles && primaryAxis
-              ? computeIntersectionHandles(
+            const intersectionHandles =
+              shouldRenderHandles && primaryAxis
+                ? computeIntersectionHandles(
                   previousSibling,
                   child,
                   node.direction
                 )
-              : [];
+                : [];
 
             const clearHover = () => {
               if (!isBeingResized) {
@@ -577,7 +534,7 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${highlightClass} ${splitBorderClass}`}
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${splitBorderClass}`}
               >
                 {shouldRenderHandles && primaryAxis && (
                   <>
@@ -622,7 +579,6 @@ export function TabLayout({
     },
     [
       applicationMode,
-      getHighlightClass,
       handleResizeStart,
       hoveredAxisKeys,
       isInDesignMode,
@@ -658,23 +614,25 @@ export function TabLayout({
           }
         >
           {renderLayout(tab.layout, tab)}
-          {isInFocusMode && isActive && (() => {
-            const paneIds = getAllPaneIds(tab);
-            const currentIndex = paneIds.indexOf(tab.activePaneId);
+          {isInFocusMode &&
+            isActive &&
+            (() => {
+              const paneIds = getAllPaneIds(tab);
+              const currentIndex = paneIds.indexOf(tab.activePaneId);
 
-            return (
-              <FocusModeIndicator
-                onExit={() => exitFocusMode()}
-                onPrevious={() => navigateFocusedPane("prev")}
-                onNext={() => navigateFocusedPane("next")}
-                currentPaneIndex={currentIndex}
-                totalPanes={paneIds.length}
-                layout={tab.layout}
-                activePaneId={tab.activePaneId}
-                onSelectPane={(paneId) => activatePane(tab.id, paneId)}
-              />
-            );
-          })()}
+              return (
+                <FocusModeIndicator
+                  onExit={() => exitFocusMode()}
+                  onPrevious={() => navigateFocusedPane("prev")}
+                  onNext={() => navigateFocusedPane("next")}
+                  currentPaneIndex={currentIndex}
+                  totalPanes={paneIds.length}
+                  layout={tab.layout}
+                  activePaneId={tab.activePaneId}
+                  onSelectPane={(paneId) => activatePane(tab.id, paneId)}
+                />
+              );
+            })()}
         </div>
       );
     },
