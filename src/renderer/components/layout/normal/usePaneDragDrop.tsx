@@ -39,6 +39,7 @@ export function usePaneDragDrop({
   const [draggedPaneId, setDraggedPaneId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone>(null);
   const [dragHoverPaneId, setDragHoverPaneId] = useState<string | null>(null);
+  const [isFocusModeDrag, setIsFocusModeDrag] = useState(false);
 
   const applicationMode = useAtomValue(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
@@ -220,12 +221,14 @@ export function usePaneDragDrop({
       return {
         onDragOver: (e: React.DragEvent) => {
           // Check if this is a focus mode drag
-          const isFocusModeDrag = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
+          const isFocusModeDragCheck = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
           
-          if (isFocusModeDrag) {
+          if (isFocusModeDragCheck) {
             // Allow focus mode drop in any mode
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
+            setIsFocusModeDrag(true);
+            setDragHoverPaneId(paneId);
             return;
           }
 
@@ -240,6 +243,7 @@ export function usePaneDragDrop({
         },
         onDragLeave: () => {
           setDropZone(null);
+          setIsFocusModeDrag(false);
 
           setDragHoverPaneId((current) => current === paneId ? null : current);
         },
@@ -247,11 +251,14 @@ export function usePaneDragDrop({
           e.preventDefault();
           
           // Check if this is a focus mode drag
-          const isFocusModeDrag = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
+          const isFocusModeDragCheck = e.dataTransfer.types.includes("application/x-conduit-focus-mode");
           
-          if (isFocusModeDrag) {
+          if (isFocusModeDragCheck) {
             // Set the dropped pane as active and enter focus mode
             enterFocusMode(tabId, paneId);
+            // Clear focus mode drag state
+            setIsFocusModeDrag(false);
+            setDragHoverPaneId(null);
             return;
           }
 
@@ -331,28 +338,39 @@ export function usePaneDragDrop({
       const isDragging = draggedPaneId === paneId;
       const isHoveredDuringDrag =
         draggedPaneId !== null && dragHoverPaneId === paneId && !isDragging;
+      const isHoveredDuringFocusDrag = isFocusModeDrag && dragHoverPaneId === paneId;
 
-      if (!isInDesignMode || !isHoveredDuringDrag || !dropZone) {
-        return null;
+      // Show drop zone for pane drag in design mode
+      if (isInDesignMode && isHoveredDuringDrag && dropZone) {
+        return (
+          <div
+            className="pointer-events-none absolute z-30 bg-blueprint/40"
+            style={{
+              top: dropZone === "top" ? 0 : dropZone === "bottom" ? "50%" : 0,
+              left: dropZone === "left" ? 0 : dropZone === "right" ? "50%" : 0,
+              right: dropZone === "right" ? 0 : dropZone === "left" ? "50%" : 0,
+              bottom: dropZone === "bottom" ? 0 : dropZone === "top" ? "50%" : 0,
+              width:
+                dropZone === "left" || dropZone === "right" ? "50%" : "100%",
+              height:
+                dropZone === "top" || dropZone === "bottom" ? "50%" : "100%",
+            }}
+          />
+        );
       }
 
-      return (
-        <div
-          className="pointer-events-none absolute z-30 bg-blueprint/40"
-          style={{
-            top: dropZone === "top" ? 0 : dropZone === "bottom" ? "50%" : 0,
-            left: dropZone === "left" ? 0 : dropZone === "right" ? "50%" : 0,
-            right: dropZone === "right" ? 0 : dropZone === "left" ? "50%" : 0,
-            bottom: dropZone === "bottom" ? 0 : dropZone === "top" ? "50%" : 0,
-            width:
-              dropZone === "left" || dropZone === "right" ? "50%" : "100%",
-            height:
-              dropZone === "top" || dropZone === "bottom" ? "50%" : "100%",
-          }}
-        />
-      );
+      // Show full pane highlight for focus mode drag
+      if (isHoveredDuringFocusDrag) {
+        return (
+          <div
+            className="pointer-events-none absolute inset-0 z-30 bg-blue-500/30 border-2 border-blue-500"
+          />
+        );
+      }
+
+      return null;
     },
-    [draggedPaneId, dragHoverPaneId, isInDesignMode, dropZone]
+    [draggedPaneId, dragHoverPaneId, isInDesignMode, dropZone, isFocusModeDrag]
   );
 
   return {
