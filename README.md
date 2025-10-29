@@ -12,7 +12,7 @@ Organize your tabs by creating or removing panes, drag & dropping panes, splitti
 
 **Focus mode**
 
-Zoom in and out of panes in a tab, so you can seamlessly transition between focusing and observing (with a really fun minimap!)
+Zoom in and out of panes in a tab (w/`cmd+option+f`), so you can seamlessly transition between focusing and observing (with a really fun minimap!)
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/2b104268-8034-43b7-9bc8-b33540976a97" />
 
@@ -31,6 +31,12 @@ Perform one-off actions without needing to disrupt your tab layouts, or switchin
 Save and restore sets of tabs, so you can jump in and out of projects with ease.
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/a1b943cd-d436-483e-b61a-bc66815a159e" />
+
+**Command palette**
+
+Run global commands at any time (`cmd+shift+p`), including spinning up quick terminal instances (w/an MRU list).
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/6deaeb5d-61c1-4c86-92de-517fac83837d" />
 
 ## Current feature set
 
