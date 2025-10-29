@@ -1,4 +1,5 @@
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import { TabButton, TabPlaceholder } from "@/components/shell/TabButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,8 +9,8 @@ import {
 import { enterFocusMode } from "@/store/actions/focusMode";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
-  activeTabIdAtom,
   activeTabAtom,
+  activeTabIdAtom,
   applicationModeAtom,
   tabsAtom,
   userSettingsAtom,
@@ -27,7 +28,6 @@ import {
   Zap,
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
-import { TabButton, TabPlaceholder } from "./TabButton";
 
 type TabDescriptor = {
   id: string;
@@ -63,10 +63,21 @@ export const TabStrip = ({
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const { homeDirectory } = useAtomValue(userSettingsAtom);
+  const { homeDirectory, alwaysShowTabs } = useAtomValue(userSettingsAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
+
+  const tabStripTransitionStyle = useMemo<React.CSSProperties>(() => {
+    const collapsed = isInFocusMode;
+    return {
+      flexBasis: collapsed ? "0rem" : "2.7rem",
+      minHeight: collapsed ? 0 : "2.7rem",
+      opacity: collapsed ? 0 : 1,
+      pointerEvents: collapsed ? "none" : "auto",
+      willChange: "flex-basis, opacity",
+    };
+  }, [isInFocusMode]);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -375,16 +386,12 @@ export const TabStrip = ({
     enterFocusMode(activeTab.id, activeTab.activePaneId);
   }, [activeTab]);
 
-  const borderClass = position === "top" ? "border-b" : "border-t rounded-b-xl";
+  const borderClass = alwaysShowTabs ? (position === "top" ? "border-b" : "border-t rounded-b-xl") : "";
 
   return (
     <div
       className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
-      style={{
-        minHeight: isInFocusMode ? "0" : "2.5rem",
-        maxHeight: isInFocusMode ? "0" : "2.5rem",
-        opacity: isInFocusMode ? 0 : 1,
-      }}
+      style={tabStripTransitionStyle}
     >
       {/* Tab buttons */}
       <div
