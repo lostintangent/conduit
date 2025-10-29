@@ -511,7 +511,7 @@ export function TabLayout({
           className="grid flex-1 min-h-0 min-w-0 gap-0 overflow-hidden"
           style={
             resizingNode === null
-              ? { ...GRID_TEMPLATE_TRANSITION_STYLE, ...gridTemplate }
+              ? { ...gridTemplate } // ...GRID_TEMPLATE_TRANSITION_STYLE } (Disabling this for now due to jank)
               : gridTemplate
           }
         >
@@ -527,7 +527,9 @@ export function TabLayout({
               : "border-white/[0.12]";
             // Don't show borders in focus mode
             const splitBorderClass =
-              index !== 0 && !isInFocusMode ? `${borderSideClass} ${borderColorClass}` : "";
+              index !== 0 && !isInFocusMode
+                ? `${borderSideClass} ${borderColorClass}`
+                : "";
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
@@ -559,13 +561,14 @@ export function TabLayout({
 
             const shouldRenderHandles = primaryAxis !== null && !isInFocusMode;
 
-            const intersectionHandles = shouldRenderHandles && primaryAxis
-              ? computeIntersectionHandles(
+            const intersectionHandles =
+              shouldRenderHandles && primaryAxis
+                ? computeIntersectionHandles(
                   previousSibling,
                   child,
                   node.direction
                 )
-              : [];
+                : [];
 
             const clearHover = () => {
               if (!isBeingResized) {
@@ -658,23 +661,25 @@ export function TabLayout({
           }
         >
           {renderLayout(tab.layout, tab)}
-          {isInFocusMode && isActive && (() => {
-            const paneIds = getAllPaneIds(tab);
-            const currentIndex = paneIds.indexOf(tab.activePaneId);
+          {isInFocusMode &&
+            isActive &&
+            (() => {
+              const paneIds = getAllPaneIds(tab);
+              const currentIndex = paneIds.indexOf(tab.activePaneId);
 
-            return (
-              <FocusModeIndicator
-                onExit={() => exitFocusMode()}
-                onPrevious={() => navigateFocusedPane("prev")}
-                onNext={() => navigateFocusedPane("next")}
-                currentPaneIndex={currentIndex}
-                totalPanes={paneIds.length}
-                layout={tab.layout}
-                activePaneId={tab.activePaneId}
-                onSelectPane={(paneId) => activatePane(tab.id, paneId)}
-              />
-            );
-          })()}
+              return (
+                <FocusModeIndicator
+                  onExit={() => exitFocusMode()}
+                  onPrevious={() => navigateFocusedPane("prev")}
+                  onNext={() => navigateFocusedPane("next")}
+                  currentPaneIndex={currentIndex}
+                  totalPanes={paneIds.length}
+                  layout={tab.layout}
+                  activePaneId={tab.activePaneId}
+                  onSelectPane={(paneId) => activatePane(tab.id, paneId)}
+                />
+              );
+            })()}
         </div>
       );
     },
