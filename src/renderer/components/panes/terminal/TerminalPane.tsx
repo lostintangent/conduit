@@ -3,7 +3,7 @@ import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
 import { closePane } from "@/store/actions/pane";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { createFitController, type FitController } from "./FitController";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
@@ -128,13 +128,19 @@ export const TerminalPane = ({
   const linkHandlerRef = useRef(onLinkClick);
   linkHandlerRef.current = onLinkClick;
 
-  // Find the current pane to check if it's an agent session
-  const currentPane = tabs
-    .flatMap((tab) => Object.values(tab.panes))
-    .find((pane) => pane.id === paneId && pane.type === "terminal");
+  // Memoize the current pane and tab lookup
+  const { currentPane, currentTab } = useMemo(() => {
+    for (const tab of tabs) {
+      const pane = tab.panes[paneId];
+      if (pane) {
+        return { currentPane: pane, currentTab: tab };
+      }
+    }
+    return { currentPane: undefined, currentTab: undefined };
+  }, [tabs, paneId]);
   
-  const isAgentSession = currentPane && currentPane.type === "terminal" && !!currentPane.agentSessionId;
-  const agentSessionId = currentPane && currentPane.type === "terminal" ? currentPane.agentSessionId : undefined;
+  const isAgentSession = currentPane?.type === "terminal" && !!currentPane.agentSessionId;
+  const agentSessionId = currentPane?.type === "terminal" ? currentPane.agentSessionId : undefined;
 
   const focusTerminal = useCallback(() => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
@@ -149,7 +155,7 @@ export const TerminalPane = ({
   }, []);
 
   const handleCompleteAgentSession = useCallback(async () => {
-    if (!agentSessionId) {
+    if (!agentSessionId || !currentTab) {
       return;
     }
 
@@ -171,11 +177,7 @@ export const TerminalPane = ({
           autoCloseMs: 3000,
         });
         
-        // Find the tab containing this pane
-        const tab = tabs.find((t) => t.panes[paneId]);
-        if (tab) {
-          closePane(tab.id, paneId);
-        }
+        closePane(currentTab.id, paneId);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -187,10 +189,10 @@ export const TerminalPane = ({
       });
       console.error("Failed to finalize agent session", error);
     }
-  }, [agentSessionId, paneId, tabs]);
+  }, [agentSessionId, currentTab, paneId]);
 
   const handleDeleteAgentSession = useCallback(async () => {
-    if (!agentSessionId) {
+    if (!agentSessionId || !currentTab) {
       return;
     }
 
@@ -204,11 +206,7 @@ export const TerminalPane = ({
         autoCloseMs: 3000,
       });
       
-      // Find the tab containing this pane
-      const tab = tabs.find((t) => t.panes[paneId]);
-      if (tab) {
-        closePane(tab.id, paneId);
-      }
+      closePane(currentTab.id, paneId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       enqueueNotification({
@@ -219,7 +217,7 @@ export const TerminalPane = ({
       });
       console.error("Failed to cleanup agent session", error);
     }
-  }, [agentSessionId, paneId, tabs]);
+  }, [agentSessionId, currentTab, paneId]);
 
   useEffect(() => {
     const container = containerRef.current;
