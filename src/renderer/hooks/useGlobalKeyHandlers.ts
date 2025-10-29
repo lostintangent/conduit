@@ -128,17 +128,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Cmd+D: Toggle design mode
-      if (key === "d" && !event.altKey && !event.shiftKey && !event.ctrlKey) {
-        event.preventDefault();
-        if (applicationMode === "quick") {
-          return;
-        }
-        setApplicationMode((current) =>
-          current === "design" ? "normal" : "design"
-        );
-        return;
-      }
+      // NOTE: Cmd+D is now handled by the command system (VIEW_TOGGLE_PANE_CONTROLS)
+      // See: src/renderer/commands/applicationCommands.ts
 
       const directionKeyMap: Record<string, PaneNavigationDirection> = {
         arrowleft: "left",

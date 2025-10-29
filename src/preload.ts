@@ -220,6 +220,30 @@ const conduitAPI = {
   writeFile: (filePath: string, content: string) =>
     ipcRenderer.invoke("fs:write-file", filePath, content) as Promise<void>,
 
+  watchFile: (filePath: string, onChange: () => void) => {
+    const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;
+
+    // Set up listener for file changes
+    const removeListener = createEventListener<{ watcherId: string; filePath: string }>(
+      "fs:file-changed",
+      (payload) => {
+        if (payload.watcherId === watcherId && payload.filePath === filePath) {
+          onChange();
+        }
+      }
+    );
+
+    // Register the watcher in main process
+    ipcRenderer.invoke("fs:watch-file", filePath, watcherId);
+
+    return {
+      dispose: () => {
+        ipcRenderer.invoke("fs:unwatch-file", watcherId);
+        removeListener();
+      },
+    };
+  },
+
   /* VM methods (UI->main) */
 
   createVM: (payload?: CreateVMPayload) =>

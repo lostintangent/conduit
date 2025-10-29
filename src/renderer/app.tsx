@@ -10,6 +10,9 @@ import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
+import { KeybindingsEditor } from "@/components/keybindings";
+import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
+import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -20,6 +23,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
+import { enterFocusMode } from "@/store/actions/focusMode";
 import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
   closeTab,
@@ -28,10 +32,10 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, applicationModeAtom, tabsAtom, keybindingsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NotificationCenter } from "./components/shell/NotificationCenter";
 
@@ -40,6 +44,8 @@ const api = window.conduit;
 export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const setKeybindings = useSetAtom(keybindingsAtom);
 
   const {
     tabPosition,
@@ -47,6 +53,7 @@ export function App() {
     showTerminalRuler,
     autoSaveWorkspaces,
     commandHistory,
+    homeDirectory,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -70,6 +77,7 @@ export function App() {
     AgentSessionInfo[] | null
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
+  const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
 
   const {
     workspaceName,
@@ -89,6 +97,19 @@ export function App() {
     quickSaveWorkspace,
     openLastWorkspace,
   } = useWorkspaces();
+
+  // Initialize command system and wire up keyboard dispatch
+  const commandSystem = useCommandSystem({
+    activeTab,
+    applicationMode,
+    setApplicationMode,
+    homeDirectory,
+  });
+
+  useKeybindingDispatch(
+    commandSystem?.commandRegistry,
+    commandSystem?.keybindingRegistry
+  );
 
   useEffect(() => {
     return registerTabEventHandlers();
@@ -509,7 +530,7 @@ export function App() {
         }}
         onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
         onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
-        tabPosition={tabPosition}
+        onOpenKeyboardShortcuts={() => setShowKeybindingsEditor(true)}
         alwaysShowTabs={alwaysShowTabs}
         showTerminalRuler={showTerminalRuler}
         autoSaveWorkspaces={autoSaveWorkspaces}
@@ -640,6 +661,29 @@ export function App() {
         onClose={() => setCleanupDialogSessions(null)}
         onRemove={handleAgentSessionCleanup}
       />
+
+      {showKeybindingsEditor && commandSystem && homeDirectory ? (
+        <KeybindingsEditor
+          onClose={() => setShowKeybindingsEditor(false)}
+          commandRegistry={commandSystem.commandRegistry}
+          keybindingRegistry={commandSystem.keybindingRegistry}
+          homeDirectory={homeDirectory}
+          onOpenQuickPane={handleOpenQuickPane}
+        />
+      ) : showKeybindingsEditor ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
+            <h2 className="text-white text-xl mb-4">Command system not initialized</h2>
+            <p className="text-gray-400 mb-4">The command system is still initializing. Please try again.</p>
+            <button
+              onClick={() => setShowKeybindingsEditor(false)}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

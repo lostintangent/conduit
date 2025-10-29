@@ -14,7 +14,7 @@ import {
 } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
-import { Cable, Check, LayoutDashboard, Settings, Trash2 } from "lucide-react";
+import { Cable, Check, Keyboard, LayoutDashboard, Settings, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 
 type TitleBarProps = {
@@ -22,7 +22,7 @@ type TitleBarProps = {
   onSaveWorkspace: () => void;
   onRenameWorkspace: () => void;
   onCloseWorkspace: () => void;
-  tabPosition: "top" | "bottom";
+  onOpenKeyboardShortcuts: () => void;
   alwaysShowTabs: boolean;
   showTerminalRuler: boolean;
   autoSaveWorkspaces: boolean;
@@ -39,7 +39,7 @@ export const TitleBar = ({
   onSaveWorkspace,
   onRenameWorkspace,
   onCloseWorkspace,
-  tabPosition,
+  onOpenKeyboardShortcuts,
   alwaysShowTabs,
   showTerminalRuler,
   autoSaveWorkspaces,
@@ -205,6 +205,13 @@ export const TitleBar = ({
               >
                 Auto-save workspaces
               </DropdownMenuCheckboxItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem onClick={onOpenKeyboardShortcuts}>
+                <Keyboard className="w-4 h-4 mr-2" />
+                Keyboard Shortcuts
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
