@@ -22,7 +22,15 @@ export function initializeFsHandlers() {
 
   ipcMain.handle("fs:write-file", async (_, filePath: string, content: string) => {
     try {
-      await require("node:fs").promises.writeFile(filePath, content, "utf8");
+      const fs = require("node:fs").promises;
+      const path = require("node:path");
+
+      // Ensure directory exists
+      const dir = path.dirname(filePath);
+      await fs.mkdir(dir, { recursive: true });
+
+      // Write file
+      await fs.writeFile(filePath, content, "utf8");
     } catch (error) {
       console.error("Failed to write file", filePath, error);
       throw error;

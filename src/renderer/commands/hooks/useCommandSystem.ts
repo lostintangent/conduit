@@ -8,6 +8,7 @@ import {
   type KeybindingRegistry,
 } from '@/commands';
 import { registerApplicationCommands } from '@/commands/applicationCommands';
+import { loadUserKeybindings } from '@/commands/keybindings/userKeybindings';
 import { keybindingsAtom } from '@/store/atoms';
 import { enterFocusMode } from '@/store/actions/focusMode';
 import type { ApplicationMode } from '@/store/atoms';
@@ -22,6 +23,7 @@ export interface UseCommandSystemOptions {
   activeTab: any;
   applicationMode: ApplicationMode;
   setApplicationMode: (mode: ApplicationMode) => void;
+  homeDirectory?: string;
 }
 
 /**
@@ -36,7 +38,7 @@ export interface UseCommandSystemOptions {
  * @returns Command system state with registries and ready flag
  */
 export function useCommandSystem(options: UseCommandSystemOptions): CommandSystemState | null {
-  const { activeTab, applicationMode, setApplicationMode } = options;
+  const { activeTab, applicationMode, setApplicationMode, homeDirectory } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
   const [commandSystem, setCommandSystem] = useState<{
@@ -48,23 +50,33 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
 
   // Initialize command system ONCE
   useEffect(() => {
-    initializeCommandSystem();
+    const initialize = async () => {
+      initializeCommandSystem();
 
-    const commandRegistry = getCommandRegistry();
-    const keybindingRegistry = getKeybindingRegistry();
+      const commandRegistry = getCommandRegistry();
+      const keybindingRegistry = getKeybindingRegistry();
 
-    // Register application-level commands
-    registerApplicationCommands(commandRegistry);
+      // Register application-level commands
+      registerApplicationCommands(commandRegistry);
 
-    // Populate keybindings atom with initial bindings
-    const allKeybindings = keybindingRegistry.getAllKeybindings();
-    setKeybindings(allKeybindings);
+      // Load user keybindings if homeDirectory is available
+      if (homeDirectory) {
+        const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
+        await loadUserKeybindings(keybindingRegistry, keybindingsPath);
+      }
 
-    setCommandSystem({
-      commandRegistry,
-      keybindingRegistry,
-    });
-  }, [setKeybindings]);
+      // Populate keybindings atom with initial bindings (including user overrides)
+      const allKeybindings = keybindingRegistry.getAllKeybindings();
+      setKeybindings(allKeybindings);
+
+      setCommandSystem({
+        commandRegistry,
+        keybindingRegistry,
+      });
+    };
+
+    initialize();
+  }, [setKeybindings, homeDirectory]);
 
   // Update context builder whenever state changes
   useEffect(() => {

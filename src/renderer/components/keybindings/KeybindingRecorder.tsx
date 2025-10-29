@@ -68,16 +68,19 @@ export function KeybindingRecorder({
           clearTimeout(timeoutRef.current);
         }
 
-        // Wait 500ms to see if user wants to add another chord
-        timeoutRef.current = setTimeout(() => {
-          // Complete the recording
-          const newRecordedKeys = [...recordedKeys, chord];
-          const finalKeybinding = newRecordedKeys.join(' ');
-          onKeybindingRecorded(finalKeybinding);
-        }, 500);
+        // Update recorded keys for display immediately
+        setRecordedKeys((prev) => {
+          const newRecordedKeys = [...prev, chord];
 
-        // Update recorded keys for display
-        setRecordedKeys((prev) => [...prev, chord]);
+          // Wait 500ms to see if user wants to add another chord
+          timeoutRef.current = setTimeout(() => {
+            // Complete the recording
+            const finalKeybinding = newRecordedKeys.join(' ');
+            onKeybindingRecorded(finalKeybinding);
+          }, 500);
+
+          return newRecordedKeys;
+        });
       }
     };
 
@@ -88,12 +91,12 @@ export function KeybindingRecorder({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [recordedKeys, onKeybindingRecorded, onCancel, platform]);
+  }, [onKeybindingRecorded, onCancel, platform]);
 
   const displayKeys = recordedKeys.length > 0 ? recordedKeys : currentChord.length > 0 ? [currentChord.join('+')] : [];
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded text-sm">
+    <div className="flex items-center gap-2 px-4 py-3 bg-gray-800 border border-blue-500/50 rounded-lg shadow-2xl text-sm whitespace-nowrap">
       <div className="flex items-center gap-1">
         {displayKeys.length > 0 ? (
           displayKeys.map((chord, i) => (

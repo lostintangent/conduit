@@ -24,6 +24,10 @@ export async function loadUserKeybindings(
         const commandId = getRemovalCommandId(binding.command);
         keybindingRegistry.unregister(commandId);
       } else {
+        // Unregister all existing keybindings for this command first
+        // (removes defaults so only the user's binding is active)
+        keybindingRegistry.unregister(binding.command);
+
         // Add keybinding with high weight (user bindings override defaults)
         keybindingRegistry.register(
           binding.command,
@@ -32,7 +36,10 @@ export async function loadUserKeybindings(
         );
       }
     }
-  } catch (error) {
-    console.error('Failed to load user keybindings:', error);
+  } catch (error: any) {
+    // Don't log error if file doesn't exist yet - that's expected on first run
+    if (!error?.message?.includes('ENOENT')) {
+      console.error('Failed to load user keybindings:', error);
+    }
   }
 }

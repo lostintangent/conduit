@@ -6,16 +6,16 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Edit2, X, AlertTriangle, Trash2 } from 'lucide-react';
+import { Search, Edit2, X, AlertTriangle, RotateCcw, Copy, Check } from 'lucide-react';
 import { KeybindingRecorder } from './KeybindingRecorder';
 import type { ICommandRegistry } from '../../commands/core/CommandRegistry';
 import type { KeybindingRegistry } from '../../commands/keybindings/KeybindingRegistry';
 import type { CommandDescriptor } from '../../commands/core/types';
 import type { ResolvedKeybinding } from '../../commands/keybindings/types';
-import { loadUserKeybindings } from '../../commands/keybindings/userKeybindings';
 import { parseKeybindingsFile } from '../../commands/keybindings/keybindingsFile';
 import { watchKeybindingsFile } from '../../commands/keybindings/watchKeybindings';
 import { updateKeybindingsAtom } from '../../commands/keybindings/updateKeybindingsAtom';
+import { loadUserKeybindings } from '../../commands/keybindings/userKeybindings';
 
 interface KeybindingsEditorProps {
   onClose: () => void;
@@ -42,6 +42,7 @@ export function KeybindingsEditor({
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'user' | 'conflicts'>('all');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [copiedCommandId, setCopiedCommandId] = useState<string | null>(null);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -54,20 +55,8 @@ export function KeybindingsEditor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, editingCommandId]);
 
-  // Load user keybindings on mount
-  useEffect(() => {
-    const loadKeybindings = async () => {
-      try {
-        const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
-        await loadUserKeybindings(keybindingRegistry, keybindingsPath);
-        updateKeybindingsAtom(); // Update global atom for reactive components
-        setRefreshKey(prev => prev + 1);
-      } catch (error) {
-        console.error('Failed to load user keybindings:', error);
-      }
-    };
-    loadKeybindings();
-  }, [keybindingRegistry, homeDirectory]);
+  // Note: User keybindings are now loaded on app startup in useCommandSystem hook
+  // This effect is no longer needed here
 
   // Watch keybindings file for external changes
   useEffect(() => {
@@ -90,6 +79,36 @@ export function KeybindingsEditor({
       unwatch();
     };
   }, [keybindingRegistry, homeDirectory]);
+
+  // Helper function to format keybinding display
+  const formatKeybindingDisplay = (binding: ResolvedKeybinding): string => {
+    const chordsStr = binding.chords.map(k => {
+      const parts = [];
+      if (k.ctrl) parts.push('Ctrl');
+      if (k.alt) parts.push('Alt');
+      if (k.shift) parts.push('Shift');
+      if (k.meta) parts.push('Cmd');
+      // Always uppercase single character keys for consistency
+      parts.push(k.key.length === 1 ? k.key.toUpperCase() : k.key);
+      return parts.join('+');
+    });
+
+    const keybindingStr = chordsStr.join(' ');
+
+    // Use platform-specific formatting
+    const isMac = navigator.userAgent.toLowerCase().includes('mac');
+
+    if (isMac) {
+      return keybindingStr
+        .replace(/Ctrl/g, '⌃')
+        .replace(/Alt/g, '⌥')
+        .replace(/Shift/g, '⇧')
+        .replace(/Cmd/g, '⌘')
+        .replace(/\+/g, '');
+    }
+
+    return keybindingStr;
+  };
 
   // Build rows with command + keybinding info
   const rows = useMemo<KeybindingRow[]>(() => {
@@ -114,7 +133,8 @@ export function KeybindingsEditor({
           if (k.alt) parts.push('Alt');
           if (k.shift) parts.push('Shift');
           if (k.meta) parts.push('Cmd');
-          parts.push(k.key);
+          // Always uppercase single character keys for consistency
+          parts.push(k.key.length === 1 ? k.key.toUpperCase() : k.key);
           return parts.join('+');
         }).join(' ');
 
@@ -146,7 +166,8 @@ export function KeybindingsEditor({
           if (k.alt) parts.push('Alt');
           if (k.shift) parts.push('Shift');
           if (k.meta) parts.push('Cmd');
-          parts.push(k.key);
+          // Always uppercase single character keys for consistency
+          parts.push(k.key.length === 1 ? k.key.toUpperCase() : k.key);
           return parts.join('+');
         }).join(' ');
 
@@ -200,9 +221,18 @@ export function KeybindingsEditor({
       // Read existing user keybindings
       let userBindings: Array<{ key: string; command: string }> = [];
       if (window.conduit?.readFile) {
-        const content = await window.conduit.readFile(keybindingsPath);
-        if (content) {
-          userBindings = parseKeybindingsFile(content);
+        try {
+          const content = await window.conduit.readFile(keybindingsPath);
+          if (content) {
+            userBindings = parseKeybindingsFile(content);
+          }
+        } catch (error: any) {
+          // File doesn't exist yet, that's ok - start with empty array
+          if (error?.message?.includes('ENOENT')) {
+            userBindings = [];
+          } else {
+            throw error;
+          }
         }
       }
 
@@ -223,15 +253,32 @@ export function KeybindingsEditor({
         console.warn('window.conduit.writeFile is not available');
       }
 
-      // Register in registry with high weight
+      // Unregister all existing keybindings for this command first
+      keybindingRegistry.unregister(commandId);
+
+      // Register new keybinding in registry with high weight
       keybindingRegistry.register(commandId, {
         key: keybinding
       }, 1000);
+
+      // Update global atom for reactive components
+      updateKeybindingsAtom();
 
       setEditingCommandId(null);
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Failed to save keybinding:', error);
+    }
+  };
+
+  const handleCopyCommandId = async (commandId: string) => {
+    try {
+      await navigator.clipboard.writeText(commandId);
+      setCopiedCommandId(commandId);
+      // Clear the "copied" state after 2 seconds
+      setTimeout(() => setCopiedCommandId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy command ID:', error);
     }
   };
 
@@ -242,9 +289,18 @@ export function KeybindingsEditor({
       // Read existing user keybindings
       let userBindings: Array<{ key: string; command: string }> = [];
       if (window.conduit?.readFile) {
-        const content = await window.conduit.readFile(keybindingsPath);
-        if (content) {
-          userBindings = parseKeybindingsFile(content);
+        try {
+          const content = await window.conduit.readFile(keybindingsPath);
+          if (content) {
+            userBindings = parseKeybindingsFile(content);
+          }
+        } catch (error: any) {
+          // File doesn't exist yet, that's ok - start with empty array
+          if (error?.message?.includes('ENOENT')) {
+            userBindings = [];
+          } else {
+            throw error;
+          }
         }
       }
 
@@ -259,42 +315,30 @@ export function KeybindingsEditor({
         console.warn('window.conduit.writeFile is not available');
       }
 
-      // Unregister from registry
+      // Unregister all keybindings for this command
       keybindingRegistry.unregister(commandId);
+
+      // Get the command to find its default keybinding
+      const command = commandRegistry.getCommand(commandId);
+      if (command?.keybinding) {
+        // Re-register the default keybinding
+        const keybindings = Array.isArray(command.keybinding)
+          ? command.keybinding
+          : [command.keybinding];
+
+        for (const binding of keybindings) {
+          keybindingRegistry.register(commandId, binding, 0); // Default weight
+        }
+      }
+
+      // Update global atom for reactive components
+      updateKeybindingsAtom();
 
       setEditingCommandId(null);
       setRefreshKey(prev => prev + 1);
     } catch (error) {
-      console.error('Failed to remove keybinding:', error);
+      console.error('Failed to reset keybinding:', error);
     }
-  };
-
-  const formatKeybindingDisplay = (binding: ResolvedKeybinding): string => {
-    const chordsStr = binding.chords.map(k => {
-      const parts = [];
-      if (k.ctrl) parts.push('Ctrl');
-      if (k.alt) parts.push('Alt');
-      if (k.shift) parts.push('Shift');
-      if (k.meta) parts.push('Cmd');
-      parts.push(k.key);
-      return parts.join('+');
-    });
-
-    const keybindingStr = chordsStr.join(' ');
-
-    // Use platform-specific formatting
-    const isMac = navigator.userAgent.toLowerCase().includes('mac');
-
-    if (isMac) {
-      return keybindingStr
-        .replace(/Ctrl/g, '⌃')
-        .replace(/Alt/g, '⌥')
-        .replace(/Shift/g, '⇧')
-        .replace(/Cmd/g, '⌘')
-        .replace(/\+/g, '');
-    }
-
-    return keybindingStr;
   };
 
   return (
@@ -337,30 +381,30 @@ export function KeybindingsEditor({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setFilterMode('all')}
-              className={`px-3 py-1.5 rounded text-sm transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 ${
                 filterMode === 'all'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'bg-gradient-to-br from-secondary-start to-secondary-end text-white'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
               }`}
             >
               All ({rows.length})
             </button>
             <button
               onClick={() => setFilterMode('user')}
-              className={`px-3 py-1.5 rounded text-sm transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 ${
                 filterMode === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'bg-gradient-to-br from-secondary-start to-secondary-end text-white'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
               }`}
             >
               User Modified ({rows.filter(r => r.isUserOverride).length})
             </button>
             <button
               onClick={() => setFilterMode('conflicts')}
-              className={`px-3 py-1.5 rounded text-sm transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 ${
                 filterMode === 'conflicts'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'bg-gradient-to-br from-secondary-start to-secondary-end text-white'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
               }`}
             >
               Conflicts ({rows.filter(r => r.hasConflict).length})
@@ -370,7 +414,7 @@ export function KeybindingsEditor({
 
         {/* Keybindings table */}
         <div className="flex-1 overflow-y-auto">
-          <table className="w-full">
+          <table className="w-full border-gray-800">
             <thead className="sticky top-0 bg-gray-800 border-b border-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -387,64 +431,72 @@ export function KeybindingsEditor({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-gray-800 border-gray-800">
               {filteredRows.map(row => (
                 <tr
                   key={row.command.id}
                   className={`hover:bg-gray-800/50 transition-colors ${
                     row.hasConflict ? 'bg-red-500/5' : ''
-                  }`}
+                  } ${editingCommandId === row.command.id ? 'relative' : ''}`}
                 >
                   {/* Command */}
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-2 overflow-visible">
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 group">
                         {row.command.category && (
                           <span className="text-xs text-gray-500">{row.command.category}:</span>
                         )}
-                        <span className="text-sm text-white">{row.command.title}</span>
+                        <span className="text-sm text-white">
+                          {row.command.title}
+                        </span>
                         {row.isUserOverride && (
                           <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">
                             User
                           </span>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyCommandId(row.command.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                          title={row.command.id}
+                          aria-label={`Copy command ID: ${row.command.id}`}
+                        >
+                          {copiedCommandId === row.command.id ? (
+                            <Check className="w-3 h-3 text-gray-400" />
+                          ) : (
+                            <Copy className="w-3 h-3 text-gray-400" />
+                          )}
+                        </button>
                       </div>
-                      <span className="text-xs text-gray-500 font-mono">{row.command.id}</span>
                     </div>
                   </td>
 
                   {/* Keybinding */}
-                  <td className="px-6 py-4">
-                    {editingCommandId === row.command.id ? (
-                      <KeybindingRecorder
-                        onKeybindingRecorded={(kb) => handleSaveKeybinding(row.command.id, kb)}
-                        onCancel={() => setEditingCommandId(null)}
-                        currentKeybinding={row.keybinding ? formatKeybindingDisplay(row.keybinding) : undefined}
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {row.keybinding ? (
-                          <kbd className="px-2 py-1 bg-gray-700 rounded font-mono text-xs text-gray-300">
-                            {formatKeybindingDisplay(row.keybinding)}
-                          </kbd>
-                        ) : (
-                          <span className="text-sm text-gray-500 italic">No keybinding</span>
-                        )}
-                        {row.hasConflict && (
-                          <div
-                            className="flex items-center gap-1 text-yellow-500"
-                            title={`Conflicts with: ${row.conflictingCommands.join(', ')}`}
-                          >
-                            <AlertTriangle className="w-4 h-4" />
-                            <span className="text-xs">Conflict</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                  <td className="px-6 py-2">
+                    <div className="flex items-center gap-2">
+                      {row.keybinding ? (
+                        <kbd className="px-2 py-1 bg-gray-700 rounded font-mono text-xs text-gray-300">
+                          {formatKeybindingDisplay(row.keybinding)}
+                        </kbd>
+                      ) : (
+                        <span className="text-sm text-gray-500 italic">No keybinding</span>
+                      )}
+                      {row.hasConflict && (
+                        <div
+                          className="flex items-center gap-1 text-yellow-500"
+                          title={`Conflicts with: ${row.conflictingCommands.join(', ')}`}
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="text-xs">Conflict</span>
+                        </div>
+                      )}
+                    </div>
                   </td>
 
                   {/* When clause */}
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-2">
                     {row.command.when ? (
                       <code className="text-xs text-gray-400 font-mono">{row.command.when.toString()}</code>
                     ) : (
@@ -453,7 +505,7 @@ export function KeybindingsEditor({
                   </td>
 
                   {/* Actions */}
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-2 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => setEditingCommandId(row.command.id)}
@@ -465,14 +517,27 @@ export function KeybindingsEditor({
                       {row.isUserOverride && (
                         <button
                           onClick={() => handleRemoveKeybinding(row.command.id)}
-                          className="p-1.5 hover:bg-red-500/20 rounded transition-colors"
-                          title="Reset to default"
+                          className="p-1.5 hover:bg-blue-500/20 rounded transition-colors"
+                          title="Reset to default keybinding"
                         >
-                          <Trash2 className="w-4 h-4 text-red-400" />
+                          <RotateCcw className="w-4 h-4 text-blue-400" />
                         </button>
                       )}
                     </div>
                   </td>
+
+                  {/* Keybinding Recorder Overlay */}
+                  {editingCommandId === row.command.id && (
+                    <td className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                      <div className="pointer-events-auto">
+                        <KeybindingRecorder
+                          onKeybindingRecorded={(kb) => handleSaveKeybinding(row.command.id, kb)}
+                          onCancel={() => setEditingCommandId(null)}
+                          currentKeybinding={row.keybinding ? formatKeybindingDisplay(row.keybinding) : undefined}
+                        />
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

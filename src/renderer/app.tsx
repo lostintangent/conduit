@@ -103,6 +103,7 @@ export function App() {
     activeTab,
     applicationMode,
     setApplicationMode,
+    homeDirectory,
   });
 
   useKeybindingDispatch(

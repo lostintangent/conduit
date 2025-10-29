@@ -33,6 +33,8 @@
   --color-accent: #3b82f6;
   --color-accent-start: #3f8cff;
   --color-accent-end: #9358ff;
+  --color-secondary-start: #10b981;
+  --color-secondary-end: #06b6d4;
   --color-focus-ring: rgba(63, 140, 255, 0.6);
   --color-blueprint: rgba(59, 130, 246, 1);
 }
