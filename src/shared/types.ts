@@ -38,10 +38,23 @@ export type TerminalPayload = {
 export type TerminalCreateResponse = TerminalPayload & {
   title: string;
   cwd: string;
+  vmMetadata?: VMMetadata;
 };
 
 export type TerminalCreateOptions = {
   cwd?: string;
+  // VM-specific options
+  isRemoteVM?: boolean;
+  vmImageId?: string;
+  vmLabels?: string[];
+  vmIdleTimeout?: number;
+};
+
+export type VMMetadata = {
+  vmId: string;
+  vmHost: string;
+  sshPort: number;
+  imageId: string;
 };
 
 export type TerminalDataPayload = TerminalPayload & {
@@ -115,4 +128,41 @@ export type FileTreeNode = {
   relativePath: string;
   type: "file" | "directory";
   children?: FileTreeNode[];
+};
+
+/* VM IPC payloads */
+
+export type CreateVMPayload = {
+  image?: string;
+  labels?: string[];
+  idle_timeout?: number;
+  github_repo?: {
+    owner: string;
+    name: string;
+    branch_or_hash?: string;
+    clone_path?: string;
+  };
+};
+
+export type ListVMsPayload = {
+  labels?: string[];
+};
+
+export type DeleteVMPayload = {
+  vmId: string;
+};
+
+export type VMInfo = {
+  id: string;
+  ip_address: string;
+  image_id: string;
+  created_at: string;
+  state: "Running" | "Paused" | "Stopped";
+  forwarded_ports: {
+    [port: string]: {
+      connection_url: string;
+      external_port: string;
+      description: string;
+    };
+  };
 };

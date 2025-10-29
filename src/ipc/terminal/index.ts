@@ -9,12 +9,13 @@ import { getAllSessions, getSession } from "./store";
 import type { CreateSessionOptions, SendToRendererFn } from "./types";
 
 export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
-  ipcMain.handle("terminal:create", (_, payload: CreateSessionOptions) => {
-    const session = createSession(sendToRenderer, payload);
+  ipcMain.handle("terminal:create", async (_, payload: CreateSessionOptions) => {
+    const session = await createSession(sendToRenderer, payload);
     return {
       sessionId: session.id,
       title: session.lastProcessName,
       cwd: session.cwd,
+      vmMetadata: session.vmMetadata,
     };
   });
 
