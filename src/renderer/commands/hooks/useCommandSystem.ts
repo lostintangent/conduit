@@ -12,7 +12,7 @@ import { loadUserKeybindings, getUserKeybindingsPath } from '@/commands/keybindi
 import { watchKeybindingsFile } from '@/commands/keybindings/watchKeybindings';
 import { updateKeybindingsAtom } from '@/commands/keybindings/updateKeybindingsAtom';
 import { keybindingsAtom } from '@/store/atoms';
-import { enterFocusMode } from '@/store/actions/focusMode';
+import { toggleFocusMode } from '@/store/actions/focusMode';
 import type { ApplicationMode } from '@/store/atoms';
 
 export interface CommandSystemState {
@@ -101,10 +101,10 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
 
       // View service
       view: {
-        enterFocusMode: (tabId: string, paneId: string) => {
-          enterFocusMode(tabId, paneId);
+        toggleFocusMode: (tabId: string, paneId: string) => {
+          toggleFocusMode(tabId, paneId);
         },
-        togglePaneControls: () => {
+        toggleDesignMode: () => {
           const current = applicationMode;
           setApplicationMode(current === 'design' ? 'normal' : 'design');
         },

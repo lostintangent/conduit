@@ -128,7 +128,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // NOTE: Cmd+D is now handled by the command system (VIEW_TOGGLE_PANE_CONTROLS)
+      // NOTE: Cmd+D is now handled by the command system (VIEW_TOGGLE_DESIGN_MODE)
       // See: src/renderer/commands/applicationCommands.ts
 
       const directionKeyMap: Record<string, PaneNavigationDirection> = {

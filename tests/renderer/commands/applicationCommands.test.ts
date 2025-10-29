@@ -28,22 +28,22 @@ describe('applicationCommands', () => {
       registerApplicationCommands(mockRegistry);
 
       expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(2);
-      expect(registeredCommands.has(ApplicationCommands.VIEW_ENTER_FOCUS_MODE)).toBe(true);
-      expect(registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)).toBe(true);
     });
   });
 
-  describe('view.enterFocusMode', () => {
+  describe('view.toggleFocusMode', () => {
     let command: CommandDescriptor;
 
     beforeEach(() => {
       registerApplicationCommands(mockRegistry);
-      command = registeredCommands.get(ApplicationCommands.VIEW_ENTER_FOCUS_MODE)!;
+      command = registeredCommands.get(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)!;
     });
 
     it('should have correct metadata', () => {
-      expect(command.id).toBe(ApplicationCommands.VIEW_ENTER_FOCUS_MODE);
-      expect(command.title).toBe('Enter Focus Mode');
+      expect(command.id).toBe(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
+      expect(command.title).toBe('Toggle Focus Mode');
       expect(command.category).toBe('View');
     });
 
@@ -58,11 +58,11 @@ describe('applicationCommands', () => {
       expect(binding.linux).toBeUndefined();
     });
 
-    it('should call context.view.enterFocusMode when activeTab exists', () => {
-      const mockEnterFocusMode = vi.fn();
+    it('should call context.view.toggleFocusMode when activeTab exists', () => {
+      const mockToggleFocusMode = vi.fn();
       const mockContext: CommandContext = {
         view: {
-          enterFocusMode: mockEnterFocusMode,
+          toggleFocusMode: mockToggleFocusMode,
           togglePaneControls: vi.fn(),
         },
         activeTab: {
@@ -84,15 +84,15 @@ describe('applicationCommands', () => {
 
       command.run(mockContext);
 
-      expect(mockEnterFocusMode).toHaveBeenCalledTimes(1);
-      expect(mockEnterFocusMode).toHaveBeenCalledWith('tab-123', 'pane-456');
+      expect(mockToggleFocusMode).toHaveBeenCalledTimes(1);
+      expect(mockToggleFocusMode).toHaveBeenCalledWith('tab-123', 'pane-456');
     });
 
-    it('should not call enterFocusMode when activeTab is null', () => {
-      const mockEnterFocusMode = vi.fn();
+    it('should not call toggleFocusMode when activeTab is null', () => {
+      const mockToggleFocusMode = vi.fn();
       const mockContext: CommandContext = {
         view: {
-          enterFocusMode: mockEnterFocusMode,
+          toggleFocusMode: mockToggleFocusMode,
           togglePaneControls: vi.fn(),
         },
         activeTab: null,
@@ -111,7 +111,7 @@ describe('applicationCommands', () => {
 
       command.run(mockContext);
 
-      expect(mockEnterFocusMode).not.toHaveBeenCalled();
+      expect(mockToggleFocusMode).not.toHaveBeenCalled();
     });
 
     it('should handle context with activeTab but no view service gracefully', () => {
@@ -134,22 +134,22 @@ describe('applicationCommands', () => {
         contextKeys: null,
       };
 
-      // Should throw when trying to call enterFocusMode on null
+      // Should throw when trying to call toggleFocusMode on null
       expect(() => command.run(mockContext)).toThrow();
     });
   });
 
-  describe('view.togglePaneControls', () => {
+  describe('view.toggleDesignMode', () => {
     let command: CommandDescriptor;
 
     beforeEach(() => {
       registerApplicationCommands(mockRegistry);
-      command = registeredCommands.get(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS)!;
+      command = registeredCommands.get(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)!;
     });
 
     it('should have correct metadata', () => {
-      expect(command.id).toBe(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS);
-      expect(command.title).toBe('Toggle Pane Controls');
+      expect(command.id).toBe(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE);
+      expect(command.title).toBe('Toggle Design Mode');
       expect(command.category).toBe('View');
     });
 
@@ -164,12 +164,12 @@ describe('applicationCommands', () => {
       expect(binding.linux).toBeUndefined();
     });
 
-    it('should call context.view.togglePaneControls', () => {
-      const mockTogglePaneControls = vi.fn();
+    it('should call context.view.toggleDesignMode', () => {
+      const mockToggleDesignMode = vi.fn();
       const mockContext: CommandContext = {
         view: {
-          enterFocusMode: vi.fn(),
-          togglePaneControls: mockTogglePaneControls,
+          toggleFocusMode: vi.fn(),
+          toggleDesignMode: mockToggleDesignMode,
         },
         activeTab: null,
         activePaneId: null,
@@ -187,18 +187,18 @@ describe('applicationCommands', () => {
 
       command.run(mockContext);
 
-      expect(mockTogglePaneControls).toHaveBeenCalledTimes(1);
-      expect(mockTogglePaneControls).toHaveBeenCalledWith();
+      expect(mockToggleDesignMode).toHaveBeenCalledTimes(1);
+      expect(mockToggleDesignMode).toHaveBeenCalledWith();
     });
 
     it('should work regardless of activeTab state', () => {
-      const mockTogglePaneControls = vi.fn();
+      const mockToggleDesignMode = vi.fn();
 
       // Test with activeTab present
       const mockContextWithTab: CommandContext = {
         view: {
-          enterFocusMode: vi.fn(),
-          togglePaneControls: mockTogglePaneControls,
+          toggleFocusMode: vi.fn(),
+          toggleDesignMode: mockToggleDesignMode,
         },
         activeTab: { id: 'tab-123', activePaneId: 'pane-456' },
         activePaneId: 'pane-456',
@@ -215,15 +215,15 @@ describe('applicationCommands', () => {
       };
 
       command.run(mockContextWithTab);
-      expect(mockTogglePaneControls).toHaveBeenCalledTimes(1);
+      expect(mockToggleDesignMode).toHaveBeenCalledTimes(1);
 
-      mockTogglePaneControls.mockClear();
+      mockToggleDesignMode.mockClear();
 
       // Test with activeTab null
       const mockContextWithoutTab: CommandContext = {
         view: {
-          enterFocusMode: vi.fn(),
-          togglePaneControls: mockTogglePaneControls,
+          toggleFocusMode: vi.fn(),
+          toggleDesignMode: mockToggleDesignMode,
         },
         activeTab: null,
         activePaneId: null,
@@ -240,7 +240,7 @@ describe('applicationCommands', () => {
       };
 
       command.run(mockContextWithoutTab);
-      expect(mockTogglePaneControls).toHaveBeenCalledTimes(1);
+      expect(mockToggleDesignMode).toHaveBeenCalledTimes(1);
     });
   });
 

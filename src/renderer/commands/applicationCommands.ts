@@ -11,8 +11,8 @@ import type { ICommandRegistry } from "@/commands";
  * Type-safe command IDs for application commands
  */
 export const ApplicationCommands = {
-  VIEW_ENTER_FOCUS_MODE: 'view.enterFocusMode',
-  VIEW_TOGGLE_PANE_CONTROLS: 'view.togglePaneControls',
+  VIEW_TOGGLE_FOCUS_MODE: 'view.toggleFocusMode',
+  VIEW_TOGGLE_DESIGN_MODE: 'view.toggleDesignMode',
 } as const;
 
 /**
@@ -22,31 +22,31 @@ export const ApplicationCommands = {
  * system has been initialized.
  */
 export function registerApplicationCommands(commandRegistry: ICommandRegistry): void {
-  // View: Enter Focus Mode
+  // View: Toggle Focus Mode
   commandRegistry.registerCommand({
-    id: ApplicationCommands.VIEW_ENTER_FOCUS_MODE,
-    title: 'Enter Focus Mode',
+    id: ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
+    title: 'Toggle Focus Mode',
     category: 'View',
     keybinding: {
       key: 'Cmd+Alt+F',
     },
     run: (context) => {
       if (context.activeTab) {
-        context.view.enterFocusMode(context.activeTab.id, context.activeTab.activePaneId);
+        context.view.toggleFocusMode(context.activeTab.id, context.activeTab.activePaneId);
       }
     },
   });
 
-  // View: Toggle Pane Controls
+  // View: Toggle Design Mode
   commandRegistry.registerCommand({
-    id: ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS,
-    title: 'Toggle Pane Controls',
+    id: ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
+    title: 'Toggle Design Mode',
     category: 'View',
     keybinding: {
       key: 'Cmd+D',
     },
     run: (context) => {
-      context.view.togglePaneControls();
+      context.view.toggleDesignMode();
     },
   });
 }
