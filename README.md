@@ -1,3 +1,6 @@
+> [!WARNING]
+> This project is a time-boxed exploration (1 week), that is meant to see how useful it could feel, to have a flexible workbench for orchestrating/organizating local + cloud terminals. Almost like if vim/tmux/VS Code had a baby 👶
+
 # 🔌 Conduit
 
 Create information-dense tabs, each with a flexible grid of terminal, editor, and web panes (that can be arbitrarily resized, and organized)
