@@ -21,6 +21,9 @@ export class ContextKeyService implements IContextKeyService {
   private activeTabId: string | undefined;
   private activePaneId: string | undefined;
 
+  // Track which panes belong to which tabs
+  private paneToTab = new Map<string, string>();
+
   // Registry of all context keys (set during initialization)
   private keyRegistry = new Map<string, ContextKey<any> | DerivedContextKey>();
 
@@ -60,6 +63,11 @@ export class ContextKeyService implements IContextKeyService {
       this.paneValues.set(paneId, new Map());
     }
     this.paneValues.get(paneId)!.set(key, value);
+
+    // Track which tab this pane belongs to (based on current active tab)
+    if (this.activeTabId && !this.paneToTab.has(paneId)) {
+      this.paneToTab.set(paneId, this.activeTabId);
+    }
 
     // If this pane is active, update activePane.* key
     if (paneId === this.activePaneId) {
@@ -102,7 +110,14 @@ export class ContextKeyService implements IContextKeyService {
   }
 
   get<T = unknown>(key: string): T | undefined {
-    // Check global values first
+    // Check if this is a derived/aggregated key (check first before other lookups)
+    const derivedKey = this.keyRegistry.get(key);
+    if (derivedKey && 'getSourceKey' in derivedKey) {
+      // Compute aggregated value on-demand
+      return this.computeDerivedValue(derivedKey) as T;
+    }
+
+    // Check global values
     if (this.globalValues.has(key)) {
       return this.globalValues.get(key) as T;
     }
@@ -129,6 +144,63 @@ export class ContextKeyService implements IContextKeyService {
     const contextKey = this.keyRegistry.get(key);
     if (contextKey && 'getDefault' in contextKey) {
       return contextKey.getDefault() as T;
+    }
+
+    return undefined;
+  }
+
+  private computeDerivedValue(derivedKey: DerivedContextKey): unknown {
+    const key = derivedKey.getKey();
+    const sourceKey = derivedKey.getSourceKey();
+    const aggregateMode = derivedKey.getAggregateMode();
+
+    // Check if this is an activeTab.* key aggregating from panes
+    if (key.startsWith('activeTab.') && sourceKey.startsWith('activePane.')) {
+      // Aggregate from panes in the active tab only
+      const property = sourceKey.substring('activePane.'.length);
+      const values: unknown[] = [];
+
+      if (this.activeTabId) {
+        for (const [paneId, paneMap] of this.paneValues.entries()) {
+          // Only include panes that belong to the active tab
+          if (this.paneToTab.get(paneId) === this.activeTabId) {
+            const value = paneMap.get(property);
+            if (value !== undefined) {
+              values.push(value);
+            }
+          }
+        }
+      }
+
+      return this.aggregateValues(values, aggregateMode);
+    }
+
+    // Parse sourceKey to determine what to aggregate
+    // Format: "level.property" where level can be activePane, activeTab, etc.
+    if (sourceKey.startsWith('activePane.')) {
+      // Aggregate from all panes across all tabs
+      const property = sourceKey.substring('activePane.'.length);
+      const values: unknown[] = [];
+      for (const paneMap of this.paneValues.values()) {
+        const value = paneMap.get(property);
+        if (value !== undefined) {
+          values.push(value);
+        }
+      }
+      return this.aggregateValues(values, aggregateMode);
+    }
+
+    if (sourceKey.startsWith('activeTab.')) {
+      // Aggregate from all tabs
+      const property = sourceKey.substring('activeTab.'.length);
+      const values: unknown[] = [];
+      for (const tabMap of this.tabValues.values()) {
+        const value = tabMap.get(property);
+        if (value !== undefined) {
+          values.push(value);
+        }
+      }
+      return this.aggregateValues(values, aggregateMode);
     }
 
     return undefined;

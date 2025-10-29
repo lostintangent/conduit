@@ -11,7 +11,7 @@ export { ContextKeyService } from './contextKeys/ContextKeyServiceImpl';
 export { KeybindingRegistry } from './keybindings/KeybindingRegistry';
 export { MenuRegistry } from './menus/MenuRegistry';
 export { When } from './whenClauses/When';
-export { useKeybindingDispatch } from './keybindings/useKeybindingDispatch';
+export { useKeybindingDispatch } from './hooks/useKeybindingDispatch';
 export { useMenu } from './menus/useMenu';
 export { useCommandPaletteData } from './commandPalette/useCommandPaletteData';
 export { loadUserKeybindings } from './keybindings/userKeybindings';

@@ -11,15 +11,8 @@ import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { KeybindingsEditor } from "@/components/keybindings";
-import {
-  initializeCommandSystem,
-  getCommandRegistry,
-  getKeybindingRegistry,
-  type ICommandRegistry,
-  type KeybindingRegistry,
-} from "@/commands";
-import { registerApplicationCommands } from "@/commands/applicationCommands";
-import { useKeybindingDispatch } from "@/commands/keybindings/useKeybindingDispatch";
+import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
+import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -85,10 +78,6 @@ export function App() {
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
-  const [commandSystem, setCommandSystem] = useState<{
-    commandRegistry: ICommandRegistry;
-    keybindingRegistry: KeybindingRegistry;
-  } | null>(null);
 
   const {
     workspaceName,
@@ -109,72 +98,16 @@ export function App() {
     openLastWorkspace,
   } = useWorkspaces();
 
-  // Initialize command system ONCE
-  useEffect(() => {
-    initializeCommandSystem();
-
-    const commandRegistry = getCommandRegistry();
-    const keybindingRegistry = getKeybindingRegistry();
-
-    // Register application-level commands
-    registerApplicationCommands(commandRegistry);
-
-    // Populate keybindings atom with initial bindings
-    const allKeybindings = keybindingRegistry.getAllKeybindings();
-    setKeybindings(allKeybindings);
-
-    setCommandSystem({
-      commandRegistry,
-      keybindingRegistry,
-    });
-  }, [setKeybindings]); // Run once on mount (setKeybindings is stable)
-
-  // Wire up keybinding dispatch AFTER context builder is set (prevents race condition)
-  const [contextBuilderReady, setContextBuilderReady] = useState(false);
-
-  // Update context builder whenever state changes, then signal keyboard listener can be attached
-  useEffect(() => {
-    if (!commandSystem?.commandRegistry) {
-      return;
-    }
-
-    // Set up context builder to provide current app state to commands
-    commandSystem.commandRegistry.setContextBuilder(() => ({
-      // Services (placeholder)
-      tabs: null as any,
-      panes: null as any,
-      terminals: null as any,
-      workspaces: null as any,
-      commands: null as any,
-      dialogs: null as any,
-      notifications: null as any,
-      settings: null as any,
-      contextKeys: null as any,
-
-      // View service
-      view: {
-        enterFocusMode: (tabId: string, paneId: string) => {
-          enterFocusMode(tabId, paneId);
-        },
-        togglePaneControls: () => {
-          const current = applicationMode;
-          setApplicationMode(current === 'design' ? 'normal' : 'design');
-        },
-      },
-
-      // State accessors - these will be fresh on each command execution
-      activeTab,
-      activePaneId: activeTab?.activePaneId ?? null,
-      workspaceName: undefined,
-    }));
-
-    // Signal that context builder is ready - this causes keyboard listener to attach on next render
-    setContextBuilderReady(true);
-  }, [commandSystem, activeTab, applicationMode, setApplicationMode]);
+  // Initialize command system and wire up keyboard dispatch
+  const commandSystem = useCommandSystem({
+    activeTab,
+    applicationMode,
+    setApplicationMode,
+  });
 
   useKeybindingDispatch(
-    contextBuilderReady ? commandSystem?.commandRegistry : null,
-    contextBuilderReady ? commandSystem?.keybindingRegistry : null
+    commandSystem?.commandRegistry,
+    commandSystem?.keybindingRegistry
   );
 
   useEffect(() => {
