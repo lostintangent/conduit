@@ -27,7 +27,7 @@ interface UsePaneDragDropReturn {
   };
   createDropHandlers: (paneId: string, tabId: string) => {
     onDragOver: (e: React.DragEvent) => void;
-    onDragLeave: () => void;
+    onDragLeave: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent) => void;
   };
   renderDropZone: (paneId: string) => React.ReactNode;
@@ -251,6 +251,7 @@ export function usePaneDragDrop({
           // Only reset state if we're actually leaving the pane, not moving to a child element
           const relatedTarget = e.relatedTarget;
           if (
+            relatedTarget &&
             relatedTarget instanceof Node &&
             e.currentTarget.contains(relatedTarget)
           ) {
