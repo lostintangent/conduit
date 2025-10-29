@@ -1,3 +1,5 @@
+import { TabLayout } from "@/components/layout/normal/TabLayout";
+import { TabStrip } from "@/components/layout/TabStrip";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import {
@@ -6,8 +8,6 @@ import {
 } from "@/components/shell/QuickDialog";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
-import { TabLayout } from "@/components/tabs/layout/TabLayout";
-import { TabStrip } from "@/components/tabs/TabStrip";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { useCommands } from "@/hooks/useCommands";
