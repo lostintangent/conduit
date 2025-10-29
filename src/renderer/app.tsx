@@ -18,6 +18,8 @@ import {
   type ICommandRegistry,
   type KeybindingRegistry,
 } from "@/commands";
+import { registerApplicationCommands } from "@/commands/applicationCommands";
+import { useKeybindingDispatch } from "@/commands/keybindings/useKeybindingDispatch";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -28,6 +30,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
+import { enterFocusMode } from "@/store/actions/focusMode";
 import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
   closeTab,
@@ -36,10 +39,10 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, applicationModeAtom, tabsAtom, keybindingsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NotificationCenter } from "./components/shell/NotificationCenter";
 
@@ -48,6 +51,8 @@ const api = window.conduit;
 export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const setKeybindings = useSetAtom(keybindingsAtom);
 
   const {
     tabPosition,
@@ -104,14 +109,73 @@ export function App() {
     openLastWorkspace,
   } = useWorkspaces();
 
-  // Initialize command system
+  // Initialize command system ONCE
   useEffect(() => {
     initializeCommandSystem();
+
+    const commandRegistry = getCommandRegistry();
+    const keybindingRegistry = getKeybindingRegistry();
+
+    // Register application-level commands
+    registerApplicationCommands(commandRegistry);
+
+    // Populate keybindings atom with initial bindings
+    const allKeybindings = keybindingRegistry.getAllKeybindings();
+    setKeybindings(allKeybindings);
+
     setCommandSystem({
-      commandRegistry: getCommandRegistry(),
-      keybindingRegistry: getKeybindingRegistry(),
+      commandRegistry,
+      keybindingRegistry,
     });
-  }, []);
+  }, [setKeybindings]); // Run once on mount (setKeybindings is stable)
+
+  // Wire up keybinding dispatch AFTER context builder is set (prevents race condition)
+  const [contextBuilderReady, setContextBuilderReady] = useState(false);
+
+  // Update context builder whenever state changes, then signal keyboard listener can be attached
+  useEffect(() => {
+    if (!commandSystem?.commandRegistry) {
+      return;
+    }
+
+    // Set up context builder to provide current app state to commands
+    commandSystem.commandRegistry.setContextBuilder(() => ({
+      // Services (placeholder)
+      tabs: null as any,
+      panes: null as any,
+      terminals: null as any,
+      workspaces: null as any,
+      commands: null as any,
+      dialogs: null as any,
+      notifications: null as any,
+      settings: null as any,
+      contextKeys: null as any,
+
+      // View service
+      view: {
+        enterFocusMode: (tabId: string, paneId: string) => {
+          enterFocusMode(tabId, paneId);
+        },
+        togglePaneControls: () => {
+          const current = applicationMode;
+          setApplicationMode(current === 'design' ? 'normal' : 'design');
+        },
+      },
+
+      // State accessors - these will be fresh on each command execution
+      activeTab,
+      activePaneId: activeTab?.activePaneId ?? null,
+      workspaceName: undefined,
+    }));
+
+    // Signal that context builder is ready - this causes keyboard listener to attach on next render
+    setContextBuilderReady(true);
+  }, [commandSystem, activeTab, applicationMode, setApplicationMode]);
+
+  useKeybindingDispatch(
+    contextBuilderReady ? commandSystem?.commandRegistry : null,
+    contextBuilderReady ? commandSystem?.keybindingRegistry : null
+  );
 
   useEffect(() => {
     return registerTabEventHandlers();

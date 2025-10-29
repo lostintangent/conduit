@@ -5,7 +5,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { enterFocusMode } from "@/store/actions/focusMode";
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import { useCommand, getCommandDisplayTitle } from "@/commands/hooks/useCommand";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabIdAtom,
@@ -15,7 +16,7 @@ import {
   userSettingsAtom,
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import {
   Expand,
   FileEdit,
@@ -64,9 +65,13 @@ export const TabStrip = ({
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const { homeDirectory } = useAtomValue(userSettingsAtom);
-  const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
+
+  // Command hooks for button actions
+  const enterFocusModeCmd = useCommand(ApplicationCommands.VIEW_ENTER_FOCUS_MODE);
+  const togglePaneControlsCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -368,12 +373,6 @@ export const TabStrip = ({
     });
   }, [onOpenQuickPane]);
 
-  const handleEnterFocusMode = useCallback(() => {
-    if (!activeTab) {
-      return;
-    }
-    enterFocusMode(activeTab.id, activeTab.activePaneId);
-  }, [activeTab]);
 
   const borderClass = position === "top" ? "border-b" : "border-t rounded-b-xl";
 
@@ -480,9 +479,9 @@ export const TabStrip = ({
         <button
           type="button"
           className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Enter focus mode (⌘⌥F)"
-          aria-label="Enter focus mode"
-          onClick={handleEnterFocusMode}
+          title={getCommandDisplayTitle(enterFocusModeCmd)}
+          aria-label={enterFocusModeCmd.title}
+          onClick={enterFocusModeCmd.execute}
           disabled={!activeTab}
         >
           <Expand size={18} />
@@ -494,13 +493,9 @@ export const TabStrip = ({
             ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
             : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
             }`}
-          title="Toggle pane controls (Alt+Space)"
-          aria-label="Toggle pane controls"
-          onClick={() =>
-            setApplicationMode((current) =>
-              current === "design" ? "normal" : "design"
-            )
-          }
+          title={getCommandDisplayTitle(togglePaneControlsCmd)}
+          aria-label={togglePaneControlsCmd.title}
+          onClick={togglePaneControlsCmd.execute}
         >
           <SquareDashedMousePointer size={18} />
         </button>
