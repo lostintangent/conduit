@@ -1,16 +1,29 @@
+import { enterFocusMode } from "@/store/actions/focusMode";
 import { detachPane } from "@/store/actions/pane";
-import { focusPane } from "@/store/actions/focusMode";
 import { applicationModeAtom, tabsAtom } from "@/store/atoms";
-import type {
-  LayoutNode,
-  Pane,
-  SplitDirection,
-} from "@/types";
+import type { LayoutNode, Pane, SplitDirection } from "@/types";
+import { cn } from "@/utils";
 import { generateId } from "@/utils/id";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useState } from "react";
 
 const DROP_ZONE_THRESHOLD = 0.4; // 40% threshold for edge detection
+
+const DropZoneOverlay = ({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}): React.ReactElement => (
+  <div
+    className={cn(
+      "pointer-events-none absolute z-30 bg-blueprint/40",
+      className
+    )}
+    style={style}
+  />
+);
 
 type DropZone = "top" | "bottom" | "left" | "right" | null;
 
@@ -21,11 +34,17 @@ interface UsePaneDragDropParams {
 interface UsePaneDragDropReturn {
   draggedPaneId: string | null;
   dragHoverPaneId: string | null;
-  createDragHandlers: (paneId: string, tabId: string) => {
+  createDragHandlers: (
+    paneId: string,
+    tabId: string
+  ) => {
     onDragStart: (e: React.DragEvent) => void;
     onDragEnd: () => void;
   };
-  createDropHandlers: (paneId: string, tabId: string) => {
+  createDropHandlers: (
+    paneId: string,
+    tabId: string
+  ) => {
     onDragOver: (e: React.DragEvent) => void;
     onDragLeave: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent) => void;
@@ -46,12 +65,9 @@ export function usePaneDragDrop({
   const setTabs = useSetAtom(tabsAtom);
 
   // Helper to check if a drag event is a focus mode drag
-  const isFocusModeDragEvent = useCallback(
-    (e: React.DragEvent): boolean => {
-      return e.dataTransfer.types.includes("application/x-conduit-focus-mode");
-    },
-    []
-  );
+  const isFocusModeDragEvent = (e: React.DragEvent): boolean => {
+    return e.dataTransfer.types.includes("application/x-conduit-focus-mode");
+  };
 
   // Helper to determine drop zone based on mouse position
   const getDropZone = useCallback(
@@ -183,7 +199,9 @@ export function usePaneDragDrop({
             return { node, modified: false };
           };
 
-          const { node: newLayout, modified } = insertPaneIntoLayout(tab.layout);
+          const { node: newLayout, modified } = insertPaneIntoLayout(
+            tab.layout
+          );
 
           if (!modified) {
             return tab;
@@ -248,28 +266,20 @@ export function usePaneDragDrop({
           setDropZone(zone);
         },
         onDragLeave: (e: React.DragEvent) => {
-          // Only reset state if we're actually leaving the pane, not moving to a child element
-          const relatedTarget = e.relatedTarget;
-          if (
-            relatedTarget &&
-            relatedTarget instanceof Node &&
-            e.currentTarget.contains(relatedTarget)
-          ) {
-            return;
-          }
-
           setDropZone(null);
           setIsFocusModeDrag(false);
-          setDragHoverPaneId((current) => current === paneId ? null : current);
+
+          setDragHoverPaneId((current) =>
+            current === paneId ? null : current
+          );
         },
         onDrop: (e: React.DragEvent) => {
           e.preventDefault();
-          
+
           // Check if this is a focus mode drag
           if (isFocusModeDragEvent(e)) {
-            // Set the dropped pane as active and enter focus mode
-            focusPane(tabId, paneId);
-            // Clear focus mode drag state
+            enterFocusMode(tabId, paneId);
+
             setIsFocusModeDrag(false);
             setDragHoverPaneId(null);
             return;
@@ -342,7 +352,6 @@ export function usePaneDragDrop({
       getDropZone,
       splitPaneWithExisting,
       onDropComplete,
-      isFocusModeDragEvent,
     ]
   );
 
@@ -352,18 +361,17 @@ export function usePaneDragDrop({
       const isDragging = draggedPaneId === paneId;
       const isHoveredDuringDrag =
         draggedPaneId !== null && dragHoverPaneId === paneId && !isDragging;
-      const isHoveredDuringFocusDrag = isFocusModeDrag && dragHoverPaneId === paneId;
 
       // Show drop zone for pane drag in design mode
       if (isInDesignMode && isHoveredDuringDrag && dropZone) {
         return (
-          <div
-            className="pointer-events-none absolute z-30 bg-blueprint/40"
+          <DropZoneOverlay
             style={{
               top: dropZone === "top" ? 0 : dropZone === "bottom" ? "50%" : 0,
               left: dropZone === "left" ? 0 : dropZone === "right" ? "50%" : 0,
               right: dropZone === "right" ? 0 : dropZone === "left" ? "50%" : 0,
-              bottom: dropZone === "bottom" ? 0 : dropZone === "top" ? "50%" : 0,
+              bottom:
+                dropZone === "bottom" ? 0 : dropZone === "top" ? "50%" : 0,
               width:
                 dropZone === "left" || dropZone === "right" ? "50%" : "100%",
               height:
@@ -373,13 +381,10 @@ export function usePaneDragDrop({
         );
       }
 
-      // Show full pane highlight for focus mode drag
+      const isHoveredDuringFocusDrag =
+        isFocusModeDrag && dragHoverPaneId === paneId;
       if (isHoveredDuringFocusDrag) {
-        return (
-          <div
-            className="pointer-events-none absolute inset-0 z-30 bg-blue-500/30 border-2 border-blue-500"
-          />
-        );
+        return <DropZoneOverlay className="inset-0" />;
       }
 
       return null;

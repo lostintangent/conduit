@@ -1,4 +1,4 @@
-import { applicationModeAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, applicationModeAtom, tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import { getDefaultStore } from "jotai";
@@ -41,7 +41,7 @@ export function getAllPaneIds(tab: Tab): string[] {
 export function enterFocusMode(tabId: string, paneId: string): void {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
-  
+
   if (!tab || !tab.panes[paneId]) {
     return;
   }
@@ -81,13 +81,6 @@ export function toggleFocusMode(tabId: string, paneId: string): void {
   } else {
     enterFocusMode(tabId, paneId);
   }
-}
-
-/**
- * Focus a specific pane by setting it as active and entering focus mode
- */
-export function focusPane(tabId: string, paneId: string): void {
-  enterFocusMode(tabId, paneId);
 }
 
 /**
