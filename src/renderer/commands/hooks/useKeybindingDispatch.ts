@@ -91,6 +91,7 @@ function isInputElement(target: EventTarget | null): boolean {
   return (
     tagName === 'input' ||
     tagName === 'textarea' ||
-    target.isContentEditable
+    target.isContentEditable ||
+    target.contentEditable === 'true' // Fallback for jsdom and older browsers
   );
 }
