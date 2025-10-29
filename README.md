@@ -32,6 +32,12 @@ Save and restore sets of tabs, so you can jump in and out of projects with ease.
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/a1b943cd-d436-483e-b61a-bc66815a159e" />
 
+**Agent sessions**
+
+Create isolated agent environments, by spinning up new terminals with automatic worktree management.
+
+<img width="1595" height="1221" alt="image" src="https://github.com/user-attachments/assets/468e504f-4730-4884-91cf-9aae1e24e93a" />
+
 **Command palette**
 
 Run global commands at any time (`cmd+shift+p`), including spinning up quick terminal instances (w/an MRU list).
