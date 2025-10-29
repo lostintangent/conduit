@@ -61,7 +61,7 @@ let cachedConfig: VMConfig | null = null;
 /**
  * Load VM configuration from .env.local file
  */
-async function loadConfig(): Promise<VMConfig> {
+export async function loadConfig(): Promise<VMConfig> {
   if (cachedConfig) {
     return cachedConfig;
   }

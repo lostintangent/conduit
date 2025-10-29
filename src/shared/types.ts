@@ -55,6 +55,7 @@ export type VMMetadata = {
   vmHost: string;
   sshPort: number;
   imageId: string;
+  useSSHKey?: boolean;
 };
 
 export type TerminalDataPayload = TerminalPayload & {

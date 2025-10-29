@@ -10,6 +10,7 @@ import {
   createVM,
   getSSHConnectionInfo,
 } from "../../vm/client";
+import { getPrivateKeyPath, hasSSHKeys, setupSSHKeyInVM } from "../../vm/ssh-keys";
 import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
@@ -68,6 +69,27 @@ export const createSession = async (
         idle_timeout: options.vmIdleTimeout,
       });
 
+      console.log("[VM] VM created, setting up SSH access...");
+
+      // Check if we have SSH keys and set them up in the VM
+      const keysAvailable = await hasSSHKeys();
+      let useSSHKey = false;
+      
+      if (keysAvailable) {
+        console.log("[SSH] Found SSH keys, installing in VM...");
+        const { loadConfig } = await import("../../vm/client");
+        const config = await loadConfig();
+        useSSHKey = await setupSSHKeyInVM(vm.id, config.managerUrl, config.token);
+        
+        if (useSSHKey) {
+          console.log("[SSH] SSH key authentication enabled");
+        } else {
+          console.log("[SSH] Failed to setup SSH key, will use password authentication");
+        }
+      } else {
+        console.log("[SSH] No SSH keys found in keys/ folder, will use password authentication");
+      }
+
       // Get SSH connection info
       const sshInfo = getSSHConnectionInfo(vm);
 
@@ -93,6 +115,7 @@ export const createSession = async (
           vmHost: sshInfo.host,
           sshPort: sshInfo.port,
           imageId: vm.image_id,
+          useSSHKey,
         },
       };
 
@@ -279,8 +302,19 @@ export const markSessionReady = (
 
   // If this is a VM session, send the SSH command now that the terminal is ready
   if (session.vmMetadata) {
-    const sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${session.vmMetadata.sshPort} ace@${session.vmMetadata.vmHost}\n`;
-    console.log(`[VM] Terminal ready, sending SSH command: ${sshCommand.trim()}`);
+    let sshCommand: string;
+    
+    if (session.vmMetadata.useSSHKey) {
+      // Use SSH key authentication with the Conduit key
+      const keyPath = getPrivateKeyPath();
+      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${session.vmMetadata.sshPort} ace@${session.vmMetadata.vmHost}\n`;
+      console.log(`[VM] Terminal ready, sending SSH command with key: ${sshCommand.trim()}`);
+    } else {
+      // Use password authentication
+      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${session.vmMetadata.sshPort} ace@${session.vmMetadata.vmHost}\n`;
+      console.log(`[VM] Terminal ready, sending SSH command: ${sshCommand.trim()}`);
+    }
+    
     session.pty.write(sshCommand);
   }
 };
