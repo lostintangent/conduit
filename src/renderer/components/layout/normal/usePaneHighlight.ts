@@ -8,7 +8,6 @@ import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const HIGHLIGHT_DURATION_MS = 2000;
-const HIGHLIGHT_CLASS = "animate-[pane-highlight_2s_ease-out_forwards]";
 
 export const shouldShowPaneBorder = (
   tab: Tab,
@@ -83,9 +82,15 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
     triggerHighlight,
   ]);
 
-  const getHighlightClass = useCallback(
-    (paneId: string): string => {
-      return paneId === highlightedPaneId ? HIGHLIGHT_CLASS : "";
+  const getPaneHighlight = useCallback(
+    (paneId: string): React.ReactNode => {
+      if (paneId !== highlightedPaneId) {
+        return null;
+      }
+      
+      return (
+        <div className="pointer-events-none absolute inset-0 z-10 animate-[pane-highlight_2s_ease-out_forwards]" />
+      );
     },
     [highlightedPaneId]
   );
@@ -112,6 +117,6 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
   }, [highlightActivePane]);
 
   return {
-    getHighlightClass,
+    getPaneHighlight,
   };
 }

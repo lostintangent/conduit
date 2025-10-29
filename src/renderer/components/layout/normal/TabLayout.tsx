@@ -250,7 +250,7 @@ export function TabLayout({
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
 
-  const { getHighlightClass } = usePaneHighlight({
+  const { getPaneHighlight } = usePaneHighlight({
     isResizing: resizingNode !== null,
   });
 
@@ -405,6 +405,9 @@ export function TabLayout({
             <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
           )}
 
+          {/* Pane highlight overlay */}
+          {getPaneHighlight(pane.id)}
+
           {/* Drop zone overlay */}
           {renderDropZone(pane.id)}
 
@@ -443,6 +446,7 @@ export function TabLayout({
       draggedPaneId,
       dragHoverPaneId,
       hoveredPaneId,
+      getPaneHighlight,
     ]
   );
 
@@ -514,11 +518,6 @@ export function TabLayout({
               ? "bg-blue-500/60"
               : "bg-transparent hover:bg-blue-500/40";
 
-            const highlightClass =
-              !isInDesignMode && child.type === "pane" && tabShowsBorder
-                ? getHighlightClass(child.paneId)
-                : "";
-
             const shouldRenderHandles = primaryAxis !== null && !isInFocusMode;
 
             const intersectionHandles =
@@ -540,7 +539,7 @@ export function TabLayout({
               // Render the pane with optional dividers/handles
               <div
                 key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${highlightClass} ${splitBorderClass}`}
+                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${splitBorderClass}`}
               >
                 {shouldRenderHandles && primaryAxis && (
                   <>
@@ -585,7 +584,6 @@ export function TabLayout({
     },
     [
       applicationMode,
-      getHighlightClass,
       handleResizeStart,
       hoveredAxisKeys,
       isInDesignMode,
