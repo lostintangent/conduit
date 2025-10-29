@@ -5,8 +5,11 @@ import type {
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
-import { ArrowLeft, ArrowRight, Loader2, RefreshCw, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useUserSettings } from "@/hooks/useUserSettings";
+
+const api = window.conduit;
 
 type WebPaneProps = {
   url: string;
@@ -31,8 +34,10 @@ export function WebPane({
   const [inputUrl, setInputUrl] = useState<string>(url);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
+  const [showHistory, setShowHistory] = useState<boolean>(false);
   const hasInitializedRef = useRef(false);
   const currentUrlRef = useRef(url);
+  const { urlHistory, addUrlToHistory } = useUserSettings();
 
   useEffect(() => {
     currentUrlRef.current = currentUrl;
@@ -182,13 +187,17 @@ export function WebPane({
       }
 
       webviewRef.current?.loadURL(targetUrl);
+      addUrlToHistory(targetUrl);
+      setShowHistory(false);
     },
-    [inputUrl]
+    [inputUrl, addUrlToHistory]
   );
 
   const handleUrlInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputUrl(e.target.value);
+      const value = e.target.value;
+      setInputUrl(value);
+      setShowHistory(value.trim().length === 0);
     },
     []
   );
@@ -196,6 +205,30 @@ export function WebPane({
   const handleUrlInputBlur = useCallback(() => {
     // Reset to current URL if user didn't submit
     setInputUrl(currentUrl);
+    // Delay hiding history to allow clicking on items
+    setTimeout(() => setShowHistory(false), 200);
+  }, [currentUrl]);
+
+  const handleUrlInputFocus = useCallback(() => {
+    if (inputUrl.trim().length === 0) {
+      setShowHistory(true);
+    }
+  }, [inputUrl]);
+
+  const handleHistoryItemClick = useCallback(
+    (historyUrl: string) => {
+      setInputUrl(historyUrl);
+      webviewRef.current?.loadURL(historyUrl);
+      addUrlToHistory(historyUrl);
+      setShowHistory(false);
+    },
+    [addUrlToHistory]
+  );
+
+  const handleOpenExternal = useCallback(() => {
+    if (currentUrl) {
+      api.openExternal(currentUrl);
+    }
   }, [currentUrl]);
 
   return (
@@ -232,16 +265,41 @@ export function WebPane({
             <RefreshCw className="w-4 h-4 text-white" />
           )}
         </button>
-        <form onSubmit={handleUrlSubmit} className="flex-1 flex min-w-0">
-          <input
-            type="text"
-            value={inputUrl}
-            onChange={handleUrlInputChange}
-            onBlur={handleUrlInputBlur}
-            className="flex-1 px-3 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
-            placeholder="Enter URL..."
-          />
-        </form>
+        <div className="relative flex-1 flex min-w-0">
+          <form onSubmit={handleUrlSubmit} className="flex-1 flex min-w-0">
+            <input
+              type="text"
+              value={inputUrl}
+              onChange={handleUrlInputChange}
+              onBlur={handleUrlInputBlur}
+              onFocus={handleUrlInputFocus}
+              className="flex-1 px-3 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
+              placeholder="Enter URL..."
+            />
+          </form>
+          {showHistory && urlHistory.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
+              {urlHistory.map((historyUrl, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleHistoryItemClick(historyUrl)}
+                  className="w-full px-3 py-2 text-sm text-left text-white hover:bg-white/10 transition border-b border-white/5 last:border-b-0 overflow-hidden text-ellipsis whitespace-nowrap"
+                >
+                  {historyUrl}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleOpenExternal}
+          className="p-1.5 rounded hover:bg-white/10 transition"
+          title="Open in external browser"
+        >
+          <ExternalLink className="w-4 h-4 text-white" />
+        </button>
       </div>
 
       {/* WebView */}

@@ -133,6 +133,9 @@ const conduitAPI = {
       string[]
     >,
 
+  addUrlToHistory: (url: string) =>
+    ipcRenderer.invoke("ui:add-url-to-history", url) as Promise<string[]>,
+
   runBackgroundCommand: (options: BackgroundCommandRequest) =>
     ipcRenderer.invoke("ui:run-background-command", options) as Promise<void>,
 
