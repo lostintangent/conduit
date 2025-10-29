@@ -28,6 +28,11 @@ export function showContextMenu(
       enabled: options.canChangeTitle,
       click: () => sendActionToRenderer("change-title"),
     },
+    {
+      label: "Focus pane",
+      enabled: !!options.paneId,
+      click: () => sendActionToRenderer("focus-pane"),
+    },
     { type: "separator" },
     {
       label: "Split left",
