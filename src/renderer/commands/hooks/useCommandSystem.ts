@@ -8,7 +8,7 @@ import {
   type KeybindingRegistry,
 } from '@/commands';
 import { registerApplicationCommands } from '@/commands/applicationCommands';
-import { loadUserKeybindings } from '@/commands/keybindings/userKeybindings';
+import { loadUserKeybindings, getUserKeybindingsPath } from '@/commands/keybindings/userKeybindings';
 import { watchKeybindingsFile } from '@/commands/keybindings/watchKeybindings';
 import { updateKeybindingsAtom } from '@/commands/keybindings/updateKeybindingsAtom';
 import { keybindingsAtom } from '@/store/atoms';
@@ -63,7 +63,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
 
       // Load user keybindings if homeDirectory is available
       if (homeDirectory) {
-        const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
+        const keybindingsPath = getUserKeybindingsPath(homeDirectory);
         await loadUserKeybindings(keybindingRegistry, keybindingsPath);
       }
 
@@ -126,7 +126,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
       return;
     }
 
-    const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
+    const keybindingsPath = getUserKeybindingsPath(homeDirectory);
 
     const unwatch = watchKeybindingsFile(keybindingsPath, async () => {
       try {

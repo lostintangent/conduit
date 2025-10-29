@@ -12,10 +12,14 @@ import { keybindingsAtom } from '@/store/atoms';
 import type { ICommandRegistry } from '../../commands/core/CommandRegistry';
 import type { CommandDescriptor } from '../../commands/core/types';
 import type { KeybindingRegistry } from '../../commands/keybindings/KeybindingRegistry';
-import { parseKeybindingsFile } from '../../commands/keybindings/keybindingsFile';
 import type { ResolvedKeybinding } from '../../commands/keybindings/types';
-import { updateKeybindingsAtom } from '../../commands/keybindings/updateKeybindingsAtom';
-import { loadUserKeybindings } from '../../commands/keybindings/userKeybindings';
+import { isUserKeybinding } from '../../commands/keybindings/types';
+import { formatKeybindingForDisplay, detectKeybindingConflicts } from '../../commands/keybindings/utils';
+import {
+  getUserKeybindingsPath,
+  saveUserKeybinding,
+  removeUserKeybinding
+} from '../../commands/keybindings/userKeybindings';
 import { KeybindingRecorder } from './KeybindingRecorder';
 
 interface KeybindingsEditorProps {
@@ -63,36 +67,6 @@ export function KeybindingsEditor({
   // Note: User keybindings are now loaded on app startup in useCommandSystem hook
   // File watching is also handled globally in useCommandSystem hook
 
-  // Helper function to format keybinding display
-  const formatKeybindingDisplay = (binding: ResolvedKeybinding): string => {
-    const chordsStr = binding.chords.map(k => {
-      const parts = [];
-      if (k.ctrl) parts.push('Ctrl');
-      if (k.alt) parts.push('Alt');
-      if (k.shift) parts.push('Shift');
-      if (k.meta) parts.push('Cmd');
-      // Always uppercase single character keys for consistency
-      parts.push(k.key.length === 1 ? k.key.toUpperCase() : k.key);
-      return parts.join('+');
-    });
-
-    const keybindingStr = chordsStr.join(' ');
-
-    // Use platform-specific formatting
-    const isMac = navigator.userAgent.toLowerCase().includes('mac');
-
-    if (isMac) {
-      return keybindingStr
-        .replace(/Ctrl/g, '⌃')
-        .replace(/Alt/g, '⌥')
-        .replace(/Shift/g, '⇧')
-        .replace(/Cmd/g, '⌘')
-        .replace(/\+/g, '');
-    }
-
-    return keybindingStr;
-  };
-
   // Build rows with command + keybinding info
   const rows = useMemo<KeybindingRow[]>(() => {
     const commands = commandRegistry.getAllCommands();
@@ -106,28 +80,8 @@ export function KeybindingsEditor({
       }
     });
 
-    // Detect conflicts (same key, different command)
-    const keyToCommands = new Map<string, string[]>();
-    keybindingsByCommand.forEach((bindings, commandId) => {
-      bindings.forEach(binding => {
-        const key = binding.chords.map(k => {
-          const parts = [];
-          if (k.ctrl) parts.push('Ctrl');
-          if (k.alt) parts.push('Alt');
-          if (k.shift) parts.push('Shift');
-          if (k.meta) parts.push('Cmd');
-          // Always uppercase single character keys for consistency
-          parts.push(k.key.length === 1 ? k.key.toUpperCase() : k.key);
-          return parts.join('+');
-        }).join(' ');
-
-        const commands = keyToCommands.get(key) || [];
-        if (!commands.includes(commandId)) {
-          commands.push(commandId);
-        }
-        keyToCommands.set(key, commands);
-      });
-    });
+    // Detect conflicts using centralized function
+    const conflicts = detectKeybindingConflicts(keybindingsByCommand);
 
     return commands.map(command => {
       const bindings = keybindingsByCommand.get(command.id) || [];
@@ -136,28 +90,21 @@ export function KeybindingsEditor({
       const sortedBindings = [...bindings].sort((a, b) => (b.weight || 0) - (a.weight || 0));
       const primaryKeybinding = sortedBindings[0] || null;
 
-      // User bindings have weight >= 1000
-      const isUserOverride = primaryKeybinding ? (primaryKeybinding.weight || 0) >= 1000 : false;
+      // Check if this is a user override using centralized function
+      const isUserOverride = primaryKeybinding ? isUserKeybinding(primaryKeybinding) : false;
 
-      // Check for conflicts
+      // Check for conflicts by looking up this binding's normalized key
       let hasConflict = false;
       let conflictingCommands: string[] = [];
-      if (primaryKeybinding) {
-        const key = primaryKeybinding.chords.map(k => {
-          const parts = [];
-          if (k.ctrl) parts.push('Ctrl');
-          if (k.alt) parts.push('Alt');
-          if (k.shift) parts.push('Shift');
-          if (k.meta) parts.push('Cmd');
-          // Always uppercase single character keys for consistency
-          parts.push(k.key.length === 1 ? k.key.toUpperCase() : k.key);
-          return parts.join('+');
-        }).join(' ');
 
-        const commandsWithKey = keyToCommands.get(key) || [];
-        if (commandsWithKey.length > 1) {
-          hasConflict = true;
-          conflictingCommands = commandsWithKey.filter(id => id !== command.id);
+      if (primaryKeybinding) {
+        // Find which conflict entry (if any) includes this command
+        for (const [, commandIds] of conflicts) {
+          if (commandIds.includes(command.id)) {
+            hasConflict = true;
+            conflictingCommands = commandIds.filter(id => id !== command.id);
+            break;
+          }
         }
       }
 
@@ -189,7 +136,7 @@ export function KeybindingsEditor({
         const titleMatch = row.command.title.toLowerCase().includes(query);
         const categoryMatch = row.command.category?.toLowerCase().includes(query);
         const idMatch = row.command.id.toLowerCase().includes(query);
-        const keybindingMatch = row.keybinding && formatKeybindingDisplay(row.keybinding).toLowerCase().includes(query);
+        const keybindingMatch = row.keybinding && formatKeybindingForDisplay(row.keybinding.chords).toLowerCase().includes(query);
         return titleMatch || categoryMatch || idMatch || keybindingMatch;
       });
     }
@@ -199,56 +146,9 @@ export function KeybindingsEditor({
 
   const handleSaveKeybinding = async (commandId: string, keybinding: string) => {
     try {
-      const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
-
-      // Read existing user keybindings
-      let userBindings: Array<{ key: string; command: string }> = [];
-      if (window.conduit?.readFile) {
-        try {
-          const content = await window.conduit.readFile(keybindingsPath);
-          if (content) {
-            userBindings = parseKeybindingsFile(content);
-          }
-        } catch (error: any) {
-          // File doesn't exist yet, that's ok - start with empty array
-          if (error?.message?.includes('ENOENT')) {
-            userBindings = [];
-          } else {
-            throw error;
-          }
-        }
-      }
-
-      // Remove existing binding for this command
-      userBindings = userBindings.filter(kb => kb.command !== commandId);
-
-      // Add new binding
-      userBindings.push({
-        key: keybinding,
-        command: commandId
-      });
-
-      // Save to file
-      if (window.conduit?.writeFile) {
-        const json = JSON.stringify(userBindings, null, 2);
-        await window.conduit.writeFile(keybindingsPath, json);
-      } else {
-        console.warn('window.conduit.writeFile is not available');
-      }
-
-      // Unregister all existing keybindings for this command first
-      keybindingRegistry.unregister(commandId);
-
-      // Register new keybinding in registry with high weight
-      keybindingRegistry.register(commandId, {
-        key: keybinding
-      }, 1000);
-
-      // Update global atom for reactive components
-      updateKeybindingsAtom();
-
+      const keybindingsPath = getUserKeybindingsPath(homeDirectory);
+      await saveUserKeybinding(commandId, keybinding, keybindingsPath, keybindingRegistry);
       setEditingCommandId(null);
-      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Failed to save keybinding:', error);
     }
@@ -268,7 +168,7 @@ export function KeybindingsEditor({
   const handleOpenKeybindingsFile = () => {
     if (!onOpenQuickPane) return;
 
-    const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
+    const keybindingsPath = getUserKeybindingsPath(homeDirectory);
     onOpenQuickPane({
       type: 'editor',
       cwd: homeDirectory,
@@ -279,58 +179,9 @@ export function KeybindingsEditor({
 
   const handleRemoveKeybinding = async (commandId: string) => {
     try {
-      const keybindingsPath = `${homeDirectory}/.conduit/keybindings.json`;
-
-      // Read existing user keybindings
-      let userBindings: Array<{ key: string; command: string }> = [];
-      if (window.conduit?.readFile) {
-        try {
-          const content = await window.conduit.readFile(keybindingsPath);
-          if (content) {
-            userBindings = parseKeybindingsFile(content);
-          }
-        } catch (error: any) {
-          // File doesn't exist yet, that's ok - start with empty array
-          if (error?.message?.includes('ENOENT')) {
-            userBindings = [];
-          } else {
-            throw error;
-          }
-        }
-      }
-
-      // Remove binding for this command
-      userBindings = userBindings.filter(kb => kb.command !== commandId);
-
-      // Save to file
-      if (window.conduit?.writeFile) {
-        const json = JSON.stringify(userBindings, null, 2);
-        await window.conduit.writeFile(keybindingsPath, json);
-      } else {
-        console.warn('window.conduit.writeFile is not available');
-      }
-
-      // Unregister all keybindings for this command
-      keybindingRegistry.unregister(commandId);
-
-      // Get the command to find its default keybinding
-      const command = commandRegistry.getCommand(commandId);
-      if (command?.keybinding) {
-        // Re-register the default keybinding
-        const keybindings = Array.isArray(command.keybinding)
-          ? command.keybinding
-          : [command.keybinding];
-
-        for (const binding of keybindings) {
-          keybindingRegistry.register(commandId, binding, 0); // Default weight
-        }
-      }
-
-      // Update global atom for reactive components
-      updateKeybindingsAtom();
-
+      const keybindingsPath = getUserKeybindingsPath(homeDirectory);
+      await removeUserKeybinding(commandId, keybindingsPath, commandRegistry, keybindingRegistry);
       setEditingCommandId(null);
-      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Failed to reset keybinding:', error);
     }
@@ -473,7 +324,7 @@ export function KeybindingsEditor({
                     <div className="flex items-center gap-2">
                       {row.keybinding ? (
                         <kbd className="px-2 py-1 bg-gray-700 rounded font-mono text-xs text-gray-300">
-                          {formatKeybindingDisplay(row.keybinding)}
+                          {formatKeybindingForDisplay(row.keybinding.chords)}
                         </kbd>
                       ) : (
                         <span className="text-sm text-gray-500 italic">No keybinding</span>
@@ -528,7 +379,7 @@ export function KeybindingsEditor({
                         <KeybindingRecorder
                           onKeybindingRecorded={(kb) => handleSaveKeybinding(row.command.id, kb)}
                           onCancel={() => setEditingCommandId(null)}
-                          currentKeybinding={row.keybinding ? formatKeybindingDisplay(row.keybinding) : undefined}
+                          currentKeybinding={row.keybinding ? formatKeybindingForDisplay(row.keybinding.chords) : undefined}
                         />
                       </div>
                     </td>

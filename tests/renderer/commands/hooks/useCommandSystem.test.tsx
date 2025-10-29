@@ -413,4 +413,118 @@ describe('useCommandSystem', () => {
       expect(result.current!.commandRegistry).toBe(firstRegistry);
     });
   });
+
+  describe('file watching', () => {
+    it('should not watch keybindings file when homeDirectory is not provided', async () => {
+      const mockWatchFile = vi.fn(() => ({ dispose: vi.fn() }));
+      const originalConduit = window.conduit;
+
+      // Mock window.conduit.watchFile
+      window.conduit = { ...window.conduit, watchFile: mockWatchFile };
+
+      renderHook(
+        () => useCommandSystem({
+          activeTab: null,
+          applicationMode: 'normal' as ApplicationMode,
+          setApplicationMode: setApplicationModeMock,
+          // homeDirectory not provided
+        }),
+        {
+          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+        }
+      );
+
+      await waitFor(() => {
+        // Give time for effects to run
+      });
+
+      expect(mockWatchFile).not.toHaveBeenCalled();
+
+      // Restore
+      window.conduit = originalConduit;
+    });
+
+    it('should watch keybindings file when homeDirectory is provided', async () => {
+      const mockDispose = vi.fn();
+      const mockWatchFile = vi.fn(() => ({ dispose: mockDispose }));
+      const originalConduit = window.conduit;
+
+      // Mock window.conduit.watchFile
+      window.conduit = { ...window.conduit, watchFile: mockWatchFile };
+
+      const { unmount } = renderHook(
+        () => useCommandSystem({
+          activeTab: null,
+          applicationMode: 'normal' as ApplicationMode,
+          setApplicationMode: setApplicationModeMock,
+          homeDirectory: '/test/home',
+        }),
+        {
+          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+        }
+      );
+
+      await waitFor(() => {
+        expect(mockWatchFile).toHaveBeenCalledWith(
+          '/test/home/.conduit/keybindings.json',
+          expect.any(Function)
+        );
+      });
+
+      // Cleanup should dispose watcher
+      unmount();
+      expect(mockDispose).toHaveBeenCalled();
+
+      // Restore
+      window.conduit = originalConduit;
+    });
+
+    it('should handle file changes and reload keybindings', async () => {
+      let changeCallback: (() => void) | null = null;
+      const mockDispose = vi.fn();
+      const mockWatchFile = vi.fn((path: string, callback: () => void) => {
+        changeCallback = callback;
+        return { dispose: mockDispose };
+      });
+      const originalConduit = window.conduit;
+      const mockReadFile = vi.fn().mockResolvedValue('[]');
+
+      // Mock window.conduit
+      window.conduit = {
+        ...window.conduit,
+        watchFile: mockWatchFile,
+        readFile: mockReadFile,
+      };
+
+      const { result } = renderHook(
+        () => useCommandSystem({
+          activeTab: null,
+          applicationMode: 'normal' as ApplicationMode,
+          setApplicationMode: setApplicationModeMock,
+          homeDirectory: '/test/home',
+        }),
+        {
+          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+        }
+      );
+
+      await waitFor(() => {
+        expect(result.current).not.toBeNull();
+      });
+
+      // Trigger file change
+      expect(changeCallback).not.toBeNull();
+      if (changeCallback) {
+        await changeCallback();
+      }
+
+      // Should have attempted to read the file
+      await waitFor(() => {
+        expect(mockReadFile).toHaveBeenCalledWith('/test/home/.conduit/keybindings.json');
+      });
+
+      // Restore
+      window.conduit = originalConduit;
+    });
+  });
 });
