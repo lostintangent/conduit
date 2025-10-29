@@ -38,6 +38,12 @@ Create isolated agent environments, by spinning up new terminals with automatic 
 
 <img width="1595" height="1221" alt="image" src="https://github.com/user-attachments/assets/468e504f-4730-4884-91cf-9aae1e24e93a" />
 
+**Cloud terminals**
+
+Spin up cloud terminals and intermingle them with local terminals, so you can parallelize your tasks even further.
+
+<img width="1222" height="921" alt="image" src="https://github.com/user-attachments/assets/b096a992-1c33-43e3-8df6-36f51416c1b1" />
+
 **Command palette**
 
 Run global commands at any time (`cmd+shift+p`), including spinning up quick terminal instances (w/an MRU list).
