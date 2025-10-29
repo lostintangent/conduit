@@ -1,6 +1,36 @@
 # 🔌 Conduit
 
-<img width="1789" height="1181" alt="image" src="https://github.com/user-attachments/assets/dfe8ab53-21f5-47f8-97b6-cdc1b5d54ca9" />
+Create information-dense tabs, each with a flexible grid of terminal, editor, and web panes (that can be arbitrarily resized, and organized)
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/ff0be63c-7426-43d8-a3da-b8cc717543ae" />
+
+**Design mode**
+
+Organize your tabs by creating or removing panes, drag & dropping panes, splitting panes into new tabs, etc.
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/1c98209d-0f87-43b7-9243-3f4bd189d778" />
+
+**Focus mode**
+
+Zoom in and out of panes in a tab, so you can seamlessly transition between focusing and observing (with a really fun minimap!)
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/2b104268-8034-43b7-9bc8-b33540976a97" />
+
+**Quick actions**
+
+Perform one-off actions without needing to disrupt your tab layouts, or switching to another tool.
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/57fa6c6c-bbf3-432d-903d-c20ded59eaca" />
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/29ecc28b-a24d-4732-ab2a-5c079794478c" />
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/64718f54-eabf-445f-bde7-f2f8ae575556" />
+
+**Workspaces**
+
+Save and restore sets of tabs, so you can jump in and out of projects with ease.
+
+<img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/a1b943cd-d436-483e-b61a-bc66815a159e" />
 
 ## Current feature set
 
