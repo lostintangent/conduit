@@ -1,11 +1,11 @@
 import { TabLayout } from "@/components/layout/normal/TabLayout";
-import { TabStrip } from "@/components/layout/TabStrip";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import {
   QuickDialog,
   type PaneDescriptor,
 } from "@/components/shell/QuickDialog";
+import { TabStrip } from "@/components/shell/TabStrip";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";

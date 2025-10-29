@@ -87,7 +87,7 @@ export function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = 
       if (paneId !== highlightedPaneId) {
         return null;
       }
-      
+
       return (
         <div className="pointer-events-none absolute inset-0 z-10 animate-[pane-highlight_2s_ease-out_forwards]" />
       );
