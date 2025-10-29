@@ -84,7 +84,7 @@ export const TitleBar = ({
 
   return (
     <div
-      className={`h-[28px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium ${backgroundClass} rounded-xl app-region-drag`}
+      className={`h-[28px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium ${backgroundClass} rounded-xl [app-region:drag]`}
     >
       {/* Left side - draggable area */}
       <div className="flex-1"></div>
@@ -94,7 +94,7 @@ export const TitleBar = ({
 
       {/* Right side - workspace menu and settings */}
       <div className="flex-1 flex justify-end gap-2">
-        <div className="flex gap-2 app-region-no-drag">
+        <div className="flex gap-2 [app-region:no-drag]">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
