@@ -18,7 +18,12 @@ import {
   walkLayout,
   type PaneDirection,
 } from "@/utils/layout";
-import type { AgentSessionInfo, TerminalCreateOptions } from "@shared/types";
+import type {
+  AgentSessionCleanupResult,
+  AgentSessionFinalizeResult,
+  AgentSessionInfo,
+  TerminalCreateOptions,
+} from "@shared/types";
 import { getDefaultStore } from "jotai";
 
 const api = window.conduit;
@@ -540,14 +545,30 @@ export async function splitPane(
     return;
   }
 
-  const defaultCwd =
-    sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
+  const sourceTerminalPane =
+    sourcePane.type === "terminal" ? sourcePane : undefined;
+
+  const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
 
   const requestOptions = options.terminalOptions
     ? { ...options.terminalOptions }
     : defaultCwd
       ? { cwd: defaultCwd }
       : undefined;
+
+  const agentSessionId =
+    options.agentSession?.id ?? sourceTerminalPane?.agentSessionId;
+  const agentBranchName =
+    options.agentSession?.branchName ?? sourceTerminalPane?.agentBranchName;
+  const agentBaseBranch =
+    options.agentSession?.baseBranch ??
+    sourceTerminalPane?.agentBaseBranch ??
+    null;
+  const agentRepoRoot =
+    options.agentSession?.repoRoot ?? sourceTerminalPane?.agentRepoRoot;
+  const agentWorktreePath =
+    options.agentSession?.worktreePath ??
+    sourceTerminalPane?.agentWorktreePath;
 
   const result = await api.createTerminal(requestOptions);
   if (!result) {
@@ -561,11 +582,11 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
-    agentSessionId: options.agentSession?.id,
-    agentBranchName: options.agentSession?.branchName,
-    agentBaseBranch: options.agentSession?.baseBranch ?? null,
-    agentRepoRoot: options.agentSession?.repoRoot,
-    agentWorktreePath: options.agentSession?.worktreePath,
+    agentSessionId,
+    agentBranchName,
+    agentBaseBranch,
+    agentRepoRoot,
+    agentWorktreePath,
   };
 
   const newLayoutNode: LayoutNode = {
@@ -814,7 +835,7 @@ export function removePane(
           : tab.activePaneId;
 
       const removedActivePane = tab.activePaneId === paneId;
-      
+
       // If we're removing the active pane while in focus mode, exit focus mode
       if (removedActivePane && isFocusModeActive()) {
         exitFocusMode();
@@ -828,6 +849,62 @@ export function removePane(
       };
     })
   );
+}
+
+function closeAgentSessionPanes(
+  tabId: string,
+  agentSessionId: string
+): number {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab) {
+    return 0;
+  }
+
+  const paneIds = Object.entries(tab.panes)
+    .filter(
+      ([, pane]) =>
+        pane.type === "terminal" && pane.agentSessionId === agentSessionId
+    )
+    .map(([paneId]) => paneId);
+
+  paneIds.forEach((paneId) => {
+    closePane(tabId, paneId);
+  });
+
+  return paneIds.length;
+}
+
+export async function completeAgentSession(
+  tabId: string,
+  agentSessionId: string
+): Promise<AgentSessionFinalizeResult | null> {
+  if (!api) {
+    return null;
+  }
+
+  const result = await api.finalizeAgentSession({ sessionId: agentSessionId });
+
+  if (result.status !== "conflict") {
+    closeAgentSessionPanes(tabId, agentSessionId);
+  }
+
+  return result;
+}
+
+export async function deleteAgentSession(
+  tabId: string,
+  agentSessionId: string
+): Promise<AgentSessionCleanupResult | null> {
+  if (!api) {
+    return null;
+  }
+
+  const result = await api.cleanupAgentSession({ sessionId: agentSessionId });
+
+  closeAgentSessionPanes(tabId, agentSessionId);
+
+  return result;
 }
 
 export function activatePane(tabId: string, paneId: string) {

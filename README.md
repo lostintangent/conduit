@@ -1,3 +1,6 @@
+> [!WARNING]
+> This project is a time-boxed exploration (1 week), that is meant to see how useful it could feel, to have a flexible workbench for orchestrating/organizating local + cloud terminals. Almost like if vim/tmux/VS Code had a baby 👶
+
 # 🔌 Conduit
 
 Create information-dense tabs, each with a flexible grid of terminal, editor, and web panes (that can be arbitrarily resized, and organized)
@@ -31,6 +34,18 @@ Perform one-off actions without needing to disrupt your tab layouts, or switchin
 Save and restore sets of tabs, so you can jump in and out of projects with ease.
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/a1b943cd-d436-483e-b61a-bc66815a159e" />
+
+**Agent sessions**
+
+Create isolated agent environments, by spinning up new terminals with automatic worktree management.
+
+<img width="1595" height="1221" alt="image" src="https://github.com/user-attachments/assets/468e504f-4730-4884-91cf-9aae1e24e93a" />
+
+**Cloud terminals**
+
+Spin up cloud terminals and intermingle them with local terminals, so you can parallelize your tasks even further.
+
+<img width="1222" height="921" alt="image" src="https://github.com/user-attachments/assets/b096a992-1c33-43e3-8df6-36f51416c1b1" />
 
 **Command palette**
 
@@ -69,3 +84,8 @@ Run global commands at any time (`cmd+shift+p`), including spinning up quick ter
 1. Run `npm start`
 1. ???
 1. Profit 🚀
+
+Additionally, if you want to make use of cloud terminals, you need to also perform the following steps:
+
+1. Generate a [GitHub PAT](https://github.com/settings/personal-access-tokens/new)
+1. Copy the `.env.local.example` file, rename it to `.env.local`, and then paste your PAT into it

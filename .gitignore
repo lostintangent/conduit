@@ -47,3 +47,7 @@ typings/
 # Electron-Forge
 out/
 dist/
+.env.local
+
+# SSH Keys (private keys should not be committed)
+keys/

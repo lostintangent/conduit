@@ -1,9 +1,15 @@
-import { userSettingsAtom } from "@/store/atoms";
+import { enqueueNotification } from "@/store/actions/notifications";
+import {
+  completeAgentSession,
+  deleteAgentSession,
+} from "@/store/actions/pane";
+import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFitController, type FitController } from "./FitController";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
+import { SandboxIndicator } from "./SandboxIndicator";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -110,6 +116,7 @@ export const TerminalPane = ({
   showDimensions = true,
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
+  const tabs = useAtomValue(tabsAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -124,6 +131,23 @@ export const TerminalPane = ({
   const linkHandlerRef = useRef(onLinkClick);
   linkHandlerRef.current = onLinkClick;
 
+  // Memoize the current pane and tab lookup
+  const { currentPane, currentTab } = useMemo(() => {
+    for (const tab of tabs) {
+      const pane = tab.panes[paneId];
+      if (pane) {
+        return { currentPane: pane, currentTab: tab };
+      }
+    }
+    return { currentPane: undefined, currentTab: undefined };
+  }, [tabs, paneId]);
+
+  // This component is specifically for terminal panes, so we can safely cast
+  const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
+
+  const agentSessionId = terminalPane?.agentSessionId ?? null;
+  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
+
   const focusTerminal = useCallback(() => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
   }, []);
@@ -135,6 +159,73 @@ export const TerminalPane = ({
       : "";
     searchWidgetHandleRef.current?.show(selection ?? "");
   }, []);
+
+  const handleCompleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+
+    try {
+      const result = await completeAgentSession(currentTab.id, agentSessionId);
+      if (!result) {
+        throw new Error("Failed to complete agent session");
+      }
+
+      if (result.status === "conflict") {
+        enqueueNotification({
+          kind: "error",
+          message: "Merge conflict",
+          details: result.message,
+          persistent: true,
+        });
+      } else {
+        enqueueNotification({
+          kind: "success",
+          message: result.status === "merged" ? "Agent session completed" : "No changes to merge",
+          details: result.message,
+          autoCloseMs: 3000,
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to complete agent session",
+        details: errorMessage,
+        autoCloseMs: 5000,
+      });
+      console.error("Failed to finalize agent session", error);
+    }
+  }, [agentSessionId, currentTab]);
+
+  const handleDeleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+
+    try {
+      const result = await deleteAgentSession(currentTab.id, agentSessionId);
+      if (!result) {
+        throw new Error("Failed to delete agent session");
+      }
+
+      enqueueNotification({
+        kind: "success",
+        message: "Agent session deleted",
+        details: result.message,
+        autoCloseMs: 3000,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to delete agent session",
+        details: errorMessage,
+        autoCloseMs: 5000,
+      });
+      console.error("Failed to cleanup agent session", error);
+    }
+  }, [agentSessionId, currentTab]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -249,6 +340,13 @@ export const TerminalPane = ({
           </div>
         </div>
       )}
+
+      <SandboxIndicator
+        vmId={vmId}
+        agentSessionId={agentSessionId}
+        onCompleteAgentSession={handleCompleteAgentSession}
+        onDeleteAgentSession={handleDeleteAgentSession}
+      />
     </div>
   );
 };

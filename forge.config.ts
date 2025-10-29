@@ -13,7 +13,7 @@ const config: ForgeConfig = {
     asar: {
       unpack: "**/node_modules/node-pty/**/*",
     },
-    icon: "./build/icon", // no file extension required
+    icon: "./build/assets/icon",
   },
   rebuildConfig: {
     onlyModules: ["node-pty"],

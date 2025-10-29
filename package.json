@@ -13,7 +13,8 @@
     "rebuild": "electron-rebuild",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "postinstall": "node build/scripts/setup-keys.js"
   },
   "keywords": [],
   "author": {

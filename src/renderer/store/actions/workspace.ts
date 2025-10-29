@@ -29,6 +29,7 @@ export async function openWorkspace(workspace: Workspace) {
             sessionId: result.sessionId,
             cwd: result.cwd,
             processTitle: result.title,
+            vmMetadata: result.vmMetadata ?? undefined,
           };
 
           // If a command was running, auto-run it

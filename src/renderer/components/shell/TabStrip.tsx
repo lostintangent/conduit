@@ -1,4 +1,5 @@
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import { TabButton, TabPlaceholder } from "@/components/shell/TabButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,17 +8,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useCommand, getCommandDisplayTitle } from "@/commands/hooks/useCommand";
+import { enterFocusMode } from "@/store/actions/focusMode";
+import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {
-  activeTabIdAtom,
   activeTabAtom,
+  activeTabIdAtom,
   applicationModeAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
+  Cloud,
   Expand,
   FileEdit,
   Globe,
@@ -28,7 +32,6 @@ import {
   Zap,
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
-import { TabButton, TabPlaceholder } from "./TabButton";
 
 type TabDescriptor = {
   id: string;
@@ -64,14 +67,25 @@ export const TabStrip = ({
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const { homeDirectory } = useAtomValue(userSettingsAtom);
-  const applicationMode = useAtomValue(applicationModeAtom);
+  const { homeDirectory, alwaysShowTabs } = useAtomValue(userSettingsAtom);
+  const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
 
   // Command hooks for button actions
   const enterFocusModeCmd = useCommand(ApplicationCommands.VIEW_ENTER_FOCUS_MODE);
   const togglePaneControlsCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS);
+
+  const tabStripTransitionStyle = useMemo<React.CSSProperties>(() => {
+    const collapsed = isInFocusMode;
+    return {
+      flexBasis: collapsed ? "0rem" : "2.7rem",
+      minHeight: collapsed ? 0 : "2.7rem",
+      opacity: collapsed ? 0 : 1,
+      pointerEvents: collapsed ? "none" : "auto",
+      willChange: "flex-basis, opacity",
+    };
+  }, [isInFocusMode]);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -353,6 +367,43 @@ export const TabStrip = ({
     });
   }, [homeDirectory, onOpenQuickPane]);
 
+  const handleOpenQuickCloudTerminal = useCallback(async () => {
+    const api = window.conduit;
+
+    const notificationId = enqueueNotification({
+      kind: "info",
+      message: "Creating cloud VM...",
+      persistent: true,
+    });
+
+    try {
+      const result = await api.createTerminal({
+        isRemoteVM: true,
+      });
+
+      if (!result || !onOpenQuickPane) {
+        throw new Error("Failed to create VM terminal");
+      }
+
+      dismissNotification(notificationId);
+
+      onOpenQuickPane({
+        type: "terminal",
+        sessionId: result.sessionId,
+        cwd: result.cwd ?? null,
+        vmMetadata: result.vmMetadata ?? undefined,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      updateNotification(notificationId, {
+        kind: "error",
+        message: "Failed to create cloud VM",
+        details: message,
+        autoCloseMs: null,
+      });
+    }
+  }, [onOpenQuickPane]);
+
   const handleOpenQuickEditor = useCallback(() => {
     if (!homeDirectory || !onOpenQuickPane) {
       return;
@@ -374,16 +425,12 @@ export const TabStrip = ({
   }, [onOpenQuickPane]);
 
 
-  const borderClass = position === "top" ? "border-b" : "border-t rounded-b-xl";
+  const borderClass = alwaysShowTabs ? (position === "top" ? "border-b" : "border-t rounded-b-xl") : "";
 
   return (
     <div
       className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
-      style={{
-        minHeight: isInFocusMode ? "0" : "2.5rem",
-        maxHeight: isInFocusMode ? "0" : "2.5rem",
-        opacity: isInFocusMode ? 0 : 1,
-      }}
+      style={tabStripTransitionStyle}
     >
       {/* Tab buttons */}
       <div
@@ -459,10 +506,14 @@ export const TabStrip = ({
               <Zap size={18} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-w-[10rem]">
+          <DropdownMenuContent align="end" className="max-w-40">
             <DropdownMenuItem onClick={handleOpenQuickTerminal}>
               <Terminal size={16} className="mr-3" />
               Terminal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
+              <Cloud size={16} className="mr-3" />
+              Terminal (Cloud)
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleOpenQuickEditor}>
               <FileEdit size={16} className="mr-3" />

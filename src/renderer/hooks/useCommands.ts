@@ -1,8 +1,13 @@
 import {
+  dismissNotification,
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { closeTab, openTab } from "@/store/actions/tab";
+import {
+  completeAgentSession,
+  deleteAgentSession,
+} from "@/store/actions/pane";
+import { closeTab, openTab, openTabFromExistingSession } from "@/store/actions/tab";
 import { activeTabAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import type { Command } from "@/types";
 import { useAtomValue } from "jotai";
@@ -13,7 +18,6 @@ const api = window.conduit;
 interface UseCommandsProps {
   hasCustomLayout: (tabId: string) => boolean;
   resetLayoutSizes: (tabId: string) => void;
-  closePane: (tabId: string, paneId: string) => void;
   setIsUrlDialogOpen: (open: boolean) => void;
   setCleanupDialogSessions: (sessions: any[] | null) => void;
   hasWorkspaces: boolean;
@@ -29,7 +33,6 @@ interface UseCommandsProps {
 export function useCommands({
   hasCustomLayout,
   resetLayoutSizes,
-  closePane,
   setIsUrlDialogOpen,
   setCleanupDialogSessions,
   hasWorkspaces,
@@ -140,6 +143,48 @@ export function useCommands({
         description: "Open a web page in a split view",
         run: () => setIsUrlDialogOpen(true),
       });
+
+      items.push({
+        id: "create-vm-terminal",
+        label: "Create VM terminal",
+        description: "Create a new terminal connected to a remote VM",
+        run: async () => {
+          const notificationId = enqueueNotification({
+            kind: "info",
+            message: "Creating VM...",
+            persistent: true,
+          });
+
+          try {
+            // Create a terminal with VM options
+            const result = await api.createTerminal({
+              isRemoteVM: true,
+            });
+
+            if (!result) {
+              throw new Error("Failed to create VM terminal");
+            }
+
+            dismissNotification(notificationId);
+            // Open a new tab with the existing VM terminal session
+            openTabFromExistingSession({
+              sessionId: result.sessionId,
+              cwd: result.cwd,
+              title: result.title,
+              vmMetadata: result.vmMetadata ?? undefined,
+            });
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            updateNotification(notificationId, {
+              kind: "error",
+              message: "Failed to create VM terminal",
+              details: message,
+              autoCloseMs: null,
+            });
+          }
+        },
+      });
     }
     if (tabs.length > 1 && activeTab) {
       items.push({
@@ -185,9 +230,13 @@ export function useCommands({
             });
 
             try {
-              const result = await api.finalizeAgentSession({
-                sessionId: activePane.agentSessionId,
-              });
+              const result = await completeAgentSession(
+                activeTab.id,
+                activePane.agentSessionId
+              );
+              if (!result) {
+                throw new Error("Unable to finalize agent session");
+              }
 
               if (result.status === "conflict") {
                 updateNotification(notificationId, {
@@ -199,7 +248,6 @@ export function useCommands({
                 return;
               }
 
-              closePane(activeTab.id, activePane.id);
               updateNotification(notificationId, {
                 kind: result.status === "noop" ? "info" : "success",
                 message:
@@ -239,11 +287,14 @@ export function useCommands({
             });
 
             try {
-              const result = await api.cleanupAgentSession({
-                sessionId: activePane.agentSessionId,
-              });
+              const result = await deleteAgentSession(
+                activeTab.id,
+                activePane.agentSessionId
+              );
+              if (!result) {
+                throw new Error("Unable to clean up agent session");
+              }
 
-              closePane(activeTab.id, activePane.id);
               updateNotification(notificationId, {
                 kind: "success",
                 message: "Agent session terminated",
@@ -295,7 +346,6 @@ export function useCommands({
     quickSaveWorkspace,
     openLastWorkspace,
     closeWorkspace,
-    closePane,
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowWorkspacePicker,

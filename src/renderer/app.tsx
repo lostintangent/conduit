@@ -476,7 +476,6 @@ export function App() {
   const commandItems = useCommands({
     hasCustomLayout,
     resetLayoutSizes,
-    closePane,
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
     hasWorkspaces,

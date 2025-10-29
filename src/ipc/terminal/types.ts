@@ -2,6 +2,19 @@ import type { IPty } from "node-pty";
 
 export type CreateSessionOptions = {
   cwd?: string;
+  // VM-specific options
+  isRemoteVM?: boolean;
+  vmImageId?: string;
+  vmLabels?: string[];
+  vmIdleTimeout?: number;
+};
+
+export type VMMetadata = {
+  vmId: string;
+  vmHost: string;
+  sshPort: number;
+  imageId: string;
+  useSSHKey?: boolean;
 };
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;
@@ -19,4 +32,6 @@ export type TerminalSession = {
   isRendererReady: boolean;
   pendingOutput: string[];
   readyFallback?: NodeJS.Timeout;
+  // VM metadata (only present for remote VM sessions)
+  vmMetadata?: VMMetadata;
 };
