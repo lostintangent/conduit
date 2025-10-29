@@ -1,7 +1,11 @@
 import { enqueueNotification } from "@/store/actions/notifications";
-import { closePane } from "@/store/actions/pane";
+import {
+  completeAgentSession,
+  deleteAgentSession,
+} from "@/store/actions/pane";
 import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
+import { getHashedColor } from "@/utils/theme";
 import { useAtomValue } from "jotai";
 import { Check, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -144,7 +148,21 @@ export const TerminalPane = ({
   const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
   const isAgentSession = !!terminalPane?.agentSessionId;
   const shouldShowAgentControls = isAgentSession && applicationMode === "normal";
+
   const agentSessionId = terminalPane?.agentSessionId;
+  const agentSessionColor = useMemo(
+    () => (agentSessionId ? getHashedColor(agentSessionId) : undefined),
+    [agentSessionId]
+  );
+  const agentOverlayStyle = useMemo(
+    () =>
+      agentSessionColor
+        ? {
+          backgroundColor: agentSessionColor,
+        }
+        : undefined,
+    [agentSessionColor]
+  );
 
   const focusTerminal = useCallback(() => {
     requestAnimationFrame(() => instanceRef.current?.terminal.focus());
@@ -164,7 +182,10 @@ export const TerminalPane = ({
     }
 
     try {
-      const result = await api.finalizeAgentSession({ sessionId: agentSessionId });
+      const result = await completeAgentSession(currentTab.id, agentSessionId);
+      if (!result) {
+        throw new Error("Failed to complete agent session");
+      }
 
       if (result.status === "conflict") {
         enqueueNotification({
@@ -180,8 +201,6 @@ export const TerminalPane = ({
           details: result.message,
           autoCloseMs: 3000,
         });
-
-        closePane(currentTab.id, paneId);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -193,7 +212,7 @@ export const TerminalPane = ({
       });
       console.error("Failed to finalize agent session", error);
     }
-  }, [agentSessionId, currentTab, paneId]);
+  }, [agentSessionId, currentTab]);
 
   const handleDeleteAgentSession = useCallback(async () => {
     if (!agentSessionId || !currentTab) {
@@ -201,7 +220,10 @@ export const TerminalPane = ({
     }
 
     try {
-      const result = await api.cleanupAgentSession({ sessionId: agentSessionId });
+      const result = await deleteAgentSession(currentTab.id, agentSessionId);
+      if (!result) {
+        throw new Error("Failed to delete agent session");
+      }
 
       enqueueNotification({
         kind: "success",
@@ -209,8 +231,6 @@ export const TerminalPane = ({
         details: result.message,
         autoCloseMs: 3000,
       });
-
-      closePane(currentTab.id, paneId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       enqueueNotification({
@@ -221,7 +241,7 @@ export const TerminalPane = ({
       });
       console.error("Failed to cleanup agent session", error);
     }
-  }, [agentSessionId, currentTab, paneId]);
+  }, [agentSessionId, currentTab]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -339,7 +359,10 @@ export const TerminalPane = ({
 
       {shouldShowAgentControls && (
         <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white z-[1000]">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
+          <div
+            className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur"
+            style={agentOverlayStyle}
+          >
             <button
               type="button"
               onClick={handleCompleteAgentSession}

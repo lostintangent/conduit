@@ -2,6 +2,10 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
+import {
+  completeAgentSession,
+  deleteAgentSession,
+} from "@/store/actions/pane";
 import { closeTab, openTab } from "@/store/actions/tab";
 import { activeTabAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import type { Command } from "@/types";
@@ -13,7 +17,6 @@ const api = window.conduit;
 interface UseCommandsProps {
   hasCustomLayout: (tabId: string) => boolean;
   resetLayoutSizes: (tabId: string) => void;
-  closePane: (tabId: string, paneId: string) => void;
   setIsUrlDialogOpen: (open: boolean) => void;
   setCleanupDialogSessions: (sessions: any[] | null) => void;
   hasWorkspaces: boolean;
@@ -29,7 +32,6 @@ interface UseCommandsProps {
 export function useCommands({
   hasCustomLayout,
   resetLayoutSizes,
-  closePane,
   setIsUrlDialogOpen,
   setCleanupDialogSessions,
   hasWorkspaces,
@@ -185,9 +187,13 @@ export function useCommands({
             });
 
             try {
-              const result = await api.finalizeAgentSession({
-                sessionId: activePane.agentSessionId,
-              });
+              const result = await completeAgentSession(
+                activeTab.id,
+                activePane.agentSessionId
+              );
+              if (!result) {
+                throw new Error("Unable to finalize agent session");
+              }
 
               if (result.status === "conflict") {
                 updateNotification(notificationId, {
@@ -199,7 +205,6 @@ export function useCommands({
                 return;
               }
 
-              closePane(activeTab.id, activePane.id);
               updateNotification(notificationId, {
                 kind: result.status === "noop" ? "info" : "success",
                 message:
@@ -239,11 +244,14 @@ export function useCommands({
             });
 
             try {
-              const result = await api.cleanupAgentSession({
-                sessionId: activePane.agentSessionId,
-              });
+              const result = await deleteAgentSession(
+                activeTab.id,
+                activePane.agentSessionId
+              );
+              if (!result) {
+                throw new Error("Unable to clean up agent session");
+              }
 
-              closePane(activeTab.id, activePane.id);
               updateNotification(notificationId, {
                 kind: "success",
                 message: "Agent session terminated",
@@ -295,7 +303,6 @@ export function useCommands({
     quickSaveWorkspace,
     openLastWorkspace,
     closeWorkspace,
-    closePane,
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowWorkspacePicker,
