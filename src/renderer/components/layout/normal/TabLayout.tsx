@@ -1,12 +1,12 @@
 import { PaneControlButtons } from "@/components/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/layout/focus/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/layout/normal/IntersectionHandles";
-import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
-import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import {
   PaneHighlight,
   shouldShowPaneBorder,
-} from "@/components/layout/normal/usePaneHighlight";
+} from "@/components/layout/normal/PaneHighlight";
+import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
+import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { WebPane } from "@/components/panes/web/WebPane";

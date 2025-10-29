@@ -20,7 +20,7 @@ type PaneHighlightOptions = {
   isResizing?: boolean;
 };
 
-function usePaneHighlightLogic({ isResizing = false }: PaneHighlightOptions = {}) {
+function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const applicationMode = useAtomValue(applicationModeAtom);
@@ -112,7 +112,7 @@ type PaneHighlightProps = {
 };
 
 export function PaneHighlight({ paneId, isResizing = false }: PaneHighlightProps) {
-  const highlightedPaneId = usePaneHighlightLogic({ isResizing });
+  const highlightedPaneId = usePaneHighlight({ isResizing });
 
   if (paneId !== highlightedPaneId) {
     return null;
