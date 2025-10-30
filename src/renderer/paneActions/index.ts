@@ -27,3 +27,15 @@ export { getDefaultActions } from './core/defaults';
 // Resolution utilities
 export { resolveAction } from './resolution/resolveAction';
 export { normalizePath, isPrefixOf, findLongestMatch } from './resolution/pathUtils';
+
+// File I/O
+export {
+  getUserPaneActionsPath,
+  readPaneActionsFile,
+  writePaneActionsFile,
+  parsePaneActionsContent,
+  readPaneActionsFileOrNull,
+} from './io/fileOperations';
+
+// Validation
+export { validatePaneActionsConfig, ValidationError } from './io/validation';
