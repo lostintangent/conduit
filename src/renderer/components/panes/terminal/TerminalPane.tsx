@@ -2,10 +2,12 @@ import { dismissNotification, enqueueNotification, updateNotification } from "@/
 import {
   completeAgentSession,
   deleteAgentSession,
+  forwardPortAndOpen,
   splitPane,
 } from "@/store/actions/pane";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate } from "@/store/terminals";
+import { extractPortFromMatch } from "@shared/portDetection";
 import { useAtomValue } from "jotai";
 import React, {
   useCallback,
@@ -308,6 +310,18 @@ export const TerminalPane = ({
     });
 
     terminal.setLinkHandler((url: string) => {
+      // Check if this is a localhost/127.0.0.1 URL and we're in a cloud VM
+      if (vmId) {
+        const port = extractPortFromMatch(url);
+        
+        if (port && currentTab) {
+          // This is a port reference in a cloud VM - forward it!
+          forwardPortAndOpen(currentTab.id, paneId, vmId, port);
+          return;
+        }
+      }
+
+      // Otherwise, use the default link handler
       const handler = linkHandlerRef.current;
       if (handler) {
         handler(url);

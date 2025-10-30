@@ -43,6 +43,10 @@ export type CloudEnvironment = {
   sshPort: number;
   imageId: string;
   useSSHKey?: boolean;
+  
+  // Port forwarding state
+  detectedPorts: Set<number>;
+  forwardedPorts: Map<number, string>; // port -> connection_url
 };
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;

@@ -6,6 +6,7 @@ import {
   removeTerminal,
   storeTerminal,
 } from ".";
+import { detectPorts } from "../../../shared/portDetection";
 import {
   createVM,
   getSSHConnectionInfo,
@@ -132,6 +133,8 @@ export async function createTerminal(
           sshPort: sshInfo.port,
           imageId: vm.image_id,
           useSSHKey,
+          detectedPorts: new Set(),
+          forwardedPorts: new Map(),
         },
       };
 
@@ -185,6 +188,18 @@ function setupTerminalListeners(
     if (processName && processName !== terminal.lastProcessName) {
       terminal.lastProcessName = processName;
       sendToRenderer("terminal:title", { sessionId: id, title: processName });
+    }
+
+    // Detect ports in terminal output for cloud VMs
+    if (terminal.cloudEnvironment) {
+      const detectedPorts = detectPorts(data);
+      
+      for (const port of detectedPorts) {
+        if (!terminal.cloudEnvironment.detectedPorts.has(port) && !terminal.cloudEnvironment.forwardedPorts.has(port)) {
+          terminal.cloudEnvironment.detectedPorts.add(port);
+          sendToRenderer("terminal:port-detected", { sessionId: id, port });
+        }
+      }
     }
 
     // Only consume OSC sequences for local sessions

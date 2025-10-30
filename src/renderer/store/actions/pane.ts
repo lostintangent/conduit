@@ -943,3 +943,51 @@ export function closePane(tabId: string, paneId: string) {
   // Otherwise, just remove the pane
   removePane(tabId, paneId);
 }
+
+/**
+ * Forward a port from a cloud VM and open it in a new web pane
+ */
+export async function forwardPortAndOpen(
+  tabId: string,
+  paneId: string,
+  vmId: string,
+  port: number
+): Promise<void> {
+  try {
+    // Show loading notification
+    const notificationId = enqueueNotification({
+      kind: "info",
+      message: `Forwarding port ${port}...`,
+      persistent: true,
+    });
+
+    // Call the VM API to forward the port
+    const result = await api.forwardPort(vmId, port, `Port ${port}`);
+
+    // Dismiss loading notification
+    const { dismissNotification } = await import("./notifications");
+    dismissNotification(notificationId);
+
+    // Split the pane vertically and open the connection URL in a WebPane
+    // openWebViewPane handles both splitting and creating the webview pane
+    openWebViewPane(tabId, paneId, `http://${result.connection_url}`, "row", false);
+
+    // Show success notification
+    enqueueNotification({
+      kind: "success",
+      message: `Port ${port} forwarded`,
+      details: `Access at ${result.connection_url}`,
+      autoCloseMs: 3000,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    enqueueNotification({
+      kind: "error",
+      message: `Failed to forward port ${port}`,
+      details: errorMessage,
+      autoCloseMs: 5000,
+    });
+    console.error("Failed to forward port:", error);
+    throw error;
+  }
+}

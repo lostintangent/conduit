@@ -165,6 +165,18 @@ export type ForkVMPayload = {
   idle_timeout?: number;
 };
 
+export type ForwardPortPayload = {
+  vmId: string;
+  port: number;
+  description?: string;
+};
+
+export type ForwardPortResponse = {
+  message: string;
+  external_port: string;
+  connection_url: string;
+};
+
 export type VMInfo = {
   id: string;
   ip_address: string;
