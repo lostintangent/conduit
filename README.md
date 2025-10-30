@@ -9,7 +9,7 @@ Create information-dense tabs, each with a flexible grid of terminal, editor, an
 
 **Design mode**
 
-Organize your tabs by creating or removing panes, drag & dropping panes, splitting panes into new tabs, etc.
+Organize your tabs by creating or removing panes, drag & dropping panes, splitting panes into new tabs, moving panes between tabs, etc.
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/1c98209d-0f87-43b7-9243-3f4bd189d778" />
 
@@ -46,6 +46,12 @@ Create isolated agent environments, by spinning up new terminals with automatic 
 Spin up cloud terminals and intermingle them with local terminals, so you can parallelize your tasks even further.
 
 <img width="1222" height="921" alt="image" src="https://github.com/user-attachments/assets/b096a992-1c33-43e3-8df6-36f51416c1b1" />
+
+**Customizable keybindings**
+
+Configure the keybindings that are used for common actions, so you can maximize your flow state exactly as you want it.
+
+<img width="1206" height="922" alt="image" src="https://github.com/user-attachments/assets/ca587508-0457-4c38-92b9-6113f4c6de30" />
 
 **Command palette**
 
