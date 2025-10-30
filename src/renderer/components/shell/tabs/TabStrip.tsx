@@ -1,14 +1,13 @@
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import { getCommandDisplayTitle, useCommand } from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
-import { TabButton, TabPlaceholder } from "@/components/shell/TabButton";
+import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ApplicationCommands } from "@/commands/applicationCommands";
-import { useCommand, getCommandDisplayTitle } from "@/commands/hooks/useCommand";
-import { enterFocusMode } from "@/store/actions/focusMode";
 import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { moveTab, openTab } from "@/store/actions/tab";
 import {

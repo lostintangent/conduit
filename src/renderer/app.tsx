@@ -1,18 +1,18 @@
+import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
+import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import {
   QuickDialog,
   type PaneDescriptor,
 } from "@/components/shell/QuickDialog";
-import { TabStrip } from "@/components/shell/TabStrip";
+import { TabStrip } from "@/components/shell/tabs/TabStrip";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
-import { KeybindingsEditor } from "@/components/keybindings";
-import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
-import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -23,7 +23,6 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { enterFocusMode } from "@/store/actions/focusMode";
 import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
   closeTab,
@@ -32,7 +31,7 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, applicationModeAtom, tabsAtom, keybindingsAtom } from "@/store/atoms";
+import { activeTabAtom, applicationModeAtom, keybindingsAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";

@@ -19,11 +19,11 @@ type TerminalInstance = ReturnType<typeof getOrCreate>;
 
 const registerTerminalKeyHandler = ({
   entry,
-  sessionId,
+  terminalId,
   showSearchWidget,
 }: {
   entry: TerminalInstance;
-  sessionId: string;
+  terminalId: string;
   showSearchWidget: () => void;
 }): (() => void) => {
   const terminal = entry.terminal;
@@ -59,7 +59,7 @@ const registerTerminalKeyHandler = ({
         return true;
       }
 
-      api.sendKeypress(sessionId, "\u0003");
+      api.sendKeypress(terminalId, "\u0003");
       return false;
     }
 
@@ -112,7 +112,6 @@ export const TerminalPane = ({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
-  const controllerRef = useRef<{ dispose: () => void } | null>(null);
 
   const [dimensions, setDimensions] = useState<{
     width: number;
@@ -232,15 +231,15 @@ export const TerminalPane = ({
     terminalRef.current = terminal;
     attach(terminalId, container);
 
-    controllerRef.current = createFitController({
-      entry: terminal,
+    const controller = createFitController({
       container,
+      entry: terminal,
       setDimensions,
     });
 
     const detachKeyHandler = registerTerminalKeyHandler({
       entry: terminal,
-      sessionId: terminalId,
+      terminalId,
       showSearchWidget,
     });
 
@@ -255,13 +254,10 @@ export const TerminalPane = ({
 
     return () => {
       detachKeyHandler();
-
-      controllerRef.current.dispose();
-      controllerRef.current = null;
+      controller.dispose();
 
       terminal.setLinkHandler(null);
       terminalRef.current = null;
-
       searchWidgetRef.current = null;
     };
   }, []);
@@ -295,7 +291,6 @@ export const TerminalPane = ({
       </div>
 
       <SearchWidget
-        key={terminalId}
         ref={searchWidgetRef}
         terminal={terminalRef.current}
         onClosed={focusTerminal}
@@ -315,6 +310,7 @@ export const TerminalPane = ({
         onCompleteAgentSession={handleCompleteAgentSession}
         onDeleteAgentSession={handleDeleteAgentSession}
       />
+
     </div>
   );
 };
