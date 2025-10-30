@@ -23,15 +23,24 @@ export interface CommandSystemState {
 
 export interface UseCommandSystemOptions {
   activeTab: any;
+  tabs: any[];
   applicationMode: ApplicationMode;
   setApplicationMode: (mode: ApplicationMode) => void;
   homeDirectory?: string;
-  onOpenKeyboardShortcuts?: () => void;
-  onShowCommandPalette?: () => void;
-  onSaveWorkspace?: () => void;
-  onRenameWorkspace?: () => void;
-  onCloseWorkspace?: () => void;
   workspaceName?: string;
+  // UI state setters
+  setShowKeybindingsEditor: (show: boolean) => void;
+  setIsCommandPaletteOpenOverride: (open: boolean) => void;
+  setShowRenameWorkspaceDialog: (show: boolean) => void;
+  setShowWorkspacePicker: (show: boolean) => void;
+  setIsUrlDialogOpen: (open: boolean) => void;
+  setCleanupDialogSessions: (sessions: any[] | null) => void;
+  // Workspace functions
+  quickSaveWorkspace: (tabs: any[], activeTabId: string) => Promise<void>;
+  closeWorkspace: (tabs: any[], activeTabId: string | undefined) => void;
+  openLastWorkspace: () => void;
+  // Layout function
+  resetLayoutSizes: (tabId: string) => void;
 }
 
 /**
@@ -48,15 +57,21 @@ export interface UseCommandSystemOptions {
 export function useCommandSystem(options: UseCommandSystemOptions): CommandSystemState | null {
   const {
     activeTab,
+    tabs,
     applicationMode,
     setApplicationMode,
     homeDirectory,
-    onOpenKeyboardShortcuts,
-    onShowCommandPalette,
-    onSaveWorkspace,
-    onRenameWorkspace,
-    onCloseWorkspace,
     workspaceName,
+    setShowKeybindingsEditor,
+    setIsCommandPaletteOpenOverride,
+    setShowRenameWorkspaceDialog,
+    setShowWorkspacePicker,
+    setIsUrlDialogOpen,
+    setCleanupDialogSessions,
+    quickSaveWorkspace,
+    closeWorkspace,
+    openLastWorkspace,
+    resetLayoutSizes,
   } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
@@ -106,50 +121,46 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     // Set up context builder to provide current app state to commands
     commandSystem.commandRegistry.setContextBuilder(() => ({
       // Services (placeholder)
-      tabs: null as any,
-      panes: null as any,
-      terminals: null as any,
-      workspaces: null as any,
       commands: null as any,
       dialogs: null as any,
       notifications: null as any,
       settings: null as any,
       contextKeys: null as any,
-
-      // View service
-      view: {
-        toggleFocusMode: (tabId: string, paneId: string) => {
-          toggleFocusMode(tabId, paneId);
-        },
-        toggleDesignMode: () => {
-          const current = applicationMode;
-          setApplicationMode(current === 'design' ? 'normal' : 'design');
-        },
-        openKeyboardShortcuts: () => {
-          onOpenKeyboardShortcuts?.();
-        },
-        showCommandPalette: () => {
-          onShowCommandPalette?.();
-        },
+      workspaces: null as any,
+      tabs: null as any,
+      panes: null as any,
+      terminals: null as any,
+      view: null as any,
+      workspace: null as any,
+      agent: {
+        showManageSessionsDialog: setCleanupDialogSessions,
       },
 
-      // Workspace service
-      workspace: {
-        saveWorkspace: () => {
-          onSaveWorkspace?.();
-        },
-        renameWorkspace: () => {
-          onRenameWorkspace?.();
-        },
-        closeWorkspace: () => {
-          onCloseWorkspace?.();
-        },
-      },
-
-      // State accessors - these will be fresh on each command execution
+      // State accessors - fresh data on each command execution
       activeTab,
       activePaneId: activeTab?.activePaneId ?? null,
       workspaceName,
+      allTabs: tabs,
+
+      // Application mode
+      applicationMode,
+      setApplicationMode,
+
+      // UI state setters
+      setShowKeybindingsEditor,
+      setIsCommandPaletteOpenOverride,
+      setShowRenameWorkspaceDialog,
+      setShowWorkspacePicker,
+      setIsUrlDialogOpen,
+      setCleanupDialogSessions,
+
+      // Workspace functions
+      quickSaveWorkspace,
+      closeWorkspace,
+      openLastWorkspace,
+
+      // Layout function
+      resetLayoutSizes,
     }));
 
     // Signal that context builder is ready - this causes keyboard listener to attach on next render
@@ -157,14 +168,20 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
   }, [
     commandSystem,
     activeTab,
+    tabs,
     applicationMode,
     setApplicationMode,
-    onOpenKeyboardShortcuts,
-    onShowCommandPalette,
-    onSaveWorkspace,
-    onRenameWorkspace,
-    onCloseWorkspace,
     workspaceName,
+    setShowKeybindingsEditor,
+    setIsCommandPaletteOpenOverride,
+    setShowRenameWorkspaceDialog,
+    setShowWorkspacePicker,
+    setIsUrlDialogOpen,
+    setCleanupDialogSessions,
+    quickSaveWorkspace,
+    closeWorkspace,
+    openLastWorkspace,
+    resetLayoutSizes,
   ]);
 
   // Watch keybindings file for external changes

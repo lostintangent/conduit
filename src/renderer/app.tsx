@@ -104,19 +104,24 @@ export function App() {
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
     activeTab,
+    tabs,
     applicationMode,
     setApplicationMode,
     homeDirectory,
     workspaceName,
-    onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
-    onShowCommandPalette: () => setIsCommandPaletteOpenOverride(true),
-    onSaveWorkspace: async () => {
-      if (activeTab) {
-        await quickSaveWorkspace(tabs, activeTab.id);
-      }
-    },
-    onRenameWorkspace: () => setShowRenameWorkspaceDialog(true),
-    onCloseWorkspace: () => closeWorkspace(tabs, activeTab?.id),
+    // UI state setters
+    setShowKeybindingsEditor,
+    setIsCommandPaletteOpenOverride,
+    setShowRenameWorkspaceDialog,
+    setShowWorkspacePicker,
+    setIsUrlDialogOpen,
+    setCleanupDialogSessions,
+    // Workspace functions
+    quickSaveWorkspace,
+    closeWorkspace,
+    openLastWorkspace,
+    // Layout function
+    resetLayoutSizes,
   });
 
   useKeybindingDispatch(
