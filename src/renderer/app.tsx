@@ -62,6 +62,9 @@ export function App() {
   const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
     useGlobalKeyHandlers();
 
+  const [isCommandPaletteOpenOverride, setIsCommandPaletteOpenOverride] = useState(false);
+  const commandPaletteOpen = isCommandPaletteOpen || isCommandPaletteOpenOverride;
+
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
 
@@ -106,6 +109,7 @@ export function App() {
     homeDirectory,
     workspaceName,
     onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
+    onShowCommandPalette: () => setIsCommandPaletteOpenOverride(true),
     onSaveWorkspace: async () => {
       if (activeTab) {
         await quickSaveWorkspace(tabs, activeTab.id);
@@ -593,8 +597,11 @@ export function App() {
 
       {/* Global UI */}
       <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={closeCommandPalette}
+        isOpen={commandPaletteOpen}
+        onClose={() => {
+          closeCommandPalette();
+          setIsCommandPaletteOpenOverride(false);
+        }}
         commandItems={commandItems}
         onRunShellCommand={handleShellCommand}
         shellHistory={commandHistory}

@@ -1,6 +1,4 @@
 import {
-  enterFocusMode,
-  exitFocusMode,
   isFocusModeActive,
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
@@ -16,11 +14,10 @@ import {
 import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
-  applicationModeAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 
 type UseGlobalKeyHandlersResult = {
@@ -34,8 +31,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const applicationMode = useAtomValue(applicationModeAtom);
-  const setApplicationMode = useSetAtom(applicationModeAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -83,35 +78,12 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     const handleKeydown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
 
-      // Cmd+Shift+P: Toggle command palette
-      if (event.metaKey && event.shiftKey && !event.altKey && key === "p") {
-        event.preventDefault();
-        setCommandPaletteOpen((current) => !current);
-        return;
-      }
+      // NOTE: Cmd+Shift+P is now handled by the command system (VIEW_SHOW_COMMAND_PALETTE)
+      // NOTE: Cmd+Alt+F is now handled by the command system (VIEW_TOGGLE_FOCUS_MODE)
+      // NOTE: Cmd+D is now handled by the command system (VIEW_TOGGLE_DESIGN_MODE)
+      // See: src/renderer/commands/applicationCommands.ts
 
       if (isCommandPaletteOpen) {
-        return;
-      }
-
-      // Cmd+Alt+F: Toggle focus mode
-      const shouldToggleFocusMode =
-        event.metaKey &&
-        event.altKey &&
-        !event.shiftKey &&
-        event.code === "KeyF";
-
-      if (shouldToggleFocusMode) {
-        event.preventDefault();
-
-        if (!activeTab) return;
-
-        if (applicationMode === "focus") {
-          exitFocusMode();
-          return;
-        }
-
-        enterFocusMode(activeTab.id, activeTab.activePaneId);
         return;
       }
 
@@ -127,9 +99,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         }
         return;
       }
-
-      // NOTE: Cmd+D is now handled by the command system (VIEW_TOGGLE_DESIGN_MODE)
-      // See: src/renderer/commands/applicationCommands.ts
 
       const directionKeyMap: Record<string, PaneNavigationDirection> = {
         arrowleft: "left",
@@ -233,8 +202,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     performSplit,
     performSplitWithAgentSession,
     tabs,
-    applicationMode,
-    setApplicationMode,
   ]);
 
   return {

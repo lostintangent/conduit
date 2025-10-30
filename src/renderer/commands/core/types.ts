@@ -39,6 +39,9 @@ export interface CommandDescriptor<TContext extends CommandContext = CommandCont
   /** Category for Command Palette */
   category?: string;
 
+  /** Description shown in Command Palette */
+  description?: string;
+
   /** Icon identifier */
   icon?: string;
 
