@@ -13,6 +13,7 @@ import type { ICommandRegistry } from "@/commands";
 export const ApplicationCommands = {
   VIEW_TOGGLE_FOCUS_MODE: 'view.toggleFocusMode',
   VIEW_TOGGLE_DESIGN_MODE: 'view.toggleDesignMode',
+  VIEW_OPEN_KEYBOARD_SHORTCUTS: 'view.openKeyboardShortcuts',
 } as const;
 
 /**
@@ -47,6 +48,19 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     },
     run: (context) => {
       context.view.toggleDesignMode();
+    },
+  });
+
+  // View: Open Keyboard Shortcuts
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
+    title: 'Open Keybindings',
+    category: 'View',
+    keybinding: {
+      key: 'Cmd+K Cmd+S',
+    },
+    run: (context) => {
+      context.view.openKeyboardShortcuts();
     },
   });
 }

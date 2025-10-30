@@ -6,6 +6,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import { useCommand, getCommandDisplayTitle } from "@/commands/hooks/useCommand";
 import { openWorkspace } from "@/store/actions/workspace";
 import {
   workspaceHasChangesAtom,
@@ -22,7 +24,6 @@ type TitleBarProps = {
   onSaveWorkspace: () => void;
   onRenameWorkspace: () => void;
   onCloseWorkspace: () => void;
-  onOpenKeyboardShortcuts: () => void;
   alwaysShowTabs: boolean;
   showTerminalRuler: boolean;
   autoSaveWorkspaces: boolean;
@@ -39,7 +40,6 @@ export const TitleBar = ({
   onSaveWorkspace,
   onRenameWorkspace,
   onCloseWorkspace,
-  onOpenKeyboardShortcuts,
   alwaysShowTabs,
   showTerminalRuler,
   autoSaveWorkspaces,
@@ -53,6 +53,8 @@ export const TitleBar = ({
   const workspaceName = useAtomValue(workspaceNameAtom);
   const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
   const hasChanges = useAtomValue(workspaceHasChangesAtom);
+
+  const keyboardShortcutsCmd = useCommand(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS);
 
   const titleBarSuffix = workspaceName ? ` (${workspaceName})` : "";
 
@@ -208,9 +210,12 @@ export const TitleBar = ({
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem onClick={onOpenKeyboardShortcuts}>
+              <DropdownMenuItem
+                onClick={keyboardShortcutsCmd.execute}
+                title={getCommandDisplayTitle(keyboardShortcutsCmd)}
+              >
                 <Keyboard className="w-4 h-4 mr-2" />
-                Keyboard Shortcuts
+                {keyboardShortcutsCmd.title}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

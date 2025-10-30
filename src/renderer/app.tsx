@@ -104,6 +104,7 @@ export function App() {
     applicationMode,
     setApplicationMode,
     homeDirectory,
+    onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
   });
 
   useKeybindingDispatch(
@@ -530,7 +531,6 @@ export function App() {
         }}
         onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
         onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
-        onOpenKeyboardShortcuts={() => setShowKeybindingsEditor(true)}
         alwaysShowTabs={alwaysShowTabs}
         showTerminalRuler={showTerminalRuler}
         autoSaveWorkspaces={autoSaveWorkspaces}

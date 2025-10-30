@@ -26,6 +26,7 @@ export interface UseCommandSystemOptions {
   applicationMode: ApplicationMode;
   setApplicationMode: (mode: ApplicationMode) => void;
   homeDirectory?: string;
+  onOpenKeyboardShortcuts?: () => void;
 }
 
 /**
@@ -40,7 +41,7 @@ export interface UseCommandSystemOptions {
  * @returns Command system state with registries and ready flag
  */
 export function useCommandSystem(options: UseCommandSystemOptions): CommandSystemState | null {
-  const { activeTab, applicationMode, setApplicationMode, homeDirectory } = options;
+  const { activeTab, applicationMode, setApplicationMode, homeDirectory, onOpenKeyboardShortcuts } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
   const [commandSystem, setCommandSystem] = useState<{
@@ -108,6 +109,9 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
           const current = applicationMode;
           setApplicationMode(current === 'design' ? 'normal' : 'design');
         },
+        openKeyboardShortcuts: () => {
+          onOpenKeyboardShortcuts?.();
+        },
       },
 
       // State accessors - these will be fresh on each command execution
@@ -118,7 +122,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
 
     // Signal that context builder is ready - this causes keyboard listener to attach on next render
     setContextBuilderReady(true);
-  }, [commandSystem, activeTab, applicationMode, setApplicationMode]);
+  }, [commandSystem, activeTab, applicationMode, setApplicationMode, onOpenKeyboardShortcuts]);
 
   // Watch keybindings file for external changes
   useEffect(() => {

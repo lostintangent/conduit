@@ -24,12 +24,13 @@ describe('applicationCommands', () => {
   });
 
   describe('registerApplicationCommands', () => {
-    it('should register both view commands', () => {
+    it('should register all view commands', () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(2);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(3);
       expect(registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS)).toBe(true);
     });
   });
 
@@ -241,6 +242,114 @@ describe('applicationCommands', () => {
 
       command.run(mockContextWithoutTab);
       expect(mockToggleDesignMode).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('view.openKeyboardShortcuts', () => {
+    let command: CommandDescriptor;
+
+    beforeEach(() => {
+      registerApplicationCommands(mockRegistry);
+      command = registeredCommands.get(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS)!;
+    });
+
+    it('should have correct metadata', () => {
+      expect(command.id).toBe(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS);
+      expect(command.title).toBe('Keyboard Shortcuts');
+      expect(command.category).toBe('View');
+    });
+
+    it('should have multi-chord keybinding', () => {
+      expect(command.keybinding).toBeDefined();
+      expect(command.keybinding).toHaveProperty('key', 'Cmd+K Cmd+S');
+
+      // Should not have platform-specific overrides
+      const binding = command.keybinding as any;
+      expect(binding.mac).toBeUndefined();
+      expect(binding.win).toBeUndefined();
+      expect(binding.linux).toBeUndefined();
+    });
+
+    it('should call context.view.openKeyboardShortcuts', () => {
+      const mockOpenKeyboardShortcuts = vi.fn();
+      const mockContext: CommandContext = {
+        view: {
+          toggleFocusMode: vi.fn(),
+          toggleDesignMode: vi.fn(),
+          openKeyboardShortcuts: mockOpenKeyboardShortcuts,
+        },
+        activeTab: null,
+        activePaneId: null,
+        workspaceName: undefined,
+        tabs: null,
+        panes: null,
+        terminals: null,
+        workspaces: null,
+        commands: null,
+        dialogs: null,
+        notifications: null,
+        settings: null,
+        contextKeys: null,
+      };
+
+      command.run(mockContext);
+
+      expect(mockOpenKeyboardShortcuts).toHaveBeenCalledTimes(1);
+      expect(mockOpenKeyboardShortcuts).toHaveBeenCalledWith();
+    });
+
+    it('should work regardless of activeTab state', () => {
+      const mockOpenKeyboardShortcuts = vi.fn();
+
+      // Test with activeTab present
+      const mockContextWithTab: CommandContext = {
+        view: {
+          toggleFocusMode: vi.fn(),
+          toggleDesignMode: vi.fn(),
+          openKeyboardShortcuts: mockOpenKeyboardShortcuts,
+        },
+        activeTab: { id: 'tab-123', activePaneId: 'pane-456' },
+        activePaneId: 'pane-456',
+        workspaceName: undefined,
+        tabs: null,
+        panes: null,
+        terminals: null,
+        workspaces: null,
+        commands: null,
+        dialogs: null,
+        notifications: null,
+        settings: null,
+        contextKeys: null,
+      };
+
+      command.run(mockContextWithTab);
+      expect(mockOpenKeyboardShortcuts).toHaveBeenCalledTimes(1);
+
+      mockOpenKeyboardShortcuts.mockClear();
+
+      // Test with activeTab null
+      const mockContextWithoutTab: CommandContext = {
+        view: {
+          toggleFocusMode: vi.fn(),
+          toggleDesignMode: vi.fn(),
+          openKeyboardShortcuts: mockOpenKeyboardShortcuts,
+        },
+        activeTab: null,
+        activePaneId: null,
+        workspaceName: undefined,
+        tabs: null,
+        panes: null,
+        terminals: null,
+        workspaces: null,
+        commands: null,
+        dialogs: null,
+        notifications: null,
+        settings: null,
+        contextKeys: null,
+      };
+
+      command.run(mockContextWithoutTab);
+      expect(mockOpenKeyboardShortcuts).toHaveBeenCalledTimes(1);
     });
   });
 

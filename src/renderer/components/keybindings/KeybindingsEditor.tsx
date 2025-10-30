@@ -5,21 +5,21 @@
  * Similar to VS Code's Keyboard Shortcuts editor (Cmd+K Cmd+S).
  */
 
+import { keybindingsAtom } from '@/store/atoms';
+import { useAtomValue } from 'jotai';
 import { AlertTriangle, Check, Copy, Edit2, RotateCcw, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useAtomValue } from 'jotai';
-import { keybindingsAtom } from '@/store/atoms';
 import type { ICommandRegistry } from '../../commands/core/CommandRegistry';
 import type { CommandDescriptor } from '../../commands/core/types';
 import type { KeybindingRegistry } from '../../commands/keybindings/KeybindingRegistry';
 import type { ResolvedKeybinding } from '../../commands/keybindings/types';
 import { isUserKeybinding } from '../../commands/keybindings/types';
-import { formatKeybindingForDisplay, detectKeybindingConflicts } from '../../commands/keybindings/utils';
 import {
   getUserKeybindingsPath,
-  saveUserKeybinding,
-  removeUserKeybinding
+  removeUserKeybinding,
+  saveUserKeybinding
 } from '../../commands/keybindings/userKeybindings';
+import { detectKeybindingConflicts, formatKeybindingForDisplay } from '../../commands/keybindings/utils';
 import { KeybindingRecorder } from './KeybindingRecorder';
 
 interface KeybindingsEditorProps {
@@ -198,7 +198,7 @@ export function KeybindingsEditor({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="text-lg font-semibold text-white">Keyboard Shortcuts</h2>
+          <h2 className="text-lg font-semibold text-white">Keybindings</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded transition-colors"

@@ -136,6 +136,12 @@ describe('useCommandSystem', () => {
       );
       expect(toggleControlsCommand).toBeDefined();
       expect(toggleControlsCommand?.title).toBe('Toggle Design Mode');
+
+      const keyboardShortcutsCommand = commandRegistry.getCommand(
+        ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
+      );
+      expect(keyboardShortcutsCommand).toBeDefined();
+      expect(keyboardShortcutsCommand?.title).toBe('Keyboard Shortcuts');
     });
 
     it('should have keybindings for application commands', async () => {
@@ -198,6 +204,7 @@ describe('useCommandSystem', () => {
         const keybindings = store.get(keybindingsAtom);
         expect(keybindings.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)).toBe(true);
         expect(keybindings.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)).toBe(true);
+        expect(keybindings.has(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS)).toBe(true);
       });
     });
   });
