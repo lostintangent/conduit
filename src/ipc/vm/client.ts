@@ -42,6 +42,28 @@ export type CreateVMRequest = {
   };
 };
 
+export type ForkVMRequest = {
+  labels?: string[];
+  idle_timeout?: number;
+  create_image_from_clone?: boolean;
+  clone_forwarded_ports?: boolean;
+  collaborators?: Array<{
+    username: string;
+    role: "read" | "write" | "admin";
+  }>;
+};
+
+export type AddPortForwardRequest = {
+  internal_port: string;
+  description?: string;
+};
+
+export type AddPortForwardResponse = {
+  message: string;
+  external_port: string;
+  connection_url: string;
+};
+
 export type SSHConnectionInfo = {
   host: string;
   port: number;
@@ -152,6 +174,106 @@ export async function pingVMActivity(vmId: string): Promise<void> {
     method: "POST",
     body: JSON.stringify({}),
   });
+}
+
+/**
+ * Pause a running VM
+ */
+export async function pauseVM(vmId: string): Promise<VM> {
+  const vm = await apiCall<VM>(`/vms/${vmId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ state: "Paused" }),
+  });
+  console.log(`[VM] Paused VM ${vmId}`);
+  return vm;
+}
+
+/**
+ * Resume a paused VM
+ */
+export async function resumeVM(vmId: string): Promise<VM> {
+  const vm = await apiCall<VM>(`/vms/${vmId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ state: "Running" }),
+  });
+  console.log(`[VM] Resumed VM ${vmId}`);
+  return vm;
+}
+
+/**
+ * Get all forwarded ports for a VM
+ */
+export async function getForwardedPorts(
+  vmId: string
+): Promise<VM["forwarded_ports"]> {
+  return apiCall<VM["forwarded_ports"]>(`/vms/${vmId}/ports`);
+}
+
+/**
+ * Add a port forwarding rule to a VM
+ * External port is automatically allocated by the system
+ */
+export async function addPortForward(
+  vmId: string,
+  internalPort: number,
+  description?: string
+): Promise<AddPortForwardResponse> {
+  const request: AddPortForwardRequest = {
+    internal_port: internalPort.toString(),
+  };
+
+  if (description) {
+    request.description = description;
+  }
+
+  const response = await apiCall<AddPortForwardResponse>(
+    `/vms/${vmId}/ports`,
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    }
+  );
+
+  console.log(
+    `[VM] Added port forwarding for VM ${vmId}: ${internalPort} -> ${response.external_port}`
+  );
+  return response;
+}
+
+/**
+ * Remove a port forwarding rule from a VM
+ */
+export async function removePortForward(
+  vmId: string,
+  port: string
+): Promise<void> {
+  await apiCall<void>(`/vms/${vmId}/ports/${port}`, {
+    method: "DELETE",
+  });
+  console.log(`[VM] Removed port forwarding ${port} from VM ${vmId}`);
+}
+
+/**
+ * Fork/clone a VM from an existing running VM
+ */
+export async function forkVM(
+  vmId: string,
+  options?: ForkVMRequest
+): Promise<VM> {
+  const vm = await apiCall<VM>(`/vms/${vmId}/fork`, {
+    method: "POST",
+    body: JSON.stringify(options || {}),
+  });
+
+  console.log(`[VM] Forked VM ${vmId} -> ${vm.id}`);
+  return vm;
+}
+
+/**
+ * List all VMs with the "conduitVM" label
+ */
+export async function listConduitVMs(): Promise<VM[]> {
+  return listVMs(["conduitVM"]);
 }
 
 /**
