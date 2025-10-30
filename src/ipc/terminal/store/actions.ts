@@ -6,6 +6,7 @@ import {
   removeTerminal,
   storeTerminal,
 } from ".";
+import { detectPorts } from "../../../shared/portDetection";
 import {
   createVM,
   getSSHConnectionInfo,
@@ -53,37 +54,58 @@ export async function createTerminal(
   const id = randomUUID();
 
   // Check if this should be a remote VM session
-  if (options?.isRemoteVM) {
-    console.log("[VM] Creating remote VM terminal session");
+  if (options?.isRemoteVM || options?.existingVMId) {
+    console.log(options?.existingVMId ? `[VM] Connecting to existing VM ${options.existingVMId}` : "[VM] Creating remote VM terminal session");
 
     try {
-      // Create the VM with conduitVM label
-      const labels = options.vmLabels ? [...options.vmLabels, "conduitVM"] : ["conduitVM"];
-      const vm = await createVM({
-        image: options.vmImageId,
-        labels: labels,
-        idle_timeout: options.vmIdleTimeout,
-      });
+      let vm;
+      
+      if (options?.existingVMId) {
+        // Connect to an existing VM
+        const { getVM } = await import("../../vm/client");
+        vm = await getVM(options.existingVMId);
+        console.log(`[VM] Connected to existing VM ${vm.id}`);
+      } else {
+        // Create the VM with conduitVM label
+        const labels = options.vmLabels ? [...options.vmLabels, "conduitVM"] : ["conduitVM"];
+        vm = await createVM({
+          image: options.vmImageId,
+          labels: labels,
+          idle_timeout: options.vmIdleTimeout,
+          github_repo: options.githubRepo ? {
+            owner: options.githubRepo.owner,
+            name: options.githubRepo.name,
+            branch_or_hash: options.githubRepo.branch,
+          } : undefined,
+        });
+        console.log("[VM] VM created, setting up SSH access...");
+      }
 
-      console.log("[VM] VM created, setting up SSH access...");
-
-      // Check if we have SSH keys and set them up in the VM
-      const keysAvailable = await hasSSHKeys();
+      // Check if we have SSH keys and set them up in the VM (only for new VMs)
       let useSSHKey = false;
-
-      if (keysAvailable) {
-        console.log("[SSH] Found SSH keys, installing in VM...");
-        const { loadConfig } = await import("../../vm/config");
-        const config = await loadConfig();
-        useSSHKey = await setupSSHKeyInVM(vm.id, config.managerUrl, config.token);
-
-        if (useSSHKey) {
-          console.log("[SSH] SSH key authentication enabled");
+      
+      if (!options?.existingVMId) {
+        const keysAvailable = await hasSSHKeys();
+        
+        if (keysAvailable) {
+          console.log("[SSH] Found SSH keys, installing in VM...");
+          const { loadConfig } = await import("../../vm/config");
+          const config = await loadConfig();
+          useSSHKey = await setupSSHKeyInVM(vm.id, config.managerUrl, config.token);
+          
+          if (useSSHKey) {
+            console.log("[SSH] SSH key authentication enabled");
+          } else {
+            console.log("[SSH] Failed to setup SSH key, will use password authentication");
+          }
         } else {
-          console.log("[SSH] Failed to setup SSH key, will use password authentication");
+          console.log("[SSH] No SSH keys found in keys/ folder, will use password authentication");
         }
       } else {
-        console.log("[SSH] No SSH keys found in keys/ folder, will use password authentication");
+        // For existing VMs, assume SSH key is already set up if available
+        const keysAvailable = await hasSSHKeys();
+        useSSHKey = keysAvailable;
+        console.log(`[SSH] Connecting to existing VM, SSH key auth: ${useSSHKey}`);
       }
 
       // Get SSH connection info
@@ -111,6 +133,8 @@ export async function createTerminal(
           sshPort: sshInfo.port,
           imageId: vm.image_id,
           useSSHKey,
+          detectedPorts: new Set(),
+          forwardedPorts: new Map(),
         },
       };
 
@@ -164,6 +188,18 @@ function setupTerminalListeners(
     if (processName && processName !== terminal.lastProcessName) {
       terminal.lastProcessName = processName;
       sendToRenderer("terminal:title", { sessionId: id, title: processName });
+    }
+
+    // Detect ports in terminal output for cloud VMs
+    if (terminal.cloudEnvironment) {
+      const detectedPorts = detectPorts(data);
+      
+      for (const port of detectedPorts) {
+        if (!terminal.cloudEnvironment.detectedPorts.has(port) && !terminal.cloudEnvironment.forwardedPorts.has(port)) {
+          terminal.cloudEnvironment.detectedPorts.add(port);
+          sendToRenderer("terminal:port-detected", { sessionId: id, port });
+        }
+      }
     }
 
     // Only consume OSC sequences for local sessions

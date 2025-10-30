@@ -1,7 +1,13 @@
-import { enqueueNotification } from "@/store/actions/notifications";
-import { completeAgentSession, deleteAgentSession } from "@/store/actions/pane";
+import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
+import {
+  completeAgentSession,
+  deleteAgentSession,
+  forwardPortAndOpen,
+  splitPane,
+} from "@/store/actions/pane";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate } from "@/store/terminals";
+import { extractPortFromMatch } from "@shared/portDetection";
 import { useAtomValue } from "jotai";
 import React, {
   useCallback,
@@ -13,6 +19,8 @@ import React, {
 import { createFitController } from "./FitController";
 import { SandboxIndicator } from "./SandboxIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
+
+import "@xterm/xterm/css/xterm.css";
 
 const api = window.conduit;
 type TerminalInstance = ReturnType<typeof getOrCreate>;
@@ -223,6 +231,64 @@ export const TerminalPane = ({
     }
   }, [agentSessionId, currentTab]);
 
+  const handleForkVM = useCallback(async () => {
+    if (!vmId || !currentTab) {
+      return;
+    }
+
+    const notificationId = enqueueNotification({
+      kind: "info",
+      message: "Forking VM...",
+      persistent: true,
+    });
+
+    try {
+      // Fork the VM using the VM API
+      const forkedVM = await api.forkVM(vmId);
+      
+      if (!forkedVM) {
+        throw new Error("Failed to fork VM");
+      }
+
+      updateNotification(notificationId, {
+        kind: "info",
+        message: "Creating terminal session for forked VM...",
+        persistent: true,
+      });
+
+      dismissNotification(notificationId);
+
+      // Split the current pane vertically with the new terminal connected to forked VM
+      await splitPane(
+        currentTab.id,
+        paneId,
+        "row",
+        false,
+        {
+          terminalOptions: {
+            existingVMId: forkedVM.id,
+          },
+        }
+      );
+
+      enqueueNotification({
+        kind: "success",
+        message: "VM forked successfully",
+        details: `New VM: ${forkedVM.id}`,
+        autoCloseMs: 3000,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNotification(notificationId, {
+        kind: "error",
+        message: "Failed to fork VM",
+        details: errorMessage,
+        autoCloseMs: null,
+      });
+      console.error("Failed to fork VM", error);
+    }
+  }, [vmId, currentTab, paneId]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -244,6 +310,18 @@ export const TerminalPane = ({
     });
 
     terminal.setLinkHandler((url: string) => {
+      // Check if this is a localhost/127.0.0.1 URL and we're in a cloud VM
+      if (vmId) {
+        const port = extractPortFromMatch(url);
+        
+        if (port && currentTab) {
+          // This is a port reference in a cloud VM - forward it!
+          forwardPortAndOpen(currentTab.id, paneId, vmId, port);
+          return;
+        }
+      }
+
+      // Otherwise, use the default link handler
       const handler = linkHandlerRef.current;
       if (handler) {
         handler(url);
@@ -309,6 +387,7 @@ export const TerminalPane = ({
         agentSessionId={agentSessionId}
         onCompleteAgentSession={handleCompleteAgentSession}
         onDeleteAgentSession={handleDeleteAgentSession}
+        onForkVM={vmId ? handleForkVM : undefined}
       />
 
     </div>
