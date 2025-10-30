@@ -1,5 +1,6 @@
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
+import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
@@ -541,58 +542,64 @@ export function App() {
         onUpdateSettings={updateSettings}
       />
 
-      {/* Top positioned tabs */}
-      {tabPosition === "top" && !shouldUseDrawer && (
-        <TabStrip
-          onOpenCommandPalette={openCommandPalette}
-          onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-          onOpenQuickPane={handleOpenQuickPane}
-          position={tabPosition}
-        />
-      )}
-      {shouldUseDrawer && tabPosition === "top" && (
-        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-          <DrawerContent side="top">
-            <TabStrip
-              onOpenCommandPalette={openCommandPalette}
-              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-              onOpenQuickPane={handleOpenQuickPane}
-              position={tabPosition}
-            />
-          </DrawerContent>
-        </Drawer>
-      )}
+      <TabContentPortalProvider>
 
-      <TabLayout
-        handleContextMenu={handleContextMenu}
-        handleResizeStart={handleResizeStart}
-        resizingNode={resizingNode}
-        handleWebViewUpdate={handleWebViewUpdate}
-        handleEditorUpdate={handleEditorUpdate}
-        onOpenQuickPane={handleOpenQuickPane}
-      />
+        {/* Top positioned tabs */}
+        {tabPosition === "top" && !shouldUseDrawer && (
+          <TabStrip
+            onOpenCommandPalette={openCommandPalette}
+            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+            onOpenQuickPane={handleOpenQuickPane}
+            position={tabPosition}
+          />
+        )}
 
-      {/* Bottom positioned tabs */}
-      {tabPosition === "bottom" && !shouldUseDrawer && (
-        <TabStrip
-          onOpenCommandPalette={openCommandPalette}
-          onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+        {shouldUseDrawer && tabPosition === "top" && (
+          <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+            <DrawerContent side="top">
+              <TabStrip
+                onOpenCommandPalette={openCommandPalette}
+                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+                onOpenQuickPane={handleOpenQuickPane}
+                position={tabPosition}
+              />
+            </DrawerContent>
+          </Drawer>
+        )}
+
+        <TabLayout
+          handleContextMenu={handleContextMenu}
+          handleResizeStart={handleResizeStart}
+          resizingNode={resizingNode}
+          handleWebViewUpdate={handleWebViewUpdate}
+          handleEditorUpdate={handleEditorUpdate}
           onOpenQuickPane={handleOpenQuickPane}
-          position={tabPosition}
         />
-      )}
-      {shouldUseDrawer && tabPosition === "bottom" && (
-        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-          <DrawerContent side="bottom">
-            <TabStrip
-              onOpenCommandPalette={openCommandPalette}
-              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-              onOpenQuickPane={handleOpenQuickPane}
-              position={tabPosition}
-            />
-          </DrawerContent>
-        </Drawer>
-      )}
+
+        {/* Bottom positioned tabs */}
+        {tabPosition === "bottom" && !shouldUseDrawer && (
+          <TabStrip
+            onOpenCommandPalette={openCommandPalette}
+            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+            onOpenQuickPane={handleOpenQuickPane}
+            position={tabPosition}
+          />
+        )}
+
+        {shouldUseDrawer && tabPosition === "bottom" && (
+          <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+            <DrawerContent side="bottom">
+              <TabStrip
+                onOpenCommandPalette={openCommandPalette}
+                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+                onOpenQuickPane={handleOpenQuickPane}
+                position={tabPosition}
+              />
+            </DrawerContent>
+          </Drawer>
+        )}
+
+      </TabContentPortalProvider>
 
       {/* Global UI */}
       <CommandPalette

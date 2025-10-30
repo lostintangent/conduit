@@ -2,6 +2,7 @@ import { ApplicationCommands } from "@/commands/applicationCommands";
 import { getCommandDisplayTitle, useCommand } from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
+import { TabPreview } from "@/components/shell/tabs/TabPreview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,7 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type TabDescriptor = {
   id: string;
@@ -71,6 +72,12 @@ export const TabStrip = ({
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
 
+  const [hoverPreview, setHoverPreview] = useState<{
+    tabId: string;
+    left: number;
+    top: number;
+  } | null>(null);
+
   // Command hooks for button actions
   const toggleFocusModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
   const toggleDesignModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE);
@@ -110,6 +117,7 @@ export const TabStrip = ({
     setDraggingTab(null);
     setDropTargetIndex(null);
     clearPaneDragHoverTimeout();
+    setHoverPreview(null);
   }, [clearPaneDragHoverTimeout]);
 
   const isPaneDrag = useCallback((e: React.DragEvent): boolean => {
@@ -196,6 +204,12 @@ export const TabStrip = ({
     [activeTabId, tabs]
   );
 
+  useEffect(() => {
+    if (hoverPreview && hoverPreview.tabId === activeTabId) {
+      setHoverPreview(null);
+    }
+  }, [activeTabId, hoverPreview]);
+
   // TODO: See if we can remove this code in favor of mergining it with the descriptors and tabs w/placeholders memos
   const { reorderableTabs, placeholderIndex, nonDraggingIndexById } = useMemo(() => {
     if (!draggingTab) {
@@ -250,8 +264,30 @@ export const TabStrip = ({
       });
 
       setDropTargetIndex(null);
+      setHoverPreview(null);
     },
     [descriptors]
+  );
+
+  const handleTabHoverChange = useCallback(
+    (tabId: string, element: HTMLButtonElement | null) => {
+      if (draggingTab !== null) {
+        return;
+      }
+
+      if (!element || tabId === activeTabId) {
+        setHoverPreview(null);
+        return;
+      }
+
+      const rect = element.getBoundingClientRect();
+      setHoverPreview({
+        tabId,
+        left: rect.left,
+        top: rect.top,
+      });
+    },
+    [activeTabId, draggingTab]
   );
 
   const handleDragOverTab = useCallback(
@@ -383,6 +419,7 @@ export const TabStrip = ({
             onDragLeave={handleDragLeaveTab}
             onDrop={handleDrop}
             onDragEnd={clearDragState}
+            onHoverChange={handleTabHoverChange}
           />
         );
       }
@@ -408,6 +445,7 @@ export const TabStrip = ({
     handleDragOverTab,
     handleDragStart,
     handleDrop,
+    handleTabHoverChange,
     nonDraggingIndexById,
     onTabContextMenu,
     placeholderIndex,
@@ -489,135 +527,140 @@ export const TabStrip = ({
   const borderClass = alwaysShowTabs ? (position === "top" ? "border-b" : "border-t rounded-b-xl") : "";
 
   return (
-    <div
-      className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
-      style={tabStripTransitionStyle}
-    >
-      {/* Tab buttons */}
+    <>
       <div
-        className="flex items-stretch align-middle content-center gap-1 flex-1 overflow-x-auto scrollbar-thin min-w-0"
-        role="tablist"
-        onDragOver={(event) => {
-          if (event.target !== event.currentTarget) {
-            return;
-          }
-
-          applyMoveDropEffect(event);
-          setDropTargetIndex(reorderableTabs.length);
-        }}
-        onDrop={(e) => {
-          if (e.target !== e.currentTarget) {
-            return;
-          }
-          handleDrop(e);
-        }}
-        onDragLeave={(e) => {
-          const relatedTarget = e.relatedTarget;
-          if (
-            relatedTarget instanceof Node &&
-            e.currentTarget.contains(relatedTarget)
-          ) {
-            return;
-          }
-
-          setDropTargetIndex(null);
-        }}
+        className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
+        style={tabStripTransitionStyle}
       >
-        {tabsWithPlaceholders}
+        {/* Tab buttons */}
+        <div
+          className="flex items-stretch align-middle content-center gap-1 flex-1 overflow-x-auto scrollbar-thin min-w-0"
+          role="tablist"
+          onDragOver={(event) => {
+            if (event.target !== event.currentTarget) {
+              return;
+            }
 
-        {/* Vertical divider */}
-        <div className="h-6 my-1 w-px bg-white/20 ml-2 mr-0.5" />
+            applyMoveDropEffect(event);
+            setDropTargetIndex(reorderableTabs.length);
+          }}
+          onDrop={(e) => {
+            if (e.target !== e.currentTarget) {
+              return;
+            }
+            handleDrop(e);
+          }}
+          onDragLeave={(e) => {
+            const relatedTarget = e.relatedTarget;
+            if (
+              relatedTarget instanceof Node &&
+              e.currentTarget.contains(relatedTarget)
+            ) {
+              return;
+            }
 
-        {/* New tab button - after divider */}
-        <button
-          type="button"
-          className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-          title="New tab (⌘T)"
-          aria-label="New tab"
-          onClick={() => {
-            void openTab();
+            setDropTargetIndex(null);
           }}
         >
-          <PlusSquare size={18} />
-        </button>
+          {tabsWithPlaceholders}
+
+          {/* Vertical divider */}
+          <div className="h-6 my-1 w-px bg-white/20 ml-2 mr-0.5" />
+
+          {/* New tab button - after divider */}
+          <button
+            type="button"
+            className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
+            title="New tab (⌘T)"
+            aria-label="New tab"
+            onClick={() => {
+              void openTab();
+            }}
+          >
+            <PlusSquare size={18} />
+          </button>
+        </div>
+
+
+        {/* Action buttons - far right */}
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            type="button"
+            className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+            title="Show command palette (⌘⇧P)"
+            aria-label="Show command palette"
+            onClick={onOpenCommandPalette}
+          >
+            <MoreHorizontal size={18} />
+          </button>
+
+          {/* Quick pane dropdown button */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                title="Quick pane"
+                aria-label="Quick pane"
+              >
+                <Zap size={18} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-w-40">
+              <DropdownMenuItem onClick={handleOpenQuickTerminal}>
+                <Terminal size={16} className="mr-3" />
+                Terminal
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
+                <Cloud size={16} className="mr-3" />
+                Terminal (Cloud)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleOpenQuickEditor}>
+                <FileEdit size={16} className="mr-3" />
+                Editor
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleOpenQuickWeb}>
+                <Globe size={16} className="mr-3" />
+                Web
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Expand button for focus mode */}
+          <button
+            type="button"
+            className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+            title={getCommandDisplayTitle(toggleFocusModeCmd)}
+            aria-label={toggleFocusModeCmd.title}
+            onClick={toggleFocusModeCmd.execute}
+            disabled={!activeTab}
+            draggable={!!activeTab}
+            onDragStart={(e) => {
+              if (!activeTab) return;
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("application/x-conduit-focus-mode", "true");
+            }}
+          >
+            <Expand size={18} />
+          </button>
+
+          <button
+            type="button"
+            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
+              ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+              : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+            title={getCommandDisplayTitle(toggleDesignModeCmd)}
+            aria-label={toggleDesignModeCmd.title}
+            onClick={toggleDesignModeCmd.execute}
+          >
+            <SquareDashedMousePointer size={18} />
+          </button>
+        </div>
       </div>
 
+      <TabPreview preview={hoverPreview} />
 
-      {/* Action buttons - far right */}
-      <div className="flex items-center gap-2 ml-auto">
-        <button
-          type="button"
-          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-          title="Show command palette (⌘⇧P)"
-          aria-label="Show command palette"
-          onClick={onOpenCommandPalette}
-        >
-          <MoreHorizontal size={18} />
-        </button>
-
-        {/* Quick pane dropdown button */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-              title="Quick pane"
-              aria-label="Quick pane"
-            >
-              <Zap size={18} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-w-40">
-            <DropdownMenuItem onClick={handleOpenQuickTerminal}>
-              <Terminal size={16} className="mr-3" />
-              Terminal
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
-              <Cloud size={16} className="mr-3" />
-              Terminal (Cloud)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleOpenQuickEditor}>
-              <FileEdit size={16} className="mr-3" />
-              Editor
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleOpenQuickWeb}>
-              <Globe size={16} className="mr-3" />
-              Web
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Expand button for focus mode */}
-        <button
-          type="button"
-          className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-          title={getCommandDisplayTitle(toggleFocusModeCmd)}
-          aria-label={toggleFocusModeCmd.title}
-          onClick={toggleFocusModeCmd.execute}
-          disabled={!activeTab}
-          draggable={!!activeTab}
-          onDragStart={(e) => {
-            if (!activeTab) return;
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("application/x-conduit-focus-mode", "true");
-          }}
-        >
-          <Expand size={18} />
-        </button>
-
-        <button
-          type="button"
-          className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
-            ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-            : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
-          title={getCommandDisplayTitle(toggleDesignModeCmd)}
-          aria-label={toggleDesignModeCmd.title}
-          onClick={toggleDesignModeCmd.execute}
-        >
-          <SquareDashedMousePointer size={18} />
-        </button>
-      </div>
-    </div>
+    </>
   );
 };
