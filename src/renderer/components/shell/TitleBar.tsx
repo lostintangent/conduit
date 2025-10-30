@@ -21,9 +21,6 @@ import { useCallback } from "react";
 
 type TitleBarProps = {
   backgroundClass: string;
-  onSaveWorkspace: () => void;
-  onRenameWorkspace: () => void;
-  onCloseWorkspace: () => void;
   alwaysShowTabs: boolean;
   showTerminalRuler: boolean;
   autoSaveWorkspaces: boolean;
@@ -37,9 +34,6 @@ type TitleBarProps = {
 
 export const TitleBar = ({
   backgroundClass,
-  onSaveWorkspace,
-  onRenameWorkspace,
-  onCloseWorkspace,
   alwaysShowTabs,
   showTerminalRuler,
   autoSaveWorkspaces,
@@ -54,6 +48,10 @@ export const TitleBar = ({
   const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
   const hasChanges = useAtomValue(workspaceHasChangesAtom);
 
+  // Command hooks
+  const saveWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_SAVE);
+  const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);
+  const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
   const keyboardShortcutsCmd = useCommand(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS);
 
   const titleBarSuffix = workspaceName ? ` (${workspaceName})` : "";
@@ -145,26 +143,31 @@ export const TitleBar = ({
               )}
 
               {/* Save workspace */}
-              <DropdownMenuItem onClick={onSaveWorkspace}>
-                Save workspace
+              <DropdownMenuItem
+                onClick={saveWorkspaceCmd.execute}
+                title={getCommandDisplayTitle(saveWorkspaceCmd)}
+              >
+                {saveWorkspaceCmd.title}
               </DropdownMenuItem>
 
               {/* Rename workspace - only enabled when in a workspace */}
               <DropdownMenuItem
-                onClick={onRenameWorkspace}
+                onClick={renameWorkspaceCmd.execute}
                 disabled={!workspaceName}
+                title={getCommandDisplayTitle(renameWorkspaceCmd)}
               >
-                Rename workspace
+                {renameWorkspaceCmd.title}
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
               {/* Close workspace - only enabled when in a workspace */}
               <DropdownMenuItem
-                onClick={onCloseWorkspace}
+                onClick={closeWorkspaceCmd.execute}
                 disabled={!workspaceName}
+                title={getCommandDisplayTitle(closeWorkspaceCmd)}
               >
-                Close workspace
+                {closeWorkspaceCmd.title}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

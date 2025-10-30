@@ -104,7 +104,15 @@ export function App() {
     applicationMode,
     setApplicationMode,
     homeDirectory,
+    workspaceName,
     onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
+    onSaveWorkspace: async () => {
+      if (activeTab) {
+        await quickSaveWorkspace(tabs, activeTab.id);
+      }
+    },
+    onRenameWorkspace: () => setShowRenameWorkspaceDialog(true),
+    onCloseWorkspace: () => closeWorkspace(tabs, activeTab?.id),
   });
 
   useKeybindingDispatch(
@@ -524,13 +532,6 @@ export function App() {
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
       <TitleBar
         backgroundClass={titleBarBg}
-        onSaveWorkspace={async () => {
-          if (activeTab) {
-            await quickSaveWorkspace(tabs, activeTab.id);
-          }
-        }}
-        onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
-        onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
         alwaysShowTabs={alwaysShowTabs}
         showTerminalRuler={showTerminalRuler}
         autoSaveWorkspaces={autoSaveWorkspaces}
