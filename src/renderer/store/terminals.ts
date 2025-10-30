@@ -1,8 +1,8 @@
-import { Terminal } from "@xterm/xterm";
+import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { resolveColor } from "@/utils/theme";
+import { Terminal } from "@xterm/xterm";
 
 export type TerminalInstance = {
   terminal: Terminal;
@@ -14,6 +14,7 @@ export type TerminalInstance = {
   dispose: () => void;
 };
 
+const api = window.conduit;
 const store = new Map<string, TerminalInstance>();
 
 type GetOrCreateOptions = {
@@ -22,13 +23,8 @@ type GetOrCreateOptions = {
 
 export function getOrCreate(
   sessionId: string,
-  api: typeof window.conduit,
   options: GetOrCreateOptions = {}
 ): TerminalInstance {
-  const hasCustomLinkHandler = Object.prototype.hasOwnProperty.call(
-    options,
-    "onLinkClick"
-  );
   let instance = store.get(sessionId);
   if (!instance) {
     const terminalTheme = {
@@ -49,9 +45,9 @@ export function getOrCreate(
     });
 
     const fit = new FitAddon();
-    const search = new SearchAddon({});
+    const search = new SearchAddon();
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
-      current: hasCustomLinkHandler ? options.onLinkClick ?? null : null,
+      current: options.onLinkClick
     };
 
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
@@ -70,6 +66,7 @@ export function getOrCreate(
     const unsubData = api.onData(sessionId, (data: string) =>
       terminal.write(data)
     );
+
     const onKeyDispose = terminal.onData((input) =>
       api.sendKeypress(sessionId, input)
     );
@@ -90,8 +87,8 @@ export function getOrCreate(
       },
     };
     store.set(sessionId, instance);
-  } else if (hasCustomLinkHandler) {
-    instance.setLinkHandler(options.onLinkClick ?? null);
+  } else if (options.onLinkClick) {
+    instance.setLinkHandler(options.onLinkClick);
   }
 
   return instance;
@@ -102,8 +99,8 @@ export function attach(sessionId: string, container: HTMLElement) {
   if (!instance) return;
 
   const element = instance.terminal.element as HTMLElement | null;
-  if (element) {
-    if (element.parentElement !== container) container.appendChild(element);
+  if (element && element.parentElement !== container) {
+    container.appendChild(element);
   } else {
     instance.terminal.open(container);
   }

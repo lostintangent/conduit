@@ -5,8 +5,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { Tab } from "../../renderer/types";
 import type { Workspace } from "../../shared/types";
-import { getAllSessions } from "../terminal/store";
-import type { TerminalSession } from "../terminal/types";
+import { getAllTerminals } from "../terminal/store";
+import type { TerminalInstance } from "../terminal/types";
 
 export type SessionsFile = {
   sessions: Workspace[];
@@ -209,7 +209,7 @@ const pickActiveCommand = (
 };
 
 const detectActiveCommand = async (
-  session: TerminalSession
+  session: TerminalInstance
 ): Promise<string | null> => {
   if (process.platform === "win32") {
     return null;
@@ -263,7 +263,7 @@ type SerializeTabsOptions = {
 
 const serializePane = async (
   pane: TabPane,
-  terminalSessions: Map<string, TerminalSession>,
+  terminalSessions: Map<string, TerminalInstance>,
   options: SerializeTabsOptions
 ): Promise<SerializedPane> => {
   if (pane.type === "terminal") {
@@ -321,7 +321,7 @@ const serializePane = async (
 
 const serializeTabs = async (
   tabs: Tab[],
-  terminalSessions: Map<string, TerminalSession>,
+  terminalSessions: Map<string, TerminalInstance>,
   options: SerializeTabsOptions = {}
 ): Promise<Workspace["tabs"]> => {
   return Promise.all(
@@ -347,7 +347,7 @@ export async function saveSession(
   name: string,
   tabs: Tab[],
   activeTabId: string | undefined,
-  terminalSessions: Map<string, TerminalSession>
+  terminalSessions: Map<string, TerminalInstance>
 ): Promise<Workspace[]> {
   try {
     await ensureConduitDirectory();
@@ -419,7 +419,7 @@ export async function deleteSession(timestamp: number): Promise<void> {
 export async function saveLastWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
-  terminalSessions: Map<string, TerminalSession>
+  terminalSessions: Map<string, TerminalInstance>
 ): Promise<void> {
   try {
     await ensureConduitDirectory();
@@ -510,7 +510,7 @@ export function initializeWorkspaceHandlers(refreshApplicationMenu: () => Promis
   ipcMain.handle(
     "session:save-session",
     async (_event, name, tabs, activeTabId) => {
-      const terminalSessions = getAllSessions();
+      const terminalSessions = getAllTerminals();
       const result = await saveSession(name, tabs, activeTabId, terminalSessions);
       await refreshApplicationMenu();
 
@@ -544,7 +544,7 @@ export function initializeWorkspaceHandlers(refreshApplicationMenu: () => Promis
   ipcMain.handle(
     "session:save-last-workspace",
     async (_event, tabs, activeTabId) => {
-      const terminalSessions = getAllSessions();
+      const terminalSessions = getAllTerminals();
       await saveLastWorkspace(tabs, activeTabId, terminalSessions);
     }
   );

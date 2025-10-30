@@ -1,7 +1,29 @@
 import type { IPty } from "node-pty";
 
-export type CreateSessionOptions = {
+export type TerminalInstance = {
+  id: string;
+  pty: IPty;
+
+  cwd: string;
+  lastProcessName: string;
+
+  isRendererReady: boolean;
+  bufferedOutput: string[];
+
+  // VM metadata (only present for remote VM sessions)
+  cloudEnvironment?: CloudEnvironment;
+
+  // Internal state for tracking CWD
+  oscBuffer: string;
+  cwdPoller?: NodeJS.Timeout;
+  isPollingCwd: boolean;
+  pendingCwdPoll?: NodeJS.Timeout;
+  scheduleCwdPoll?: (delay?: number) => void;
+};
+
+export type CreateTerminalOptions = {
   cwd?: string;
+
   // VM-specific options
   isRemoteVM?: boolean;
   vmImageId?: string;
@@ -9,7 +31,7 @@ export type CreateSessionOptions = {
   vmIdleTimeout?: number;
 };
 
-export type VMMetadata = {
+export type CloudEnvironment = {
   vmId: string;
   vmHost: string;
   sshPort: number;
@@ -18,20 +40,3 @@ export type VMMetadata = {
 };
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;
-
-export type TerminalSession = {
-  id: string;
-  pty: IPty;
-  lastProcessName: string;
-  cwd: string;
-  oscBuffer: string;
-  cwdPoller?: NodeJS.Timeout;
-  isPollingCwd: boolean;
-  pendingCwdPoll?: NodeJS.Timeout;
-  scheduleCwdPoll?: (delay?: number) => void;
-  isRendererReady: boolean;
-  pendingOutput: string[];
-  readyFallback?: NodeJS.Timeout;
-  // VM metadata (only present for remote VM sessions)
-  vmMetadata?: VMMetadata;
-};

@@ -1,15 +1,18 @@
 import { enqueueNotification } from "@/store/actions/notifications";
-import {
-  completeAgentSession,
-  deleteAgentSession,
-} from "@/store/actions/pane";
+import { completeAgentSession, deleteAgentSession } from "@/store/actions/pane";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createFitController, type FitController } from "./FitController";
-import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 import { SandboxIndicator } from "./SandboxIndicator";
+import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -143,7 +146,8 @@ export const TerminalPane = ({
   }, [tabs, paneId]);
 
   // This component is specifically for terminal panes, so we can safely cast
-  const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
+  const terminalPane =
+    currentPane?.type === "terminal" ? currentPane : undefined;
 
   const agentSessionId = terminalPane?.agentSessionId ?? null;
   const vmId = terminalPane?.vmMetadata?.vmId ?? null;
@@ -181,13 +185,17 @@ export const TerminalPane = ({
       } else {
         enqueueNotification({
           kind: "success",
-          message: result.status === "merged" ? "Agent session completed" : "No changes to merge",
+          message:
+            result.status === "merged"
+              ? "Agent session completed"
+              : "No changes to merge",
           details: result.message,
           autoCloseMs: 3000,
         });
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       enqueueNotification({
         kind: "error",
         message: "Failed to complete agent session",
@@ -216,7 +224,8 @@ export const TerminalPane = ({
         autoCloseMs: 3000,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       enqueueNotification({
         kind: "error",
         message: "Failed to delete agent session",
@@ -229,11 +238,9 @@ export const TerminalPane = ({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
-      return undefined;
-    }
+    if (!container) return;
 
-    const entry = getOrCreate(sessionId, api);
+    const entry = getOrCreate(sessionId);
     instanceRef.current = entry;
     attach(sessionId, container);
 
@@ -320,12 +327,16 @@ export const TerminalPane = ({
 
   return (
     <div
-      className="terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative"
-      ref={containerRef}
-      data-active={isActive}
+      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
     >
+
+      {/** xTerm.js container (which can't have padding applied directly to it) */}
+      <div className="w-full h-full pl-2 pt-2">
+        <div className="w-full h-full" ref={containerRef} />
+      </div>
+
       <SearchWidget
         key={sessionId}
         ref={searchWidgetHandleRef}

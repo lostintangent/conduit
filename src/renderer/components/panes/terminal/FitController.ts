@@ -109,26 +109,6 @@ export const createFitController = ({
     const run = () => {
       rafId = null;
 
-      const element = terminal.element as HTMLElement | null;
-      if (element) {
-        // Clear inline widths that xterm sets while repositioning the textarea; otherwise
-        // the container can report a stale width and `fit()` mis-measures on the first frame.
-        element.style.width = "";
-        const viewport = element.querySelector(
-          ".xterm-viewport"
-        ) as HTMLElement | null;
-        const textarea = element.querySelector(
-          "textarea"
-        ) as HTMLTextAreaElement | null;
-
-        if (viewport) {
-          viewport.style.width = "";
-        }
-        if (textarea) {
-          textarea.style.width = "";
-        }
-      }
-
       const width = container.clientWidth;
       const height = container.clientHeight;
       if (width === 0 || height === 0) {
