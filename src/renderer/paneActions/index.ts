@@ -23,3 +23,7 @@ export { PaneActionsRegistry } from './core/PaneActionsRegistry';
 
 // Defaults
 export { getDefaultActions } from './core/defaults';
+
+// Resolution utilities
+export { resolveAction } from './resolution/resolveAction';
+export { normalizePath, isPrefixOf, findLongestMatch } from './resolution/pathUtils';
