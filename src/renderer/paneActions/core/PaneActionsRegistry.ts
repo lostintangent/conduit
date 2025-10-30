@@ -8,6 +8,8 @@
 import type { Action, ResolvedActionConfig } from './types';
 import { getDefaultActions } from './defaults';
 import { resolveAction } from '../resolution/resolveAction';
+import { readPaneActionsFile } from '../io/fileOperations';
+import { watchPaneActionsFile, type PaneActionsWatcher } from '../io/watchPaneActions';
 
 /**
  * Registry for pane actions
@@ -86,6 +88,63 @@ export class PaneActionsRegistry {
     }
 
     return resolveAction(action, cwd);
+  }
+
+  /**
+   * Load actions from file
+   *
+   * If file exists and is valid, loads actions and updates registry.
+   * If file doesn't exist, keeps current actions (defaults).
+   * If file is invalid, throws error.
+   *
+   * @param filePath - Path to pane actions file
+   * @returns true if file was loaded, false if file doesn't exist
+   * @throws Error if file is invalid
+   */
+  async loadFromFile(filePath: string): Promise<boolean> {
+    const actions = await readPaneActionsFile(filePath);
+
+    if (actions === null) {
+      // File doesn't exist, keep current actions
+      return false;
+    }
+
+    // File exists and is valid, update registry
+    this.setActions(actions);
+    return true;
+  }
+
+  /**
+   * Reset to default actions
+   *
+   * Replaces current actions with defaults and notifies listeners.
+   */
+  resetToDefaults(): void {
+    this.setActions(getDefaultActions());
+  }
+
+  /**
+   * Watch a file for changes and auto-reload
+   *
+   * When the file changes:
+   * - If valid: updates registry and notifies listeners
+   * - If invalid or deleted: calls onError callback (if provided)
+   *
+   * @param filePath - Path to file to watch
+   * @param onError - Optional callback for errors
+   * @returns Watcher handle with dispose() method
+   */
+  watchFile(
+    filePath: string,
+    onError?: (error: Error) => void
+  ): PaneActionsWatcher {
+    return watchPaneActionsFile({
+      filePath,
+      onChange: (actions) => {
+        this.setActions(actions);
+      },
+      onError,
+    });
   }
 
   /**

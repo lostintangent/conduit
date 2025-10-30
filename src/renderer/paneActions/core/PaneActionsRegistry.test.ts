@@ -345,4 +345,152 @@ describe('PaneActionsRegistry', () => {
       expect(result1?.config).toEqual({ command: 'second' });
     });
   });
+
+  describe('loadFromFile', () => {
+    it('should load actions from existing file', async () => {
+      const { registry, testFilePath, writeTestFile } = await setupFileTest();
+
+      const actions: Action[] = [
+        {
+          name: 'Custom',
+          icon: 'test',
+          enabled: true,
+          paneType: 'terminal',
+          config: { command: 'custom' },
+        },
+      ];
+
+      await writeTestFile(actions);
+
+      const loaded = await registry.loadFromFile(testFilePath);
+
+      expect(loaded).toBe(true);
+      expect(registry.getActions()).toHaveLength(1);
+      expect(registry.getActions()[0].name).toBe('Custom');
+    });
+
+    it('should return false for non-existent file', async () => {
+      const { registry, testFilePath } = await setupFileTest();
+
+      const loaded = await registry.loadFromFile(testFilePath);
+
+      expect(loaded).toBe(false);
+      // Should keep default actions
+      expect(registry.getActions()).toHaveLength(4);
+    });
+
+    it('should throw for invalid file', async () => {
+      const { registry, testFilePath, writeInvalidFile } = await setupFileTest();
+
+      await writeInvalidFile('not valid json');
+
+      await expect(registry.loadFromFile(testFilePath)).rejects.toThrow();
+    });
+
+    it('should notify listeners when file is loaded', async () => {
+      const { registry, testFilePath, writeTestFile } = await setupFileTest();
+      const listener = vi.fn();
+
+      registry.onChange(listener);
+
+      const actions: Action[] = [
+        {
+          name: 'Custom',
+          icon: 'test',
+          enabled: true,
+          paneType: 'terminal',
+          config: { command: 'custom' },
+        },
+      ];
+
+      await writeTestFile(actions);
+      await registry.loadFromFile(testFilePath);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not notify listeners when file does not exist', async () => {
+      const { registry, testFilePath } = await setupFileTest();
+      const listener = vi.fn();
+
+      registry.onChange(listener);
+      await registry.loadFromFile(testFilePath);
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetToDefaults', () => {
+    it('should reset to default actions', () => {
+      const registry = new PaneActionsRegistry();
+
+      // Change actions
+      registry.setActions([
+        {
+          name: 'Custom',
+          icon: 'test',
+          enabled: true,
+          paneType: 'terminal',
+          config: { command: 'custom' },
+        },
+      ]);
+
+      expect(registry.getActions()).toHaveLength(1);
+
+      // Reset
+      registry.resetToDefaults();
+
+      expect(registry.getActions()).toHaveLength(4);
+      expect(registry.getActions()[0].name).toBe('Source Control');
+    });
+
+    it('should notify listeners', () => {
+      const registry = new PaneActionsRegistry();
+      const listener = vi.fn();
+
+      registry.onChange(listener);
+      registry.resetToDefaults();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+
+// Helper for file-based tests
+async function setupFileTest() {
+  const { mkdir, rm, writeFile } = await import('fs/promises');
+  const { join } = await import('path');
+  const { tmpdir } = await import('os');
+
+  const testDir = join(tmpdir(), `pane-actions-registry-test-${Date.now()}`);
+  const testFilePath = join(testDir, 'paneactions.json');
+
+  await mkdir(testDir, { recursive: true });
+
+  const registry = new PaneActionsRegistry();
+
+  const cleanup = async () => {
+    await rm(testDir, { recursive: true, force: true });
+  };
+
+  const writeTestFile = async (actions: Action[]) => {
+    await writeFile(testFilePath, JSON.stringify(actions), 'utf-8');
+  };
+
+  const writeInvalidFile = async (content: string) => {
+    await writeFile(testFilePath, content, 'utf-8');
+  };
+
+  // Auto-cleanup after test
+  const { afterEach } = await import('vitest');
+  afterEach(cleanup);
+
+  return {
+    registry,
+    testFilePath,
+    testDir,
+    writeTestFile,
+    writeInvalidFile,
+    cleanup,
+  };
+}

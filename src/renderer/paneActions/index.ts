@@ -39,3 +39,12 @@ export {
 
 // Validation
 export { validatePaneActionsConfig, ValidationError } from './io/validation';
+
+// File watching
+export {
+  watchPaneActionsFile,
+  type PaneActionsWatcher,
+  type FileChangeCallback,
+  type FileErrorCallback,
+  type WatchPaneActionsOptions,
+} from './io/watchPaneActions';
