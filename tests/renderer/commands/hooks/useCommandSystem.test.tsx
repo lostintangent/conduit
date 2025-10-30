@@ -126,16 +126,16 @@ describe('useCommandSystem', () => {
 
       // Check that application commands are registered
       const focusModeCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_ENTER_FOCUS_MODE
+        ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE
       );
       expect(focusModeCommand).toBeDefined();
-      expect(focusModeCommand?.title).toBe('Enter Focus Mode');
+      expect(focusModeCommand?.title).toBe('Toggle Focus Mode');
 
       const toggleControlsCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS
+        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE
       );
       expect(toggleControlsCommand).toBeDefined();
-      expect(toggleControlsCommand?.title).toBe('Toggle Pane Controls');
+      expect(toggleControlsCommand?.title).toBe('Toggle Design Mode');
     });
 
     it('should have keybindings for application commands', async () => {
@@ -156,7 +156,7 @@ describe('useCommandSystem', () => {
 
       const { keybindingRegistry } = result.current!;
       const focusModeBindings = keybindingRegistry.getKeybindingsForCommand(
-        ApplicationCommands.VIEW_ENTER_FOCUS_MODE
+        ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE
       );
 
       expect(focusModeBindings.length).toBeGreaterThan(0);
@@ -196,8 +196,8 @@ describe('useCommandSystem', () => {
 
       await waitFor(() => {
         const keybindings = store.get(keybindingsAtom);
-        expect(keybindings.has(ApplicationCommands.VIEW_ENTER_FOCUS_MODE)).toBe(true);
-        expect(keybindings.has(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS)).toBe(true);
+        expect(keybindings.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)).toBe(true);
+        expect(keybindings.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)).toBe(true);
       });
     });
   });

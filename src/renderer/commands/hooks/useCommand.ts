@@ -35,9 +35,9 @@ export interface CommandInfo {
  * @returns Formatted title string
  *
  * @example
- * const cmd = useCommand(ApplicationCommands.VIEW_ENTER_FOCUS_MODE);
- * getCommandDisplayTitle(cmd)  // → "Enter Focus Mode (⌘⌥F)"
- * getCommandDisplayTitle(cmd, false)  // → "Enter Focus Mode"
+ * const cmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
+ * getCommandDisplayTitle(cmd)  // → "Toggle Focus Mode (⌘⌥F)"
+ * getCommandDisplayTitle(cmd, false)  // → "Toggle Focus Mode"
  */
 export function getCommandDisplayTitle(
   cmd: Pick<CommandInfo, 'title' | 'primaryKeybinding'>,
@@ -61,7 +61,7 @@ export function getCommandDisplayTitle(
  * @returns Command information including keybindings and execute function
  *
  * @example
- * const cmd = useCommand(ApplicationCommands.VIEW_ENTER_FOCUS_MODE);
+ * const cmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
  *
  * <button
  *   title={getCommandDisplayTitle(cmd)}

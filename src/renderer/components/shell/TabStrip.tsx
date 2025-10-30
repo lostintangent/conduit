@@ -73,8 +73,8 @@ export const TabStrip = ({
   const isInFocusMode = applicationMode === "focus";
 
   // Command hooks for button actions
-  const enterFocusModeCmd = useCommand(ApplicationCommands.VIEW_ENTER_FOCUS_MODE);
-  const togglePaneControlsCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS);
+  const toggleFocusModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
+  const toggleDesignModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE);
 
   const tabStripTransitionStyle = useMemo<React.CSSProperties>(() => {
     const collapsed = isInFocusMode;
@@ -530,9 +530,9 @@ export const TabStrip = ({
         <button
           type="button"
           className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-          title={getCommandDisplayTitle(enterFocusModeCmd)}
-          aria-label={enterFocusModeCmd.title}
-          onClick={enterFocusModeCmd.execute}
+          title={getCommandDisplayTitle(toggleFocusModeCmd)}
+          aria-label={toggleFocusModeCmd.title}
+          onClick={toggleFocusModeCmd.execute}
           disabled={!activeTab}
           draggable={!!activeTab}
           onDragStart={(e) => {
@@ -550,9 +550,9 @@ export const TabStrip = ({
             ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
             : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
             }`}
-          title={getCommandDisplayTitle(togglePaneControlsCmd)}
-          aria-label={togglePaneControlsCmd.title}
-          onClick={togglePaneControlsCmd.execute}
+          title={getCommandDisplayTitle(toggleDesignModeCmd)}
+          aria-label={toggleDesignModeCmd.title}
+          onClick={toggleDesignModeCmd.execute}
         >
           <SquareDashedMousePointer size={18} />
         </button>
