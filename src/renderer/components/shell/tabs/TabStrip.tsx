@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { RepoInputDialog } from "@/components/ui/repo-input-dialog";
 import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { focusTab, moveTab, openTab } from "@/store/actions/tab";
 import {
@@ -100,6 +101,8 @@ export const TabStrip = ({
   } | null>(null);
 
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  
+  const [isRepoDialogOpen, setIsRepoDialogOpen] = useState(false);
 
   // Track pane drag hover for tab switching
   const paneDragHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -466,7 +469,11 @@ export const TabStrip = ({
     });
   }, [homeDirectory, onOpenQuickPane]);
 
-  const handleOpenQuickCloudTerminal = useCallback(async () => {
+  const handleOpenQuickCloudTerminal = useCallback(() => {
+    setIsRepoDialogOpen(true);
+  }, []);
+
+  const handleRepoSubmit = useCallback(async (repo?: { owner: string; name: string }) => {
     const api = window.conduit;
 
     const notificationId = enqueueNotification({
@@ -478,6 +485,7 @@ export const TabStrip = ({
     try {
       const result = await api.createTerminal({
         isRemoteVM: true,
+        githubRepo: repo,
       });
 
       if (!result || !onOpenQuickPane) {
@@ -661,6 +669,11 @@ export const TabStrip = ({
 
       <TabPreview preview={hoverPreview} />
 
+      <RepoInputDialog
+        isOpen={isRepoDialogOpen}
+        onClose={() => setIsRepoDialogOpen(false)}
+        onSubmit={handleRepoSubmit}
+      />
     </>
   );
 };

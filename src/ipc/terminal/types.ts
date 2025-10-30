@@ -26,9 +26,15 @@ export type CreateTerminalOptions = {
 
   // VM-specific options
   isRemoteVM?: boolean;
+  existingVMId?: string; // Connect to an existing VM instead of creating one
   vmImageId?: string;
   vmLabels?: string[];
   vmIdleTimeout?: number;
+  githubRepo?: {
+    owner: string;
+    name: string;
+    branch?: string;
+  };
 };
 
 export type CloudEnvironment = {

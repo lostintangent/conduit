@@ -10,6 +10,7 @@ import type {
   CreateVMPayload,
   DeleteVMPayload,
   FileTreeNode,
+  ForkVMPayload,
   ListVMsPayload,
   TerminalCreateOptions,
   TerminalCreateResponse,
@@ -257,6 +258,9 @@ const conduitAPI = {
 
   deleteVM: (payload: DeleteVMPayload) =>
     ipcRenderer.invoke("vm:delete", payload) as Promise<void>,
+
+  forkVM: (vmId: string, payload?: Omit<ForkVMPayload, 'vmId'>) =>
+    ipcRenderer.invoke("vm:fork", { vmId, ...payload }) as Promise<VMInfo>,
 
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,

@@ -1,15 +1,17 @@
 import { ipcMain } from "electron";
 import type {
-    CreateVMPayload,
-    DeleteVMPayload,
-    ListVMsPayload,
+  CreateVMPayload,
+  DeleteVMPayload,
+  ForkVMPayload,
+  ListVMsPayload,
 } from "../../shared/types";
 import {
-    createVM as createVMClient,
-    deleteVM as deleteVMClient,
-    getVM as getVMClient,
-    listVMs as listVMsClient,
-    reloadConfig,
+  createVM as createVMClient,
+  deleteVM as deleteVMClient,
+  forkVM as forkVMClient,
+  getVM as getVMClient,
+  listVMs as listVMsClient,
+  reloadConfig,
 } from "./client";
 
 /**
@@ -34,6 +36,14 @@ export function initializeVMHandlers() {
   // Delete a VM
   ipcMain.handle("vm:delete", async (_, payload: DeleteVMPayload) => {
     return deleteVMClient(payload.vmId);
+  });
+
+  // Fork a VM
+  ipcMain.handle("vm:fork", async (_, payload: ForkVMPayload) => {
+    return forkVMClient(payload.vmId, {
+      labels: payload.labels,
+      idle_timeout: payload.idle_timeout,
+    });
   });
 
   // Reload VM configuration
