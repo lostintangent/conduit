@@ -47,6 +47,10 @@ type TabButtonProps = {
     event: React.DragEvent<HTMLButtonElement>,
     tabId: string
   ) => void;
+  onDragLeave?: (
+    event: React.DragEvent<HTMLButtonElement>,
+    tabId: string
+  ) => void;
   onDrop: (event: React.DragEvent<Element>) => void;
   onDragEnd: () => void;
 };
@@ -62,6 +66,7 @@ export const TabButton = ({
   onContextMenu,
   onDragStart,
   onDragOver,
+  onDragLeave,
   onDrop,
   onDragEnd,
 }: TabButtonProps) => {
@@ -144,6 +149,7 @@ export const TabButton = ({
       }
       onDragStart={(event) => onDragStart(event, tabId)}
       onDragOver={(event) => onDragOver(event, tabId)}
+      onDragLeave={onDragLeave ? (event) => onDragLeave(event, tabId) : undefined}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
