@@ -9,12 +9,12 @@ import {
   QuickDialog,
   type PaneDescriptor,
 } from "@/components/shell/QuickDialog";
+import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
-import { RepoInputDialog } from "@/components/ui/repo-input-dialog";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -718,7 +718,7 @@ export function App() {
         onRemove={handleAgentSessionCleanup}
       />
 
-      <RepoInputDialog
+      <RepositoryDialog
         isOpen={isVMRepoDialogOpen}
         onClose={() => setIsVMRepoDialogOpen(false)}
         onSubmit={handleVMRepoSubmit}

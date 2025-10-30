@@ -1,6 +1,7 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { getCommandDisplayTitle, useCommand } from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
 import { TabPreview } from "@/components/shell/tabs/TabPreview";
 import {
@@ -9,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RepoInputDialog } from "@/components/ui/repo-input-dialog";
 import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import { focusTab, moveTab, openTab } from "@/store/actions/tab";
 import {
@@ -669,7 +669,7 @@ export const TabStrip = ({
 
       <TabPreview preview={hoverPreview} />
 
-      <RepoInputDialog
+      <RepositoryDialog
         isOpen={isRepoDialogOpen}
         onClose={() => setIsRepoDialogOpen(false)}
         onSubmit={handleRepoSubmit}

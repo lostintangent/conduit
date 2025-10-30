@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 
-type RepoInputDialogProps = {
+type RepositoryDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (repo?: { owner: string; name: string }) => void;
@@ -58,13 +58,13 @@ function parseRepoInput(input: string): { owner: string; name: string } | null {
   return null;
 }
 
-export function RepoInputDialog({
+export function RepositoryDialog({
   isOpen,
   onClose,
   onSubmit,
   title = "Clone GitHub Repository",
   description = "Enter a GitHub repository URL (optional). Leave empty to start with a clean VM.",
-}: RepoInputDialogProps) {
+}: RepositoryDialogProps) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 
