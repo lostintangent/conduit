@@ -12,7 +12,6 @@ import type {
   TerminalConfig,
   EditorConfig,
   BrowserConfig,
-  ActionOverride,
 } from '../core/types';
 
 /**
@@ -123,14 +122,11 @@ export function validateAction(data: unknown, index: number): Action {
     context
   );
 
-  // Validate overrides (optional, array)
-  let validatedOverrides: ActionOverride[] | undefined;
+  // Reject overrides if present (no longer supported)
   if (data.overrides !== undefined) {
-    if (!Array.isArray(data.overrides)) {
-      throw new ValidationError('overrides must be an array', context);
-    }
-    validatedOverrides = data.overrides.map((override, i) =>
-      validateOverride(override, data.paneType as PaneType, i, context)
+    throw new ValidationError(
+      'overrides are no longer supported',
+      context
     );
   }
 
@@ -140,7 +136,6 @@ export function validateAction(data: unknown, index: number): Action {
     enabled: data.enabled,
     paneType: data.paneType as PaneType,
     config: validatedConfig,
-    overrides: validatedOverrides,
   };
 }
 
@@ -241,63 +236,24 @@ function validateTerminalConfig(
 
 /**
  * Validate editor configuration
+ *
+ * Note: Editor pane currently doesn't support any configuration options.
+ * It only uses the current working directory which comes from the override path.
  */
 function validateEditorConfig(
   data: Record<string, unknown>,
   context: string
 ): EditorConfig {
-  const configContext = `${context}.config`;
-
-  // All fields are optional for editor config
-  const config: EditorConfig = {};
-
-  if (data.path !== undefined) {
-    if (typeof data.path !== 'string') {
-      throw new ValidationError(
-        'editor config: path must be a string',
-        configContext
-      );
-    }
-    config.path = data.path;
+  // Editor config must be an empty object
+  // Warn if unknown properties are present
+  const unknownProps = Object.keys(data);
+  if (unknownProps.length > 0) {
+    console.warn(
+      `${context}.config: Editor config doesn't support any properties yet. Found: ${unknownProps.join(', ')}`
+    );
   }
 
-  if (data.filePattern !== undefined) {
-    if (typeof data.filePattern !== 'string') {
-      throw new ValidationError(
-        'editor config: filePattern must be a string',
-        configContext
-      );
-    }
-    config.filePattern = data.filePattern;
-  }
-
-  if (data.revealInTree !== undefined) {
-    if (typeof data.revealInTree !== 'boolean') {
-      throw new ValidationError(
-        'editor config: revealInTree must be a boolean',
-        configContext
-      );
-    }
-    config.revealInTree = data.revealInTree;
-  }
-
-  if (data.lineNumber !== undefined) {
-    if (typeof data.lineNumber !== 'number') {
-      throw new ValidationError(
-        'editor config: lineNumber must be a number',
-        configContext
-      );
-    }
-    if (!Number.isInteger(data.lineNumber) || data.lineNumber < 1) {
-      throw new ValidationError(
-        'editor config: lineNumber must be a positive integer',
-        configContext
-      );
-    }
-    config.lineNumber = data.lineNumber;
-  }
-
-  return config;
+  return {};
 }
 
 /**
@@ -327,72 +283,6 @@ function validateBrowserConfig(
   return {
     url: data.url,
   };
-}
-
-/**
- * Validate an action override
- */
-function validateOverride(
-  data: unknown,
-  parentPaneType: PaneType,
-  index: number,
-  parentContext: string
-): ActionOverride {
-  const context = `${parentContext}.overrides[${index}]`;
-
-  if (!isObject(data)) {
-    throw new ValidationError('Override must be an object', context);
-  }
-
-  // path is required
-  if (typeof data.path !== 'string') {
-    throw new ValidationError('override: path must be a string', context);
-  }
-  if (data.path.trim() === '') {
-    throw new ValidationError('override: path cannot be empty', context);
-  }
-
-  // paneType is optional
-  let paneType: PaneType | undefined;
-  if (data.paneType !== undefined) {
-    if (typeof data.paneType !== 'string') {
-      throw new ValidationError(
-        'override: paneType must be a string',
-        context
-      );
-    }
-    if (!isValidPaneType(data.paneType)) {
-      throw new ValidationError(
-        `override: paneType must be one of: terminal, editor, browser. Got: "${data.paneType}"`,
-        context
-      );
-    }
-    paneType = data.paneType as PaneType;
-  }
-
-  // config is required
-  if (!isObject(data.config)) {
-    throw new ValidationError('override: config must be an object', context);
-  }
-
-  // Validate config matches paneType (override or parent)
-  const effectivePaneType = paneType ?? parentPaneType;
-  const validatedConfig = validatePaneConfig(
-    effectivePaneType,
-    data.config,
-    context
-  );
-
-  const override: ActionOverride = {
-    path: data.path,
-    config: validatedConfig,
-  };
-
-  if (paneType !== undefined) {
-    override.paneType = paneType;
-  }
-
-  return override;
 }
 
 /**

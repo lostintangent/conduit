@@ -348,7 +348,24 @@ describe('validation', () => {
         expect(result[0].config).toEqual({});
       });
 
-      it('should accept all optional editor fields', () => {
+      it('should accept empty editor config', () => {
+        const actions = [
+          {
+            name: 'Test',
+            icon: 'test',
+            enabled: true,
+            paneType: 'editor',
+            config: {},
+          },
+        ];
+
+        const result = validatePaneActionsConfig(actions);
+        expect(result[0].config).toEqual({});
+      });
+
+      it('should warn about unsupported properties but not reject', () => {
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
         const actions = [
           {
             name: 'Test',
@@ -358,121 +375,17 @@ describe('validation', () => {
             config: {
               path: '~/Projects',
               filePattern: '*.ts',
-              revealInTree: true,
-              lineNumber: 42,
             },
           },
         ];
 
         const result = validatePaneActionsConfig(actions);
-        expect(result[0].config).toEqual({
-          path: '~/Projects',
-          filePattern: '*.ts',
-          revealInTree: true,
-          lineNumber: 42,
-        });
-      });
-
-      it('should reject invalid path type', () => {
-        const actions = [
-          {
-            name: 'Test',
-            icon: 'test',
-            enabled: true,
-            paneType: 'editor',
-            config: { path: 123 },
-          },
-        ];
-
-        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
-        expect(() => validatePaneActionsConfig(actions)).toThrow(
-          'path must be a string'
+        expect(result[0].config).toEqual({});
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Editor config doesn\'t support any properties yet')
         );
-      });
 
-      it('should reject invalid filePattern type', () => {
-        const actions = [
-          {
-            name: 'Test',
-            icon: 'test',
-            enabled: true,
-            paneType: 'editor',
-            config: { filePattern: 123 },
-          },
-        ];
-
-        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
-        expect(() => validatePaneActionsConfig(actions)).toThrow(
-          'filePattern must be a string'
-        );
-      });
-
-      it('should reject invalid revealInTree type', () => {
-        const actions = [
-          {
-            name: 'Test',
-            icon: 'test',
-            enabled: true,
-            paneType: 'editor',
-            config: { revealInTree: 'yes' },
-          },
-        ];
-
-        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
-        expect(() => validatePaneActionsConfig(actions)).toThrow(
-          'revealInTree must be a boolean'
-        );
-      });
-
-      it('should reject non-integer lineNumber', () => {
-        const actions = [
-          {
-            name: 'Test',
-            icon: 'test',
-            enabled: true,
-            paneType: 'editor',
-            config: { lineNumber: 3.14 },
-          },
-        ];
-
-        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
-        expect(() => validatePaneActionsConfig(actions)).toThrow(
-          'lineNumber must be a positive integer'
-        );
-      });
-
-      it('should reject zero lineNumber', () => {
-        const actions = [
-          {
-            name: 'Test',
-            icon: 'test',
-            enabled: true,
-            paneType: 'editor',
-            config: { lineNumber: 0 },
-          },
-        ];
-
-        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
-        expect(() => validatePaneActionsConfig(actions)).toThrow(
-          'lineNumber must be a positive integer'
-        );
-      });
-
-      it('should reject negative lineNumber', () => {
-        const actions = [
-          {
-            name: 'Test',
-            icon: 'test',
-            enabled: true,
-            paneType: 'editor',
-            config: { lineNumber: -1 },
-          },
-        ];
-
-        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
-        expect(() => validatePaneActionsConfig(actions)).toThrow(
-          'lineNumber must be a positive integer'
-        );
+        consoleWarnSpy.mockRestore();
       });
     });
 

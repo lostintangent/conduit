@@ -37,6 +37,16 @@ export {
   readPaneActionsFileOrNull,
 } from './io/fileOperations';
 
+// User actions (save/reset)
+export {
+  savePaneActions,
+  resetPaneActionsToDefaults,
+  hasUserPaneActionsFile,
+} from './io/userPaneActions';
+
+// Atom updates
+export { updatePaneActionsAtom } from './io/updatePaneActionsAtom';
+
 // Validation
 export { validatePaneActionsConfig, ValidationError } from './io/validation';
 

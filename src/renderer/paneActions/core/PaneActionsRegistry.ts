@@ -5,9 +5,8 @@
  * Based on: docs/pane-actions-schema.md
  */
 
-import type { Action, ResolvedActionConfig } from './types';
+import type { Action } from './types';
 import { getDefaultActions } from './defaults';
-import { resolveAction } from '../resolution/resolveAction';
 import { readPaneActionsFile } from '../io/fileOperations';
 import { watchPaneActionsFile, type PaneActionsWatcher } from '../io/watchPaneActions';
 
@@ -22,10 +21,8 @@ import { watchPaneActionsFile, type PaneActionsWatcher } from '../io/watchPaneAc
 export class PaneActionsRegistry {
   private actions: Action[] = [];
   private listeners: Array<() => void> = [];
-  private homeDirectory: string;
 
-  constructor(homeDirectory: string) {
-    this.homeDirectory = homeDirectory;
+  constructor() {
     // Initialize with defaults
     this.actions = getDefaultActions();
   }
@@ -51,45 +48,23 @@ export class PaneActionsRegistry {
   }
 
   /**
-   * Resolve an action's configuration for a given current working directory
+   * Get an action by name
    *
-   * Applies path-based overrides when applicable.
-   *
-   * @param actionName - Name of the action to resolve
-   * @param cwd - Current working directory
-   * @returns Resolved pane type and configuration, or null if action not found
+   * @param actionName - Name of the action
+   * @returns The action, or null if not found
    */
-  resolveActionByName(
-    actionName: string,
-    cwd: string
-  ): ResolvedActionConfig | null {
-    const action = this.actions.find((a) => a.name === actionName);
-    if (!action) {
-      return null;
-    }
-
-    return resolveAction(action, cwd, this.homeDirectory);
+  getActionByName(actionName: string): Action | null {
+    return this.actions.find((a) => a.name === actionName) ?? null;
   }
 
   /**
-   * Resolve an action's configuration by index
-   *
-   * Applies path-based overrides when applicable.
+   * Get an action by index
    *
    * @param actionIndex - Index of the action in the actions array
-   * @param cwd - Current working directory
-   * @returns Resolved pane type and configuration, or null if index out of bounds
+   * @returns The action, or null if index out of bounds
    */
-  resolveActionByIndex(
-    actionIndex: number,
-    cwd: string
-  ): ResolvedActionConfig | null {
-    const action = this.actions[actionIndex];
-    if (!action) {
-      return null;
-    }
-
-    return resolveAction(action, cwd, this.homeDirectory);
+  getActionByIndex(actionIndex: number): Action | null {
+    return this.actions[actionIndex] ?? null;
   }
 
   /**

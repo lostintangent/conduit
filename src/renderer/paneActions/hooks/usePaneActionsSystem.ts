@@ -58,8 +58,7 @@ export function usePaneActionsSystem(
   const { homeDirectory } = options;
 
   // Create registry once (persists across re-renders)
-  // Use a fallback value if homeDirectory not provided yet
-  const [registry] = useState(() => new PaneActionsRegistry(homeDirectory || '/tmp'));
+  const [registry] = useState(() => new PaneActionsRegistry());
 
   // Track ready state
   const [isReady, setIsReady] = useState(false);

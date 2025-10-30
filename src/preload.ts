@@ -220,6 +220,9 @@ const conduitAPI = {
   writeFile: (filePath: string, content: string) =>
     ipcRenderer.invoke("fs:write-file", filePath, content) as Promise<void>,
 
+  deleteFile: (filePath: string) =>
+    ipcRenderer.invoke("fs:delete-file", filePath) as Promise<void>,
+
   watchFile: (filePath: string, onChange: () => void) => {
     const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;
 

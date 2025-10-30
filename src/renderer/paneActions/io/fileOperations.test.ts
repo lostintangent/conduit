@@ -311,12 +311,7 @@ describe('fileOperations', () => {
           icon: 'code',
           enabled: false,
           paneType: 'editor',
-          config: {
-            path: '~/Projects/src',
-            filePattern: '*.ts',
-            revealInTree: false,
-            lineNumber: 42,
-          },
+          config: {},
         },
         {
           name: 'Browser',

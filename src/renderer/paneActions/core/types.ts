@@ -46,27 +46,12 @@ export interface TerminalConfig {
 
 /**
  * Editor pane configuration
+ *
+ * Note: The editor pane currently only uses the current working directory (cwd)
+ * which is determined by the override path resolution. No additional config is supported.
  */
 export interface EditorConfig {
-  /**
-   * Path to file or directory to open
-   */
-  path?: string;
-
-  /**
-   * Optional glob pattern for files to show (if path is a directory)
-   */
-  filePattern?: string;
-
-  /**
-   * Whether to reveal the file in the file tree
-   */
-  revealInTree?: boolean;
-
-  /**
-   * Optional line number to jump to (if opening a file)
-   */
-  lineNumber?: number;
+  // Empty - editor pane doesn't support any configuration options yet
 }
 
 /**
@@ -83,28 +68,6 @@ export interface BrowserConfig {
  * Union of all pane configurations
  */
 export type PaneConfig = TerminalConfig | EditorConfig | BrowserConfig;
-
-/**
- * Action override for specific directory paths
- */
-export interface ActionOverride {
-  /**
-   * Directory path to match against current working directory
-   * Uses prefix matching (e.g., "~/Projects" matches "~/Projects/test")
-   */
-  path: string;
-
-  /**
-   * Optional pane type override
-   */
-  paneType?: PaneType;
-
-  /**
-   * Configuration for this override
-   * Completely replaces parent config (no merging)
-   */
-  config: PaneConfig;
-}
 
 /**
  * Action definition
@@ -126,30 +89,17 @@ export interface Action {
   enabled: boolean;
 
   /**
-   * Default pane type for this action
+   * Pane type for this action
    */
   paneType: PaneType;
 
   /**
-   * Default configuration (used when no override matches)
+   * Configuration for this action
    */
   config: PaneConfig;
-
-  /**
-   * Location-specific overrides (optional)
-   */
-  overrides?: ActionOverride[];
 }
 
 /**
  * Root configuration structure (array of actions)
  */
 export type PaneActionsConfig = Action[];
-
-/**
- * Resolved action configuration (after override resolution)
- */
-export interface ResolvedActionConfig {
-  paneType: PaneType;
-  config: PaneConfig;
-}

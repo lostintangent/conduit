@@ -41,6 +41,18 @@ export function initializeFsHandlers() {
     }
   });
 
+  ipcMain.handle("fs:delete-file", async (_, filePath: string) => {
+    try {
+      const fs = require("node:fs").promises;
+
+      // Delete file
+      await fs.unlink(filePath);
+    } catch (error) {
+      console.error("Failed to delete file", filePath, error);
+      throw error;
+    }
+  });
+
   ipcMain.handle("fs:watch-file", async (event, filePath: string, watcherId: string) => {
     try {
       const fs = require("node:fs");
