@@ -48,3 +48,23 @@ export {
   type FileErrorCallback,
   type WatchPaneActionsOptions,
 } from './io/watchPaneActions';
+
+// React hooks
+export {
+  usePaneActionsSystem,
+  type UsePaneActionsSystemOptions,
+  type PaneActionsSystem,
+} from './hooks/usePaneActionsSystem';
+
+export {
+  usePaneActions,
+  useEnabledPaneActions,
+  usePaneAction,
+  usePaneActionByIndex,
+} from './hooks/usePaneActions';
+
+export {
+  useResolvedAction,
+  useResolvedActionByName,
+  useResolvedActionByIndex,
+} from './hooks/useResolvedAction';
