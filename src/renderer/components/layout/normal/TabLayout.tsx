@@ -334,7 +334,7 @@ export function TabLayout({
             {pane.type === "terminal" ? (
               <TerminalPane
                 key={pane.sessionId}
-                sessionId={pane.sessionId}
+                terminalId={pane.sessionId}
                 paneId={pane.id}
                 isActive={isActivePane}
                 onActivate={onPaneActivate}

@@ -11,6 +11,8 @@ export type TerminalInstance = {
 
   ready: boolean;
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
+  markReady: () => void;
+  resize: (cols: number, rows: number) => void;
   dispose: () => void;
 };
 
@@ -71,7 +73,7 @@ export function getOrCreate(
       api.sendKeypress(sessionId, input)
     );
 
-    instance = {
+    const newInstance: TerminalInstance = {
       terminal,
       fit,
       search,
@@ -79,14 +81,25 @@ export function getOrCreate(
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
       },
+      markReady: () => {
+        if (newInstance.ready) return;
+
+        newInstance.ready = true;
+        api.markTerminalReady(sessionId);
+      },
+      resize: (cols, rows) => {
+        api.resize(sessionId, cols, rows);
+      },
       dispose: () => {
         unsubData();
         onKeyDispose?.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
+        newInstance.ready = false;
       },
     };
-    store.set(sessionId, instance);
+    store.set(sessionId, newInstance);
+    instance = newInstance;
   } else if (options.onLinkClick) {
     instance.setLinkHandler(options.onLinkClick);
   }
@@ -104,17 +117,6 @@ export function attach(sessionId: string, container: HTMLElement) {
   } else {
     instance.terminal.open(container);
   }
-}
-
-export function markReadyOnce(
-  sessionId: string,
-  api: typeof window.conduit
-) {
-  const instance = store.get(sessionId);
-  if (!instance || instance.ready) return;
-
-  instance.ready = true;
-  api.markTerminalReady(sessionId);
 }
 
 export function disposeSession(sessionId: string) {

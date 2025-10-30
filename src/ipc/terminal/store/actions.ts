@@ -155,10 +155,8 @@ function setupTerminalListeners(
 
   pty.onData((data) => {
     if (terminal.isRendererReady) {
-      console.log(`[Terminal] Sending data for session ${id}:`, data);
       sendToRenderer("terminal:data", { sessionId: id, data });
     } else {
-      console.log(`[Terminal] Buffering data for session ${id}:`, data);
       terminal.bufferedOutput.push(data);
     }
 
