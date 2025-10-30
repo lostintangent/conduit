@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
-import { moveTab, openTab } from "@/store/actions/tab";
+import { focusTab, moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
   activeTabIdAtom,
@@ -30,7 +30,7 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 
 type TabDescriptor = {
   id: string;
@@ -94,10 +94,27 @@ export const TabStrip = ({
 
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
-  const clearDragState = () => {
+  // Track pane drag hover for tab switching
+  const paneDragHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const paneDragHoverTabRef = useRef<string | null>(null);
+
+  const clearPaneDragHoverTimeout = useCallback(() => {
+    if (paneDragHoverTimeoutRef.current) {
+      clearTimeout(paneDragHoverTimeoutRef.current);
+      paneDragHoverTimeoutRef.current = null;
+    }
+    paneDragHoverTabRef.current = null;
+  }, []);
+
+  const clearDragState = useCallback(() => {
     setDraggingTab(null);
     setDropTargetIndex(null);
-  };
+    clearPaneDragHoverTimeout();
+  }, [clearPaneDragHoverTimeout]);
+
+  const isPaneDrag = useCallback((e: React.DragEvent): boolean => {
+    return e.dataTransfer.types.includes("application/x-conduit-pane-drag");
+  }, []);
 
   const applyMoveDropEffect = (e: React.DragEvent<Element>) => {
     e.preventDefault();
@@ -239,6 +256,28 @@ export const TabStrip = ({
 
   const handleDragOverTab = useCallback(
     (event: React.DragEvent<HTMLButtonElement>, overTabId: string) => {
+      // Check if this is a pane drag (not tab drag)
+      if (isPaneDrag(event)) {
+        // Handle pane drag - switch tab after 500ms hover if not already active
+        if (overTabId !== activeTabId) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+
+          // Only start timeout if we're hovering over a different tab than before
+          if (paneDragHoverTabRef.current !== overTabId) {
+            clearPaneDragHoverTimeout();
+            paneDragHoverTabRef.current = overTabId;
+
+            paneDragHoverTimeoutRef.current = setTimeout(() => {
+              focusTab(overTabId);
+              clearPaneDragHoverTimeout();
+            }, 500);
+          }
+        }
+        return;
+      }
+
+      // Handle tab drag (existing tab reordering logic)
       if (draggingTab.id === overTabId) {
         return;
       }
@@ -260,7 +299,26 @@ export const TabStrip = ({
         setDropTargetIndex(nextIndex);
       }
     },
-    [applyMoveDropEffect, dropTargetIndex, draggingTab, reorderableTabs]
+    [activeTabId, applyMoveDropEffect, clearPaneDragHoverTimeout, dropTargetIndex, draggingTab, isPaneDrag, reorderableTabs]
+  );
+
+  const handleDragLeaveTab = useCallback(
+    (event: React.DragEvent<HTMLButtonElement>, tabId: string) => {
+      // Only clear if we're actually leaving the tab (not moving to a child)
+      const relatedTarget = event.relatedTarget;
+      if (
+        relatedTarget instanceof Node &&
+        event.currentTarget.contains(relatedTarget)
+      ) {
+        return;
+      }
+
+      // Clear pane drag hover timeout if leaving the tab
+      if (paneDragHoverTabRef.current === tabId) {
+        clearPaneDragHoverTimeout();
+      }
+    },
+    [clearPaneDragHoverTimeout]
   );
 
   const handleDrop = useCallback(
@@ -275,8 +333,9 @@ export const TabStrip = ({
       }
 
       clearDragState();
+      clearPaneDragHoverTimeout();
     },
-    [clearDragState, draggingTab, dropTargetIndex, reorderableTabs.length]
+    [clearDragState, clearPaneDragHoverTimeout, draggingTab, dropTargetIndex, reorderableTabs.length]
   );
 
   const tabsWithPlaceholders = useMemo<React.ReactNode[]>(() => {
@@ -321,6 +380,7 @@ export const TabStrip = ({
             onContextMenu={onTabContextMenu}
             onDragStart={handleDragStart}
             onDragOver={handleDragOverTab}
+            onDragLeave={handleDragLeaveTab}
             onDrop={handleDrop}
             onDragEnd={clearDragState}
           />
@@ -341,8 +401,10 @@ export const TabStrip = ({
 
     return elements;
   }, [
+    clearDragState,
     descriptors,
     draggingTab,
+    handleDragLeaveTab,
     handleDragOverTab,
     handleDragStart,
     handleDrop,
