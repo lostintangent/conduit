@@ -11,7 +11,9 @@ import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { KeybindingsEditor } from "@/components/keybindings";
+import { PaneActionsEditor } from "@/components/paneActions";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
+import { usePaneActionsSystem } from "@/paneActions";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -78,6 +80,7 @@ export function App() {
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
+  const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
 
   const {
     workspaceName,
@@ -105,6 +108,12 @@ export function App() {
     setApplicationMode,
     homeDirectory,
     onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
+    onOpenPaneActions: () => setShowPaneActionsEditor(true),
+  });
+
+  // Initialize pane actions system
+  const paneActionsSystem = usePaneActionsSystem({
+    homeDirectory,
   });
 
   useKeybindingDispatch(
@@ -677,6 +686,27 @@ export function App() {
             <p className="text-gray-400 mb-4">The command system is still initializing. Please try again.</p>
             <button
               onClick={() => setShowKeybindingsEditor(false)}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showPaneActionsEditor && paneActionsSystem && homeDirectory ? (
+        <PaneActionsEditor
+          onClose={() => setShowPaneActionsEditor(false)}
+          homeDirectory={homeDirectory}
+          onOpenQuickPane={handleOpenQuickPane}
+        />
+      ) : showPaneActionsEditor ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
+            <h2 className="text-white text-xl mb-4">Pane actions system not initialized</h2>
+            <p className="text-gray-400 mb-4">The pane actions system is still initializing. Please try again.</p>
+            <button
+              onClick={() => setShowPaneActionsEditor(false)}
               className="bg-blue-500 text-white px-4 py-2 rounded"
             >
               Close

@@ -4,8 +4,42 @@
  * Based on: docs/pane-actions-schema.md (Override Resolution Algorithm)
  */
 
-import { homedir } from 'os';
-import { resolve } from 'path';
+/**
+ * Browser-compatible path resolution
+ * Simplified version of path.resolve() for browser environment
+ */
+function resolvePath(path: string): string {
+  // If already absolute, just normalize it
+  if (path.startsWith('/')) {
+    return normalizeParts(path);
+  }
+
+  // Relative paths are not supported in this context
+  // This shouldn't happen as we expand ~ first
+  return path;
+}
+
+/**
+ * Normalize path by resolving . and .. segments
+ */
+function normalizeParts(path: string): string {
+  const parts = path.split('/').filter(p => p.length > 0);
+  const resolved: string[] = [];
+
+  for (const part of parts) {
+    if (part === '.') {
+      // Skip current directory references
+      continue;
+    } else if (part === '..') {
+      // Go up one directory
+      resolved.pop();
+    } else {
+      resolved.push(part);
+    }
+  }
+
+  return '/' + resolved.join('/');
+}
 
 /**
  * Normalize a path for prefix matching
@@ -16,16 +50,17 @@ import { resolve } from 'path';
  * 3. Remove trailing slashes
  *
  * @param path - Path to normalize (e.g., "~/Projects/test/")
+ * @param homeDirectory - Home directory path for ~ expansion
  * @returns Normalized absolute path (e.g., "/Users/alice/Projects/test")
  */
-export function normalizePath(path: string): string {
+export function normalizePath(path: string, homeDirectory: string): string {
   // Expand ~ to home directory
   let normalized = path.startsWith('~/')
-    ? path.replace('~', homedir())
+    ? path.replace('~', homeDirectory)
     : path;
 
-  // Resolve to absolute path
-  normalized = resolve(normalized);
+  // Resolve to absolute path (browser-compatible)
+  normalized = resolvePath(normalized);
 
   // Remove trailing slashes (but keep root "/")
   if (normalized.length > 1 && normalized.endsWith('/')) {

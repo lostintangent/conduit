@@ -54,11 +54,12 @@ export interface PaneActionsSystem {
  */
 export function usePaneActionsSystem(
   options: UsePaneActionsSystemOptions = {}
-): PaneActionsSystem {
+): PaneActionsSystem | null {
   const { homeDirectory } = options;
 
   // Create registry once (persists across re-renders)
-  const [registry] = useState(() => new PaneActionsRegistry());
+  // Use a fallback value if homeDirectory not provided yet
+  const [registry] = useState(() => new PaneActionsRegistry(homeDirectory || '/tmp'));
 
   // Track ready state
   const [isReady, setIsReady] = useState(false);
@@ -87,9 +88,14 @@ export function usePaneActionsSystem(
     let isMounted = true;
 
     async function initialize() {
+      // Wait for homeDirectory to be available
+      if (!homeDirectory) {
+        return;
+      }
+
       try {
         // Get config file path
-        const filePath = getUserPaneActionsPath();
+        const filePath = getUserPaneActionsPath(homeDirectory);
 
         // Try to load user config
         const loaded = await registry.loadFromFile(filePath);
@@ -133,6 +139,11 @@ export function usePaneActionsSystem(
       }
     };
   }, [registry, homeDirectory]);
+
+  // Don't return system until we have a valid homeDirectory
+  if (!homeDirectory) {
+    return null;
+  }
 
   return {
     registry,

@@ -22,14 +22,16 @@ import { normalizePath, findLongestMatch } from './pathUtils';
  *
  * @param action - The action to resolve
  * @param cwd - Current working directory (will be normalized)
+ * @param homeDirectory - Home directory for ~ expansion
  * @returns Resolved pane type and configuration
  */
 export function resolveAction(
   action: Action,
-  cwd: string
+  cwd: string,
+  homeDirectory: string
 ): ResolvedActionConfig {
   // Normalize current working directory
-  const normalizedCwd = normalizePath(cwd);
+  const normalizedCwd = normalizePath(cwd, homeDirectory);
 
   // If no overrides, return default config
   if (!action.overrides || action.overrides.length === 0) {
@@ -41,7 +43,7 @@ export function resolveAction(
 
   // Normalize all override paths and find longest match
   const normalizedOverridePaths = action.overrides.map((override) =>
-    normalizePath(override.path)
+    normalizePath(override.path, homeDirectory)
   );
 
   const matchIndex = findLongestMatch(normalizedCwd, normalizedOverridePaths);

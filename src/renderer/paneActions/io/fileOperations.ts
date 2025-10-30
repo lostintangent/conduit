@@ -5,20 +5,17 @@
  * Based on: docs/pane-actions-schema.md
  */
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { dirname } from 'path';
-import { homedir } from 'os';
-import { resolve } from 'path';
 import type { Action } from '../core/types';
 import { validatePaneActionsConfig, ValidationError } from './validation';
 
 /**
  * Get the path to the user's pane actions configuration file
  *
+ * @param homeDirectory - Home directory path
  * @returns Path to ~/.conduit/paneactions.json
  */
-export function getUserPaneActionsPath(): string {
-  return resolve(homedir(), '.conduit', 'paneactions.json');
+export function getUserPaneActionsPath(homeDirectory: string): string {
+  return `${homeDirectory}/.conduit/paneactions.json`;
 }
 
 /**
@@ -32,12 +29,18 @@ export function getUserPaneActionsPath(): string {
 export async function readPaneActionsFile(
   filePath: string
 ): Promise<Action[] | null> {
+  const api = window.conduit;
+  if (!api) {
+    throw new Error('Conduit API not available');
+  }
+
   try {
-    const content = await readFile(filePath, 'utf-8');
+    const content = await api.readFile(filePath);
     return parsePaneActionsContent(content);
   } catch (error) {
     // File doesn't exist - this is expected on first run
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if ((error as Error).message?.includes('ENOENT') ||
+        (error as Error).message?.includes('no such file')) {
       return null;
     }
     // Re-throw other errors
@@ -82,16 +85,17 @@ export async function writePaneActionsFile(
   filePath: string,
   actions: Action[]
 ): Promise<void> {
+  const api = window.conduit;
+  if (!api) {
+    throw new Error('Conduit API not available');
+  }
+
   // Validate before writing
   validatePaneActionsConfig(actions);
 
-  // Ensure parent directory exists
-  const dir = dirname(filePath);
-  await mkdir(dir, { recursive: true });
-
   // Write with pretty formatting (2 space indent)
   const content = JSON.stringify(actions, null, 2);
-  await writeFile(filePath, content, 'utf-8');
+  await api.writeFile(filePath, content);
 }
 
 /**

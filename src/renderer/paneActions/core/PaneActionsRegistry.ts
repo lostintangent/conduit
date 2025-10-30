@@ -22,8 +22,10 @@ import { watchPaneActionsFile, type PaneActionsWatcher } from '../io/watchPaneAc
 export class PaneActionsRegistry {
   private actions: Action[] = [];
   private listeners: Array<() => void> = [];
+  private homeDirectory: string;
 
-  constructor() {
+  constructor(homeDirectory: string) {
+    this.homeDirectory = homeDirectory;
     // Initialize with defaults
     this.actions = getDefaultActions();
   }
@@ -66,7 +68,7 @@ export class PaneActionsRegistry {
       return null;
     }
 
-    return resolveAction(action, cwd);
+    return resolveAction(action, cwd, this.homeDirectory);
   }
 
   /**
@@ -87,7 +89,7 @@ export class PaneActionsRegistry {
       return null;
     }
 
-    return resolveAction(action, cwd);
+    return resolveAction(action, cwd, this.homeDirectory);
   }
 
   /**
