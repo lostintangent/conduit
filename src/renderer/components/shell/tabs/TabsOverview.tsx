@@ -22,10 +22,16 @@ type TabsOverviewProps = {
 export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
   const { mountAllTabsForPreview, unmountAllTabsFromPreview } = useTabContentPortal();
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
+  const isOpenRef = useRef(isOpen);
+
+  // Track isOpen state
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const handleRefSet = useCallback(
     (tabId: string, el: HTMLDivElement | null) => {
-      if (el) {
+      if (el && isOpenRef.current) {
         allTabsContainerRefs.current[tabId] = el;
 
         // Check if all containers are now ready
@@ -44,14 +50,17 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
 
   useEffect(() => {
     if (!isOpen) {
-      unmountAllTabsFromPreview();
+      // Clean up refs first
       allTabsContainerRefs.current = {};
+      // Then unmount from preview which will trigger re-render of tab content
+      unmountAllTabsFromPreview();
     }
   }, [isOpen, unmountAllTabsFromPreview]);
 
-  // Also unmount when component unmounts
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      allTabsContainerRefs.current = {};
       unmountAllTabsFromPreview();
     };
   }, [unmountAllTabsFromPreview]);

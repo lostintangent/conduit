@@ -15,9 +15,19 @@ type TabPreviewItemProps = {
  */
 export function TabPreviewItem({ tabId, onRefSet }: TabPreviewItemProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    if (containerRef.current) {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Clean up ref when unmounting
+      onRefSet(tabId, null);
+    };
+  }, [tabId, onRefSet]);
+
+  useEffect(() => {
+    if (containerRef.current && isMountedRef.current) {
       onRefSet(tabId, containerRef.current);
     }
   }, [tabId, onRefSet]);
@@ -42,9 +52,6 @@ export function TabPreviewItem({ tabId, onRefSet }: TabPreviewItemProps) {
         <div
           ref={(el) => {
             containerRef.current = el;
-            if (el) {
-              onRefSet(tabId, el);
-            }
           }}
           className="pointer-events-none flex w-full h-full min-h-0 min-w-0"
           style={{
