@@ -5,19 +5,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { tabsAtom } from "@/store/atoms";
-import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
+
+type TabInfo = {
+  id: string;
+  label: string;
+};
 
 type TabsOverviewProps = {
   isOpen: boolean;
   onClose: () => void;
+  tabs: TabInfo[];
 };
 
-export function TabsOverview({ isOpen, onClose }: TabsOverviewProps) {
+export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
   const { mountAllTabsForPreview, unmountAllTabsFromPreview } = useTabContentPortal();
-  const tabs = useAtomValue(tabsAtom);
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
 
   const handleRefSet = useCallback(
@@ -46,16 +49,28 @@ export function TabsOverview({ isOpen, onClose }: TabsOverviewProps) {
     }
   }, [isOpen, unmountAllTabsFromPreview]);
 
+  // Also unmount when component unmounts
+  useEffect(() => {
+    return () => {
+      unmountAllTabsFromPreview();
+    };
+  }, [unmountAllTabsFromPreview]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[90vw] max-h-[90vh] bg-surface-elevated border-border overflow-auto">
         <DialogHeader>
-          <DialogTitle>All Tabs ({tabs.length})</DialogTitle>
+          <DialogTitle>Tab overview</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-wrap gap-4 p-4">
+        <div className="flex flex-wrap gap-4">
           {tabs.map((tab) => (
-            <TabPreviewItem key={tab.id} tabId={tab.id} onRefSet={handleRefSet} />
+            <div key={tab.id} className="flex flex-col gap-2">
+              <div className="text-sm text-muted-foreground px-1 truncate max-w-[320px]">
+                {tab.label}
+              </div>
+              <TabPreviewItem tabId={tab.id} onRefSet={handleRefSet} />
+            </div>
           ))}
         </div>
       </DialogContent>

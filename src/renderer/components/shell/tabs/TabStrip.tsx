@@ -79,7 +79,6 @@ export const TabStrip = ({
     tabId: string;
     left: number;
     top: number;
-    allTabIds?: string[];
   } | null>(null);
 
   const [showTabsOverview, setShowTabsOverview] = useState(false);
@@ -690,6 +689,7 @@ export const TabStrip = ({
       <TabsOverview
         isOpen={showTabsOverview}
         onClose={() => setShowTabsOverview(false)}
+        tabs={descriptors.map(d => ({ id: d.id, label: d.label }))}
       />
 
       <RepositoryDialog
