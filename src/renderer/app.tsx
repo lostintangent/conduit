@@ -5,7 +5,7 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
-import { PaneActionsEditor } from "@/components/paneActions";
+import { PaneActionsEditor } from "@/components/shell/paneActions";
 import {
   QuickDialog,
   type PaneDescriptor,

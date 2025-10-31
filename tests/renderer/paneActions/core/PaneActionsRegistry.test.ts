@@ -13,10 +13,10 @@ describe('PaneActionsRegistry', () => {
       const actions = registry.getActions();
 
       expect(actions).toHaveLength(4);
-      expect(actions[0].name).toBe('Source Control');
-      expect(actions[1].name).toBe('Editor');
-      expect(actions[2].name).toBe('Agent');
-      expect(actions[3].name).toBe('Browser');
+      expect(actions[0].name).toBe('Editor');
+      expect(actions[1].name).toBe('Agent');
+      expect(actions[2].name).toBe('Browser');
+      expect(actions[3].name).toBe('Source Control');
     });
   });
 
@@ -283,7 +283,7 @@ describe('PaneActionsRegistry', () => {
       registry.resetToDefaults();
 
       expect(registry.getActions()).toHaveLength(4);
-      expect(registry.getActions()[0].name).toBe('Source Control');
+      expect(registry.getActions()[0].name).toBe('Editor');
     });
 
     it('should notify listeners', () => {
