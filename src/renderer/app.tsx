@@ -113,6 +113,9 @@ export function App() {
     setApplicationMode,
     homeDirectory,
     workspaceName,
+    // Context key data
+    hasCustomLayout,
+    hasLastWorkspace,
     // UI state setters
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,

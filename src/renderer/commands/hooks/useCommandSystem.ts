@@ -4,8 +4,10 @@ import {
   initializeCommandSystem,
   getCommandRegistry,
   getKeybindingRegistry,
+  getContextKeyService,
   type ICommandRegistry,
   type KeybindingRegistry,
+  type IContextKeyService,
 } from '@/commands';
 import { registerApplicationCommands } from '@/commands/applicationCommands';
 import { loadUserKeybindings, getUserKeybindingsPath } from '@/commands/keybindings/userKeybindings';
@@ -18,6 +20,7 @@ import type { ApplicationMode } from '@/store/atoms';
 export interface CommandSystemState {
   commandRegistry: ICommandRegistry;
   keybindingRegistry: KeybindingRegistry;
+  contextKeyService: IContextKeyService;
   isReady: boolean;
 }
 
@@ -28,6 +31,9 @@ export interface UseCommandSystemOptions {
   setApplicationMode: (mode: ApplicationMode) => void;
   homeDirectory?: string;
   workspaceName?: string;
+  // Context key data
+  hasCustomLayout: (tabId: string) => boolean;
+  hasLastWorkspace: boolean;
   // UI state setters
   setShowKeybindingsEditor: (show: boolean) => void;
   setShowPaneActionsEditor: (show: boolean) => void;
@@ -58,6 +64,8 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     setApplicationMode,
     homeDirectory,
     workspaceName,
+    hasCustomLayout,
+    hasLastWorkspace,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setIsCommandPaletteOpenOverride,
@@ -72,6 +80,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
   const [commandSystem, setCommandSystem] = useState<{
     commandRegistry: ICommandRegistry;
     keybindingRegistry: KeybindingRegistry;
+    contextKeyService: IContextKeyService;
   } | null>(null);
 
   const [contextBuilderReady, setContextBuilderReady] = useState(false);
@@ -83,6 +92,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
 
       const commandRegistry = getCommandRegistry();
       const keybindingRegistry = getKeybindingRegistry();
+      const contextKeyService = getContextKeyService();
 
       // Register application-level commands
       registerApplicationCommands(commandRegistry);
@@ -100,6 +110,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
       setCommandSystem({
         commandRegistry,
         keybindingRegistry,
+        contextKeyService,
       });
     };
 
@@ -178,6 +189,55 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     setShowCreateWorkspaceDialog,
   ]);
 
+  // Update context keys whenever app state changes
+  useEffect(() => {
+    if (!commandSystem?.contextKeyService) {
+      return;
+    }
+
+    const contextKeyService = commandSystem.contextKeyService;
+
+    // Update global context keys
+    contextKeyService.setGlobal('hasWorkspace', !!workspaceName);
+    contextKeyService.setGlobal('hasLastWorkspace', hasLastWorkspace ?? false);
+    contextKeyService.setGlobal('tabCount', tabs?.length ?? 0);
+    contextKeyService.setGlobal('hasActivePane', !!(activeTab && activeTab.activePaneId));
+
+    // Update hasCustomLayout context key
+    if (activeTab && hasCustomLayout) {
+      contextKeyService.setGlobal('hasCustomLayout', hasCustomLayout(activeTab.id));
+    } else {
+      contextKeyService.setGlobal('hasCustomLayout', false);
+    }
+
+    // Update pane-level context keys for active pane
+    if (activeTab?.activePaneId) {
+      const activePane = activeTab.panes?.[activeTab.activePaneId];
+      if (activePane) {
+        contextKeyService.setGlobal('activePaneType', activePane.type || '');
+        contextKeyService.setGlobal('isInAgentSession', !!activePane.agentSessionId);
+        contextKeyService.setGlobal('hasCwd', !!(activePane.type === 'terminal' && activePane.cwd));
+      } else {
+        // Clear pane context keys if no active pane
+        contextKeyService.setGlobal('activePaneType', '');
+        contextKeyService.setGlobal('isInAgentSession', false);
+        contextKeyService.setGlobal('hasCwd', false);
+      }
+    } else {
+      // Clear pane context keys if no active pane
+      contextKeyService.setGlobal('activePaneType', '');
+      contextKeyService.setGlobal('isInAgentSession', false);
+      contextKeyService.setGlobal('hasCwd', false);
+    }
+  }, [
+    commandSystem,
+    workspaceName,
+    hasLastWorkspace,
+    tabs,
+    activeTab,
+    hasCustomLayout,
+  ]);
+
   // Watch keybindings file for external changes
   useEffect(() => {
     if (!commandSystem?.keybindingRegistry || !homeDirectory) {
@@ -211,6 +271,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
   return {
     commandRegistry: commandSystem.commandRegistry,
     keybindingRegistry: commandSystem.keybindingRegistry,
+    contextKeyService: commandSystem.contextKeyService,
     isReady: true,
   };
 }
