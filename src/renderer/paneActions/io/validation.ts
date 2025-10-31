@@ -40,7 +40,7 @@ export function validatePaneActionsConfig(data: unknown): Action[] {
     );
   }
 
-  // Must have 1-6 actions
+  // Must have 1-5 actions
   if (data.length === 0) {
     throw new ValidationError(
       'Configuration must contain at least 1 action',
@@ -48,9 +48,9 @@ export function validatePaneActionsConfig(data: unknown): Action[] {
     );
   }
 
-  if (data.length > 6) {
+  if (data.length > 5) {
     throw new ValidationError(
-      `Configuration can contain at most 6 actions, found ${data.length}`,
+      `Configuration can contain at most 5 actions, found ${data.length}`,
       'Array length validation'
     );
   }
@@ -197,63 +197,37 @@ function validateTerminalConfig(
     );
   }
 
-  // env is optional object with string values
-  if (data.env !== undefined) {
-    if (!isObject(data.env)) {
-      throw new ValidationError(
-        'terminal config: env must be an object',
-        configContext
-      );
-    }
-    for (const [key, value] of Object.entries(data.env)) {
-      if (typeof value !== 'string') {
-        throw new ValidationError(
-          `terminal config: env.${key} must be a string`,
-          configContext
-        );
-      }
-    }
-  }
-
-  // clear is optional boolean
-  if (data.clear !== undefined && typeof data.clear !== 'boolean') {
-    throw new ValidationError(
-      'terminal config: clear must be a boolean',
-      configContext
-    );
-  }
-
   const config: TerminalConfig = {
     command: data.command,
   };
 
   if (data.cwd !== undefined) config.cwd = data.cwd;
-  if (data.env !== undefined) config.env = data.env as Record<string, string>;
-  if (data.clear !== undefined) config.clear = data.clear;
 
   return config;
 }
 
 /**
  * Validate editor configuration
- *
- * Note: Editor pane currently doesn't support any configuration options.
- * It only uses the current working directory which comes from the override path.
  */
 function validateEditorConfig(
   data: Record<string, unknown>,
   context: string
 ): EditorConfig {
-  // Editor config must be an empty object
-  // Warn if unknown properties are present
-  const unknownProps = Object.keys(data);
-  if (unknownProps.length > 0) {
-    console.warn(
-      `${context}.config: Editor config doesn't support any properties yet. Found: ${unknownProps.join(', ')}`
+  const configContext = `${context}.config`;
+
+  // folderPath is optional string
+  if (data.folderPath !== undefined && typeof data.folderPath !== 'string') {
+    throw new ValidationError(
+      'editor config: folderPath must be a string',
+      configContext
     );
   }
 
-  return {};
+  const config: EditorConfig = {};
+
+  if (data.folderPath !== undefined) config.folderPath = data.folderPath;
+
+  return config;
 }
 
 /**

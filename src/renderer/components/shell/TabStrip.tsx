@@ -30,8 +30,25 @@ import {
   SquareDashedMousePointer,
   Terminal,
   Zap,
+  Grid3x3,
+  GitBranch,
+  Code,
+  Bot,
+  HelpCircle,
+  Container,
+  Database,
+  Package,
+  Server,
+  TestTube,
+  Bug,
+  Rocket,
+  Shield,
+  Book,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
+import { useEnabledPaneActions } from "@/paneActions";
 
 type TabDescriptor = {
   id: string;
@@ -46,6 +63,25 @@ type TabStripProps = {
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   position?: "top" | "bottom";
+};
+
+// Icon mapping for pane actions
+const ICON_MAP: Record<string, LucideIcon> = {
+  'git-branch': GitBranch,
+  'code': Code,
+  'terminal': Terminal,
+  'globe': Globe,
+  'bot': Bot,
+  'container': Container,
+  'database': Database,
+  'package': Package,
+  'server': Server,
+  'test-tube': TestTube,
+  'bug': Bug,
+  'rocket': Rocket,
+  'shield': Shield,
+  'book': Book,
+  'wrench': Wrench,
 };
 
 const resolveActivePane = (tab: Tab): Pane | undefined => {
@@ -71,6 +107,9 @@ export const TabStrip = ({
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
+
+  // Pane actions for testing
+  const paneActions = useEnabledPaneActions();
 
   // Command hooks for button actions
   const toggleFocusModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
@@ -424,6 +463,49 @@ export const TabStrip = ({
     });
   }, [onOpenQuickPane]);
 
+  const handlePaneAction = useCallback(async (action: any) => {
+    if (!onOpenQuickPane) {
+      return;
+    }
+
+    if (action.paneType === 'terminal') {
+      // Create actual terminal session
+      const api = window.conduit;
+      const result = await api.createTerminal({
+        cwd: action.config?.cwd || homeDirectory || undefined,
+      });
+
+      if (!result) {
+        return;
+      }
+
+      onOpenQuickPane({
+        type: "terminal",
+        sessionId: result.sessionId,
+        cwd: result.cwd ?? null,
+        processTitle: "",
+      } as PaneDescriptor);
+
+      // If there's a command, send it after a short delay
+      const command = action.config?.command;
+      if (command) {
+        setTimeout(() => {
+          api.sendKeypress(result.sessionId, command + '\n');
+        }, 100);
+      }
+    } else if (action.paneType === 'editor') {
+      const editorConfig = action.config as any;
+      onOpenQuickPane({
+        type: "editor",
+        cwd: editorConfig?.folderPath || homeDirectory || homeDirectory,
+      } as PaneDescriptor);
+    } else if (action.paneType === 'browser') {
+      onOpenQuickPane({
+        type: "webview",
+        url: action.config?.url || "https://www.google.com",
+      } as PaneDescriptor);
+    }
+  }, [onOpenQuickPane, homeDirectory]);
 
   const borderClass = alwaysShowTabs ? (position === "top" ? "border-b" : "border-t rounded-b-xl") : "";
 
@@ -493,6 +575,31 @@ export const TabStrip = ({
         >
           <MoreHorizontal size={18} />
         </button>
+
+        {/* Pane Actions dropdown button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+              title="Pane Actions"
+              aria-label="Pane Actions"
+            >
+              <Grid3x3 size={18} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-w-40">
+            {paneActions.map((action, index) => {
+              const IconComponent = ICON_MAP[action.icon] || HelpCircle;
+              return (
+                <DropdownMenuItem key={index} onClick={() => handlePaneAction(action)}>
+                  <IconComponent size={16} className="mr-3" />
+                  {action.name}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Quick pane dropdown button */}
         <DropdownMenu>

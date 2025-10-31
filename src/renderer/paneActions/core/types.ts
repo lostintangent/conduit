@@ -31,27 +31,17 @@ export interface TerminalConfig {
    * Optional working directory override
    */
   cwd?: string;
-
-  /**
-   * Optional environment variables to set
-   * Completely replaces parent environment (not merged)
-   */
-  env?: Record<string, string>;
-
-  /**
-   * Whether to clear the terminal before executing the command
-   */
-  clear?: boolean;
 }
 
 /**
  * Editor pane configuration
- *
- * Note: The editor pane currently only uses the current working directory (cwd)
- * which is determined by the override path resolution. No additional config is supported.
  */
 export interface EditorConfig {
-  // Empty - editor pane doesn't support any configuration options yet
+  /**
+   * Optional folder path to open in the editor
+   * Maps to the editor pane's cwd (working directory)
+   */
+  folderPath?: string;
 }
 
 /**

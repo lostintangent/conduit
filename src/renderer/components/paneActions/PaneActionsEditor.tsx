@@ -24,11 +24,13 @@ import {
   GripVertical,
   HelpCircle,
   Package,
+  Plus,
   Rocket,
   Server,
   Shield,
   Terminal,
   TestTube,
+  Trash2,
   Wrench,
   X,
   type LucideIcon
@@ -94,20 +96,69 @@ export function PaneActionsEditor({
     checkUserConfig();
   }, [homeDirectory]); // Only check on mount and when homeDirectory changes
 
+  const hasUnsavedChanges = () => {
+    if (editedAction === null || editingActionIndex === null) {
+      return false;
+    }
+
+    const originalAction = reorderedActions[editingActionIndex];
+    return JSON.stringify(editedAction) !== JSON.stringify(originalAction);
+  };
+
+  const handleClose = () => {
+    if (hasUnsavedChanges()) {
+      const shouldDiscard = confirm(
+        'You have unsaved changes. Are you sure you want to discard them?'
+      );
+      if (!shouldDiscard) {
+        return;
+      }
+
+      // Collapse the row and clear editing state when discarding
+      if (editingActionIndex !== null) {
+        const editingAction = reorderedActions[editingActionIndex];
+        const newExpanded = new Set(expandedActions);
+        newExpanded.delete(editingAction.name);
+        setExpandedActions(newExpanded);
+        setEditingActionIndex(null);
+        setEditedAction(null);
+      }
+    }
+    onClose();
+  };
+
   // Handle Escape key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [handleClose]);
 
   const handleToggleExpand = (actionName: string) => {
     const newExpanded = new Set(expandedActions);
-    if (newExpanded.has(actionName)) {
+    const isCurrentlyExpanded = newExpanded.has(actionName);
+
+    // If collapsing and this action is being edited with unsaved changes, confirm
+    if (isCurrentlyExpanded && editingActionIndex !== null) {
+      const editingAction = reorderedActions[editingActionIndex];
+      if (editingAction.name === actionName && hasUnsavedChanges()) {
+        const shouldDiscard = confirm(
+          'You have unsaved changes. Are you sure you want to discard them?'
+        );
+        if (!shouldDiscard) {
+          return;
+        }
+        // Exit edit mode
+        setEditingActionIndex(null);
+        setEditedAction(null);
+      }
+    }
+
+    if (isCurrentlyExpanded) {
       newExpanded.delete(actionName);
     } else {
       newExpanded.add(actionName);
@@ -116,13 +167,31 @@ export function PaneActionsEditor({
   };
 
   const handleEditAction = (index: number) => {
+    // Check if there are unsaved changes
+    if (hasUnsavedChanges()) {
+      const shouldDiscard = confirm(
+        'You have unsaved changes. Are you sure you want to discard them?'
+      );
+      if (!shouldDiscard) {
+        return;
+      }
+    }
+
+    // Prepare the new expanded state
+    const newExpanded = new Set(expandedActions);
+
+    // Collapse the previous action's expanded section if switching from one edit to another
+    if (editingActionIndex !== null) {
+      const previousAction = reorderedActions[editingActionIndex];
+      newExpanded.delete(previousAction.name);
+    }
+
     // Enter edit mode for this action
     const action = reorderedActions[index];
     setEditedAction(JSON.parse(JSON.stringify(action))); // Deep copy
     setEditingActionIndex(index);
 
-    // Auto-expand the action
-    const newExpanded = new Set(expandedActions);
+    // Auto-expand the new action
     newExpanded.add(action.name);
     setExpandedActions(newExpanded);
   };
@@ -165,6 +234,89 @@ export function PaneActionsEditor({
     } catch (error) {
       console.error('Failed to save pane actions:', error);
       alert('Failed to save changes: ' + (error as Error).message);
+    }
+  };
+
+  const handleDeleteAction = async (index: number) => {
+    const action = reorderedActions[index];
+
+    // Confirm deletion
+    const shouldDelete = confirm(
+      `Are you sure you want to delete the "${action.name}" action?`
+    );
+    if (!shouldDelete) {
+      return;
+    }
+
+    // Check if this would leave us with 0 actions
+    if (reorderedActions.length === 1) {
+      alert('Cannot delete the last action. At least one action is required.');
+      return;
+    }
+
+    try {
+      // Create updated actions array without this action
+      const updatedActions = reorderedActions.filter((_, i) => i !== index);
+
+      // Save to file and update atom
+      await savePaneActions(updatedActions, homeDirectory);
+
+      // Update hasUserConfig state
+      setHasUserConfig(true);
+
+      // Clear editing state if we were editing this action
+      if (editingActionIndex === index) {
+        setEditingActionIndex(null);
+        setEditedAction(null);
+      } else if (editingActionIndex !== null && editingActionIndex > index) {
+        // Adjust editing index if we deleted an action before it
+        setEditingActionIndex(editingActionIndex - 1);
+      }
+
+      // Remove from expanded set
+      const newExpanded = new Set(expandedActions);
+      newExpanded.delete(action.name);
+      setExpandedActions(newExpanded);
+    } catch (error) {
+      console.error('Failed to delete pane action:', error);
+      alert('Failed to delete action: ' + (error as Error).message);
+    }
+  };
+
+  const handleAddAction = async () => {
+    // Create a new default action
+    const newAction: Action = {
+      name: 'New Action',
+      icon: 'package',
+      enabled: true,
+      paneType: 'terminal',
+      config: {
+        command: 'echo "Hello World"',
+      },
+    };
+
+    try {
+      // Create updated actions array with new action
+      const updatedActions = [...reorderedActions, newAction];
+
+      // Save to file and update atom
+      await savePaneActions(updatedActions, homeDirectory);
+
+      // Update hasUserConfig state
+      setHasUserConfig(true);
+
+      // Enter edit mode for the new action
+      const newIndex = updatedActions.length - 1;
+      setEditedAction(JSON.parse(JSON.stringify(newAction)));
+      setEditingActionIndex(newIndex);
+
+      // Auto-expand the new action
+      const newExpanded = new Set(expandedActions);
+      newExpanded.add(newAction.name);
+      setExpandedActions(newExpanded);
+    } catch (error) {
+      console.error('Failed to add pane action:', error);
+      alert('Failed to add action: ' + (error as Error).message);
     }
   };
 
@@ -277,22 +429,10 @@ export function PaneActionsEditor({
     } else if (paneType === 'editor') {
       return (
         <div className="space-y-1">
-          {config.path && (
+          {config.folderPath && (
             <div className="flex items-start gap-2">
-              <span className="text-xs text-gray-500 w-20">Path:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">{config.path}</code>
-            </div>
-          )}
-          {config.filePattern && (
-            <div className="flex items-start gap-2">
-              <span className="text-xs text-gray-500 w-20">Pattern:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">{config.filePattern}</code>
-            </div>
-          )}
-          {config.lineNumber && (
-            <div className="flex items-start gap-2">
-              <span className="text-xs text-gray-500 w-20">Line:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">{config.lineNumber}</code>
+              <span className="text-xs text-gray-500 w-20">Folder:</span>
+              <code className="text-xs text-gray-300 font-mono flex-1">{config.folderPath}</code>
             </div>
           )}
           {Object.keys(config).length === 0 && (
@@ -316,7 +456,7 @@ export function PaneActionsEditor({
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[90vw] h-[85vh] flex flex-col"
@@ -326,7 +466,7 @@ export function PaneActionsEditor({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
           <h2 className="text-lg font-semibold text-white">Pane Actions</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 hover:bg-white/10 rounded transition-colors"
             title="Close (Esc)"
           >
@@ -412,14 +552,26 @@ export function PaneActionsEditor({
                       {/* Command column */}
                       <td className="px-6 py-2">
                         <div className="text-sm text-gray-400 font-mono truncate max-w-md">
-                          {action.paneType === 'terminal' && (action.config as any).command && (
-                            <span>{(action.config as any).command}</span>
+                          {action.paneType === 'terminal' && (
+                            (action.config as any).command ? (
+                              <span>{(action.config as any).command}</span>
+                            ) : (
+                              <span className="text-gray-500 italic">No config</span>
+                            )
                           )}
-                          {action.paneType === 'browser' && (action.config as any).url && (
-                            <span>{(action.config as any).url}</span>
+                          {action.paneType === 'browser' && (
+                            (action.config as any).url ? (
+                              <span>{(action.config as any).url}</span>
+                            ) : (
+                              <span className="text-gray-500 italic">No config</span>
+                            )
                           )}
                           {action.paneType === 'editor' && (
-                            <span className="text-gray-500 italic">No config</span>
+                            (action.config as any).folderPath ? (
+                              <span>{(action.config as any).folderPath}</span>
+                            ) : (
+                              <span className="text-gray-500 italic">No config</span>
+                            )
                           )}
                         </div>
                       </td>
@@ -445,13 +597,22 @@ export function PaneActionsEditor({
                               </button>
                             </>
                           ) : (
-                            <button
-                              className="p-1.5 hover:bg-white/10 rounded transition-colors"
-                              title="Edit action"
-                              onClick={() => handleEditAction(index)}
-                            >
-                              <Edit2 className="w-4 h-4 text-gray-400" />
-                            </button>
+                            <>
+                              <button
+                                className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                                title="Edit action"
+                                onClick={() => handleEditAction(index)}
+                              >
+                                <Edit2 className="w-4 h-4 text-gray-400" />
+                              </button>
+                              <button
+                                className="p-1.5 hover:bg-white/10 rounded transition-colors text-red-400"
+                                title="Delete action"
+                                onClick={() => handleDeleteAction(index)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -554,8 +715,18 @@ export function PaneActionsEditor({
                                     </>
                                   )}
                                   {editedAction.paneType === 'editor' && (
-                                    <div className="text-xs text-gray-500 italic">
-                                      Editor panes don't support configuration options yet. The editor will use the current working directory from the override path.
+                                    <div>
+                                      <label className="text-xs text-gray-400 block mb-1">Folder Path (optional)</label>
+                                      <input
+                                        type="text"
+                                        value={(editedAction.config as any).folderPath || ''}
+                                        onChange={(e) => setEditedAction({
+                                          ...editedAction,
+                                          config: { ...(editedAction.config as any), folderPath: e.target.value || undefined }
+                                        })}
+                                        className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                                        placeholder="e.g., ~/Projects/myapp"
+                                      />
                                     </div>
                                   )}
                                   {editedAction.paneType === 'browser' && (
@@ -593,6 +764,31 @@ export function PaneActionsEditor({
                       </tr>
                     )}
                   </>
+                );
+              })}
+
+              {/* Ghost rows for remaining slots */}
+              {Array.from({ length: Math.max(0, 5 - reorderedActions.length) }).map((_, ghostIndex) => {
+                const slotNumber = reorderedActions.length + ghostIndex + 1;
+                return (
+                  <tr
+                    key={`ghost-${ghostIndex}`}
+                    className="border-t border-dashed border-gray-700 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                    onClick={handleAddAction}
+                  >
+                    <td className="px-2 py-3" colSpan={2}>
+                      {/* Empty drag/expand columns */}
+                    </td>
+                    <td className="px-6 py-3" colSpan={2}>
+                      <div className="flex items-center gap-3 text-gray-500">
+                        <Plus className="w-4 h-4" />
+                        <span className="text-sm italic">Add new action to slot {slotNumber}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3">
+                      {/* Empty actions column */}
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
