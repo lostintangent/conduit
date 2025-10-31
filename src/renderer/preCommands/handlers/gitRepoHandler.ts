@@ -1,5 +1,3 @@
-const api = window.conduit;
-
 /**
  * Result of git repository verification
  */
@@ -20,6 +18,8 @@ export interface GitRepoHandlerResult {
 export async function verifyGitRepoHandler(
   cwd: string
 ): Promise<GitRepoHandlerResult> {
+  const api = window.conduit;
+
   try {
     const hasGitRepo = await api.hasGitRepository(cwd);
 

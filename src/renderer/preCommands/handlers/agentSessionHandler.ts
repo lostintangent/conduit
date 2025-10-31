@@ -1,7 +1,5 @@
 import type { AgentSessionInfo } from "@shared/types";
 
-const api = window.conduit;
-
 /**
  * Result of agent session creation
  */
@@ -23,6 +21,8 @@ export interface AgentSessionHandlerResult {
 export async function createAgentSessionHandler(
   cwd: string
 ): Promise<AgentSessionHandlerResult> {
+  const api = window.conduit;
+
   try {
     const session = await api.spawnAgentSession({ cwd });
 
