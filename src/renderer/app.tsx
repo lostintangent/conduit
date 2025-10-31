@@ -97,8 +97,6 @@ export function App() {
     renameWorkspace,
     updateWorkspaces,
     closeWorkspace,
-    quickSaveWorkspace,
-    openLastWorkspace,
   } = useWorkspaces();
 
   // Initialize command system and wire up keyboard dispatch
@@ -116,12 +114,7 @@ export function App() {
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
-    // Workspace functions
-    quickSaveWorkspace,
-    closeWorkspace,
-    openLastWorkspace,
-    // Layout function
-    resetLayoutSizes,
+    setShowCreateWorkspaceDialog,
   });
 
   useKeybindingDispatch(
@@ -501,8 +494,7 @@ export function App() {
     hasLastWorkspace,
     setShowWorkspacePicker,
     setShowRenameWorkspaceDialog,
-    quickSaveWorkspace,
-    openLastWorkspace,
+    setShowCreateWorkspaceDialog,
     closeWorkspace,
   });
 

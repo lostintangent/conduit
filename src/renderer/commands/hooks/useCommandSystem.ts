@@ -35,12 +35,7 @@ export interface UseCommandSystemOptions {
   setShowWorkspacePicker: (show: boolean) => void;
   setIsUrlDialogOpen: (open: boolean) => void;
   setCleanupDialogSessions: (sessions: any[] | null) => void;
-  // Workspace functions
-  quickSaveWorkspace: (tabs: any[], activeTabId: string) => Promise<void>;
-  closeWorkspace: (tabs: any[], activeTabId: string | undefined) => void;
-  openLastWorkspace: () => void;
-  // Layout function
-  resetLayoutSizes: (tabId: string) => void;
+  setShowCreateWorkspaceDialog: (show: boolean) => void;
 }
 
 /**
@@ -68,10 +63,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
-    quickSaveWorkspace,
-    closeWorkspace,
-    openLastWorkspace,
-    resetLayoutSizes,
+    setShowCreateWorkspaceDialog,
   } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
@@ -153,14 +145,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
       setShowWorkspacePicker,
       setIsUrlDialogOpen,
       setCleanupDialogSessions,
-
-      // Workspace functions
-      quickSaveWorkspace,
-      closeWorkspace,
-      openLastWorkspace,
-
-      // Layout function
-      resetLayoutSizes,
+      setShowCreateWorkspaceDialog,
     }));
 
     // Signal that context builder is ready - this causes keyboard listener to attach on next render
@@ -178,10 +163,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
-    quickSaveWorkspace,
-    closeWorkspace,
-    openLastWorkspace,
-    resetLayoutSizes,
+    setShowCreateWorkspaceDialog,
   ]);
 
   // Watch keybindings file for external changes

@@ -363,12 +363,11 @@ describe('applicationCommands', () => {
         const command = registeredCommands.get(ApplicationCommands.VIEW_RESET_LAYOUT)!;
         const mockContext: CommandContext = {
           activeTab: { id: 'tab-123' },
-          resetLayoutSizes: vi.fn(),
         } as any;
 
         command.run(mockContext);
 
-        expect(handlers.handleResetLayout).toHaveBeenCalledWith('tab-123', mockContext.resetLayoutSizes);
+        expect(handlers.handleResetLayout).toHaveBeenCalledWith('tab-123');
       });
     });
 
@@ -378,7 +377,7 @@ describe('applicationCommands', () => {
         const mockContext: CommandContext = {
           activeTab: { id: 'tab-123' },
           allTabs: [{ id: 'tab-123' }],
-          quickSaveWorkspace: vi.fn(),
+          setShowCreateWorkspaceDialog: vi.fn(),
         } as any;
 
         command.run(mockContext);
@@ -386,7 +385,7 @@ describe('applicationCommands', () => {
         expect(handlers.handleSaveWorkspace).toHaveBeenCalledWith(
           mockContext.allTabs,
           'tab-123',
-          mockContext.quickSaveWorkspace
+          mockContext.setShowCreateWorkspaceDialog
         );
       });
     });
@@ -422,18 +421,11 @@ describe('applicationCommands', () => {
         const command = registeredCommands.get(ApplicationCommands.WORKSPACE_CLOSE)!;
         const mockContext: CommandContext = {
           workspaceName: 'my-workspace',
-          activeTab: { id: 'tab-123' },
-          allTabs: [{ id: 'tab-123' }],
-          closeWorkspace: vi.fn(),
         } as any;
 
         command.run(mockContext);
 
-        expect(handlers.handleCloseWorkspace).toHaveBeenCalledWith(
-          mockContext.allTabs,
-          'tab-123',
-          mockContext.closeWorkspace
-        );
+        expect(handlers.handleCloseWorkspace).toHaveBeenCalled();
       });
     });
 
@@ -453,13 +445,11 @@ describe('applicationCommands', () => {
     describe('WORKSPACE_OPEN_LAST', () => {
       it('should call handleOpenLastWorkspace handler', () => {
         const command = registeredCommands.get(ApplicationCommands.WORKSPACE_OPEN_LAST)!;
-        const mockContext: CommandContext = {
-          openLastWorkspace: vi.fn(),
-        } as any;
+        const mockContext: CommandContext = {} as any;
 
         command.run(mockContext);
 
-        expect(handlers.handleOpenLastWorkspace).toHaveBeenCalledWith(mockContext.openLastWorkspace);
+        expect(handlers.handleOpenLastWorkspace).toHaveBeenCalled();
       });
     });
 

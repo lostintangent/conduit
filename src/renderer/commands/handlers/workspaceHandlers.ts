@@ -4,22 +4,51 @@
  * Handlers for workspace-related commands including save, rename, close, and open.
  */
 
-import type { Tab } from "@/store/atoms";
+import type { Tab } from "@/types";
+import type { Workspace } from "@shared/types";
+import {
+  workspaceNameAtom,
+  workspacesAtom,
+  workspaceHasChangesAtom,
+  previousTabsSnapshotAtom,
+} from "@/store/atoms";
+import { getDefaultStore } from "jotai";
+
+const store = getDefaultStore();
 
 /**
  * Save the current workspace
  *
  * @param tabs - All tabs
  * @param activeTabId - ID of the active tab
- * @param quickSaveWorkspace - Function to quick save workspace
+ * @param setShowCreateWorkspaceDialog - Function to show create workspace dialog
  */
 export async function handleSaveWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
-  quickSaveWorkspace: (tabs: Tab[], activeTabId: string) => Promise<void>
+  setShowCreateWorkspaceDialog: (show: boolean) => void
 ): Promise<void> {
-  if (activeTabId) {
-    await quickSaveWorkspace(tabs, activeTabId);
+  if (!activeTabId) {
+    return;
+  }
+
+  const workspaceName = store.get(workspaceNameAtom);
+
+  if (workspaceName) {
+    const sessions = (await window.conduit.saveSession(
+      workspaceName,
+      tabs,
+      activeTabId
+    )) as Workspace[];
+
+    store.set(workspacesAtom, sessions);
+
+    // Reset the has changes flag and update the reference snapshot after successful save
+    const savedSnapshot = JSON.stringify(tabs);
+    store.set(previousTabsSnapshotAtom, savedSnapshot);
+    store.set(workspaceHasChangesAtom, false);
+  } else {
+    setShowCreateWorkspaceDialog(true);
   }
 }
 
@@ -36,17 +65,10 @@ export function handleRenameWorkspace(
 
 /**
  * Close the current workspace
- *
- * @param tabs - All tabs
- * @param activeTabId - ID of the active tab
- * @param closeWorkspace - Function to close workspace
  */
-export function handleCloseWorkspace(
-  tabs: Tab[],
-  activeTabId: string | undefined,
-  closeWorkspace: (tabs: Tab[], activeTabId: string | undefined) => void
-): void {
-  closeWorkspace(tabs, activeTabId);
+export async function handleCloseWorkspace(): Promise<void> {
+  const { closeWorkspace } = await import("@/store/actions/workspace");
+  closeWorkspace();
 }
 
 /**
@@ -62,11 +84,11 @@ export function handleOpenWorkspace(
 
 /**
  * Open the last workspace
- *
- * @param openLastWorkspace - Function to open last workspace
  */
-export function handleOpenLastWorkspace(
-  openLastWorkspace: () => void
-): void {
-  openLastWorkspace();
+export async function handleOpenLastWorkspace(): Promise<void> {
+  const lastWorkspace = (await window.conduit.loadLastWorkspace()) as Workspace | null;
+  if (lastWorkspace) {
+    const { openWorkspace } = await import("@/store/actions/workspace");
+    await openWorkspace(lastWorkspace);
+  }
 }

@@ -1,4 +1,41 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { Tab } from '@/store/atoms';
+import type { Workspace } from '@shared/types';
+
+// Mock window.conduit BEFORE importing handlers
+const mockApi = {
+  loadLastWorkspace: vi.fn(),
+  saveSession: vi.fn(),
+};
+
+global.window = {
+  conduit: mockApi,
+} as any;
+
+// Mock jotai store - using a factory pattern to avoid hoisting issues
+vi.mock('jotai', async () => {
+  const actual = await vi.importActual('jotai');
+  const mockGet = vi.fn();
+  const mockSet = vi.fn();
+
+  return {
+    ...actual,
+    getDefaultStore: vi.fn(() => ({
+      get: mockGet,
+      set: mockSet,
+    })),
+    _mockStoreGet: mockGet,
+    _mockStoreSet: mockSet,
+  };
+});
+
+// Mock workspace actions
+vi.mock('@/store/actions/workspace', () => ({
+  closeWorkspace: vi.fn(),
+  openWorkspace: vi.fn(),
+}));
+
+// Import handlers AFTER setting up mocks
 import {
   handleSaveWorkspace,
   handleCloseWorkspace,
@@ -6,103 +43,92 @@ import {
   handleOpenWorkspace,
   handleOpenLastWorkspace,
 } from '@/commands/handlers/workspaceHandlers';
-import type { Tab } from '@/store/atoms';
+import * as jotaiModule from 'jotai';
 
 describe('workspaceHandlers', () => {
   let mockTabs: Tab[];
-  let mockQuickSaveWorkspace: ReturnType<typeof vi.fn>;
-  let mockCloseWorkspace: ReturnType<typeof vi.fn>;
+  let mockSetShowCreateWorkspaceDialog: ReturnType<typeof vi.fn>;
+  let mockStoreGet: ReturnType<typeof vi.fn>;
+  let mockStoreSet: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     mockTabs = [
       { id: 'tab-1', title: 'Tab 1' },
       { id: 'tab-2', title: 'Tab 2' },
     ] as Tab[];
 
-    mockQuickSaveWorkspace = vi.fn().mockResolvedValue(undefined);
-    mockCloseWorkspace = vi.fn();
+    mockSetShowCreateWorkspaceDialog = vi.fn();
+
+    // Get references to the mock store methods
+    mockStoreGet = (jotaiModule as any)._mockStoreGet;
+    mockStoreSet = (jotaiModule as any)._mockStoreSet;
   });
 
   describe('handleSaveWorkspace', () => {
-    it('should call quickSaveWorkspace when activeTabId is provided', async () => {
+    it('should save workspace when workspaceName exists', async () => {
+      const activeTabId = 'tab-1';
+      const workspaceName = 'my-workspace';
+      const mockSessions: Workspace[] = [
+        { name: workspaceName, tabs: mockTabs, activeTabId },
+      ];
+
+      mockStoreGet.mockReturnValue(workspaceName);
+      mockApi.saveSession.mockResolvedValue(mockSessions);
+
+      await handleSaveWorkspace(mockTabs, activeTabId, mockSetShowCreateWorkspaceDialog);
+
+      expect(mockApi.saveSession).toHaveBeenCalledWith(workspaceName, mockTabs, activeTabId);
+      expect(mockStoreSet).toHaveBeenCalledTimes(3); // workspacesAtom, previousTabsSnapshotAtom, workspaceHasChangesAtom
+      expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();
+    });
+
+    it('should show create dialog when no workspaceName exists', async () => {
       const activeTabId = 'tab-1';
 
-      await handleSaveWorkspace(mockTabs, activeTabId, mockQuickSaveWorkspace);
+      mockStoreGet.mockReturnValue(undefined);
 
-      expect(mockQuickSaveWorkspace).toHaveBeenCalledWith(mockTabs, activeTabId);
-      expect(mockQuickSaveWorkspace).toHaveBeenCalledTimes(1);
+      await handleSaveWorkspace(mockTabs, activeTabId, mockSetShowCreateWorkspaceDialog);
+
+      expect(mockApi.saveSession).not.toHaveBeenCalled();
+      expect(mockSetShowCreateWorkspaceDialog).toHaveBeenCalledWith(true);
     });
 
-    it('should not call quickSaveWorkspace when activeTabId is undefined', async () => {
-      await handleSaveWorkspace(mockTabs, undefined, mockQuickSaveWorkspace);
+    it('should return early when activeTabId is undefined', async () => {
+      await handleSaveWorkspace(mockTabs, undefined, mockSetShowCreateWorkspaceDialog);
 
-      expect(mockQuickSaveWorkspace).not.toHaveBeenCalled();
+      expect(mockStoreGet).not.toHaveBeenCalled();
+      expect(mockApi.saveSession).not.toHaveBeenCalled();
+      expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();
     });
 
-    it('should handle different tab arrays', async () => {
-      const singleTab = [{ id: 'tab-only', title: 'Only Tab' }] as Tab[];
-      const activeTabId = 'tab-only';
+    it('should update atoms after successful save', async () => {
+      const activeTabId = 'tab-1';
+      const workspaceName = 'my-workspace';
+      const mockSessions: Workspace[] = [
+        { name: workspaceName, tabs: mockTabs, activeTabId },
+      ];
 
-      await handleSaveWorkspace(singleTab, activeTabId, mockQuickSaveWorkspace);
+      mockStoreGet.mockReturnValue(workspaceName);
+      mockApi.saveSession.mockResolvedValue(mockSessions);
 
-      expect(mockQuickSaveWorkspace).toHaveBeenCalledWith(singleTab, activeTabId);
-    });
+      await handleSaveWorkspace(mockTabs, activeTabId, mockSetShowCreateWorkspaceDialog);
 
-    it('should propagate errors from quickSaveWorkspace', async () => {
-      const error = new Error('Save failed');
-      mockQuickSaveWorkspace.mockRejectedValue(error);
-
-      await expect(
-        handleSaveWorkspace(mockTabs, 'tab-1', mockQuickSaveWorkspace)
-      ).rejects.toThrow('Save failed');
+      // Check that atoms were updated
+      expect(mockStoreSet).toHaveBeenCalledWith(expect.anything(), mockSessions); // workspacesAtom
+      expect(mockStoreSet).toHaveBeenCalledWith(expect.anything(), JSON.stringify(mockTabs)); // previousTabsSnapshotAtom
+      expect(mockStoreSet).toHaveBeenCalledWith(expect.anything(), false); // workspaceHasChangesAtom
     });
   });
 
   describe('handleCloseWorkspace', () => {
-    it('should call closeWorkspace with correct parameters', () => {
-      const activeTabId = 'tab-1';
+    it('should dynamically import and call closeWorkspace action', async () => {
+      await handleCloseWorkspace();
 
-      handleCloseWorkspace(mockTabs, activeTabId, mockCloseWorkspace);
-
-      expect(mockCloseWorkspace).toHaveBeenCalledWith(mockTabs, activeTabId);
-      expect(mockCloseWorkspace).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle undefined activeTabId', () => {
-      handleCloseWorkspace(mockTabs, undefined, mockCloseWorkspace);
-
-      expect(mockCloseWorkspace).toHaveBeenCalledWith(mockTabs, undefined);
-    });
-
-    it('should handle different tab arrays', () => {
-      const manyTabs = [
-        { id: 'tab-1', title: 'Tab 1' },
-        { id: 'tab-2', title: 'Tab 2' },
-        { id: 'tab-3', title: 'Tab 3' },
-        { id: 'tab-4', title: 'Tab 4' },
-      ] as Tab[];
-
-      handleCloseWorkspace(manyTabs, 'tab-2', mockCloseWorkspace);
-
-      expect(mockCloseWorkspace).toHaveBeenCalledWith(manyTabs, 'tab-2');
-    });
-
-    it('should work with empty tab array', () => {
-      const emptyTabs: Tab[] = [];
-
-      handleCloseWorkspace(emptyTabs, undefined, mockCloseWorkspace);
-
-      expect(mockCloseWorkspace).toHaveBeenCalledWith(emptyTabs, undefined);
-    });
-
-    it('should not throw on closeWorkspace error', () => {
-      mockCloseWorkspace.mockImplementation(() => {
-        throw new Error('Close failed');
-      });
-
-      expect(() =>
-        handleCloseWorkspace(mockTabs, 'tab-1', mockCloseWorkspace)
-      ).toThrow('Close failed');
+      // The handler dynamically imports the action, so we need to get a reference to it
+      const { closeWorkspace } = await import('@/store/actions/workspace');
+      expect(closeWorkspace).toHaveBeenCalled();
     });
   });
 
@@ -127,12 +153,29 @@ describe('workspaceHandlers', () => {
   });
 
   describe('handleOpenLastWorkspace', () => {
-    it('should call openLastWorkspace', () => {
-      const openLastWorkspace = vi.fn();
+    it('should load last workspace and call openWorkspace when workspace exists', async () => {
+      const mockWorkspace: Workspace = {
+        name: 'test-workspace',
+        tabs: [],
+        activeTabId: 'tab-1',
+      };
+      mockApi.loadLastWorkspace.mockResolvedValue(mockWorkspace);
 
-      handleOpenLastWorkspace(openLastWorkspace);
+      await handleOpenLastWorkspace();
 
-      expect(openLastWorkspace).toHaveBeenCalled();
+      expect(mockApi.loadLastWorkspace).toHaveBeenCalled();
+      const { openWorkspace } = await import('@/store/actions/workspace');
+      expect(openWorkspace).toHaveBeenCalledWith(mockWorkspace);
+    });
+
+    it('should not call openWorkspace when no last workspace exists', async () => {
+      mockApi.loadLastWorkspace.mockResolvedValue(null);
+
+      await handleOpenLastWorkspace();
+
+      expect(mockApi.loadLastWorkspace).toHaveBeenCalled();
+      const { openWorkspace } = await import('@/store/actions/workspace');
+      expect(openWorkspace).not.toHaveBeenCalled();
     });
   });
 });

@@ -30,6 +30,7 @@ export const activePaneIdAtom = atom<string | null>((get) => {
 export const workspaceNameAtom = atom<string>();
 export const workspacesAtom = atom<Workspace[]>([]);
 export const workspaceHasChangesAtom = atom<boolean>(false);
+export const previousTabsSnapshotAtom = atom<string>("");
 
 export const notificationsAtom = atom<Notification[]>([]);
 

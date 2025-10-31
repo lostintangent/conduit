@@ -75,7 +75,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     description: 'Zoom into a single pane or return to normal view',
     category: 'View',
     keybinding: {
-      key: 'Cmd+Alt+F',
+      key: 'Cmd+Shift+F',
     },
     run: (context) => {
       if (context.activeTab) {
@@ -142,7 +142,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
       void handleSaveWorkspace(
         context.allTabs,
         context.activeTab?.id,
-        context.quickSaveWorkspace
+        context.setShowCreateWorkspaceDialog
       );
     },
   });
@@ -174,11 +174,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     },
     run: (context) => {
       if (context.workspaceName) {
-        handleCloseWorkspace(
-          context.allTabs,
-          context.activeTab?.id,
-          context.closeWorkspace
-        );
+        void handleCloseWorkspace();
       }
     },
   });
@@ -189,6 +185,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Open Workspace',
     description: 'Restore tabs from a saved workspace',
     category: 'Workspace',
+    keybinding: {
+      key: 'Cmd+K Cmd+O',
+    },
     run: (context) => {
       handleOpenWorkspace(context.setShowWorkspacePicker);
     },
@@ -200,8 +199,8 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Continue Last Session',
     description: 'Restore your workspace from when you last closed the app',
     category: 'Workspace',
-    run: (context) => {
-      handleOpenLastWorkspace(context.openLastWorkspace);
+    run: () => {
+      void handleOpenLastWorkspace();
     },
   });
 
@@ -213,7 +212,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     category: 'View',
     run: (context) => {
       if (context.activeTab) {
-        handleResetLayout(context.activeTab.id, context.resetLayoutSizes);
+        handleResetLayout(context.activeTab.id);
       }
     },
   });
@@ -238,6 +237,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Close Tab',
     description: 'Close the currently active tab',
     category: 'Tab',
+    keybinding: {
+      key: 'Cmd+W',
+    },
     run: (context) => {
       if (context.activeTab) {
         closeTab(context.activeTab.id);
@@ -251,6 +253,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Open Web Page',
     description: 'Open a web page in a split view',
     category: 'Pane',
+    keybinding: {
+      key: 'Cmd+L',
+    },
     run: (context) => {
       handleOpenWebPage(context.setIsUrlDialogOpen);
     },
