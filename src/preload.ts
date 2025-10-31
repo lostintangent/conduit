@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import packageJson from "../package.json";
 import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
@@ -39,6 +40,7 @@ function createEventListener<T>(
 
 const conduitAPI = {
   platform: process.platform,
+  version: packageJson.version,
 
   /* Terminal methods (UI->main) */
 
@@ -229,14 +231,14 @@ const conduitAPI = {
     const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;
 
     // Set up listener for file changes
-    const removeListener = createEventListener<{ watcherId: string; filePath: string }>(
-      "fs:file-changed",
-      (payload) => {
-        if (payload.watcherId === watcherId && payload.filePath === filePath) {
-          onChange();
-        }
+    const removeListener = createEventListener<{
+      watcherId: string;
+      filePath: string;
+    }>("fs:file-changed", (payload) => {
+      if (payload.watcherId === watcherId && payload.filePath === filePath) {
+        onChange();
       }
-    );
+    });
 
     // Register the watcher in main process
     ipcRenderer.invoke("fs:watch-file", filePath, watcherId);
@@ -263,11 +265,15 @@ const conduitAPI = {
   deleteVM: (payload: DeleteVMPayload) =>
     ipcRenderer.invoke("vm:delete", payload) as Promise<void>,
 
-  forkVM: (vmId: string, payload?: Omit<ForkVMPayload, 'vmId'>) =>
+  forkVM: (vmId: string, payload?: Omit<ForkVMPayload, "vmId">) =>
     ipcRenderer.invoke("vm:fork", { vmId, ...payload }) as Promise<VMInfo>,
 
   forwardPort: (vmId: string, port: number, description?: string) =>
-    ipcRenderer.invoke("vm:forward-port", { vmId, port, description }) as Promise<ForwardPortResponse>,
+    ipcRenderer.invoke("vm:forward-port", {
+      vmId,
+      port,
+      description,
+    }) as Promise<ForwardPortResponse>,
 
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,

@@ -1,13 +1,16 @@
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import {
+  getCommandDisplayTitle,
+  useCommand,
+} from "@/commands/hooks/useCommand";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ApplicationCommands } from "@/commands/applicationCommands";
-import { useCommand, getCommandDisplayTitle } from "@/commands/hooks/useCommand";
 import { openWorkspace } from "@/store/actions/workspace";
 import {
   workspaceHasChangesAtom,
@@ -16,7 +19,15 @@ import {
 } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
-import { Cable, Check, Keyboard, LayoutDashboard, Settings, Trash2, Zap } from "lucide-react";
+import {
+  Cable,
+  Check,
+  Keyboard,
+  LayoutDashboard,
+  Settings,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { useCallback } from "react";
 
 type TitleBarProps = {
@@ -52,7 +63,9 @@ export const TitleBar = ({
   const saveWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_SAVE);
   const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
-  const keyboardShortcutsCmd = useCommand(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS);
+  const keyboardShortcutsCmd = useCommand(
+    ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
+  );
   const paneActionsCmd = useCommand(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS);
 
   const titleBarSuffix = workspaceName ? ` (${workspaceName})` : "";
@@ -71,7 +84,7 @@ export const TitleBar = ({
   const handleDeleteWorkspace = useCallback(
     async (workspace: Workspace, event: React.MouseEvent) => {
       event.stopPropagation();
-      
+
       if (!api) {
         return;
       }
@@ -91,7 +104,19 @@ export const TitleBar = ({
       <div className="flex-1"></div>
 
       {/* Center - title */}
-      <div className="flex gap-2 items-center"><Cable size={14} /> Conduit{titleBarSuffix}</div>
+      <div className="flex gap-2 items-center">
+        <Cable size={14} />
+        Conduit
+        {!workspaceName && (
+          <span
+            className="text-[0.7rem] opacity-60"
+            title={`Version ${api?.version}`}
+          >
+            v{api?.version}
+          </span>
+        )}
+        {titleBarSuffix}
+      </div>
 
       {/* Right side - workspace menu and settings */}
       <div className="flex-1 flex justify-end gap-2">
