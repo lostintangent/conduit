@@ -1,8 +1,8 @@
 # 🤔 What is Conduit?
 
-Conduit is a terminal. But it's also a tiling window manager, an agentic task manager, and a lightweight editor + browser. Above all though, Conduit is just an exploration into a fun toolchain for AI-native, CLI-driven development.
+Conduit is a terminal. But it's also a tiling window manager, an agentic task manager, and a lightweight editor + browser. Above all though, Conduit is just a timeboxed exploration of a toolchain for AI-native, CLI-driven development.
 
-It takes massive inspiration from things lke tmux and VS Code, in order to provide an extremely flexible workbench, built around tabs of local/cloud terminal, editor, and browser panes. And it tries to layer on a ton of features to make it feel accessible and neat to use (hopefully!).
+It takes massive inspiration from things lke tmux and VS Code, in order to provide a flexible workbench, which is built around composable tabs of local/cloud terminal, editor, and browser panes. And it tries to layer on a ton of features to make it feel accessible and neat to use (hopefully!).
 
 That said, since pictures are worth a bunch of words...check out the following parade of screenshots in oder to get a sense of what it can do...
 
