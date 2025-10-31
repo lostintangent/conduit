@@ -44,6 +44,11 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
   // Calculate the actual display size based on scale
   const displayWidth = PREVIEW_WIDTH * (scale / PREVIEW_SCALE);
   const displayHeight = PREVIEW_HEIGHT * (scale / PREVIEW_SCALE);
+  
+  // The inner container should always be the same size (the actual content)
+  // We scale it down using CSS transform to fit in the display size
+  const contentWidth = PREVIEW_WIDTH / PREVIEW_SCALE;
+  const contentHeight = PREVIEW_HEIGHT / PREVIEW_SCALE;
 
   return (
     <div
@@ -61,8 +66,8 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
         style={{
           transform: `scale(${scale})`,
           transformOrigin: "top left",
-          width: PREVIEW_WIDTH / scale,
-          height: PREVIEW_HEIGHT / scale,
+          width: contentWidth,
+          height: contentHeight,
         }}
       >
         <div
@@ -71,8 +76,8 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
           }}
           className="pointer-events-none flex w-full h-full min-h-0 min-w-0"
           style={{
-            width: PREVIEW_WIDTH / scale,
-            height: PREVIEW_HEIGHT / scale,
+            width: contentWidth,
+            height: contentHeight,
           }}
         />
       </div>
