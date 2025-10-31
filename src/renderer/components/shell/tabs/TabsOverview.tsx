@@ -2,8 +2,6 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { focusTab } from "@/store/actions/tab";
 import { useCallback, useEffect, useRef } from "react";
@@ -67,10 +65,6 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[90vw] max-h-[90vh] bg-surface-elevated border-border overflow-auto flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Tab overview</DialogTitle>
-        </DialogHeader>
-
         <div className="flex flex-wrap gap-4 justify-center items-center flex-1">
           {tabs.map((tab) => (
             <div key={tab.id} className="flex flex-col gap-2">
@@ -82,7 +76,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
                 onRefSet={handleRefSet}
                 onClick={handleTabClick}
                 clickable={true}
-                scale={0.45}
+                scale={0.6}
               />
             </div>
           ))}

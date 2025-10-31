@@ -48,7 +48,7 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
   return (
     <div
       className={`flex overflow-hidden rounded border border-white/[0.08] ${
-        clickable ? 'cursor-pointer hover:border-white/[0.24] transition-colors pointer-events-auto' : 'pointer-events-none'
+        clickable ? 'cursor-pointer hover:border-[--color-blueprint] transition-colors pointer-events-auto' : 'pointer-events-none'
       }`}
       style={{
         width: displayWidth,
