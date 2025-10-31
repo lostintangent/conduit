@@ -1,16 +1,10 @@
-# 🤔 Fundamental assumptions
+# 🤔 What is Conduit?
 
-This project is built on the premise of a few fundamental assumptions:
+Conduit is a terminal. It's also a tiling window manager, an agentic task manager, and a lightweight editor + browser. But above all, Conduit is meant to be fun, and provide a great toolchain for AI-native, CLI-driven development.
 
-1. Developers will _continue to make use of multiple different coding agents_, because no single agent will (ever?) serve all their needs. Therefore, it's critcal to have toolchains that allow a **"learn once, use any agent"** experience.
+It's sort of like if vim, tmux, and VS Code had a baby, that was an extremely flexible workbench, built around local/cloud terminals, editors, and browsers. And with a ton of features to make it feel accessible and neat to use (hopefully!).
 
-1. Coding agents will _continue to \_evolve at a rapid face_, and putting too many abstractions on top of them will creation friction in the availability of innovation. Therefore, developers want to be as **"close to the metal"** as possible with their agents.
-
-1. Coding agents will _continue to get more powerful over time_, and therefore, a CLI interface, along with supporting tools, will be sufficient for most users. Therefore, toolchains should embrace **terminals as being central vs. secondary**.
-
-1. Developers love hackable environments, but with smart defaults. That way they can get started quickly, but without compromising on their flow. Therefore, agentic surfaces must embrace **compsability and personalization at its core**.
-
-There are many ways to slice these assumptions, and Conduit is just one of many possible takes. So without further ado, the following series of pretty screenshots illustrate the shape that it currently takes...
+That said, since pictures are worth a bunch of words, check out the following parade of screenshots in oder to get a sense of what it can do...
 
 # 🔌 Conduit
 
@@ -23,6 +17,12 @@ Create information-dense tabs, each with a flexible grid of terminal, editor, an
 Hover over any tab and see a **live preview** if its status. This is kind of like "peek definition" for tabs, and makes it easy to parallelize work, while keeping an eye of background tasks.
 
 <img width="1253" height="903" alt="image" src="https://github.com/user-attachments/assets/593b54d2-8533-4f5d-afe3-59652414d233" />
+
+**Tabs overview**
+
+When you have multiple tabs, you can open a live "birds-eye view" of them all, which makes it easy to observe multiple tasks at once.
+
+<img width="1512" height="949" alt="image" src="https://github.com/user-attachments/assets/7edb251b-1f47-443c-9eaf-0a5189f09053" />
 
 **Design mode**
 
@@ -76,7 +76,7 @@ Run global commands at any time (`cmd+shift+p`), including spinning up quick ter
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/6deaeb5d-61c1-4c86-92de-517fac83837d" />
 
-## Getting started
+## Appendix: Getting started
 
 1. Clone this repo
 1. Run `npm install`
@@ -88,3 +88,15 @@ Additionally, if you want to make use of cloud terminals, you need to also perfo
 
 1. Generate a [GitHub PAT](https://github.com/settings/personal-access-tokens/new)
 1. Copy the `.env.local.example` file, rename it to `.env.local`, and then paste your PAT into it
+
+## Appendix: Fundamental assumptions
+
+Conduit was born out of the following key assumptions:
+
+1. Developers will _continue to make use of multiple different coding agents_, because no single agent will (ever?) serve all their needs. Therefore, it's critcal to have toolchains that allow a **"learn once, use any agent"** experience.
+
+1. Coding agents will _continue to \_evolve at a rapid face_, and putting too many abstractions on top of them will creation friction in the availability of innovation. Therefore, developers want to be as **"close to the metal"** as possible with their agents.
+
+1. Coding agents will _continue to get more powerful over time_, and therefore, a CLI interface, along with supporting tools, will be sufficient for most users. Therefore, toolchains should embrace **terminals as being central vs. secondary**.
+
+1. Developers love hackable environments, but with smart defaults. That way they can get started quickly, but without compromising on their flow. Therefore, agentic surfaces must embrace **compsability and personalization at its core**.
