@@ -17,11 +17,13 @@ import type {
   LayoutResizeStartConfig,
 } from "@/hooks/useLayoutResizing";
 import {
+  enterFocusMode,
   exitFocusMode,
   getAllPaneIds,
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import { focusTab } from "@/store/actions/tab";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import {
   activePaneIdAtom,
@@ -253,8 +255,9 @@ export function TabLayout({
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
+  const [hoveredPreviewPaneId, setHoveredPreviewPaneId] = useState<string | null>(null);
 
-  const { setLayoutMountPoint, getActiveMountPoint } = useTabContentPortal();
+  const { setLayoutMountPoint, getActiveMountPoint, isTabInPreview } = useTabContentPortal();
 
   // In order to mount/unmound the tab content portals, we need a stable ref
   // callback for each tab container. So this is simply a map of tab IDs to ref callbacks.
@@ -298,10 +301,22 @@ export function TabLayout({
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
       const isInFocusMode = applicationMode === "focus";
       const isHiddenInFocusMode = isInFocusMode && !isActivePane;
+      const isInPreview = isTabInPreview(tab.id);
 
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
-      const onPaneActivate = () => activatePane(tab.id, pane.id);
+      const onPaneActivate = (event?: React.MouseEvent) => {
+        // If clicking a pane in a non-active tab (e.g., from preview), switch to that tab first
+        if (tab.id !== activeTabId) {
+          focusTab(tab.id);
+        }
+        activatePane(tab.id, pane.id);
+
+        // If Command (Mac) or Ctrl (Windows/Linux) is held, enter focus mode on this pane
+        if (event && (event.metaKey || event.ctrlKey)) {
+          enterFocusMode(tab.id, pane.id);
+        }
+      };
 
       const onWebViewContextMenu = (coords: {
         clientX: number;
@@ -339,8 +354,18 @@ export function TabLayout({
             display: isHiddenInFocusMode ? "none" : undefined,
           }}
           {...dropHandlers}
-          onMouseEnter={() => setHoveredPaneId(pane.id)}
-          onMouseLeave={() => setHoveredPaneId(null)}
+          onMouseEnter={() => {
+            setHoveredPaneId(pane.id);
+            if (isInPreview) {
+              setHoveredPreviewPaneId(pane.id);
+            }
+          }}
+          onMouseLeave={() => {
+            setHoveredPaneId(null);
+            if (isInPreview) {
+              setHoveredPreviewPaneId(null);
+            }
+          }}
         >
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
             {pane.type === "terminal" ? (
@@ -416,6 +441,11 @@ export function TabLayout({
           {/* Pane highlight overlay */}
           <PaneHighlight paneId={pane.id} isResizing={resizingNode !== null} />
 
+          {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
+          {isInPreview && hoveredPreviewPaneId === pane.id && (
+            <div className="pointer-events-none absolute inset-0 z-20 bg-blueprint/30 backdrop-blur-[0.5px]" />
+          )}
+
           {/* Drop zone overlay */}
           {renderDropZone(pane.id)}
 
@@ -455,6 +485,9 @@ export function TabLayout({
       draggedPaneId,
       dragHoverPaneId,
       hoveredPaneId,
+      isTabInPreview,
+      hoveredPreviewPaneId,
+      setHoveredPreviewPaneId,
     ]
   );
 

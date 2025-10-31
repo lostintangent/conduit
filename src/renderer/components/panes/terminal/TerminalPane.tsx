@@ -101,7 +101,7 @@ type TerminalPaneProps = {
   isActive: boolean;
   paneId: string;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onActivate?: () => void;
+  onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
   onLinkClick?: (url: string) => void;
   showDimensions?: boolean;
 };
