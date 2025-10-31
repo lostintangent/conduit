@@ -1,16 +1,16 @@
-import type { TerminalSession } from "../types";
+import type { TerminalInstance } from "../types";
 
-const sessions = new Map<string, TerminalSession>();
+const terminals = new Map<string, TerminalInstance>();
 
-export const storeSession = (session: TerminalSession) => {
-  sessions.set(session.id, session);
+export const storeTerminal = (terminal: TerminalInstance) => {
+  terminals.set(terminal.id, terminal);
 };
 
-export const getSession = (sessionId: string): TerminalSession | undefined =>
-  sessions.get(sessionId);
+export const getTerminal = (terminalId: string): TerminalInstance | undefined =>
+  terminals.get(terminalId);
 
-export const getAllSessions = () => sessions;
+export const getAllTerminals = () => terminals;
 
-export const removeSession = (sessionId: string) => {
-  sessions.delete(sessionId);
+export const removeTerminal = (terminalId: string) => {
+  terminals.delete(terminalId);
 };

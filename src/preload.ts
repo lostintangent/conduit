@@ -10,6 +10,8 @@ import type {
   CreateVMPayload,
   DeleteVMPayload,
   FileTreeNode,
+  ForkVMPayload,
+  ForwardPortResponse,
   ListVMsPayload,
   TerminalCreateOptions,
   TerminalCreateResponse,
@@ -260,6 +262,12 @@ const conduitAPI = {
 
   deleteVM: (payload: DeleteVMPayload) =>
     ipcRenderer.invoke("vm:delete", payload) as Promise<void>,
+
+  forkVM: (vmId: string, payload?: Omit<ForkVMPayload, 'vmId'>) =>
+    ipcRenderer.invoke("vm:fork", { vmId, ...payload }) as Promise<VMInfo>,
+
+  forwardPort: (vmId: string, port: number, description?: string) =>
+    ipcRenderer.invoke("vm:forward-port", { vmId, port, description }) as Promise<ForwardPortResponse>,
 
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,

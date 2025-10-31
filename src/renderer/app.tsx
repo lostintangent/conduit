@@ -1,20 +1,22 @@
+import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
+import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
+import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
+import { PaneActionsEditor } from "@/components/paneActions";
 import {
   QuickDialog,
   type PaneDescriptor,
 } from "@/components/shell/QuickDialog";
-import { TabStrip } from "@/components/shell/TabStrip";
+import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
+import { TabStrip } from "@/components/shell/tabs/TabStrip";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
-import { KeybindingsEditor } from "@/components/keybindings";
-import { PaneActionsEditor } from "@/components/paneActions";
-import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { usePaneActionsSystem } from "@/paneActions";
-import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -22,10 +24,10 @@ import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
+  dismissNotification,
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { enterFocusMode } from "@/store/actions/focusMode";
 import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
   closeTab,
@@ -34,7 +36,7 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, applicationModeAtom, tabsAtom, keybindingsAtom } from "@/store/atoms";
+import { activeTabAtom, applicationModeAtom, keybindingsAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/store/terminals";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -64,6 +66,9 @@ export function App() {
   const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
     useGlobalKeyHandlers();
 
+  const [isCommandPaletteOpenOverride, setIsCommandPaletteOpenOverride] = useState(false);
+  const commandPaletteOpen = isCommandPaletteOpen || isCommandPaletteOpenOverride;
+
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
 
@@ -75,6 +80,7 @@ export function App() {
     null
   );
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
+  const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
@@ -107,8 +113,17 @@ export function App() {
     applicationMode,
     setApplicationMode,
     homeDirectory,
+    workspaceName,
     onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
     onOpenPaneActions: () => setShowPaneActionsEditor(true),
+    onShowCommandPalette: () => setIsCommandPaletteOpenOverride(true),
+    onSaveWorkspace: async () => {
+      if (activeTab) {
+        await quickSaveWorkspace(tabs, activeTab.id);
+      }
+    },
+    onRenameWorkspace: () => setShowRenameWorkspaceDialog(true),
+    onCloseWorkspace: () => closeWorkspace(tabs, activeTab?.id),
   });
 
   // Initialize pane actions system
@@ -373,6 +388,44 @@ export function App() {
     [recordCommandHistoryEntry, quickPaneState]
   );
 
+  const handleVMRepoSubmit = useCallback(async (repo?: { owner: string; name: string }) => {
+    const notificationId = enqueueNotification({
+      kind: "info",
+      message: "Creating VM...",
+      persistent: true,
+    });
+
+    try {
+      const result = await api.createTerminal({
+        isRemoteVM: true,
+        githubRepo: repo,
+      });
+
+      if (!result) {
+        throw new Error("Failed to create VM terminal");
+      }
+
+      dismissNotification(notificationId);
+
+      // Open a new tab with the VM terminal session
+      const { openTabFromExistingSession } = await import("@/store/actions/tab");
+      openTabFromExistingSession({
+        sessionId: result.sessionId,
+        cwd: result.cwd,
+        title: result.title,
+        vmMetadata: result.vmMetadata ?? undefined,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      updateNotification(notificationId, {
+        kind: "error",
+        message: "Failed to create VM terminal",
+        details: message,
+        autoCloseMs: null,
+      });
+    }
+  }, []);
+
   const closeAgentSessionPanes = useCallback(
     (sessionId: string) => {
       tabs.forEach((tab) => {
@@ -487,6 +540,7 @@ export function App() {
     hasCustomLayout,
     resetLayoutSizes,
     setIsUrlDialogOpen,
+    setIsVMRepoDialogOpen,
     setCleanupDialogSessions,
     hasWorkspaces,
     workspaces,
@@ -533,77 +587,79 @@ export function App() {
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
       <TitleBar
         backgroundClass={titleBarBg}
-        onSaveWorkspace={async () => {
-          if (activeTab) {
-            await quickSaveWorkspace(tabs, activeTab.id);
-          }
-        }}
-        onRenameWorkspace={() => setShowRenameWorkspaceDialog(true)}
-        onCloseWorkspace={() => closeWorkspace(tabs, activeTab?.id)}
         alwaysShowTabs={alwaysShowTabs}
         showTerminalRuler={showTerminalRuler}
         autoSaveWorkspaces={autoSaveWorkspaces}
         onUpdateSettings={updateSettings}
       />
 
-      {/* Top positioned tabs */}
-      {tabPosition === "top" && !shouldUseDrawer && (
-        <TabStrip
-          onOpenCommandPalette={openCommandPalette}
-          onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-          onOpenQuickPane={handleOpenQuickPane}
-          position={tabPosition}
-        />
-      )}
-      {shouldUseDrawer && tabPosition === "top" && (
-        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-          <DrawerContent side="top">
-            <TabStrip
-              onOpenCommandPalette={openCommandPalette}
-              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-              onOpenQuickPane={handleOpenQuickPane}
-              position={tabPosition}
-            />
-          </DrawerContent>
-        </Drawer>
-      )}
+      <TabContentPortalProvider>
 
-      <TabLayout
-        handleContextMenu={handleContextMenu}
-        handleResizeStart={handleResizeStart}
-        resizingNode={resizingNode}
-        handleWebViewUpdate={handleWebViewUpdate}
-        handleEditorUpdate={handleEditorUpdate}
-        onOpenQuickPane={handleOpenQuickPane}
-        onOpenPaneActions={() => setShowPaneActionsEditor(true)}
-      />
+        {/* Top positioned tabs */}
+        {tabPosition === "top" && !shouldUseDrawer && (
+          <TabStrip
+            onOpenCommandPalette={openCommandPalette}
+            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+            onOpenQuickPane={handleOpenQuickPane}
+            position={tabPosition}
+          />
+        )}
 
-      {/* Bottom positioned tabs */}
-      {tabPosition === "bottom" && !shouldUseDrawer && (
-        <TabStrip
-          onOpenCommandPalette={openCommandPalette}
-          onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+        {shouldUseDrawer && tabPosition === "top" && (
+          <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+            <DrawerContent side="top">
+              <TabStrip
+                onOpenCommandPalette={openCommandPalette}
+                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+                onOpenQuickPane={handleOpenQuickPane}
+                position={tabPosition}
+              />
+            </DrawerContent>
+          </Drawer>
+        )}
+
+        <TabLayout
+          handleContextMenu={handleContextMenu}
+          handleResizeStart={handleResizeStart}
+          resizingNode={resizingNode}
+          handleWebViewUpdate={handleWebViewUpdate}
+          handleEditorUpdate={handleEditorUpdate}
           onOpenQuickPane={handleOpenQuickPane}
-          position={tabPosition}
+          onOpenPaneActions={() => setShowPaneActionsEditor(true)}
         />
-      )}
-      {shouldUseDrawer && tabPosition === "bottom" && (
-        <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-          <DrawerContent side="bottom">
-            <TabStrip
-              onOpenCommandPalette={openCommandPalette}
-              onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-              onOpenQuickPane={handleOpenQuickPane}
-              position={tabPosition}
-            />
-          </DrawerContent>
-        </Drawer>
-      )}
+
+        {/* Bottom positioned tabs */}
+        {tabPosition === "bottom" && !shouldUseDrawer && (
+          <TabStrip
+            onOpenCommandPalette={openCommandPalette}
+            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+            onOpenQuickPane={handleOpenQuickPane}
+            position={tabPosition}
+          />
+        )}
+
+        {shouldUseDrawer && tabPosition === "bottom" && (
+          <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+            <DrawerContent side="bottom">
+              <TabStrip
+                onOpenCommandPalette={openCommandPalette}
+                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+                onOpenQuickPane={handleOpenQuickPane}
+                position={tabPosition}
+              />
+            </DrawerContent>
+          </Drawer>
+        )}
+
+      </TabContentPortalProvider>
 
       {/* Global UI */}
       <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={closeCommandPalette}
+        isOpen={commandPaletteOpen}
+        onClose={() => {
+          closeCommandPalette();
+          setIsCommandPaletteOpenOverride(false);
+        }}
         commandItems={commandItems}
         onRunShellCommand={handleShellCommand}
         shellHistory={commandHistory}
@@ -670,6 +726,12 @@ export function App() {
         sessions={cleanupDialogSessions ?? []}
         onClose={() => setCleanupDialogSessions(null)}
         onRemove={handleAgentSessionCleanup}
+      />
+
+      <RepositoryDialog
+        isOpen={isVMRepoDialogOpen}
+        onClose={() => setIsVMRepoDialogOpen(false)}
+        onSubmit={handleVMRepoSubmit}
       />
 
       {showKeybindingsEditor && commandSystem && homeDirectory ? (

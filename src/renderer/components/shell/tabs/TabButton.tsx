@@ -47,8 +47,16 @@ type TabButtonProps = {
     event: React.DragEvent<HTMLButtonElement>,
     tabId: string
   ) => void;
+  onDragLeave?: (
+    event: React.DragEvent<HTMLButtonElement>,
+    tabId: string
+  ) => void;
   onDrop: (event: React.DragEvent<Element>) => void;
   onDragEnd: () => void;
+  onHoverChange?: (
+    tabId: string,
+    element: HTMLButtonElement | null
+  ) => void;
 };
 
 export const TabButton = ({
@@ -62,8 +70,10 @@ export const TabButton = ({
   onContextMenu,
   onDragStart,
   onDragOver,
+  onDragLeave,
   onDrop,
   onDragEnd,
+  onHoverChange,
 }: TabButtonProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -137,13 +147,20 @@ export const TabButton = ({
         }
         focusTab(tabId);
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={(event) => {
+        setIsHovered(true);
+        onHoverChange?.(tabId, event.currentTarget);
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        onHoverChange?.(tabId, null);
+      }}
       onContextMenu={
         onContextMenu ? (event) => onContextMenu(event, tabId) : undefined
       }
       onDragStart={(event) => onDragStart(event, tabId)}
       onDragOver={(event) => onDragOver(event, tabId)}
+      onDragLeave={onDragLeave ? (event) => onDragLeave(event, tabId) : undefined}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >

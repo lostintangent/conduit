@@ -1,14 +1,15 @@
 import { applicationModeAtom } from "@/store/atoms";
 import { getHashedColor } from "@/utils/theme";
 import { useAtomValue } from "jotai";
-import { Check, Cloud, Trash2 } from "lucide-react";
-import React, { useMemo } from "react";
+import { Check, Cloud, GitFork, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 
 type SandboxIndicatorProps = {
   vmId?: string | null;
   agentSessionId?: string | null;
   onCompleteAgentSession?: () => void;
   onDeleteAgentSession?: () => void;
+  onForkVM?: () => void;
 };
 
 export function SandboxIndicator({
@@ -16,6 +17,7 @@ export function SandboxIndicator({
   agentSessionId,
   onCompleteAgentSession,
   onDeleteAgentSession,
+  onForkVM,
 }: SandboxIndicatorProps) {
   const applicationMode = useAtomValue(applicationModeAtom);
   const isSandboxVisibleMode =
@@ -56,11 +58,21 @@ export function SandboxIndicator({
     <div className="pointer-events-none absolute bottom-3 right-3 flex flex-col items-end gap-2 text-white z-[1000]">
       {showVmIndicator && (
         <div
-          className="flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90"
+          className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90"
           style={overlayStyle}
           title={vmTitle}
         >
           <Cloud size={16} aria-hidden="true" />
+          {onForkVM && (
+            <button
+              type="button"
+              onClick={onForkVM}
+              title="Fork VM (split pane with clone)"
+              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+            >
+              <GitFork size={14} />
+            </button>
+          )}
         </div>
       )}
 

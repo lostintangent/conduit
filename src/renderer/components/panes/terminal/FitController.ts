@@ -1,207 +1,114 @@
 import type { getOrCreate } from "@/store/terminals";
 import type { Dispatch, SetStateAction } from "react";
 
-const api = window.conduit;
-
-type TerminalEntry = ReturnType<typeof getOrCreate>;
-
-export type FitController = {
-  initialize: (options: { markReady: () => void; onReady?: () => void }) => void;
-  schedule: (options?: { immediateResize?: boolean }) => void;
-  dispose: () => void;
-};
-
-export const createFitController = ({
-  sessionId,
-  container,
+/**
+ * Creates a FitController that automatically fits and resizes the terminal
+ * within the given container element. It observes size changes and updates
+ * the terminal dimensions accordingly, while also providing a temporary
+ * overlay to show the current dimensions.
+ */
+export function createFitController({
   entry,
+  container,
   setDimensions,
 }: {
-  sessionId: string;
+  entry: ReturnType<typeof getOrCreate>;
   container: HTMLDivElement;
-  entry: TerminalEntry;
   setDimensions: Dispatch<SetStateAction<{ width: number; height: number } | null>>;
-}): FitController => {
-  let lastSize = { width: 0, height: 0 };
-  let rafId: number | null = null;
-  let resizeDebounceTimeout: NodeJS.Timeout | null = null;
-  let hideOverlayTimeout: NodeJS.Timeout | null = null;
-  let awaitingStableSize = true;
-  let firstFitComplete = false;
-  let initialized = false;
-  const firstFitResolvers = new Set<() => void>();
+}): { dispose: () => void } {
+  // Store the last known sizes to detect changes
+  let lastContainerSize = { width: 0, height: 0 };
+  let lastTerminalSize = { cols: entry.terminal.cols, rows: entry.terminal.rows };
 
-  const clearOverlayTimeout = () => {
-    if (hideOverlayTimeout) {
-      clearTimeout(hideOverlayTimeout);
-      hideOverlayTimeout = null;
+  // Animation frame and timeout IDs
+  let fitTimeout: number | null = null;
+  let overlayTimeout: NodeJS.Timeout | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+
+  function clearOverlayTimeout() {
+    if (overlayTimeout) {
+      clearTimeout(overlayTimeout);
+      overlayTimeout = null;
     }
-  };
+  }
 
-  const showDimensionsOverlay = (width: number, height: number) => {
+  function showDimensionsOverlay(width: number, height: number) {
     setDimensions({ width, height });
     clearOverlayTimeout();
-    hideOverlayTimeout = setTimeout(() => {
+
+    overlayTimeout = setTimeout(() => {
       setDimensions(null);
-      hideOverlayTimeout = null;
+      overlayTimeout = null;
     }, 800);
   };
 
-  const resolveFirstFit = () => {
-    if (firstFitComplete) {
-      return;
-    }
-
-    firstFitComplete = true;
-    firstFitResolvers.forEach((resolve) => resolve());
-    firstFitResolvers.clear();
-  };
-
-  const waitForFirstFit = () =>
-    firstFitComplete
-      ? Promise.resolve()
-      : new Promise<void>((resolve) => {
-        firstFitResolvers.add(resolve);
-      });
-
-  const initialize = ({
-    markReady,
-    onReady,
-  }: {
-    markReady: () => void;
-    onReady?: () => void;
-  }) => {
-    if (initialized) {
-      return;
-    }
-
-    initialized = true;
-    awaitingStableSize = true;
-    firstFitComplete = false;
-    lastSize = { width: 0, height: 0 };
-
-    requestAnimationFrame(() => {
-      schedule({ immediateResize: true });
-      void waitForFirstFit().then(() => {
-        markReady();
-        requestAnimationFrame(() => {
-          schedule();
-          onReady?.();
-        });
-      });
-    });
-  };
-
-  const schedule = (options?: { immediateResize?: boolean }) => {
+  function fitAndResize() {
     const fitAddon = entry.fit;
     const terminal = entry.terminal;
 
-    if (!fitAddon || !terminal) {
-      return;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (width === 0 || height === 0) return;
+
+    const sizeChanged =
+      width !== lastContainerSize.width || height !== lastContainerSize.height;
+    if (sizeChanged) {
+      lastContainerSize = { width, height };
+      showDimensionsOverlay(width, height);
     }
 
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
+    fitAddon.fit();
+
+    const cols = terminal.cols;
+    const rows = terminal.rows;
+    const terminalSizeChanged =
+      cols !== lastTerminalSize.cols || rows !== lastTerminalSize.rows;
+
+    if (terminalSizeChanged) {
+      lastTerminalSize = { cols, rows };
+      entry.resize(cols, rows);
     }
 
-    const performResize = () => api.resize(sessionId, terminal.cols, terminal.rows);
+    if (!entry.ready) {
+      entry.markReady();
+    }
+  }
 
-    const run = () => {
-      rafId = null;
-
-      const element = terminal.element as HTMLElement | null;
-      if (element) {
-        // Clear inline widths that xterm sets while repositioning the textarea; otherwise
-        // the container can report a stale width and `fit()` mis-measures on the first frame.
-        element.style.width = "";
-        const viewport = element.querySelector(
-          ".xterm-viewport"
-        ) as HTMLElement | null;
-        const textarea = element.querySelector(
-          "textarea"
-        ) as HTMLTextAreaElement | null;
-
-        if (viewport) {
-          viewport.style.width = "";
-        }
-        if (textarea) {
-          textarea.style.width = "";
-        }
-      }
-
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      if (width === 0 || height === 0) {
-        return;
-      }
-
-      const sizeChanged = width !== lastSize.width || height !== lastSize.height;
-      lastSize = { width, height };
-
-      fitAddon.fit();
-
-      const immediateResize =
-        options?.immediateResize === true || awaitingStableSize;
-
-      if (resizeDebounceTimeout !== null) {
-        clearTimeout(resizeDebounceTimeout);
-        resizeDebounceTimeout = null;
-      }
-
-      if (immediateResize) {
-        performResize();
-      } else {
-        resizeDebounceTimeout = setTimeout(() => {
-          performResize();
-          resizeDebounceTimeout = null;
-        }, 100);
-      }
-
-      if (sizeChanged) {
-        showDimensionsOverlay(width, height);
-      }
-
-      if (awaitingStableSize) {
-        if (!sizeChanged) {
-          awaitingStableSize = false;
-          resolveFirstFit();
-        } else {
-          rafId = requestAnimationFrame(() =>
-            schedule({ immediateResize: true })
-          );
-        }
-      } else {
-        resolveFirstFit();
-      }
-    };
-
-    rafId = requestAnimationFrame(run);
-  };
-
-  const dispose = () => {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
+  function scheduleFit() {
+    if (fitTimeout !== null) {
+      cancelAnimationFrame(fitTimeout);
     }
 
-    if (resizeDebounceTimeout) {
-      clearTimeout(resizeDebounceTimeout);
-      resizeDebounceTimeout = null;
+    fitTimeout = requestAnimationFrame(() => {
+      fitTimeout = null;
+      fitAndResize();
+    });
+  }
+
+  function dispose() {
+    if (fitTimeout !== null) {
+      cancelAnimationFrame(fitTimeout);
+      fitTimeout = null;
+    }
+
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
     }
 
     clearOverlayTimeout();
     setDimensions(null);
 
-    firstFitResolvers.clear();
-    awaitingStableSize = true;
-    firstFitComplete = false;
-    lastSize = { width: 0, height: 0 };
-    initialized = false;
-  };
+    lastContainerSize = { width: 0, height: 0 };
+    lastTerminalSize = { cols: entry.terminal.cols, rows: entry.terminal.rows };
+  }
 
-  return {
-    initialize,
-    schedule,
-    dispose,
-  };
+  // Observe container size changes
+  resizeObserver = new ResizeObserver(scheduleFit);
+  resizeObserver.observe(container);
+
+  // Schedule the initial fit on mount
+  scheduleFit();
+
+  return { dispose }
 };

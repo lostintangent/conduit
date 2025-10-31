@@ -45,9 +45,15 @@ export type TerminalCreateOptions = {
   cwd?: string;
   // VM-specific options
   isRemoteVM?: boolean;
+  existingVMId?: string; // Connect to an existing VM instead of creating one
   vmImageId?: string;
   vmLabels?: string[];
   vmIdleTimeout?: number;
+  githubRepo?: {
+    owner: string;
+    name: string;
+    branch?: string;
+  };
 };
 
 export type VMMetadata = {
@@ -151,6 +157,24 @@ export type ListVMsPayload = {
 
 export type DeleteVMPayload = {
   vmId: string;
+};
+
+export type ForkVMPayload = {
+  vmId: string;
+  labels?: string[];
+  idle_timeout?: number;
+};
+
+export type ForwardPortPayload = {
+  vmId: string;
+  port: number;
+  description?: string;
+};
+
+export type ForwardPortResponse = {
+  message: string;
+  external_port: string;
+  connection_url: string;
 };
 
 export type VMInfo = {

@@ -28,6 +28,11 @@ export interface UseCommandSystemOptions {
   homeDirectory?: string;
   onOpenKeyboardShortcuts?: () => void;
   onOpenPaneActions?: () => void;
+  onShowCommandPalette?: () => void;
+  onSaveWorkspace?: () => void;
+  onRenameWorkspace?: () => void;
+  onCloseWorkspace?: () => void;
+  workspaceName?: string;
 }
 
 /**
@@ -42,7 +47,19 @@ export interface UseCommandSystemOptions {
  * @returns Command system state with registries and ready flag
  */
 export function useCommandSystem(options: UseCommandSystemOptions): CommandSystemState | null {
-  const { activeTab, applicationMode, setApplicationMode, homeDirectory, onOpenKeyboardShortcuts, onOpenPaneActions } = options;
+  const {
+    activeTab,
+    applicationMode,
+    setApplicationMode,
+    homeDirectory,
+    onOpenKeyboardShortcuts,
+    onOpenPaneActions,
+    onShowCommandPalette,
+    onSaveWorkspace,
+    onRenameWorkspace,
+    onCloseWorkspace,
+    workspaceName,
+  } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
   const [commandSystem, setCommandSystem] = useState<{
@@ -116,17 +133,45 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
         openPaneActions: () => {
           onOpenPaneActions?.();
         },
+        showCommandPalette: () => {
+          onShowCommandPalette?.();
+        },
+      },
+
+      // Workspace service
+      workspace: {
+        saveWorkspace: () => {
+          onSaveWorkspace?.();
+        },
+        renameWorkspace: () => {
+          onRenameWorkspace?.();
+        },
+        closeWorkspace: () => {
+          onCloseWorkspace?.();
+        },
       },
 
       // State accessors - these will be fresh on each command execution
       activeTab,
       activePaneId: activeTab?.activePaneId ?? null,
-      workspaceName: undefined,
+      workspaceName,
     }));
 
     // Signal that context builder is ready - this causes keyboard listener to attach on next render
     setContextBuilderReady(true);
-  }, [commandSystem, activeTab, applicationMode, setApplicationMode, onOpenKeyboardShortcuts, onOpenPaneActions]);
+  }, [
+    commandSystem,
+    activeTab,
+    applicationMode,
+    setApplicationMode,
+    onOpenKeyboardShortcuts,
+    onOpenPaneActions,
+    onShowCommandPalette,
+    onSaveWorkspace,
+    onRenameWorkspace,
+    onCloseWorkspace,
+    workspaceName,
+  ]);
 
   // Watch keybindings file for external changes
   useEffect(() => {

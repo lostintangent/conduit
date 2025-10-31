@@ -18,6 +18,7 @@ export interface CommandContext {
   readonly settings: any;
   readonly contextKeys: any;
   readonly view: any;
+  readonly workspace: any;
 
   // State accessors
   readonly activeTab: any | null;
@@ -37,6 +38,9 @@ export interface CommandDescriptor<TContext extends CommandContext = CommandCont
 
   /** Category for Command Palette */
   category?: string;
+
+  /** Description shown in Command Palette */
+  description?: string;
 
   /** Icon identifier */
   icon?: string;
