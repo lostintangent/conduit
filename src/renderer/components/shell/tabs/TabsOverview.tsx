@@ -66,12 +66,12 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] bg-surface-elevated border-border overflow-auto">
+      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] bg-surface-elevated border-border overflow-auto flex flex-col">
         <DialogHeader>
           <DialogTitle>Tab overview</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-4 justify-center items-center flex-1">
           {tabs.map((tab) => (
             <div key={tab.id} className="flex flex-col gap-2">
               <div className="text-sm text-muted-foreground px-1 truncate max-w-[320px]">
@@ -82,6 +82,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
                 onRefSet={handleRefSet}
                 onClick={handleTabClick}
                 clickable={true}
+                scale={0.45}
               />
             </div>
           ))}

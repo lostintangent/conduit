@@ -9,13 +9,14 @@ type TabPreviewItemProps = {
   onRefSet: (tabId: string, element: HTMLDivElement | null) => void;
   onClick?: (tabId: string) => void;
   clickable?: boolean;
+  scale?: number;
 };
 
 /**
  * Shared component for rendering a single tab preview
  * Used by both TabPreview (overlay) and TabsOverview (dialog)
  */
-export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false }: TabPreviewItemProps) {
+export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, scale = PREVIEW_SCALE }: TabPreviewItemProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isMountedRef = useRef(true);
 
@@ -54,10 +55,10 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false }: 
       <div
         className="pointer-events-none flex"
         style={{
-          transform: `scale(${PREVIEW_SCALE})`,
+          transform: `scale(${scale})`,
           transformOrigin: "top left",
-          width: PREVIEW_WIDTH / PREVIEW_SCALE,
-          height: PREVIEW_HEIGHT / PREVIEW_SCALE,
+          width: PREVIEW_WIDTH / scale,
+          height: PREVIEW_HEIGHT / scale,
         }}
       >
         <div
@@ -66,8 +67,8 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false }: 
           }}
           className="pointer-events-none flex w-full h-full min-h-0 min-w-0"
           style={{
-            width: PREVIEW_WIDTH / PREVIEW_SCALE,
-            height: PREVIEW_HEIGHT / PREVIEW_SCALE,
+            width: PREVIEW_WIDTH / scale,
+            height: PREVIEW_HEIGHT / scale,
           }}
         />
       </div>
