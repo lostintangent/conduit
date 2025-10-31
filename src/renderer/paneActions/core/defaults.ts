@@ -31,7 +31,8 @@ export function getDefaultActions(): Action[] {
       enabled: true,
       paneType: 'terminal',
       config: {
-        command: 'claude-code',
+        command: '',
+        preCommandId: 'create-agent-session',
       },
     },
     {

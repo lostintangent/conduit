@@ -190,12 +190,42 @@ function validateTerminalConfig(
     );
   }
 
+  // preCommandId is optional string
+  if (data.preCommandId !== undefined && typeof data.preCommandId !== 'string') {
+    throw new ValidationError(
+      'terminal config: preCommandId must be a string',
+      configContext
+    );
+  }
+
+  // Warn if pre-command ID is provided but not found in registry
+  // (Don't throw - allow forward compatibility)
+  if (data.preCommandId !== undefined && typeof data.preCommandId === 'string') {
+    try {
+      // Lazy import to avoid circular dependencies during module initialization
+      const { PreCommandRegistry } = require('@/preCommands/registry');
+      const registry = PreCommandRegistry.getInstance();
+      if (!registry.get(data.preCommandId as string)) {
+        console.warn(
+          `[PaneActions] Pre-command not found: "${data.preCommandId}". ` +
+          `This pre-command will be skipped when the action is executed.`
+        );
+      }
+    } catch (error) {
+      // If registry import fails, silently continue (registry may not be initialized yet)
+    }
+  }
+
   const config: TerminalConfig = {
     command: data.command,
   };
 
   if (data.cwd !== undefined) {
     config.cwd = data.cwd as string;
+  }
+
+  if (data.preCommandId !== undefined) {
+    config.preCommandId = data.preCommandId as string;
   }
 
   return config;
