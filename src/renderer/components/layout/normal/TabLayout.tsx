@@ -229,6 +229,7 @@ interface TabLayoutProps {
     }
   ) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
+  onOpenPaneActions?: () => void;
 }
 
 export function TabLayout({
@@ -238,6 +239,7 @@ export function TabLayout({
   handleWebViewUpdate,
   handleEditorUpdate,
   onOpenQuickPane,
+  onOpenPaneActions,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
@@ -417,6 +419,7 @@ export function TabLayout({
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
               isOnlyPane={countPanesInLayout(tab.layout) === 1}
               isOnlyTab={tabs.length === 1}
+              onOpenPaneActions={onOpenPaneActions}
               {...dragHandlers}
             />
           )}

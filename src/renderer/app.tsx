@@ -575,6 +575,7 @@ export function App() {
         handleWebViewUpdate={handleWebViewUpdate}
         handleEditorUpdate={handleEditorUpdate}
         onOpenQuickPane={handleOpenQuickPane}
+        onOpenPaneActions={() => setShowPaneActionsEditor(true)}
       />
 
       {/* Bottom positioned tabs */}

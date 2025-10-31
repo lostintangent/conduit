@@ -91,8 +91,13 @@ export function useCommand(commandId: string): CommandInfo {
   }));
 
   const execute = useCallback(async () => {
+    // Guard against executing when command system isn't ready
+    if (!commandRegistry || !command) {
+      console.warn(`Cannot execute command "${commandId}": command system not ready or command not found`);
+      return;
+    }
     await executeCommand(commandId);
-  }, [commandId]);
+  }, [commandId, commandRegistry, command]);
 
   return {
     title: command?.title ?? '',

@@ -67,6 +67,7 @@ interface PaneControlButtonsProps {
   isOnlyTab: boolean;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
+  onOpenPaneActions?: () => void;
 }
 
 export function PaneControlButtons({
@@ -80,6 +81,7 @@ export function PaneControlButtons({
   isOnlyTab,
   onDragStart,
   onDragEnd,
+  onOpenPaneActions,
 }: PaneControlButtonsProps) {
   const {
     hoveredPosition: hoveredSplitButton,
@@ -200,6 +202,7 @@ export function PaneControlButtons({
         hasMoveButton={canMoveUp}
         isHovered={hoveredSplitButton === "top"}
         onVisibilityChange={(visible) => handleVisibilityChange("top", visible)}
+        onOpenPaneActions={onOpenPaneActions}
       />
 
       {/* Bottom buttons */}
@@ -237,6 +240,7 @@ export function PaneControlButtons({
         hasMoveButton={canMoveDown}
         isHovered={hoveredSplitButton === "bottom"}
         onVisibilityChange={(visible) => handleVisibilityChange("bottom", visible)}
+        onOpenPaneActions={onOpenPaneActions}
       />
 
       {/* Left buttons */}
@@ -274,6 +278,7 @@ export function PaneControlButtons({
         hasMoveButton={canMoveLeft}
         isHovered={hoveredSplitButton === "left"}
         onVisibilityChange={(visible) => handleVisibilityChange("left", visible)}
+        onOpenPaneActions={onOpenPaneActions}
       />
 
       {/* Right buttons */}
@@ -311,6 +316,7 @@ export function PaneControlButtons({
         hasMoveButton={canMoveRight}
         isHovered={hoveredSplitButton === "right"}
         onVisibilityChange={(visible) => handleVisibilityChange("right", visible)}
+        onOpenPaneActions={onOpenPaneActions}
       />
     </div>
   );
