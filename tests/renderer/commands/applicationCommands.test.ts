@@ -40,12 +40,13 @@ describe('applicationCommands', () => {
     it('should register all commands', () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(18);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(19);
 
       // View commands
       expect(registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.VIEW_RESET_LAYOUT)).toBe(true);
 
