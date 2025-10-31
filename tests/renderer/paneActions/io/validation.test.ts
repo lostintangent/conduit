@@ -2,10 +2,20 @@
  * Unit tests for pane actions validation
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { validatePaneActionsConfig, ValidationError } from '@/paneActions/io/validation';
+import { PreCommandRegistry } from '@/preCommands/registry';
 
 describe('validation', () => {
+  // Clean up registry before each test
+  beforeEach(() => {
+    PreCommandRegistry.getInstance().clear();
+  });
+
+  afterEach(() => {
+    PreCommandRegistry.getInstance().clear();
+  });
+
   describe('validatePaneActionsConfig', () => {
     describe('root validation', () => {
       it('should reject non-array input', () => {
@@ -236,6 +246,115 @@ describe('validation', () => {
         ];
 
         expect(() => validatePaneActionsConfig(actions)).not.toThrow();
+      });
+
+      it('should accept valid terminal config with cwd', () => {
+        const actions = [
+          {
+            name: 'Test',
+            icon: 'test',
+            enabled: true,
+            paneType: 'terminal',
+            config: { command: 'npm test', cwd: '/home/user' },
+          },
+        ];
+
+        const result = validatePaneActionsConfig(actions);
+        expect(result[0].config).toEqual({ command: 'npm test', cwd: '/home/user' });
+      });
+
+      it('should accept valid terminal config with preCommandId', () => {
+        const actions = [
+          {
+            name: 'Test',
+            icon: 'test',
+            enabled: true,
+            paneType: 'terminal',
+            config: { command: 'npm test', preCommandId: 'verify-git-repo' },
+          },
+        ];
+
+        const result = validatePaneActionsConfig(actions);
+        expect(result[0].config).toEqual({
+          command: 'npm test',
+          preCommandId: 'verify-git-repo'
+        });
+      });
+
+      it('should accept valid terminal config with all optional fields', () => {
+        const actions = [
+          {
+            name: 'Test',
+            icon: 'test',
+            enabled: true,
+            paneType: 'terminal',
+            config: {
+              command: 'npm test',
+              cwd: '/home/user',
+              preCommandId: 'create-agent-session'
+            },
+          },
+        ];
+
+        const result = validatePaneActionsConfig(actions);
+        expect(result[0].config).toEqual({
+          command: 'npm test',
+          cwd: '/home/user',
+          preCommandId: 'create-agent-session'
+        });
+      });
+
+      it('should reject non-string preCommandId', () => {
+        const actions = [
+          {
+            name: 'Test',
+            icon: 'test',
+            enabled: true,
+            paneType: 'terminal',
+            config: { command: 'npm test', preCommandId: 123 },
+          },
+        ];
+
+        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
+        expect(() => validatePaneActionsConfig(actions)).toThrow(
+          'preCommandId must be a string'
+        );
+      });
+
+      it('should reject non-string cwd', () => {
+        const actions = [
+          {
+            name: 'Test',
+            icon: 'test',
+            enabled: true,
+            paneType: 'terminal',
+            config: { command: 'npm test', cwd: 123 },
+          },
+        ];
+
+        expect(() => validatePaneActionsConfig(actions)).toThrow(ValidationError);
+        expect(() => validatePaneActionsConfig(actions)).toThrow(
+          'cwd must be a string'
+        );
+      });
+
+      it('should accept unknown preCommandId without throwing (forward compatibility)', () => {
+        const actions = [
+          {
+            name: 'Test',
+            icon: 'test',
+            enabled: true,
+            paneType: 'terminal',
+            config: { command: 'npm test', preCommandId: 'unknown-command' },
+          },
+        ];
+
+        // Should not throw - allows forward compatibility
+        const result = validatePaneActionsConfig(actions);
+        expect(result[0].config).toEqual({
+          command: 'npm test',
+          preCommandId: 'unknown-command'
+        });
       });
 
     });

@@ -1,4 +1,5 @@
 import { openEditorPane, openWebViewPane, splitPane } from "@/store/actions/pane";
+import { enqueueNotification } from "@/store/actions/notifications";
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import { useAtomValue } from "jotai";
@@ -13,6 +14,7 @@ import {
 } from "@/paneActions";
 import type { Action } from "@/paneActions/core/types";
 import { MAX_ACTIONS } from "@/paneActions/core/types";
+import { PreCommandRegistry } from "@/preCommands/registry";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
 
@@ -121,10 +123,40 @@ export function PaneControlFanButtons({
           const terminalConfig = action.config;
           const terminalCwd = terminalConfig.cwd || cwd;
 
-          // Create terminal pane with optional cwd
-          const newPane = await splitPane(tabId, paneId, direction, insertBefore, {
+          let paneOptions: any = {
             terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined
-          });
+          };
+
+          // Execute pre-command if specified
+          if (terminalConfig.preCommandId) {
+            const registry = PreCommandRegistry.getInstance();
+            const result = await registry.execute(terminalConfig.preCommandId, terminalConfig);
+
+            if (!result.success) {
+              // Show error notification and abort
+              enqueueNotification({
+                kind: 'error',
+                message: `Pre-command failed: ${result.error}`,
+                persistent: true
+              });
+              return;
+            }
+
+            // Merge paneOptions from pre-command result
+            if (result.paneOptions) {
+              paneOptions = {
+                ...paneOptions,
+                ...result.paneOptions,
+                terminalOptions: {
+                  ...paneOptions.terminalOptions,
+                  ...result.paneOptions.terminalOptions
+                }
+              };
+            }
+          }
+
+          // Create terminal pane with merged options
+          const newPane = await splitPane(tabId, paneId, direction, insertBefore, paneOptions);
 
           // If there's a command configured, send it
           if (newPane?.sessionId && terminalConfig.command) {

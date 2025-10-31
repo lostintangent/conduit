@@ -36,6 +36,12 @@ export interface TerminalConfig {
    * Optional working directory for the terminal
    */
   cwd?: string;
+
+  /**
+   * Optional pre-command to run before creating the terminal
+   * Pre-commands can perform setup, validation, or configuration tasks
+   */
+  preCommandId?: string;
 }
 
 /**
