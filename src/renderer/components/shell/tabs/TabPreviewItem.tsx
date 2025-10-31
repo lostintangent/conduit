@@ -17,23 +17,23 @@ type TabPreviewItemProps = {
  * Used by both TabPreview (overlay) and TabsOverview (dialog)
  */
 export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, scale = PREVIEW_SCALE }: TabPreviewItemProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
+    
     return () => {
       isMountedRef.current = false;
       // Clean up ref when unmounting
       onRefSet(tabId, null);
     };
   }, [tabId, onRefSet]);
-
-  useEffect(() => {
-    if (containerRef.current && isMountedRef.current) {
-      onRefSet(tabId, containerRef.current);
+  
+  const handleRefSet = (el: HTMLDivElement | null) => {
+    if (el && isMountedRef.current) {
+      onRefSet(tabId, el);
     }
-  }, [tabId, onRefSet]);
+  };
 
   const handleClick = () => {
     if (clickable && onClick) {
@@ -71,9 +71,7 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
         }}
       >
         <div
-          ref={(el) => {
-            containerRef.current = el;
-          }}
+          ref={handleRefSet}
           className="pointer-events-none flex w-full h-full min-h-0 min-w-0"
           style={{
             width: contentWidth,
