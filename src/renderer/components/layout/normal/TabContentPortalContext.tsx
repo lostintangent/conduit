@@ -15,7 +15,6 @@ type TabContentPortalContextValue = {
   mountTabInPreview: (tabId: string, element: HTMLElement) => void;
   mountTabsForPreview: (tabIds: string[], elements: Record<string, HTMLElement>) => void;
   unmountTabsFromPreview: () => void;
-  getPreviewMountPoints: () => ContainerMap;
 };
 
 const TabContentPortalContext =
@@ -66,10 +65,6 @@ export function TabContentPortalProvider({
     setPreviewMountPoints({});
   }, []);
 
-  const getPreviewMountPoints = useCallback(() => {
-    return previewMountPoints;
-  }, [previewMountPoints]);
-
   const getActiveMountPoint = useCallback(
     (tabId: string) => {
       if (previewMountPoints[tabId]) {
@@ -86,12 +81,10 @@ export function TabContentPortalProvider({
       mountTabInPreview,
       mountTabsForPreview,
       unmountTabsFromPreview,
-      getPreviewMountPoints,
       getActiveMountPoint,
     }),
     [
       getActiveMountPoint,
-      getPreviewMountPoints,
       mountTabsForPreview,
       mountTabInPreview,
       setLayoutMountPoint,
