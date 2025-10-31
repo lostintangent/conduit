@@ -5,35 +5,28 @@
  * Similar design to KeybindingsEditor.
  */
 
-import { usePaneActions, savePaneActions, resetPaneActionsToDefaults, hasUserPaneActionsFile } from '@/paneActions';
-import type { Action } from '@/paneActions/core/types';
 import {
-  Book,
-  Bot,
-  Bug,
+  usePaneActions,
+  savePaneActions,
+  resetPaneActionsToDefaults,
+  hasUserPaneActionsFile,
+  PaneActionIcon,
+  getAvailableIconIds,
+  isTerminalConfig,
+  isEditorConfig,
+  isBrowserConfig,
+} from '@/paneActions';
+import type { Action, TerminalConfig, EditorConfig, BrowserConfig, PaneType } from '@/paneActions/core/types';
+import { MAX_ACTIONS } from '@/paneActions/core/types';
+import {
   Check,
   ChevronDown,
   ChevronRight,
-  Code,
-  Container,
-  Database,
   Edit2,
-  // Pane action icons from schema
-  GitBranch,
-  Globe,
   GripVertical,
-  HelpCircle,
-  Package,
   Plus,
-  Rocket,
-  Server,
-  Shield,
-  Terminal,
-  TestTube,
   Trash2,
-  Wrench,
   X,
-  type LucideIcon
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -43,33 +36,8 @@ interface PaneActionsEditorProps {
   onOpenQuickPane?: (descriptor: { type: 'editor'; cwd: string; filePath?: string }) => void;
 }
 
-// Icon mapping based on docs/pane-actions-schema.md
-const ICON_MAP: Record<string, LucideIcon> = {
-  'git-branch': GitBranch,
-  'code': Code,
-  'terminal': Terminal,
-  'globe': Globe,
-  'bot': Bot,
-  'container': Container,
-  'database': Database,
-  'package': Package,
-  'server': Server,
-  'test-tube': TestTube,
-  'bug': Bug,
-  'rocket': Rocket,
-  'shield': Shield,
-  'book': Book,
-  'wrench': Wrench,
-};
-
 // Available icon IDs for dropdown
-const AVAILABLE_ICONS = Object.keys(ICON_MAP).sort();
-
-// Component to render pane action icon
-function ActionIcon({ iconId, className = "w-4 h-4" }: { iconId: string; className?: string }) {
-  const IconComponent = ICON_MAP[iconId] || HelpCircle;
-  return <IconComponent className={className} />;
-}
+const AVAILABLE_ICONS = getAvailableIconIds();
 
 export function PaneActionsEditor({
   onClose,
@@ -534,7 +502,7 @@ export function PaneActionsEditor({
                       {/* Action column */}
                       <td className="px-6 py-2">
                         <div className="flex items-center gap-3">
-                          <ActionIcon iconId={action.icon} className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                          <PaneActionIcon iconId={action.icon} className="w-5 h-5 text-gray-300 flex-shrink-0" />
                           <span className="text-sm text-white font-medium whitespace-nowrap">
                             {action.name}
                           </span>
@@ -547,23 +515,23 @@ export function PaneActionsEditor({
                       {/* Command column */}
                       <td className="px-6 py-2">
                         <div className="text-sm text-gray-400 font-mono truncate max-w-md">
-                          {action.paneType === 'terminal' && (
-                            (action.config as any).command ? (
-                              <span>{(action.config as any).command}</span>
+                          {isTerminalConfig(action.config) && (
+                            action.config.command ? (
+                              <span>{action.config.command}</span>
                             ) : (
                               <span className="text-gray-500 italic">No config</span>
                             )
                           )}
-                          {action.paneType === 'browser' && (
-                            (action.config as any).url ? (
-                              <span>{(action.config as any).url}</span>
+                          {isBrowserConfig(action.config) && (
+                            action.config.url ? (
+                              <span>{action.config.url}</span>
                             ) : (
                               <span className="text-gray-500 italic">No config</span>
                             )
                           )}
-                          {action.paneType === 'editor' && (
-                            (action.config as any).cwd ? (
-                              <span>{(action.config as any).cwd}</span>
+                          {isEditorConfig(action.config) && (
+                            action.config.cwd ? (
+                              <span>{action.config.cwd}</span>
                             ) : (
                               <span className="text-gray-500 italic">No config</span>
                             )
@@ -643,7 +611,7 @@ export function PaneActionsEditor({
                                         onClick={() => setIconDropdownOpen(!iconDropdownOpen)}
                                         className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white hover:border-blue-500 focus:outline-none focus:border-blue-500 text-left flex items-center gap-2"
                                       >
-                                        <ActionIcon iconId={editedAction.icon} className="w-4 h-4 text-gray-300" />
+                                        <PaneActionIcon iconId={editedAction.icon} className="w-4 h-4 text-gray-300" />
                                         <span className="flex-1">{editedAction.icon}</span>
                                         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${iconDropdownOpen ? 'rotate-180' : ''}`} />
                                       </button>
@@ -671,7 +639,7 @@ export function PaneActionsEditor({
                                                     editedAction.icon === iconId ? 'bg-gray-700 text-white' : 'text-gray-300'
                                                   }`}
                                                 >
-                                                  <ActionIcon iconId={iconId} className="w-4 h-4" />
+                                                  <PaneActionIcon iconId={iconId} className="w-4 h-4" />
                                                   <span>{iconId}</span>
                                                 </button>
                                               ))}
@@ -699,7 +667,7 @@ export function PaneActionsEditor({
                                     <label className="text-xs text-gray-400 block mb-1">Pane Type</label>
                                     <select
                                       value={editedAction.paneType}
-                                      onChange={(e) => setEditedAction({ ...editedAction, paneType: e.target.value as any })}
+                                      onChange={(e) => setEditedAction({ ...editedAction, paneType: e.target.value as PaneType })}
                                       className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
                                     >
                                       <option value="terminal">terminal</option>
@@ -716,16 +684,16 @@ export function PaneActionsEditor({
                                   Configuration
                                 </h4>
                                 <div className="bg-gray-800/50 rounded-lg p-3 space-y-2">
-                                  {editedAction.paneType === 'terminal' && (
+                                  {editedAction.paneType === 'terminal' && isTerminalConfig(editedAction.config) && (
                                     <>
                                       <div>
                                         <label className="text-xs text-gray-400 block mb-1">Command</label>
                                         <input
                                           type="text"
-                                          value={(editedAction.config as any).command || ''}
+                                          value={editedAction.config.command || ''}
                                           onChange={(e) => setEditedAction({
                                             ...editedAction,
-                                            config: { ...(editedAction.config as any), command: e.target.value }
+                                            config: { ...editedAction.config, command: e.target.value } as TerminalConfig
                                           })}
                                           className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
                                           placeholder="e.g., git status"
@@ -735,10 +703,10 @@ export function PaneActionsEditor({
                                         <label className="text-xs text-gray-400 block mb-1">Working Directory (optional)</label>
                                         <input
                                           type="text"
-                                          value={(editedAction.config as any).cwd || ''}
+                                          value={editedAction.config.cwd || ''}
                                           onChange={(e) => setEditedAction({
                                             ...editedAction,
-                                            config: { ...(editedAction.config as any), cwd: e.target.value || undefined }
+                                            config: { ...editedAction.config, cwd: e.target.value || undefined } as TerminalConfig
                                           })}
                                           className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
                                           placeholder="e.g., ~/Projects"
@@ -746,30 +714,30 @@ export function PaneActionsEditor({
                                       </div>
                                     </>
                                   )}
-                                  {editedAction.paneType === 'editor' && (
+                                  {editedAction.paneType === 'editor' && isEditorConfig(editedAction.config) && (
                                     <div>
                                       <label className="text-xs text-gray-400 block mb-1">Working Directory (optional)</label>
                                       <input
                                         type="text"
-                                        value={(editedAction.config as any).cwd || ''}
+                                        value={editedAction.config.cwd || ''}
                                         onChange={(e) => setEditedAction({
                                           ...editedAction,
-                                          config: { ...(editedAction.config as any), cwd: e.target.value || undefined }
+                                          config: { ...editedAction.config, cwd: e.target.value || undefined } as EditorConfig
                                         })}
                                         className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
                                         placeholder="e.g., ~/Projects"
                                       />
                                     </div>
                                   )}
-                                  {editedAction.paneType === 'browser' && (
+                                  {editedAction.paneType === 'browser' && isBrowserConfig(editedAction.config) && (
                                     <div>
                                       <label className="text-xs text-gray-400 block mb-1">URL</label>
                                       <input
                                         type="text"
-                                        value={(editedAction.config as any).url || ''}
+                                        value={editedAction.config.url || ''}
                                         onChange={(e) => setEditedAction({
                                           ...editedAction,
-                                          config: { ...(editedAction.config as any), url: e.target.value }
+                                          config: { ...editedAction.config, url: e.target.value } as BrowserConfig
                                         })}
                                         className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
                                         placeholder="e.g., https://github.com"
@@ -800,7 +768,7 @@ export function PaneActionsEditor({
               })}
 
               {/* Ghost rows for remaining slots */}
-              {Array.from({ length: Math.max(0, 5 - reorderedActions.length) }).map((_, ghostIndex) => {
+              {Array.from({ length: Math.max(0, MAX_ACTIONS - reorderedActions.length) }).map((_, ghostIndex) => {
                 const slotNumber = reorderedActions.length + ghostIndex + 1;
                 return (
                   <tr

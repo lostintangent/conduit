@@ -13,6 +13,7 @@ import type {
   EditorConfig,
   BrowserConfig,
 } from '../core/types';
+import { MAX_ACTIONS } from '../core/types';
 
 /**
  * Validation error with context
@@ -48,9 +49,9 @@ export function validatePaneActionsConfig(data: unknown): Action[] {
     );
   }
 
-  if (data.length > 5) {
+  if (data.length > MAX_ACTIONS) {
     throw new ValidationError(
-      `Configuration can contain at most 5 actions, found ${data.length}`,
+      `Configuration can contain at most ${MAX_ACTIONS} actions, found ${data.length}`,
       'Array length validation'
     );
   }

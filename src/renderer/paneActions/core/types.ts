@@ -19,6 +19,11 @@ export type PaneType = 'terminal' | 'editor' | 'browser';
 export type IconId = string;
 
 /**
+ * Maximum number of actions allowed
+ */
+export const MAX_ACTIONS = 5;
+
+/**
  * Terminal pane configuration
  */
 export interface TerminalConfig {
@@ -92,3 +97,24 @@ export interface Action {
  * Root configuration structure (array of actions)
  */
 export type PaneActionsConfig = Action[];
+
+/**
+ * Type guard to check if config is TerminalConfig
+ */
+export function isTerminalConfig(config: PaneConfig): config is TerminalConfig {
+  return 'command' in config;
+}
+
+/**
+ * Type guard to check if config is EditorConfig
+ */
+export function isEditorConfig(config: PaneConfig): config is EditorConfig {
+  return !('command' in config) && !('url' in config);
+}
+
+/**
+ * Type guard to check if config is BrowserConfig
+ */
+export function isBrowserConfig(config: PaneConfig): config is BrowserConfig {
+  return 'url' in config;
+}

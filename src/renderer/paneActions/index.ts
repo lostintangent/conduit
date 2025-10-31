@@ -16,6 +16,13 @@ export type {
   PaneActionsConfig,
 } from './core/types';
 
+// Type guards
+export {
+  isTerminalConfig,
+  isEditorConfig,
+  isBrowserConfig,
+} from './core/types';
+
 // Registry
 export { PaneActionsRegistry } from './core/PaneActionsRegistry';
 
@@ -66,3 +73,10 @@ export {
   usePaneAction,
   usePaneActionByIndex,
 } from './hooks/usePaneActions';
+
+// UI components
+export {
+  PaneActionIcon,
+  PANE_ACTION_ICON_MAP,
+  getAvailableIconIds,
+} from './ui/PaneActionIcon';

@@ -2,50 +2,19 @@ import { openEditorPane, openWebViewPane, splitPane } from "@/store/actions/pane
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import { useAtomValue } from "jotai";
-import {
-  Bot,
-  Bug,
-  Book,
-  Code,
-  Container,
-  Database,
-  GitBranch,
-  Globe,
-  HelpCircle,
-  Package,
-  Rocket,
-  Server,
-  Settings,
-  Shield,
-  Terminal,
-  TestTube,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
+import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useEnabledPaneActions } from "@/paneActions";
+import {
+  useEnabledPaneActions,
+  PaneActionIcon,
+  isTerminalConfig,
+  isEditorConfig,
+  isBrowserConfig,
+} from "@/paneActions";
 import type { Action } from "@/paneActions/core/types";
+import { MAX_ACTIONS } from "@/paneActions/core/types";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
-
-// Icon mapping based on docs/pane-actions-schema.md
-const ICON_MAP: Record<string, LucideIcon> = {
-  'git-branch': GitBranch,
-  'code': Code,
-  'terminal': Terminal,
-  'globe': Globe,
-  'bot': Bot,
-  'container': Container,
-  'database': Database,
-  'package': Package,
-  'server': Server,
-  'test-tube': TestTube,
-  'bug': Bug,
-  'rocket': Rocket,
-  'shield': Shield,
-  'book': Book,
-  'wrench': Wrench,
-};
 
 interface PaneControlFanButtonsProps {
   tabId: string;
@@ -78,7 +47,6 @@ export function PaneControlFanButtons({
   const paneActions = useEnabledPaneActions();
 
   // Create an array with pane actions and placeholders (max 5 total)
-  const MAX_ACTIONS = 5;
   const actions: Array<Action | null> = [
     ...paneActions,
     ...Array(Math.max(0, MAX_ACTIONS - paneActions.length)).fill(null)
@@ -149,43 +117,45 @@ export function PaneControlFanButtons({
     // Execute action based on pane type, using existing logic patterns
     switch (action.paneType) {
       case "terminal": {
-        // Get terminal config
-        const terminalConfig = action.config as any;
-        const terminalCwd = terminalConfig.cwd || cwd;
+        if (isTerminalConfig(action.config)) {
+          const terminalConfig = action.config;
+          const terminalCwd = terminalConfig.cwd || cwd;
 
-        // Create terminal pane with optional cwd
-        const newPane = await splitPane(tabId, paneId, direction, insertBefore, {
-          terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined
-        });
+          // Create terminal pane with optional cwd
+          const newPane = await splitPane(tabId, paneId, direction, insertBefore, {
+            terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined
+          });
 
-        // If there's a command configured, send it
-        const command = terminalConfig.command;
-        if (newPane?.sessionId && command) {
-          setTimeout(() => {
-            api.sendKeypress(newPane.sessionId, command + '\r');
-          }, 100);
+          // If there's a command configured, send it
+          if (newPane?.sessionId && terminalConfig.command) {
+            setTimeout(() => {
+              api.sendKeypress(newPane.sessionId, terminalConfig.command + '\r');
+            }, 100);
+          }
         }
         break;
       }
 
       case "browser": {
-        // Open browser pane with configured URL
-        const url = (action.config as any).url || "https://google.com";
-        openWebViewPane(tabId, paneId, url, direction, insertBefore);
+        if (isBrowserConfig(action.config)) {
+          const url = action.config.url || "https://google.com";
+          openWebViewPane(tabId, paneId, url, direction, insertBefore);
+        }
         break;
       }
 
       case "editor": {
-        // Open editor pane
-        let editorCwd = (action.config as any).cwd || cwd;
+        if (isEditorConfig(action.config)) {
+          let editorCwd = action.config.cwd || cwd;
 
-        if (!editorCwd) {
-          // Fallback to home directory
-          const homeDir = await api.getSettings().then(s => s.homeDirectory);
-          editorCwd = homeDir || ".";
+          if (!editorCwd) {
+            // Fallback to home directory
+            const homeDir = await api.getSettings().then(s => s.homeDirectory);
+            editorCwd = homeDir || ".";
+          }
+
+          openEditorPane(tabId, paneId, editorCwd, direction, insertBefore);
         }
-
-        openEditorPane(tabId, paneId, editorCwd, direction, insertBefore);
         break;
       }
     }
@@ -366,8 +336,6 @@ export function PaneControlFanButtons({
         }
 
         // Render actual action button
-        const Icon = ICON_MAP[action.icon] || HelpCircle;
-
         return (
           <button
             key={`action-${index}-${action.name}`}
@@ -382,7 +350,7 @@ export function PaneControlFanButtons({
             onClick={() => void handleActionClick(action)}
             title={`Split ${position} - ${action.name}`}
           >
-            <Icon className={iconClass} />
+            <PaneActionIcon iconId={action.icon} className={iconClass} />
           </button>
         );
       })}
