@@ -14,7 +14,7 @@ Create information-dense tabs, each with a flexible grid of terminal, editor, an
 
 **Tab previews**
 
-Hover over any tab and see a **live preview** if its status. This is kind of like "peek definition" for tabs, and makes it easy to parallelize work, while keeping an eye of background tasks.
+Hover over any tab and see a **live preview** of its status. This is kind of like "peek definition" for tabs, and makes it easy to parallelize work, while keeping an eye on background tasks.
 
 <img width="1253" height="903" alt="image" src="https://github.com/user-attachments/assets/593b54d2-8533-4f5d-afe3-59652414d233" />
 
