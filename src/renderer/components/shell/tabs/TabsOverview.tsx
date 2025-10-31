@@ -39,8 +39,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
         );
 
         if (allReady) {
-          const tabIds = tabs.map((tab) => tab.id);
-          mountTabsForPreview(tabIds, allTabsContainerRefs.current);
+          mountTabsForPreview(allTabsContainerRefs.current);
         }
       }
     },
