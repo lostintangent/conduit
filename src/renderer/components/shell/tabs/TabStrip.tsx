@@ -318,7 +318,7 @@ export const TabStrip = ({
         tabId: "",
         left: rect.left,
         top: rect.top,
-        allTabIds: tabs.map(t => t.id),
+        allTabIds: tabs.map(tab => tab.id),
       });
     },
     [draggingTab, tabs, unmountAllTabsFromPreview]

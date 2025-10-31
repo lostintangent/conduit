@@ -48,16 +48,16 @@ export function TabPreview({ preview }: TabPreviewProps) {
   // All tabs preview mode (when tabId is empty and allTabIds is provided)
   if (!preview.tabId && preview.allTabIds) {
     const handleRefSet = (tabId: string, el: HTMLDivElement | null) => {
-      if (el) {
+      if (el && preview.allTabIds) {
         allTabsContainerRefs.current[tabId] = el;
         
         // Check if all containers are now ready
-        const allReady = preview.allTabIds!.every(
+        const allReady = preview.allTabIds.every(
           (id) => allTabsContainerRefs.current[id]
         );
         
         if (allReady) {
-          mountAllTabsForPreview(preview.allTabIds!, allTabsContainerRefs.current);
+          mountAllTabsForPreview(preview.allTabIds, allTabsContainerRefs.current);
         }
       }
     };
