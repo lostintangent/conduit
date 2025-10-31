@@ -9,12 +9,14 @@ type TabPreviewOverlayProps = {
     left: number;
     top: number;
   } | null;
+  onPreviewHoverChange?: (isHovering: boolean) => void;
 };
 
-export function TabPreviewOverlay({ preview }: TabPreviewOverlayProps) {
+export function TabPreviewOverlay({ preview, onPreviewHoverChange }: TabPreviewOverlayProps) {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const outerContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!preview) {
@@ -29,7 +31,7 @@ export function TabPreviewOverlay({ preview }: TabPreviewOverlayProps) {
 
   if (!preview) return null;
 
-  const handleRefSet = (tabId: string, el: HTMLDivElement | null) => {
+  const handleRefSet = (_tabId: string, el: HTMLDivElement | null) => {
     if (el) {
       previewContainerRef.current = el;
     }
@@ -38,11 +40,27 @@ export function TabPreviewOverlay({ preview }: TabPreviewOverlayProps) {
   // Single tab preview mode - overlay wrapper with positioning
   return createPortal(
     <div
-      className="pointer-events-none fixed z-[9999] transition-opacity duration-150 bg-surface shadow-xl backdrop-blur-sm rounded-lg"
+      ref={outerContainerRef}
+      className="pointer-events-auto fixed z-[9999] transition-all duration-150 bg-surface shadow-xl backdrop-blur-sm rounded-lg border border-white/[0.08] hover:border-blueprint/50 hover:shadow-2xl cursor-pointer"
       style={{
         left: preview.left,
         top: preview.top,
         transform: "translate3d(0, calc(-106%), 0)",
+        // Add padding to extend the hover area and bridge the gap to the tab
+        padding: "0.5rem",
+      }}
+      onMouseEnter={() => {
+        onPreviewHoverChange?.(true);
+      }}
+      onMouseLeave={(e) => {
+        // Check if we're actually leaving the container, or just moving to a child element
+        const relatedTarget = e.relatedTarget as Node | null;
+        const isLeavingToChild = relatedTarget && outerContainerRef.current?.contains(relatedTarget);
+
+        // Only trigger hover change if we're actually leaving the container
+        if (!isLeavingToChild) {
+          onPreviewHoverChange?.(false);
+        }
       }}
     >
       <TabPreviewItem tabId={preview.tabId} onRefSet={handleRefSet} />

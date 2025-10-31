@@ -60,7 +60,7 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, scale = PREVIEW_SCALE
       onClick={handleClick}
     >
       <div
-        className="pointer-events-none flex"
+        className="flex pointer-events-none"
         style={{
           transform: `scale(${scale})`,
           transformOrigin: "top left",
@@ -70,7 +70,7 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, scale = PREVIEW_SCALE
       >
         <div
           ref={handleRefSet}
-          className="pointer-events-none flex w-full h-full min-h-0 min-w-0"
+          className="flex w-full h-full min-h-0 min-w-0 pointer-events-auto"
           style={{
             width: contentWidth,
             height: contentHeight,
