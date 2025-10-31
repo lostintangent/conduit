@@ -7,13 +7,15 @@ export const PREVIEW_SCALE = 0.35;
 type TabPreviewItemProps = {
   tabId: string;
   onRefSet: (tabId: string, element: HTMLDivElement | null) => void;
+  onClick?: (tabId: string) => void;
+  clickable?: boolean;
 };
 
 /**
  * Shared component for rendering a single tab preview
  * Used by both TabPreview (overlay) and TabsOverview (dialog)
  */
-export function TabPreviewItem({ tabId, onRefSet }: TabPreviewItemProps) {
+export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false }: TabPreviewItemProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isMountedRef = useRef(true);
 
@@ -32,13 +34,22 @@ export function TabPreviewItem({ tabId, onRefSet }: TabPreviewItemProps) {
     }
   }, [tabId, onRefSet]);
 
+  const handleClick = () => {
+    if (clickable && onClick) {
+      onClick(tabId);
+    }
+  };
+
   return (
     <div
-      className="pointer-events-none flex overflow-hidden rounded border border-white/[0.08]"
+      className={`flex overflow-hidden rounded border border-white/[0.08] ${
+        clickable ? 'cursor-pointer hover:border-white/[0.24] transition-colors pointer-events-auto' : 'pointer-events-none'
+      }`}
       style={{
         width: PREVIEW_WIDTH,
         height: PREVIEW_HEIGHT,
       }}
+      onClick={handleClick}
     >
       <div
         className="pointer-events-none flex"

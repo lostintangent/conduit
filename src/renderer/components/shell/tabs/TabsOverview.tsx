@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { focusTab } from "@/store/actions/tab";
 import { useCallback, useEffect, useRef } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
 
@@ -48,12 +49,22 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
     [tabs, mountAllTabsForPreview]
   );
 
+  const handleTabClick = useCallback(
+    (tabId: string) => {
+      // Focus the selected tab
+      focusTab(tabId);
+      // Close the dialog
+      onClose();
+    },
+    [onClose]
+  );
+
   useEffect(() => {
     if (!isOpen) {
-      // Clean up refs first
-      allTabsContainerRefs.current = {};
-      // Then unmount from preview which will trigger re-render of tab content
+      // Unmount from preview first - this will update the context state
       unmountAllTabsFromPreview();
+      // Then clean up local refs
+      allTabsContainerRefs.current = {};
     }
   }, [isOpen, unmountAllTabsFromPreview]);
 
@@ -78,7 +89,12 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
               <div className="text-sm text-muted-foreground px-1 truncate max-w-[320px]">
                 {tab.label}
               </div>
-              <TabPreviewItem tabId={tab.id} onRefSet={handleRefSet} />
+              <TabPreviewItem 
+                tabId={tab.id} 
+                onRefSet={handleRefSet}
+                onClick={handleTabClick}
+                clickable={true}
+              />
             </div>
           ))}
         </div>
