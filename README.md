@@ -2,7 +2,7 @@
 
 Conduit is a terminal. It's also a tiling window manager, an agentic task manager, and a lightweight editor + browser. But above all, Conduit is meant to be fun, and provide a great toolchain for AI-native, CLI-driven development.
 
-It's sort of like if vim, tmux, and VS Code had a baby, that was an extremely flexible workbench, built around local/cloud terminals, editors, and browsers. And with a ton of features to make it feel accessible and neat to use (hopefully!).
+It's sort of like if vim, tmux, and VS Code had a baby, that was an extremely flexible workbench, built around tabs of local/cloud terminal, editor, and browser panes. And with a ton of features to make it feel accessible and neat to use (hopefully!).
 
 That said, since pictures are worth a bunch of words, check out the following parade of screenshots in oder to get a sense of what it can do...
 
@@ -29,6 +29,10 @@ When you have multiple tabs, you can open a live "birds-eye view" of them all, w
 Organize your tabs by creating or removing panes, drag & dropping panes, splitting panes into new tabs, moving panes between tabs, etc.
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/1c98209d-0f87-43b7-9243-3f4bd189d778" />
+
+You can also configure the radial "quick actions", so your design mode experience is exactly what you want it to be.
+
+<img width="1136" height="880" alt="image" src="https://github.com/user-attachments/assets/be5ba44d-ab05-4545-bbbf-7bcc62a4ae4b" />
 
 **Focus mode**
 
