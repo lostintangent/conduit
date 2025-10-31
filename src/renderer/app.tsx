@@ -17,6 +17,7 @@ import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { usePaneActionsSystem } from "@/paneActions";
+import { registerDefaultPreCommands } from "@/preCommands";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -128,6 +129,11 @@ export function App() {
   const paneActionsSystem = usePaneActionsSystem({
     homeDirectory,
   });
+
+  // Register pre-commands
+  useEffect(() => {
+    registerDefaultPreCommands();
+  }, []);
 
   useKeybindingDispatch(
     commandSystem?.commandRegistry,
