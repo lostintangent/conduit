@@ -130,7 +130,10 @@ export function PaneControlFanButtons({
           // Execute pre-command if specified
           if (terminalConfig.preCommandId) {
             const registry = PreCommandRegistry.getInstance();
-            const result = await registry.execute(terminalConfig.preCommandId, terminalConfig);
+            const result = await registry.execute(terminalConfig.preCommandId, {
+              ...terminalConfig,
+              cwd: terminalCwd
+            });
 
             if (!result.success) {
               // Show error notification and abort
