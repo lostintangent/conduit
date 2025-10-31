@@ -19,15 +19,6 @@ import type { Action } from './types';
 export function getDefaultActions(): Action[] {
   return [
     {
-      name: 'Source Control',
-      icon: 'git-branch',
-      enabled: true,
-      paneType: 'terminal',
-      config: {
-        command: 'git status',
-      },
-    },
-    {
       name: 'Editor',
       icon: 'code',
       enabled: true,
@@ -46,10 +37,19 @@ export function getDefaultActions(): Action[] {
     {
       name: 'Browser',
       icon: 'globe',
-      enabled: false,
+      enabled: true,
       paneType: 'browser',
       config: {
         url: 'https://github.com',
+      },
+    },
+    {
+      name: 'Source Control',
+      icon: 'git-branch',
+      enabled: false,
+      paneType: 'terminal',
+      config: {
+        command: 'git status',
       },
     },
   ];
