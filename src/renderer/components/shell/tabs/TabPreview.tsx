@@ -28,27 +28,18 @@ export function TabPreview({ preview }: TabPreviewProps) {
       return;
     }
 
-    // All tabs preview mode (when tabId is empty and allTabIds is provided)
-    if (!preview.tabId && preview.allTabIds) {
-      // Wait for all container refs to be set
-      const allContainersReady = preview.allTabIds.every(
-        (tabId) => allTabsContainerRefs.current[tabId]
-      );
-
-      if (allContainersReady) {
-        mountAllTabsForPreview(preview.allTabIds, allTabsContainerRefs.current);
-      }
-
-      return () => {
-        unmountAllTabsFromPreview();
-        allTabsContainerRefs.current = {};
-      };
-    }
-
     // Single tab preview mode
     if (preview.tabId && previewContainerRef.current) {
       mountTabInPreview(preview.tabId, previewContainerRef.current);
       return unmountTabFromPreview;
+    }
+
+    // All tabs preview mode - cleanup
+    if (!preview.tabId && preview.allTabIds) {
+      return () => {
+        unmountAllTabsFromPreview();
+        allTabsContainerRefs.current = {};
+      };
     }
   }, [preview, mountTabInPreview, unmountTabFromPreview, mountAllTabsForPreview, unmountAllTabsFromPreview]);
 
@@ -56,6 +47,21 @@ export function TabPreview({ preview }: TabPreviewProps) {
 
   // All tabs preview mode (when tabId is empty and allTabIds is provided)
   if (!preview.tabId && preview.allTabIds) {
+    const handleRefSet = (tabId: string, el: HTMLDivElement | null) => {
+      if (el) {
+        allTabsContainerRefs.current[tabId] = el;
+        
+        // Check if all containers are now ready
+        const allReady = preview.allTabIds!.every(
+          (id) => allTabsContainerRefs.current[id]
+        );
+        
+        if (allReady) {
+          mountAllTabsForPreview(preview.allTabIds!, allTabsContainerRefs.current);
+        }
+      }
+    };
+
     return createPortal(
       <div
         className="pointer-events-none fixed z-[9999] transition-opacity duration-150"
@@ -87,11 +93,7 @@ export function TabPreview({ preview }: TabPreviewProps) {
                 }}
               >
                 <div
-                  ref={(el) => {
-                    if (el) {
-                      allTabsContainerRefs.current[tabId] = el;
-                    }
-                  }}
+                  ref={(el) => handleRefSet(tabId, el)}
                   className="pointer-events-none flex w-full h-full min-h-0 min-w-0"
                   style={{
                     width: PREVIEW_WIDTH / PREVIEW_SCALE,
