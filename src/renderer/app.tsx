@@ -113,6 +113,9 @@ export function App() {
     setApplicationMode,
     homeDirectory,
     workspaceName,
+    // Context key data
+    hasCustomLayout,
+    hasLastWorkspace,
     // UI state setters
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
@@ -534,20 +537,12 @@ export function App() {
     setQuickPaneState(descriptor);
   }, []);
 
-  const commandItems = useCommands({
-    hasCustomLayout,
-    resetLayoutSizes,
-    setIsUrlDialogOpen,
-    setIsVMRepoDialogOpen,
-    setCleanupDialogSessions,
-    hasWorkspaces,
-    workspaces,
-    hasLastWorkspace,
-    setShowWorkspacePicker,
-    setShowRenameWorkspaceDialog,
-    setShowCreateWorkspaceDialog,
-    closeWorkspace,
-  });
+  // Get commands from registry (or empty array if command system not ready)
+  const commandItems = useCommands(
+    commandSystem?.commandRegistry,
+    commandSystem?.keybindingRegistry,
+    commandSystem?.contextKeyService
+  );
 
   const handleCloseQuickPane = useCallback(() => {
     setQuickPaneState((current) => {

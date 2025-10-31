@@ -6,6 +6,17 @@
  */
 
 import type { ICommandRegistry } from "@/commands";
+import { When } from "@/commands";
+import {
+  hasWorkspace,
+  hasLastWorkspace,
+  tabCount,
+  hasActivePane,
+  hasCustomLayout,
+  activePaneType,
+  isInAgentSession,
+  hasCwd,
+} from "@/commands/contextKeys/appContextKeys";
 import {
   handleCreateVM,
   handleOpenInVSCode,
@@ -120,6 +131,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_PANE_ACTIONS,
     title: 'Open Pane Actions',
+    description: 'View and customize pane action bindings',
     category: 'View',
     run: (context) => {
       context.view.openPaneActions();
@@ -167,6 +179,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     keybinding: {
       key: 'Cmd+K Cmd+R',
     },
+    when: hasWorkspace.isTrue(),
     run: (context) => {
       if (context.workspaceName) {
         handleRenameWorkspace(context.setShowRenameWorkspaceDialog);
@@ -183,6 +196,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     keybinding: {
       key: 'Cmd+K Cmd+C',
     },
+    when: hasWorkspace.isTrue(),
     run: (context) => {
       if (context.workspaceName) {
         void handleCloseWorkspace();
@@ -210,6 +224,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Continue Last Session',
     description: 'Restore your workspace from when you last closed the app',
     category: 'Workspace',
+    when: hasLastWorkspace.isTrue(),
     run: () => {
       void handleOpenLastWorkspace();
     },
@@ -221,6 +236,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Reset Layout',
     description: 'Restore the default pane sizes for this tab',
     category: 'View',
+    when: hasCustomLayout.isTrue(),
     run: (context) => {
       if (context.activeTab) {
         handleResetLayout(context.activeTab.id);
@@ -251,6 +267,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     keybinding: {
       key: 'Cmd+W',
     },
+    when: tabCount.greaterThan(1),
     run: (context) => {
       if (context.activeTab) {
         closeTab(context.activeTab.id);
@@ -267,6 +284,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     keybinding: {
       key: 'Cmd+L',
     },
+    when: hasActivePane.isTrue(),
     run: (context) => {
       handleOpenWebPage(context.setIsUrlDialogOpen);
     },
@@ -278,6 +296,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Create VM Terminal',
     description: 'Create a new terminal connected to a remote VM',
     category: 'Terminal',
+    when: hasActivePane.isTrue(),
     run: () => {
       void handleCreateVM();
     },
@@ -289,6 +308,10 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Open in VS Code',
     description: 'Open the active directory in Visual Studio Code',
     category: 'Terminal',
+    when: When.and(
+      activePaneType.equals('terminal'),
+      hasCwd.isTrue()
+    ),
     run: (context) => {
       void handleOpenInVSCode(context.activeTab);
     },
@@ -311,6 +334,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Merge and Close Agent Session',
     description: 'Commit, merge, and close the isolated agent worktree',
     category: 'Agent',
+    when: isInAgentSession.isTrue(),
     run: (context) => {
       void handleMergeAndClose(context.activeTab);
     },
@@ -322,6 +346,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     title: 'Terminate Agent Session',
     description: 'Remove the isolated worktree without merging',
     category: 'Agent',
+    when: isInAgentSession.isTrue(),
     run: (context) => {
       void handleTerminate(context.activeTab);
     },
