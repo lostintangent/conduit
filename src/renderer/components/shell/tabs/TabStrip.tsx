@@ -1,10 +1,10 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { getCommandDisplayTitle, useCommand } from "@/commands/hooks/useCommand";
-import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
 import { TabPreview } from "@/components/shell/tabs/TabPreview";
+import { TabsOverview } from "@/components/shell/tabs/TabsOverview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,7 +74,6 @@ export const TabStrip = ({
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
-  const { mountAllTabsForPreview, unmountAllTabsFromPreview } = useTabContentPortal();
 
   const [hoverPreview, setHoverPreview] = useState<{
     tabId: string;
@@ -83,7 +82,7 @@ export const TabStrip = ({
     allTabIds?: string[];
   } | null>(null);
 
-  const allTabsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [showTabsOverview, setShowTabsOverview] = useState(false);
 
   // Command hooks for button actions
   const toggleFocusModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
@@ -297,31 +296,6 @@ export const TabStrip = ({
       });
     },
     [activeTabId, draggingTab]
-  );
-
-  const handleAllTabsHover = useCallback(
-    (isHovering: boolean) => {
-      if (!allTabsButtonRef.current || draggingTab !== null) {
-        return;
-      }
-
-      if (!isHovering) {
-        setHoverPreview(null);
-        unmountAllTabsFromPreview();
-        return;
-      }
-
-      const rect = allTabsButtonRef.current.getBoundingClientRect();
-
-      // Set hover preview with empty tabId and allTabIds to trigger all-tabs mode
-      setHoverPreview({
-        tabId: "",
-        left: rect.left,
-        top: rect.top,
-        allTabIds: tabs.map(tab => tab.id),
-      });
-    },
-    [draggingTab, tabs, unmountAllTabsFromPreview]
   );
 
   const handleDragOverTab = useCallback(
@@ -619,16 +593,14 @@ export const TabStrip = ({
             <PlusSquare size={18} />
           </button>
 
-          {/* Show all tabs preview button - only when there are multiple tabs */}
+          {/* Show all tabs overview button - only when there are multiple tabs */}
           {tabs.length > 1 && (
             <button
-              ref={allTabsButtonRef}
               type="button"
               className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-              title="Preview all tabs"
-              aria-label="Preview all tabs"
-              onMouseEnter={() => handleAllTabsHover(true)}
-              onMouseLeave={() => handleAllTabsHover(false)}
+              title="View all tabs"
+              aria-label="View all tabs"
+              onClick={() => setShowTabsOverview(true)}
             >
               <LayoutGrid size={18} />
             </button>
@@ -714,6 +686,11 @@ export const TabStrip = ({
       </div>
 
       <TabPreview preview={hoverPreview} />
+
+      <TabsOverview
+        isOpen={showTabsOverview}
+        onClose={() => setShowTabsOverview(false)}
+      />
 
       <RepositoryDialog
         isOpen={isRepoDialogOpen}

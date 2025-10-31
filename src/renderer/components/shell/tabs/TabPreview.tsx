@@ -1,10 +1,7 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-
-const PREVIEW_WIDTH = 320;
-const PREVIEW_HEIGHT = 200;
-const PREVIEW_SCALE = 0.35;
+import { PREVIEW_HEIGHT, PREVIEW_SCALE, PREVIEW_WIDTH, TabPreviewItem } from "./TabPreviewItem";
 
 type TabPreviewProps = {
   preview: {
@@ -47,20 +44,23 @@ export function TabPreview({ preview }: TabPreviewProps) {
 
   // All tabs preview mode (when tabId is empty and allTabIds is provided)
   if (!preview.tabId && preview.allTabIds) {
-    const handleRefSet = (tabId: string, el: HTMLDivElement | null) => {
-      if (el && preview.allTabIds) {
-        allTabsContainerRefs.current[tabId] = el;
-        
-        // Check if all containers are now ready
-        const allReady = preview.allTabIds.every(
-          (id) => allTabsContainerRefs.current[id]
-        );
-        
-        if (allReady) {
-          mountAllTabsForPreview(preview.allTabIds, allTabsContainerRefs.current);
+    const handleRefSet = useCallback(
+      (tabId: string, el: HTMLDivElement | null) => {
+        if (el && preview.allTabIds) {
+          allTabsContainerRefs.current[tabId] = el;
+
+          // Check if all containers are now ready
+          const allReady = preview.allTabIds.every(
+            (id) => allTabsContainerRefs.current[id]
+          );
+
+          if (allReady) {
+            mountAllTabsForPreview(preview.allTabIds, allTabsContainerRefs.current);
+          }
         }
-      }
-    };
+      },
+      [preview.allTabIds, mountAllTabsForPreview]
+    );
 
     return createPortal(
       <div
@@ -75,33 +75,7 @@ export function TabPreview({ preview }: TabPreviewProps) {
           className="pointer-events-none flex flex-wrap gap-2 overflow-hidden rounded-lg border border-white/[0.12] bg-surface shadow-xl backdrop-blur-sm p-2"
         >
           {preview.allTabIds.map((tabId) => (
-            <div
-              key={tabId}
-              className="pointer-events-none flex overflow-hidden rounded border border-white/[0.08]"
-              style={{
-                width: PREVIEW_WIDTH,
-                height: PREVIEW_HEIGHT,
-              }}
-            >
-              <div
-                className="pointer-events-none flex"
-                style={{
-                  transform: `scale(${PREVIEW_SCALE})`,
-                  transformOrigin: "top left",
-                  width: PREVIEW_WIDTH / PREVIEW_SCALE,
-                  height: PREVIEW_HEIGHT / PREVIEW_SCALE,
-                }}
-              >
-                <div
-                  ref={(el) => handleRefSet(tabId, el)}
-                  className="pointer-events-none flex w-full h-full min-h-0 min-w-0"
-                  style={{
-                    width: PREVIEW_WIDTH / PREVIEW_SCALE,
-                    height: PREVIEW_HEIGHT / PREVIEW_SCALE,
-                  }}
-                />
-              </div>
-            </div>
+            <TabPreviewItem key={tabId} tabId={tabId} onRefSet={handleRefSet} />
           ))}
         </div>
       </div>,
