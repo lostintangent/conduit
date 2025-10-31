@@ -4,38 +4,39 @@ import type {
   TerminalPayload,
   TerminalResizePayload,
 } from "../../shared/types";
-import { getAllSessions, getSession } from "./store";
-import { closeSession, createSession, markSessionReady } from "./store/actions";
-import type { CreateSessionOptions, SendToRendererFn } from "./types";
+import { getAllTerminals, getTerminal } from "./store";
+import { createTerminal, killTerminal, markTerminalReady } from "./store/actions";
+import type { CreateTerminalOptions, SendToRendererFn } from "./types";
 
+const CHANNEL = "terminal";
 export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
-  ipcMain.handle("terminal:create", async (_, payload: CreateSessionOptions) => {
-    const session = await createSession(sendToRenderer, payload);
+  ipcMain.handle(`${CHANNEL}:create`, async (_, payload: CreateTerminalOptions) => {
+    const terminal = await createTerminal(sendToRenderer, payload);
     return {
-      sessionId: session.id,
-      title: session.lastProcessName,
-      cwd: session.cwd,
-      vmMetadata: session.vmMetadata,
+      sessionId: terminal.id,
+      title: terminal.lastProcessName,
+      cwd: terminal.cwd,
+      vmMetadata: terminal.cloudEnvironment,
     };
   });
 
-  ipcMain.on("terminal:ready", (_, { sessionId }: TerminalPayload) =>
-    markSessionReady(sessionId, sendToRenderer)
+  ipcMain.on(`${CHANNEL}:ready`, (_, { sessionId }: TerminalPayload) =>
+    markTerminalReady(sessionId, sendToRenderer)
   );
 
-  ipcMain.on("terminal:close", (_, { sessionId }: TerminalPayload) =>
-    closeSession(sessionId)
+  ipcMain.on(`${CHANNEL}:close`, (_, { sessionId }: TerminalPayload) =>
+    killTerminal(sessionId)
   );
 
-  ipcMain.on("terminal:input", (_, { sessionId, input }: TerminalInputPayload) => {
-    const session = getSession(sessionId);
+  ipcMain.on(`${CHANNEL}:input`, (_, { sessionId, input }: TerminalInputPayload) => {
+    const session = getTerminal(sessionId);
     if (!session) return;
 
     session.pty.write(input);
   });
 
-  ipcMain.on("terminal:resize", (_event, payload: TerminalResizePayload) => {
-    const session = getSession(payload.sessionId);
+  ipcMain.on(`${CHANNEL}:resize`, (_event, payload: TerminalResizePayload) => {
+    const session = getTerminal(payload.sessionId);
     if (!session) return;
 
     const cols = Math.max(1, Math.floor(payload.cols));
@@ -43,12 +44,13 @@ export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
 
     session.pty.resize(cols, rows);
   });
+
 }
 
 export function cleanupTerminalSessions() {
-  Array.from(getAllSessions().keys()).forEach((sessionId) => {
+  Array.from(getAllTerminals().keys()).forEach((sessionId) => {
     try {
-      closeSession(sessionId);
+      killTerminal(sessionId);
     } catch (error) {
       console.error("Failed to terminate PTY session", error);
     }

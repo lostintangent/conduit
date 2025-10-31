@@ -1,17 +1,38 @@
-> [!WARNING]
-> This project is a time-boxed exploration (1 week), that is meant to see how useful it could feel, to have a flexible workbench for orchestrating/organizating local + cloud terminals. Almost like if vim/tmux/VS Code had a baby 👶
+# 🤔 What is Conduit?
+
+Conduit is a terminal. It's also a tiling window manager, an agentic task manager, and a lightweight editor + browser. But above all, Conduit is meant to be fun, and provide a great toolchain for AI-native, CLI-driven development.
+
+It's sort of like if vim, tmux, and VS Code had a baby, that was an extremely flexible workbench, built around tabs of local/cloud terminal, editor, and browser panes. And with a ton of features to make it feel accessible and neat to use (hopefully!).
+
+That said, since pictures are worth a bunch of words, check out the following parade of screenshots in oder to get a sense of what it can do...
 
 # 🔌 Conduit
 
-Create information-dense tabs, each with a flexible grid of terminal, editor, and web panes (that can be arbitrarily resized, and organized)
+Create information-dense tabs, each with a flexible grid of terminal, editor, and browser panes (that can be arbitrarily resized, and organized)
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/ff0be63c-7426-43d8-a3da-b8cc717543ae" />
 
+**Tab previews**
+
+Hover over any tab and see a **live preview** of its status. This is kind of like "peek definition" for tabs, and makes it easy to parallelize work, while keeping an eye on background tasks.
+
+<img width="1253" height="903" alt="image" src="https://github.com/user-attachments/assets/593b54d2-8533-4f5d-afe3-59652414d233" />
+
+**Tabs overview**
+
+When you have multiple tabs, you can open a live "birds-eye view" of them all, which makes it easy to observe multiple tasks at once.
+
+<img width="1512" height="949" alt="image" src="https://github.com/user-attachments/assets/7edb251b-1f47-443c-9eaf-0a5189f09053" />
+
 **Design mode**
 
-Organize your tabs by creating or removing panes, drag & dropping panes, splitting panes into new tabs, etc.
+Organize your tabs by creating or removing panes, drag & dropping panes, splitting panes into new tabs, moving panes between tabs, etc.
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/1c98209d-0f87-43b7-9243-3f4bd189d778" />
+
+You can also configure the radial "quick actions", so your design mode experience is exactly what you want it to be.
+
+<img width="1136" height="880" alt="image" src="https://github.com/user-attachments/assets/be5ba44d-ab05-4545-bbbf-7bcc62a4ae4b" />
 
 **Focus mode**
 
@@ -47,37 +68,19 @@ Spin up cloud terminals and intermingle them with local terminals, so you can pa
 
 <img width="1222" height="921" alt="image" src="https://github.com/user-attachments/assets/b096a992-1c33-43e3-8df6-36f51416c1b1" />
 
+**Customizable keybindings**
+
+Configure the keybindings that are used for common actions, so you can maximize your flow state exactly as you want it.
+
+<img width="1206" height="922" alt="image" src="https://github.com/user-attachments/assets/ca587508-0457-4c38-92b9-6113f4c6de30" />
+
 **Command palette**
 
 Run global commands at any time (`cmd+shift+p`), including spinning up quick terminal instances (w/an MRU list).
 
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/6deaeb5d-61c1-4c86-92de-517fac83837d" />
 
-## Current feature set
-
-1. Rich terminals
-   1. All the features you'd expect 😄
-   1. Search the buffer history via `CMD+F`
-   1. URL detection + click-to-open embedded webviews
-   1. Open the `cwd` in VS Code
-1. Multi-tab support
-   1. Tabs track + display their `cwd`
-   1. Tabs can be explicitly named + re-organized
-   1. Navigate tabs with `CMD+<number>`
-1. Multi-pane tabs
-   1. Split a tab into n-number of panes (`CMD+SHIFT+<direction>`)
-   1. Navigate panes with `CMD+<direction>` and move them with `CMD+OPTION+<direction>`
-   1. Resize each pane exactly as you want
-   1. Enter "focus mode" to view a single pane at a time
-1. Workspaces
-   1. Save and restore your tab + pane configurations
-   1. Your workspace is automatically saved/restored when closing the app
-1. Command palette
-   1. Spin up "quick terminals", which track your MRU command history
-   1. Quickly create and close tabs
-   1. Reset your active tab layout (after resizing it)
-
-## Getting started
+## Appendix: Getting started
 
 1. Clone this repo
 1. Run `npm install`
@@ -89,3 +92,15 @@ Additionally, if you want to make use of cloud terminals, you need to also perfo
 
 1. Generate a [GitHub PAT](https://github.com/settings/personal-access-tokens/new)
 1. Copy the `.env.local.example` file, rename it to `.env.local`, and then paste your PAT into it
+
+## Appendix: Fundamental assumptions
+
+Conduit was born out of the following key assumptions:
+
+1. Developers will _continue to make use of multiple different coding agents_, because no single agent will (ever?) serve all their needs. Therefore, it's critcal to have toolchains that allow a **"learn once, use any agent"** experience.
+
+1. Coding agents will _continue to \_evolve at a rapid face_, and putting too many abstractions on top of them will creation friction in the availability of innovation. Therefore, developers want to be as **"close to the metal"** as possible with their agents.
+
+1. Coding agents will _continue to get more powerful over time_, and therefore, a CLI interface, along with supporting tools, will be sufficient for most users. Therefore, toolchains should embrace **terminals as being central vs. secondary**.
+
+1. Developers love hackable environments, but with smart defaults. That way they can get started quickly, but without compromising on their flow. Therefore, agentic surfaces must embrace **compsability and personalization at its core**.

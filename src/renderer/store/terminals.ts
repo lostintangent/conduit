@@ -1,8 +1,8 @@
-import { Terminal } from "@xterm/xterm";
+import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { resolveColor } from "@/utils/theme";
+import { Terminal } from "@xterm/xterm";
 
 export type TerminalInstance = {
   terminal: Terminal;
@@ -11,9 +11,12 @@ export type TerminalInstance = {
 
   ready: boolean;
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
+  markReady: () => void;
+  resize: (cols: number, rows: number) => void;
   dispose: () => void;
 };
 
+const api = window.conduit;
 const store = new Map<string, TerminalInstance>();
 
 type GetOrCreateOptions = {
@@ -22,13 +25,8 @@ type GetOrCreateOptions = {
 
 export function getOrCreate(
   sessionId: string,
-  api: typeof window.conduit,
   options: GetOrCreateOptions = {}
 ): TerminalInstance {
-  const hasCustomLinkHandler = Object.prototype.hasOwnProperty.call(
-    options,
-    "onLinkClick"
-  );
   let instance = store.get(sessionId);
   if (!instance) {
     const terminalTheme = {
@@ -49,9 +47,9 @@ export function getOrCreate(
     });
 
     const fit = new FitAddon();
-    const search = new SearchAddon({});
+    const search = new SearchAddon();
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
-      current: hasCustomLinkHandler ? options.onLinkClick ?? null : null,
+      current: options.onLinkClick
     };
 
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
@@ -70,11 +68,12 @@ export function getOrCreate(
     const unsubData = api.onData(sessionId, (data: string) =>
       terminal.write(data)
     );
+
     const onKeyDispose = terminal.onData((input) =>
       api.sendKeypress(sessionId, input)
     );
 
-    instance = {
+    const newInstance: TerminalInstance = {
       terminal,
       fit,
       search,
@@ -82,16 +81,27 @@ export function getOrCreate(
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
       },
+      markReady: () => {
+        if (newInstance.ready) return;
+
+        newInstance.ready = true;
+        api.markTerminalReady(sessionId);
+      },
+      resize: (cols, rows) => {
+        api.resize(sessionId, cols, rows);
+      },
       dispose: () => {
         unsubData();
         onKeyDispose?.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
+        newInstance.ready = false;
       },
     };
-    store.set(sessionId, instance);
-  } else if (hasCustomLinkHandler) {
-    instance.setLinkHandler(options.onLinkClick ?? null);
+    store.set(sessionId, newInstance);
+    instance = newInstance;
+  } else if (options.onLinkClick) {
+    instance.setLinkHandler(options.onLinkClick);
   }
 
   return instance;
@@ -102,22 +112,11 @@ export function attach(sessionId: string, container: HTMLElement) {
   if (!instance) return;
 
   const element = instance.terminal.element as HTMLElement | null;
-  if (element) {
-    if (element.parentElement !== container) container.appendChild(element);
+  if (element && element.parentElement !== container) {
+    container.appendChild(element);
   } else {
     instance.terminal.open(container);
   }
-}
-
-export function markReadyOnce(
-  sessionId: string,
-  api: typeof window.conduit
-) {
-  const instance = store.get(sessionId);
-  if (!instance || instance.ready) return;
-
-  instance.ready = true;
-  api.markTerminalReady(sessionId);
 }
 
 export function disposeSession(sessionId: string) {

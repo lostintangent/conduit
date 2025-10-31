@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@import "@xterm/xterm/css/xterm.css";
+
 @layer base {
   *,
   ::after,
@@ -99,33 +101,6 @@ body {
   flex: 1;
   display: flex;
   min-height: 0;
-}
-
-.terminal-container .xterm {
-  width: 100% !important;
-  height: 100% !important;
-  flex: 1;
-  min-width: 0;
-}
-
-.terminal-container .xterm-viewport {
-  width: 100% !important;
-  left: 0 !important;
-  right: 0 !important;
-}
-
-.terminal-container .xterm-screen {
-  width: 100% !important;
-}
-
-.terminal-container .xterm-screen canvas {
-  max-width: 100%;
-}
-
-/* Active pane border with fade-out animation */
-.pane-active-border {
-  outline: 2px solid rgba(56, 83, 127, 0.8);
-  outline-offset: -2px;
 }
 
 /* Pane highlight fade out over 2 seconds - duration matches HIGHLIGHT_DURATION_MS in usePaneHighlight.ts */

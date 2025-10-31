@@ -1,25 +1,20 @@
-import { openEditorPane, openWebViewPane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
+import { openEditorPane, openWebViewPane, splitPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import { useAtomValue } from "jotai";
-import {
-  Bot,
-  FileCode,
-  GitBranch,
-  Globe,
-  Zap,
-} from "lucide-react";
+import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import {
+  useEnabledPaneActions,
+  PaneActionIcon,
+  isTerminalConfig,
+  isEditorConfig,
+  isBrowserConfig,
+} from "@/paneActions";
+import type { Action } from "@/paneActions/core/types";
+import { MAX_ACTIONS } from "@/paneActions/core/types";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
-
-const PANE_TYPES = [
-  { id: "source-control", label: "Source Control", icon: GitBranch },
-  { id: "editor", label: "Editor", icon: FileCode },
-  { id: "terminal", label: "Agent Session", icon: Bot },
-  { id: "webview", label: "Web View", icon: Globe },
-  { id: "command", label: "Command", icon: Zap },
-] as const;
 
 interface PaneControlFanButtonsProps {
   tabId: string;
@@ -30,6 +25,7 @@ interface PaneControlFanButtonsProps {
   hasMoveButton: boolean;
   isHovered: boolean;
   onVisibilityChange: (visible: boolean) => void;
+  onOpenPaneActions?: () => void;
 }
 
 export function PaneControlFanButtons({
@@ -41,10 +37,20 @@ export function PaneControlFanButtons({
   hasMoveButton,
   isHovered,
   onVisibilityChange,
+  onOpenPaneActions,
 }: PaneControlFanButtonsProps) {
   const [isVisible, setIsVisible] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tabs = useAtomValue(tabsAtom);
+
+  // Get pane actions
+  const paneActions = useEnabledPaneActions();
+
+  // Create an array with pane actions and placeholders (max 5 total)
+  const actions: Array<Action | null> = [
+    ...paneActions,
+    ...Array(Math.max(0, MAX_ACTIONS - paneActions.length)).fill(null)
+  ];
 
   // Get the current pane to determine its cwd
   const currentPane = tabs
@@ -94,7 +100,8 @@ export function PaneControlFanButtons({
     // Notify parent immediately, let parent manage timeout
     onVisibilityChange(false);
   };
-  const handlePaneTypeClick = async (paneTypeId: string) => {
+
+  const handleActionClick = async (action: Action) => {
     const api = window.conduit;
 
     // Get cwd from current pane if available
@@ -107,50 +114,61 @@ export function PaneControlFanButtons({
       }
     }
 
-    switch (paneTypeId) {
-      case "terminal":
-        await splitPaneWithAgentSession(tabId, paneId, direction, insertBefore);
-        break;
+    // Execute action based on pane type, using existing logic patterns
+    switch (action.paneType) {
+      case "terminal": {
+        if (isTerminalConfig(action.config)) {
+          const terminalConfig = action.config;
+          const terminalCwd = terminalConfig.cwd || cwd;
 
-      case "webview":
-        // Open web view - could prompt for URL, for now use a default
-        openWebViewPane(tabId, paneId, "https://google.com", direction, insertBefore);
-        break;
+          // Create terminal pane with optional cwd
+          const newPane = await splitPane(tabId, paneId, direction, insertBefore, {
+            terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined
+          });
 
-      case "editor":
-        // Open editor pane with file tree
-        if (cwd) {
-          openEditorPane(tabId, paneId, cwd, direction, insertBefore);
-        } else {
-          // Fallback to home directory or create a terminal to get cwd
-          const homeDir = await api.getSettings().then(s => s.homeDirectory);
-          openEditorPane(tabId, paneId, homeDir || ".", direction, insertBefore);
-        }
-        break;
-
-      case "source-control": {
-        // Open terminal and run lazygit
-        const newPane = await splitPane(tabId, paneId, direction, insertBefore);
-        if (newPane?.sessionId) {
-          // Send the lazygit command followed by enter
-          await api.sendKeypress(newPane.sessionId, "lazygit\r");
+          // If there's a command configured, send it
+          if (newPane?.sessionId && terminalConfig.command) {
+            setTimeout(() => {
+              api.sendKeypress(newPane.sessionId, terminalConfig.command + '\r');
+            }, 100);
+          }
         }
         break;
       }
 
-      case "command":
-      default:
-        // Default to terminal for now
-        await splitPane(tabId, paneId, direction, insertBefore);
+      case "browser": {
+        if (isBrowserConfig(action.config)) {
+          const url = action.config.url || "https://google.com";
+          openWebViewPane(tabId, paneId, url, direction, insertBefore);
+        }
         break;
+      }
+
+      case "editor": {
+        if (isEditorConfig(action.config)) {
+          let editorCwd = action.config.cwd || cwd;
+
+          if (!editorCwd) {
+            // Fallback to home directory
+            const homeDir = await api.getSettings().then(s => s.homeDirectory);
+            editorCwd = homeDir || ".";
+          }
+
+          openEditorPane(tabId, paneId, editorCwd, direction, insertBefore);
+        }
+        break;
+      }
+    }
+  };
+
+  const handlePlaceholderClick = () => {
+    if (onOpenPaneActions) {
+      onOpenPaneActions();
     }
   };
 
   // Shared constants
   const BUTTON_RADIUS = 48;
-  const FAN_BUTTON_SIZE = 32; // w-8 = 32px
-  // Semicircle needs to extend beyond button centers to encompass the full buttons
-  const SEMICIRCLE_RADIUS = BUTTON_RADIUS + FAN_BUTTON_SIZE / 2; // 48 + 16 = 64px
   const MIN_DISTANCE = 30;
 
   // Calculate offset for move button - wrapper centers on split button
@@ -172,7 +190,7 @@ export function PaneControlFanButtons({
 
   // Calculate fan-out button positions
   const getFanButtonPosition = (index: number) => {
-    const buttonCount = PANE_TYPES.length;
+    const buttonCount = actions.length;
 
     // Reduce arc angle when there's a move button to avoid overlap
     const arcAngle = hasMoveButton ? 150 : 180;
@@ -293,13 +311,34 @@ export function PaneControlFanButtons({
       />
 
       {/* Fan-out buttons */}
-      {isVisible && PANE_TYPES.map((paneType, index) => {
+      {isVisible && actions.map((action, index) => {
         const pos = getFanButtonPosition(index);
-        const Icon = paneType.icon;
 
+        // If action is null, render a placeholder button
+        if (action === null) {
+          return (
+            <button
+              key={`placeholder-${index}`}
+              className={`${buttonClass} absolute pointer-events-auto bg-black/40 border border-gray-600 border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
+              style={{
+                ...pos,
+                animationDelay: `${index * 30}ms`,
+                animationFillMode: "forwards",
+              }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onClick={handlePlaceholderClick}
+              title="Configure pane actions"
+            >
+              <Settings className={`${iconClass} opacity-50`} />
+            </button>
+          );
+        }
+
+        // Render actual action button
         return (
           <button
-            key={paneType.id}
+            key={`action-${index}-${action.name}`}
             className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
             style={{
               ...pos,
@@ -308,10 +347,10 @@ export function PaneControlFanButtons({
             }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            onClick={() => void handlePaneTypeClick(paneType.id)}
-            title={`Split ${position} - ${paneType.label}`}
+            onClick={() => void handleActionClick(action)}
+            title={`Split ${position} - ${action.name}`}
           >
-            <Icon className={iconClass} />
+            <PaneActionIcon iconId={action.icon} className={iconClass} />
           </button>
         );
       })}

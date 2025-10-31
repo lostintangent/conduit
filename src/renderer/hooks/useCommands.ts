@@ -1,13 +1,12 @@
 import {
-  dismissNotification,
   enqueueNotification,
-  updateNotification,
+  updateNotification
 } from "@/store/actions/notifications";
 import {
   completeAgentSession,
   deleteAgentSession,
 } from "@/store/actions/pane";
-import { closeTab, openTab, openTabFromExistingSession } from "@/store/actions/tab";
+import { closeTab, openTab } from "@/store/actions/tab";
 import { activeTabAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import type { Command } from "@/types";
 import { useAtomValue } from "jotai";
@@ -20,6 +19,7 @@ interface UseCommandsProps {
   hasCustomLayout: (tabId: string) => boolean;
   resetLayoutSizes: (tabId: string) => void;
   setIsUrlDialogOpen: (open: boolean) => void;
+  setIsVMRepoDialogOpen: (open: boolean) => void;
   setCleanupDialogSessions: (sessions: any[] | null) => void;
   hasWorkspaces: boolean;
   workspaces: any[];
@@ -34,6 +34,7 @@ export function useCommands({
   hasCustomLayout,
   resetLayoutSizes,
   setIsUrlDialogOpen,
+  setIsVMRepoDialogOpen,
   setCleanupDialogSessions,
   hasWorkspaces,
   workspaces,
@@ -147,42 +148,7 @@ export function useCommands({
         id: "create-vm-terminal",
         label: "Create VM terminal",
         description: "Create a new terminal connected to a remote VM",
-        run: async () => {
-          const notificationId = enqueueNotification({
-            kind: "info",
-            message: "Creating VM...",
-            persistent: true,
-          });
-
-          try {
-            // Create a terminal with VM options
-            const result = await api.createTerminal({
-              isRemoteVM: true,
-            });
-
-            if (!result) {
-              throw new Error("Failed to create VM terminal");
-            }
-
-            dismissNotification(notificationId);
-            // Open a new tab with the existing VM terminal session
-            openTabFromExistingSession({
-              sessionId: result.sessionId,
-              cwd: result.cwd,
-              title: result.title,
-              vmMetadata: result.vmMetadata ?? undefined,
-            });
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message : String(error);
-            updateNotification(notificationId, {
-              kind: "error",
-              message: "Failed to create VM terminal",
-              details: message,
-              autoCloseMs: null,
-            });
-          }
-        },
+        run: () => setIsVMRepoDialogOpen(true),
       });
     }
     if (tabs.length > 1 && activeTab) {

@@ -1,28 +1,37 @@
-import { enqueueNotification } from "@/store/actions/notifications";
+import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
 import {
   completeAgentSession,
   deleteAgentSession,
+  forwardPortAndOpen,
+  splitPane,
 } from "@/store/actions/pane";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
-import { attach, getOrCreate, markReadyOnce } from "@/store/terminals";
+import { attach, getOrCreate } from "@/store/terminals";
+import { extractPortFromMatch } from "@shared/portDetection";
 import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createFitController, type FitController } from "./FitController";
-import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createFitController } from "./FitController";
 import { SandboxIndicator } from "./SandboxIndicator";
+import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 
 import "@xterm/xterm/css/xterm.css";
 
 const api = window.conduit;
-type TerminalEntry = ReturnType<typeof getOrCreate>;
+type TerminalInstance = ReturnType<typeof getOrCreate>;
 
 const registerTerminalKeyHandler = ({
   entry,
-  sessionId,
+  terminalId,
   showSearchWidget,
 }: {
-  entry: TerminalEntry;
-  sessionId: string;
+  entry: TerminalInstance;
+  terminalId: string;
   showSearchWidget: () => void;
 }): (() => void) => {
   const terminal = entry.terminal;
@@ -58,7 +67,7 @@ const registerTerminalKeyHandler = ({
         return true;
       }
 
-      api.sendKeypress(sessionId, "\u0003");
+      api.sendKeypress(terminalId, "\u0003");
       return false;
     }
 
@@ -72,32 +81,23 @@ const registerTerminalKeyHandler = ({
   };
 };
 
-const observeContainer = (
-  container: HTMLDivElement,
-  onResize: () => void
-): (() => void) => {
-  const observer = new ResizeObserver(() => onResize());
-  observer.observe(container);
-  return () => observer.disconnect();
-};
-
 /**
  * Terminal lifecycle overview:
  *
  * 1. React renders <TerminalPane/>.
- * 2. We call getOrCreate(sessionId) to reuse or construct an xterm instance and its addons
+ * 2. We call getOrCreate(terminalId) to reuse or construct an xterm instance and its addons
  *    (fit/search/weblinks). The instance keeps a Ready flag so we don’t re-signal readiness later.
- * 3. attach(sessionId, container) mounts the xterm DOM into the pane.
- * 4. We continually fit the terminal to the container size. Once two consecutive measurements match,
- *    we mark the terminal ready. markReadyOnce(sessionId) then passes the signal to the main process via
- *    IPC, allowing it to flush any buffered PTY output. The immediate resize that follows makes sure the PTY
- *    is already sized correctly before that data arrives.
+ * 3. attach(terminalId, container) mounts the xterm DOM into the pane.
+ * 4. The fit controller owns a ResizeObserver and a single RAF-driven loop. It fits the terminal DOM
+ *    to the container, resizes the PTY only when cols/rows change, and marks the session ready after
+ *    the first successful fit. terminal.markReady() forwards that signal to the main process so it
+ *    can flush buffered PTY output.
  * 5. As the terminal receives data it renders inside the pane; keypresses send input to the PTY via IPC.
  * 6. When the pane unmounts we dispose, removing event listeners and releasing the xterm instance.
  */
 
 type TerminalPaneProps = {
-  sessionId: string;
+  terminalId: string;
   isActive: boolean;
   paneId: string;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -107,7 +107,7 @@ type TerminalPaneProps = {
 };
 
 export const TerminalPane = ({
-  sessionId,
+  terminalId,
   isActive,
   paneId,
   onContextMenu,
@@ -119,15 +119,14 @@ export const TerminalPane = ({
   const tabs = useAtomValue(tabsAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const instanceRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
-  const controllerRef = useRef<FitController | null>(null);
+  const terminalRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
 
   const [dimensions, setDimensions] = useState<{
     width: number;
     height: number;
   } | null>(null);
 
-  const searchWidgetHandleRef = useRef<SearchWidgetHandle | null>(null);
+  const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
   const linkHandlerRef = useRef(onLinkClick);
   linkHandlerRef.current = onLinkClick;
 
@@ -139,25 +138,25 @@ export const TerminalPane = ({
         return { currentPane: pane, currentTab: tab };
       }
     }
-    return { currentPane: undefined, currentTab: undefined };
+    return {};
   }, [tabs, paneId]);
 
   // This component is specifically for terminal panes, so we can safely cast
-  const terminalPane = currentPane?.type === "terminal" ? currentPane : undefined;
+  const terminalPane =
+    currentPane?.type === "terminal" ? currentPane : undefined;
 
   const agentSessionId = terminalPane?.agentSessionId ?? null;
   const vmId = terminalPane?.vmMetadata?.vmId ?? null;
 
-  const focusTerminal = useCallback(() => {
-    requestAnimationFrame(() => instanceRef.current?.terminal.focus());
-  }, []);
+  const focusTerminal = useCallback(() =>
+    requestAnimationFrame(() => terminalRef.current?.terminal.focus()), []);
 
   const showSearchWidget = useCallback(() => {
-    const terminal = instanceRef.current?.terminal;
+    const terminal = terminalRef.current?.terminal;
     const selection = terminal?.hasSelection()
       ? terminal.getSelection().replace(/\s+/g, " ").trim()
       : "";
-    searchWidgetHandleRef.current?.show(selection ?? "");
+    searchWidgetRef.current?.show(selection ?? "");
   }, []);
 
   const handleCompleteAgentSession = useCallback(async () => {
@@ -181,13 +180,17 @@ export const TerminalPane = ({
       } else {
         enqueueNotification({
           kind: "success",
-          message: result.status === "merged" ? "Agent session completed" : "No changes to merge",
+          message:
+            result.status === "merged"
+              ? "Agent session completed"
+              : "No changes to merge",
           details: result.message,
           autoCloseMs: 3000,
         });
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       enqueueNotification({
         kind: "error",
         message: "Failed to complete agent session",
@@ -216,7 +219,8 @@ export const TerminalPane = ({
         autoCloseMs: 3000,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       enqueueNotification({
         kind: "error",
         message: "Failed to delete agent session",
@@ -227,109 +231,146 @@ export const TerminalPane = ({
     }
   }, [agentSessionId, currentTab]);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return undefined;
+  const handleForkVM = useCallback(async () => {
+    if (!vmId || !currentTab) {
+      return;
     }
 
-    const entry = getOrCreate(sessionId, api);
-    instanceRef.current = entry;
-    attach(sessionId, container);
+    const notificationId = enqueueNotification({
+      kind: "info",
+      message: "Forking VM...",
+      persistent: true,
+    });
+
+    try {
+      // Fork the VM using the VM API
+      const forkedVM = await api.forkVM(vmId);
+      
+      if (!forkedVM) {
+        throw new Error("Failed to fork VM");
+      }
+
+      updateNotification(notificationId, {
+        kind: "info",
+        message: "Creating terminal session for forked VM...",
+        persistent: true,
+      });
+
+      dismissNotification(notificationId);
+
+      // Split the current pane vertically with the new terminal connected to forked VM
+      await splitPane(
+        currentTab.id,
+        paneId,
+        "row",
+        false,
+        {
+          terminalOptions: {
+            existingVMId: forkedVM.id,
+          },
+        }
+      );
+
+      enqueueNotification({
+        kind: "success",
+        message: "VM forked successfully",
+        details: `New VM: ${forkedVM.id}`,
+        autoCloseMs: 3000,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNotification(notificationId, {
+        kind: "error",
+        message: "Failed to fork VM",
+        details: errorMessage,
+        autoCloseMs: null,
+      });
+      console.error("Failed to fork VM", error);
+    }
+  }, [vmId, currentTab, paneId]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const terminal = getOrCreate(terminalId);
+    terminalRef.current = terminal;
+    attach(terminalId, container);
 
     const controller = createFitController({
-      sessionId,
       container,
-      entry,
+      entry: terminal,
       setDimensions,
     });
-    controllerRef.current = controller;
 
     const detachKeyHandler = registerTerminalKeyHandler({
-      entry,
-      sessionId,
+      entry: terminal,
+      terminalId,
       showSearchWidget,
     });
 
-    const disconnectObserver = observeContainer(container, () =>
-      controller.schedule()
-    );
+    terminal.setLinkHandler((url: string) => {
+      // Check if this is a localhost/127.0.0.1 URL and we're in a cloud VM
+      if (vmId) {
+        const port = extractPortFromMatch(url);
+        
+        if (port && currentTab) {
+          // This is a port reference in a cloud VM - forward it!
+          forwardPortAndOpen(currentTab.id, paneId, vmId, port);
+          return;
+        }
+      }
 
-    const handleLinkClick = (url: string) => {
+      // Otherwise, use the default link handler
       const handler = linkHandlerRef.current;
       if (handler) {
         handler(url);
       } else {
         api.openExternal(url);
       }
-    };
-    entry.setLinkHandler(handleLinkClick);
-
-    controller.initialize({
-      markReady: () => markReadyOnce(sessionId, api),
-      onReady: focusTerminal,
     });
 
     return () => {
-      disconnectObserver();
       detachKeyHandler();
-
       controller.dispose();
-      if (controllerRef.current === controller) {
-        controllerRef.current = null;
-      }
 
-      entry.setLinkHandler(null);
-      instanceRef.current = null;
-      searchWidgetHandleRef.current = null;
+      terminal.setLinkHandler(null);
+      terminalRef.current = null;
+      searchWidgetRef.current = null;
     };
-  }, [sessionId]);
+  }, []);
 
-  // Trigger resize when active state changes
+  // Focus the terminal when the pane becomes active
   useEffect(() => {
-    if (!isActive) {
-      return;
-    }
+    if (!isActive) return;
 
-    const terminal = instanceRef.current?.terminal;
-    const controller = controllerRef.current;
-
-    if (!terminal || !controller) {
-      return;
-    }
-
-    requestAnimationFrame(() => {
-      controller.schedule();
-      terminal.focus();
-    });
-  }, [isActive, sessionId]);
+    focusTerminal();
+  }, [isActive]);
 
   // Hide/show the terminal ruler based on the user
   // setting, which can be changed at any time.
   useEffect(() => {
-    const terminal = instanceRef.current?.terminal;
-    if (!terminal) {
-      return;
-    }
+    const terminal = terminalRef.current?.terminal;
+    if (!terminal) return;
 
-    const desiredWidth = showTerminalRuler ? 15 : 0;
-    if (terminal.options.overviewRulerWidth !== desiredWidth) {
-      terminal.options.overviewRulerWidth = desiredWidth;
-    }
-  }, [showTerminalRuler, sessionId]);
+    terminal.options.overviewRulerWidth = showTerminalRuler ? 15 : 0;
+  }, [showTerminalRuler]);
 
   return (
     <div
-      className="terminal-container flex flex-1 w-full h-full p-2 min-w-0 min-h-0 overflow-hidden relative"
-      ref={containerRef}
-      data-active={isActive}
+      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
     >
+
+      {/** xTerm.js container (which can't have padding applied directly to it) */}
+      <div className="w-full h-full pl-2 pt-2">
+        <div className="w-full h-full" ref={containerRef} />
+      </div>
+
       <SearchWidget
-        key={sessionId}
-        ref={searchWidgetHandleRef}
-        terminal={instanceRef.current}
+        ref={searchWidgetRef}
+        terminal={terminalRef.current}
         onClosed={focusTerminal}
       />
 
@@ -346,7 +387,9 @@ export const TerminalPane = ({
         agentSessionId={agentSessionId}
         onCompleteAgentSession={handleCompleteAgentSession}
         onDeleteAgentSession={handleDeleteAgentSession}
+        onForkVM={vmId ? handleForkVM : undefined}
       />
+
     </div>
   );
 };

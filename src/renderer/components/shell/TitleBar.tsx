@@ -16,7 +16,7 @@ import {
 } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
-import { Cable, Check, Keyboard, LayoutDashboard, Settings, Trash2 } from "lucide-react";
+import { Cable, Check, Keyboard, LayoutDashboard, Settings, Trash2, Zap } from "lucide-react";
 import { useCallback } from "react";
 
 type TitleBarProps = {
@@ -53,6 +53,7 @@ export const TitleBar = ({
   const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
   const keyboardShortcutsCmd = useCommand(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS);
+  const paneActionsCmd = useCommand(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS);
 
   const titleBarSuffix = workspaceName ? ` (${workspaceName})` : "";
 
@@ -219,6 +220,14 @@ export const TitleBar = ({
               >
                 <Keyboard className="w-4 h-4 mr-2" />
                 {keyboardShortcutsCmd.title}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={paneActionsCmd.execute}
+                title={getCommandDisplayTitle(paneActionsCmd)}
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                {paneActionsCmd.title}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

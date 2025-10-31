@@ -30,6 +30,7 @@ export interface UseCommandSystemOptions {
   workspaceName?: string;
   // UI state setters
   setShowKeybindingsEditor: (show: boolean) => void;
+  setShowPaneActionsEditor: (show: boolean) => void;
   setIsCommandPaletteOpenOverride: (open: boolean) => void;
   setShowRenameWorkspaceDialog: (show: boolean) => void;
   setShowWorkspacePicker: (show: boolean) => void;
@@ -58,6 +59,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     homeDirectory,
     workspaceName,
     setShowKeybindingsEditor,
+    setShowPaneActionsEditor,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -122,8 +124,16 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
       tabs: null as any,
       panes: null as any,
       terminals: null as any,
-      view: null as any,
       workspace: null as any,
+
+      // View service
+      view: {
+        openPaneActions: () => {
+          setShowPaneActionsEditor(true);
+        },
+      },
+
+      // Agent service
       agent: {
         showManageSessionsDialog: setCleanupDialogSessions,
       },
@@ -140,6 +150,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
 
       // UI state setters
       setShowKeybindingsEditor,
+      setShowPaneActionsEditor,
       setIsCommandPaletteOpenOverride,
       setShowRenameWorkspaceDialog,
       setShowWorkspacePicker,
@@ -158,6 +169,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     setApplicationMode,
     workspaceName,
     setShowKeybindingsEditor,
+    setShowPaneActionsEditor,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,

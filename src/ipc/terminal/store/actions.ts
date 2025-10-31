@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import {
-  getSession,
-  removeSession,
-  storeSession,
+  getTerminal,
+  removeTerminal,
+  storeTerminal,
 } from ".";
+import { detectPorts } from "../../../shared/portDetection";
 import {
   createVM,
   getSSHConnectionInfo,
@@ -14,12 +15,12 @@ import { getPrivateKeyPath, hasSSHKeys, setupSSHKeyInVM } from "../../vm/ssh-key
 import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
-  CreateSessionOptions,
+  CreateTerminalOptions,
   SendToRendererFn,
-  TerminalSession,
+  TerminalInstance,
 } from "../types";
 
-const disposeSessionResources = (session: TerminalSession) => {
+const disposeSessionResources = (session: TerminalInstance) => {
   session.oscBuffer = "";
   if (session.cwdPoller) {
     clearInterval(session.cwdPoller);
@@ -31,16 +32,12 @@ const disposeSessionResources = (session: TerminalSession) => {
   }
   session.isPollingCwd = false;
   session.scheduleCwdPoll = undefined;
-  session.pendingOutput = [];
-  if (session.readyFallback) {
-    clearTimeout(session.readyFallback);
-    session.readyFallback = undefined;
-  }
+  session.bufferedOutput = [];
 };
 
-const describeProcess = (session: TerminalSession) => {
-  if (session.vmMetadata) {
-    return `VM ${session.vmMetadata.vmId}`;
+const describeProcess = (session: TerminalInstance) => {
+  if (session.cloudEnvironment) {
+    return `VM ${session.cloudEnvironment.vmId}`;
   }
 
   if (session.lastProcessName && session.lastProcessName.trim().length > 0) {
@@ -50,44 +47,65 @@ const describeProcess = (session: TerminalSession) => {
   return path.parse(resolveShell()).name || "Shell";
 };
 
-export const createSession = async (
+export async function createTerminal(
   sendToRenderer: SendToRendererFn,
-  options?: CreateSessionOptions
-): Promise<TerminalSession> => {
+  options?: CreateTerminalOptions
+) {
   const id = randomUUID();
 
   // Check if this should be a remote VM session
-  if (options?.isRemoteVM) {
-    console.log("[VM] Creating remote VM terminal session");
+  if (options?.isRemoteVM || options?.existingVMId) {
+    console.log(options?.existingVMId ? `[VM] Connecting to existing VM ${options.existingVMId}` : "[VM] Creating remote VM terminal session");
 
     try {
-      // Create the VM with conduitVM label
-      const labels = options.vmLabels ? [...options.vmLabels, "conduitVM"] : ["conduitVM"];
-      const vm = await createVM({
-        image: options.vmImageId,
-        labels: labels,
-        idle_timeout: options.vmIdleTimeout,
-      });
+      let vm;
+      
+      if (options?.existingVMId) {
+        // Connect to an existing VM
+        const { getVM } = await import("../../vm/client");
+        vm = await getVM(options.existingVMId);
+        console.log(`[VM] Connected to existing VM ${vm.id}`);
+      } else {
+        // Create the VM with conduitVM label
+        const labels = options.vmLabels ? [...options.vmLabels, "conduitVM"] : ["conduitVM"];
+        vm = await createVM({
+          image: options.vmImageId,
+          labels: labels,
+          idle_timeout: options.vmIdleTimeout,
+          github_repo: options.githubRepo ? {
+            owner: options.githubRepo.owner,
+            name: options.githubRepo.name,
+            branch_or_hash: options.githubRepo.branch,
+          } : undefined,
+        });
+        console.log("[VM] VM created, setting up SSH access...");
+      }
 
-      console.log("[VM] VM created, setting up SSH access...");
-
-      // Check if we have SSH keys and set them up in the VM
-      const keysAvailable = await hasSSHKeys();
+      // Check if we have SSH keys and set them up in the VM (only for new VMs)
       let useSSHKey = false;
       
-      if (keysAvailable) {
-        console.log("[SSH] Found SSH keys, installing in VM...");
-        const { loadConfig } = await import("../../vm/config");
-        const config = await loadConfig();
-        useSSHKey = await setupSSHKeyInVM(vm.id, config.managerUrl, config.token);
+      if (!options?.existingVMId) {
+        const keysAvailable = await hasSSHKeys();
         
-        if (useSSHKey) {
-          console.log("[SSH] SSH key authentication enabled");
+        if (keysAvailable) {
+          console.log("[SSH] Found SSH keys, installing in VM...");
+          const { loadConfig } = await import("../../vm/config");
+          const config = await loadConfig();
+          useSSHKey = await setupSSHKeyInVM(vm.id, config.managerUrl, config.token);
+          
+          if (useSSHKey) {
+            console.log("[SSH] SSH key authentication enabled");
+          } else {
+            console.log("[SSH] Failed to setup SSH key, will use password authentication");
+          }
         } else {
-          console.log("[SSH] Failed to setup SSH key, will use password authentication");
+          console.log("[SSH] No SSH keys found in keys/ folder, will use password authentication");
         }
       } else {
-        console.log("[SSH] No SSH keys found in keys/ folder, will use password authentication");
+        // For existing VMs, assume SSH key is already set up if available
+        const keysAvailable = await hasSSHKeys();
+        useSSHKey = keysAvailable;
+        console.log(`[SSH] Connecting to existing VM, SSH key auth: ${useSSHKey}`);
       }
 
       // Get SSH connection info
@@ -97,7 +115,7 @@ export const createSession = async (
       const homeDirectory = process.env.HOME ?? process.cwd();
       const pty = spawnTerminalProcess(homeDirectory);
 
-      const session: TerminalSession = {
+      const session: TerminalInstance = {
         id,
         pty,
         lastProcessName: `VM ${vm.id}`,
@@ -108,20 +126,21 @@ export const createSession = async (
         pendingCwdPoll: undefined,
         scheduleCwdPoll: undefined,
         isRendererReady: false,
-        pendingOutput: [],
-        readyFallback: undefined,
-        vmMetadata: {
+        bufferedOutput: [],
+        cloudEnvironment: {
           vmId: vm.id,
           vmHost: sshInfo.host,
           sshPort: sshInfo.port,
           imageId: vm.image_id,
           useSSHKey,
+          detectedPorts: new Set(),
+          forwardedPorts: new Map(),
         },
       };
 
-      storeSession(session);
-      setupSessionHandlers(session, sendToRenderer);
-      
+      storeTerminal(session);
+      setupTerminalListeners(session, sendToRenderer);
+
       return session;
     } catch (error) {
       console.error("[VM] Failed to create VM session:", error);
@@ -130,73 +149,81 @@ export const createSession = async (
   }
 
   // Regular local session
-  const defaultDirectory = path.resolve(process.env.HOME ?? process.cwd());
-  const normalizedOverride = options?.cwd ? normalizeCwd(options.cwd) : null;
-  const initialDirectory = normalizedOverride ?? defaultDirectory;
+  const cwd = options?.cwd ?? path.resolve(process.env.HOME ?? process.cwd());
+  const pty = spawnTerminalProcess(cwd);
 
-  const pty = spawnTerminalProcess(initialDirectory);
-
-  const session: TerminalSession = {
+  const terminal: TerminalInstance = {
     id,
     pty,
     lastProcessName: pty.process,
-    cwd: normalizeCwd(initialDirectory) ?? initialDirectory,
+    cwd: normalizeCwd(cwd),
+
     oscBuffer: "",
-    cwdPoller: undefined,
     isPollingCwd: false,
-    pendingCwdPoll: undefined,
-    scheduleCwdPoll: undefined,
+
     isRendererReady: false,
-    pendingOutput: [],
-    readyFallback: undefined,
+    bufferedOutput: [],
   };
 
-  storeSession(session);
-  setupSessionHandlers(session, sendToRenderer);
-  return session;
+  storeTerminal(terminal);
+  setupTerminalListeners(terminal, sendToRenderer);
+
+  return terminal;
 };
 
-const setupSessionHandlers = (
-  session: TerminalSession,
+function setupTerminalListeners(
+  terminal: TerminalInstance,
   sendToRenderer: SendToRendererFn
-) => {
-  const { id, pty } = session;
+) {
+  const { id, pty } = terminal;
 
   pty.onData((data) => {
-    if (session.isRendererReady) {
+    if (terminal.isRendererReady) {
       sendToRenderer("terminal:data", { sessionId: id, data });
     } else {
-      session.pendingOutput.push(data);
+      terminal.bufferedOutput.push(data);
     }
 
     const processName = pty.process;
-    if (processName && processName !== session.lastProcessName) {
-      session.lastProcessName = processName;
+    if (processName && processName !== terminal.lastProcessName) {
+      terminal.lastProcessName = processName;
       sendToRenderer("terminal:title", { sessionId: id, title: processName });
     }
 
+    // Detect ports in terminal output for cloud VMs
+    if (terminal.cloudEnvironment) {
+      const detectedPorts = detectPorts(data);
+      
+      for (const port of detectedPorts) {
+        if (!terminal.cloudEnvironment.detectedPorts.has(port) && !terminal.cloudEnvironment.forwardedPorts.has(port)) {
+          terminal.cloudEnvironment.detectedPorts.add(port);
+          sendToRenderer("terminal:port-detected", { sessionId: id, port });
+        }
+      }
+    }
+
     // Only consume OSC sequences for local sessions
-    if (!session.vmMetadata) {
-      consumeOscSequences(session, data, sendToRenderer);
+    if (!terminal.cloudEnvironment) {
+      consumeOscSequences(terminal, data, sendToRenderer);
     }
   });
 
   pty.onExit(async ({ exitCode, signal }) => {
-    disposeSessionResources(session);
+    disposeSessionResources(terminal);
 
     // Clean up VM if this was a VM session
-    if (session.vmMetadata) {
-      console.log(`[VM] Terminal exited, cleaning up VM ${session.vmMetadata.vmId}`);
+    if (terminal.cloudEnvironment) {
+      console.log(`[VM] Terminal exited, cleaning up VM ${terminal.cloudEnvironment.vmId}`);
       try {
         const { deleteVM } = await import("../../vm/client");
-        await deleteVM(session.vmMetadata.vmId);
-        console.log(`[VM] Successfully deleted VM ${session.vmMetadata.vmId}`);
+        await deleteVM(terminal.cloudEnvironment.vmId);
+        console.log(`[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`);
       } catch (error) {
         // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
         if (error instanceof Error && error.message.includes("404")) {
-          console.log(`[VM] VM ${session.vmMetadata.vmId} was already deleted`);
+          console.log(`[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`);
         } else {
-          console.error(`[VM] Failed to delete VM ${session.vmMetadata.vmId}:`, error);
+          console.error(`[VM] Failed to delete VM ${terminal.cloudEnvironment.vmId}:`, error);
         }
       }
     }
@@ -208,113 +235,94 @@ const setupSessionHandlers = (
     });
 
     setTimeout(() => {
-      const current = getSession(id);
-      if (current && current.pty === session.pty) {
-        removeSession(id);
+      const current = getTerminal(id);
+      if (current && current.pty === terminal.pty) {
+        removeTerminal(id);
       }
     }, 2000);
   });
 
-  const title = describeProcess(session);
-  session.lastProcessName = title;
+  const title = describeProcess(terminal);
+  terminal.lastProcessName = title;
+
   sendToRenderer("terminal:title", {
     sessionId: id,
     title,
   });
+
   sendToRenderer("terminal:cwd", {
     sessionId: id,
-    cwd: session.cwd,
+    cwd: terminal.cwd,
   });
 
   // Only start CWD polling for local sessions
-  if (!session.vmMetadata) {
-    startCwdPolling(session, sendToRenderer);
+  if (!terminal.cloudEnvironment) {
+    startCwdPolling(terminal, sendToRenderer);
   }
-
-  session.readyFallback = setTimeout(() => {
-    if (!session.isRendererReady) {
-      console.log(
-        `[main] Fallback timeout triggered for session ${id}, marking ready`
-      );
-      session.isRendererReady = true;
-      if (session.pendingOutput.length > 0) {
-        session.pendingOutput.forEach((data) => {
-          sendToRenderer("terminal:data", { sessionId: session.id, data });
-        });
-        session.pendingOutput = [];
-      }
-    }
-  }, 750);
 };
 
-export const closeSession = async (sessionId: string) => {
-  const session = getSession(sessionId);
-  if (!session) {
-    return;
-  }
+export async function killTerminal(terminalId: string) {
+  const terminal = getTerminal(terminalId);
+  if (!terminal) return;
 
   // Clean up VM if this is a VM session
-  if (session.vmMetadata) {
-    console.log(`[VM] Closing session, deleting VM ${session.vmMetadata.vmId}`);
+  if (terminal.cloudEnvironment) {
+    console.log(`[VM] Closing session, deleting VM ${terminal.cloudEnvironment.vmId}`);
     try {
       const { deleteVM } = await import("../../vm/client");
-      await deleteVM(session.vmMetadata.vmId);
-      console.log(`[VM] Successfully deleted VM ${session.vmMetadata.vmId}`);
+      await deleteVM(terminal.cloudEnvironment.vmId);
+      console.log(`[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`);
     } catch (error) {
       // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
       if (error instanceof Error && error.message.includes("404")) {
-        console.log(`[VM] VM ${session.vmMetadata.vmId} was already deleted`);
+        console.log(`[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`);
       } else {
-        console.error(`[VM] Failed to delete VM ${session.vmMetadata.vmId}:`, error);
+        console.error(`[VM] Failed to delete VM ${terminal.cloudEnvironment.vmId}:`, error);
       }
     }
   }
 
-  removeSession(sessionId);
-  disposeSessionResources(session);
+  removeTerminal(terminalId);
+  disposeSessionResources(terminal);
+
   try {
-    session.pty.kill();
+    terminal.pty.kill();
   } catch (error) {
     console.error("Failed to terminate PTY session", error);
   }
 };
 
-export const markSessionReady = (
-  sessionId: string,
+export function markTerminalReady(
+  terminalId: string,
   sendToRenderer: SendToRendererFn
-) => {
-  const session = getSession(sessionId);
-  if (!session) {
-    return;
-  }
+) {
+  const terminal = getTerminal(terminalId);
+  if (!terminal) return;
 
-  session.isRendererReady = true;
-  if (session.readyFallback) {
-    clearTimeout(session.readyFallback);
-    session.readyFallback = undefined;
-  }
-  if (session.pendingOutput.length > 0) {
-    session.pendingOutput.forEach((data) =>
-      sendToRenderer("terminal:data", { sessionId: session.id, data }));
+  terminal.isRendererReady = true;
 
-    session.pendingOutput = [];
+  if (terminal.bufferedOutput.length > 0) {
+    terminal.bufferedOutput.forEach((data) =>
+      sendToRenderer("terminal:data", { sessionId: terminal.id, data }));
+
+    terminal.bufferedOutput = [];
   }
 
   // If this is a VM session, send the SSH command now that the terminal is ready
-  if (session.vmMetadata) {
+  if (terminal.cloudEnvironment) {
     let sshCommand: string;
-    
-    if (session.vmMetadata.useSSHKey) {
+
+    if (terminal.cloudEnvironment.useSSHKey) {
       // Use SSH key authentication with the Conduit key
       const keyPath = getPrivateKeyPath();
-      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${session.vmMetadata.sshPort} ace@${session.vmMetadata.vmHost}\n`;
+      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
       console.log(`[VM] Terminal ready, sending SSH command with key: ${sshCommand.trim()}`);
     } else {
       // Use password authentication
-      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${session.vmMetadata.sshPort} ace@${session.vmMetadata.vmHost}\n`;
+      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
       console.log(`[VM] Terminal ready, sending SSH command: ${sshCommand.trim()}`);
     }
-    
-    session.pty.write(sshCommand);
+
+    terminal.pty.write(sshCommand);
   }
 };

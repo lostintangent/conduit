@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import type { SendToRendererFn, TerminalSession } from "./types";
+import type { SendToRendererFn, TerminalInstance } from "./types";
 
 // eslint-disable-next-line no-control-regex
 const OSC_CWD_PATTERN = new RegExp(
@@ -73,7 +73,7 @@ const resolveProcessCwd = async (pid: number): Promise<string | null> => {
 };
 
 export const consumeOscSequences = (
-  session: TerminalSession,
+  session: TerminalInstance,
   chunk: string,
   sendToRenderer: SendToRendererFn
 ) => {
@@ -111,7 +111,7 @@ export const consumeOscSequences = (
 };
 
 export const startCwdPolling = (
-  session: TerminalSession,
+  session: TerminalInstance,
   sendToRenderer: SendToRendererFn
 ) => {
   const poll = async () => {

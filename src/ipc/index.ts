@@ -9,7 +9,7 @@ import { initializeUIHandlers, initializeUserSettings } from "./ui";
 import { initializeVMHandlers } from "./vm";
 import { initializeWorkspaceHandlers } from "./workspace";
 
-export async function initializeIpcHandlers(window: BrowserWindow) {
+async function initializeIpcHandlers(window: BrowserWindow) {
     const sendToRenderer = (channel: string, payload: unknown) => {
         if (window && !window.isDestroyed()) {
             window.webContents.send(channel, payload);
@@ -26,4 +26,4 @@ export async function initializeIpcHandlers(window: BrowserWindow) {
     initializeVMHandlers();
 }
 
-export { cleanupTerminalSessions };
+export { cleanupTerminalSessions, initializeIpcHandlers };

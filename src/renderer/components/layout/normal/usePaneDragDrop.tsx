@@ -56,6 +56,7 @@ export function usePaneDragDrop({
   onDropComplete,
 }: UsePaneDragDropParams): UsePaneDragDropReturn {
   const [draggedPaneId, setDraggedPaneId] = useState<string | null>(null);
+  const [sourceTabId, setSourceTabId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone>(null);
   const [dragHoverPaneId, setDragHoverPaneId] = useState<string | null>(null);
   const [isFocusModeDrag, setIsFocusModeDrag] = useState(false);
@@ -229,10 +230,13 @@ export function usePaneDragDrop({
         if (!isInDesignMode) return;
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", paneId);
+        e.dataTransfer.setData("application/x-conduit-pane-drag", JSON.stringify({ paneId, tabId }));
         setDraggedPaneId(paneId);
+        setSourceTabId(tabId);
       },
       onDragEnd: () => {
         setDraggedPaneId(null);
+        setSourceTabId(null);
         setDropZone(null);
       },
     }),
@@ -322,8 +326,10 @@ export function usePaneDragDrop({
               return;
           }
 
-          // Detach the pane from its original location (uses current active tab)
-          const detachResult = detachPane(tabId, draggedPaneId);
+          // Detach the pane from its original location
+          // Use sourceTabId if available (cross-tab drag), otherwise use tabId (same-tab drag)
+          const sourceTab = sourceTabId || tabId;
+          const detachResult = detachPane(sourceTab, draggedPaneId);
           if (!detachResult) return;
 
           // Split the target pane with the dragged pane
@@ -337,6 +343,7 @@ export function usePaneDragDrop({
 
           // Clear drag state
           setDraggedPaneId(null);
+          setSourceTabId(null);
           setDropZone(null);
           setDragHoverPaneId(null);
 
@@ -347,6 +354,7 @@ export function usePaneDragDrop({
     },
     [
       draggedPaneId,
+      sourceTabId,
       isInDesignMode,
       dropZone,
       getDropZone,
