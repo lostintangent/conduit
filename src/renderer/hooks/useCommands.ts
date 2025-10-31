@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { ICommandRegistry } from '@/commands/core/CommandRegistry';
 import type { KeybindingRegistry } from '@/commands/keybindings/KeybindingRegistry';
 import type { IContextKeyService } from '@/commands/contextKeys/ContextKeyService';
@@ -21,6 +20,9 @@ import type { Command } from '@/types';
  * - Context menus and dropdowns
  * - Toolbar buttons and command lists
  *
+ * Note: This hook recomputes on every render to ensure fresh data from registries.
+ * The registries are designed to be fast to query, so this is acceptable.
+ *
  * @param commandRegistry - Command registry instance
  * @param keybindingRegistry - Keybinding registry instance
  * @param contextKeyService - Context key service instance
@@ -31,43 +33,41 @@ export function useCommands(
   keybindingRegistry: KeybindingRegistry,
   contextKeyService: IContextKeyService
 ): Command[] {
-  return useMemo(() => {
-    const allCommands = commandRegistry.getAllCommands();
-    const contextValues = contextKeyService.getAll();
+  const allCommands = commandRegistry.getAllCommands();
+  const contextValues = contextKeyService.getAll();
 
-    // Filter by when clause
-    const availableCommands = allCommands.filter(cmd => {
-      if (!cmd.when) return true;
-      return cmd.when.evaluate(contextValues);
-    });
+  // Filter by when clause
+  const availableCommands = allCommands.filter(cmd => {
+    if (!cmd.when) return true;
+    return cmd.when.evaluate(contextValues);
+  });
 
-    // Filter out meta commands (like showing the palette itself)
-    const filteredCommands = availableCommands.filter(cmd =>
-      cmd.id !== 'view.showCommandPalette'
-    );
+  // Filter out meta commands (like showing the palette itself)
+  const filteredCommands = availableCommands.filter(cmd =>
+    cmd.id !== 'view.showCommandPalette'
+  );
 
-    // Convert CommandDescriptor → Command
-    return filteredCommands.map(cmd => {
-      // Get keybinding for this command
-      const keybindings = keybindingRegistry.getKeybindingsForCommand(cmd.id);
-      const primaryKeybinding = keybindings[0]; // Use first binding
+  // Convert CommandDescriptor → Command
+  return filteredCommands.map(cmd => {
+    // Get keybinding for this command
+    const keybindings = keybindingRegistry.getKeybindingsForCommand(cmd.id);
+    const primaryKeybinding = keybindings[0]; // Use first binding
 
-      // Format keybinding for display
-      const keybindingString = primaryKeybinding
-        ? formatKeybindingForDisplay(primaryKeybinding.chords)
-        : undefined;
+    // Format keybinding for display
+    const keybindingString = primaryKeybinding
+      ? formatKeybindingForDisplay(primaryKeybinding.chords)
+      : undefined;
 
-      return {
-        id: cmd.id,
-        label: cmd.title,
-        description: cmd.description,
-        category: cmd.category,
-        keybinding: keybindingString,
-        run: () => {
-          // Adapter: hide context parameter from Command interface
-          return commandRegistry.executeCommand(cmd.id);
-        }
-      };
-    });
-  }, [commandRegistry, keybindingRegistry, contextKeyService]);
+    return {
+      id: cmd.id,
+      label: cmd.title,
+      description: cmd.description,
+      category: cmd.category,
+      keybinding: keybindingString,
+      run: () => {
+        // Adapter: hide context parameter from Command interface
+        return commandRegistry.executeCommand(cmd.id);
+      }
+    };
+  });
 }
