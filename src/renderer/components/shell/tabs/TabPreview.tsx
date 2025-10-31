@@ -1,7 +1,7 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { PREVIEW_HEIGHT, PREVIEW_SCALE, PREVIEW_WIDTH, TabPreviewItem } from "./TabPreviewItem";
+import { TabPreviewItem } from "./TabPreviewItem";
 
 type TabPreviewProps = {
   preview: {
@@ -35,35 +35,17 @@ export function TabPreview({ preview }: TabPreviewProps) {
     }
   };
 
-  // Single tab preview mode
+  // Single tab preview mode - overlay wrapper with positioning
   return createPortal(
     <div
-      className="pointer-events-none fixed z-[9999] transition-opacity duration-150"
+      className="pointer-events-none fixed z-[9999] transition-opacity duration-150 bg-surface shadow-xl backdrop-blur-sm rounded-lg"
       style={{
         left: preview.left,
         top: preview.top,
         transform: "translate3d(0, calc(-106%), 0)",
       }}
     >
-      <div
-        className="pointer-events-none flex overflow-hidden rounded-lg border border-white/[0.12] bg-surface shadow-xl backdrop-blur-sm"
-        style={{
-          width: PREVIEW_WIDTH,
-          height: PREVIEW_HEIGHT,
-        }}
-      >
-        <div
-          className="pointer-events-none flex"
-          style={{
-            transform: `scale(${PREVIEW_SCALE})`,
-            transformOrigin: "top left",
-            width: PREVIEW_WIDTH / PREVIEW_SCALE,
-            height: PREVIEW_HEIGHT / PREVIEW_SCALE,
-          }}
-        >
-          <TabPreviewItem tabId={preview.tabId} onRefSet={handleRefSet} />
-        </div>
-      </div>
+      <TabPreviewItem tabId={preview.tabId} onRefSet={handleRefSet} />
     </div>,
     document.body
   );
