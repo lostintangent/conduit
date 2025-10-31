@@ -1,6 +1,7 @@
 import type { Notification, Tab } from "@/types";
 import type { UserSettings, Workspace } from "@shared/types";
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
+import type { Action } from "@/paneActions/core/types";
 import { atom } from "jotai";
 
 export const userSettingsAtom = atom<UserSettings>({
@@ -42,3 +43,9 @@ export const applicationModeAtom = atom<ApplicationMode>("normal");
  * Updated when keybindings are loaded or reloaded from user configuration
  */
 export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(new Map());
+
+/**
+ * Pane actions atom - stores all pane actions (default or user-defined)
+ * Updated when actions are loaded from file or changed programmatically
+ */
+export const paneActionsAtom = atom<Action[]>([]);

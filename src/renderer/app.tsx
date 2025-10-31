@@ -5,6 +5,7 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
+import { PaneActionsEditor } from "@/components/shell/paneActions";
 import {
   QuickDialog,
   type PaneDescriptor,
@@ -15,6 +16,7 @@ import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
+import { usePaneActionsSystem } from "@/paneActions";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -84,6 +86,7 @@ export function App() {
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
+  const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
 
   const {
     workspaceName,
@@ -112,6 +115,7 @@ export function App() {
     homeDirectory,
     workspaceName,
     onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
+    onOpenPaneActions: () => setShowPaneActionsEditor(true),
     onShowCommandPalette: () => setIsCommandPaletteOpenOverride(true),
     onSaveWorkspace: async () => {
       if (activeTab) {
@@ -120,6 +124,11 @@ export function App() {
     },
     onRenameWorkspace: () => setShowRenameWorkspaceDialog(true),
     onCloseWorkspace: () => closeWorkspace(tabs, activeTab?.id),
+  });
+
+  // Initialize pane actions system
+  const paneActionsSystem = usePaneActionsSystem({
+    homeDirectory,
   });
 
   useKeybindingDispatch(
@@ -616,6 +625,7 @@ export function App() {
           handleWebViewUpdate={handleWebViewUpdate}
           handleEditorUpdate={handleEditorUpdate}
           onOpenQuickPane={handleOpenQuickPane}
+          onOpenPaneActions={() => setShowPaneActionsEditor(true)}
         />
 
         {/* Bottom positioned tabs */}
@@ -739,6 +749,27 @@ export function App() {
             <p className="text-gray-400 mb-4">The command system is still initializing. Please try again.</p>
             <button
               onClick={() => setShowKeybindingsEditor(false)}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showPaneActionsEditor && paneActionsSystem && homeDirectory ? (
+        <PaneActionsEditor
+          onClose={() => setShowPaneActionsEditor(false)}
+          homeDirectory={homeDirectory}
+          onOpenQuickPane={handleOpenQuickPane}
+        />
+      ) : showPaneActionsEditor ? (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
+            <h2 className="text-white text-xl mb-4">Pane actions system not initialized</h2>
+            <p className="text-gray-400 mb-4">The pane actions system is still initializing. Please try again.</p>
+            <button
+              onClick={() => setShowPaneActionsEditor(false)}
               className="bg-blue-500 text-white px-4 py-2 rounded"
             >
               Close

@@ -27,6 +27,7 @@ export interface UseCommandSystemOptions {
   setApplicationMode: (mode: ApplicationMode) => void;
   homeDirectory?: string;
   onOpenKeyboardShortcuts?: () => void;
+  onOpenPaneActions?: () => void;
   onShowCommandPalette?: () => void;
   onSaveWorkspace?: () => void;
   onRenameWorkspace?: () => void;
@@ -52,6 +53,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     setApplicationMode,
     homeDirectory,
     onOpenKeyboardShortcuts,
+    onOpenPaneActions,
     onShowCommandPalette,
     onSaveWorkspace,
     onRenameWorkspace,
@@ -128,6 +130,9 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
         openKeyboardShortcuts: () => {
           onOpenKeyboardShortcuts?.();
         },
+        openPaneActions: () => {
+          onOpenPaneActions?.();
+        },
         showCommandPalette: () => {
           onShowCommandPalette?.();
         },
@@ -160,6 +165,7 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     applicationMode,
     setApplicationMode,
     onOpenKeyboardShortcuts,
+    onOpenPaneActions,
     onShowCommandPalette,
     onSaveWorkspace,
     onRenameWorkspace,

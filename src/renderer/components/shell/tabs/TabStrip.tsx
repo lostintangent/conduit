@@ -531,7 +531,6 @@ export const TabStrip = ({
     });
   }, [onOpenQuickPane]);
 
-
   const borderClass = alwaysShowTabs ? (position === "top" ? "border-b" : "border-t rounded-b-xl") : "";
 
   return (
