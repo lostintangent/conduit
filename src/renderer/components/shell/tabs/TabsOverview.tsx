@@ -51,9 +51,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
 
   const handleTabClick = useCallback(
     (tabId: string) => {
-      // Focus the selected tab
       focusTab(tabId);
-      // Close the dialog
       onClose();
     },
     [onClose]
@@ -61,20 +59,10 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
 
   useEffect(() => {
     if (!isOpen) {
-      // Unmount from preview first - this will update the context state
       unmountAllTabsFromPreview();
-      // Then clean up local refs
       allTabsContainerRefs.current = {};
     }
   }, [isOpen, unmountAllTabsFromPreview]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      allTabsContainerRefs.current = {};
-      unmountAllTabsFromPreview();
-    };
-  }, [unmountAllTabsFromPreview]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -89,8 +77,8 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
               <div className="text-sm text-muted-foreground px-1 truncate max-w-[320px]">
                 {tab.label}
               </div>
-              <TabPreviewItem 
-                tabId={tab.id} 
+              <TabPreviewItem
+                tabId={tab.id}
                 onRefSet={handleRefSet}
                 onClick={handleTabClick}
                 clickable={true}
