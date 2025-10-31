@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { TabPreviewItem } from "./TabPreviewItem";
 
-type TabPreviewProps = {
+type TabPreviewOverlayProps = {
   preview: {
     tabId: string;
     left: number;
@@ -11,7 +11,7 @@ type TabPreviewProps = {
   } | null;
 };
 
-export function TabPreview({ preview }: TabPreviewProps) {
+export function TabPreviewOverlay({ preview }: TabPreviewOverlayProps) {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);

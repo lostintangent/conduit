@@ -1,10 +1,10 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { getCommandDisplayTitle, useCommand } from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import { TabPreviewOverlay } from "@/components/shell/tabs/preview/TabPreviewOverlay";
+import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
-import { TabPreview } from "@/components/shell/tabs/TabPreview";
-import { TabsOverview } from "@/components/shell/tabs/TabsOverview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,7 +105,7 @@ export const TabStrip = ({
   } | null>(null);
 
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-  
+
   const [isRepoDialogOpen, setIsRepoDialogOpen] = useState(false);
 
   // Track pane drag hover for tab switching
@@ -684,7 +684,7 @@ export const TabStrip = ({
         </div>
       </div>
 
-      <TabPreview preview={hoverPreview} />
+      <TabPreviewOverlay preview={hoverPreview} />
 
       <TabsOverview
         isOpen={showTabsOverview}
