@@ -11,6 +11,7 @@ import { activeTabAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import type { Command } from "@/types";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
+import { handleSaveWorkspace, handleOpenLastWorkspace } from "@/commands/handlers";
 
 const api = window.conduit;
 
@@ -25,8 +26,7 @@ interface UseCommandsProps {
   hasLastWorkspace: boolean;
   setShowWorkspacePicker: (show: boolean) => void;
   setShowRenameWorkspaceDialog: (show: boolean) => void;
-  quickSaveWorkspace: (tabs: any[], activeTabId: string) => void;
-  openLastWorkspace: () => void;
+  setShowCreateWorkspaceDialog: (show: boolean) => void;
   closeWorkspace: (tabs: any[], activeTabId?: string) => void;
 }
 
@@ -41,8 +41,7 @@ export function useCommands({
   hasLastWorkspace,
   setShowWorkspacePicker,
   setShowRenameWorkspaceDialog,
-  quickSaveWorkspace,
-  openLastWorkspace,
+  setShowCreateWorkspaceDialog,
   closeWorkspace,
 }: UseCommandsProps) {
   const tabs = useAtomValue(tabsAtom);
@@ -62,7 +61,7 @@ export function useCommands({
       id: "save-session",
       label: "Save workspace",
       description: "Save current tab layout for later restoration",
-      run: () => activeTab && quickSaveWorkspace(tabs, activeTab.id),
+      run: () => activeTab && void handleSaveWorkspace(tabs, activeTab.id, setShowCreateWorkspaceDialog),
     });
 
     // Add "Continue last session" if a last workspace exists
@@ -71,7 +70,7 @@ export function useCommands({
         id: "open-last-session",
         label: "Continue last session",
         description: "Restore your workspace from when you last closed the app",
-        run: openLastWorkspace,
+        run: () => void handleOpenLastWorkspace(),
       });
     }
 
@@ -309,13 +308,12 @@ export function useCommands({
     workspaces,
     tabs,
     workspaceName,
-    quickSaveWorkspace,
-    openLastWorkspace,
     closeWorkspace,
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowWorkspacePicker,
     setShowRenameWorkspaceDialog,
+    setShowCreateWorkspaceDialog,
   ]);
 
   return commandItems;

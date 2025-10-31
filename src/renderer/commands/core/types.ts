@@ -1,6 +1,7 @@
 import type { WhenClause } from '../whenClauses/WhenClause';
 import type { KeybindingDescriptor } from '../keybindings/types';
 import type { MenuContribution } from '../menus/types';
+import type { ApplicationMode } from '@/store/atoms';
 
 /**
  * Base context available to all commands
@@ -19,11 +20,24 @@ export interface CommandContext {
   readonly contextKeys: any;
   readonly view: any;
   readonly workspace: any;
+  readonly agent: any;
 
   // State accessors
   readonly activeTab: any | null;
   readonly activePaneId: string | null;
   readonly workspaceName: string | undefined;
+  readonly allTabs: any[];
+  readonly applicationMode?: ApplicationMode;
+
+  // UI state setters
+  readonly setApplicationMode?: (mode: ApplicationMode) => void;
+  readonly setShowKeybindingsEditor?: (show: boolean) => void;
+  readonly setIsCommandPaletteOpenOverride?: (open: boolean) => void;
+  readonly setShowCreateWorkspaceDialog?: (show: boolean) => void;
+  readonly setShowRenameWorkspaceDialog?: (show: boolean) => void;
+  readonly setShowWorkspacePicker?: (show: boolean) => void;
+  readonly setIsUrlDialogOpen?: (open: boolean) => void;
+  readonly setCleanupDialogSessions?: (sessions: any[] | null) => void;
 }
 
 /**

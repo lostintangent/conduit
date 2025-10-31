@@ -6,19 +6,60 @@
  */
 
 import type { ICommandRegistry } from "@/commands";
+import {
+  handleCreateVM,
+  handleOpenInVSCode,
+  handleMergeAndClose,
+  handleTerminate,
+  handleManageSessions,
+  handleToggleDesignMode,
+  handleOpenKeyboardShortcuts,
+  handleShowCommandPalette,
+  handleResetLayout,
+  handleSaveWorkspace,
+  handleRenameWorkspace,
+  handleCloseWorkspace,
+  handleOpenWorkspace,
+  handleOpenLastWorkspace,
+  handleOpenWebPage,
+} from "@/commands/handlers";
+import { toggleFocusMode } from "@/store/actions/focusMode";
+import { openTab, closeTab } from "@/store/actions/tab";
 
 /**
  * Type-safe command IDs for application commands
  */
 export const ApplicationCommands = {
+  // View commands
   VIEW_TOGGLE_FOCUS_MODE: 'view.toggleFocusMode',
   VIEW_TOGGLE_DESIGN_MODE: 'view.toggleDesignMode',
   VIEW_OPEN_KEYBOARD_SHORTCUTS: 'view.openKeyboardShortcuts',
   VIEW_OPEN_PANE_ACTIONS: 'view.openPaneActions',
   VIEW_SHOW_COMMAND_PALETTE: 'view.showCommandPalette',
+  VIEW_RESET_LAYOUT: 'view.resetLayout',
+
+  // Tab commands
+  TAB_NEW: 'tab.new',
+  TAB_CLOSE: 'tab.close',
+
+  // Workspace commands
   WORKSPACE_SAVE: 'workspace.save',
   WORKSPACE_RENAME: 'workspace.rename',
   WORKSPACE_CLOSE: 'workspace.close',
+  WORKSPACE_OPEN: 'workspace.open',
+  WORKSPACE_OPEN_LAST: 'workspace.openLast',
+
+  // Pane commands
+  PANE_OPEN_WEB_PAGE: 'pane.openWebPage',
+
+  // Terminal commands
+  TERMINAL_CREATE_VM: 'terminal.createVM',
+  TERMINAL_OPEN_IN_VSCODE: 'terminal.openInVSCode',
+
+  // Agent session commands
+  AGENT_MANAGE_SESSIONS: 'agent.manageSessions',
+  AGENT_MERGE_AND_CLOSE: 'agent.mergeAndClose',
+  AGENT_TERMINATE: 'agent.terminate',
 } as const;
 
 /**
@@ -35,11 +76,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     description: 'Zoom into a single pane or return to normal view',
     category: 'View',
     keybinding: {
-      key: 'Cmd+Alt+F',
+      key: 'Cmd+Shift+F',
     },
     run: (context) => {
       if (context.activeTab) {
-        context.view.toggleFocusMode(context.activeTab.id, context.activeTab.activePaneId);
+        toggleFocusMode(context.activeTab.id, context.activeTab.activePaneId);
       }
     },
   });
@@ -54,7 +95,10 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
       key: 'Cmd+D',
     },
     run: (context) => {
-      context.view.toggleDesignMode();
+      handleToggleDesignMode(
+        context.applicationMode,
+        context.setApplicationMode
+      );
     },
   });
 
@@ -68,7 +112,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
       key: 'Cmd+K Cmd+S',
     },
     run: (context) => {
-      context.view.openKeyboardShortcuts();
+      handleOpenKeyboardShortcuts(context.setShowKeybindingsEditor);
     },
   });
 
@@ -92,7 +136,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
       key: 'Cmd+Shift+P',
     },
     run: (context) => {
-      context.view.showCommandPalette();
+      handleShowCommandPalette(context.setIsCommandPaletteOpenOverride);
     },
   });
 
@@ -106,7 +150,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
       key: 'Cmd+K Cmd+W',
     },
     run: (context) => {
-      context.workspace.saveWorkspace();
+      void handleSaveWorkspace(
+        context.allTabs,
+        context.activeTab?.id,
+        context.setShowCreateWorkspaceDialog
+      );
     },
   });
 
@@ -121,7 +169,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     },
     run: (context) => {
       if (context.workspaceName) {
-        context.workspace.renameWorkspace();
+        handleRenameWorkspace(context.setShowRenameWorkspaceDialog);
       }
     },
   });
@@ -137,8 +185,145 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
     },
     run: (context) => {
       if (context.workspaceName) {
-        context.workspace.closeWorkspace();
+        void handleCloseWorkspace();
       }
+    },
+  });
+
+  // Workspace: Open
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_OPEN,
+    title: 'Open Workspace',
+    description: 'Restore tabs from a saved workspace',
+    category: 'Workspace',
+    keybinding: {
+      key: 'Cmd+K Cmd+O',
+    },
+    run: (context) => {
+      handleOpenWorkspace(context.setShowWorkspacePicker);
+    },
+  });
+
+  // Workspace: Open Last
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_OPEN_LAST,
+    title: 'Continue Last Session',
+    description: 'Restore your workspace from when you last closed the app',
+    category: 'Workspace',
+    run: () => {
+      void handleOpenLastWorkspace();
+    },
+  });
+
+  // View: Reset Layout
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_RESET_LAYOUT,
+    title: 'Reset Layout',
+    description: 'Restore the default pane sizes for this tab',
+    category: 'View',
+    run: (context) => {
+      if (context.activeTab) {
+        handleResetLayout(context.activeTab.id);
+      }
+    },
+  });
+
+  // Tab: New
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_NEW,
+    title: 'New Tab',
+    description: 'Create a new terminal tab',
+    category: 'Tab',
+    keybinding: {
+      key: 'Cmd+T',
+    },
+    run: () => {
+      void openTab();
+    },
+  });
+
+  // Tab: Close
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_CLOSE,
+    title: 'Close Tab',
+    description: 'Close the currently active tab',
+    category: 'Tab',
+    keybinding: {
+      key: 'Cmd+W',
+    },
+    run: (context) => {
+      if (context.activeTab) {
+        closeTab(context.activeTab.id);
+      }
+    },
+  });
+
+  // Pane: Open Web Page
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_OPEN_WEB_PAGE,
+    title: 'Open Web Page',
+    description: 'Open a web page in a split view',
+    category: 'Pane',
+    keybinding: {
+      key: 'Cmd+L',
+    },
+    run: (context) => {
+      handleOpenWebPage(context.setIsUrlDialogOpen);
+    },
+  });
+
+  // Terminal: Create VM
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TERMINAL_CREATE_VM,
+    title: 'Create VM Terminal',
+    description: 'Create a new terminal connected to a remote VM',
+    category: 'Terminal',
+    run: () => {
+      void handleCreateVM();
+    },
+  });
+
+  // Terminal: Open in VS Code
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TERMINAL_OPEN_IN_VSCODE,
+    title: 'Open in VS Code',
+    description: 'Open the active directory in Visual Studio Code',
+    category: 'Terminal',
+    run: (context) => {
+      void handleOpenInVSCode(context.activeTab);
+    },
+  });
+
+  // Agent: Manage Sessions
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_MANAGE_SESSIONS,
+    title: 'Manage Agent Sessions',
+    description: 'Remove one or all agent worktrees without merging',
+    category: 'Agent',
+    run: (context) => {
+      void handleManageSessions(context);
+    },
+  });
+
+  // Agent: Merge and Close
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_MERGE_AND_CLOSE,
+    title: 'Merge and Close Agent Session',
+    description: 'Commit, merge, and close the isolated agent worktree',
+    category: 'Agent',
+    run: (context) => {
+      void handleMergeAndClose(context.activeTab);
+    },
+  });
+
+  // Agent: Terminate
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_TERMINATE,
+    title: 'Terminate Agent Session',
+    description: 'Remove the isolated worktree without merging',
+    category: 'Agent',
+    run: (context) => {
+      void handleTerminate(context.activeTab);
     },
   });
 }

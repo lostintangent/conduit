@@ -103,27 +103,25 @@ export function App() {
     renameWorkspace,
     updateWorkspaces,
     closeWorkspace,
-    quickSaveWorkspace,
-    openLastWorkspace,
   } = useWorkspaces();
 
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
     activeTab,
+    tabs,
     applicationMode,
     setApplicationMode,
     homeDirectory,
     workspaceName,
-    onOpenKeyboardShortcuts: () => setShowKeybindingsEditor(true),
-    onOpenPaneActions: () => setShowPaneActionsEditor(true),
-    onShowCommandPalette: () => setIsCommandPaletteOpenOverride(true),
-    onSaveWorkspace: async () => {
-      if (activeTab) {
-        await quickSaveWorkspace(tabs, activeTab.id);
-      }
-    },
-    onRenameWorkspace: () => setShowRenameWorkspaceDialog(true),
-    onCloseWorkspace: () => closeWorkspace(tabs, activeTab?.id),
+    // UI state setters
+    setShowKeybindingsEditor,
+    setShowPaneActionsEditor,
+    setIsCommandPaletteOpenOverride,
+    setShowRenameWorkspaceDialog,
+    setShowWorkspacePicker,
+    setIsUrlDialogOpen,
+    setCleanupDialogSessions,
+    setShowCreateWorkspaceDialog,
   });
 
   // Initialize pane actions system
@@ -547,8 +545,7 @@ export function App() {
     hasLastWorkspace,
     setShowWorkspacePicker,
     setShowRenameWorkspaceDialog,
-    quickSaveWorkspace,
-    openLastWorkspace,
+    setShowCreateWorkspaceDialog,
     closeWorkspace,
   });
 

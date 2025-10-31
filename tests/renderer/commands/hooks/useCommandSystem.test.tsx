@@ -230,12 +230,12 @@ describe('useCommandSystem', () => {
 
       // Execute a command to test context builder
       const toggleCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS
+        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE
       );
       expect(toggleCommand).toBeDefined();
 
       // Execute the command - should call setApplicationMode
-      await commandRegistry.executeCommand(ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS);
+      await commandRegistry.executeCommand(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE);
 
       expect(setApplicationModeMock).toHaveBeenCalledWith('design');
     });
@@ -303,7 +303,7 @@ describe('useCommandSystem', () => {
 
       // Execute toggle command - should toggle back to normal
       await result.current!.commandRegistry.executeCommand(
-        ApplicationCommands.VIEW_TOGGLE_PANE_CONTROLS
+        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE
       );
 
       expect(setApplicationModeMock).toHaveBeenCalledWith('normal');

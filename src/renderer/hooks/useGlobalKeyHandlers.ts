@@ -11,7 +11,7 @@ import {
   navigatePane,
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
-import { focusTab, movePaneToTab, openTab } from "@/store/actions/tab";
+import { focusTab, movePaneToTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
   tabsAtom,
@@ -79,7 +79,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
       const key = event.key.toLowerCase();
 
       // NOTE: Cmd+Shift+P is now handled by the command system (VIEW_SHOW_COMMAND_PALETTE)
-      // NOTE: Cmd+Alt+F is now handled by the command system (VIEW_TOGGLE_FOCUS_MODE)
+      // NOTE: Cmd+Shift+F is now handled by the command system (VIEW_TOGGLE_FOCUS_MODE)
       // NOTE: Cmd+D is now handled by the command system (VIEW_TOGGLE_DESIGN_MODE)
       // See: src/renderer/commands/applicationCommands.ts
 
@@ -167,12 +167,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Cmd+T: Open new tab
-      if (key === "t" && !event.altKey) {
-        event.preventDefault();
-        openTab();
-        return;
-      }
+      // NOTE: Cmd+T is now handled by the command system (TAB_NEW)
+      // See: src/renderer/commands/applicationCommands.ts
 
       // Cmd+1, Cmd+2, ... Cmd+9: Focus tab by index
       const tabNumber = Number.parseInt(key, 10);
@@ -198,7 +194,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     focusTab,
     isCommandPaletteOpen,
     movePaneToTab,
-    openTab,
     performSplit,
     performSplitWithAgentSession,
     tabs,
