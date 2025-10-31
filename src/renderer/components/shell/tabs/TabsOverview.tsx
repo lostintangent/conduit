@@ -19,7 +19,7 @@ type TabsOverviewProps = {
 };
 
 export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
-  const { mountAllTabsForPreview, unmountAllTabsFromPreview } = useTabContentPortal();
+  const { mountTabsForPreview, unmountTabsFromPreview } = useTabContentPortal();
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
   const isOpenRef = useRef(isOpen);
 
@@ -40,11 +40,11 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
 
         if (allReady) {
           const tabIds = tabs.map((tab) => tab.id);
-          mountAllTabsForPreview(tabIds, allTabsContainerRefs.current);
+          mountTabsForPreview(tabIds, allTabsContainerRefs.current);
         }
       }
     },
-    [tabs, mountAllTabsForPreview]
+    [tabs, mountTabsForPreview]
   );
 
   const handleTabClick = useCallback(
@@ -57,10 +57,10 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
 
   useEffect(() => {
     if (!isOpen) {
-      unmountAllTabsFromPreview();
+      unmountTabsFromPreview();
       allTabsContainerRefs.current = {};
     }
-  }, [isOpen, unmountAllTabsFromPreview]);
+  }, [isOpen, unmountTabsFromPreview]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
