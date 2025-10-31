@@ -14,12 +14,13 @@ type TabContentPortalContextValue = {
 
   mountTabInPreview: (tabId: string, element: HTMLElement) => void;
   unmountTabFromPreview: () => void;
+  mountAllTabsForPreview: (tabIds: string[], elements: Record<string, HTMLElement>) => void;
+  unmountAllTabsFromPreview: () => void;
+  getPreviewMountPoints: () => ContainerMap;
 };
 
 const TabContentPortalContext =
   createContext<TabContentPortalContextValue | null>(null);
-
-type OverlayMountPoint = { tabId: string; element: HTMLElement } | null;
 
 export function TabContentPortalProvider({
   children,
@@ -27,8 +28,7 @@ export function TabContentPortalProvider({
   children: React.ReactNode;
 }) {
   const [layoutMountPoints, setLayoutMountPoints] = useState<ContainerMap>({});
-  const [previewMountPoint, setPreviewMountPoint] =
-    useState<OverlayMountPoint>(null);
+  const [previewMountPoints, setPreviewMountPoints] = useState<ContainerMap>({});
 
   const setLayoutMountPoint = useCallback(
     (tabId: string, element: HTMLElement | null) => {
@@ -52,22 +52,37 @@ export function TabContentPortalProvider({
 
   const mountTabInPreview = useCallback(
     (tabId: string, element: HTMLElement) =>
-      setPreviewMountPoint({ tabId, element }),
+      setPreviewMountPoints({ [tabId]: element }),
     []
   );
 
   const unmountTabFromPreview = useCallback(() => {
-    setPreviewMountPoint(null);
+    setPreviewMountPoints({});
   }, []);
+
+  const mountAllTabsForPreview = useCallback(
+    (tabIds: string[], elements: Record<string, HTMLElement>) => {
+      setPreviewMountPoints(elements);
+    },
+    []
+  );
+
+  const unmountAllTabsFromPreview = useCallback(() => {
+    setPreviewMountPoints({});
+  }, []);
+
+  const getPreviewMountPoints = useCallback(() => {
+    return previewMountPoints;
+  }, [previewMountPoints]);
 
   const getActiveMountPoint = useCallback(
     (tabId: string) => {
-      if (previewMountPoint && previewMountPoint.tabId === tabId) {
-        return previewMountPoint.element;
+      if (previewMountPoints[tabId]) {
+        return previewMountPoints[tabId];
       }
       return layoutMountPoints[tabId];
     },
-    [layoutMountPoints, previewMountPoint]
+    [layoutMountPoints, previewMountPoints]
   );
 
   const value = useMemo<TabContentPortalContextValue>(
@@ -75,12 +90,18 @@ export function TabContentPortalProvider({
       setLayoutMountPoint,
       mountTabInPreview,
       unmountTabFromPreview,
+      mountAllTabsForPreview,
+      unmountAllTabsFromPreview,
+      getPreviewMountPoints,
       getActiveMountPoint,
     }),
     [
       getActiveMountPoint,
+      getPreviewMountPoints,
+      mountAllTabsForPreview,
       mountTabInPreview,
       setLayoutMountPoint,
+      unmountAllTabsFromPreview,
       unmountTabFromPreview,
     ]
   );
