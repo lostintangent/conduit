@@ -1,0 +1,114 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: macos-latest
+            artifact_name: Conduit-darwin-universal.zip
+            artifact_path: out/make/*.zip
+          - os: ubuntu-latest
+            artifact_name: Conduit-linux
+            artifact_path: out/make/**/*.{deb,rpm}
+          - os: windows-latest
+            artifact_name: Conduit-windows
+            artifact_path: out/make/squirrel.windows/**/*.{exe,nupkg}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version with build number
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NEW_VERSION="${VERSION}+build.${{ github.run_number }}"
+          npm version $NEW_VERSION --no-git-tag-version
+          echo "Build version: $NEW_VERSION"
+
+      - name: Run tests
+        run: npm run test:run
+
+      - name: Build application
+        run: npm run make
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          retention-days: 90
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          name: Release v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*
+          body: |
+            ## Installation
+
+            ### macOS
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/build/scripts/install.sh | bash
+            ```
+
+            ### Linux
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/build/scripts/install.sh | bash
+            ```
+
+            ### Windows
+            ```powershell
+            irm https://raw.githubusercontent.com/${{ github.repository }}/main/build/scripts/install.ps1 | iex
+            ```
+
+            ## Changes
+            - Built from commit: ${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
