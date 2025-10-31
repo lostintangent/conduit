@@ -41,14 +41,18 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
     }
   };
 
+  // Calculate the actual display size based on scale
+  const displayWidth = PREVIEW_WIDTH * (scale / PREVIEW_SCALE);
+  const displayHeight = PREVIEW_HEIGHT * (scale / PREVIEW_SCALE);
+
   return (
     <div
       className={`flex overflow-hidden rounded border border-white/[0.08] ${
         clickable ? 'cursor-pointer hover:border-white/[0.24] transition-colors pointer-events-auto' : 'pointer-events-none'
       }`}
       style={{
-        width: PREVIEW_WIDTH,
-        height: PREVIEW_HEIGHT,
+        width: displayWidth,
+        height: displayHeight,
       }}
       onClick={handleClick}
     >
