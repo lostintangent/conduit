@@ -1,7 +1,10 @@
+import { useMemo, useState, useEffect } from 'react';
+import { useAtomValue } from 'jotai';
 import type { ICommandRegistry } from '@/commands/core/CommandRegistry';
 import type { KeybindingRegistry } from '@/commands/keybindings/KeybindingRegistry';
 import type { IContextKeyService } from '@/commands/contextKeys/ContextKeyService';
 import { formatKeybindingForDisplay } from '@/commands/keybindings/utils';
+import { keybindingsAtom } from '@/store/atoms';
 import type { Command } from '@/types';
 
 /**
@@ -20,54 +23,79 @@ import type { Command } from '@/types';
  * - Context menus and dropdowns
  * - Toolbar buttons and command lists
  *
- * Note: This hook recomputes on every render to ensure fresh data from registries.
- * The registries are designed to be fast to query, so this is acceptable.
+ * Reactivity:
+ * - Recomputes when context keys change (via onDidChangeContext subscription)
+ * - Recomputes when keybindings change (via keybindingsAtom)
+ * - Memoized to avoid unnecessary recalculation
  *
- * @param commandRegistry - Command registry instance
- * @param keybindingRegistry - Keybinding registry instance
- * @param contextKeyService - Context key service instance
- * @returns Array of commands with simplified interface for display and execution
+ * @param commandRegistry - Command registry instance (can be undefined during initialization)
+ * @param keybindingRegistry - Keybinding registry instance (can be undefined during initialization)
+ * @param contextKeyService - Context key service instance (can be undefined during initialization)
+ * @returns Array of commands with simplified interface for display and execution (empty if registries not ready)
  */
 export function useCommands(
-  commandRegistry: ICommandRegistry,
-  keybindingRegistry: KeybindingRegistry,
-  contextKeyService: IContextKeyService
+  commandRegistry: ICommandRegistry | undefined,
+  keybindingRegistry: KeybindingRegistry | undefined,
+  contextKeyService: IContextKeyService | undefined
 ): Command[] {
-  const allCommands = commandRegistry.getAllCommands();
-  const contextValues = contextKeyService.getAll();
+  // Track context key changes via subscription
+  const [contextRevision, setContextRevision] = useState(0);
 
-  // Filter by when clause
-  const availableCommands = allCommands.filter(cmd => {
-    if (!cmd.when) return true;
-    return cmd.when.evaluate(contextValues);
-  });
+  useEffect(() => {
+    if (!contextKeyService) return;
 
-  // Filter out meta commands (like showing the palette itself)
-  const filteredCommands = availableCommands.filter(cmd =>
-    cmd.id !== 'view.showCommandPalette'
-  );
+    // Subscribe to context key changes
+    const unsubscribe = contextKeyService.onDidChangeContext(() => {
+      setContextRevision(prev => prev + 1);
+    });
+    return unsubscribe;
+  }, [contextKeyService]);
 
-  // Convert CommandDescriptor → Command
-  return filteredCommands.map(cmd => {
-    // Get keybinding for this command
-    const keybindings = keybindingRegistry.getKeybindingsForCommand(cmd.id);
-    const primaryKeybinding = keybindings[0]; // Use first binding
+  // Track keybinding changes via atom (already reactive)
+  const keybindingsMap = useAtomValue(keybindingsAtom);
 
-    // Format keybinding for display
-    const keybindingString = primaryKeybinding
-      ? formatKeybindingForDisplay(primaryKeybinding.chords)
-      : undefined;
+  return useMemo(() => {
+    // Return empty array if registries not ready
+    if (!commandRegistry || !keybindingRegistry || !contextKeyService) {
+      return [];
+    }
 
-    return {
-      id: cmd.id,
-      label: cmd.title,
-      description: cmd.description,
-      category: cmd.category,
-      keybinding: keybindingString,
-      run: () => {
-        // Adapter: hide context parameter from Command interface
-        return commandRegistry.executeCommand(cmd.id);
-      }
-    };
-  });
+    const allCommands = commandRegistry.getAllCommands();
+    const contextValues = contextKeyService.getAll();
+
+    // Filter by when clause
+    const availableCommands = allCommands.filter(cmd => {
+      if (!cmd.when) return true;
+      return cmd.when.evaluate(contextValues);
+    });
+
+    // Filter out meta commands (like showing the palette itself)
+    const filteredCommands = availableCommands.filter(cmd =>
+      cmd.id !== 'view.showCommandPalette'
+    );
+
+    // Convert CommandDescriptor → Command
+    return filteredCommands.map(cmd => {
+      // Get keybinding for this command
+      const keybindings = keybindingRegistry.getKeybindingsForCommand(cmd.id);
+      const primaryKeybinding = keybindings[0]; // Use first binding
+
+      // Format keybinding for display
+      const keybindingString = primaryKeybinding
+        ? formatKeybindingForDisplay(primaryKeybinding.chords)
+        : undefined;
+
+      return {
+        id: cmd.id,
+        label: cmd.title,
+        description: cmd.description,
+        category: cmd.category,
+        keybinding: keybindingString,
+        run: () => {
+          // Adapter: hide context parameter from Command interface
+          return commandRegistry.executeCommand(cmd.id);
+        }
+      };
+    });
+  }, [commandRegistry, keybindingRegistry, contextKeyService, contextRevision, keybindingsMap]);
 }

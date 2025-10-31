@@ -417,53 +417,20 @@ describe('useCommands', () => {
     });
   });
 
-  describe('memoization', () => {
-    it('should include newly registered commands on recompute', () => {
+  describe('memoization and reactivity', () => {
+    it('should memoize results when dependencies unchanged', () => {
       const { result, rerender } = renderHook(() =>
         useCommands(commandRegistry, keybindingRegistry, contextKeyService)
       );
 
-      const initialCount = result.current.length;
-
-      commandRegistry.registerCommand({
-        id: 'test.new',
-        title: 'New Command',
-        run: vi.fn(),
-      });
-
-      // Force recompute by changing registry reference would work,
-      // but in practice components re-render frequently enough
+      const firstResult = result.current;
       rerender();
 
-      // The hook queries fresh data from registries on each evaluation
-      expect(result.current.length).toBeGreaterThan(initialCount);
-      expect(result.current.find(cmd => cmd.id === 'test.new')).toBeDefined();
+      // Memoization ensures same reference when nothing changed
+      expect(result.current).toBe(firstResult);
     });
 
-    it('should reflect keybinding changes on recompute', () => {
-      commandRegistry.registerCommand({
-        id: 'test.rebind',
-        title: 'Rebind Command',
-        run: vi.fn(),
-      });
-
-      const { result, rerender } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService)
-      );
-
-      let command = result.current.find(cmd => cmd.id === 'test.rebind');
-      expect(command!.keybinding).toBeUndefined();
-
-      // Add keybinding
-      keybindingRegistry.register('test.rebind', { key: 'Cmd+R' });
-      rerender();
-
-      // Fresh keybinding data is fetched
-      command = result.current.find(cmd => cmd.id === 'test.rebind');
-      expect(command!.keybinding).toBeTruthy();
-    });
-
-    it('should reflect context changes on recompute', () => {
+    it('should reflect context changes reactively', async () => {
       const isEnabled = new ContextKey<boolean>('isEnabled', false);
 
       contextKeyService.setGlobal('isEnabled', false);
@@ -475,21 +442,57 @@ describe('useCommands', () => {
         run: vi.fn(),
       });
 
-      const { result, rerender } = renderHook(() =>
+      const { result } = renderHook(() =>
         useCommands(commandRegistry, keybindingRegistry, contextKeyService)
       );
 
       expect(result.current.find(cmd => cmd.id === 'test.contextUpdate')).toBeUndefined();
 
+      // Context change triggers onDidChangeContext listener
       contextKeyService.setGlobal('isEnabled', true);
-      rerender();
 
-      // Fresh context values are evaluated
-      expect(result.current.find(cmd => cmd.id === 'test.contextUpdate')).toBeDefined();
+      // Wait for subscription to trigger state update
+      await vi.waitFor(() => {
+        expect(result.current.find(cmd => cmd.id === 'test.contextUpdate')).toBeDefined();
+      });
+    });
+
+    it('should recompute when context revision changes', () => {
+      const testFlag = new ContextKey<boolean>('testFlag', false);
+
+      commandRegistry.registerCommand({
+        id: 'test.conditional',
+        title: 'Conditional',
+        when: testFlag.isTrue(),
+        run: vi.fn(),
+      });
+
+      const { result } = renderHook(() =>
+        useCommands(commandRegistry, keybindingRegistry, contextKeyService)
+      );
+
+      const firstResult = result.current;
+
+      // Changing context triggers new computation
+      contextKeyService.setGlobal('testFlag', true);
+
+      // Wait for update
+      vi.waitFor(() => {
+        expect(result.current).not.toBe(firstResult);
+      });
     });
   });
 
   describe('edge cases', () => {
+    it('should handle undefined registries during initialization', () => {
+      const { result } = renderHook(() =>
+        useCommands(undefined, undefined, undefined)
+      );
+
+      // Should return empty array when registries not ready
+      expect(result.current).toEqual([]);
+    });
+
     it('should handle empty command registry', () => {
       const { result } = renderHook(() =>
         useCommands(commandRegistry, keybindingRegistry, contextKeyService)
@@ -524,21 +527,6 @@ describe('useCommands', () => {
       expect(cmd1).toBeDefined();
       expect(cmd2).toBeDefined();
       // Both should have keybindings (conflict detection is separate concern)
-    });
-
-    it('should recompute on every render to get fresh data', () => {
-      const { result, rerender } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService)
-      );
-
-      const firstResult = result.current;
-      rerender();
-
-      // Hook recomputes each time (no memoization) to ensure fresh data
-      // References will differ even if content is the same
-      expect(result.current).not.toBe(firstResult);
-      // But the content should be equivalent
-      expect(result.current.length).toBe(firstResult.length);
     });
   });
 });

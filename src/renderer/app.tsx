@@ -538,13 +538,11 @@ export function App() {
   }, []);
 
   // Get commands from registry (or empty array if command system not ready)
-  const commandItems = commandSystem
-    ? useCommands(
-        commandSystem.commandRegistry,
-        commandSystem.keybindingRegistry,
-        commandSystem.contextKeyService
-      )
-    : [];
+  const commandItems = useCommands(
+    commandSystem?.commandRegistry,
+    commandSystem?.keybindingRegistry,
+    commandSystem?.contextKeyService
+  );
 
   const handleCloseQuickPane = useCallback(() => {
     setQuickPaneState((current) => {

@@ -131,6 +131,7 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_PANE_ACTIONS,
     title: 'Open Pane Actions',
+    description: 'View and customize pane action bindings',
     category: 'View',
     run: (context) => {
       context.view.openPaneActions();
