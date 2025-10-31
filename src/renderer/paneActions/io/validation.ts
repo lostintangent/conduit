@@ -122,14 +122,6 @@ export function validateAction(data: unknown, index: number): Action {
     context
   );
 
-  // Reject overrides if present (no longer supported)
-  if (data.overrides !== undefined) {
-    throw new ValidationError(
-      'overrides are no longer supported',
-      context
-    );
-  }
-
   return {
     name: data.name,
     icon: data.icon,
@@ -201,7 +193,9 @@ function validateTerminalConfig(
     command: data.command,
   };
 
-  if (data.cwd !== undefined) config.cwd = data.cwd;
+  if (data.cwd !== undefined) {
+    config.cwd = data.cwd as string;
+  }
 
   return config;
 }
@@ -215,17 +209,17 @@ function validateEditorConfig(
 ): EditorConfig {
   const configContext = `${context}.config`;
 
-  // folderPath is optional string
-  if (data.folderPath !== undefined && typeof data.folderPath !== 'string') {
+  // cwd is optional string
+  if (data.cwd !== undefined && typeof data.cwd !== 'string') {
     throw new ValidationError(
-      'editor config: folderPath must be a string',
+      'editor config: cwd must be a string',
       configContext
     );
   }
 
   const config: EditorConfig = {};
 
-  if (data.folderPath !== undefined) config.folderPath = data.folderPath;
+  if (data.cwd !== undefined) config.cwd = data.cwd as string;
 
   return config;
 }

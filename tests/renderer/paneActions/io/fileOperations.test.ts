@@ -12,9 +12,9 @@ import {
   writePaneActionsFile,
   parsePaneActionsContent,
   readPaneActionsFileOrNull,
-} from './fileOperations';
-import { ValidationError } from './validation';
-import type { Action } from '../core/types';
+} from '@/paneActions/io/fileOperations';
+import { ValidationError } from '@/paneActions/io/validation';
+import type { Action } from '@/paneActions/core/types';
 
 describe('fileOperations', () => {
   let testDir: string;
@@ -25,11 +25,29 @@ describe('fileOperations', () => {
     testDir = join(tmpdir(), `pane-actions-test-${Date.now()}`);
     await mkdir(testDir, { recursive: true });
     testFilePath = join(testDir, 'paneactions.json');
+
+    // Mock window.conduit API
+    (global as any).window = {
+      conduit: {
+        readFile: async (path: string) => {
+          return await readFile(path, 'utf-8');
+        },
+        writeFile: async (path: string, content: string) => {
+          // Ensure parent directory exists
+          const { dirname } = await import('path');
+          const parentDir = dirname(path);
+          await mkdir(parentDir, { recursive: true });
+          await writeFile(path, content, 'utf-8');
+        },
+      },
+    };
   });
 
   afterEach(async () => {
     // Clean up test directory
     await rm(testDir, { recursive: true, force: true });
+    // Clean up global mock
+    delete (global as any).window;
   });
 
   describe('getUserPaneActionsPath', () => {
@@ -226,37 +244,6 @@ describe('fileOperations', () => {
       // File should not have been created
       await expect(readFile(testFilePath, 'utf-8')).rejects.toThrow();
     });
-
-    it('should write complex actions with overrides', async () => {
-      const actions: Action[] = [
-        {
-          name: 'Source Control',
-          icon: 'git-branch',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'git status' },
-          overrides: [
-            {
-              path: '~/Work',
-              config: { command: 'git status --short' },
-            },
-            {
-              path: '~/Work/critical',
-              config: {
-                command: 'git status && git log',
-                clear: true,
-              },
-            },
-          ],
-        },
-      ];
-
-      await writePaneActionsFile(testFilePath, actions);
-
-      const result = await readPaneActionsFile(testFilePath);
-      expect(result).toHaveLength(1);
-      expect(result![0].overrides).toHaveLength(2);
-    });
   });
 
   describe('readPaneActionsFileOrNull', () => {
@@ -301,9 +288,6 @@ describe('fileOperations', () => {
           paneType: 'terminal',
           config: {
             command: 'git status',
-            cwd: '~/Projects',
-            env: { GIT_PAGER: '' },
-            clear: true,
           },
         },
         {
@@ -321,34 +305,6 @@ describe('fileOperations', () => {
           config: {
             url: 'http://localhost:3000',
           },
-        },
-      ];
-
-      await writePaneActionsFile(testFilePath, actions);
-      const result = await readPaneActionsFile(testFilePath);
-
-      expect(result).toEqual(actions);
-    });
-
-    it('should preserve overrides', async () => {
-      const actions: Action[] = [
-        {
-          name: 'Test',
-          icon: 'test',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'default' },
-          overrides: [
-            {
-              path: '~/Projects',
-              config: { command: 'projects' },
-            },
-            {
-              path: '~/Work',
-              paneType: 'browser',
-              config: { url: 'https://work.example.com' },
-            },
-          ],
         },
       ];
 

@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { PaneActionsRegistry } from './PaneActionsRegistry';
-import type { Action } from './types';
+import { PaneActionsRegistry } from '@/paneActions/core/PaneActionsRegistry';
+import type { Action } from '@/paneActions/core/types';
 
 describe('PaneActionsRegistry', () => {
   describe('initialization', () => {
@@ -188,164 +188,6 @@ describe('PaneActionsRegistry', () => {
     });
   });
 
-  describe('resolveActionByName', () => {
-    it('should resolve action by name without overrides', () => {
-      const registry = new PaneActionsRegistry();
-
-      const result = registry.resolveActionByName('Source Control', '~/Projects');
-
-      expect(result).not.toBeNull();
-      expect(result?.paneType).toBe('terminal');
-      expect(result?.config).toEqual({ command: 'git status' });
-    });
-
-    it('should return null for non-existent action name', () => {
-      const registry = new PaneActionsRegistry();
-
-      const result = registry.resolveActionByName('Non-existent', '~/Projects');
-
-      expect(result).toBeNull();
-    });
-
-    it('should resolve action with matching override', () => {
-      const registry = new PaneActionsRegistry();
-
-      // Add custom action with override
-      registry.setActions([
-        {
-          name: 'Test',
-          icon: 'test',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'default' },
-          overrides: [
-            {
-              path: '~/Projects',
-              config: { command: 'override' },
-            },
-          ],
-        },
-      ]);
-
-      const result = registry.resolveActionByName('Test', '~/Projects/test');
-
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual({ command: 'override' });
-    });
-
-    it('should use default config when no override matches', () => {
-      const registry = new PaneActionsRegistry();
-
-      registry.setActions([
-        {
-          name: 'Test',
-          icon: 'test',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'default' },
-          overrides: [
-            {
-              path: '~/Projects',
-              config: { command: 'override' },
-            },
-          ],
-        },
-      ]);
-
-      const result = registry.resolveActionByName('Test', '~/Work');
-
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual({ command: 'default' });
-    });
-  });
-
-  describe('resolveActionByIndex', () => {
-    it('should resolve action by index without overrides', () => {
-      const registry = new PaneActionsRegistry();
-
-      // Index 0 should be "Source Control"
-      const result = registry.resolveActionByIndex(0, '~/Projects');
-
-      expect(result).not.toBeNull();
-      expect(result?.paneType).toBe('terminal');
-      expect(result?.config).toEqual({ command: 'git status' });
-    });
-
-    it('should return null for out of bounds index', () => {
-      const registry = new PaneActionsRegistry();
-
-      const result = registry.resolveActionByIndex(999, '~/Projects');
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null for negative index', () => {
-      const registry = new PaneActionsRegistry();
-
-      const result = registry.resolveActionByIndex(-1, '~/Projects');
-
-      expect(result).toBeNull();
-    });
-
-    it('should resolve action with matching override', () => {
-      const registry = new PaneActionsRegistry();
-
-      registry.setActions([
-        {
-          name: 'Test',
-          icon: 'test',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'default' },
-          overrides: [
-            {
-              path: '~/Projects',
-              config: { command: 'override' },
-            },
-          ],
-        },
-      ]);
-
-      const result = registry.resolveActionByIndex(0, '~/Projects/test');
-
-      expect(result).not.toBeNull();
-      expect(result?.config).toEqual({ command: 'override' });
-    });
-
-    it('should handle multiple actions and select correct index', () => {
-      const registry = new PaneActionsRegistry();
-
-      registry.setActions([
-        {
-          name: 'First',
-          icon: 'test',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'first' },
-        },
-        {
-          name: 'Second',
-          icon: 'test',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'second' },
-        },
-        {
-          name: 'Third',
-          icon: 'test',
-          enabled: true,
-          paneType: 'terminal',
-          config: { command: 'third' },
-        },
-      ]);
-
-      const result1 = registry.resolveActionByIndex(1, '~/Projects');
-
-      expect(result1).not.toBeNull();
-      expect(result1?.config).toEqual({ command: 'second' });
-    });
-  });
-
   describe('loadFromFile', () => {
     it('should load actions from existing file', async () => {
       const { registry, testFilePath, writeTestFile } = await setupFileTest();
@@ -458,8 +300,8 @@ describe('PaneActionsRegistry', () => {
 
 // Helper for file-based tests
 async function setupFileTest() {
-  const { mkdir, rm, writeFile } = await import('fs/promises');
-  const { join } = await import('path');
+  const { mkdir, rm, writeFile, readFile } = await import('fs/promises');
+  const { join, dirname } = await import('path');
   const { tmpdir } = await import('os');
 
   const testDir = join(tmpdir(), `pane-actions-registry-test-${Date.now()}`);
@@ -467,10 +309,27 @@ async function setupFileTest() {
 
   await mkdir(testDir, { recursive: true });
 
+  // Mock window.conduit API
+  (global as any).window = {
+    conduit: {
+      readFile: async (path: string) => {
+        return await readFile(path, 'utf-8');
+      },
+      writeFile: async (path: string, content: string) => {
+        // Ensure parent directory exists
+        const parentDir = dirname(path);
+        await mkdir(parentDir, { recursive: true });
+        await writeFile(path, content, 'utf-8');
+      },
+    },
+  };
+
   const registry = new PaneActionsRegistry();
 
   const cleanup = async () => {
     await rm(testDir, { recursive: true, force: true });
+    // Clean up global mock
+    delete (global as any).window;
   };
 
   const writeTestFile = async (actions: Action[]) => {

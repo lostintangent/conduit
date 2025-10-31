@@ -28,7 +28,7 @@ export interface TerminalConfig {
   command: string;
 
   /**
-   * Optional working directory override
+   * Optional working directory for the terminal
    */
   cwd?: string;
 }
@@ -38,10 +38,9 @@ export interface TerminalConfig {
  */
 export interface EditorConfig {
   /**
-   * Optional folder path to open in the editor
-   * Maps to the editor pane's cwd (working directory)
+   * Optional working directory for the editor
    */
-  folderPath?: string;
+  cwd?: string;
 }
 
 /**

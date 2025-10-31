@@ -497,7 +497,7 @@ export const TabStrip = ({
       const editorConfig = action.config as any;
       onOpenQuickPane({
         type: "editor",
-        cwd: editorConfig?.folderPath || homeDirectory || homeDirectory,
+        cwd: editorConfig?.cwd || homeDirectory || homeDirectory,
       } as PaneDescriptor);
     } else if (action.paneType === 'browser') {
       onOpenQuickPane({

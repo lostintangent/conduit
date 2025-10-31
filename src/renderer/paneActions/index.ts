@@ -12,10 +12,8 @@ export type {
   EditorConfig,
   BrowserConfig,
   PaneConfig,
-  ActionOverride,
   Action,
   PaneActionsConfig,
-  ResolvedActionConfig,
 } from './core/types';
 
 // Registry
@@ -23,10 +21,6 @@ export { PaneActionsRegistry } from './core/PaneActionsRegistry';
 
 // Defaults
 export { getDefaultActions } from './core/defaults';
-
-// Resolution utilities
-export { resolveAction } from './resolution/resolveAction';
-export { normalizePath, isPrefixOf, findLongestMatch } from './resolution/pathUtils';
 
 // File I/O
 export {
@@ -72,9 +66,3 @@ export {
   usePaneAction,
   usePaneActionByIndex,
 } from './hooks/usePaneActions';
-
-export {
-  useResolvedAction,
-  useResolvedActionByName,
-  useResolvedActionByIndex,
-} from './hooks/useResolvedAction';

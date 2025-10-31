@@ -149,11 +149,17 @@ export function PaneControlFanButtons({
     // Execute action based on pane type, using existing logic patterns
     switch (action.paneType) {
       case "terminal": {
-        // Create terminal pane
-        const newPane = await splitPane(tabId, paneId, direction, insertBefore);
+        // Get terminal config
+        const terminalConfig = action.config as any;
+        const terminalCwd = terminalConfig.cwd || cwd;
+
+        // Create terminal pane with optional cwd
+        const newPane = await splitPane(tabId, paneId, direction, insertBefore, {
+          terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined
+        });
 
         // If there's a command configured, send it
-        const command = (action.config as any).command;
+        const command = terminalConfig.command;
         if (newPane?.sessionId && command) {
           setTimeout(() => {
             api.sendKeypress(newPane.sessionId, command + '\r');
@@ -171,7 +177,7 @@ export function PaneControlFanButtons({
 
       case "editor": {
         // Open editor pane
-        let editorCwd = (action.config as any).folderPath || cwd;
+        let editorCwd = (action.config as any).cwd || cwd;
 
         if (!editorCwd) {
           // Fallback to home directory

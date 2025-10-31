@@ -62,6 +62,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   'wrench': Wrench,
 };
 
+// Available icon IDs for dropdown
+const AVAILABLE_ICONS = Object.keys(ICON_MAP).sort();
+
 // Component to render pane action icon
 function ActionIcon({ iconId, className = "w-4 h-4" }: { iconId: string; className?: string }) {
   const IconComponent = ICON_MAP[iconId] || HelpCircle;
@@ -80,6 +83,7 @@ export function PaneActionsEditor({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [reorderedActions, setReorderedActions] = useState<Action[]>(actions);
   const [hasUserConfig, setHasUserConfig] = useState<boolean>(false);
+  const [iconDropdownOpen, setIconDropdownOpen] = useState<boolean>(false);
 
   // Sync reorderedActions when actions change (from external file updates)
   useEffect(() => {
@@ -177,6 +181,9 @@ export function PaneActionsEditor({
       }
     }
 
+    // Close icon dropdown when switching actions
+    setIconDropdownOpen(false);
+
     // Prepare the new expanded state
     const newExpanded = new Set(expandedActions);
 
@@ -207,6 +214,7 @@ export function PaneActionsEditor({
 
     setEditingActionIndex(null);
     setEditedAction(null);
+    setIconDropdownOpen(false);
   };
 
   const handleSaveAction = async () => {
@@ -231,6 +239,7 @@ export function PaneActionsEditor({
       // Exit edit mode
       setEditingActionIndex(null);
       setEditedAction(null);
+      setIconDropdownOpen(false);
     } catch (error) {
       console.error('Failed to save pane actions:', error);
       alert('Failed to save changes: ' + (error as Error).message);
@@ -410,29 +419,15 @@ export function PaneActionsEditor({
               <code className="text-xs text-gray-300 font-mono flex-1">{config.cwd}</code>
             </div>
           )}
-          {config.env && Object.keys(config.env).length > 0 && (
-            <div className="flex items-start gap-2">
-              <span className="text-xs text-gray-500 w-20">Env:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">
-                {JSON.stringify(config.env, null, 2)}
-              </code>
-            </div>
-          )}
-          {config.clear && (
-            <div className="flex items-start gap-2">
-              <span className="text-xs text-gray-500 w-20">Clear:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">true</code>
-            </div>
-          )}
         </div>
       );
     } else if (paneType === 'editor') {
       return (
         <div className="space-y-1">
-          {config.folderPath && (
+          {config.cwd && (
             <div className="flex items-start gap-2">
-              <span className="text-xs text-gray-500 w-20">Folder:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">{config.folderPath}</code>
+              <span className="text-xs text-gray-500 w-20">CWD:</span>
+              <code className="text-xs text-gray-300 font-mono flex-1">{config.cwd}</code>
             </div>
           )}
           {Object.keys(config).length === 0 && (
@@ -567,8 +562,8 @@ export function PaneActionsEditor({
                             )
                           )}
                           {action.paneType === 'editor' && (
-                            (action.config as any).folderPath ? (
-                              <span>{(action.config as any).folderPath}</span>
+                            (action.config as any).cwd ? (
+                              <span>{(action.config as any).cwd}</span>
                             ) : (
                               <span className="text-gray-500 italic">No config</span>
                             )
@@ -640,14 +635,51 @@ export function PaneActionsEditor({
                                     />
                                   </div>
                                   <div>
-                                    <label className="text-xs text-gray-400 block mb-1">Icon (lucide-react)</label>
-                                    <input
-                                      type="text"
-                                      value={editedAction.icon}
-                                      onChange={(e) => setEditedAction({ ...editedAction, icon: e.target.value })}
-                                      className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
-                                      placeholder="e.g., git-branch"
-                                    />
+                                    <label className="text-xs text-gray-400 block mb-1">Icon</label>
+                                    <div className="relative">
+                                      {/* Icon dropdown trigger */}
+                                      <button
+                                        type="button"
+                                        onClick={() => setIconDropdownOpen(!iconDropdownOpen)}
+                                        className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white hover:border-blue-500 focus:outline-none focus:border-blue-500 text-left flex items-center gap-2"
+                                      >
+                                        <ActionIcon iconId={editedAction.icon} className="w-4 h-4 text-gray-300" />
+                                        <span className="flex-1">{editedAction.icon}</span>
+                                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${iconDropdownOpen ? 'rotate-180' : ''}`} />
+                                      </button>
+
+                                      {/* Icon dropdown menu */}
+                                      {iconDropdownOpen && (
+                                        <>
+                                          {/* Backdrop to close dropdown */}
+                                          <div
+                                            className="fixed inset-0 z-40"
+                                            onClick={() => setIconDropdownOpen(false)}
+                                          />
+                                          {/* Dropdown menu */}
+                                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-1 max-h-32 overflow-y-auto">
+                                            <div className="grid grid-cols-1 gap-0.5">
+                                              {AVAILABLE_ICONS.map((iconId) => (
+                                                <button
+                                                  key={iconId}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setEditedAction({ ...editedAction, icon: iconId });
+                                                    setIconDropdownOpen(false);
+                                                  }}
+                                                  className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left hover:bg-gray-700 transition-colors ${
+                                                    editedAction.icon === iconId ? 'bg-gray-700 text-white' : 'text-gray-300'
+                                                  }`}
+                                                >
+                                                  <ActionIcon iconId={iconId} className="w-4 h-4" />
+                                                  <span>{iconId}</span>
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -716,16 +748,16 @@ export function PaneActionsEditor({
                                   )}
                                   {editedAction.paneType === 'editor' && (
                                     <div>
-                                      <label className="text-xs text-gray-400 block mb-1">Folder Path (optional)</label>
+                                      <label className="text-xs text-gray-400 block mb-1">Working Directory (optional)</label>
                                       <input
                                         type="text"
-                                        value={(editedAction.config as any).folderPath || ''}
+                                        value={(editedAction.config as any).cwd || ''}
                                         onChange={(e) => setEditedAction({
                                           ...editedAction,
-                                          config: { ...(editedAction.config as any), folderPath: e.target.value || undefined }
+                                          config: { ...(editedAction.config as any), cwd: e.target.value || undefined }
                                         })}
                                         className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
-                                        placeholder="e.g., ~/Projects/myapp"
+                                        placeholder="e.g., ~/Projects"
                                       />
                                     </div>
                                   )}
