@@ -12,7 +12,7 @@ type TabPreviewProps = {
 };
 
 export function TabPreview({ preview }: TabPreviewProps) {
-  const { mountTabsForPreview, unmountTabsFromPreview } = useTabContentPortal();
+  const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -22,10 +22,10 @@ export function TabPreview({ preview }: TabPreviewProps) {
       return;
     }
 
-    mountTabsForPreview({ [preview.tabId]: previewContainerRef.current! });
+    mountTabsInPreview({ [preview.tabId]: previewContainerRef.current! });
 
     return unmountTabsFromPreview;
-  }, [preview, mountTabsForPreview, unmountTabsFromPreview]);
+  }, [preview, mountTabsInPreview, unmountTabsFromPreview]);
 
   if (!preview) return null;
 

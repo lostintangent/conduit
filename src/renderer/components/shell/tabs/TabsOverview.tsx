@@ -19,7 +19,7 @@ type TabsOverviewProps = {
 };
 
 export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
-  const { mountTabsForPreview, unmountTabsFromPreview } = useTabContentPortal();
+  const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
   const isOpenRef = useRef(isOpen);
 
@@ -39,11 +39,11 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
         );
 
         if (allReady) {
-          mountTabsForPreview(allTabsContainerRefs.current);
+          mountTabsInPreview(allTabsContainerRefs.current);
         }
       }
     },
-    [tabs, mountTabsForPreview]
+    [tabs, mountTabsInPreview]
   );
 
   const handleTabClick = useCallback(
