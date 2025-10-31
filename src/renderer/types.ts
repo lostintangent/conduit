@@ -64,6 +64,8 @@ export type Tab = {
 export type Command = {
   label: string;
   description?: string;
+  category?: string;
+  keybinding?: string;
   run: () => Promise<void> | void;
 } & Identifiable;
 

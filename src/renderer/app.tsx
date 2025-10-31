@@ -537,20 +537,14 @@ export function App() {
     setQuickPaneState(descriptor);
   }, []);
 
-  const commandItems = useCommands({
-    hasCustomLayout,
-    resetLayoutSizes,
-    setIsUrlDialogOpen,
-    setIsVMRepoDialogOpen,
-    setCleanupDialogSessions,
-    hasWorkspaces,
-    workspaces,
-    hasLastWorkspace,
-    setShowWorkspacePicker,
-    setShowRenameWorkspaceDialog,
-    setShowCreateWorkspaceDialog,
-    closeWorkspace,
-  });
+  // Get commands from registry (or empty array if command system not ready)
+  const commandItems = commandSystem
+    ? useCommands(
+        commandSystem.commandRegistry,
+        commandSystem.keybindingRegistry,
+        commandSystem.contextKeyService
+      )
+    : [];
 
   const handleCloseQuickPane = useCallback(() => {
     setQuickPaneState((current) => {

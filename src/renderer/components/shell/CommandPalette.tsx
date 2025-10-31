@@ -377,19 +377,26 @@ export function CommandPalette({
                       runCommand(command);
                     }}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`flex w-full flex-col gap-1 rounded-md border px-3 py-2 text-left transition cursor-pointer ${isActive
+                    className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition cursor-pointer ${isActive
                       ? "border-white/30 bg-white/10 text-white"
                       : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
                       }`}
                     aria-selected={isActive}
                   >
-                    <span className="text-sm font-medium">
-                      {renderHighlightedLabel(command.label, commandQuery)}
-                    </span>
-                    {command.description && (
-                      <span className="text-xs text-white/50">
-                        {command.description}
+                    <div className="flex-1 flex flex-col gap-1 min-w-0">
+                      <span className="text-sm font-medium">
+                        {renderHighlightedLabel(command.label, commandQuery)}
                       </span>
+                      {command.description && (
+                        <span className="text-xs text-white/50">
+                          {command.description}
+                        </span>
+                      )}
+                    </div>
+                    {command.keybinding && (
+                      <kbd className="ml-3 text-xs px-2 py-1 bg-white/10 rounded border border-white/10 text-white/50 whitespace-nowrap flex-shrink-0">
+                        {command.keybinding}
+                      </kbd>
                     )}
                   </button>
                 </li>
