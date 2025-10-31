@@ -1,9 +1,10 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { getCommandDisplayTitle, useCommand } from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import { TabPreviewOverlay } from "@/components/shell/tabs/preview/TabPreviewOverlay";
+import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
-import { TabPreview } from "@/components/shell/tabs/TabPreview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ import {
   Expand,
   FileEdit,
   Globe,
+  LayoutGrid,
   MoreHorizontal,
   PlusSquare,
   SquareDashedMousePointer,
@@ -79,6 +81,8 @@ export const TabStrip = ({
     top: number;
   } | null>(null);
 
+  const [showTabsOverview, setShowTabsOverview] = useState(false);
+
   // Command hooks for button actions
   const toggleFocusModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
   const toggleDesignModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE);
@@ -101,7 +105,7 @@ export const TabStrip = ({
   } | null>(null);
 
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-  
+
   const [isRepoDialogOpen, setIsRepoDialogOpen] = useState(false);
 
   // Track pane drag hover for tab switching
@@ -586,6 +590,19 @@ export const TabStrip = ({
           >
             <PlusSquare size={18} />
           </button>
+
+          {/* Show all tabs overview button - only when there are multiple tabs */}
+          {tabs.length > 1 && (
+            <button
+              type="button"
+              className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
+              title="View all tabs"
+              aria-label="View all tabs"
+              onClick={() => setShowTabsOverview(true)}
+            >
+              <LayoutGrid size={18} />
+            </button>
+          )}
         </div>
 
 
@@ -666,7 +683,13 @@ export const TabStrip = ({
         </div>
       </div>
 
-      <TabPreview preview={hoverPreview} />
+      <TabPreviewOverlay preview={hoverPreview} />
+
+      <TabsOverview
+        isOpen={showTabsOverview}
+        onClose={() => setShowTabsOverview(false)}
+        tabs={descriptors.map(d => ({ id: d.id, label: d.label }))}
+      />
 
       <RepositoryDialog
         isOpen={isRepoDialogOpen}
