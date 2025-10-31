@@ -74,7 +74,6 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
                 tabId={tab.id}
                 onRefSet={handleRefSet}
                 onClick={handleTabClick}
-                clickable={true}
                 scale={0.6}
               />
             </div>

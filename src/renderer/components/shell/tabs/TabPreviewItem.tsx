@@ -8,7 +8,6 @@ type TabPreviewItemProps = {
   tabId: string;
   onRefSet: (tabId: string, element: HTMLDivElement | null) => void;
   onClick?: (tabId: string) => void;
-  clickable?: boolean;
   scale?: number;
 };
 
@@ -16,7 +15,7 @@ type TabPreviewItemProps = {
  * Shared component for rendering a single tab preview
  * Used by both TabPreview (overlay) and TabsOverview (dialog)
  */
-export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, scale = PREVIEW_SCALE }: TabPreviewItemProps) {
+export function TabPreviewItem({ tabId, onRefSet, onClick, scale = PREVIEW_SCALE }: TabPreviewItemProps) {
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -36,7 +35,7 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
   };
 
   const handleClick = () => {
-    if (clickable && onClick) {
+    if (onClick) {
       onClick(tabId);
     }
   };
@@ -53,7 +52,7 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, clickable = false, sc
   return (
     <div
       className={`flex overflow-hidden rounded border border-white/[0.08] ${
-        clickable ? 'cursor-pointer hover:border-[--color-blueprint] transition-colors pointer-events-auto' : 'pointer-events-none'
+        onClick ? 'cursor-pointer hover:border-[--color-blueprint] transition-colors pointer-events-auto' : 'pointer-events-none'
       }`}
       style={{
         width: displayWidth,
