@@ -658,7 +658,7 @@ export function TabLayout({
           setLayoutMountPoint(tab.id, node);
       }
 
-      // Get the ref callback for this tab container and it's preview mount point.
+      // Get the ref callback for this tab container and its preview mount point.
       const tabContainerRef = tabContainerCallbackRefs.current[tab.id];
       const previewMountPoint = isInPreview ? getActiveMountPoint(tab.id) : null;
 
@@ -692,11 +692,7 @@ export function TabLayout({
           key={tab.id}
           role="tabpanel"
           aria-hidden={!isActive}
-          className={
-            isActive
-              ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
-              : "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
-          }
+          className="flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
           style={{ display: isActive || isInPreview ? undefined : "none" }}
           ref={tabContainerRef}
         >
