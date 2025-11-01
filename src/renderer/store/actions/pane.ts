@@ -471,7 +471,8 @@ export function movePaneToTarget(
   }
 
   const previousActiveTabId = store.get(activeTabIdAtom);
-  let nextActiveTabId: string | null | undefined = undefined;
+  let shouldUpdateActiveTab = false;
+  let nextActiveTabId: string | null = null;
 
   store.set(tabsAtom, (current) => {
     const next: Tab[] = [];
@@ -485,6 +486,7 @@ export function movePaneToTarget(
             // Set the next active tab
             const targetIndex = current.findIndex((t) => t.id === targetTabId);
             nextActiveTabId = current[targetIndex]?.id ?? null;
+            shouldUpdateActiveTab = true;
           }
           return;
         }
@@ -573,7 +575,7 @@ export function movePaneToTarget(
   });
 
   // Update active tab if needed
-  if (nextActiveTabId !== undefined) {
+  if (shouldUpdateActiveTab) {
     store.set(activeTabIdAtom, nextActiveTabId);
   }
 
