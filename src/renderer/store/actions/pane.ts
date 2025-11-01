@@ -418,6 +418,168 @@ export function movePane(
   );
 }
 
+/**
+ * Move a pane to a new position by splitting it with a target pane.
+ * This handles both same-tab and cross-tab moves in a single atomic operation,
+ * ensuring the pane component is not unmounted during the move.
+ */
+export function movePaneToTarget(
+  sourceTabId: string,
+  sourcePaneId: string,
+  targetTabId: string,
+  targetPaneId: string,
+  direction: SplitDirection,
+  insertBefore: boolean
+): boolean {
+  const tabs = store.get(tabsAtom);
+  const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
+  const targetTab = tabs.find((tab) => tab.id === targetTabId);
+
+  if (!sourceTab || !targetTab) {
+    return false;
+  }
+
+  const sourcePane = sourceTab.panes[sourcePaneId];
+  if (!sourcePane || !targetTab.panes[targetPaneId]) {
+    return false;
+  }
+
+  const isSameTab = sourceTabId === targetTabId;
+  const isSelfDrop = sourcePaneId === targetPaneId;
+
+  if (isSelfDrop) {
+    return false;
+  }
+
+  // Create the new layout node for the source pane
+  const newLayoutNode: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: sourcePaneId,
+  };
+
+  // For cross-tab moves, we need to check if removing the pane would close the source tab
+  let sourceTabWillClose = false;
+  if (!isSameTab) {
+    const { node: newSourceLayout } = removePaneFromLayoutNode(
+      sourceTab.layout,
+      sourcePaneId
+    );
+    const remainingPanes = { ...sourceTab.panes };
+    delete remainingPanes[sourcePaneId];
+    sourceTabWillClose = !newSourceLayout || Object.keys(remainingPanes).length === 0;
+  }
+
+  const previousActiveTabId = store.get(activeTabIdAtom);
+  let nextActiveTabId: string | null | undefined = undefined;
+
+  store.set(tabsAtom, (current) => {
+    const next: Tab[] = [];
+
+    current.forEach((tab, index) => {
+      // Handle the source tab
+      if (tab.id === sourceTabId && !isSameTab) {
+        if (sourceTabWillClose) {
+          // Don't include this tab in the output
+          if (tab.id === previousActiveTabId) {
+            // Set the next active tab
+            const targetIndex = current.findIndex((t) => t.id === targetTabId);
+            nextActiveTabId = current[targetIndex]?.id ?? null;
+          }
+          return;
+        }
+
+        // Remove the pane from the source tab
+        const { node: newLayout, removed } = removePaneFromLayoutNode(
+          tab.layout,
+          sourcePaneId
+        );
+
+        if (!removed || !newLayout) {
+          next.push(tab);
+          return;
+        }
+
+        const newPanes = { ...tab.panes };
+        delete newPanes[sourcePaneId];
+
+        const newActivePaneId =
+          tab.activePaneId === sourcePaneId
+            ? findFirstPaneId(newLayout)
+            : tab.activePaneId;
+
+        next.push({
+          ...tab,
+          panes: newPanes,
+          layout: newLayout,
+          activePaneId: newActivePaneId,
+        });
+        return;
+      }
+
+      // Handle the target tab
+      if (tab.id === targetTabId) {
+        let layoutToModify = tab.layout;
+        let panesToModify = tab.panes;
+
+        // If same-tab move, we need to remove the pane from the layout first
+        if (isSameTab) {
+          const { node: layoutWithoutPane } = removePaneFromLayoutNode(
+            tab.layout,
+            sourcePaneId
+          );
+          if (!layoutWithoutPane) {
+            next.push(tab);
+            return;
+          }
+          layoutToModify = layoutWithoutPane;
+          // Note: We keep the pane in the panes object for same-tab moves
+        } else {
+          // For cross-tab moves, add the pane to the target tab's panes object
+          panesToModify = {
+            ...tab.panes,
+            [sourcePaneId]: sourcePane,
+          };
+        }
+
+        // Insert the pane at the target location
+        const { node: newLayout, modified } = splitLayoutNode(
+          layoutToModify,
+          targetPaneId,
+          direction,
+          newLayoutNode,
+          insertBefore
+        );
+
+        if (!modified) {
+          next.push(tab);
+          return;
+        }
+
+        next.push({
+          ...tab,
+          panes: panesToModify,
+          layout: newLayout,
+          activePaneId: sourcePaneId,
+        });
+        return;
+      }
+
+      // Other tabs remain unchanged
+      next.push(tab);
+    });
+
+    return next;
+  });
+
+  // Update active tab if needed
+  if (nextActiveTabId !== undefined) {
+    store.set(activeTabIdAtom, nextActiveTabId);
+  }
+
+  return true;
+}
+
 type DetachPaneResult = {
   pane: Pane;
   tabClosed: boolean;
