@@ -7,6 +7,7 @@ import {
 } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
+import { TabPortalRenderer } from "@/components/layout/normal/TabPortalRenderer";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
@@ -41,7 +42,6 @@ import type {
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
@@ -257,9 +257,9 @@ export function TabLayout({
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
   const [hoveredPreviewPaneId, setHoveredPreviewPaneId] = useState<string | null>(null);
 
-  const { setLayoutMountPoint, getActiveMountPoint, isTabInPreview } = useTabContentPortal();
+  const { setLayoutParent, isTabInPreview } = useTabContentPortal();
 
-  // In order to mount/unmound the tab content portals, we need a stable ref
+  // In order to register/unregister the tab content portal parents, we need a stable ref
   // callback for each tab container. So this is simply a map of tab IDs to ref callbacks.
   const tabContainerCallbackRefs = useRef<
     Record<string, (node: HTMLDivElement | null) => void>
@@ -649,18 +649,17 @@ export function TabLayout({
       const isInFocusMode = applicationMode === "focus";
 
       // If this is the first time we're rendering this tab, create and store
-      // its container ref callback that sets up the portal mount point.
+      // its container ref callback that sets up the portal parent node.
       if (!tabContainerCallbackRefs.current[tab.id]) {
         tabContainerCallbackRefs.current[tab.id] = (
           node: HTMLDivElement | null
         ) =>
-          setLayoutMountPoint(tab.id, node);
+          setLayoutParent(tab.id, node);
       }
 
-      // Get the ref callback for this tab container and it's active 
-      // mount point, which is either the tab or the tab preview hover.
+      // Get the ref callback for this tab container so we can register the
+      // layout parent node when the element is attached to the DOM.
       const tabContainerRef = tabContainerCallbackRefs.current[tab.id];
-      const portalTarget = getActiveMountPoint(tab.id);
 
       const tabContent = (
         <>
@@ -699,16 +698,15 @@ export function TabLayout({
           }
           ref={tabContainerRef}
         >
-          {portalTarget ? createPortal(tabContent, portalTarget) : null}
+          <TabPortalRenderer tabId={tab.id}>{tabContent}</TabPortalRenderer>
         </div>
       );
     },
     [
       activeTabId,
       applicationMode,
-      getActiveMountPoint,
       renderLayout,
-      setLayoutMountPoint,
+      setLayoutParent,
     ]
   );
 
