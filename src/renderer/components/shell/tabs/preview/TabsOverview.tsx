@@ -1,11 +1,11 @@
-import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
 import { focusTab } from "@/store/actions/tab";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
+import { usePreviewParents } from "./usePreviewParents";
 
 type TabInfo = {
   id: string;
@@ -19,32 +19,7 @@ type TabsOverviewProps = {
 };
 
 export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
-  const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
-  const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
-  const isOpenRef = useRef(isOpen);
-
-  // Track isOpen state
-  useEffect(() => {
-    isOpenRef.current = isOpen;
-  }, [isOpen]);
-
-  const handleRefSet = useCallback(
-    (tabId: string, el: HTMLDivElement | null) => {
-      if (el && isOpenRef.current) {
-        allTabsContainerRefs.current[tabId] = el;
-
-        // Check if all containers are now ready
-        const allReady = tabs.every(
-          (tab) => allTabsContainerRefs.current[tab.id]
-        );
-
-        if (allReady) {
-          mountTabsInPreview(allTabsContainerRefs.current);
-        }
-      }
-    },
-    [tabs, mountTabsInPreview]
-  );
+  const registerPreviewParent = usePreviewParents(isOpen);
 
   const handleTabClick = useCallback(
     (tabId: string) => {
@@ -53,13 +28,6 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
     },
     [onClose]
   );
-
-  useEffect(() => {
-    if (!isOpen) {
-      unmountTabsFromPreview();
-      allTabsContainerRefs.current = {};
-    }
-  }, [isOpen, unmountTabsFromPreview]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -72,7 +40,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
               </div>
               <TabPreviewItem
                 tabId={tab.id}
-                onRefSet={handleRefSet}
+                onParentChange={registerPreviewParent}
                 onClick={handleTabClick}
                 scale={0.6}
               />
