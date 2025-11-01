@@ -6,14 +6,14 @@ import React, {
   useState,
 } from "react";
 
-type ContainerMap = Record<string, HTMLElement>;
+type ParentMap = Record<string, HTMLElement>;
 
 type TabContentPortalContextValue = {
-  setLayoutMountPoint: (tabId: string, element: HTMLElement | null) => void;
-  getActiveMountPoint: (tabId: string) => HTMLElement | null;
+  setLayoutParent: (tabId: string, element: HTMLElement | null) => void;
+  getActiveParent: (tabId: string) => HTMLElement | null;
 
-  mountTabsInPreview: (mounts: Record<string, HTMLElement>) => void;
-  unmountTabsFromPreview: () => void;
+  registerPreviewParents: (parents: Record<string, HTMLElement>) => void;
+  clearPreviewParents: () => void;
 
   isTabInPreview: (tabId: string) => boolean;
 };
@@ -26,12 +26,12 @@ export function TabContentPortalProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [layoutMountPoints, setLayoutMountPoints] = useState<ContainerMap>({});
-  const [previewMountPoints, setPreviewMountPoints] = useState<ContainerMap>({});
+  const [layoutParents, setLayoutParents] = useState<ParentMap>({});
+  const [previewParents, setPreviewParents] = useState<ParentMap>({});
 
-  const setLayoutMountPoint = useCallback(
+  const setLayoutParent = useCallback(
     (tabId: string, element: HTMLElement | null) => {
-      setLayoutMountPoints((previous) => {
+      setLayoutParents((previous) => {
         if (element === null) {
           const next = { ...previous };
           delete next[tabId];
@@ -49,47 +49,47 @@ export function TabContentPortalProvider({
     []
   );
 
-  const mountTabsInPreview = useCallback(
-    (mounts: Record<string, HTMLElement>) => {
-      setPreviewMountPoints(mounts);
+  const registerPreviewParents = useCallback(
+    (parents: Record<string, HTMLElement>) => {
+      setPreviewParents(parents);
     },
     []
   );
 
-  const unmountTabsFromPreview = useCallback(() => {
-    setPreviewMountPoints({});
+  const clearPreviewParents = useCallback(() => {
+    setPreviewParents({});
   }, []);
 
-  const getActiveMountPoint = useCallback(
+  const getActiveParent = useCallback(
     (tabId: string) => {
-      if (previewMountPoints[tabId]) {
-        return previewMountPoints[tabId];
+      if (previewParents[tabId]) {
+        return previewParents[tabId];
       }
-      return layoutMountPoints[tabId];
+      return layoutParents[tabId];
     },
-    [layoutMountPoints, previewMountPoints]
+    [layoutParents, previewParents]
   );
 
   const isTabInPreview = useCallback(
     (tabId: string) => {
-      return !!previewMountPoints[tabId];
+      return !!previewParents[tabId];
     },
-    [previewMountPoints]
+    [previewParents]
   );
 
   const value = useMemo<TabContentPortalContextValue>(
     () => ({
-      setLayoutMountPoint,
-      mountTabsInPreview,
-      unmountTabsFromPreview,
-      getActiveMountPoint,
+      setLayoutParent,
+      registerPreviewParents,
+      clearPreviewParents,
+      getActiveParent,
       isTabInPreview,
     }),
     [
-      getActiveMountPoint,
-      mountTabsInPreview,
-      setLayoutMountPoint,
-      unmountTabsFromPreview,
+      getActiveParent,
+      registerPreviewParents,
+      setLayoutParent,
+      clearPreviewParents,
       isTabInPreview,
     ]
   );
