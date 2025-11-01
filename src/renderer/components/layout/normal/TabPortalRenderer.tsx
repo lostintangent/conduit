@@ -34,12 +34,8 @@ export function TabPortalRenderer({
       return;
     }
 
-    if (activeParent) {
-      if (portalContainer.parentElement !== activeParent) {
-        activeParent.appendChild(portalContainer);
-      }
-    } else if (portalContainer.parentElement) {
-      portalContainer.parentElement.removeChild(portalContainer);
+    if (activeParent && portalContainer.parentElement !== activeParent) {
+      activeParent.appendChild(portalContainer);
     }
   }, [activeParent]);
 
