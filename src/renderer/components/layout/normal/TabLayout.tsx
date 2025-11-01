@@ -647,6 +647,7 @@ export function TabLayout({
     (tab: Tab): React.ReactNode => {
       const isActive = tab.id === activeTabId;
       const isInFocusMode = applicationMode === "focus";
+      const isInPreview = isTabInPreview(tab.id);
 
       // If this is the first time we're rendering this tab, create and store
       // its container ref callback that sets up the portal mount point.
@@ -657,10 +658,9 @@ export function TabLayout({
           setLayoutMountPoint(tab.id, node);
       }
 
-      // Get the ref callback for this tab container and it's active 
-      // mount point, which is either the tab or the tab preview hover.
+      // Get the ref callback for this tab container and it's preview mount point.
       const tabContainerRef = tabContainerCallbackRefs.current[tab.id];
-      const portalTarget = getActiveMountPoint(tab.id);
+      const previewMountPoint = isInPreview ? getActiveMountPoint(tab.id) : null;
 
       const tabContent = (
         <>
@@ -695,11 +695,16 @@ export function TabLayout({
           className={
             isActive
               ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
-              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
+              : "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
           }
+          style={{ display: isActive || isInPreview ? undefined : "none" }}
           ref={tabContainerRef}
         >
-          {portalTarget ? createPortal(tabContent, portalTarget) : null}
+          {/* When in preview, portal the content to the preview container.
+              Otherwise, render content directly to keep it mounted and preserve state. */}
+          {isInPreview && previewMountPoint
+            ? createPortal(tabContent, previewMountPoint)
+            : tabContent}
         </div>
       );
     },
@@ -709,6 +714,7 @@ export function TabLayout({
       getActiveMountPoint,
       renderLayout,
       setLayoutMountPoint,
+      isTabInPreview,
     ]
   );
 
