@@ -694,7 +694,12 @@ export function TabLayout({
           className={
             isActive
               ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
-              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
+              : "flex-1 flex min-h-0 min-w-0 overflow-hidden absolute inset-0"
+          }
+          style={
+            isActive
+              ? undefined
+              : { visibility: "hidden", pointerEvents: "none" }
           }
           ref={tabContainerRef}
         >
