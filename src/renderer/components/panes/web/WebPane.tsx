@@ -32,6 +32,7 @@ export function WebPane({
   onContextMenu,
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [inputUrl, setInputUrl] = useState<string>(url);
@@ -41,6 +42,82 @@ export function WebPane({
   const hasInitializedRef = useRef(false);
   const currentUrlRef = useRef(url);
   const { urlHistory, addUrlToHistory } = useUserSettings();
+
+  useEffect(() => {
+    hasInitializedRef.current = false;
+  }, [paneId]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    let webview = document.getElementById(paneId) as WebviewTag | null;
+
+    if (!webview) {
+      webview = document.createElement("webview") as WebviewTag;
+      webview.id = paneId;
+      document.body.appendChild(webview);
+    }
+
+    webview.style.position = "absolute";
+    webview.style.border = "0";
+    webview.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
+    webview.style.zIndex = "10";
+    webview.dataset.paneId = paneId;
+
+    webviewRef.current = webview;
+
+    const updatePosition = () => {
+      const anchor = containerRef.current;
+      const currentWebview = webviewRef.current;
+      if (!anchor || !currentWebview) {
+        return;
+      }
+
+      const rect = anchor.getBoundingClientRect();
+      const scrollX = window.scrollX ?? window.pageXOffset;
+      const scrollY = window.scrollY ?? window.pageYOffset;
+      const top = rect.top + scrollY;
+      const left = rect.left + scrollX;
+
+      currentWebview.style.top = `${top}px`;
+      currentWebview.style.left = `${left}px`;
+      currentWebview.style.width = `${rect.width}px`;
+      currentWebview.style.height = `${rect.height}px`;
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      updatePosition();
+    });
+
+    resizeObserver.observe(container);
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    updatePosition();
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      if (webview?.dataset.paneId === paneId) {
+        webview.remove();
+      }
+      if (webviewRef.current === webview) {
+        webviewRef.current = null;
+      }
+    };
+  }, [paneId]);
+
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview) {
+      return;
+    }
+
+    webview.style.pointerEvents = disableInteraction ? "none" : "auto";
+  }, [disableInteraction, paneId]);
 
   useEffect(() => {
     currentUrlRef.current = currentUrl;
@@ -69,7 +146,7 @@ export function WebPane({
     setCurrentUrl(url);
     setInputUrl(url);
     webview.loadURL(url);
-  }, [url]);
+  }, [url, paneId]);
 
   useEffect(() => {
     const webview = webviewRef.current;
@@ -155,7 +232,7 @@ export function WebPane({
       webview.removeEventListener("page-title-updated", notifyTitleChange);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
     };
-  }, [onTitleChange, onContextMenu, onUrlChange]);
+  }, [onTitleChange, onContextMenu, onUrlChange, paneId]);
 
   const handleGoBack = useCallback(() => {
     webviewRef.current?.goBack();
@@ -307,13 +384,13 @@ export function WebPane({
 
       {/* WebView */}
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">
-        <webview
-          ref={webviewRef}
-          className="flex-1 w-full h-full min-w-0 min-h-0 border-0 bg-white/[0.02]"
-          style={disableInteraction ? { pointerEvents: "none" } : undefined}
+        <div
+          ref={containerRef}
+          className="absolute inset-0 bg-white/[0.02] pointer-events-none"
+          aria-hidden
         />
         {isLoading && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/20">
             <Loader2 className="h-8 w-8 text-white/80 animate-spin" />
           </div>
         )}
