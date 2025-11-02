@@ -32,8 +32,10 @@ export function WebPane({
   onContextMenu,
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
   const mountContextRef = useRef<"layout" | "preview">("layout");
+  const followUpFrameRef = useRef<number | null>(null);
+  const followUpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [inputUrl, setInputUrl] = useState<string>(url);
@@ -43,37 +45,50 @@ export function WebPane({
   const hasInitializedRef = useRef(false);
   const currentUrlRef = useRef(url);
   const { urlHistory, addUrlToHistory } = useUserSettings();
+  const handleContainerRef = useCallback((node: HTMLDivElement | null) => {
+    setContainerNode(node);
+  }, []);
 
   useEffect(() => {
-    hasInitializedRef.current = false;
-  }, [paneId]);
-
-  useEffect(() => {
-    const container = containerRef.current;
+    const container = containerNode;
     if (!container) {
       return;
     }
 
     let webview = document.getElementById(paneId) as WebviewTag | null;
-
     if (!webview) {
       webview = document.createElement("webview") as WebviewTag;
       webview.setAttribute("src", url);
       webview.id = paneId;
+      webview.style.position = "absolute";
+      webview.style.zIndex = "1";
 
+      hasInitializedRef.current = false;
       document.body.appendChild(webview);
     }
 
-    webview.style.position = "absolute";
-    webview.style.border = "0";
-    webview.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
-    webview.style.zIndex = "1";
-    webview.dataset.paneId = paneId;
-
     webviewRef.current = webview;
 
+    const scheduleFollowUpUpdate = () => {
+      if (followUpFrameRef.current !== null) {
+        cancelAnimationFrame(followUpFrameRef.current);
+      }
+      followUpFrameRef.current = requestAnimationFrame(() => {
+        followUpFrameRef.current = null;
+        updatePosition();
+      });
+
+      if (followUpTimeoutRef.current !== null) {
+        clearTimeout(followUpTimeoutRef.current);
+      }
+      followUpTimeoutRef.current = window.setTimeout(() => {
+        followUpTimeoutRef.current = null;
+        updatePosition();
+      }, 150);
+    };
+
     const updatePosition = () => {
-      const anchor = containerRef.current;
+      const anchor = container;
       const currentWebview = webviewRef.current;
       if (!anchor || !currentWebview) {
         return;
@@ -89,6 +104,9 @@ export function WebPane({
       if (mountContextRef.current !== nextContext) {
         mountContextRef.current = nextContext;
         currentWebview.style.zIndex = nextContext === "preview" ? "10001" : "1";
+        if (nextContext === "preview") {
+          scheduleFollowUpUpdate();
+        }
       }
 
       const rect = anchor.getBoundingClientRect();
@@ -128,8 +146,8 @@ export function WebPane({
       if (isScaled) {
         const targetWidth = layoutWidth || rect.width;
         const targetHeight = layoutHeight || rect.height;
-        currentWebview.style.width = `${targetWidth}px`;
-        currentWebview.style.height = `${targetHeight}px`;
+        currentWebview.style.width = `${targetWidth - 3}px`;
+        currentWebview.style.height = `${targetHeight - 3}px`;
         currentWebview.style.transformOrigin = "top left";
         currentWebview.style.transform = `scale(${scaleX}, ${scaleY})`;
       } else {
@@ -140,17 +158,24 @@ export function WebPane({
       }
     };
 
-    const resizeObserver = new ResizeObserver(updatePosition);
+    const resizeObserver = new ResizeObserver(() => updatePosition());
     resizeObserver.observe(container);
-    window.addEventListener("scroll", updatePosition, true);
-    window.addEventListener("resize", updatePosition);
 
     updatePosition();
-
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
     return () => {
-      resizeObserver.disconnect();
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
+      resizeObserver.disconnect();
+      if (followUpFrameRef.current !== null) {
+        cancelAnimationFrame(followUpFrameRef.current);
+        followUpFrameRef.current = null;
+      }
+      if (followUpTimeoutRef.current !== null) {
+        clearTimeout(followUpTimeoutRef.current);
+        followUpTimeoutRef.current = null;
+      }
 
       if (webviewRef.current === webview) {
         webview.style.zIndex = "1";
@@ -161,7 +186,7 @@ export function WebPane({
 
       mountContextRef.current = "layout";
     };
-  }, [paneId]);
+  }, [paneId, containerNode]);
 
   useEffect(() => {
     const webview = webviewRef.current;
@@ -286,22 +311,6 @@ export function WebPane({
     };
   }, [paneId]);
 
-  const handleGoBack = useCallback(() => {
-    webviewRef.current?.goBack();
-  }, []);
-
-  const handleGoForward = useCallback(() => {
-    webviewRef.current?.goForward();
-  }, []);
-
-  const handleRefresh = useCallback(() => {
-    webviewRef.current?.reload();
-  }, []);
-
-  const handleStopLoading = useCallback(() => {
-    webviewRef.current?.stop();
-  }, []);
-
   const handleUrlSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -351,25 +360,21 @@ export function WebPane({
     (historyUrl: string) => {
       setInputUrl(historyUrl);
       webviewRef.current?.loadURL(historyUrl);
+
       addUrlToHistory(historyUrl);
       setShowHistory(false);
     },
     [addUrlToHistory]
   );
 
-  const handleOpenExternal = useCallback(() => {
-    if (currentUrl) {
-      api.openExternal(currentUrl);
-    }
-  }, [currentUrl]);
-
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0">
+
       {/* URL Bar */}
       <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
         <button
           type="button"
-          onClick={handleGoBack}
+          onClick={() => webviewRef.current?.goBack()}
           disabled={!canGoBack}
           className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
           title="Back"
@@ -378,7 +383,7 @@ export function WebPane({
         </button>
         <button
           type="button"
-          onClick={handleGoForward}
+          onClick={() => webviewRef.current?.goForward()}
           disabled={!canGoForward}
           className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
           title="Forward"
@@ -387,7 +392,7 @@ export function WebPane({
         </button>
         <button
           type="button"
-          onClick={isLoading ? handleStopLoading : handleRefresh}
+          onClick={isLoading ? () => webviewRef.current?.stop() : () => webviewRef.current?.reload()}
           className="p-1.5 rounded hover:bg-white/10 transition"
           title={isLoading ? "Stop" : "Refresh"}
         >
@@ -426,7 +431,7 @@ export function WebPane({
         </div>
         <button
           type="button"
-          onClick={handleOpenExternal}
+          onClick={() => api.openExternal(currentUrl)}
           className="p-1.5 rounded hover:bg-white/10 transition"
           title="Open in external browser"
         >
@@ -437,7 +442,7 @@ export function WebPane({
       {/* WebView */}
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">
         <div
-          ref={containerRef}
+          ref={handleContainerRef}
           className="absolute inset-0 bg-white/[0.02] pointer-events-none"
           aria-hidden
         />

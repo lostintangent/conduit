@@ -23,8 +23,8 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { focusTab } from "@/store/actions/tab";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
+import { focusTab } from "@/store/actions/tab";
 import {
   activePaneIdAtom,
   activeTabAtom,
@@ -443,7 +443,7 @@ export function TabLayout({
 
           {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
           {isInPreview && hoveredPreviewPaneId === pane.id && (
-            <div className="pointer-events-none absolute inset-0 z-20 bg-blueprint/30 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-none absolute inset-0 z-[20005] bg-blueprint/30 backdrop-blur-[0.5px]" />
           )}
 
           {/* Drop zone overlay */}
