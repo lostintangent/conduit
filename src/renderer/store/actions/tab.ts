@@ -4,6 +4,7 @@ import {
   removePane,
   updatePaneProperty,
 } from "@/store/actions/pane";
+import { disposeWebview } from "@/components/panes/browser/webviews";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import { generateId } from "@/utils/id";
@@ -192,6 +193,7 @@ export function focusTab(tabId: string) {
 
 export function closeTab(tabId: string) {
   const sessionsToClose: string[] = [];
+  const webviewsToDispose: string[] = [];
   let shouldOpenReplacement = false;
   const previousActiveTabId = store.get(activeTabIdAtom);
   let nextActiveTabId: string | null | undefined = undefined;
@@ -206,6 +208,8 @@ export function closeTab(tabId: string) {
         Object.values(tab.panes).forEach((pane) => {
           if (pane.type === "terminal") {
             sessionsToClose.push(pane.sessionId);
+          } else if (pane.type === "webview") {
+            webviewsToDispose.push(pane.id);
           }
         });
         return;
@@ -238,6 +242,7 @@ export function closeTab(tabId: string) {
   }
 
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
+  webviewsToDispose.forEach((paneId) => disposeWebview(paneId));
 
   if (shouldOpenReplacement) {
     openTab();

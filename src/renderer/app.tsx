@@ -38,7 +38,7 @@ import {
   updateTabProperty,
 } from "@/store/actions/tab";
 import { activeTabAtom, applicationModeAtom, keybindingsAtom, tabsAtom } from "@/store/atoms";
-import { disposeSession } from "@/store/terminals";
+import { disposeSession } from "@/components/panes/editor/terminals";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";

@@ -1,4 +1,4 @@
-import type { getOrCreate } from "@/store/terminals";
+import type { getOrCreate } from "@/components/panes/editor/terminals";
 import type { Dispatch, SetStateAction } from "react";
 
 /**

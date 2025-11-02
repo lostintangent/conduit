@@ -2,7 +2,8 @@ import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import { disposeSession } from "@/store/terminals";
+import { disposeSession } from "@/components/panes/editor/terminals";
+import { disposeWebview } from "@/components/panes/browser/webviews";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -825,6 +826,8 @@ export function removePane(
           api.closeTerminal(pane.sessionId);
         }
         disposeSession(pane.sessionId);
+      } else if (pane.type === "webview") {
+        disposeWebview(pane.id);
       }
 
       const newPanes = { ...tab.panes };
@@ -968,7 +971,7 @@ export async function forwardPortAndOpen(
     const { dismissNotification } = await import("./notifications");
     dismissNotification(notificationId);
 
-    // Split the pane vertically and open the connection URL in a WebPane
+    // Split the pane vertically and open the connection URL in a BrowserPane
     // openWebViewPane handles both splitting and creating the webview pane
     openWebViewPane(tabId, paneId, `http://${result.connection_url}`, "row", false);
 

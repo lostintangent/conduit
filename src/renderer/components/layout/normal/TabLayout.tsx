@@ -10,7 +10,7 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import { WebPane } from "@/components/panes/web/WebPane";
+import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import type {
   LayoutResizeAxis,
@@ -417,7 +417,7 @@ export function TabLayout({
                 onContextMenu={onPaneContextMenu}
                 onMouseDown={onPaneActivate}
               >
-                <WebPane
+                <BrowserPane
                   key={pane.id}
                   url={pane.url}
                   paneId={pane.id}

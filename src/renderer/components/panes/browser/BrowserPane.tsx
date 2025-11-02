@@ -8,13 +8,14 @@ import type {
 import { ArrowLeft, ArrowRight, ExternalLink, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { attach as attachWebview, getOrCreate as getOrCreateWebview } from "./webviews";
 
 const api = window.conduit;
 
 // Delay before hiding history dropdown to allow clicking on items
 const HISTORY_DROPDOWN_HIDE_DELAY = 200;
 
-type WebPaneProps = {
+type BrowserPaneProps = {
   url: string;
   paneId: string;
   onTitleChange?: (title: string) => void;
@@ -23,22 +24,30 @@ type WebPaneProps = {
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
 };
 
-export function WebPane({
+export function BrowserPane({
   url,
   paneId,
   onTitleChange,
   onUrlChange,
   disableInteraction = false,
   onContextMenu,
-}: WebPaneProps) {
+}: BrowserPaneProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const webviewInstanceRef =
+    useRef<ReturnType<typeof getOrCreateWebview> | null>(null);
+  if (!webviewInstanceRef.current) {
+    webviewInstanceRef.current = getOrCreateWebview(paneId, {
+      initialUrl: url,
+    });
+  }
   const webviewRef = useRef<WebviewTag | null>(null);
+  webviewRef.current = webviewInstanceRef.current?.webview ?? null;
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [inputUrl, setInputUrl] = useState<string>(url);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
   const [showHistory, setShowHistory] = useState<boolean>(false);
-  const hasInitializedRef = useRef(false);
   const currentUrlRef = useRef(url);
   const { urlHistory, addUrlToHistory } = useUserSettings();
 
@@ -47,13 +56,39 @@ export function WebPane({
   }, [currentUrl]);
 
   useEffect(() => {
+    const container = containerRef.current;
+    const instance = webviewInstanceRef.current;
+    if (!container || !instance) {
+      return;
+    }
+
+    attachWebview(paneId, container);
+    instance.webview.className =
+      "flex-1 w-full h-full min-w-0 min-h-0 border-0";
+  }, [paneId]);
+
+  useEffect(() => {
     const webview = webviewRef.current;
     if (!webview) {
       return;
     }
 
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
+    webview.style.pointerEvents = disableInteraction ? "none" : "";
+  }, [disableInteraction]);
+
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview) {
+      return;
+    }
+
+    const instance = webviewInstanceRef.current;
+    if (!instance) {
+      return;
+    }
+
+    if (!instance.initialized) {
+      instance.markInitialized();
       webview.setAttribute("src", url);
       setCurrentUrl(url);
       setInputUrl(url);
@@ -307,10 +342,9 @@ export function WebPane({
 
       {/* WebView */}
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">
-        <webview
-          ref={webviewRef}
+        <div
+          ref={containerRef}
           className="flex-1 w-full h-full min-w-0 min-h-0 border-0 bg-white/[0.02]"
-          style={disableInteraction ? { pointerEvents: "none" } : undefined}
         />
         {isLoading && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
