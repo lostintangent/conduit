@@ -1,3 +1,4 @@
+import { useUserSettings } from "@/hooks/useUserSettings";
 import type {
   ContextMenuParams,
   DidNavigateEvent,
@@ -7,7 +8,6 @@ import type {
 } from "electron";
 import { ArrowLeft, ArrowRight, ExternalLink, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useUserSettings } from "@/hooks/useUserSettings";
 
 const api = window.conduit;
 
@@ -33,6 +33,7 @@ export function WebPane({
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const mountContextRef = useRef<"layout" | "preview">("layout");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [inputUrl, setInputUrl] = useState<string>(url);
@@ -57,14 +58,16 @@ export function WebPane({
 
     if (!webview) {
       webview = document.createElement("webview") as WebviewTag;
+      webview.setAttribute("src", url);
       webview.id = paneId;
+
       document.body.appendChild(webview);
     }
 
     webview.style.position = "absolute";
     webview.style.border = "0";
     webview.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
-    webview.style.zIndex = "10";
+    webview.style.zIndex = "1";
     webview.dataset.paneId = paneId;
 
     webviewRef.current = webview;
@@ -76,7 +79,24 @@ export function WebPane({
         return;
       }
 
+      const previewContainer = anchor.closest(
+        "[data-tab-preview-container='true']"
+      ) as HTMLElement | null;
+      const nextContext: "layout" | "preview" = previewContainer
+        ? "preview"
+        : "layout";
+
+      if (mountContextRef.current !== nextContext) {
+        mountContextRef.current = nextContext;
+        currentWebview.style.zIndex = nextContext === "preview" ? "10001" : "1";
+      }
+
       const rect = anchor.getBoundingClientRect();
+      const layoutWidth =
+        anchor.offsetWidth || anchor.clientWidth || rect.width;
+      const layoutHeight =
+        anchor.offsetHeight || anchor.clientHeight || rect.height;
+
       const scrollX = window.scrollX ?? window.pageXOffset;
       const scrollY = window.scrollY ?? window.pageYOffset;
       const top = rect.top + scrollY;
@@ -84,29 +104,62 @@ export function WebPane({
 
       currentWebview.style.top = `${top}px`;
       currentWebview.style.left = `${left}px`;
-      currentWebview.style.width = `${rect.width}px`;
-      currentWebview.style.height = `${rect.height}px`;
+
+      let scaleX = layoutWidth > 0 ? rect.width / layoutWidth : 1;
+      let scaleY = layoutHeight > 0 ? rect.height / layoutHeight : 1;
+
+      const previewScaleAttr = previewContainer?.dataset.tabPreviewScale;
+      if (previewScaleAttr) {
+        const previewScale = Number(previewScaleAttr);
+        if (!Number.isNaN(previewScale) && previewScale > 0) {
+          const EPSILON = 0.001;
+          if (Math.abs(scaleX - 1) < EPSILON) {
+            scaleX = previewScale;
+          }
+          if (Math.abs(scaleY - 1) < EPSILON) {
+            scaleY = previewScale;
+          }
+        }
+      }
+
+      const isScaled =
+        Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001;
+
+      if (isScaled) {
+        const targetWidth = layoutWidth || rect.width;
+        const targetHeight = layoutHeight || rect.height;
+        currentWebview.style.width = `${targetWidth}px`;
+        currentWebview.style.height = `${targetHeight}px`;
+        currentWebview.style.transformOrigin = "top left";
+        currentWebview.style.transform = `scale(${scaleX}, ${scaleY})`;
+      } else {
+        currentWebview.style.width = `${rect.width}px`;
+        currentWebview.style.height = `${rect.height}px`;
+        currentWebview.style.transformOrigin = "";
+        currentWebview.style.transform = "";
+      }
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      updatePosition();
-    });
-
+    const resizeObserver = new ResizeObserver(updatePosition);
     resizeObserver.observe(container);
     window.addEventListener("scroll", updatePosition, true);
     window.addEventListener("resize", updatePosition);
+
     updatePosition();
 
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
-      if (webview?.dataset.paneId === paneId) {
-        webview.remove();
-      }
+
       if (webviewRef.current === webview) {
+        webview.style.zIndex = "1";
+        webview.style.transform = "";
+        webview.style.transformOrigin = "";
         webviewRef.current = null;
       }
+
+      mountContextRef.current = "layout";
     };
   }, [paneId]);
 
@@ -131,7 +184,6 @@ export function WebPane({
 
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      webview.setAttribute("src", url);
       setCurrentUrl(url);
       setInputUrl(url);
       currentUrlRef.current = url;
@@ -232,7 +284,7 @@ export function WebPane({
       webview.removeEventListener("page-title-updated", notifyTitleChange);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
     };
-  }, [onTitleChange, onContextMenu, onUrlChange, paneId]);
+  }, [paneId]);
 
   const handleGoBack = useCallback(() => {
     webviewRef.current?.goBack();

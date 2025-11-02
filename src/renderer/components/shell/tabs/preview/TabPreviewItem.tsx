@@ -70,6 +70,8 @@ export function TabPreviewItem({ tabId, onRefSet, onClick, scale = PREVIEW_SCALE
       >
         <div
           ref={handleRefSet}
+          data-tab-preview-container="true"
+          data-tab-preview-scale={scale}
           className="flex w-full h-full min-h-0 min-w-0 pointer-events-auto"
           style={{
             width: contentWidth,
