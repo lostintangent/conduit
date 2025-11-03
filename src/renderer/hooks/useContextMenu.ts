@@ -1,5 +1,5 @@
 import { enterFocusMode } from "@/store/actions/focusMode";
-import { movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
+import { closePane, movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
 import { closeTab, movePaneToTab } from "@/store/actions/tab";
 import { tabsAtom } from "@/store/atoms";
 import { useAtomValue } from "jotai";
@@ -7,18 +7,16 @@ import type { MouseEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 type UseContextMenuParams = {
-  closePane: (tabId: string, paneId: string) => void;
   setTitleModal: (tabId: string, value: string) => void;
   canChangeTitle: (tabId: string) => boolean;
 };
 
 const api = window.conduit;
 
-export const useContextMenu = ({
-  closePane,
+export function useContextMenu({
   setTitleModal,
   canChangeTitle,
-}: UseContextMenuParams) => {
+}: UseContextMenuParams) {
   const tabs = useAtomValue(tabsAtom);
   const [hasGitRepoCache, setHasGitRepoCache] = useState<Record<string, boolean>>({});
 
@@ -181,7 +179,6 @@ export const useContextMenu = ({
   }, [
     api,
     tabs,
-    closePane,
     closeTab,
     movePane,
     movePaneToTab,
@@ -191,4 +188,4 @@ export const useContextMenu = ({
   ]);
 
   return handleContextMenu;
-};
+}

@@ -16,14 +16,14 @@ import { TitleBar } from "@/components/shell/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
-import { usePaneActionsSystem } from "@/paneActions";
-import { registerDefaultPreCommands } from "@/preCommands";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { usePaneActionsSystem } from "@/paneActions";
+import { registerDefaultPreCommands } from "@/preCommands";
 import {
   dismissNotification,
   enqueueNotification,
@@ -31,11 +31,10 @@ import {
 } from "@/store/actions/notifications";
 import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
-  closeTab,
   openTab,
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
-  updateTabProperty,
+  updateTabProperty
 } from "@/store/actions/tab";
 import { activeTabAtom, applicationModeAtom, keybindingsAtom, tabsAtom } from "@/store/atoms";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
@@ -313,28 +312,9 @@ export function App() {
     [setTabs]
   );
 
-  const closePane = useCallback(
-    (tabId: string, paneId: string) => {
-      const tab = tabs.find((t) => t.id === tabId);
-      if (!tab) {
-        return;
-      }
-
-      if (Object.keys(tab.panes).length === 1) {
-        closeTab(tabId);
-        return;
-      }
-
-      removePane(tabId, paneId);
-    },
-    [tabs, closeTab, removePane]
-  );
-
   const handleContextMenu = useContextMenu({
-    closePane,
-    setTitleModal: (tabId: string, value: string) => {
-      setTitleModalState({ tabId, initialValue: value });
-    },
+    setTitleModal: (tabId: string, value: string) =>
+      setTitleModalState({ tabId, initialValue: value }),
     canChangeTitle: (tabId: string) => {
       if (tabs.length > 1) {
         return true;
