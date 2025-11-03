@@ -8,9 +8,9 @@ import {
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
+import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import { WebPane } from "@/components/panes/web/WebPane";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import type {
   LayoutResizeAxis,
@@ -23,8 +23,8 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { focusTab } from "@/store/actions/tab";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
+import { focusTab } from "@/store/actions/tab";
 import {
   activePaneIdAtom,
   activeTabAtom,
@@ -417,7 +417,7 @@ export function TabLayout({
                 onContextMenu={onPaneContextMenu}
                 onMouseDown={onPaneActivate}
               >
-                <WebPane
+                <BrowserPane
                   key={pane.id}
                   url={pane.url}
                   paneId={pane.id}
@@ -429,6 +429,13 @@ export function TabLayout({
                   onTitleChange={(nextTitle) =>
                     handleWebViewUpdate(tab.id, pane.id, { title: nextTitle })
                   }
+                  isInPreview={isInPreview}
+                  onHover={(isHovering) => {
+                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInPreview) {
+                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
+                    }
+                  }}
                 />
               </div>
             )}
