@@ -39,7 +39,6 @@ export function WebPane({
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
   const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
-  const mountContextRef = useRef<"layout" | "preview">("layout");
   const followUpFrameRef = useRef<number | null>(null);
   const followUpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -100,16 +99,12 @@ export function WebPane({
         return;
       }
 
-      const nextContext: "layout" | "preview" = isInPreview
-        ? "preview"
-        : "layout";
-
-      if (mountContextRef.current !== nextContext) {
-        mountContextRef.current = nextContext;
-        currentWebview.style.zIndex = nextContext === "preview" ? "10001" : "1";
-        if (nextContext === "preview") {
-          scheduleFollowUpUpdate();
-        }
+      // Set z-index based on preview mode
+      currentWebview.style.zIndex = isInPreview ? "10001" : "1";
+      
+      // Schedule follow-up update in preview mode
+      if (isInPreview) {
+        scheduleFollowUpUpdate();
       }
 
       const rect = anchor.getBoundingClientRect();
@@ -162,8 +157,6 @@ export function WebPane({
         webview.style.transformOrigin = "";
         webviewRef.current = null;
       }
-
-      mountContextRef.current = "layout";
     };
   }, [paneId, containerNode, isInPreview]);
 
