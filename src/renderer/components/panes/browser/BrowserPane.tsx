@@ -1,4 +1,5 @@
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { applicationModeAtom } from "@/store/atoms";
 import {
   applyWebviewScaling,
   calculateWebviewScale,
@@ -10,6 +11,7 @@ import type {
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
+import { useAtomValue } from "jotai";
 import {
   ArrowLeft,
   ArrowRight,
@@ -48,6 +50,7 @@ export function BrowserPane({
   isInPreview = false,
 }: BrowserPaneProps) {
   const { urlHistory, addUrlToHistory } = useUserSettings();
+  const applicationMode = useAtomValue(applicationModeAtom);
 
   const webviewRef = useRef<WebviewTag | null>(null);
   const webviewAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +78,7 @@ export function BrowserPane({
       webview.src = url;
       webview.id = paneId;
       webview.style.position = "absolute";
+      webview.style.overflow = "hidden";
 
       document.body.appendChild(webview);
 
@@ -285,6 +289,18 @@ export function BrowserPane({
       ? "none"
       : "auto";
   }, [disableInteraction]);
+
+  // When rendered in focus mode, we need to add
+  // rounded corners to the bottom of the webview,
+  // to match the rounded corners of the window.
+  useEffect(() => {
+    if (!webviewRef.current) return;
+
+    webviewRef.current.classList.toggle(
+      "rounded-b-xl",
+      applicationMode === "focus"
+    );
+  }, [applicationMode]);
 
   /* URL bar handlers */
 
