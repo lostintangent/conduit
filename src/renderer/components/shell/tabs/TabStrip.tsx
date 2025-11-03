@@ -32,14 +32,12 @@ import { useAtom, useAtomValue } from "jotai";
 import {
   Cloud,
   Expand,
-  FileEdit,
-  Globe,
   LayoutGrid,
   MoreHorizontal,
   PlusSquare,
   SquareDashedMousePointer,
-  Terminal,
-  Zap,
+  SquareTerminal,
+  Terminal
 } from "lucide-react";
 import React, {
   useCallback,
@@ -619,26 +617,6 @@ export const TabStrip = ({
     [onOpenQuickPane],
   );
 
-  const handleOpenQuickEditor = useCallback(() => {
-    if (!homeDirectory || !onOpenQuickPane) {
-      return;
-    }
-    onOpenQuickPane({
-      type: "editor",
-      cwd: homeDirectory,
-    });
-  }, [homeDirectory, onOpenQuickPane]);
-
-  const handleOpenQuickWeb = useCallback(() => {
-    if (!onOpenQuickPane) {
-      return;
-    }
-    onOpenQuickPane({
-      type: "webview",
-      url: "https://www.google.com",
-    });
-  }, [onOpenQuickPane]);
-
   const borderClass = alwaysShowTabs
     ? position === "top"
       ? "border-b"
@@ -734,28 +712,23 @@ export const TabStrip = ({
                 title="Quick pane"
                 aria-label="Quick pane"
               >
-                <Zap size={18} />
+                <SquareTerminal size={18} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-w-40">
               <DropdownMenuItem onClick={handleOpenQuickTerminal}>
                 <Terminal size={16} className="mr-3" />
-                Terminal
+                Quick terminal
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
                 <Cloud size={16} className="mr-3" />
-                Terminal (Cloud)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleOpenQuickEditor}>
-                <FileEdit size={16} className="mr-3" />
-                Editor
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleOpenQuickWeb}>
-                <Globe size={16} className="mr-3" />
-                Web
+                Cloud terminal
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Vertical divider */}
+          <div className="h-6 my-1 w-px bg-white/20 mx-0.5" />
 
           {/* Expand button for focus mode */}
           <button
@@ -780,11 +753,10 @@ export const TabStrip = ({
 
           <button
             type="button"
-            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
-              isDesignMode
-                ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-                : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
+            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
+              ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+              : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
             title={getCommandDisplayTitle(toggleDesignModeCmd)}
             aria-label={toggleDesignModeCmd.title}
             onClick={toggleDesignModeCmd.execute}
