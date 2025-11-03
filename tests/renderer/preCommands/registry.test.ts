@@ -498,25 +498,25 @@ describe("PreCommandRegistry", () => {
     });
 
     it("should handle async command that takes time", async () => {
+      let commandExecuted = false;
       const preCommand: PreCommand = {
         id: "slow-command",
         label: "Slow Command",
         run: async () => {
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          commandExecuted = true;
           return { success: true };
         },
       };
 
       registry.register(preCommand);
 
-      const startTime = Date.now();
       const result = await registry.execute("slow-command", {
         command: "test",
       });
-      const duration = Date.now() - startTime;
 
       expect(result.success).toBe(true);
-      expect(duration).toBeGreaterThanOrEqual(100);
+      expect(commandExecuted).toBe(true); // Verify the async function actually executed
     });
   });
 });
