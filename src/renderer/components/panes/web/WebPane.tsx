@@ -101,7 +101,7 @@ export function WebPane({
 
       // Set z-index based on preview mode
       currentWebview.style.zIndex = isInPreview ? "10001" : "1";
-      
+
       // Schedule follow-up update in preview mode
       if (isInPreview) {
         scheduleFollowUpUpdate();
@@ -126,7 +126,6 @@ export function WebPane({
         layoutHeight,
         rectWidth: rect.width,
         rectHeight: rect.height,
-        previewScale: undefined,
       });
 
       applyWebviewScaling(currentWebview, scaling);

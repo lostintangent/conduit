@@ -13,7 +13,6 @@ export interface ScalingDimensions {
   layoutHeight: number;
   rectWidth: number;
   rectHeight: number;
-  previewScale?: number;
 }
 
 export interface ScalingResult {
@@ -40,30 +39,18 @@ export interface PreviewDimensions {
 export function calculateWebviewScale(
   dimensions: ScalingDimensions
 ): ScalingResult {
-  const { layoutWidth, layoutHeight, rectWidth, rectHeight, previewScale } = dimensions;
+  const { layoutWidth, layoutHeight, rectWidth, rectHeight } = dimensions;
 
   let scaleX = layoutWidth > 0 ? rectWidth / layoutWidth : 1;
   let scaleY = layoutHeight > 0 ? rectHeight / layoutHeight : 1;
 
-  // If a preview scale is provided and current scale is close to 1, use the preview scale
-  if (previewScale !== undefined && previewScale > 0) {
-    if (Math.abs(scaleX - 1) < EPSILON) {
-      scaleX = previewScale;
-    }
-    if (Math.abs(scaleY - 1) < EPSILON) {
-      scaleY = previewScale;
-    }
-  }
-
-  const isScaled = Math.abs(scaleX - 1) > EPSILON || Math.abs(scaleY - 1) > EPSILON;
-  
   const targetWidth = layoutWidth || rectWidth;
   const targetHeight = layoutHeight || rectHeight;
 
   return {
     scaleX,
     scaleY,
-    isScaled,
+    isScaled: Math.abs(scaleX - 1) > EPSILON || Math.abs(scaleY - 1) > EPSILON,
     targetWidth,
     targetHeight,
   };
@@ -90,30 +77,6 @@ export function applyWebviewScaling(
     element.style.transformOrigin = "";
     element.style.transform = "";
   }
-}
-
-/**
- * Extract preview scale from a container element's data attribute
- * 
- * @param container - The container element to check
- * @returns The preview scale value, or undefined if not found
- */
-export function getPreviewScaleFromContainer(
-  container: HTMLElement | null
-): number | undefined {
-  if (!container) return undefined;
-
-  const previewContainer = container.closest(
-    "[data-tab-preview-container='true']"
-  ) as HTMLElement | null;
-
-  if (!previewContainer) return undefined;
-
-  const previewScaleAttr = previewContainer.dataset.tabPreviewScale;
-  if (!previewScaleAttr) return undefined;
-
-  const previewScale = Number(previewScaleAttr);
-  return !isNaN(previewScale) && previewScale > 0 ? previewScale : undefined;
 }
 
 /**
