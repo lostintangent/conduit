@@ -90,6 +90,10 @@ export function BrowserPane({
     setCurrentUrl(url);
     setInputUrl(url);
 
+    // Because the webview is absolutely positioned and scaled
+    // while in preview mode, we unfortunately need to implement
+    // the hover overlay again, since the webview will be on top of
+    // the pane's own hover detection.
     const ensurePreviewOverlay = () => {
       if (!isInPreview || !isPreviewHoveredRef.current) {
         if (previewOverlayRef.current) {
