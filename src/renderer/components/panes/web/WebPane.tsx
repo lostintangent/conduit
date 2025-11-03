@@ -3,7 +3,7 @@ import {
   applyWebviewScaling,
   calculateWebviewScale,
   getPreviewScaleFromContainer,
-} from "@/utils/webview-scaling";
+} from "@/utils/preview-scaling";
 import type {
   ContextMenuParams,
   DidNavigateEvent,
