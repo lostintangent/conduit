@@ -429,6 +429,7 @@ export function TabLayout({
                   onTitleChange={(nextTitle) =>
                     handleWebViewUpdate(tab.id, pane.id, { title: nextTitle })
                   }
+                  isInPreview={isInPreview}
                 />
               </div>
             )}
