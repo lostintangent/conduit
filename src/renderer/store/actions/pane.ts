@@ -2,7 +2,7 @@ import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import { disposeSession } from "@/store/terminals";
+import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import type {
   LayoutNode,
   LayoutPaneNode,

@@ -6,7 +6,7 @@ import {
   splitPane,
 } from "@/store/actions/pane";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
-import { attach, getOrCreate } from "@/store/terminals";
+import { attach, getOrCreate } from "./xtermCache";
 import { extractPortFromMatch } from "@shared/portDetection";
 import { useAtomValue } from "jotai";
 import React, {
