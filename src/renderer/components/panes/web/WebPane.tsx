@@ -2,7 +2,6 @@ import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   applyWebviewScaling,
   calculateWebviewScale,
-  getPreviewScaleFromContainer,
 } from "@/utils/preview-scaling";
 import type {
   ContextMenuParams,
@@ -26,6 +25,7 @@ type WebPaneProps = {
   onUrlChange?: (url: string) => void;
   disableInteraction?: boolean;
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
+  isInPreview?: boolean;
 };
 
 export function WebPane({
@@ -35,6 +35,7 @@ export function WebPane({
   onUrlChange,
   disableInteraction = false,
   onContextMenu,
+  isInPreview = false,
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
   const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
@@ -99,10 +100,7 @@ export function WebPane({
         return;
       }
 
-      const previewContainer = anchor.closest(
-        "[data-tab-preview-container='true']"
-      ) as HTMLElement | null;
-      const nextContext: "layout" | "preview" = previewContainer
+      const nextContext: "layout" | "preview" = isInPreview
         ? "preview"
         : "layout";
 
@@ -128,13 +126,12 @@ export function WebPane({
       currentWebview.style.top = `${top}px`;
       currentWebview.style.left = `${left}px`;
 
-      const previewScale = getPreviewScaleFromContainer(anchor);
       const scaling = calculateWebviewScale({
         layoutWidth,
         layoutHeight,
         rectWidth: rect.width,
         rectHeight: rect.height,
-        previewScale,
+        previewScale: undefined,
       });
 
       applyWebviewScaling(currentWebview, scaling);
@@ -168,7 +165,7 @@ export function WebPane({
 
       mountContextRef.current = "layout";
     };
-  }, [paneId, containerNode]);
+  }, [paneId, containerNode, isInPreview]);
 
   useEffect(() => {
     const webview = webviewRef.current;
