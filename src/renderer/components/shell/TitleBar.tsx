@@ -1,3 +1,8 @@
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import {
+  getCommandDisplayTitle,
+  useCommand,
+} from "@/commands/hooks/useCommand";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -105,7 +110,17 @@ export const TitleBar = ({
 
       {/* Center - title */}
       <div className="flex gap-2 items-center">
-        <Cable size={14} /> Conduit{titleBarSuffix}
+        <Cable size={14} />
+        Conduit
+        {!workspaceName && (
+          <span
+            className="text-[0.7rem] opacity-60"
+            title={`Version ${api?.version}`}
+          >
+            v{api?.version}
+          </span>
+        )}
+        {titleBarSuffix}
       </div>
 
       {/* Right side - workspace menu and settings */}

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import packageJson from "../package.json";
 import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
@@ -39,6 +40,7 @@ function createEventListener<T>(
 
 const conduitAPI = {
   platform: process.platform,
+  version: packageJson.version,
 
   /* Terminal methods (UI->main) */
 
