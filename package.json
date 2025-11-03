@@ -15,6 +15,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "postinstall": "node build/scripts/setup-keys.js"
   },
   "keywords": [],
@@ -41,6 +42,7 @@
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "@vitest/coverage-v8": "^4.0.4",
     "@vitest/ui": "^4.0.4",
     "electron": "38.2.2",
     "eslint": "^8.57.1",

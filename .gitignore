@@ -51,3 +51,11 @@ dist/
 
 # SSH Keys (private keys should not be committed)
 keys/
+
+# Test results and coverage
+test-results/
+coverage/
+.nyc_output/
+
+# ESLint cache
+node_modules/.cache/eslint/
