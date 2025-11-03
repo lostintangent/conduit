@@ -26,6 +26,7 @@ type WebPaneProps = {
   disableInteraction?: boolean;
   onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
   isInPreview?: boolean;
+  onHover?: (isHovering: boolean) => void;
 };
 
 export function WebPane({
@@ -36,6 +37,7 @@ export function WebPane({
   disableInteraction = false,
   onContextMenu,
   isInPreview = false,
+  onHover,
 }: WebPaneProps) {
   const webviewRef = useRef<WebviewTag | null>(null);
   const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
@@ -268,6 +270,17 @@ export function WebPane({
 
     webview.addEventListener("context-menu", handleWebViewContextMenu);
 
+    const handleWebViewMouseEnter = () => {
+      onHover?.(true);
+    };
+
+    const handleWebViewMouseLeave = () => {
+      onHover?.(false);
+    };
+
+    webview.addEventListener("mouseenter", handleWebViewMouseEnter);
+    webview.addEventListener("mouseleave", handleWebViewMouseLeave);
+
     return () => {
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);
@@ -279,8 +292,10 @@ export function WebPane({
       );
       webview.removeEventListener("page-title-updated", notifyTitleChange);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
+      webview.removeEventListener("mouseenter", handleWebViewMouseEnter);
+      webview.removeEventListener("mouseleave", handleWebViewMouseLeave);
     };
-  }, [paneId]);
+  }, [paneId, onHover]);
 
   const handleUrlSubmit = useCallback(
     (e: React.FormEvent) => {

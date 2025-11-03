@@ -430,6 +430,12 @@ export function TabLayout({
                     handleWebViewUpdate(tab.id, pane.id, { title: nextTitle })
                   }
                   isInPreview={isInPreview}
+                  onHover={(isHovering) => {
+                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInPreview) {
+                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
+                    }
+                  }}
                 />
               </div>
             )}
