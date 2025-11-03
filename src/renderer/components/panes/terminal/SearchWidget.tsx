@@ -1,4 +1,4 @@
-import type { TerminalInstance } from "@/store/terminals";
+import type { TerminalInstance } from "./xtermCache";
 import type { ISearchOptions } from "@xterm/addon-search";
 import { resolveColor } from "@/utils/theme";
 import {

@@ -1,4 +1,4 @@
-import type { getOrCreate } from "@/store/terminals";
+import type { getOrCreate } from "./xtermCache";
 import type { Dispatch, SetStateAction } from "react";
 
 /**
