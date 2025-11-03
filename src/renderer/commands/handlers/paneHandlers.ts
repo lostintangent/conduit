@@ -10,7 +10,7 @@
  * @param setIsUrlDialogOpen - Function to show URL dialog
  */
 export function handleOpenWebPage(
-  setIsUrlDialogOpen: (open: boolean) => void
+  setIsUrlDialogOpen: (open: boolean) => void,
 ): void {
   setIsUrlDialogOpen(true);
 }

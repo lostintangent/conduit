@@ -23,28 +23,28 @@ import {
   TestTube,
   Wrench,
   type LucideIcon,
-} from 'lucide-react';
+} from "lucide-react";
 
 /**
  * Icon mapping for pane actions
  * Maps icon IDs to Lucide React components
  */
 export const PANE_ACTION_ICON_MAP: Record<string, LucideIcon> = {
-  'git-branch': GitBranch,
-  'code': Code,
-  'terminal': Terminal,
-  'globe': Globe,
-  'bot': Bot,
-  'container': Container,
-  'database': Database,
-  'package': Package,
-  'server': Server,
-  'test-tube': TestTube,
-  'bug': Bug,
-  'rocket': Rocket,
-  'shield': Shield,
-  'book': Book,
-  'wrench': Wrench,
+  "git-branch": GitBranch,
+  code: Code,
+  terminal: Terminal,
+  globe: Globe,
+  bot: Bot,
+  container: Container,
+  database: Database,
+  package: Package,
+  server: Server,
+  "test-tube": TestTube,
+  bug: Bug,
+  rocket: Rocket,
+  shield: Shield,
+  book: Book,
+  wrench: Wrench,
 };
 
 /**
@@ -65,7 +65,10 @@ interface PaneActionIconProps {
  * Renders a pane action icon
  * Falls back to HelpCircle if icon ID is not found
  */
-export function PaneActionIcon({ iconId, className = "w-4 h-4" }: PaneActionIconProps) {
+export function PaneActionIcon({
+  iconId,
+  className = "w-4 h-4",
+}: PaneActionIconProps) {
   const IconComponent = PANE_ACTION_ICON_MAP[iconId] || HelpCircle;
   return <IconComponent className={className} />;
 }

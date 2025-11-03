@@ -14,11 +14,16 @@ export function createFitController({
 }: {
   entry: ReturnType<typeof getOrCreate>;
   container: HTMLDivElement;
-  setDimensions: Dispatch<SetStateAction<{ width: number; height: number } | null>>;
+  setDimensions: Dispatch<
+    SetStateAction<{ width: number; height: number } | null>
+  >;
 }): { dispose: () => void } {
   // Store the last known sizes to detect changes
   let lastContainerSize = { width: 0, height: 0 };
-  let lastTerminalSize = { cols: entry.terminal.cols, rows: entry.terminal.rows };
+  let lastTerminalSize = {
+    cols: entry.terminal.cols,
+    rows: entry.terminal.rows,
+  };
 
   // Animation frame and timeout IDs
   let fitTimeout: number | null = null;
@@ -40,7 +45,7 @@ export function createFitController({
       setDimensions(null);
       overlayTimeout = null;
     }, 800);
-  };
+  }
 
   function fitAndResize() {
     const fitAddon = entry.fit;
@@ -110,5 +115,5 @@ export function createFitController({
   // Schedule the initial fit on mount
   scheduleFit();
 
-  return { dispose }
-};
+  return { dispose };
+}

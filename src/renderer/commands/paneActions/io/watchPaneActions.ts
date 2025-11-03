@@ -4,9 +4,9 @@
  * Detects external changes to ~/.conduit/paneactions.json and reloads.
  */
 
-import type { Action } from '../core/types';
-import { readPaneActionsFile } from './fileOperations';
-import { ValidationError } from './validation';
+import type { Action } from "../core/types";
+import { readPaneActionsFile } from "./fileOperations";
+import { ValidationError } from "./validation";
 
 /**
  * Callback when file changes and is successfully reloaded
@@ -63,7 +63,7 @@ export interface PaneActionsWatcher {
  * @returns Watcher handle with dispose method
  */
 export function watchPaneActionsFile(
-  options: WatchPaneActionsOptions
+  options: WatchPaneActionsOptions,
 ): PaneActionsWatcher {
   const { filePath, onChange, onError } = options;
 
@@ -95,7 +95,7 @@ export function watchPaneActionsFile(
         if (actions === null) {
           // File was deleted
           if (onError) {
-            onError(new Error('Pane actions file was deleted'));
+            onError(new Error("Pane actions file was deleted"));
           }
         } else {
           // File is valid, notify listener
@@ -108,7 +108,9 @@ export function watchPaneActionsFile(
             onError(error);
           } else {
             onError(
-              new Error(`Failed to load pane actions: ${(error as Error).message}`)
+              new Error(
+                `Failed to load pane actions: ${(error as Error).message}`,
+              ),
             );
           }
         }

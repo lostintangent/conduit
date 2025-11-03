@@ -1,1 +1,1 @@
-export { PaneActionsEditor } from './PaneActionsEditor';
+export { PaneActionsEditor } from "./PaneActionsEditor";

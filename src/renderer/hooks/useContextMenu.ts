@@ -1,5 +1,10 @@
 import { enterFocusMode } from "@/store/actions/focusMode";
-import { closePane, movePane, splitPane, splitPaneWithAgentSession } from "@/store/actions/pane";
+import {
+  closePane,
+  movePane,
+  splitPane,
+  splitPaneWithAgentSession,
+} from "@/store/actions/pane";
 import { closeTab, movePaneToTab } from "@/store/actions/tab";
 import { tabsAtom } from "@/store/atoms";
 import { useAtomValue } from "jotai";
@@ -18,24 +23,29 @@ export function useContextMenu({
   canChangeTitle,
 }: UseContextMenuParams) {
   const tabs = useAtomValue(tabsAtom);
-  const [hasGitRepoCache, setHasGitRepoCache] = useState<Record<string, boolean>>({});
+  const [hasGitRepoCache, setHasGitRepoCache] = useState<
+    Record<string, boolean>
+  >({});
 
-  const checkGitRepo = useCallback(async (cwd: string | null | undefined): Promise<boolean> => {
-    if (!cwd) return false;
+  const checkGitRepo = useCallback(
+    async (cwd: string | null | undefined): Promise<boolean> => {
+      if (!cwd) return false;
 
-    if (hasGitRepoCache[cwd] !== undefined) {
-      return hasGitRepoCache[cwd];
-    }
+      if (hasGitRepoCache[cwd] !== undefined) {
+        return hasGitRepoCache[cwd];
+      }
 
-    try {
-      const hasRepo = await api.hasGitRepository(cwd);
-      setHasGitRepoCache(prev => ({ ...prev, [cwd]: hasRepo }));
-      return hasRepo;
-    } catch (error) {
-      setHasGitRepoCache(prev => ({ ...prev, [cwd]: false }));
-      return false;
-    }
-  }, [hasGitRepoCache]);
+      try {
+        const hasRepo = await api.hasGitRepository(cwd);
+        setHasGitRepoCache((prev) => ({ ...prev, [cwd]: hasRepo }));
+        return hasRepo;
+      } catch (error) {
+        setHasGitRepoCache((prev) => ({ ...prev, [cwd]: false }));
+        return false;
+      }
+    },
+    [hasGitRepoCache],
+  );
 
   const handleContextMenu = useCallback(
     async (event: MouseEvent, tabId: string, paneId?: string) => {
@@ -69,7 +79,7 @@ export function useContextMenu({
         hasGitRepo,
       });
     },
-    [api, tabs, canChangeTitle, checkGitRepo]
+    [api, tabs, canChangeTitle, checkGitRepo],
   );
 
   useEffect(() => {
@@ -124,7 +134,12 @@ export function useContextMenu({
             break;
           case "split-left-agent":
             if (resolvedPaneId) {
-              void splitPaneWithAgentSession(tabId, resolvedPaneId, "row", true);
+              void splitPaneWithAgentSession(
+                tabId,
+                resolvedPaneId,
+                "row",
+                true,
+              );
             }
             break;
           case "split-bottom-agent":
@@ -134,7 +149,12 @@ export function useContextMenu({
             break;
           case "split-top-agent":
             if (resolvedPaneId) {
-              void splitPaneWithAgentSession(tabId, resolvedPaneId, "column", true);
+              void splitPaneWithAgentSession(
+                tabId,
+                resolvedPaneId,
+                "column",
+                true,
+              );
             }
             break;
           case "move-left":
@@ -170,7 +190,7 @@ export function useContextMenu({
             }
             break;
         }
-      }
+      },
     );
 
     return () => {

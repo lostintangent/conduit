@@ -2,21 +2,21 @@
  * Unit tests for file I/O operations
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdir, rm, writeFile, readFile } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import type { Action } from "@/commands/paneActions/core/types";
 import {
   getUserPaneActionsPath,
-  readPaneActionsFile,
-  writePaneActionsFile,
   parsePaneActionsContent,
+  readPaneActionsFile,
   readPaneActionsFileOrNull,
-} from '@/paneActions/io/fileOperations';
-import { ValidationError } from '@/paneActions/io/validation';
-import type { Action } from '@/paneActions/core/types';
+  writePaneActionsFile,
+} from "@/commands/paneActions/io/fileOperations";
+import { ValidationError } from "@/commands/paneActions/io/validation";
+import { mkdir, readFile, rm, writeFile } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-describe('fileOperations', () => {
+describe("fileOperations", () => {
   let testDir: string;
   let testFilePath: string;
 
@@ -24,20 +24,20 @@ describe('fileOperations', () => {
     // Create temporary directory for tests
     testDir = join(tmpdir(), `pane-actions-test-${Date.now()}`);
     await mkdir(testDir, { recursive: true });
-    testFilePath = join(testDir, 'paneactions.json');
+    testFilePath = join(testDir, "paneactions.json");
 
     // Mock window.conduit API
     (global as any).window = {
       conduit: {
         readFile: async (path: string) => {
-          return await readFile(path, 'utf-8');
+          return await readFile(path, "utf-8");
         },
         writeFile: async (path: string, content: string) => {
           // Ensure parent directory exists
-          const { dirname } = await import('path');
+          const { dirname } = await import("path");
           const parentDir = dirname(path);
           await mkdir(parentDir, { recursive: true });
-          await writeFile(path, content, 'utf-8');
+          await writeFile(path, content, "utf-8");
         },
       },
     };
@@ -50,118 +50,118 @@ describe('fileOperations', () => {
     delete (global as any).window;
   });
 
-  describe('getUserPaneActionsPath', () => {
-    it('should return path to ~/.conduit/paneactions.json', () => {
+  describe("getUserPaneActionsPath", () => {
+    it("should return path to ~/.conduit/paneactions.json", () => {
       const path = getUserPaneActionsPath();
-      expect(path).toContain('.conduit');
-      expect(path).toContain('paneactions.json');
+      expect(path).toContain(".conduit");
+      expect(path).toContain("paneactions.json");
     });
   });
 
-  describe('parsePaneActionsContent', () => {
-    it('should parse valid JSON', () => {
+  describe("parsePaneActionsContent", () => {
+    it("should parse valid JSON", () => {
       const content = JSON.stringify([
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'test' },
+          paneType: "terminal",
+          config: { command: "test" },
         },
       ]);
 
       const result = parsePaneActionsContent(content);
       expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Test');
+      expect(result[0].name).toBe("Test");
     });
 
-    it('should throw ValidationError for invalid JSON', () => {
-      const content = 'not valid json {';
+    it("should throw ValidationError for invalid JSON", () => {
+      const content = "not valid json {";
 
       expect(() => parsePaneActionsContent(content)).toThrow(ValidationError);
-      expect(() => parsePaneActionsContent(content)).toThrow('Invalid JSON');
+      expect(() => parsePaneActionsContent(content)).toThrow("Invalid JSON");
     });
 
-    it('should throw ValidationError for invalid structure', () => {
-      const content = JSON.stringify({ not: 'an array' });
+    it("should throw ValidationError for invalid structure", () => {
+      const content = JSON.stringify({ not: "an array" });
 
       expect(() => parsePaneActionsContent(content)).toThrow(ValidationError);
       expect(() => parsePaneActionsContent(content)).toThrow(
-        'must be an array'
+        "must be an array",
       );
     });
 
-    it('should throw ValidationError for empty array', () => {
+    it("should throw ValidationError for empty array", () => {
       const content = JSON.stringify([]);
 
       expect(() => parsePaneActionsContent(content)).toThrow(ValidationError);
       expect(() => parsePaneActionsContent(content)).toThrow(
-        'at least 1 action'
+        "at least 1 action",
       );
     });
 
-    it('should throw ValidationError for invalid action', () => {
+    it("should throw ValidationError for invalid action", () => {
       const content = JSON.stringify([
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'invalid',
-          config: { command: 'test' },
+          paneType: "invalid",
+          config: { command: "test" },
         },
       ]);
 
       expect(() => parsePaneActionsContent(content)).toThrow(ValidationError);
       expect(() => parsePaneActionsContent(content)).toThrow(
-        'paneType must be one of'
+        "paneType must be one of",
       );
     });
   });
 
-  describe('readPaneActionsFile', () => {
-    it('should return null for non-existent file', async () => {
+  describe("readPaneActionsFile", () => {
+    it("should return null for non-existent file", async () => {
       const result = await readPaneActionsFile(testFilePath);
       expect(result).toBeNull();
     });
 
-    it('should read and parse valid file', async () => {
+    it("should read and parse valid file", async () => {
       const actions: Action[] = [
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'test' },
+          paneType: "terminal",
+          config: { command: "test" },
         },
       ];
 
-      await writeFile(testFilePath, JSON.stringify(actions), 'utf-8');
+      await writeFile(testFilePath, JSON.stringify(actions), "utf-8");
 
       const result = await readPaneActionsFile(testFilePath);
       expect(result).toHaveLength(1);
-      expect(result![0].name).toBe('Test');
+      expect(result![0].name).toBe("Test");
     });
 
-    it('should throw ValidationError for invalid JSON file', async () => {
-      await writeFile(testFilePath, 'not valid json {', 'utf-8');
+    it("should throw ValidationError for invalid JSON file", async () => {
+      await writeFile(testFilePath, "not valid json {", "utf-8");
 
       await expect(readPaneActionsFile(testFilePath)).rejects.toThrow(
-        ValidationError
+        ValidationError,
       );
     });
 
-    it('should throw ValidationError for invalid structure', async () => {
-      await writeFile(testFilePath, JSON.stringify({ not: 'array' }), 'utf-8');
+    it("should throw ValidationError for invalid structure", async () => {
+      await writeFile(testFilePath, JSON.stringify({ not: "array" }), "utf-8");
 
       await expect(readPaneActionsFile(testFilePath)).rejects.toThrow(
-        ValidationError
+        ValidationError,
       );
     });
 
-    it('should throw for permission errors', async () => {
+    it("should throw for permission errors", async () => {
       // This test might not work on all platforms, so we'll just verify
       // that non-ENOENT errors are thrown (not swallowed)
-      const invalidPath = join(testDir, 'nonexistent-dir', 'file.json');
+      const invalidPath = join(testDir, "nonexistent-dir", "file.json");
 
       // We can't easily test permission errors in a cross-platform way,
       // but we can test that the function doesn't return null for all errors
@@ -171,139 +171,139 @@ describe('fileOperations', () => {
     });
   });
 
-  describe('writePaneActionsFile', () => {
-    it('should write valid actions to file', async () => {
+  describe("writePaneActionsFile", () => {
+    it("should write valid actions to file", async () => {
       const actions: Action[] = [
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'test' },
+          paneType: "terminal",
+          config: { command: "test" },
         },
       ];
 
       await writePaneActionsFile(testFilePath, actions);
 
-      const content = await readFile(testFilePath, 'utf-8');
+      const content = await readFile(testFilePath, "utf-8");
       const parsed = JSON.parse(content);
       expect(parsed).toHaveLength(1);
-      expect(parsed[0].name).toBe('Test');
+      expect(parsed[0].name).toBe("Test");
     });
 
-    it('should format JSON with 2-space indentation', async () => {
+    it("should format JSON with 2-space indentation", async () => {
       const actions: Action[] = [
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'test' },
+          paneType: "terminal",
+          config: { command: "test" },
         },
       ];
 
       await writePaneActionsFile(testFilePath, actions);
 
-      const content = await readFile(testFilePath, 'utf-8');
+      const content = await readFile(testFilePath, "utf-8");
       expect(content).toContain('  "name": "Test"');
     });
 
-    it('should create parent directory if it does not exist', async () => {
-      const nestedPath = join(testDir, 'nested', 'dir', 'paneactions.json');
+    it("should create parent directory if it does not exist", async () => {
+      const nestedPath = join(testDir, "nested", "dir", "paneactions.json");
       const actions: Action[] = [
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'test' },
+          paneType: "terminal",
+          config: { command: "test" },
         },
       ];
 
       await writePaneActionsFile(nestedPath, actions);
 
-      const content = await readFile(nestedPath, 'utf-8');
+      const content = await readFile(nestedPath, "utf-8");
       expect(content).toBeTruthy();
     });
 
-    it('should validate actions before writing', async () => {
+    it("should validate actions before writing", async () => {
       const invalidActions = [
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'invalid',
-          config: { command: 'test' },
+          paneType: "invalid",
+          config: { command: "test" },
         },
       ] as unknown as Action[];
 
       await expect(
-        writePaneActionsFile(testFilePath, invalidActions)
+        writePaneActionsFile(testFilePath, invalidActions),
       ).rejects.toThrow(ValidationError);
 
       // File should not have been created
-      await expect(readFile(testFilePath, 'utf-8')).rejects.toThrow();
+      await expect(readFile(testFilePath, "utf-8")).rejects.toThrow();
     });
   });
 
-  describe('readPaneActionsFileOrNull', () => {
-    it('should return null for non-existent file', async () => {
+  describe("readPaneActionsFileOrNull", () => {
+    it("should return null for non-existent file", async () => {
       const result = await readPaneActionsFileOrNull(testFilePath);
       expect(result).toBeNull();
     });
 
-    it('should read valid file', async () => {
+    it("should read valid file", async () => {
       const actions: Action[] = [
         {
-          name: 'Test',
-          icon: 'test',
+          name: "Test",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'test' },
+          paneType: "terminal",
+          config: { command: "test" },
         },
       ];
 
-      await writeFile(testFilePath, JSON.stringify(actions), 'utf-8');
+      await writeFile(testFilePath, JSON.stringify(actions), "utf-8");
 
       const result = await readPaneActionsFileOrNull(testFilePath);
       expect(result).toHaveLength(1);
     });
 
-    it('should throw ValidationError for invalid file', async () => {
-      await writeFile(testFilePath, 'invalid json', 'utf-8');
+    it("should throw ValidationError for invalid file", async () => {
+      await writeFile(testFilePath, "invalid json", "utf-8");
 
       await expect(readPaneActionsFileOrNull(testFilePath)).rejects.toThrow(
-        ValidationError
+        ValidationError,
       );
     });
   });
 
-  describe('round-trip (write then read)', () => {
-    it('should preserve all action fields', async () => {
+  describe("round-trip (write then read)", () => {
+    it("should preserve all action fields", async () => {
       const actions: Action[] = [
         {
-          name: 'Source Control',
-          icon: 'git-branch',
+          name: "Source Control",
+          icon: "git-branch",
           enabled: true,
-          paneType: 'terminal',
+          paneType: "terminal",
           config: {
-            command: 'git status',
+            command: "git status",
           },
         },
         {
-          name: 'Editor',
-          icon: 'code',
+          name: "Editor",
+          icon: "code",
           enabled: false,
-          paneType: 'editor',
+          paneType: "editor",
           config: {},
         },
         {
-          name: 'Browser',
-          icon: 'globe',
+          name: "Browser",
+          icon: "globe",
           enabled: true,
-          paneType: 'browser',
+          paneType: "browser",
           config: {
-            url: 'http://localhost:3000',
+            url: "http://localhost:3000",
           },
         },
       ];

@@ -1,4 +1,4 @@
-import type { KeyChord, ResolvedKeybinding } from './types';
+import type { KeyChord, ResolvedKeybinding } from "./types";
 
 /**
  * Normalize a keybinding (array of chords) to a canonical string for comparison
@@ -27,20 +27,22 @@ import type { KeyChord, ResolvedKeybinding } from './types';
  * // → "Ctrl+K Ctrl+W"
  */
 export function normalizeKeybinding(chords: KeyChord[]): string {
-  return chords.map(chord => {
-    const parts: string[] = [];
+  return chords
+    .map((chord) => {
+      const parts: string[] = [];
 
-    // Add modifiers in consistent order
-    if (chord.ctrl) parts.push('Ctrl');
-    if (chord.alt) parts.push('Alt');
-    if (chord.shift) parts.push('Shift');
-    if (chord.meta) parts.push('Cmd');
+      // Add modifiers in consistent order
+      if (chord.ctrl) parts.push("Ctrl");
+      if (chord.alt) parts.push("Alt");
+      if (chord.shift) parts.push("Shift");
+      if (chord.meta) parts.push("Cmd");
 
-    // Always uppercase single character keys for consistency
-    parts.push(chord.key.length === 1 ? chord.key.toUpperCase() : chord.key);
+      // Always uppercase single character keys for consistency
+      parts.push(chord.key.length === 1 ? chord.key.toUpperCase() : chord.key);
 
-    return parts.join('+');
-  }).join(' ');
+      return parts.join("+");
+    })
+    .join(" ");
 }
 
 /**
@@ -48,16 +50,16 @@ export function normalizeKeybinding(chords: KeyChord[]): string {
  */
 function formatKey(key: string): string {
   const keyMap: Record<string, string> = {
-    'ArrowUp': '↑',
-    'ArrowDown': '↓',
-    'ArrowLeft': '←',
-    'ArrowRight': '→',
-    'Enter': '↵',
-    'Backspace': '⌫',
-    'Delete': '⌦',
-    'Escape': 'Esc',
-    'Space': '␣',
-    'Tab': '⇥',
+    ArrowUp: "↑",
+    ArrowDown: "↓",
+    ArrowLeft: "←",
+    ArrowRight: "→",
+    Enter: "↵",
+    Backspace: "⌫",
+    Delete: "⌦",
+    Escape: "Esc",
+    Space: "␣",
+    Tab: "⇥",
   };
 
   return keyMap[key] ?? key.toUpperCase();
@@ -104,27 +106,27 @@ function formatKey(key: string): string {
  * // → "↑" (symbol instead of "ArrowUp")
  */
 export function formatKeybindingForDisplay(chords: KeyChord[]): string {
-  const isMac = navigator.userAgent.toLowerCase().includes('mac');
+  const isMac = navigator.userAgent.toLowerCase().includes("mac");
 
   // Format each chord
-  const formattedChords = chords.map(chord => {
+  const formattedChords = chords.map((chord) => {
     const parts: string[] = [];
 
     // Add modifiers in consistent order
-    if (chord.ctrl) parts.push(isMac ? '⌃' : 'Ctrl');
-    if (chord.alt) parts.push(isMac ? '⌥' : 'Alt');
-    if (chord.shift) parts.push(isMac ? '⇧' : 'Shift');
-    if (chord.meta) parts.push(isMac ? '⌘' : 'Ctrl');  // Meta = Cmd on Mac, Ctrl elsewhere
+    if (chord.ctrl) parts.push(isMac ? "⌃" : "Ctrl");
+    if (chord.alt) parts.push(isMac ? "⌥" : "Alt");
+    if (chord.shift) parts.push(isMac ? "⇧" : "Shift");
+    if (chord.meta) parts.push(isMac ? "⌘" : "Ctrl"); // Meta = Cmd on Mac, Ctrl elsewhere
 
     // Add the key
     parts.push(formatKey(chord.key));
 
     // Join: Mac uses no separator (⌘⌥F), others use + (Ctrl+Alt+F)
-    return parts.join(isMac ? '' : '+');
+    return parts.join(isMac ? "" : "+");
   });
 
   // Join multi-chords with space
-  return formattedChords.join(' ');
+  return formattedChords.join(" ");
 }
 
 /**
@@ -151,12 +153,12 @@ export interface KeybindingConflict {
  * // Returns: Map { "Cmd+K" => ["command1", "command2"] }
  */
 export function detectKeybindingConflicts(
-  keybindingsByCommand: Map<string, ResolvedKeybinding[]>
+  keybindingsByCommand: Map<string, ResolvedKeybinding[]>,
 ): Map<string, string[]> {
   const keyToCommands = new Map<string, string[]>();
 
   keybindingsByCommand.forEach((bindings, commandId) => {
-    bindings.forEach(binding => {
+    bindings.forEach((binding) => {
       const normalizedKey = normalizeKeybinding(binding.chords);
 
       const commands = keyToCommands.get(normalizedKey) || [];

@@ -19,7 +19,7 @@ export interface AgentSessionHandlerResult {
  * @returns Result with session info on success, or error message on failure
  */
 export async function createAgentSessionHandler(
-  cwd: string
+  cwd: string,
 ): Promise<AgentSessionHandlerResult> {
   const api = window.conduit;
 
@@ -44,7 +44,8 @@ export async function createAgentSessionHandler(
     if (errorMessage.includes("Unable to find a Git repository")) {
       return {
         success: false,
-        error: "No Git repository found. Agent sessions require a Git repository to create an isolated worktree.",
+        error:
+          "No Git repository found. Agent sessions require a Git repository to create an isolated worktree.",
       };
     }
 

@@ -23,7 +23,8 @@ import {
  * Custom hook to manage fan menu visibility with timeout-based hiding
  */
 function useFanMenuState() {
-  const [hoveredPosition, setHoveredPosition] = useState<SplitButtonPosition | null>(null);
+  const [hoveredPosition, setHoveredPosition] =
+    useState<SplitButtonPosition | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const clearHideTimeout = useCallback(() => {
@@ -33,22 +34,25 @@ function useFanMenuState() {
     }
   }, []);
 
-  const handleVisibilityChange = useCallback((position: SplitButtonPosition, visible: boolean) => {
-    if (!visible) {
-      // Clear any existing timeout and set a new one
-      clearHideTimeout();
-      hideTimeoutRef.current = setTimeout(() => {
-        setHoveredPosition((current) => {
-          // Only clear if we're still showing this position
-          return current === position ? null : current;
-        });
-      }, 350);
-    } else {
-      // Cancel any pending hide and immediately switch to this position
-      clearHideTimeout();
-      setHoveredPosition(position);
-    }
-  }, [clearHideTimeout]);
+  const handleVisibilityChange = useCallback(
+    (position: SplitButtonPosition, visible: boolean) => {
+      if (!visible) {
+        // Clear any existing timeout and set a new one
+        clearHideTimeout();
+        hideTimeoutRef.current = setTimeout(() => {
+          setHoveredPosition((current) => {
+            // Only clear if we're still showing this position
+            return current === position ? null : current;
+          });
+        }, 350);
+      } else {
+        // Cancel any pending hide and immediately switch to this position
+        clearHideTimeout();
+        setHoveredPosition(position);
+      }
+    },
+    [clearHideTimeout],
+  );
 
   return {
     hoveredPosition,
@@ -83,10 +87,8 @@ export function PaneControlButtons({
   onDragEnd,
   onOpenPaneActions,
 }: PaneControlButtonsProps) {
-  const {
-    hoveredPosition: hoveredSplitButton,
-    handleVisibilityChange,
-  } = useFanMenuState();
+  const { hoveredPosition: hoveredSplitButton, handleVisibilityChange } =
+    useFanMenuState();
 
   const handleSplit = (direction: SplitDirection, insertBefore: boolean) => {
     void splitPane(tabId, paneId, direction, insertBefore);
@@ -120,7 +122,6 @@ export function PaneControlButtons({
   // Show close button if there are multiple panes OR multiple tabs
   const showClose = !isOnlyPane || !isOnlyTab;
 
-
   return (
     <div
       className="absolute inset-0"
@@ -129,7 +130,7 @@ export function PaneControlButtons({
           handleVisibilityChange(hoveredSplitButton, false);
         }
       }}
-      style={{ pointerEvents: 'none' }}
+      style={{ pointerEvents: "none" }}
     >
       {/* Center buttons (Drag grip, Move to new tab, and Close) */}
       {(showMoveToNewTab || showClose) && (
@@ -239,7 +240,9 @@ export function PaneControlButtons({
         insertBefore={false}
         hasMoveButton={canMoveDown}
         isHovered={hoveredSplitButton === "bottom"}
-        onVisibilityChange={(visible) => handleVisibilityChange("bottom", visible)}
+        onVisibilityChange={(visible) =>
+          handleVisibilityChange("bottom", visible)
+        }
         onOpenPaneActions={onOpenPaneActions}
       />
 
@@ -277,7 +280,9 @@ export function PaneControlButtons({
         insertBefore={true}
         hasMoveButton={canMoveLeft}
         isHovered={hoveredSplitButton === "left"}
-        onVisibilityChange={(visible) => handleVisibilityChange("left", visible)}
+        onVisibilityChange={(visible) =>
+          handleVisibilityChange("left", visible)
+        }
         onOpenPaneActions={onOpenPaneActions}
       />
 
@@ -315,7 +320,9 @@ export function PaneControlButtons({
         insertBefore={false}
         hasMoveButton={canMoveRight}
         isHovered={hoveredSplitButton === "right"}
-        onVisibilityChange={(visible) => handleVisibilityChange("right", visible)}
+        onVisibilityChange={(visible) =>
+          handleVisibilityChange("right", visible)
+        }
         onOpenPaneActions={onOpenPaneActions}
       />
     </div>

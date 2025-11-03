@@ -11,7 +11,7 @@ function scheduleAutoDismiss(id: string, timeout: number) {
 
   timers.set(
     id,
-    setTimeout(() => dismissNotification(id), timeout)
+    setTimeout(() => dismissNotification(id), timeout),
   );
 }
 
@@ -26,7 +26,7 @@ function clearAutoDismiss(id: string) {
 export function enqueueNotification(
   options: Omit<Notification, "id" | "createdAt"> & {
     autoCloseMs?: number;
-  }
+  },
 ) {
   const id = generateId();
   const notification: Notification = {
@@ -48,17 +48,17 @@ export function updateNotification(
   id: string,
   updates: Partial<Omit<Notification, "id" | "createdAt">> & {
     autoCloseMs?: number | null;
-  }
+  },
 ) {
   store.set(notificationsAtom, (current) =>
     current.map((notification) =>
       notification.id === id
         ? {
-          ...notification,
-          ...updates,
-        }
-        : notification
-    )
+            ...notification,
+            ...updates,
+          }
+        : notification,
+    ),
   );
 
   if (typeof updates.autoCloseMs === "number") {
@@ -76,7 +76,7 @@ export function dismissNotification(id: string) {
   clearAutoDismiss(id);
 
   store.set(notificationsAtom, (current) =>
-    current.filter((notification) => notification.id !== id)
+    current.filter((notification) => notification.id !== id),
   );
 }
 

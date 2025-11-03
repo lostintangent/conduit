@@ -1,8 +1,8 @@
-import type { ICommandRegistry } from './CommandRegistry';
-import type { CommandDescriptor, CommandContext, Disposable } from './types';
-import type { IContextKeyService } from '../contextKeys/ContextKeyService';
-import type { KeybindingRegistry } from '../keybindings/KeybindingRegistry';
-import type { MenuRegistry } from '../menus/MenuRegistry';
+import type { ICommandRegistry } from "./CommandRegistry";
+import type { CommandDescriptor, CommandContext, Disposable } from "./types";
+import type { IContextKeyService } from "../contextKeys/ContextKeyService";
+import type { KeybindingRegistry } from "../keybindings/KeybindingRegistry";
+import type { MenuRegistry } from "../menus/MenuRegistry";
 
 /**
  * Implementation of the command registry
@@ -13,15 +13,17 @@ export class CommandRegistry implements ICommandRegistry {
   constructor(
     private contextKeyService: IContextKeyService,
     private keybindingRegistry?: KeybindingRegistry,
-    private menuRegistry?: MenuRegistry
+    private menuRegistry?: MenuRegistry,
   ) {}
 
   registerCommand<TContext extends CommandContext = CommandContext>(
-    descriptor: CommandDescriptor<TContext>
+    descriptor: CommandDescriptor<TContext>,
   ): Disposable {
     // Validate command ID is unique
     if (this.commands.has(descriptor.id)) {
-      console.warn(`Command ${descriptor.id} is already registered. Overwriting.`);
+      console.warn(
+        `Command ${descriptor.id} is already registered. Overwriting.`,
+      );
     }
 
     // Store command
@@ -63,11 +65,14 @@ export class CommandRegistry implements ICommandRegistry {
         if (this.menuRegistry) {
           this.menuRegistry.unregister(descriptor.id);
         }
-      }
+      },
     };
   }
 
-  async executeCommand<T = void>(commandId: string, ...args: unknown[]): Promise<T | undefined> {
+  async executeCommand<T = void>(
+    commandId: string,
+    ...args: unknown[]
+  ): Promise<T | undefined> {
     const descriptor = this.commands.get(commandId);
     if (!descriptor) {
       console.error(`Command ${commandId} not found`);
@@ -137,7 +142,7 @@ export class CommandRegistry implements ICommandRegistry {
       view: null as any,
       activeTab: null,
       activePaneId: null,
-      workspaceName: undefined
+      workspaceName: undefined,
     };
   }
 }

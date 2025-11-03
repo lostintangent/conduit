@@ -21,10 +21,18 @@ type DirectoryItemProps = {
   rootPath: string;
 };
 
-export function DirectoryItem({ node, onFileSelect, onDirectoryChange, onFileOpen, rootPath }: DirectoryItemProps) {
+export function DirectoryItem({
+  node,
+  onFileSelect,
+  onDirectoryChange,
+  onFileOpen,
+  rootPath,
+}: DirectoryItemProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [children, setChildren] = useState<FileTreeNode[] | undefined>(node.children);
+  const [children, setChildren] = useState<FileTreeNode[] | undefined>(
+    node.children,
+  );
 
   const toggleOpen = useCallback(async () => {
     if (!isOpen && children === undefined) {
@@ -42,17 +50,23 @@ export function DirectoryItem({ node, onFileSelect, onDirectoryChange, onFileOpe
     setIsOpen((current) => !current);
   }, [isOpen, children, node.path]);
 
-  const handleChangeCwd = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDirectoryChange?.(node.path);
-  }, [node.path, onDirectoryChange]);
+  const handleChangeCwd = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDirectoryChange?.(node.path);
+    },
+    [node.path, onDirectoryChange],
+  );
 
-  const handleRowKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      toggleOpen();
-    }
-  }, [toggleOpen]);
+  const handleRowKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleOpen();
+      }
+    },
+    [toggleOpen],
+  );
 
   const hasChildren = Array.isArray(children) && children.length > 0;
   const ArrowIcon = isOpen ? ChevronDown : ChevronRight;
@@ -72,7 +86,11 @@ export function DirectoryItem({ node, onFileSelect, onDirectoryChange, onFileOpe
           <Loader2 className="animate-spin text-white/60" size={14} />
         ) : (
           <ArrowIcon
-            className={hasChildren || children === undefined ? "text-white/60" : "text-white/25"}
+            className={
+              hasChildren || children === undefined
+                ? "text-white/60"
+                : "text-white/25"
+            }
             size={14}
           />
         )}

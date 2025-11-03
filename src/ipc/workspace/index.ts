@@ -48,7 +48,7 @@ async function saveSessionsFile(sessionsFile: SessionsFile): Promise<void> {
   await fs.writeFile(
     sessionPath,
     JSON.stringify(sessionsFile, null, 2),
-    "utf-8"
+    "utf-8",
   );
 }
 
@@ -63,8 +63,8 @@ type ProcessInfo = {
 
 const SHELL_PROCESS_NAMES = new Set(
   ["bash", "zsh", "fish", "sh", "ksh", "tcsh", "csh"].map((name) =>
-    name.toLowerCase()
-  )
+    name.toLowerCase(),
+  ),
 );
 
 const normalizeBinaryName = (command: string): string => {
@@ -142,7 +142,7 @@ const getProcessesForTty = async (tty: string): Promise<ProcessInfo[]> => {
   } catch (error) {
     console.warn(
       `[Session Save] Failed to list processes for TTY ${tty}:`,
-      error
+      error,
     );
     return [];
   }
@@ -150,7 +150,7 @@ const getProcessesForTty = async (tty: string): Promise<ProcessInfo[]> => {
 
 const pickActiveCommand = (
   processes: ProcessInfo[],
-  shellPid: number
+  shellPid: number,
 ): string | null => {
   if (processes.length === 0) {
     return null;
@@ -209,7 +209,7 @@ const pickActiveCommand = (
 };
 
 const detectActiveCommand = async (
-  session: TerminalInstance
+  session: TerminalInstance,
 ): Promise<string | null> => {
   if (process.platform === "win32") {
     return null;
@@ -235,7 +235,7 @@ const detectActiveCommand = async (
 };
 
 const commandFromProcessTitle = (
-  lastProcessName: string | undefined
+  lastProcessName: string | undefined,
 ): string | null => {
   if (!lastProcessName) {
     return null;
@@ -264,7 +264,7 @@ type SerializeTabsOptions = {
 const serializePane = async (
   pane: TabPane,
   terminalSessions: Map<string, TerminalInstance>,
-  options: SerializeTabsOptions
+  options: SerializeTabsOptions,
 ): Promise<SerializedPane> => {
   if (pane.type === "terminal") {
     const terminalSession = terminalSessions.get(pane.sessionId);
@@ -276,7 +276,7 @@ const serializePane = async (
         capturedCommand = activeCommand;
       } else {
         capturedCommand = commandFromProcessTitle(
-          terminalSession.lastProcessName
+          terminalSession.lastProcessName,
         );
       }
     }
@@ -284,12 +284,12 @@ const serializePane = async (
     if (options.logTerminalActivity) {
       if (capturedCommand) {
         console.log(
-          `[Session Save] Terminal ${pane.sessionId}: captured command="${capturedCommand}"`
+          `[Session Save] Terminal ${pane.sessionId}: captured command="${capturedCommand}"`,
         );
       } else {
         const lastProcess = terminalSession?.lastProcessName ?? "";
         console.log(
-          `[Session Save] Terminal ${pane.sessionId}: no active command detected (last process="${lastProcess}")`
+          `[Session Save] Terminal ${pane.sessionId}: no active command detected (last process="${lastProcess}")`,
         );
       }
     }
@@ -322,14 +322,14 @@ const serializePane = async (
 const serializeTabs = async (
   tabs: Tab[],
   terminalSessions: Map<string, TerminalInstance>,
-  options: SerializeTabsOptions = {}
+  options: SerializeTabsOptions = {},
 ): Promise<Workspace["tabs"]> => {
   return Promise.all(
     tabs.map(async (tab) => {
       const panes = await Promise.all(
         Object.values(tab.panes).map((pane) =>
-          serializePane(pane, terminalSessions, options)
-        )
+          serializePane(pane, terminalSessions, options),
+        ),
       );
 
       return {
@@ -339,7 +339,7 @@ const serializeTabs = async (
         panes,
         layout: tab.layout,
       };
-    })
+    }),
   );
 };
 
@@ -347,7 +347,7 @@ export async function saveSession(
   name: string,
   tabs: Tab[],
   activeTabId: string | undefined,
-  terminalSessions: Map<string, TerminalInstance>
+  terminalSessions: Map<string, TerminalInstance>,
 ): Promise<Workspace[]> {
   try {
     await ensureConduitDirectory();
@@ -367,7 +367,7 @@ export async function saveSession(
 
     // Remove existing workspace with the same name if it exists
     sessionsFile.sessions = sessionsFile.sessions.filter(
-      (s) => s.name !== name
+      (s) => s.name !== name,
     );
 
     // Add new/updated session to the beginning
@@ -408,7 +408,7 @@ export async function deleteSession(timestamp: number): Promise<void> {
   try {
     const sessionsFile = await loadSessionsFile();
     sessionsFile.sessions = sessionsFile.sessions.filter(
-      (s) => s.timestamp !== timestamp
+      (s) => s.timestamp !== timestamp,
     );
     await saveSessionsFile(sessionsFile);
   } catch (error) {
@@ -419,7 +419,7 @@ export async function deleteSession(timestamp: number): Promise<void> {
 export async function saveLastWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
-  terminalSessions: Map<string, TerminalInstance>
+  terminalSessions: Map<string, TerminalInstance>,
 ): Promise<void> {
   try {
     await ensureConduitDirectory();
@@ -464,7 +464,7 @@ export async function hasLastWorkspace(): Promise<boolean> {
 
 export async function renameWorkspace(
   currentName: string,
-  newName: string
+  newName: string,
 ): Promise<Workspace[]> {
   try {
     // Prevent renaming the special last workspace
@@ -481,7 +481,7 @@ export async function renameWorkspace(
 
     // Check if new name already exists
     const existingWithNewName = sessionsFile.sessions.find(
-      (s) => s.name === newName
+      (s) => s.name === newName,
     );
     if (existingWithNewName) {
       throw new Error(`Workspace "${newName}" already exists`);
@@ -498,7 +498,9 @@ export async function renameWorkspace(
   }
 }
 
-export function initializeWorkspaceHandlers(refreshApplicationMenu: () => Promise<void>) {
+export function initializeWorkspaceHandlers(
+  refreshApplicationMenu: () => Promise<void>,
+) {
   ipcMain.handle("session:has-sessions", async () => {
     return await hasSessions();
   });
@@ -511,11 +513,16 @@ export function initializeWorkspaceHandlers(refreshApplicationMenu: () => Promis
     "session:save-session",
     async (_event, name, tabs, activeTabId) => {
       const terminalSessions = getAllTerminals();
-      const result = await saveSession(name, tabs, activeTabId, terminalSessions);
+      const result = await saveSession(
+        name,
+        tabs,
+        activeTabId,
+        terminalSessions,
+      );
       await refreshApplicationMenu();
 
       return result;
-    }
+    },
   );
 
   ipcMain.handle("session:delete-session", async (_event, timestamp) => {
@@ -530,7 +537,7 @@ export function initializeWorkspaceHandlers(refreshApplicationMenu: () => Promis
       await refreshApplicationMenu();
 
       return result;
-    }
+    },
   );
 
   ipcMain.handle("session:has-last-workspace", async () => {
@@ -546,6 +553,6 @@ export function initializeWorkspaceHandlers(refreshApplicationMenu: () => Promis
     async (_event, tabs, activeTabId) => {
       const terminalSessions = getAllTerminals();
       await saveLastWorkspace(tabs, activeTabId, terminalSessions);
-    }
+    },
   );
 }

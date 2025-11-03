@@ -1,7 +1,10 @@
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
+import { usePaneActionsSystem } from "@/commands/paneActions";
+import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
+import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
@@ -22,8 +25,6 @@ import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
-import { usePaneActionsSystem } from "@/paneActions";
-import { registerDefaultPreCommands } from "@/preCommands";
 import {
   dismissNotification,
   enqueueNotification,
@@ -34,10 +35,14 @@ import {
   openTab,
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
-  updateTabProperty
+  updateTabProperty,
 } from "@/store/actions/tab";
-import { activeTabAtom, applicationModeAtom, keybindingsAtom, tabsAtom } from "@/store/atoms";
-import { disposeSession } from "@/components/panes/terminal/xtermCache";
+import {
+  activeTabAtom,
+  applicationModeAtom,
+  keybindingsAtom,
+  tabsAtom,
+} from "@/store/atoms";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -66,8 +71,10 @@ export function App() {
   const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
     useGlobalKeyHandlers();
 
-  const [isCommandPaletteOpenOverride, setIsCommandPaletteOpenOverride] = useState(false);
-  const commandPaletteOpen = isCommandPaletteOpen || isCommandPaletteOpenOverride;
+  const [isCommandPaletteOpenOverride, setIsCommandPaletteOpenOverride] =
+    useState(false);
+  const commandPaletteOpen =
+    isCommandPaletteOpen || isCommandPaletteOpenOverride;
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
@@ -77,7 +84,7 @@ export function App() {
     initialValue: string;
   } | null>(null);
   const [quickPaneState, setQuickPaneState] = useState<PaneDescriptor | null>(
-    null
+    null,
   );
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
@@ -139,7 +146,7 @@ export function App() {
 
   useKeybindingDispatch(
     commandSystem?.commandRegistry,
-    commandSystem?.keybindingRegistry
+    commandSystem?.keybindingRegistry,
   );
 
   useEffect(() => {
@@ -228,7 +235,7 @@ export function App() {
 
       setTitleModalState(null);
     },
-    [titleModalState, updateTabProperty]
+    [titleModalState, updateTabProperty],
   );
 
   const handleWebViewUpdate = useCallback(
@@ -238,7 +245,7 @@ export function App() {
       updates: {
         url?: string;
         title?: string;
-      }
+      },
     ) => {
       setTabs((current) =>
         current.map((tab) => {
@@ -268,10 +275,10 @@ export function App() {
               [paneId]: nextPane,
             },
           };
-        })
+        }),
       );
     },
-    [setTabs]
+    [setTabs],
   );
 
   const handleEditorUpdate = useCallback(
@@ -281,7 +288,7 @@ export function App() {
       updates: {
         cwd?: string;
         filePath?: string;
-      }
+      },
     ) => {
       setTabs((current) =>
         current.map((tab) => {
@@ -306,10 +313,10 @@ export function App() {
               [paneId]: nextPane,
             },
           };
-        })
+        }),
       );
     },
-    [setTabs]
+    [setTabs],
   );
 
   const handleContextMenu = useContextMenu({
@@ -331,7 +338,7 @@ export function App() {
   const runShellCommand = useCallback(
     async (
       rawCommand: string,
-      options: { cwd?: string; trackHistory?: boolean } = {}
+      options: { cwd?: string; trackHistory?: boolean } = {},
     ) => {
       const command = rawCommand.trim();
       if (command.length === 0) {
@@ -350,7 +357,7 @@ export function App() {
           : undefined;
 
       const result = await api.createTerminal(
-        requestedCwd ? { cwd: requestedCwd } : undefined
+        requestedCwd ? { cwd: requestedCwd } : undefined,
       );
       if (!result) {
         return;
@@ -372,46 +379,51 @@ export function App() {
         await recordCommandHistoryEntry(command);
       }
     },
-    [recordCommandHistoryEntry, quickPaneState]
+    [recordCommandHistoryEntry, quickPaneState],
   );
 
-  const handleVMRepoSubmit = useCallback(async (repo?: { owner: string; name: string }) => {
-    const notificationId = enqueueNotification({
-      kind: "info",
-      message: "Creating VM...",
-      persistent: true,
-    });
-
-    try {
-      const result = await api.createTerminal({
-        isRemoteVM: true,
-        githubRepo: repo,
+  const handleVMRepoSubmit = useCallback(
+    async (repo?: { owner: string; name: string }) => {
+      const notificationId = enqueueNotification({
+        kind: "info",
+        message: "Creating VM...",
+        persistent: true,
       });
 
-      if (!result) {
-        throw new Error("Failed to create VM terminal");
+      try {
+        const result = await api.createTerminal({
+          isRemoteVM: true,
+          githubRepo: repo,
+        });
+
+        if (!result) {
+          throw new Error("Failed to create VM terminal");
+        }
+
+        dismissNotification(notificationId);
+
+        // Open a new tab with the VM terminal session
+        const { openTabFromExistingSession } = await import(
+          "@/store/actions/tab"
+        );
+        openTabFromExistingSession({
+          sessionId: result.sessionId,
+          cwd: result.cwd,
+          title: result.title,
+          vmMetadata: result.vmMetadata ?? undefined,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        updateNotification(notificationId, {
+          kind: "error",
+          message: "Failed to create VM terminal",
+          details: message,
+          autoCloseMs: null,
+        });
       }
-
-      dismissNotification(notificationId);
-
-      // Open a new tab with the VM terminal session
-      const { openTabFromExistingSession } = await import("@/store/actions/tab");
-      openTabFromExistingSession({
-        sessionId: result.sessionId,
-        cwd: result.cwd,
-        title: result.title,
-        vmMetadata: result.vmMetadata ?? undefined,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      updateNotification(notificationId, {
-        kind: "error",
-        message: "Failed to create VM terminal",
-        details: message,
-        autoCloseMs: null,
-      });
-    }
-  }, []);
+    },
+    [],
+  );
 
   const closeAgentSessionPanes = useCallback(
     (sessionId: string) => {
@@ -423,7 +435,7 @@ export function App() {
         });
       });
     },
-    [tabs]
+    [tabs],
   );
 
   const handleAgentSessionCleanup = useCallback(
@@ -435,7 +447,7 @@ export function App() {
       }
 
       const lookup = new Map(
-        cleanupDialogSessions.map((session) => [session.id, session])
+        cleanupDialogSessions.map((session) => [session.id, session]),
       );
       const targets = sessionIds
         .map((id) => lookup.get(id))
@@ -467,7 +479,7 @@ export function App() {
           const message =
             error instanceof Error ? error.message : String(error);
           failures.push(
-            `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`
+            `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`,
           );
         }
       }
@@ -483,8 +495,9 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
-            }`,
+          message: `Failed to remove ${failures.length} session${
+            failures.length > 1 ? "s" : ""
+          }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -497,14 +510,14 @@ export function App() {
       closeAgentSessionPanes,
       enqueueNotification,
       updateNotification,
-    ]
+    ],
   );
 
   const handleShellCommand = useCallback(
     async (rawCommand: string) => {
       await runShellCommand(rawCommand, { trackHistory: true });
     },
-    [runShellCommand]
+    [runShellCommand],
   );
 
   const handleOpenWebPage = useCallback(
@@ -516,7 +529,7 @@ export function App() {
       openWebViewPane(activeTab.id, activeTab.activePaneId, url);
       setIsUrlDialogOpen(false);
     },
-    [activeTab]
+    [activeTab],
   );
 
   const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
@@ -527,7 +540,7 @@ export function App() {
   const commandItems = useCommands(
     commandSystem?.commandRegistry,
     commandSystem?.keybindingRegistry,
-    commandSystem?.contextKeyService
+    commandSystem?.contextKeyService,
   );
 
   const handleCloseQuickPane = useCallback(() => {
@@ -553,13 +566,12 @@ export function App() {
       setQuickPaneState(null);
       await openTabFromPaneDescriptor(descriptor);
     },
-    []
+    [],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
 
-  const titleBarBg =
-    tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
+  const titleBarBg = tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
 
   return (
     <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
@@ -572,7 +584,6 @@ export function App() {
       />
 
       <TabContentPortalProvider>
-
         {/* Top positioned tabs */}
         {tabPosition === "top" && !shouldUseDrawer && (
           <TabStrip
@@ -628,7 +639,6 @@ export function App() {
             </DrawerContent>
           </Drawer>
         )}
-
       </TabContentPortalProvider>
 
       {/* Global UI */}
@@ -723,8 +733,12 @@ export function App() {
       ) : showKeybindingsEditor ? (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
-            <h2 className="text-white text-xl mb-4">Command system not initialized</h2>
-            <p className="text-gray-400 mb-4">The command system is still initializing. Please try again.</p>
+            <h2 className="text-white text-xl mb-4">
+              Command system not initialized
+            </h2>
+            <p className="text-gray-400 mb-4">
+              The command system is still initializing. Please try again.
+            </p>
             <button
               onClick={() => setShowKeybindingsEditor(false)}
               className="bg-blue-500 text-white px-4 py-2 rounded"
@@ -744,8 +758,12 @@ export function App() {
       ) : showPaneActionsEditor ? (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
-            <h2 className="text-white text-xl mb-4">Pane actions system not initialized</h2>
-            <p className="text-gray-400 mb-4">The pane actions system is still initializing. Please try again.</p>
+            <h2 className="text-white text-xl mb-4">
+              Pane actions system not initialized
+            </h2>
+            <p className="text-gray-400 mb-4">
+              The pane actions system is still initializing. Please try again.
+            </p>
             <button
               onClick={() => setShowPaneActionsEditor(false)}
               className="bg-blue-500 text-white px-4 py-2 rounded"

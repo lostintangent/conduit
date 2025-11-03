@@ -10,10 +10,24 @@ type FileTreeItemProps = {
   rootPath: string;
 };
 
-export function FileTreeItem({ node, onFileSelect, onDirectoryChange, onFileOpen, rootPath }: FileTreeItemProps) {
+export function FileTreeItem({
+  node,
+  onFileSelect,
+  onDirectoryChange,
+  onFileOpen,
+  rootPath,
+}: FileTreeItemProps) {
   const isDirectory = node.type === "directory";
   if (isDirectory) {
-    return <DirectoryItem node={node} onFileSelect={onFileSelect} onDirectoryChange={onDirectoryChange} onFileOpen={onFileOpen} rootPath={rootPath} />;
+    return (
+      <DirectoryItem
+        node={node}
+        onFileSelect={onFileSelect}
+        onDirectoryChange={onDirectoryChange}
+        onFileOpen={onFileOpen}
+        rootPath={rootPath}
+      />
+    );
   }
   return <FileItem node={node} onSelect={onFileSelect} onOpen={onFileOpen} />;
 }

@@ -1,4 +1,4 @@
-import type { WhenClause } from './WhenClause';
+import type { WhenClause } from "./WhenClause";
 
 /**
  * Builder for creating when clause expressions
@@ -9,12 +9,12 @@ export const When = {
    */
   and(...exprs: WhenClause[]): WhenClause {
     return {
-      evaluate: (ctx) => exprs.every(expr => expr.evaluate(ctx)),
+      evaluate: (ctx) => exprs.every((expr) => expr.evaluate(ctx)),
       toString: () => {
-        if (exprs.length === 0) return 'true';
+        if (exprs.length === 0) return "true";
         if (exprs.length === 1) return exprs[0].toString();
-        return `(${exprs.map(e => e.toString()).join(' && ')})`;
-      }
+        return `(${exprs.map((e) => e.toString()).join(" && ")})`;
+      },
     };
   },
 
@@ -23,12 +23,12 @@ export const When = {
    */
   or(...exprs: WhenClause[]): WhenClause {
     return {
-      evaluate: (ctx) => exprs.some(expr => expr.evaluate(ctx)),
+      evaluate: (ctx) => exprs.some((expr) => expr.evaluate(ctx)),
       toString: () => {
-        if (exprs.length === 0) return 'false';
+        if (exprs.length === 0) return "false";
         if (exprs.length === 1) return exprs[0].toString();
-        return `(${exprs.map(e => e.toString()).join(' || ')})`;
-      }
+        return `(${exprs.map((e) => e.toString()).join(" || ")})`;
+      },
     };
   },
 
@@ -38,7 +38,7 @@ export const When = {
   not(expr: WhenClause): WhenClause {
     return {
       evaluate: (ctx) => !expr.evaluate(ctx),
-      toString: () => `!${expr.toString()}`
+      toString: () => `!${expr.toString()}`,
     };
   },
 
@@ -48,7 +48,7 @@ export const When = {
   always(): WhenClause {
     return {
       evaluate: () => true,
-      toString: () => 'true'
+      toString: () => "true",
     };
   },
 
@@ -58,7 +58,7 @@ export const When = {
   never(): WhenClause {
     return {
       evaluate: () => false,
-      toString: () => 'false'
+      toString: () => "false",
     };
-  }
+  },
 };

@@ -1,6 +1,4 @@
-Here is docker file definition of how we build the conduit image with nodejs and popular package managers and global packages @ µVM 
-
-
+Here is docker file definition of how we build the conduit image with nodejs and popular package managers and global packages @ µVM
 
 ```Dockerfile
 

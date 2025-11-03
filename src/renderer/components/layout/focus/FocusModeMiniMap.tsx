@@ -20,10 +20,11 @@ function MiniMapNode({ node, activePaneId, onSelectPane }: MiniMapNodeProps) {
       <button
         type="button"
         onClick={handleClick}
-        className={`flex-1 transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60 ${isActive
-          ? "bg-sky-500 cursor-default"
-          : "bg-white/25 hover:bg-white/40 cursor-pointer"
-          } h-full`}
+        className={`flex-1 transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/60 ${
+          isActive
+            ? "bg-sky-500 cursor-default"
+            : "bg-white/25 hover:bg-white/40 cursor-pointer"
+        } h-full`}
         aria-pressed={isActive}
         aria-label={isActive ? "Current pane" : "Switch to pane"}
         title={isActive ? "Current pane" : "Switch to pane"}

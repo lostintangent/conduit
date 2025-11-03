@@ -19,7 +19,7 @@ const DropZoneOverlay = ({
   <div
     className={cn(
       "pointer-events-none absolute z-30 bg-blueprint/40",
-      className
+      className,
     )}
     style={style}
   />
@@ -36,14 +36,14 @@ interface UsePaneDragDropReturn {
   dragHoverPaneId: string | null;
   createDragHandlers: (
     paneId: string,
-    tabId: string
+    tabId: string,
   ) => {
     onDragStart: (e: React.DragEvent) => void;
     onDragEnd: () => void;
   };
   createDropHandlers: (
     paneId: string,
-    tabId: string
+    tabId: string,
   ) => {
     onDragOver: (e: React.DragEvent) => void;
     onDragLeave: (e: React.DragEvent) => void;
@@ -91,7 +91,7 @@ export function usePaneDragDrop({
 
       return null;
     },
-    []
+    [],
   );
 
   // Helper to split an existing pane with a dragged pane
@@ -101,7 +101,7 @@ export function usePaneDragDrop({
       targetPaneId: string,
       draggedPane: Pane,
       direction: SplitDirection,
-      insertBefore: boolean
+      insertBefore: boolean,
     ) => {
       const newLayoutNode: LayoutNode = {
         id: generateId(),
@@ -117,7 +117,7 @@ export function usePaneDragDrop({
 
           // Function to insert new pane into layout
           const insertPaneIntoLayout = (
-            node: LayoutNode
+            node: LayoutNode,
           ): { node: LayoutNode; modified: boolean } => {
             if (node.type === "pane") {
               if (node.paneId === targetPaneId) {
@@ -171,7 +171,7 @@ export function usePaneDragDrop({
               newChildren.splice(
                 insertBefore ? childIndex : childIndex + 1,
                 0,
-                newLayoutNode
+                newLayoutNode,
               );
               return {
                 node: {
@@ -201,7 +201,7 @@ export function usePaneDragDrop({
           };
 
           const { node: newLayout, modified } = insertPaneIntoLayout(
-            tab.layout
+            tab.layout,
           );
 
           if (!modified) {
@@ -217,10 +217,10 @@ export function usePaneDragDrop({
             layout: newLayout,
             activePaneId: draggedPane.id,
           };
-        })
+        }),
       );
     },
-    [setTabs]
+    [setTabs],
   );
 
   // Create drag handlers for a specific pane
@@ -230,7 +230,10 @@ export function usePaneDragDrop({
         if (!isInDesignMode) return;
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", paneId);
-        e.dataTransfer.setData("application/x-conduit-pane-drag", JSON.stringify({ paneId, tabId }));
+        e.dataTransfer.setData(
+          "application/x-conduit-pane-drag",
+          JSON.stringify({ paneId, tabId }),
+        );
         setDraggedPaneId(paneId);
         setSourceTabId(tabId);
       },
@@ -240,7 +243,7 @@ export function usePaneDragDrop({
         setDropZone(null);
       },
     }),
-    [isInDesignMode]
+    [isInDesignMode],
   );
 
   // Create drop handlers for a specific pane
@@ -274,7 +277,7 @@ export function usePaneDragDrop({
           setIsFocusModeDrag(false);
 
           setDragHoverPaneId((current) =>
-            current === paneId ? null : current
+            current === paneId ? null : current,
           );
         },
         onDrop: (e: React.DragEvent) => {
@@ -338,7 +341,7 @@ export function usePaneDragDrop({
             paneId,
             detachResult.pane,
             direction,
-            insertBefore
+            insertBefore,
           );
 
           // Clear drag state
@@ -360,7 +363,7 @@ export function usePaneDragDrop({
       getDropZone,
       splitPaneWithExisting,
       onDropComplete,
-    ]
+    ],
   );
 
   // Render the drop zone overlay for a specific pane
@@ -397,7 +400,7 @@ export function usePaneDragDrop({
 
       return null;
     },
-    [draggedPaneId, dragHoverPaneId, isInDesignMode, dropZone, isFocusModeDrag]
+    [draggedPaneId, dragHoverPaneId, isInDesignMode, dropZone, isFocusModeDrag],
   );
 
   return {

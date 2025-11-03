@@ -19,7 +19,7 @@ export async function openWorkspace(workspace: Workspace) {
       if (sessionPane.type === "terminal") {
         // Create a new terminal session with the saved cwd
         const result = await api.createTerminal(
-          sessionPane.cwd ? { cwd: sessionPane.cwd } : undefined
+          sessionPane.cwd ? { cwd: sessionPane.cwd } : undefined,
         );
 
         if (result) {

@@ -12,5 +12,5 @@ root.render(
     <div className="flex flex-col w-full h-full bg-surface rounded-xl">
       <App />
     </div>
-  </div>
+  </div>,
 );

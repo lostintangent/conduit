@@ -4,10 +4,10 @@
  * Hooks for consuming pane actions in components.
  */
 
-import { useAtomValue } from 'jotai';
-import { useMemo } from 'react';
-import { paneActionsAtom } from '@/store/atoms';
-import type { Action } from '../core/types';
+import { useAtomValue } from "jotai";
+import { useMemo } from "react";
+import { paneActionsAtom } from "@/store/atoms";
+import type { Action } from "../core/types";
 
 /**
  * Get all pane actions

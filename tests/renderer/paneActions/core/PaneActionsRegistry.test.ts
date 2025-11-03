@@ -2,26 +2,26 @@
  * Unit tests for PaneActionsRegistry
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { PaneActionsRegistry } from '@/paneActions/core/PaneActionsRegistry';
-import type { Action } from '@/paneActions/core/types';
+import { PaneActionsRegistry } from "@/commands/paneActions/core/PaneActionsRegistry";
+import type { Action } from "@/commands/paneActions/core/types";
+import { describe, expect, it, vi } from "vitest";
 
-describe('PaneActionsRegistry', () => {
-  describe('initialization', () => {
-    it('should initialize with default actions', () => {
+describe("PaneActionsRegistry", () => {
+  describe("initialization", () => {
+    it("should initialize with default actions", () => {
       const registry = new PaneActionsRegistry();
       const actions = registry.getActions();
 
       expect(actions).toHaveLength(4);
-      expect(actions[0].name).toBe('Editor');
-      expect(actions[1].name).toBe('Agent');
-      expect(actions[2].name).toBe('Browser');
-      expect(actions[3].name).toBe('Source Control');
+      expect(actions[0].name).toBe("Editor");
+      expect(actions[1].name).toBe("Agent");
+      expect(actions[2].name).toBe("Browser");
+      expect(actions[3].name).toBe("Source Control");
     });
   });
 
-  describe('getActions', () => {
-    it('should return a copy of actions (immutability)', () => {
+  describe("getActions", () => {
+    it("should return a copy of actions (immutability)", () => {
       const registry = new PaneActionsRegistry();
       const actions1 = registry.getActions();
       const actions2 = registry.getActions();
@@ -33,17 +33,17 @@ describe('PaneActionsRegistry', () => {
       expect(actions1).toEqual(actions2);
     });
 
-    it('should not allow external mutation of internal state', () => {
+    it("should not allow external mutation of internal state", () => {
       const registry = new PaneActionsRegistry();
       const actions = registry.getActions();
 
       // Mutate the returned array
       actions.push({
-        name: 'Test',
-        icon: 'test',
+        name: "Test",
+        icon: "test",
         enabled: true,
-        paneType: 'terminal',
-        config: { command: 'test' },
+        paneType: "terminal",
+        config: { command: "test" },
       });
 
       // Internal state should be unchanged
@@ -52,17 +52,17 @@ describe('PaneActionsRegistry', () => {
     });
   });
 
-  describe('setActions', () => {
-    it('should replace current actions', () => {
+  describe("setActions", () => {
+    it("should replace current actions", () => {
       const registry = new PaneActionsRegistry();
 
       const newActions: Action[] = [
         {
-          name: 'Custom Action',
-          icon: 'test',
+          name: "Custom Action",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'echo hello' },
+          paneType: "terminal",
+          config: { command: "echo hello" },
         },
       ];
 
@@ -70,10 +70,10 @@ describe('PaneActionsRegistry', () => {
 
       const actions = registry.getActions();
       expect(actions).toHaveLength(1);
-      expect(actions[0].name).toBe('Custom Action');
+      expect(actions[0].name).toBe("Custom Action");
     });
 
-    it('should notify listeners when actions change', () => {
+    it("should notify listeners when actions change", () => {
       const registry = new PaneActionsRegistry();
       const listener = vi.fn();
 
@@ -81,11 +81,11 @@ describe('PaneActionsRegistry', () => {
 
       const newActions: Action[] = [
         {
-          name: 'Custom Action',
-          icon: 'test',
+          name: "Custom Action",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'echo hello' },
+          paneType: "terminal",
+          config: { command: "echo hello" },
         },
       ];
 
@@ -95,8 +95,8 @@ describe('PaneActionsRegistry', () => {
     });
   });
 
-  describe('onChange', () => {
-    it('should register a listener and call it on changes', () => {
+  describe("onChange", () => {
+    it("should register a listener and call it on changes", () => {
       const registry = new PaneActionsRegistry();
       const listener = vi.fn();
 
@@ -118,7 +118,7 @@ describe('PaneActionsRegistry', () => {
       expect(listener).toHaveBeenCalledTimes(2);
     });
 
-    it('should support multiple listeners', () => {
+    it("should support multiple listeners", () => {
       const registry = new PaneActionsRegistry();
       const listener1 = vi.fn();
       const listener2 = vi.fn();
@@ -132,7 +132,7 @@ describe('PaneActionsRegistry', () => {
       expect(listener2).toHaveBeenCalledTimes(1);
     });
 
-    it('should return an unsubscribe function', () => {
+    it("should return an unsubscribe function", () => {
       const registry = new PaneActionsRegistry();
       const listener = vi.fn();
 
@@ -150,7 +150,7 @@ describe('PaneActionsRegistry', () => {
       expect(listener).toHaveBeenCalledTimes(1); // Still 1, not 2
     });
 
-    it('should handle unsubscribing non-existent listeners gracefully', () => {
+    it("should handle unsubscribing non-existent listeners gracefully", () => {
       const registry = new PaneActionsRegistry();
       const listener = vi.fn();
 
@@ -161,7 +161,7 @@ describe('PaneActionsRegistry', () => {
       expect(() => unsubscribe()).not.toThrow();
     });
 
-    it('should handle multiple unsubscribes in correct order', () => {
+    it("should handle multiple unsubscribes in correct order", () => {
       const registry = new PaneActionsRegistry();
       const listener1 = vi.fn();
       const listener2 = vi.fn();
@@ -188,17 +188,17 @@ describe('PaneActionsRegistry', () => {
     });
   });
 
-  describe('loadFromFile', () => {
-    it('should load actions from existing file', async () => {
+  describe("loadFromFile", () => {
+    it("should load actions from existing file", async () => {
       const { registry, testFilePath, writeTestFile } = await setupFileTest();
 
       const actions: Action[] = [
         {
-          name: 'Custom',
-          icon: 'test',
+          name: "Custom",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'custom' },
+          paneType: "terminal",
+          config: { command: "custom" },
         },
       ];
 
@@ -208,10 +208,10 @@ describe('PaneActionsRegistry', () => {
 
       expect(loaded).toBe(true);
       expect(registry.getActions()).toHaveLength(1);
-      expect(registry.getActions()[0].name).toBe('Custom');
+      expect(registry.getActions()[0].name).toBe("Custom");
     });
 
-    it('should return false for non-existent file', async () => {
+    it("should return false for non-existent file", async () => {
       const { registry, testFilePath } = await setupFileTest();
 
       const loaded = await registry.loadFromFile(testFilePath);
@@ -221,15 +221,16 @@ describe('PaneActionsRegistry', () => {
       expect(registry.getActions()).toHaveLength(4);
     });
 
-    it('should throw for invalid file', async () => {
-      const { registry, testFilePath, writeInvalidFile } = await setupFileTest();
+    it("should throw for invalid file", async () => {
+      const { registry, testFilePath, writeInvalidFile } =
+        await setupFileTest();
 
-      await writeInvalidFile('not valid json');
+      await writeInvalidFile("not valid json");
 
       await expect(registry.loadFromFile(testFilePath)).rejects.toThrow();
     });
 
-    it('should notify listeners when file is loaded', async () => {
+    it("should notify listeners when file is loaded", async () => {
       const { registry, testFilePath, writeTestFile } = await setupFileTest();
       const listener = vi.fn();
 
@@ -237,11 +238,11 @@ describe('PaneActionsRegistry', () => {
 
       const actions: Action[] = [
         {
-          name: 'Custom',
-          icon: 'test',
+          name: "Custom",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'custom' },
+          paneType: "terminal",
+          config: { command: "custom" },
         },
       ];
 
@@ -251,7 +252,7 @@ describe('PaneActionsRegistry', () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('should not notify listeners when file does not exist', async () => {
+    it("should not notify listeners when file does not exist", async () => {
       const { registry, testFilePath } = await setupFileTest();
       const listener = vi.fn();
 
@@ -262,18 +263,18 @@ describe('PaneActionsRegistry', () => {
     });
   });
 
-  describe('resetToDefaults', () => {
-    it('should reset to default actions', () => {
+  describe("resetToDefaults", () => {
+    it("should reset to default actions", () => {
       const registry = new PaneActionsRegistry();
 
       // Change actions
       registry.setActions([
         {
-          name: 'Custom',
-          icon: 'test',
+          name: "Custom",
+          icon: "test",
           enabled: true,
-          paneType: 'terminal',
-          config: { command: 'custom' },
+          paneType: "terminal",
+          config: { command: "custom" },
         },
       ]);
 
@@ -283,10 +284,10 @@ describe('PaneActionsRegistry', () => {
       registry.resetToDefaults();
 
       expect(registry.getActions()).toHaveLength(4);
-      expect(registry.getActions()[0].name).toBe('Editor');
+      expect(registry.getActions()[0].name).toBe("Editor");
     });
 
-    it('should notify listeners', () => {
+    it("should notify listeners", () => {
       const registry = new PaneActionsRegistry();
       const listener = vi.fn();
 
@@ -300,12 +301,12 @@ describe('PaneActionsRegistry', () => {
 
 // Helper for file-based tests
 async function setupFileTest() {
-  const { mkdir, rm, writeFile, readFile } = await import('fs/promises');
-  const { join, dirname } = await import('path');
-  const { tmpdir } = await import('os');
+  const { mkdir, rm, writeFile, readFile } = await import("fs/promises");
+  const { join, dirname } = await import("path");
+  const { tmpdir } = await import("os");
 
   const testDir = join(tmpdir(), `pane-actions-registry-test-${Date.now()}`);
-  const testFilePath = join(testDir, 'paneactions.json');
+  const testFilePath = join(testDir, "paneactions.json");
 
   await mkdir(testDir, { recursive: true });
 
@@ -313,13 +314,13 @@ async function setupFileTest() {
   (global as any).window = {
     conduit: {
       readFile: async (path: string) => {
-        return await readFile(path, 'utf-8');
+        return await readFile(path, "utf-8");
       },
       writeFile: async (path: string, content: string) => {
         // Ensure parent directory exists
         const parentDir = dirname(path);
         await mkdir(parentDir, { recursive: true });
-        await writeFile(path, content, 'utf-8');
+        await writeFile(path, content, "utf-8");
       },
     },
   };
@@ -333,15 +334,15 @@ async function setupFileTest() {
   };
 
   const writeTestFile = async (actions: Action[]) => {
-    await writeFile(testFilePath, JSON.stringify(actions), 'utf-8');
+    await writeFile(testFilePath, JSON.stringify(actions), "utf-8");
   };
 
   const writeInvalidFile = async (content: string) => {
-    await writeFile(testFilePath, content, 'utf-8');
+    await writeFile(testFilePath, content, "utf-8");
   };
 
   // Auto-cleanup after test
-  const { afterEach } = await import('vitest');
+  const { afterEach } = await import("vitest");
   afterEach(cleanup);
 
   return {

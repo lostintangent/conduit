@@ -1,10 +1,10 @@
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 
@@ -25,7 +25,7 @@ type RepositoryDialogProps = {
  */
 function parseRepoInput(input: string): { owner: string; name: string } | null {
   const trimmed = input.trim();
-  
+
   if (!trimmed) {
     return null;
   }
@@ -35,9 +35,9 @@ function parseRepoInput(input: string): { owner: string; name: string } | null {
 
   // Try to match GitHub URL patterns
   const urlMatch = normalized.match(
-    /(?:https?:\/\/)?(?:www\.)?github\.com\/([^/]+)\/([^/\s]+)/
+    /(?:https?:\/\/)?(?:www\.)?github\.com\/([^/]+)\/([^/\s]+)/,
   );
-  
+
   if (urlMatch) {
     return {
       owner: urlMatch[1],
@@ -47,7 +47,7 @@ function parseRepoInput(input: string): { owner: string; name: string } | null {
 
   // Try simple owner/repo format
   const simpleMatch = normalized.match(/^([^/\s]+)\/([^/\s]+)$/);
-  
+
   if (simpleMatch) {
     return {
       owner: simpleMatch[1],
@@ -77,9 +77,9 @@ export function RepositoryDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const trimmed = value.trim();
-    
+
     // If empty, submit without repo
     if (!trimmed) {
       onSubmit(undefined);
@@ -89,7 +89,7 @@ export function RepositoryDialog({
 
     // Try to parse the input
     const parsed = parseRepoInput(trimmed);
-    
+
     if (!parsed) {
       setError("Invalid repository format. Use 'owner/repo' or a GitHub URL.");
       return;
@@ -127,14 +127,12 @@ export function RepositoryDialog({
               }}
               placeholder="e.g., owner/repo or https://github.com/owner/repo"
             />
-            {error && (
-              <p className="text-sm text-red-500">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-500">{error}</p>}
             <p className="text-xs text-muted-foreground">
               Examples: octocat/Hello-World, github.com/owner/repo
             </p>
           </div>
-          
+
           <DialogFooter className="mt-4 gap-2">
             <button
               type="button"

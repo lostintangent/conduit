@@ -50,7 +50,7 @@ export function getPrivateKeyPath(): string {
 export async function setupSSHKeyInVM(
   vmId: string,
   managerUrl: string,
-  token: string
+  token: string,
 ): Promise<boolean> {
   const publicKey = await getPublicKey();
   if (!publicKey) {
@@ -59,23 +59,28 @@ export async function setupSSHKeyInVM(
   }
 
   console.log("[SSH] Setting up SSH key in VM...");
-  console.log("[SSH] Public key to install:", publicKey.substring(0, 50) + "...");
+  console.log(
+    "[SSH] Public key to install:",
+    publicKey.substring(0, 50) + "...",
+  );
 
   try {
     // Ensure managerUrl ends with / for proper URL construction
     const baseUrl = managerUrl.endsWith("/") ? managerUrl : `${managerUrl}/`;
-    
+
     // Build the setup command - append SSH key and set GITHUB_TOKEN from TOKEN
     const execUrl = `${baseUrl}api/vms/${vmId}/exec`;
     console.log("[SSH] Sending exec request to:", execUrl);
-    
+
     const config = await loadConfig();
     let setupCommand = `cat >> ~/.ssh/authorized_keys <<< '${publicKey}'`;
-    
+
     // Use the same TOKEN as GITHUB_TOKEN in the VM
-    console.log("[SSH] Will also set up GITHUB_TOKEN in VM bashrc using TOKEN...");
+    console.log(
+      "[SSH] Will also set up GITHUB_TOKEN in VM bashrc using TOKEN...",
+    );
     setupCommand += ` && echo 'export GITHUB_TOKEN="${config.token}"' >> ~/.bashrc`;
-    
+
     const response = await fetch(execUrl, {
       method: "POST",
       headers: {
@@ -97,12 +102,12 @@ export async function setupSSHKeyInVM(
 
     const result = await response.json();
     console.log("[SSH] Exec result:", result);
-    
+
     if (result.exit_code !== 0) {
       console.error("[SSH] Command failed with exit code:", result.exit_code);
       console.error("[SSH] stderr:", result.stderr);
       throw new Error(
-        `SSH key setup command failed: ${result.stderr || result.error}`
+        `SSH key setup command failed: ${result.stderr || result.error}`,
       );
     }
 

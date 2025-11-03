@@ -14,7 +14,7 @@ export function useUserSettings() {
 
   function updateSetting<K extends keyof typeof userSettings>(
     key: K,
-    value: (typeof userSettings)[K]
+    value: (typeof userSettings)[K],
   ) {
     setUserSettings((current) => ({
       ...current,
@@ -28,13 +28,13 @@ export function useUserSettings() {
 
     const eventListeners = [
       api.onTabPositionChange((position) =>
-        updateSetting("tabPosition", position)
+        updateSetting("tabPosition", position),
       ),
       api.onAlwaysShowTabsChange((value) =>
-        updateSetting("alwaysShowTabs", value === true)
+        updateSetting("alwaysShowTabs", value === true),
       ),
       api.onShowTerminalRulerChange((value) =>
-        updateSetting("showTerminalRuler", value === true)
+        updateSetting("showTerminalRuler", value === true),
       ),
     ];
 
@@ -43,7 +43,7 @@ export function useUserSettings() {
 
   async function updateCommandHistory(
     command: string,
-    action: "add" | "remove"
+    action: "add" | "remove",
   ) {
     const commandHistory =
       action === "add"

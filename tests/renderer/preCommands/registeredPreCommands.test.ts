@@ -2,24 +2,24 @@
  * Unit tests for registered pre-commands
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  verifyGitRepo,
   createAgentSession,
   registerDefaultPreCommands,
-} from '@/preCommands/registeredPreCommands';
-import { PreCommandRegistry } from '@/preCommands/registry';
-import type { AgentSessionInfo } from '@shared/types';
-import type { TerminalConfig } from '@/preCommands/types';
+  verifyGitRepo,
+} from "@/commands/preCommands/registeredPreCommands";
+import { PreCommandRegistry } from "@/commands/preCommands/registry";
+import type { TerminalConfig } from "@/commands/preCommands/types";
+import type { AgentSessionInfo } from "@shared/types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-describe('registeredPreCommands', () => {
+describe("registeredPreCommands", () => {
   const mockSession: AgentSessionInfo = {
-    id: 'test-session-123',
-    repoRoot: '/path/to/repo',
-    worktreePath: '/path/to/repo/.worktrees/agent-123',
-    branchName: 'agent-test-123',
-    baseRef: 'abc123',
-    baseBranch: 'main',
+    id: "test-session-123",
+    repoRoot: "/path/to/repo",
+    worktreePath: "/path/to/repo/.worktrees/agent-123",
+    branchName: "agent-test-123",
+    baseRef: "abc123",
+    baseBranch: "main",
     createdAt: Date.now(),
   };
 
@@ -30,7 +30,7 @@ describe('registeredPreCommands', () => {
         hasGitRepository: vi.fn(),
         spawnAgentSession: vi.fn(),
         getSettings: vi.fn().mockResolvedValue({
-          homeDirectory: '/home/user',
+          homeDirectory: "/home/user",
         }),
       },
     };
@@ -42,20 +42,20 @@ describe('registeredPreCommands', () => {
     vi.clearAllMocks();
   });
 
-  describe('verifyGitRepo', () => {
-    it('should have correct metadata', () => {
-      expect(verifyGitRepo.id).toBe('verify-git-repo');
-      expect(verifyGitRepo.label).toBe('Verify Git Repository');
+  describe("verifyGitRepo", () => {
+    it("should have correct metadata", () => {
+      expect(verifyGitRepo.id).toBe("verify-git-repo");
+      expect(verifyGitRepo.label).toBe("Verify Git Repository");
       expect(verifyGitRepo.description).toBeDefined();
     });
 
-    it('should succeed when cwd is in a git repository', async () => {
+    it("should succeed when cwd is in a git repository", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockResolvedValue(true);
 
       const config: TerminalConfig = {
-        command: 'git status',
-        cwd: '/path/to/repo',
+        command: "git status",
+        cwd: "/path/to/repo",
       };
 
       const result = await verifyGitRepo.run(config);
@@ -63,76 +63,78 @@ describe('registeredPreCommands', () => {
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
       expect(result.paneOptions).toBeUndefined();
-      expect(mockApi.hasGitRepository).toHaveBeenCalledWith('/path/to/repo');
+      expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/path/to/repo");
     });
 
-    it('should fail when cwd is not in a git repository', async () => {
+    it("should fail when cwd is not in a git repository", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockResolvedValue(false);
 
       const config: TerminalConfig = {
-        command: 'git status',
-        cwd: '/tmp',
+        command: "git status",
+        cwd: "/tmp",
       };
 
       const result = await verifyGitRepo.run(config);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Not a git repository');
-      expect(result.error).toContain('/tmp');
+      expect(result.error).toContain("Not a git repository");
+      expect(result.error).toContain("/tmp");
     });
 
-    it('should use home directory when cwd is not specified', async () => {
+    it("should use home directory when cwd is not specified", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockResolvedValue(true);
 
       const config: TerminalConfig = {
-        command: 'git status',
+        command: "git status",
       };
 
       const result = await verifyGitRepo.run(config);
 
       expect(result.success).toBe(true);
       expect(mockApi.getSettings).toHaveBeenCalled();
-      expect(mockApi.hasGitRepository).toHaveBeenCalledWith('/home/user');
+      expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/home/user");
     });
 
-    it('should fail when no cwd and no home directory', async () => {
+    it("should fail when no cwd and no home directory", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.getSettings.mockResolvedValue({ homeDirectory: null });
 
       const config: TerminalConfig = {
-        command: 'git status',
+        command: "git status",
       };
 
       const result = await verifyGitRepo.run(config);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('No working directory specified');
+      expect(result.error).toBe("No working directory specified");
     });
 
-    it('should handle API errors', async () => {
+    it("should handle API errors", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockRejectedValue(new Error('Permission denied'));
+      mockApi.hasGitRepository.mockRejectedValue(
+        new Error("Permission denied"),
+      );
 
       const config: TerminalConfig = {
-        command: 'git status',
-        cwd: '/path/to/repo',
+        command: "git status",
+        cwd: "/path/to/repo",
       };
 
       const result = await verifyGitRepo.run(config);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Failed to check git repository');
+      expect(result.error).toContain("Failed to check git repository");
     });
 
-    it('should not return paneOptions on success', async () => {
+    it("should not return paneOptions on success", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockResolvedValue(true);
 
       const config: TerminalConfig = {
-        command: 'git status',
-        cwd: '/path/to/repo',
+        command: "git status",
+        cwd: "/path/to/repo",
       };
 
       const result = await verifyGitRepo.run(config);
@@ -142,20 +144,20 @@ describe('registeredPreCommands', () => {
     });
   });
 
-  describe('createAgentSession', () => {
-    it('should have correct metadata', () => {
-      expect(createAgentSession.id).toBe('create-agent-session');
-      expect(createAgentSession.label).toBe('Create Agent Session');
+  describe("createAgentSession", () => {
+    it("should have correct metadata", () => {
+      expect(createAgentSession.id).toBe("create-agent-session");
+      expect(createAgentSession.label).toBe("Create Agent Session");
       expect(createAgentSession.description).toBeDefined();
     });
 
-    it('should succeed and return paneOptions with agent session', async () => {
+    it("should succeed and return paneOptions with agent session", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.spawnAgentSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
-        command: 'claude-code',
-        cwd: '/path/to/repo',
+        command: "claude-code",
+        cwd: "/path/to/repo",
       };
 
       const result = await createAgentSession.run(config);
@@ -165,19 +167,19 @@ describe('registeredPreCommands', () => {
       expect(result.paneOptions).toBeDefined();
       expect(result.paneOptions?.agentSession).toEqual(mockSession);
       expect(result.paneOptions?.terminalOptions?.cwd).toBe(
-        mockSession.worktreePath
+        mockSession.worktreePath,
       );
       expect(mockApi.spawnAgentSession).toHaveBeenCalledWith({
-        cwd: '/path/to/repo',
+        cwd: "/path/to/repo",
       });
     });
 
-    it('should use home directory when cwd is not specified', async () => {
+    it("should use home directory when cwd is not specified", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.spawnAgentSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
-        command: 'claude-code',
+        command: "claude-code",
       };
 
       const result = await createAgentSession.run(config);
@@ -185,63 +187,63 @@ describe('registeredPreCommands', () => {
       expect(result.success).toBe(true);
       expect(mockApi.getSettings).toHaveBeenCalled();
       expect(mockApi.spawnAgentSession).toHaveBeenCalledWith({
-        cwd: '/home/user',
+        cwd: "/home/user",
       });
     });
 
-    it('should fail when no cwd and no home directory', async () => {
+    it("should fail when no cwd and no home directory", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.getSettings.mockResolvedValue({ homeDirectory: null });
 
       const config: TerminalConfig = {
-        command: 'claude-code',
+        command: "claude-code",
       };
 
       const result = await createAgentSession.run(config);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('No working directory specified');
+      expect(result.error).toBe("No working directory specified");
     });
 
-    it('should fail when not in a git repository', async () => {
+    it("should fail when not in a git repository", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.spawnAgentSession.mockRejectedValue(
-        new Error('Unable to find a Git repository')
+        new Error("Unable to find a Git repository"),
       );
 
       const config: TerminalConfig = {
-        command: 'claude-code',
-        cwd: '/tmp',
+        command: "claude-code",
+        cwd: "/tmp",
       };
 
       const result = await createAgentSession.run(config);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No Git repository found');
+      expect(result.error).toContain("No Git repository found");
     });
 
-    it('should handle generic errors', async () => {
+    it("should handle generic errors", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockRejectedValue(new Error('Network error'));
+      mockApi.spawnAgentSession.mockRejectedValue(new Error("Network error"));
 
       const config: TerminalConfig = {
-        command: 'claude-code',
-        cwd: '/path/to/repo',
+        command: "claude-code",
+        cwd: "/path/to/repo",
       };
 
       const result = await createAgentSession.run(config);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Network error');
+      expect(result.error).toBe("Network error");
     });
 
-    it('should return agentSession in paneOptions', async () => {
+    it("should return agentSession in paneOptions", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.spawnAgentSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
-        command: 'claude-code',
-        cwd: '/path/to/repo',
+        command: "claude-code",
+        cwd: "/path/to/repo",
       };
 
       const result = await createAgentSession.run(config);
@@ -249,32 +251,36 @@ describe('registeredPreCommands', () => {
       expect(result.success).toBe(true);
       expect(result.paneOptions).toBeDefined();
       expect(result.paneOptions?.agentSession).toBe(mockSession);
-      expect(result.paneOptions?.agentSession?.id).toBe('test-session-123');
-      expect(result.paneOptions?.agentSession?.branchName).toBe('agent-test-123');
+      expect(result.paneOptions?.agentSession?.id).toBe("test-session-123");
+      expect(result.paneOptions?.agentSession?.branchName).toBe(
+        "agent-test-123",
+      );
     });
 
-    it('should override cwd with worktree path', async () => {
+    it("should override cwd with worktree path", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.spawnAgentSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
-        command: 'claude-code',
-        cwd: '/path/to/repo',
+        command: "claude-code",
+        cwd: "/path/to/repo",
       };
 
       const result = await createAgentSession.run(config);
 
       expect(result.success).toBe(true);
       expect(result.paneOptions?.terminalOptions?.cwd).toBe(
-        '/path/to/repo/.worktrees/agent-123'
+        "/path/to/repo/.worktrees/agent-123",
       );
       // Original cwd was /path/to/repo, but should be overridden
-      expect(result.paneOptions?.terminalOptions?.cwd).not.toBe('/path/to/repo');
+      expect(result.paneOptions?.terminalOptions?.cwd).not.toBe(
+        "/path/to/repo",
+      );
     });
   });
 
-  describe('registerDefaultPreCommands', () => {
-    it('should register both pre-commands', () => {
+  describe("registerDefaultPreCommands", () => {
+    it("should register both pre-commands", () => {
       const registry = PreCommandRegistry.getInstance();
       registry.clear(); // Start fresh
 
@@ -284,27 +290,27 @@ describe('registeredPreCommands', () => {
       expect(commands).toHaveLength(2);
 
       const ids = commands.map((cmd) => cmd.id);
-      expect(ids).toContain('verify-git-repo');
-      expect(ids).toContain('create-agent-session');
+      expect(ids).toContain("verify-git-repo");
+      expect(ids).toContain("create-agent-session");
     });
 
-    it('should make pre-commands retrievable by ID', () => {
+    it("should make pre-commands retrievable by ID", () => {
       const registry = PreCommandRegistry.getInstance();
       registry.clear();
 
       registerDefaultPreCommands();
 
-      const verifyCmd = registry.get('verify-git-repo');
-      const agentCmd = registry.get('create-agent-session');
+      const verifyCmd = registry.get("verify-git-repo");
+      const agentCmd = registry.get("create-agent-session");
 
       expect(verifyCmd).toBeDefined();
-      expect(verifyCmd?.id).toBe('verify-git-repo');
+      expect(verifyCmd?.id).toBe("verify-git-repo");
 
       expect(agentCmd).toBeDefined();
-      expect(agentCmd?.id).toBe('create-agent-session');
+      expect(agentCmd?.id).toBe("create-agent-session");
     });
 
-    it('should not duplicate pre-commands when called multiple times', () => {
+    it("should not duplicate pre-commands when called multiple times", () => {
       const registry = PreCommandRegistry.getInstance();
       registry.clear();
 
@@ -316,27 +322,27 @@ describe('registeredPreCommands', () => {
       expect(commands).toHaveLength(2);
     });
 
-    it('should register pre-commands with correct labels', () => {
+    it("should register pre-commands with correct labels", () => {
       const registry = PreCommandRegistry.getInstance();
       registry.clear();
 
       registerDefaultPreCommands();
 
-      const verifyCmd = registry.get('verify-git-repo');
-      const agentCmd = registry.get('create-agent-session');
+      const verifyCmd = registry.get("verify-git-repo");
+      const agentCmd = registry.get("create-agent-session");
 
-      expect(verifyCmd?.label).toBe('Verify Git Repository');
-      expect(agentCmd?.label).toBe('Create Agent Session');
+      expect(verifyCmd?.label).toBe("Verify Git Repository");
+      expect(agentCmd?.label).toBe("Create Agent Session");
     });
 
-    it('should register pre-commands with descriptions', () => {
+    it("should register pre-commands with descriptions", () => {
       const registry = PreCommandRegistry.getInstance();
       registry.clear();
 
       registerDefaultPreCommands();
 
-      const verifyCmd = registry.get('verify-git-repo');
-      const agentCmd = registry.get('create-agent-session');
+      const verifyCmd = registry.get("verify-git-repo");
+      const agentCmd = registry.get("create-agent-session");
 
       expect(verifyCmd?.description).toBeDefined();
       expect(verifyCmd?.description).toBeTruthy();
@@ -345,7 +351,7 @@ describe('registeredPreCommands', () => {
       expect(agentCmd?.description).toBeTruthy();
     });
 
-    it('should register pre-commands that can be executed', async () => {
+    it("should register pre-commands that can be executed", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockResolvedValue(true);
 
@@ -355,18 +361,18 @@ describe('registeredPreCommands', () => {
       registerDefaultPreCommands();
 
       const config: TerminalConfig = {
-        command: 'test',
-        cwd: '/path/to/repo',
+        command: "test",
+        cwd: "/path/to/repo",
       };
 
-      const result = await registry.execute('verify-git-repo', config);
+      const result = await registry.execute("verify-git-repo", config);
 
       expect(result.success).toBe(true);
     });
   });
 
-  describe('integration', () => {
-    it('should work end-to-end with registry execute', async () => {
+  describe("integration", () => {
+    it("should work end-to-end with registry execute", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.spawnAgentSession.mockResolvedValue(mockSession);
 
@@ -376,20 +382,20 @@ describe('registeredPreCommands', () => {
       registerDefaultPreCommands();
 
       const config: TerminalConfig = {
-        command: 'claude-code',
-        cwd: '/path/to/repo',
+        command: "claude-code",
+        cwd: "/path/to/repo",
       };
 
-      const result = await registry.execute('create-agent-session', config);
+      const result = await registry.execute("create-agent-session", config);
 
       expect(result.success).toBe(true);
       expect(result.paneOptions?.agentSession).toBeDefined();
       expect(result.paneOptions?.terminalOptions?.cwd).toBe(
-        mockSession.worktreePath
+        mockSession.worktreePath,
       );
     });
 
-    it('should handle execution failures through registry', async () => {
+    it("should handle execution failures through registry", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockResolvedValue(false);
 
@@ -399,14 +405,14 @@ describe('registeredPreCommands', () => {
       registerDefaultPreCommands();
 
       const config: TerminalConfig = {
-        command: 'git status',
-        cwd: '/tmp',
+        command: "git status",
+        cwd: "/tmp",
       };
 
-      const result = await registry.execute('verify-git-repo', config);
+      const result = await registry.execute("verify-git-repo", config);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Not a git repository');
+      expect(result.error).toContain("Not a git repository");
     });
   });
 });

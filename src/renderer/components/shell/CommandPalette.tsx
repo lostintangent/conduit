@@ -70,7 +70,7 @@ export function CommandPalette({
     }
 
     return commandItems.filter((command) =>
-      command.label.toLowerCase().includes(query)
+      command.label.toLowerCase().includes(query),
     );
   }, [commandItems, inputValue, isShellMode]);
 
@@ -177,7 +177,7 @@ export function CommandPalette({
         }
       })();
     },
-    [onClose]
+    [onClose],
   );
 
   const runShell = useCallback(
@@ -195,7 +195,7 @@ export function CommandPalette({
         }
       })();
     },
-    [onClose, onRunShellCommand, shellCommand]
+    [onClose, onRunShellCommand, shellCommand],
   );
 
   const handleInputKeyDown = useCallback(
@@ -250,7 +250,7 @@ export function CommandPalette({
         }
 
         setSelectedIndex((current) =>
-          current >= activeLength - 1 ? 0 : current + 1
+          current >= activeLength - 1 ? 0 : current + 1,
         );
         return;
       }
@@ -266,7 +266,7 @@ export function CommandPalette({
         }
 
         setSelectedIndex((current) =>
-          current <= 0 ? activeLength - 1 : current - 1
+          current <= 0 ? activeLength - 1 : current - 1,
         );
       }
     },
@@ -279,12 +279,15 @@ export function CommandPalette({
       runCommand,
       runShell,
       selectedIndex,
-    ]
+    ],
   );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[480px] max-w-[90vw] p-4 gap-0 bg-surface-elevated border-white/10" showClose={false}>
+      <DialogContent
+        className="w-[480px] max-w-[90vw] p-4 gap-0 bg-surface-elevated border-white/10"
+        showClose={false}
+      >
         <input
           autoFocus
           value={inputValue}
@@ -311,10 +314,11 @@ export function CommandPalette({
                       role="option"
                       aria-selected={isActive}
                       onMouseEnter={() => setSelectedIndex(index)}
-                      className={`flex w-full items-center rounded-md border transition ${isActive
-                        ? "border-yellow-500/60 bg-yellow-500/40 text-foreground-inverse"
-                        : "border-transparent text-white/80 hover:border-yellow-500/40 hover:bg-yellow-500/15"
-                        }`}
+                      className={`flex w-full items-center rounded-md border transition ${
+                        isActive
+                          ? "border-yellow-500/60 bg-yellow-500/40 text-foreground-inverse"
+                          : "border-transparent text-white/80 hover:border-yellow-500/40 hover:bg-yellow-500/15"
+                      }`}
                     >
                       <button
                         type="button"
@@ -377,10 +381,11 @@ export function CommandPalette({
                       runCommand(command);
                     }}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition cursor-pointer ${isActive
-                      ? "border-white/30 bg-white/10 text-white"
-                      : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
-                      }`}
+                    className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition cursor-pointer ${
+                      isActive
+                        ? "border-white/30 bg-white/10 text-white"
+                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
+                    }`}
                     aria-selected={isActive}
                   >
                     <div className="flex-1 flex flex-col gap-1 min-w-0">

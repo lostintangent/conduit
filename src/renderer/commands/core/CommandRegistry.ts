@@ -1,4 +1,4 @@
-import type { CommandDescriptor, CommandContext, Disposable } from './types';
+import type { CommandDescriptor, CommandContext, Disposable } from "./types";
 
 /**
  * Registry for all commands in the system
@@ -9,13 +9,16 @@ export interface ICommandRegistry {
    * @returns Disposable to unregister the command
    */
   registerCommand<TContext extends CommandContext = CommandContext>(
-    descriptor: CommandDescriptor<TContext>
+    descriptor: CommandDescriptor<TContext>,
   ): Disposable;
 
   /**
    * Execute a command by ID
    */
-  executeCommand<T = void>(commandId: string, ...args: unknown[]): Promise<T | undefined>;
+  executeCommand<T = void>(
+    commandId: string,
+    ...args: unknown[]
+  ): Promise<T | undefined>;
 
   /**
    * Get a command descriptor by ID

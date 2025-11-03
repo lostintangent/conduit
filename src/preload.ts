@@ -28,7 +28,7 @@ import type {
 
 function createEventListener<T>(
   channel: string,
-  listener: (payload: T) => void
+  listener: (payload: T) => void,
 ) {
   const handler = (_: Electron.IpcRendererEvent, payload: T) =>
     listener(payload);
@@ -45,7 +45,7 @@ const conduitAPI = {
   createTerminal: (options?: TerminalCreateOptions) =>
     ipcRenderer.invoke(
       "terminal:create",
-      options
+      options,
     ) as Promise<TerminalCreateResponse | null>,
 
   closeTerminal: (sessionId: string) =>
@@ -97,7 +97,7 @@ const conduitAPI = {
       action: string;
       tabId: string;
       paneId?: string;
-    }) => void
+    }) => void,
   ) => createEventListener("ui:context-menu-action", listener),
 
   // Notify when the app is about to close
@@ -161,7 +161,7 @@ const conduitAPI = {
       "session:save-session",
       name,
       tabs,
-      activeTabId
+      activeTabId,
     ) as Promise<unknown[]>,
 
   deleteSession: (timestamp: number) =>
@@ -182,7 +182,7 @@ const conduitAPI = {
     ipcRenderer.invoke(
       "session:save-last-workspace",
       tabs,
-      activeTabId
+      activeTabId,
     ) as Promise<void>,
 
   /* Agent session management */
@@ -190,7 +190,7 @@ const conduitAPI = {
   spawnAgentSession: (payload: AgentSessionSpawnRequest) =>
     ipcRenderer.invoke(
       "agent:spawn-session",
-      payload
+      payload,
     ) as Promise<AgentSessionInfo>,
 
   listAgentSessions: () =>
@@ -202,13 +202,13 @@ const conduitAPI = {
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",
-      payload
+      payload,
     ) as Promise<AgentSessionFinalizeResult>,
 
   cleanupAgentSession: (payload: AgentSessionCleanupRequest) =>
     ipcRenderer.invoke(
       "agent:cleanup-session",
-      payload
+      payload,
     ) as Promise<AgentSessionCleanupResult>,
 
   /* File system methods (UI->main) */
@@ -229,14 +229,14 @@ const conduitAPI = {
     const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;
 
     // Set up listener for file changes
-    const removeListener = createEventListener<{ watcherId: string; filePath: string }>(
-      "fs:file-changed",
-      (payload) => {
-        if (payload.watcherId === watcherId && payload.filePath === filePath) {
-          onChange();
-        }
+    const removeListener = createEventListener<{
+      watcherId: string;
+      filePath: string;
+    }>("fs:file-changed", (payload) => {
+      if (payload.watcherId === watcherId && payload.filePath === filePath) {
+        onChange();
       }
-    );
+    });
 
     // Register the watcher in main process
     ipcRenderer.invoke("fs:watch-file", filePath, watcherId);
@@ -263,11 +263,15 @@ const conduitAPI = {
   deleteVM: (payload: DeleteVMPayload) =>
     ipcRenderer.invoke("vm:delete", payload) as Promise<void>,
 
-  forkVM: (vmId: string, payload?: Omit<ForkVMPayload, 'vmId'>) =>
+  forkVM: (vmId: string, payload?: Omit<ForkVMPayload, "vmId">) =>
     ipcRenderer.invoke("vm:fork", { vmId, ...payload }) as Promise<VMInfo>,
 
   forwardPort: (vmId: string, port: number, description?: string) =>
-    ipcRenderer.invoke("vm:forward-port", { vmId, port, description }) as Promise<ForwardPortResponse>,
+    ipcRenderer.invoke("vm:forward-port", {
+      vmId,
+      port,
+      description,
+    }) as Promise<ForwardPortResponse>,
 
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,

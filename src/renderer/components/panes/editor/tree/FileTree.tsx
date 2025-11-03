@@ -9,7 +9,13 @@ type FileTreeProps = {
   rootPath: string;
 };
 
-export function FileTree({ items, onFileSelect, onDirectoryChange, onFileOpen, rootPath }: FileTreeProps) {
+export function FileTree({
+  items,
+  onFileSelect,
+  onDirectoryChange,
+  onFileOpen,
+  rootPath,
+}: FileTreeProps) {
   return (
     <nav className="text-sm text-white/80">
       <ul className="space-y-1">

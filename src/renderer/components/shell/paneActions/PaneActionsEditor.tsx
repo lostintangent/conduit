@@ -6,19 +6,25 @@
  */
 
 import {
-  usePaneActions,
-  savePaneActions,
-  resetPaneActionsToDefaults,
-  hasUserPaneActionsFile,
-  PaneActionIcon,
   getAvailableIconIds,
-  isTerminalConfig,
-  isEditorConfig,
+  hasUserPaneActionsFile,
   isBrowserConfig,
-} from '@/paneActions';
-import type { Action, TerminalConfig, EditorConfig, BrowserConfig, PaneType } from '@/paneActions/core/types';
-import { MAX_ACTIONS } from '@/paneActions/core/types';
-import { usePreCommands } from '@/preCommands';
+  isEditorConfig,
+  isTerminalConfig,
+  PaneActionIcon,
+  resetPaneActionsToDefaults,
+  savePaneActions,
+  usePaneActions,
+} from "@/commands/paneActions";
+import type {
+  Action,
+  BrowserConfig,
+  EditorConfig,
+  PaneType,
+  TerminalConfig,
+} from "@/commands/paneActions/core/types";
+import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
+import { usePreCommands } from "@/commands/preCommands";
 import {
   Check,
   ChevronDown,
@@ -29,13 +35,17 @@ import {
   Plus,
   Trash2,
   X,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface PaneActionsEditorProps {
   onClose: () => void;
   homeDirectory: string;
-  onOpenQuickPane?: (descriptor: { type: 'editor'; cwd: string; filePath?: string }) => void;
+  onOpenQuickPane?: (descriptor: {
+    type: "editor";
+    cwd: string;
+    filePath?: string;
+  }) => void;
 }
 
 // Available icon IDs for dropdown
@@ -44,12 +54,16 @@ const AVAILABLE_ICONS = getAvailableIconIds();
 export function PaneActionsEditor({
   onClose,
   homeDirectory,
-  onOpenQuickPane
+  onOpenQuickPane,
 }: PaneActionsEditorProps) {
   const actions = usePaneActions();
   const preCommands = usePreCommands();
-  const [expandedActions, setExpandedActions] = useState<Set<string>>(new Set());
-  const [editingActionIndex, setEditingActionIndex] = useState<number | null>(null);
+  const [expandedActions, setExpandedActions] = useState<Set<string>>(
+    new Set(),
+  );
+  const [editingActionIndex, setEditingActionIndex] = useState<number | null>(
+    null,
+  );
   const [editedAction, setEditedAction] = useState<Action | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [reorderedActions, setReorderedActions] = useState<Action[]>(actions);
@@ -83,7 +97,7 @@ export function PaneActionsEditor({
   const handleClose = () => {
     if (hasUnsavedChanges()) {
       const shouldDiscard = confirm(
-        'You have unsaved changes. Are you sure you want to discard them?'
+        "You have unsaved changes. Are you sure you want to discard them?",
       );
       if (!shouldDiscard) {
         return;
@@ -105,12 +119,12 @@ export function PaneActionsEditor({
   // Handle Escape key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         handleClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleClose]);
 
   const handleToggleExpand = (actionName: string) => {
@@ -122,7 +136,7 @@ export function PaneActionsEditor({
       const editingAction = reorderedActions[editingActionIndex];
       if (editingAction.name === actionName && hasUnsavedChanges()) {
         const shouldDiscard = confirm(
-          'You have unsaved changes. Are you sure you want to discard them?'
+          "You have unsaved changes. Are you sure you want to discard them?",
         );
         if (!shouldDiscard) {
           return;
@@ -145,7 +159,7 @@ export function PaneActionsEditor({
     // Check if there are unsaved changes
     if (hasUnsavedChanges()) {
       const shouldDiscard = confirm(
-        'You have unsaved changes. Are you sure you want to discard them?'
+        "You have unsaved changes. Are you sure you want to discard them?",
       );
       if (!shouldDiscard) {
         return;
@@ -212,8 +226,8 @@ export function PaneActionsEditor({
       setEditedAction(null);
       setIconDropdownOpen(false);
     } catch (error) {
-      console.error('Failed to save pane actions:', error);
-      alert('Failed to save changes: ' + (error as Error).message);
+      console.error("Failed to save pane actions:", error);
+      alert("Failed to save changes: " + (error as Error).message);
     }
   };
 
@@ -222,7 +236,7 @@ export function PaneActionsEditor({
 
     // Confirm deletion
     const shouldDelete = confirm(
-      `Are you sure you want to delete the "${action.name}" action?`
+      `Are you sure you want to delete the "${action.name}" action?`,
     );
     if (!shouldDelete) {
       return;
@@ -230,7 +244,7 @@ export function PaneActionsEditor({
 
     // Check if this would leave us with 0 actions
     if (reorderedActions.length === 1) {
-      alert('Cannot delete the last action. At least one action is required.');
+      alert("Cannot delete the last action. At least one action is required.");
       return;
     }
 
@@ -258,18 +272,18 @@ export function PaneActionsEditor({
       newExpanded.delete(action.name);
       setExpandedActions(newExpanded);
     } catch (error) {
-      console.error('Failed to delete pane action:', error);
-      alert('Failed to delete action: ' + (error as Error).message);
+      console.error("Failed to delete pane action:", error);
+      alert("Failed to delete action: " + (error as Error).message);
     }
   };
 
   const handleAddAction = async () => {
     // Create a new default action
     const newAction: Action = {
-      name: 'New Action',
-      icon: 'package',
+      name: "New Action",
+      icon: "package",
       enabled: true,
-      paneType: 'terminal',
+      paneType: "terminal",
       config: {
         command: 'echo "Hello World"',
       },
@@ -295,8 +309,8 @@ export function PaneActionsEditor({
       newExpanded.add(newAction.name);
       setExpandedActions(newExpanded);
     } catch (error) {
-      console.error('Failed to add pane action:', error);
-      alert('Failed to add action: ' + (error as Error).message);
+      console.error("Failed to add pane action:", error);
+      alert("Failed to add action: " + (error as Error).message);
     }
   };
 
@@ -305,7 +319,7 @@ export function PaneActionsEditor({
 
     const configPath = `${homeDirectory}/.conduit/paneactions.json`;
     onOpenQuickPane({
-      type: 'editor',
+      type: "editor",
       cwd: homeDirectory,
       filePath: configPath,
     });
@@ -313,7 +327,11 @@ export function PaneActionsEditor({
   };
 
   const handleResetToDefaults = async () => {
-    if (!confirm('Reset to default pane actions? This will delete your custom configuration.')) {
+    if (
+      !confirm(
+        "Reset to default pane actions? This will delete your custom configuration.",
+      )
+    ) {
       return;
     }
 
@@ -324,8 +342,8 @@ export function PaneActionsEditor({
       // Update hasUserConfig state
       setHasUserConfig(false);
     } catch (error) {
-      console.error('Failed to reset to defaults:', error);
-      alert('Failed to reset to defaults: ' + (error as Error).message);
+      console.error("Failed to reset to defaults:", error);
+      alert("Failed to reset to defaults: " + (error as Error).message);
     }
   };
 
@@ -358,71 +376,86 @@ export function PaneActionsEditor({
       // Update hasUserConfig state
       setHasUserConfig(true);
     } catch (error) {
-      console.error('Failed to save reordered actions:', error);
-      alert('Failed to save reordered actions: ' + (error as Error).message);
+      console.error("Failed to save reordered actions:", error);
+      alert("Failed to save reordered actions: " + (error as Error).message);
     }
   };
 
   const getPaneTypeColor = (paneType: string) => {
     switch (paneType) {
-      case 'terminal':
-        return 'text-green-400 bg-green-500/20';
-      case 'editor':
-        return 'text-blue-400 bg-blue-500/20';
-      case 'browser':
-        return 'text-purple-400 bg-purple-500/20';
+      case "terminal":
+        return "text-green-400 bg-green-500/20";
+      case "editor":
+        return "text-blue-400 bg-blue-500/20";
+      case "browser":
+        return "text-purple-400 bg-purple-500/20";
       default:
-        return 'text-gray-400 bg-gray-500/20';
+        return "text-gray-400 bg-gray-500/20";
     }
   };
 
   const renderConfig = (config: any, paneType: string) => {
-    if (paneType === 'terminal') {
+    if (paneType === "terminal") {
       return (
         <div className="space-y-1">
           <div className="flex items-start gap-2">
             <span className="text-xs text-gray-500 w-20">Command:</span>
-            <code className="text-xs text-gray-300 font-mono flex-1">{config.command || '(empty)'}</code>
+            <code className="text-xs text-gray-300 font-mono flex-1">
+              {config.command || "(empty)"}
+            </code>
           </div>
           {config.cwd && (
             <div className="flex items-start gap-2">
               <span className="text-xs text-gray-500 w-20">CWD:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">{config.cwd}</code>
+              <code className="text-xs text-gray-300 font-mono flex-1">
+                {config.cwd}
+              </code>
             </div>
           )}
-          {config.preCommandId && (() => {
-            const preCommand = preCommands.find(pc => pc.id === config.preCommandId);
-            return (
-              <div className="flex items-start gap-2">
-                <span className="text-xs text-gray-500 w-20">Pre-Command:</span>
-                <span className="text-xs text-gray-300 flex-1">
-                  {preCommand ? preCommand.label : config.preCommandId}
-                </span>
-              </div>
-            );
-          })()}
+          {config.preCommandId &&
+            (() => {
+              const preCommand = preCommands.find(
+                (pc) => pc.id === config.preCommandId,
+              );
+              return (
+                <div className="flex items-start gap-2">
+                  <span className="text-xs text-gray-500 w-20">
+                    Pre-Command:
+                  </span>
+                  <span className="text-xs text-gray-300 flex-1">
+                    {preCommand ? preCommand.label : config.preCommandId}
+                  </span>
+                </div>
+              );
+            })()}
         </div>
       );
-    } else if (paneType === 'editor') {
+    } else if (paneType === "editor") {
       return (
         <div className="space-y-1">
           {config.cwd && (
             <div className="flex items-start gap-2">
               <span className="text-xs text-gray-500 w-20">CWD:</span>
-              <code className="text-xs text-gray-300 font-mono flex-1">{config.cwd}</code>
+              <code className="text-xs text-gray-300 font-mono flex-1">
+                {config.cwd}
+              </code>
             </div>
           )}
           {Object.keys(config).length === 0 && (
-            <span className="text-xs text-gray-500 italic">No configuration</span>
+            <span className="text-xs text-gray-500 italic">
+              No configuration
+            </span>
           )}
         </div>
       );
-    } else if (paneType === 'browser') {
+    } else if (paneType === "browser") {
       return (
         <div className="space-y-1">
           <div className="flex items-start gap-2">
             <span className="text-xs text-gray-500 w-20">URL:</span>
-            <code className="text-xs text-gray-300 font-mono flex-1">{config.url}</code>
+            <code className="text-xs text-gray-300 font-mono flex-1">
+              {config.url}
+            </code>
           </div>
         </div>
       );
@@ -486,7 +519,7 @@ export function PaneActionsEditor({
                       onDragStart={() => handleDragStart(index)}
                       onDragOver={(e) => handleDragOver(e, index)}
                       onDragEnd={handleDragEnd}
-                      className={`hover:bg-gray-800/50 transition-colors ${!action.enabled ? 'opacity-40' : ''} ${draggedIndex === index ? 'opacity-50' : ''} ${isExpanded ? 'border-b-0' : ''}`}
+                      className={`hover:bg-gray-800/50 transition-colors ${!action.enabled ? "opacity-40" : ""} ${draggedIndex === index ? "opacity-50" : ""} ${isExpanded ? "border-b-0" : ""}`}
                     >
                       {/* Drag handle */}
                       <td className="px-2 py-2">
@@ -516,11 +549,16 @@ export function PaneActionsEditor({
                       {/* Action column */}
                       <td className="px-6 py-2">
                         <div className="flex items-center gap-3">
-                          <PaneActionIcon iconId={action.icon} className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                          <PaneActionIcon
+                            iconId={action.icon}
+                            className="w-5 h-5 text-gray-300 flex-shrink-0"
+                          />
                           <span className="text-sm text-white font-medium whitespace-nowrap">
                             {action.name}
                           </span>
-                          <span className={`px-1.5 py-0.5 text-xs rounded whitespace-nowrap ${getPaneTypeColor(action.paneType)}`}>
+                          <span
+                            className={`px-1.5 py-0.5 text-xs rounded whitespace-nowrap ${getPaneTypeColor(action.paneType)}`}
+                          >
                             {action.paneType}
                           </span>
                         </div>
@@ -529,27 +567,30 @@ export function PaneActionsEditor({
                       {/* Command column */}
                       <td className="px-6 py-2">
                         <div className="text-sm text-gray-400 font-mono truncate max-w-md">
-                          {isTerminalConfig(action.config) && (
-                            action.config.command ? (
+                          {isTerminalConfig(action.config) &&
+                            (action.config.command ? (
                               <span>{action.config.command}</span>
                             ) : (
-                              <span className="text-gray-500 italic">No config</span>
-                            )
-                          )}
-                          {isBrowserConfig(action.config) && (
-                            action.config.url ? (
+                              <span className="text-gray-500 italic">
+                                No config
+                              </span>
+                            ))}
+                          {isBrowserConfig(action.config) &&
+                            (action.config.url ? (
                               <span>{action.config.url}</span>
                             ) : (
-                              <span className="text-gray-500 italic">No config</span>
-                            )
-                          )}
-                          {isEditorConfig(action.config) && (
-                            action.config.cwd ? (
+                              <span className="text-gray-500 italic">
+                                No config
+                              </span>
+                            ))}
+                          {isEditorConfig(action.config) &&
+                            (action.config.cwd ? (
                               <span>{action.config.cwd}</span>
                             ) : (
-                              <span className="text-gray-500 italic">No config</span>
-                            )
-                          )}
+                              <span className="text-gray-500 italic">
+                                No config
+                              </span>
+                            ))}
                         </div>
                       </td>
 
@@ -597,8 +638,13 @@ export function PaneActionsEditor({
 
                     {/* Expanded details row */}
                     {isExpanded && (
-                      <tr className={`border-t-0 ${!action.enabled && editingActionIndex !== index ? 'opacity-40' : ''}`}>
-                        <td colSpan={5} className={`px-6 py-4 ${action.enabled ? 'bg-gray-800/30' : ''}`}>
+                      <tr
+                        className={`border-t-0 ${!action.enabled && editingActionIndex !== index ? "opacity-40" : ""}`}
+                      >
+                        <td
+                          colSpan={5}
+                          className={`px-6 py-4 ${action.enabled ? "bg-gray-800/30" : ""}`}
+                        >
                           {editingActionIndex === index && editedAction ? (
                             <div className="pl-9 space-y-4 border-l-2 border-blue-500/50">
                               {/* Action Properties */}
@@ -608,26 +654,44 @@ export function PaneActionsEditor({
                                 </h4>
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="text-xs text-gray-400 block mb-1">Name</label>
+                                    <label className="text-xs text-gray-400 block mb-1">
+                                      Name
+                                    </label>
                                     <input
                                       type="text"
                                       value={editedAction.name}
-                                      onChange={(e) => setEditedAction({ ...editedAction, name: e.target.value })}
+                                      onChange={(e) =>
+                                        setEditedAction({
+                                          ...editedAction,
+                                          name: e.target.value,
+                                        })
+                                      }
                                       className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
                                     />
                                   </div>
                                   <div>
-                                    <label className="text-xs text-gray-400 block mb-1">Icon</label>
+                                    <label className="text-xs text-gray-400 block mb-1">
+                                      Icon
+                                    </label>
                                     <div className="relative">
                                       {/* Icon dropdown trigger */}
                                       <button
                                         type="button"
-                                        onClick={() => setIconDropdownOpen(!iconDropdownOpen)}
+                                        onClick={() =>
+                                          setIconDropdownOpen(!iconDropdownOpen)
+                                        }
                                         className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white hover:border-blue-500 focus:outline-none focus:border-blue-500 text-left flex items-center gap-2"
                                       >
-                                        <PaneActionIcon iconId={editedAction.icon} className="w-4 h-4 text-gray-300" />
-                                        <span className="flex-1">{editedAction.icon}</span>
-                                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${iconDropdownOpen ? 'rotate-180' : ''}`} />
+                                        <PaneActionIcon
+                                          iconId={editedAction.icon}
+                                          className="w-4 h-4 text-gray-300"
+                                        />
+                                        <span className="flex-1">
+                                          {editedAction.icon}
+                                        </span>
+                                        <ChevronDown
+                                          className={`w-4 h-4 text-gray-400 transition-transform ${iconDropdownOpen ? "rotate-180" : ""}`}
+                                        />
                                       </button>
 
                                       {/* Icon dropdown menu */}
@@ -636,7 +700,9 @@ export function PaneActionsEditor({
                                           {/* Backdrop to close dropdown */}
                                           <div
                                             className="fixed inset-0 z-40"
-                                            onClick={() => setIconDropdownOpen(false)}
+                                            onClick={() =>
+                                              setIconDropdownOpen(false)
+                                            }
                                           />
                                           {/* Dropdown menu */}
                                           <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-1 max-h-32 overflow-y-auto">
@@ -646,14 +712,22 @@ export function PaneActionsEditor({
                                                   key={iconId}
                                                   type="button"
                                                   onClick={() => {
-                                                    setEditedAction({ ...editedAction, icon: iconId });
+                                                    setEditedAction({
+                                                      ...editedAction,
+                                                      icon: iconId,
+                                                    });
                                                     setIconDropdownOpen(false);
                                                   }}
                                                   className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left hover:bg-gray-700 transition-colors ${
-                                                    editedAction.icon === iconId ? 'bg-gray-700 text-white' : 'text-gray-300'
+                                                    editedAction.icon === iconId
+                                                      ? "bg-gray-700 text-white"
+                                                      : "text-gray-300"
                                                   }`}
                                                 >
-                                                  <PaneActionIcon iconId={iconId} className="w-4 h-4" />
+                                                  <PaneActionIcon
+                                                    iconId={iconId}
+                                                    className="w-4 h-4"
+                                                  />
                                                   <span>{iconId}</span>
                                                 </button>
                                               ))}
@@ -666,26 +740,45 @@ export function PaneActionsEditor({
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="text-xs text-gray-400 block mb-1">Enabled</label>
+                                    <label className="text-xs text-gray-400 block mb-1">
+                                      Enabled
+                                    </label>
                                     <label className="flex items-center gap-2">
                                       <input
                                         type="checkbox"
                                         checked={editedAction.enabled}
-                                        onChange={(e) => setEditedAction({ ...editedAction, enabled: e.target.checked })}
+                                        onChange={(e) =>
+                                          setEditedAction({
+                                            ...editedAction,
+                                            enabled: e.target.checked,
+                                          })
+                                        }
                                         className="w-4 h-4 bg-gray-900 border border-gray-700 rounded"
                                       />
-                                      <span className="text-sm text-gray-300">Show in UI</span>
+                                      <span className="text-sm text-gray-300">
+                                        Show in UI
+                                      </span>
                                     </label>
                                   </div>
                                   <div>
-                                    <label className="text-xs text-gray-400 block mb-1">Pane Type</label>
+                                    <label className="text-xs text-gray-400 block mb-1">
+                                      Pane Type
+                                    </label>
                                     <div className="relative">
                                       <select
                                         value={editedAction.paneType}
-                                        onChange={(e) => setEditedAction({ ...editedAction, paneType: e.target.value as PaneType })}
+                                        onChange={(e) =>
+                                          setEditedAction({
+                                            ...editedAction,
+                                            paneType: e.target
+                                              .value as PaneType,
+                                          })
+                                        }
                                         className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500 appearance-none pr-8"
                                       >
-                                        <option value="terminal">terminal</option>
+                                        <option value="terminal">
+                                          terminal
+                                        </option>
                                         <option value="editor">editor</option>
                                         <option value="browser">browser</option>
                                       </select>
@@ -701,101 +794,160 @@ export function PaneActionsEditor({
                                   Configuration
                                 </h4>
                                 <div className="bg-gray-800/50 rounded-lg p-3 space-y-2">
-                                  {editedAction.paneType === 'terminal' && isTerminalConfig(editedAction.config) && (
-                                    <>
+                                  {editedAction.paneType === "terminal" &&
+                                    isTerminalConfig(editedAction.config) && (
+                                      <>
+                                        <div>
+                                          <label className="text-xs text-gray-400 block mb-1">
+                                            Command
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={
+                                              editedAction.config.command || ""
+                                            }
+                                            onChange={(e) =>
+                                              setEditedAction({
+                                                ...editedAction,
+                                                config: {
+                                                  ...editedAction.config,
+                                                  command: e.target.value,
+                                                } as TerminalConfig,
+                                              })
+                                            }
+                                            className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                                            placeholder="e.g., git status"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-gray-400 block mb-1">
+                                            Working Directory (optional)
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={
+                                              editedAction.config.cwd || ""
+                                            }
+                                            onChange={(e) =>
+                                              setEditedAction({
+                                                ...editedAction,
+                                                config: {
+                                                  ...editedAction.config,
+                                                  cwd:
+                                                    e.target.value || undefined,
+                                                } as TerminalConfig,
+                                              })
+                                            }
+                                            className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                                            placeholder="e.g., ~/Projects"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-gray-400 flex items-center gap-1 mb-1">
+                                            Pre-Command (optional)
+                                            <Info
+                                              className="w-3 h-3 text-gray-500"
+                                              title="Run a command before creating the terminal (e.g., validate git repo, create worktree)"
+                                            />
+                                          </label>
+                                          <div className="relative">
+                                            <select
+                                              value={
+                                                editedAction.config
+                                                  .preCommandId || ""
+                                              }
+                                              onChange={(e) =>
+                                                setEditedAction({
+                                                  ...editedAction,
+                                                  config: {
+                                                    ...editedAction.config,
+                                                    preCommandId:
+                                                      e.target.value ||
+                                                      undefined,
+                                                  } as TerminalConfig,
+                                                })
+                                              }
+                                              className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500 appearance-none pr-8"
+                                            >
+                                              <option value="">None</option>
+                                              {preCommands.map((preCommand) => (
+                                                <option
+                                                  key={preCommand.id}
+                                                  value={preCommand.id}
+                                                >
+                                                  {preCommand.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                          </div>
+                                          {editedAction.config.preCommandId &&
+                                            (() => {
+                                              const selectedPreCommand =
+                                                preCommands.find(
+                                                  (pc) =>
+                                                    pc.id ===
+                                                    editedAction.config
+                                                      .preCommandId,
+                                                );
+                                              return selectedPreCommand?.description ? (
+                                                <p className="mt-1 text-xs text-gray-500 italic">
+                                                  {
+                                                    selectedPreCommand.description
+                                                  }
+                                                </p>
+                                              ) : null;
+                                            })()}
+                                        </div>
+                                      </>
+                                    )}
+                                  {editedAction.paneType === "editor" &&
+                                    isEditorConfig(editedAction.config) && (
                                       <div>
-                                        <label className="text-xs text-gray-400 block mb-1">Command</label>
+                                        <label className="text-xs text-gray-400 block mb-1">
+                                          Working Directory (optional)
+                                        </label>
                                         <input
                                           type="text"
-                                          value={editedAction.config.command || ''}
-                                          onChange={(e) => setEditedAction({
-                                            ...editedAction,
-                                            config: { ...editedAction.config, command: e.target.value } as TerminalConfig
-                                          })}
-                                          className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
-                                          placeholder="e.g., git status"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs text-gray-400 block mb-1">Working Directory (optional)</label>
-                                        <input
-                                          type="text"
-                                          value={editedAction.config.cwd || ''}
-                                          onChange={(e) => setEditedAction({
-                                            ...editedAction,
-                                            config: { ...editedAction.config, cwd: e.target.value || undefined } as TerminalConfig
-                                          })}
+                                          value={editedAction.config.cwd || ""}
+                                          onChange={(e) =>
+                                            setEditedAction({
+                                              ...editedAction,
+                                              config: {
+                                                ...editedAction.config,
+                                                cwd:
+                                                  e.target.value || undefined,
+                                              } as EditorConfig,
+                                            })
+                                          }
                                           className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
                                           placeholder="e.g., ~/Projects"
                                         />
                                       </div>
+                                    )}
+                                  {editedAction.paneType === "browser" &&
+                                    isBrowserConfig(editedAction.config) && (
                                       <div>
-                                        <label className="text-xs text-gray-400 flex items-center gap-1 mb-1">
-                                          Pre-Command (optional)
-                                          <Info className="w-3 h-3 text-gray-500" title="Run a command before creating the terminal (e.g., validate git repo, create worktree)" />
+                                        <label className="text-xs text-gray-400 block mb-1">
+                                          URL
                                         </label>
-                                        <div className="relative">
-                                          <select
-                                            value={editedAction.config.preCommandId || ''}
-                                            onChange={(e) => setEditedAction({
+                                        <input
+                                          type="text"
+                                          value={editedAction.config.url || ""}
+                                          onChange={(e) =>
+                                            setEditedAction({
                                               ...editedAction,
                                               config: {
                                                 ...editedAction.config,
-                                                preCommandId: e.target.value || undefined
-                                              } as TerminalConfig
-                                            })}
-                                            className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500 appearance-none pr-8"
-                                          >
-                                            <option value="">None</option>
-                                            {preCommands.map((preCommand) => (
-                                              <option key={preCommand.id} value={preCommand.id}>
-                                                {preCommand.label}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                        </div>
-                                        {editedAction.config.preCommandId && (() => {
-                                          const selectedPreCommand = preCommands.find(pc => pc.id === editedAction.config.preCommandId);
-                                          return selectedPreCommand?.description ? (
-                                            <p className="mt-1 text-xs text-gray-500 italic">
-                                              {selectedPreCommand.description}
-                                            </p>
-                                          ) : null;
-                                        })()}
+                                                url: e.target.value,
+                                              } as BrowserConfig,
+                                            })
+                                          }
+                                          className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                                          placeholder="e.g., https://github.com"
+                                        />
                                       </div>
-                                    </>
-                                  )}
-                                  {editedAction.paneType === 'editor' && isEditorConfig(editedAction.config) && (
-                                    <div>
-                                      <label className="text-xs text-gray-400 block mb-1">Working Directory (optional)</label>
-                                      <input
-                                        type="text"
-                                        value={editedAction.config.cwd || ''}
-                                        onChange={(e) => setEditedAction({
-                                          ...editedAction,
-                                          config: { ...editedAction.config, cwd: e.target.value || undefined } as EditorConfig
-                                        })}
-                                        className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
-                                        placeholder="e.g., ~/Projects"
-                                      />
-                                    </div>
-                                  )}
-                                  {editedAction.paneType === 'browser' && isBrowserConfig(editedAction.config) && (
-                                    <div>
-                                      <label className="text-xs text-gray-400 block mb-1">URL</label>
-                                      <input
-                                        type="text"
-                                        value={editedAction.config.url || ''}
-                                        onChange={(e) => setEditedAction({
-                                          ...editedAction,
-                                          config: { ...editedAction.config, url: e.target.value } as BrowserConfig
-                                        })}
-                                        className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
-                                        placeholder="e.g., https://github.com"
-                                      />
-                                    </div>
-                                  )}
+                                    )}
                                 </div>
                               </div>
                             </div>
@@ -820,7 +972,9 @@ export function PaneActionsEditor({
               })}
 
               {/* Ghost rows for remaining slots */}
-              {Array.from({ length: Math.max(0, MAX_ACTIONS - reorderedActions.length) }).map((_, ghostIndex) => {
+              {Array.from({
+                length: Math.max(0, MAX_ACTIONS - reorderedActions.length),
+              }).map((_, ghostIndex) => {
                 const slotNumber = reorderedActions.length + ghostIndex + 1;
                 return (
                   <tr
@@ -834,12 +988,12 @@ export function PaneActionsEditor({
                     <td className="px-6 py-3" colSpan={2}>
                       <div className="flex items-center gap-3 text-gray-500">
                         <Plus className="w-4 h-4" />
-                        <span className="text-sm italic">Add new action to slot {slotNumber}</span>
+                        <span className="text-sm italic">
+                          Add new action to slot {slotNumber}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-3">
-                      {/* Empty actions column */}
-                    </td>
+                    <td className="px-6 py-3">{/* Empty actions column */}</td>
                   </tr>
                 );
               })}
@@ -851,16 +1005,18 @@ export function PaneActionsEditor({
         <div className="px-6 py-4 border-t border-gray-700 bg-gray-800/50">
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs text-gray-500">
-              Pane actions can be customized by editing{' '}
+              Pane actions can be customized by editing{" "}
               <button
                 onClick={handleOpenConfigFile}
                 className="text-gray-400 hover:text-blue-400 transition-colors cursor-pointer underline decoration-dotted underline-offset-2"
                 disabled={!onOpenQuickPane}
-                title={onOpenQuickPane ? 'Click to open file in editor' : undefined}
+                title={
+                  onOpenQuickPane ? "Click to open file in editor" : undefined
+                }
               >
                 <code>~/.conduit/paneactions.json</code>
               </button>
-              {'. '}
+              {". "}
             </p>
             {hasUserConfig && (
               <button

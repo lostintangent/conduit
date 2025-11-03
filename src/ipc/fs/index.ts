@@ -24,22 +24,25 @@ export function initializeFsHandlers() {
     }
   });
 
-  ipcMain.handle("fs:write-file", async (_, filePath: string, content: string) => {
-    try {
-      const fs = require("node:fs").promises;
-      const path = require("node:path");
+  ipcMain.handle(
+    "fs:write-file",
+    async (_, filePath: string, content: string) => {
+      try {
+        const fs = require("node:fs").promises;
+        const path = require("node:path");
 
-      // Ensure directory exists
-      const dir = path.dirname(filePath);
-      await fs.mkdir(dir, { recursive: true });
+        // Ensure directory exists
+        const dir = path.dirname(filePath);
+        await fs.mkdir(dir, { recursive: true });
 
-      // Write file
-      await fs.writeFile(filePath, content, "utf8");
-    } catch (error) {
-      console.error("Failed to write file", filePath, error);
-      throw error;
-    }
-  });
+        // Write file
+        await fs.writeFile(filePath, content, "utf8");
+      } catch (error) {
+        console.error("Failed to write file", filePath, error);
+        throw error;
+      }
+    },
+  );
 
   ipcMain.handle("fs:delete-file", async (_, filePath: string) => {
     try {
@@ -53,32 +56,40 @@ export function initializeFsHandlers() {
     }
   });
 
-  ipcMain.handle("fs:watch-file", async (event, filePath: string, watcherId: string) => {
-    try {
-      const fs = require("node:fs");
+  ipcMain.handle(
+    "fs:watch-file",
+    async (event, filePath: string, watcherId: string) => {
+      try {
+        const fs = require("node:fs");
 
-      // Check if file exists before watching
-      if (!fs.existsSync(filePath)) {
-        console.log(`File ${filePath} does not exist yet, will watch parent directory`);
-      }
-
-      // Create watcher
-      const watcher = fs.watch(filePath, (eventType: string) => {
-        if (eventType === 'change') {
-          // Notify renderer process
-          const window = BrowserWindow.getAllWindows()[0];
-          if (window) {
-            window.webContents.send("fs:file-changed", { watcherId, filePath });
-          }
+        // Check if file exists before watching
+        if (!fs.existsSync(filePath)) {
+          console.log(
+            `File ${filePath} does not exist yet, will watch parent directory`,
+          );
         }
-      });
 
-      // Store watcher
-      fileWatchers.set(watcherId, watcher);
-    } catch (error) {
-      console.error("Failed to watch file", filePath, error);
-    }
-  });
+        // Create watcher
+        const watcher = fs.watch(filePath, (eventType: string) => {
+          if (eventType === "change") {
+            // Notify renderer process
+            const window = BrowserWindow.getAllWindows()[0];
+            if (window) {
+              window.webContents.send("fs:file-changed", {
+                watcherId,
+                filePath,
+              });
+            }
+          }
+        });
+
+        // Store watcher
+        fileWatchers.set(watcherId, watcher);
+      } catch (error) {
+        console.error("Failed to watch file", filePath, error);
+      }
+    },
+  );
 
   ipcMain.handle("fs:unwatch-file", async (_, watcherId: string) => {
     const watcher = fileWatchers.get(watcherId);

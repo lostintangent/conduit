@@ -32,12 +32,12 @@ export interface PreviewDimensions {
 
 /**
  * Calculate scale factors for a webview element
- * 
+ *
  * @param dimensions - The dimensions and optional preview scale
  * @returns Scaling information including scale factors and whether scaling is applied
  */
 export function calculateWebviewScale(
-  dimensions: ScalingDimensions
+  dimensions: ScalingDimensions,
 ): ScalingResult {
   const { layoutWidth, layoutHeight, rectWidth, rectHeight } = dimensions;
 
@@ -58,13 +58,13 @@ export function calculateWebviewScale(
 
 /**
  * Apply scaling styles to a webview element
- * 
+ *
  * @param element - The webview element to style
  * @param scaling - The scaling result from calculateWebviewScale
  */
 export function applyWebviewScaling(
   element: HTMLElement,
-  scaling: ScalingResult
+  scaling: ScalingResult,
 ): void {
   if (scaling.isScaled) {
     element.style.width = `${scaling.targetWidth - 3}px`;
@@ -81,7 +81,7 @@ export function applyWebviewScaling(
 
 /**
  * Calculate dimensions for tab preview items
- * 
+ *
  * @param scale - The scale factor to apply
  * @returns Display and content dimensions for the preview
  */
@@ -98,4 +98,3 @@ export function calculatePreviewDimensions(scale: number): PreviewDimensions {
     contentHeight,
   };
 }
-

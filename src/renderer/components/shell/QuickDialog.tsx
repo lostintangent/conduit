@@ -34,7 +34,7 @@ export function QuickDialog({
     setApplicationMode("quick");
     return () => {
       setApplicationMode((current) =>
-        current === "quick" ? "normal" : current
+        current === "quick" ? "normal" : current,
       );
     };
   }, [setApplicationMode]);
@@ -49,7 +49,7 @@ export function QuickDialog({
         }));
       }
     },
-    [currentDescriptor.type]
+    [currentDescriptor.type],
   );
 
   // Handle updates from webview pane
@@ -62,32 +62,29 @@ export function QuickDialog({
         }));
       }
     },
-    [currentDescriptor.type]
+    [currentDescriptor.type],
   );
 
   // Handle file open from within editor pane
-  const handleFileOpen = useCallback(
-    (node: FileTreeNode) => {
-      setCurrentDescriptor((prev) => {
-        if (prev.type === "editor") {
-          // Update the descriptor to open the file in the same quick pane
-          return {
-            type: "editor",
-            cwd: prev.cwd,
-            filePath: node.path,
-          };
-        }
-        return prev;
-      });
-    },
-    []
-  );
+  const handleFileOpen = useCallback((node: FileTreeNode) => {
+    setCurrentDescriptor((prev) => {
+      if (prev.type === "editor") {
+        // Update the descriptor to open the file in the same quick pane
+        return {
+          type: "editor",
+          cwd: prev.cwd,
+          filePath: node.path,
+        };
+      }
+      return prev;
+    });
+  }, []);
 
   const isVmTerminal = useMemo(
     () =>
       currentDescriptor.type === "terminal" &&
       !!currentDescriptor.vmMetadata?.vmId,
-    [currentDescriptor]
+    [currentDescriptor],
   );
   const vmTitle = useMemo(() => {
     if (!isVmTerminal) {
@@ -115,9 +112,7 @@ export function QuickDialog({
               cwd={currentDescriptor.cwd}
               filePath={currentDescriptor.filePath}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
-              onFileChange={({ filePath }) =>
-                handleEditorUpdate({ filePath })
-              }
+              onFileChange={({ filePath }) => handleEditorUpdate({ filePath })}
               onClearFile={() => handleEditorUpdate({ filePath: undefined })}
               onFileOpen={handleFileOpen}
             />
@@ -138,7 +133,11 @@ export function QuickDialog({
             title={vmTitle}
           >
             {isVmTerminal && (
-              <Cloud size={16} className="text-white/80 mr-2" aria-hidden="true" />
+              <Cloud
+                size={16}
+                className="text-white/80 mr-2"
+                aria-hidden="true"
+              />
             )}
             <button
               type="button"
@@ -158,8 +157,7 @@ export function QuickDialog({
             </button>
           </div>
         </div>
-
       </DialogContent>
-    </Dialog >
+    </Dialog>
   );
 }

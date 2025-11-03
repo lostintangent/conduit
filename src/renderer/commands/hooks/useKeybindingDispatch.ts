@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import type { ICommandRegistry } from '../core/CommandRegistry';
-import type { KeybindingRegistry } from './KeybindingRegistry';
+import { useEffect, useRef } from "react";
+import type { ICommandRegistry } from "../core/CommandRegistry";
+import type { KeybindingRegistry } from "./KeybindingRegistry";
 
 /**
  * Hook for dispatching keyboard events to commands
@@ -10,7 +10,7 @@ import type { KeybindingRegistry } from './KeybindingRegistry';
  */
 export function useKeybindingDispatch(
   commandRegistry: ICommandRegistry | null | undefined,
-  keybindingRegistry: KeybindingRegistry | null | undefined
+  keybindingRegistry: KeybindingRegistry | null | undefined,
 ) {
   // Use refs to avoid re-creating the listener on every chord state change
   const currentChordRef = useRef<KeyboardEvent | null>(null);
@@ -34,7 +34,12 @@ export function useKeybindingDispatch(
     const handleKeyDown = (event: KeyboardEvent) => {
       // Fast path: Skip ALL processing for plain text in input elements
       // This handles the 99% case (typing in terminal) in <1 microsecond
-      if (!event.metaKey && !event.ctrlKey && !event.altKey && isInputElement(event.target)) {
+      if (
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        isInputElement(event.target)
+      ) {
         return; // Exit immediately - no command processing needed
       }
 
@@ -45,7 +50,10 @@ export function useKeybindingDispatch(
 
       if (commandId) {
         // Check if this is part of a chord sequence
-        const hasMore = keybindingRegistry.hasChordContinuation(event, chordIndex);
+        const hasMore = keybindingRegistry.hasChordContinuation(
+          event,
+          chordIndex,
+        );
 
         if (hasMore && chordIndex === 0) {
           // This is the first chord in a sequence, wait for next chord
@@ -64,7 +72,10 @@ export function useKeybindingDispatch(
 
           // Execute asynchronously without blocking
           commandRegistry.executeCommand(commandId).catch((error) => {
-            console.error('[useKeybindingDispatch] Command execution failed:', error);
+            console.error(
+              "[useKeybindingDispatch] Command execution failed:",
+              error,
+            );
           });
         }
       } else if (currentChordRef.current) {
@@ -73,10 +84,10 @@ export function useKeybindingDispatch(
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
       clearChordState();
     };
   }, [commandRegistry, keybindingRegistry]); // Only re-run when registries change, not on every keystroke
@@ -89,9 +100,9 @@ function isInputElement(target: EventTarget | null): boolean {
 
   const tagName = target.tagName.toLowerCase();
   return (
-    tagName === 'input' ||
-    tagName === 'textarea' ||
+    tagName === "input" ||
+    tagName === "textarea" ||
     target.isContentEditable ||
-    target.contentEditable === 'true' // Fallback for jsdom and older browsers
+    target.contentEditable === "true" // Fallback for jsdom and older browsers
   );
 }

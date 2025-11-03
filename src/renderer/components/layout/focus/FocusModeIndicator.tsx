@@ -39,31 +39,29 @@ export function FocusModeIndicator({
       : "";
 
   const miniMap = useMemo(
-    () => (
+    () =>
       hasMultiplePanes ? (
         <FocusModeMiniMap
           layout={layout}
           activePaneId={activePaneId}
           onSelectPane={onSelectPane}
         />
-      ) : null
-    ),
-    [activePaneId, hasMultiplePanes, layout, onSelectPane]
+      ) : null,
+    [activePaneId, hasMultiplePanes, layout, onSelectPane],
   );
 
   return (
     <div
-      className={`absolute bottom-3 right-3 z-[1000] flex items-center gap-2 text-white transition-opacity duration-200 ${isVisible ? "opacity-100" : "opacity-0"
-        }`}
+      className={`absolute bottom-3 right-3 z-[1000] flex items-center gap-2 text-white transition-opacity duration-200 ${
+        isVisible ? "opacity-100" : "opacity-0"
+      }`}
       role="status"
       aria-live="polite"
     >
       <div className="flex flex-col items-end gap-2">
         {miniMap}
         <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
-          <span className="text-xs text-white/90 font-medium">
-            {paneInfo}
-          </span>
+          <span className="text-xs text-white/90 font-medium">{paneInfo}</span>
           <button
             type="button"
             className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:text-white/80"

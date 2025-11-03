@@ -1,8 +1,5 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { focusTab } from "@/store/actions/tab";
 import { useCallback, useEffect, useRef } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
@@ -35,7 +32,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
 
         // Check if all containers are now ready
         const allReady = tabs.every(
-          (tab) => allTabsContainerRefs.current[tab.id]
+          (tab) => allTabsContainerRefs.current[tab.id],
         );
 
         if (allReady) {
@@ -43,7 +40,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
         }
       }
     },
-    [tabs, mountTabsInPreview]
+    [tabs, mountTabsInPreview],
   );
 
   const handleTabClick = useCallback(
@@ -51,7 +48,7 @@ export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
       focusTab(tabId);
       onClose();
     },
-    [onClose]
+    [onClose],
   );
 
   useEffect(() => {

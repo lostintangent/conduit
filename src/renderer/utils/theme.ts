@@ -25,14 +25,15 @@ export type HashedColorOptions = {
 
 export const getHashedColor = (
   key: string,
-  options: HashedColorOptions = {}
+  options: HashedColorOptions = {},
 ): string => {
   const saturation = options.saturation ?? 65;
-  const [lightnessMinRaw, lightnessMaxRaw] =
-    options.lightnessRange ?? [38, 55];
+  const [lightnessMinRaw, lightnessMaxRaw] = options.lightnessRange ?? [38, 55];
   const lightnessMin = Math.min(lightnessMinRaw, lightnessMaxRaw);
   const lightnessMax =
-    lightnessMin === lightnessMaxRaw ? lightnessMin + 1 : Math.max(lightnessMinRaw, lightnessMaxRaw);
+    lightnessMin === lightnessMaxRaw
+      ? lightnessMin + 1
+      : Math.max(lightnessMinRaw, lightnessMaxRaw);
   const cacheStore = options.cache ?? hashedColorCache;
 
   const cacheKey = `${key}::${saturation}:${lightnessMin}:${lightnessMax}`;

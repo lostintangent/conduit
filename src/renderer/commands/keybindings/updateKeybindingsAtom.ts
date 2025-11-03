@@ -1,6 +1,6 @@
-import { getKeybindingRegistry } from '@/commands';
-import { keybindingsAtom } from '@/store/atoms';
-import { getDefaultStore } from 'jotai';
+import { getKeybindingRegistry } from "@/commands";
+import { keybindingsAtom } from "@/store/atoms";
+import { getDefaultStore } from "jotai";
 
 /**
  * Update the keybindings atom with current keybindings from the registry

@@ -2,11 +2,15 @@
  * Unit tests for PreCommandRegistry
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { PreCommandRegistry } from '@/preCommands/registry';
-import type { PreCommand, PreCommandResult, TerminalConfig } from '@/preCommands/types';
+import { PreCommandRegistry } from "@/commands/preCommands/registry";
+import type {
+  PreCommand,
+  PreCommandResult,
+  TerminalConfig,
+} from "@/commands/preCommands/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-describe('PreCommandRegistry', () => {
+describe("PreCommandRegistry", () => {
   let registry: PreCommandRegistry;
 
   beforeEach(() => {
@@ -15,144 +19,146 @@ describe('PreCommandRegistry', () => {
     registry.clear();
   });
 
-  describe('getInstance', () => {
-    it('should return a singleton instance', () => {
+  describe("getInstance", () => {
+    it("should return a singleton instance", () => {
       const instance1 = PreCommandRegistry.getInstance();
       const instance2 = PreCommandRegistry.getInstance();
 
       expect(instance1).toBe(instance2);
     });
 
-    it('should return the same instance across multiple calls', () => {
-      const instances = Array(5).fill(null).map(() => PreCommandRegistry.getInstance());
+    it("should return the same instance across multiple calls", () => {
+      const instances = Array(5)
+        .fill(null)
+        .map(() => PreCommandRegistry.getInstance());
 
       // All instances should be the same reference
-      instances.forEach(instance => {
+      instances.forEach((instance) => {
         expect(instance).toBe(instances[0]);
       });
     });
   });
 
-  describe('register', () => {
-    it('should register a pre-command', () => {
+  describe("register", () => {
+    it("should register a pre-command", () => {
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: async () => ({ success: true }),
       };
 
       registry.register(preCommand);
 
-      const retrieved = registry.get('test-command');
+      const retrieved = registry.get("test-command");
       expect(retrieved).toBe(preCommand);
     });
 
-    it('should register multiple pre-commands', () => {
+    it("should register multiple pre-commands", () => {
       const command1: PreCommand = {
-        id: 'command-1',
-        label: 'Command 1',
+        id: "command-1",
+        label: "Command 1",
         run: async () => ({ success: true }),
       };
 
       const command2: PreCommand = {
-        id: 'command-2',
-        label: 'Command 2',
+        id: "command-2",
+        label: "Command 2",
         run: async () => ({ success: true }),
       };
 
       registry.register(command1);
       registry.register(command2);
 
-      expect(registry.get('command-1')).toBe(command1);
-      expect(registry.get('command-2')).toBe(command2);
+      expect(registry.get("command-1")).toBe(command1);
+      expect(registry.get("command-2")).toBe(command2);
     });
 
-    it('should allow overwriting an existing pre-command', () => {
+    it("should allow overwriting an existing pre-command", () => {
       const command1: PreCommand = {
-        id: 'test-command',
-        label: 'First Version',
+        id: "test-command",
+        label: "First Version",
         run: async () => ({ success: true }),
       };
 
       const command2: PreCommand = {
-        id: 'test-command',
-        label: 'Second Version',
+        id: "test-command",
+        label: "Second Version",
         run: async () => ({ success: false }),
       };
 
       registry.register(command1);
       registry.register(command2);
 
-      const retrieved = registry.get('test-command');
+      const retrieved = registry.get("test-command");
       expect(retrieved).toBe(command2);
-      expect(retrieved?.label).toBe('Second Version');
+      expect(retrieved?.label).toBe("Second Version");
     });
 
-    it('should register pre-command with description', () => {
+    it("should register pre-command with description", () => {
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
-        description: 'This is a test command',
+        id: "test-command",
+        label: "Test Command",
+        description: "This is a test command",
         run: async () => ({ success: true }),
       };
 
       registry.register(preCommand);
 
-      const retrieved = registry.get('test-command');
-      expect(retrieved?.description).toBe('This is a test command');
+      const retrieved = registry.get("test-command");
+      expect(retrieved?.description).toBe("This is a test command");
     });
   });
 
-  describe('get', () => {
-    it('should return undefined for non-existent command', () => {
-      const retrieved = registry.get('non-existent');
+  describe("get", () => {
+    it("should return undefined for non-existent command", () => {
+      const retrieved = registry.get("non-existent");
       expect(retrieved).toBeUndefined();
     });
 
-    it('should return the registered command', () => {
+    it("should return the registered command", () => {
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: async () => ({ success: true }),
       };
 
       registry.register(preCommand);
 
-      const retrieved = registry.get('test-command');
+      const retrieved = registry.get("test-command");
       expect(retrieved).toBe(preCommand);
     });
 
-    it('should return undefined after command is cleared', () => {
+    it("should return undefined after command is cleared", () => {
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: async () => ({ success: true }),
       };
 
       registry.register(preCommand);
       registry.clear();
 
-      const retrieved = registry.get('test-command');
+      const retrieved = registry.get("test-command");
       expect(retrieved).toBeUndefined();
     });
   });
 
-  describe('getAll', () => {
-    it('should return empty array when no commands registered', () => {
+  describe("getAll", () => {
+    it("should return empty array when no commands registered", () => {
       const commands = registry.getAll();
       expect(commands).toEqual([]);
     });
 
-    it('should return all registered commands', () => {
+    it("should return all registered commands", () => {
       const command1: PreCommand = {
-        id: 'command-1',
-        label: 'Command 1',
+        id: "command-1",
+        label: "Command 1",
         run: async () => ({ success: true }),
       };
 
       const command2: PreCommand = {
-        id: 'command-2',
-        label: 'Command 2',
+        id: "command-2",
+        label: "Command 2",
         run: async () => ({ success: true }),
       };
 
@@ -165,10 +171,10 @@ describe('PreCommandRegistry', () => {
       expect(commands).toContain(command2);
     });
 
-    it('should return new array each time', () => {
+    it("should return new array each time", () => {
       const command: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: async () => ({ success: true }),
       };
 
@@ -181,10 +187,10 @@ describe('PreCommandRegistry', () => {
       expect(commands1).toEqual(commands2); // But same contents
     });
 
-    it('should not allow mutation of registry through returned array', () => {
+    it("should not allow mutation of registry through returned array", () => {
       const command: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: async () => ({ success: true }),
       };
 
@@ -192,23 +198,23 @@ describe('PreCommandRegistry', () => {
 
       const commands = registry.getAll();
       commands.push({
-        id: 'malicious-command',
-        label: 'Malicious',
+        id: "malicious-command",
+        label: "Malicious",
         run: async () => ({ success: true }),
       });
 
-      const retrieved = registry.get('malicious-command');
+      const retrieved = registry.get("malicious-command");
       expect(retrieved).toBeUndefined();
     });
   });
 
-  describe('execute', () => {
-    it('should execute a registered command', async () => {
+  describe("execute", () => {
+    it("should execute a registered command", async () => {
       const mockRun = vi.fn(async () => ({ success: true }));
 
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: mockRun,
       };
 
@@ -218,151 +224,153 @@ describe('PreCommandRegistry', () => {
         command: 'echo "test"',
       };
 
-      const result = await registry.execute('test-command', terminalConfig);
+      const result = await registry.execute("test-command", terminalConfig);
 
       expect(mockRun).toHaveBeenCalledWith(terminalConfig);
       expect(result).toEqual({ success: true });
     });
 
-    it('should pass terminal config to command', async () => {
-      const mockRun = vi.fn(async (config: TerminalConfig) => ({ success: true }));
+    it("should pass terminal config to command", async () => {
+      const mockRun = vi.fn(async (config: TerminalConfig) => ({
+        success: true,
+      }));
 
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: mockRun,
       };
 
       registry.register(preCommand);
 
       const terminalConfig: TerminalConfig = {
-        command: 'npm test',
-        cwd: '/home/user/project',
-        preCommandId: 'test-command',
+        command: "npm test",
+        cwd: "/home/user/project",
+        preCommandId: "test-command",
       };
 
-      await registry.execute('test-command', terminalConfig);
+      await registry.execute("test-command", terminalConfig);
 
       expect(mockRun).toHaveBeenCalledWith(terminalConfig);
     });
 
-    it('should return error for non-existent command', async () => {
+    it("should return error for non-existent command", async () => {
       const terminalConfig: TerminalConfig = {
         command: 'echo "test"',
       };
 
-      const result = await registry.execute('non-existent', terminalConfig);
+      const result = await registry.execute("non-existent", terminalConfig);
 
       expect(result).toEqual({
         success: false,
-        error: 'Pre-command not found: non-existent',
+        error: "Pre-command not found: non-existent",
       });
     });
 
-    it('should return command result on success', async () => {
+    it("should return command result on success", async () => {
       const expectedResult: PreCommandResult = {
         success: true,
         paneOptions: {
-          terminalOptions: { cwd: '/custom/path' },
+          terminalOptions: { cwd: "/custom/path" },
         },
       };
 
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: async () => expectedResult,
       };
 
       registry.register(preCommand);
 
-      const result = await registry.execute('test-command', {
+      const result = await registry.execute("test-command", {
         command: 'echo "test"',
       });
 
       expect(result).toEqual(expectedResult);
     });
 
-    it('should return command result on failure', async () => {
+    it("should return command result on failure", async () => {
       const expectedResult: PreCommandResult = {
         success: false,
-        error: 'Command failed: insufficient permissions',
+        error: "Command failed: insufficient permissions",
       };
 
       const preCommand: PreCommand = {
-        id: 'test-command',
-        label: 'Test Command',
+        id: "test-command",
+        label: "Test Command",
         run: async () => expectedResult,
       };
 
       registry.register(preCommand);
 
-      const result = await registry.execute('test-command', {
+      const result = await registry.execute("test-command", {
         command: 'echo "test"',
       });
 
       expect(result).toEqual(expectedResult);
     });
 
-    it('should handle command that throws error', async () => {
+    it("should handle command that throws error", async () => {
       const preCommand: PreCommand = {
-        id: 'failing-command',
-        label: 'Failing Command',
+        id: "failing-command",
+        label: "Failing Command",
         run: async () => {
-          throw new Error('Something went wrong');
+          throw new Error("Something went wrong");
         },
       };
 
       registry.register(preCommand);
 
-      const result = await registry.execute('failing-command', {
+      const result = await registry.execute("failing-command", {
         command: 'echo "test"',
       });
 
       expect(result).toEqual({
         success: false,
-        error: 'Something went wrong',
+        error: "Something went wrong",
       });
     });
 
-    it('should handle command that throws non-Error', async () => {
+    it("should handle command that throws non-Error", async () => {
       const preCommand: PreCommand = {
-        id: 'failing-command',
-        label: 'Failing Command',
+        id: "failing-command",
+        label: "Failing Command",
         run: async () => {
-          throw 'String error';
+          throw "String error";
         },
       };
 
       registry.register(preCommand);
 
-      const result = await registry.execute('failing-command', {
+      const result = await registry.execute("failing-command", {
         command: 'echo "test"',
       });
 
       expect(result).toEqual({
         success: false,
-        error: 'Unknown error',
+        error: "Unknown error",
       });
     });
 
-    it('should execute different commands independently', async () => {
+    it("should execute different commands independently", async () => {
       const mockRun1 = vi.fn(async () => ({ success: true }));
-      const mockRun2 = vi.fn(async () => ({ success: false, error: 'Failed' }));
+      const mockRun2 = vi.fn(async () => ({ success: false, error: "Failed" }));
 
       registry.register({
-        id: 'command-1',
-        label: 'Command 1',
+        id: "command-1",
+        label: "Command 1",
         run: mockRun1,
       });
 
       registry.register({
-        id: 'command-2',
-        label: 'Command 2',
+        id: "command-2",
+        label: "Command 2",
         run: mockRun2,
       });
 
-      const result1 = await registry.execute('command-1', { command: 'test' });
-      const result2 = await registry.execute('command-2', { command: 'test' });
+      const result1 = await registry.execute("command-1", { command: "test" });
+      const result2 = await registry.execute("command-2", { command: "test" });
 
       expect(mockRun1).toHaveBeenCalledTimes(1);
       expect(mockRun2).toHaveBeenCalledTimes(1);
@@ -371,17 +379,17 @@ describe('PreCommandRegistry', () => {
     });
   });
 
-  describe('clear', () => {
-    it('should clear all registered commands', () => {
+  describe("clear", () => {
+    it("should clear all registered commands", () => {
       registry.register({
-        id: 'command-1',
-        label: 'Command 1',
+        id: "command-1",
+        label: "Command 1",
         run: async () => ({ success: true }),
       });
 
       registry.register({
-        id: 'command-2',
-        label: 'Command 2',
+        id: "command-2",
+        label: "Command 2",
         run: async () => ({ success: true }),
       });
 
@@ -392,30 +400,30 @@ describe('PreCommandRegistry', () => {
       expect(registry.getAll()).toHaveLength(0);
     });
 
-    it('should allow registering new commands after clear', () => {
+    it("should allow registering new commands after clear", () => {
       registry.register({
-        id: 'command-1',
-        label: 'Command 1',
+        id: "command-1",
+        label: "Command 1",
         run: async () => ({ success: true }),
       });
 
       registry.clear();
 
       registry.register({
-        id: 'command-2',
-        label: 'Command 2',
+        id: "command-2",
+        label: "Command 2",
         run: async () => ({ success: true }),
       });
 
       const commands = registry.getAll();
       expect(commands).toHaveLength(1);
-      expect(commands[0].id).toBe('command-2');
+      expect(commands[0].id).toBe("command-2");
     });
 
-    it('should work correctly when called multiple times', () => {
+    it("should work correctly when called multiple times", () => {
       registry.register({
-        id: 'test-command',
-        label: 'Test',
+        id: "test-command",
+        label: "Test",
         run: async () => ({ success: true }),
       });
 
@@ -426,14 +434,14 @@ describe('PreCommandRegistry', () => {
       expect(registry.getAll()).toHaveLength(0);
     });
 
-    it('should not affect other registry instances', () => {
+    it("should not affect other registry instances", () => {
       // This test verifies singleton behavior
       const instance1 = PreCommandRegistry.getInstance();
       const instance2 = PreCommandRegistry.getInstance();
 
       instance1.register({
-        id: 'test-command',
-        label: 'Test',
+        id: "test-command",
+        label: "Test",
         run: async () => ({ success: true }),
       });
 
@@ -445,26 +453,26 @@ describe('PreCommandRegistry', () => {
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle empty string ID', () => {
+  describe("edge cases", () => {
+    it("should handle empty string ID", () => {
       const preCommand: PreCommand = {
-        id: '',
-        label: 'Empty ID',
+        id: "",
+        label: "Empty ID",
         run: async () => ({ success: true }),
       };
 
       registry.register(preCommand);
 
-      const retrieved = registry.get('');
+      const retrieved = registry.get("");
       expect(retrieved).toBe(preCommand);
     });
 
-    it('should handle very long ID', () => {
-      const longId = 'a'.repeat(1000);
+    it("should handle very long ID", () => {
+      const longId = "a".repeat(1000);
 
       const preCommand: PreCommand = {
         id: longId,
-        label: 'Long ID',
+        label: "Long ID",
         run: async () => ({ success: true }),
       };
 
@@ -474,12 +482,12 @@ describe('PreCommandRegistry', () => {
       expect(retrieved).toBe(preCommand);
     });
 
-    it('should handle special characters in ID', () => {
-      const specialId = 'test-command_123.foo@bar';
+    it("should handle special characters in ID", () => {
+      const specialId = "test-command_123.foo@bar";
 
       const preCommand: PreCommand = {
         id: specialId,
-        label: 'Special ID',
+        label: "Special ID",
         run: async () => ({ success: true }),
       };
 
@@ -489,12 +497,12 @@ describe('PreCommandRegistry', () => {
       expect(retrieved).toBe(preCommand);
     });
 
-    it('should handle async command that takes time', async () => {
+    it("should handle async command that takes time", async () => {
       const preCommand: PreCommand = {
-        id: 'slow-command',
-        label: 'Slow Command',
+        id: "slow-command",
+        label: "Slow Command",
         run: async () => {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
           return { success: true };
         },
       };
@@ -502,7 +510,9 @@ describe('PreCommandRegistry', () => {
       registry.register(preCommand);
 
       const startTime = Date.now();
-      const result = await registry.execute('slow-command', { command: 'test' });
+      const result = await registry.execute("slow-command", {
+        command: "test",
+      });
       const duration = Date.now() - startTime;
 
       expect(result.success).toBe(true);

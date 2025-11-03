@@ -1,13 +1,15 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { watchKeybindingsFile } from '@/commands/keybindings/watchKeybindings';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
 
 // Helper to create a minimal mock of window.conduit
-function createMockConduit(overrides: Partial<typeof window.conduit> = {}): typeof window.conduit {
+function createMockConduit(
+  overrides: Partial<typeof window.conduit> = {},
+): typeof window.conduit {
   return {
-    platform: 'darwin',
+    platform: "darwin",
     createTerminal: vi.fn(),
     closeTerminal: vi.fn(),
     sendKeypress: vi.fn(),
@@ -53,12 +55,14 @@ function createMockConduit(overrides: Partial<typeof window.conduit> = {}): type
   } as typeof window.conduit;
 }
 
-describe('watchKeybindingsFile', () => {
+describe("watchKeybindingsFile", () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
   let originalConduit: typeof window.conduit;
 
   beforeEach(() => {
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {}) as any;
+    consoleLogSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => {}) as any;
     originalConduit = window.conduit;
   });
 
@@ -67,22 +71,22 @@ describe('watchKeybindingsFile', () => {
     window.conduit = originalConduit;
   });
 
-  it('should set up file watcher', () => {
+  it("should set up file watcher", () => {
     const mockDispose = vi.fn();
     const mockWatchFile = vi.fn().mockReturnValue({ dispose: mockDispose });
 
     window.conduit = createMockConduit({ watchFile: mockWatchFile });
 
     const callback = vi.fn();
-    watchKeybindingsFile('/path/to/keybindings.json', callback);
+    watchKeybindingsFile("/path/to/keybindings.json", callback);
 
     expect(mockWatchFile).toHaveBeenCalledWith(
-      '/path/to/keybindings.json',
-      expect.any(Function)
+      "/path/to/keybindings.json",
+      expect.any(Function),
     );
   });
 
-  it('should call callback when file changes', () => {
+  it("should call callback when file changes", () => {
     let watchCallback: (() => void) | undefined;
     const mockWatchFile = vi.fn().mockImplementation((path, cb) => {
       watchCallback = cb;
@@ -92,61 +96,63 @@ describe('watchKeybindingsFile', () => {
     window.conduit = createMockConduit({ watchFile: mockWatchFile });
 
     const callback = vi.fn();
-    watchKeybindingsFile('/path/to/keybindings.json', callback);
+    watchKeybindingsFile("/path/to/keybindings.json", callback);
 
     // Simulate file change
     watchCallback?.();
 
     expect(callback).toHaveBeenCalled();
-    expect(consoleLogSpy).toHaveBeenCalledWith('Keybindings file changed, reloading...');
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      "Keybindings file changed, reloading...",
+    );
   });
 
-  it('should return cleanup function', () => {
+  it("should return cleanup function", () => {
     const mockDispose = vi.fn();
     const mockWatchFile = vi.fn().mockReturnValue({ dispose: mockDispose });
 
     window.conduit = createMockConduit({ watchFile: mockWatchFile });
 
-    const cleanup = watchKeybindingsFile('/path/to/keybindings.json', vi.fn());
+    const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
     cleanup();
 
     expect(mockDispose).toHaveBeenCalled();
   });
 
-  it('should handle undefined window.conduit', () => {
+  it("should handle undefined window.conduit", () => {
     window.conduit = undefined;
 
-    const cleanup = watchKeybindingsFile('/path/to/keybindings.json', vi.fn());
+    const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
     // Should not throw
     expect(cleanup).toBeDefined();
     cleanup(); // Should not throw
   });
 
-  it('should handle undefined watchFile', () => {
+  it("should handle undefined watchFile", () => {
     window.conduit = createMockConduit({ watchFile: undefined as any });
 
-    const cleanup = watchKeybindingsFile('/path/to/keybindings.json', vi.fn());
+    const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
     // Should not throw
     expect(cleanup).toBeDefined();
     cleanup(); // Should not throw
   });
 
-  it('should handle watchFile returning undefined', () => {
+  it("should handle watchFile returning undefined", () => {
     const mockWatchFile = vi.fn().mockReturnValue(undefined);
 
     window.conduit = createMockConduit({ watchFile: mockWatchFile });
 
-    const cleanup = watchKeybindingsFile('/path/to/keybindings.json', vi.fn());
+    const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
     // Should not throw
     expect(cleanup).toBeDefined();
     cleanup(); // Should not throw
   });
 
-  it('should log on file change', () => {
+  it("should log on file change", () => {
     let watchCallback: (() => void) | undefined;
     const mockWatchFile = vi.fn().mockImplementation((path, cb) => {
       watchCallback = cb;
@@ -155,10 +161,12 @@ describe('watchKeybindingsFile', () => {
 
     window.conduit = createMockConduit({ watchFile: mockWatchFile });
 
-    watchKeybindingsFile('/path/to/keybindings.json', vi.fn());
+    watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
     watchCallback?.();
 
-    expect(consoleLogSpy).toHaveBeenCalledWith('Keybindings file changed, reloading...');
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      "Keybindings file changed, reloading...",
+    );
   });
 });

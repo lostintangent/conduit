@@ -18,13 +18,14 @@ import React, {
   useState,
 } from "react";
 
-const buildSearchDecorations =
-  (): NonNullable<ISearchOptions["decorations"]> => ({
-    matchBackground: resolveColor("selection"),
-    matchOverviewRuler: resolveColor("selection"),
-    activeMatchBackground: resolveColor("accent"),
-    activeMatchColorOverviewRuler: resolveColor("accent"),
-  });
+const buildSearchDecorations = (): NonNullable<
+  ISearchOptions["decorations"]
+> => ({
+  matchBackground: resolveColor("selection"),
+  matchOverviewRuler: resolveColor("selection"),
+  activeMatchBackground: resolveColor("accent"),
+  activeMatchColorOverviewRuler: resolveColor("accent"),
+});
 
 export type SearchWidgetHandle = {
   show: (selection: string) => void;
@@ -68,7 +69,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
         caseSensitive?: boolean;
         wholeWord?: boolean;
         regex?: boolean;
-      }
+      },
     ): ISearchOptions => {
       const options: ISearchOptions = {
         caseSensitive: flags?.caseSensitive ?? matchCase,
@@ -80,7 +81,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
       options.decorations = searchDecorations;
       return options;
     },
-    [matchCase, matchWholeWord, searchDecorations, useRegex]
+    [matchCase, matchWholeWord, searchDecorations, useRegex],
   );
 
   const clearSearchArtifacts = useCallback(() => {
@@ -102,7 +103,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
         searchAddon.findPrevious(trimmed, buildSearchOptions());
       }
     },
-    [buildSearchOptions, searchAddon, searchTerm]
+    [buildSearchOptions, searchAddon, searchTerm],
   );
 
   const applySearchFlags = useCallback(
@@ -124,11 +125,11 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
             caseSensitive: nextCase,
             wholeWord: nextWholeWord,
             regex: nextRegex,
-          }
-        )
+          },
+        ),
       );
     },
-    [buildSearchOptions, clearSearchArtifacts, searchAddon, searchTerm]
+    [buildSearchOptions, clearSearchArtifacts, searchAddon, searchTerm],
   );
 
   const toggleMatchCase = () => {
@@ -168,10 +169,10 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
         trimmed,
         buildSearchOptions({
           incremental: true,
-        })
+        }),
       );
     },
-    [buildSearchOptions, clearSearchArtifacts, searchAddon]
+    [buildSearchOptions, clearSearchArtifacts, searchAddon],
   );
 
   const show = useCallback(
@@ -196,15 +197,15 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
         }
         searchAddon.findNext(
           trimmed,
-          buildSearchOptions({ incremental: true })
+          buildSearchOptions({ incremental: true }),
         );
       });
     },
-    [buildSearchOptions, clearSearchArtifacts, searchAddon]
+    [buildSearchOptions, clearSearchArtifacts, searchAddon],
   );
 
   const handleSearchKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>
+    event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -239,7 +240,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
     const disposable = searchAddon.onDidChangeResults(
       ({ resultIndex, resultCount }) => {
         setSearchResults({ index: resultIndex, count: resultCount });
-      }
+      },
     );
 
     return () => disposable.dispose();
@@ -250,7 +251,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
     () => ({
       show,
     }),
-    [show]
+    [show],
   );
 
   const searchStatusLabel = useMemo(() => {

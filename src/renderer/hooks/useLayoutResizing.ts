@@ -109,16 +109,16 @@ export const useLayoutResizing = () => {
             ...tab,
             layout: updateNode(tab.layout),
           };
-        })
+        }),
       );
     },
-    [setTabs]
+    [setTabs],
   );
 
   const handleResizeStart = useCallback(
     (
       e: React.MouseEvent,
-      { tabId, axes, activeHandleId }: LayoutResizeStartConfig
+      { tabId, axes, activeHandleId }: LayoutResizeStartConfig,
     ) => {
       e.preventDefault();
       if (axes.length === 0) {
@@ -131,7 +131,7 @@ export const useLayoutResizing = () => {
         axis,
         startPos: axis.direction === "row" ? e.clientX : e.clientY,
         containerElement: document.querySelector<HTMLElement>(
-          `[data-node-id="${axis.containerNodeId}"]`
+          `[data-node-id="${axis.containerNodeId}"]`,
         ),
         totalSize: axis.leadingSize + axis.trailingSize,
       }));
@@ -164,13 +164,13 @@ export const useLayoutResizing = () => {
             const rawLeading = axis.leadingSize + deltaFraction * totalSize;
             const clampedLeading = Math.max(
               0.1,
-              Math.min(totalSize - 0.1, rawLeading)
+              Math.min(totalSize - 0.1, rawLeading),
             );
             const clampedTrailing = totalSize - clampedLeading;
 
             sizeUpdates.set(axis.leadingNodeId, clampedLeading);
             sizeUpdates.set(axis.trailingNodeId, clampedTrailing);
-          }
+          },
         );
 
         // Store pending updates and schedule RAF if not already scheduled
@@ -205,7 +205,7 @@ export const useLayoutResizing = () => {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [applySizeUpdates]
+    [applySizeUpdates],
   );
 
   const hasCustomLayout = useCallback(
@@ -217,7 +217,7 @@ export const useLayoutResizing = () => {
 
       return layoutHasCustomSizes(tab.layout);
     },
-    [tabs]
+    [tabs],
   );
 
   const resetLayoutSizes = useCallback(
@@ -237,10 +237,10 @@ export const useLayoutResizing = () => {
             ...tab,
             layout: cleanedLayout,
           };
-        })
+        }),
       );
     },
-    [setTabs]
+    [setTabs],
   );
 
   return {

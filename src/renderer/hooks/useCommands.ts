@@ -1,11 +1,11 @@
-import { useMemo, useState, useEffect } from 'react';
-import { useAtomValue } from 'jotai';
-import type { ICommandRegistry } from '@/commands/core/CommandRegistry';
-import type { KeybindingRegistry } from '@/commands/keybindings/KeybindingRegistry';
-import type { IContextKeyService } from '@/commands/contextKeys/ContextKeyService';
-import { formatKeybindingForDisplay } from '@/commands/keybindings/utils';
-import { keybindingsAtom } from '@/store/atoms';
-import type { Command } from '@/types';
+import { useMemo, useState, useEffect } from "react";
+import { useAtomValue } from "jotai";
+import type { ICommandRegistry } from "@/commands/core/CommandRegistry";
+import type { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
+import type { IContextKeyService } from "@/commands/contextKeys/ContextKeyService";
+import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
+import { keybindingsAtom } from "@/store/atoms";
+import type { Command } from "@/types";
 
 /**
  * General-purpose hook that converts registered commands to simple Command type
@@ -36,7 +36,7 @@ import type { Command } from '@/types';
 export function useCommands(
   commandRegistry: ICommandRegistry | undefined,
   keybindingRegistry: KeybindingRegistry | undefined,
-  contextKeyService: IContextKeyService | undefined
+  contextKeyService: IContextKeyService | undefined,
 ): Command[] {
   // Track context key changes via subscription
   const [contextRevision, setContextRevision] = useState(0);
@@ -46,7 +46,7 @@ export function useCommands(
 
     // Subscribe to context key changes
     const unsubscribe = contextKeyService.onDidChangeContext(() => {
-      setContextRevision(prev => prev + 1);
+      setContextRevision((prev) => prev + 1);
     });
     return unsubscribe;
   }, [contextKeyService]);
@@ -64,18 +64,18 @@ export function useCommands(
     const contextValues = contextKeyService.getAll();
 
     // Filter by when clause
-    const availableCommands = allCommands.filter(cmd => {
+    const availableCommands = allCommands.filter((cmd) => {
       if (!cmd.when) return true;
       return cmd.when.evaluate(contextValues);
     });
 
     // Filter out meta commands (like showing the palette itself)
-    const filteredCommands = availableCommands.filter(cmd =>
-      cmd.id !== 'view.showCommandPalette'
+    const filteredCommands = availableCommands.filter(
+      (cmd) => cmd.id !== "view.showCommandPalette",
     );
 
     // Convert CommandDescriptor → Command
-    return filteredCommands.map(cmd => {
+    return filteredCommands.map((cmd) => {
       // Get keybinding for this command
       const keybindings = keybindingRegistry.getKeybindingsForCommand(cmd.id);
       const primaryKeybinding = keybindings[0]; // Use first binding
@@ -94,8 +94,14 @@ export function useCommands(
         run: () => {
           // Adapter: hide context parameter from Command interface
           return commandRegistry.executeCommand(cmd.id);
-        }
+        },
       };
     });
-  }, [commandRegistry, keybindingRegistry, contextKeyService, contextRevision, keybindingsMap]);
+  }, [
+    commandRegistry,
+    keybindingRegistry,
+    contextKeyService,
+    contextRevision,
+    keybindingsMap,
+  ]);
 }

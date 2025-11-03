@@ -41,22 +41,19 @@ type TabButtonProps = {
   onContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onDragStart: (
     event: React.DragEvent<HTMLButtonElement>,
-    tabId: string
+    tabId: string,
   ) => void;
   onDragOver: (
     event: React.DragEvent<HTMLButtonElement>,
-    tabId: string
+    tabId: string,
   ) => void;
   onDragLeave?: (
     event: React.DragEvent<HTMLButtonElement>,
-    tabId: string
+    tabId: string,
   ) => void;
   onDrop: (event: React.DragEvent<Element>) => void;
   onDragEnd: () => void;
-  onHoverChange?: (
-    tabId: string,
-    element: HTMLButtonElement | null
-  ) => void;
+  onHoverChange?: (tabId: string, element: HTMLButtonElement | null) => void;
 };
 
 export const TabButton = ({
@@ -137,7 +134,7 @@ export const TabButton = ({
         "group flex items-center gap-2 py-1.5 px-3 border-0 rounded-lg cursor-pointer text-[0.85rem] leading-none transition-colors duration-150 flex-none whitespace-nowrap select-none",
         isActive
           ? "bg-gradient-to-br from-accent-start to-accent-end text-white"
-          : "bg-white/5 text-inherit hover:bg-white/10"
+          : "bg-white/5 text-inherit hover:bg-white/10",
       )}
       onClick={(event) => {
         if (disableClick) {
@@ -160,7 +157,9 @@ export const TabButton = ({
       }
       onDragStart={(event) => onDragStart(event, tabId)}
       onDragOver={(event) => onDragOver(event, tabId)}
-      onDragLeave={onDragLeave ? (event) => onDragLeave(event, tabId) : undefined}
+      onDragLeave={
+        onDragLeave ? (event) => onDragLeave(event, tabId) : undefined
+      }
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >

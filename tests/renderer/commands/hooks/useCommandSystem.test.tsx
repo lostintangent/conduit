@@ -1,15 +1,15 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { Provider, createStore } from 'jotai';
-import { useCommandSystem } from '@/commands/hooks/useCommandSystem';
-import { keybindingsAtom } from '@/store/atoms';
-import { ApplicationCommands } from '@/commands/applicationCommands';
-import type { ApplicationMode } from '@/store/atoms';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { Provider, createStore } from "jotai";
+import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
+import { keybindingsAtom } from "@/store/atoms";
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import type { ApplicationMode } from "@/store/atoms";
 
-describe('useCommandSystem', () => {
+describe("useCommandSystem", () => {
   let store: ReturnType<typeof createStore>;
   let setApplicationModeMock: ReturnType<typeof vi.fn>;
 
@@ -18,17 +18,20 @@ describe('useCommandSystem', () => {
     setApplicationModeMock = vi.fn();
   });
 
-  describe('initialization', () => {
-    it('should initialize command system', async () => {
+  describe("initialization", () => {
+    it("should initialize command system", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       // In test environment, effects run synchronously so system is ready immediately
@@ -37,16 +40,19 @@ describe('useCommandSystem', () => {
       });
     });
 
-    it('should initialize and return command system state when ready', async () => {
+    it("should initialize and return command system state when ready", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       // Wait for initialization
@@ -61,16 +67,19 @@ describe('useCommandSystem', () => {
       });
     });
 
-    it('should have commandRegistry with methods', async () => {
+    it("should have commandRegistry with methods", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -83,16 +92,19 @@ describe('useCommandSystem', () => {
       expect(commandRegistry.executeCommand).toBeDefined();
     });
 
-    it('should have keybindingRegistry with methods', async () => {
+    it("should have keybindingRegistry with methods", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -105,17 +117,20 @@ describe('useCommandSystem', () => {
     });
   });
 
-  describe('application commands registration', () => {
-    it('should register application commands', async () => {
+  describe("application commands registration", () => {
+    it("should register application commands", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -126,34 +141,37 @@ describe('useCommandSystem', () => {
 
       // Check that application commands are registered
       const focusModeCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE
+        ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
       );
       expect(focusModeCommand).toBeDefined();
-      expect(focusModeCommand?.title).toBe('Toggle Focus Mode');
+      expect(focusModeCommand?.title).toBe("Toggle Focus Mode");
 
       const toggleControlsCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE
+        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
       );
       expect(toggleControlsCommand).toBeDefined();
-      expect(toggleControlsCommand?.title).toBe('Toggle Design Mode');
+      expect(toggleControlsCommand?.title).toBe("Toggle Design Mode");
 
       const keyboardShortcutsCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
+        ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
       );
       expect(keyboardShortcutsCommand).toBeDefined();
-      expect(keyboardShortcutsCommand?.title).toBe('Keyboard Shortcuts');
+      expect(keyboardShortcutsCommand?.title).toBe("Keyboard Shortcuts");
     });
 
-    it('should have keybindings for application commands', async () => {
+    it("should have keybindings for application commands", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -162,24 +180,27 @@ describe('useCommandSystem', () => {
 
       const { keybindingRegistry } = result.current!;
       const focusModeBindings = keybindingRegistry.getKeybindingsForCommand(
-        ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE
+        ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
       );
 
       expect(focusModeBindings.length).toBeGreaterThan(0);
     });
   });
 
-  describe('keybindings atom population', () => {
-    it('should populate keybindings atom with initial bindings', async () => {
+  describe("keybindings atom population", () => {
+    it("should populate keybindings atom with initial bindings", async () => {
       renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -188,38 +209,50 @@ describe('useCommandSystem', () => {
       });
     });
 
-    it('should include application command keybindings in atom', async () => {
+    it("should include application command keybindings in atom", async () => {
       renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
         const keybindings = store.get(keybindingsAtom);
-        expect(keybindings.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)).toBe(true);
-        expect(keybindings.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)).toBe(true);
-        expect(keybindings.has(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS)).toBe(true);
+        expect(
+          keybindings.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE),
+        ).toBe(true);
+        expect(
+          keybindings.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE),
+        ).toBe(true);
+        expect(
+          keybindings.has(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS),
+        ).toBe(true);
       });
     });
   });
 
-  describe('context builder', () => {
-    it('should set context builder with view service', async () => {
+  describe("context builder", () => {
+    it("should set context builder with view service", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -230,32 +263,37 @@ describe('useCommandSystem', () => {
 
       // Execute a command to test context builder
       const toggleCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE
+        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
       );
       expect(toggleCommand).toBeDefined();
 
       // Execute the command - should call setApplicationMode
-      await commandRegistry.executeCommand(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE);
+      await commandRegistry.executeCommand(
+        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
+      );
 
-      expect(setApplicationModeMock).toHaveBeenCalledWith('design');
+      expect(setApplicationModeMock).toHaveBeenCalledWith("design");
     });
 
-    it('should provide activeTab in context', async () => {
+    it("should provide activeTab in context", async () => {
       const mockTab = {
-        id: 'tab-1',
-        activePaneId: 'pane-1',
+        id: "tab-1",
+        activePaneId: "pane-1",
         panes: {},
       };
 
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: mockTab,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: mockTab,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -267,31 +305,34 @@ describe('useCommandSystem', () => {
       // Register a test command that accesses activeTab
       let capturedContext: any = null;
       commandRegistry.registerCommand({
-        id: 'test.captureContext',
-        title: 'Capture Context',
+        id: "test.captureContext",
+        title: "Capture Context",
         run: (context) => {
           capturedContext = context;
         },
       });
 
-      await commandRegistry.executeCommand('test.captureContext');
+      await commandRegistry.executeCommand("test.captureContext");
 
       expect(capturedContext).toBeDefined();
       expect(capturedContext.activeTab).toEqual(mockTab);
-      expect(capturedContext.activePaneId).toBe('pane-1');
+      expect(capturedContext.activePaneId).toBe("pane-1");
     });
 
-    it('should update context when applicationMode changes', async () => {
+    it("should update context when applicationMode changes", async () => {
       const { result, rerender } = renderHook(
-        ({ mode }) => useCommandSystem({
-          activeTab: null,
-          applicationMode: mode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        ({ mode }) =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: mode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          initialProps: { mode: 'normal' as ApplicationMode },
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          initialProps: { mode: "normal" as ApplicationMode },
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -299,30 +340,33 @@ describe('useCommandSystem', () => {
       });
 
       // Change mode and rerender
-      rerender({ mode: 'design' as ApplicationMode });
+      rerender({ mode: "design" as ApplicationMode });
 
       // Execute toggle command - should toggle back to normal
       await result.current!.commandRegistry.executeCommand(
-        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE
+        ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
       );
 
-      expect(setApplicationModeMock).toHaveBeenCalledWith('normal');
+      expect(setApplicationModeMock).toHaveBeenCalledWith("normal");
     });
 
-    it('should update context when activeTab changes', async () => {
-      const mockTab1 = { id: 'tab-1', activePaneId: 'pane-1', panes: {} };
-      const mockTab2 = { id: 'tab-2', activePaneId: 'pane-2', panes: {} };
+    it("should update context when activeTab changes", async () => {
+      const mockTab1 = { id: "tab-1", activePaneId: "pane-1", panes: {} };
+      const mockTab2 = { id: "tab-2", activePaneId: "pane-2", panes: {} };
 
       const { result, rerender } = renderHook(
-        ({ tab }) => useCommandSystem({
-          activeTab: tab,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        ({ tab }) =>
+          useCommandSystem({
+            activeTab: tab,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
           initialProps: { tab: mockTab1 },
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -334,37 +378,40 @@ describe('useCommandSystem', () => {
       // Register a test command
       let capturedTab: any = null;
       commandRegistry.registerCommand({
-        id: 'test.captureTab',
-        title: 'Capture Tab',
+        id: "test.captureTab",
+        title: "Capture Tab",
         run: (context) => {
           capturedTab = context.activeTab;
         },
       });
 
       // Execute with first tab
-      await commandRegistry.executeCommand('test.captureTab');
+      await commandRegistry.executeCommand("test.captureTab");
       expect(capturedTab).toEqual(mockTab1);
 
       // Change tab
       rerender({ tab: mockTab2 });
 
       // Execute again with second tab
-      await commandRegistry.executeCommand('test.captureTab');
+      await commandRegistry.executeCommand("test.captureTab");
       expect(capturedTab).toEqual(mockTab2);
     });
   });
 
-  describe('ready state management', () => {
-    it('should set context builder before returning system', async () => {
+  describe("ready state management", () => {
+    it("should set context builder before returning system", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       // Wait for system to be ready
@@ -376,16 +423,19 @@ describe('useCommandSystem', () => {
       expect(result.current).toBeDefined();
     });
 
-    it('should have isReady=true when returned', async () => {
+    it("should have isReady=true when returned", async () => {
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -396,17 +446,20 @@ describe('useCommandSystem', () => {
     });
   });
 
-  describe('stability', () => {
-    it('should not reinitialize on rerender', async () => {
+  describe("stability", () => {
+    it("should not reinitialize on rerender", async () => {
       const { result, rerender } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -421,8 +474,8 @@ describe('useCommandSystem', () => {
     });
   });
 
-  describe('file watching', () => {
-    it('should not watch keybindings file when homeDirectory is not provided', async () => {
+  describe("file watching", () => {
+    it("should not watch keybindings file when homeDirectory is not provided", async () => {
       const mockWatchFile = vi.fn(() => ({ dispose: vi.fn() }));
       const originalConduit = window.conduit;
 
@@ -430,15 +483,18 @@ describe('useCommandSystem', () => {
       window.conduit = { ...window.conduit, watchFile: mockWatchFile };
 
       renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-          // homeDirectory not provided
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+            // homeDirectory not provided
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -451,7 +507,7 @@ describe('useCommandSystem', () => {
       window.conduit = originalConduit;
     });
 
-    it('should watch keybindings file when homeDirectory is provided', async () => {
+    it("should watch keybindings file when homeDirectory is provided", async () => {
       const mockDispose = vi.fn();
       const mockWatchFile = vi.fn(() => ({ dispose: mockDispose }));
       const originalConduit = window.conduit;
@@ -460,21 +516,24 @@ describe('useCommandSystem', () => {
       window.conduit = { ...window.conduit, watchFile: mockWatchFile };
 
       const { unmount } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-          homeDirectory: '/test/home',
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+            homeDirectory: "/test/home",
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
         expect(mockWatchFile).toHaveBeenCalledWith(
-          '/test/home/.conduit/keybindings.json',
-          expect.any(Function)
+          "/test/home/.conduit/keybindings.json",
+          expect.any(Function),
         );
       });
 
@@ -486,7 +545,7 @@ describe('useCommandSystem', () => {
       window.conduit = originalConduit;
     });
 
-    it('should handle file changes and reload keybindings', async () => {
+    it("should handle file changes and reload keybindings", async () => {
       let changeCallback: (() => void) | null = null;
       const mockDispose = vi.fn();
       const mockWatchFile = vi.fn((path: string, callback: () => void) => {
@@ -494,7 +553,7 @@ describe('useCommandSystem', () => {
         return { dispose: mockDispose };
       });
       const originalConduit = window.conduit;
-      const mockReadFile = vi.fn().mockResolvedValue('[]');
+      const mockReadFile = vi.fn().mockResolvedValue("[]");
 
       // Mock window.conduit
       window.conduit = {
@@ -504,15 +563,18 @@ describe('useCommandSystem', () => {
       };
 
       const { result } = renderHook(
-        () => useCommandSystem({
-          activeTab: null,
-          applicationMode: 'normal' as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-          homeDirectory: '/test/home',
-        }),
+        () =>
+          useCommandSystem({
+            activeTab: null,
+            applicationMode: "normal" as ApplicationMode,
+            setApplicationMode: setApplicationModeMock,
+            homeDirectory: "/test/home",
+          }),
         {
-          wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-        }
+          wrapper: ({ children }) => (
+            <Provider store={store}>{children}</Provider>
+          ),
+        },
       );
 
       await waitFor(() => {
@@ -527,7 +589,9 @@ describe('useCommandSystem', () => {
 
       // Should have attempted to read the file
       await waitFor(() => {
-        expect(mockReadFile).toHaveBeenCalledWith('/test/home/.conduit/keybindings.json');
+        expect(mockReadFile).toHaveBeenCalledWith(
+          "/test/home/.conduit/keybindings.json",
+        );
       });
 
       // Restore

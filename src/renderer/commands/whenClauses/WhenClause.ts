@@ -1,4 +1,4 @@
-import type { ContextValues } from '../contextKeys/types';
+import type { ContextValues } from "../contextKeys/types";
 
 /**
  * A when clause represents a conditional expression that can be evaluated

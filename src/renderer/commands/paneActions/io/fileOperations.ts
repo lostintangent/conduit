@@ -5,8 +5,8 @@
  * Based on: docs/pane-actions-schema.md
  */
 
-import type { Action } from '../core/types';
-import { validatePaneActionsConfig, ValidationError } from './validation';
+import type { Action } from "../core/types";
+import { validatePaneActionsConfig, ValidationError } from "./validation";
 
 /**
  * Get the path to the user's pane actions configuration file
@@ -27,11 +27,11 @@ export function getUserPaneActionsPath(homeDirectory: string): string {
  * @throws Error for other file system errors
  */
 export async function readPaneActionsFile(
-  filePath: string
+  filePath: string,
 ): Promise<Action[] | null> {
   const api = window.conduit;
   if (!api) {
-    throw new Error('Conduit API not available');
+    throw new Error("Conduit API not available");
   }
 
   try {
@@ -39,8 +39,10 @@ export async function readPaneActionsFile(
     return parsePaneActionsContent(content);
   } catch (error) {
     // File doesn't exist - this is expected on first run
-    if ((error as Error).message?.includes('ENOENT') ||
-        (error as Error).message?.includes('no such file')) {
+    if (
+      (error as Error).message?.includes("ENOENT") ||
+      (error as Error).message?.includes("no such file")
+    ) {
       return null;
     }
     // Re-throw other errors
@@ -64,7 +66,7 @@ export function parsePaneActionsContent(content: string): Action[] {
   } catch (error) {
     throw new ValidationError(
       `Invalid JSON: ${(error as Error).message}`,
-      'JSON parsing'
+      "JSON parsing",
     );
   }
 
@@ -83,11 +85,11 @@ export function parsePaneActionsContent(content: string): Action[] {
  */
 export async function writePaneActionsFile(
   filePath: string,
-  actions: Action[]
+  actions: Action[],
 ): Promise<void> {
   const api = window.conduit;
   if (!api) {
-    throw new Error('Conduit API not available');
+    throw new Error("Conduit API not available");
   }
 
   // Validate before writing
@@ -109,12 +111,12 @@ export async function writePaneActionsFile(
  * @throws Error for other file system errors
  */
 export async function readPaneActionsFileOrNull(
-  filePath: string
+  filePath: string,
 ): Promise<Action[] | null> {
   try {
     return await readPaneActionsFile(filePath);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return null;
     }
     throw error;

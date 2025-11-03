@@ -1,4 +1,8 @@
-import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
+import {
+  dismissNotification,
+  enqueueNotification,
+  updateNotification,
+} from "@/store/actions/notifications";
 import {
   completeAgentSession,
   deleteAgentSession,
@@ -148,8 +152,10 @@ export const TerminalPane = ({
   const agentSessionId = terminalPane?.agentSessionId ?? null;
   const vmId = terminalPane?.vmMetadata?.vmId ?? null;
 
-  const focusTerminal = useCallback(() =>
-    requestAnimationFrame(() => terminalRef.current?.terminal.focus()), []);
+  const focusTerminal = useCallback(
+    () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
+    [],
+  );
 
   const showSearchWidget = useCallback(() => {
     const terminal = terminalRef.current?.terminal;
@@ -245,7 +251,7 @@ export const TerminalPane = ({
     try {
       // Fork the VM using the VM API
       const forkedVM = await api.forkVM(vmId);
-      
+
       if (!forkedVM) {
         throw new Error("Failed to fork VM");
       }
@@ -259,17 +265,11 @@ export const TerminalPane = ({
       dismissNotification(notificationId);
 
       // Split the current pane vertically with the new terminal connected to forked VM
-      await splitPane(
-        currentTab.id,
-        paneId,
-        "row",
-        false,
-        {
-          terminalOptions: {
-            existingVMId: forkedVM.id,
-          },
-        }
-      );
+      await splitPane(currentTab.id, paneId, "row", false, {
+        terminalOptions: {
+          existingVMId: forkedVM.id,
+        },
+      });
 
       enqueueNotification({
         kind: "success",
@@ -278,7 +278,8 @@ export const TerminalPane = ({
         autoCloseMs: 3000,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       updateNotification(notificationId, {
         kind: "error",
         message: "Failed to fork VM",
@@ -313,7 +314,7 @@ export const TerminalPane = ({
       // Check if this is a localhost/127.0.0.1 URL and we're in a cloud VM
       if (vmId) {
         const port = extractPortFromMatch(url);
-        
+
         if (port && currentTab) {
           // This is a port reference in a cloud VM - forward it!
           forwardPortAndOpen(currentTab.id, paneId, vmId, port);
@@ -362,7 +363,6 @@ export const TerminalPane = ({
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
     >
-
       {/** xTerm.js container (which can't have padding applied directly to it) */}
       <div className="w-full h-full pl-2 pt-2">
         <div className="w-full h-full" ref={containerRef} />
@@ -389,7 +389,6 @@ export const TerminalPane = ({
         onDeleteAgentSession={handleDeleteAgentSession}
         onForkVM={vmId ? handleForkVM : undefined}
       />
-
     </div>
   );
 };

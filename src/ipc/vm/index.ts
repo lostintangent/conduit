@@ -53,27 +53,40 @@ export function initializeVMHandlers() {
   });
 
   // Forward a port from a VM
-  ipcMain.handle("vm:forward-port", async (_, { vmId, port, description }: { vmId: string; port: number; description?: string }) => {
-    const { addPortForward } = await import("./client");
-    
-    // Find the terminal session for this VM
-    const terminals = (await import("../terminal/store")).getAllTerminals();
-    let terminal;
-    for (const [_, term] of terminals) {
-      if (term.cloudEnvironment?.vmId === vmId) {
-        terminal = term;
-        break;
+  ipcMain.handle(
+    "vm:forward-port",
+    async (
+      _,
+      {
+        vmId,
+        port,
+        description,
+      }: { vmId: string; port: number; description?: string },
+    ) => {
+      const { addPortForward } = await import("./client");
+
+      // Find the terminal session for this VM
+      const terminals = (await import("../terminal/store")).getAllTerminals();
+      let terminal;
+      for (const [_, term] of terminals) {
+        if (term.cloudEnvironment?.vmId === vmId) {
+          terminal = term;
+          break;
+        }
       }
-    }
 
-    // Call the VM API to forward the port
-    const result = await addPortForward(vmId, port, description);
+      // Call the VM API to forward the port
+      const result = await addPortForward(vmId, port, description);
 
-    // Update the terminal's forwarded ports map
-    if (terminal?.cloudEnvironment) {
-      terminal.cloudEnvironment.forwardedPorts.set(port, result.connection_url);
-    }
+      // Update the terminal's forwarded ports map
+      if (terminal?.cloudEnvironment) {
+        terminal.cloudEnvironment.forwardedPorts.set(
+          port,
+          result.connection_url,
+        );
+      }
 
-    return result;
-  });
+      return result;
+    },
+  );
 }

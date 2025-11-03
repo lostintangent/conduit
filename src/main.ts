@@ -50,7 +50,7 @@ function hydrateEnvFromLoginShell() {
   } catch (error) {
     console.warn(
       "Failed to read login shell environment, continuing with defaults.",
-      error
+      error,
     );
   }
 }
@@ -79,7 +79,7 @@ async function createWindow() {
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     await mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
 

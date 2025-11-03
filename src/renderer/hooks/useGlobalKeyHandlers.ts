@@ -12,10 +12,7 @@ import {
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
 import { focusTab, movePaneToTab } from "@/store/actions/tab";
-import {
-  activeTabAtom,
-  tabsAtom,
-} from "@/store/atoms";
+import { activeTabAtom, tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
@@ -50,11 +47,11 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         activeTab.id,
         activeTab.activePaneId,
         direction,
-        insertBefore
+        insertBefore,
       );
       focusTab(activeTab.id);
     },
-    [activeTab, focusTab, splitPane]
+    [activeTab, focusTab, splitPane],
   );
 
   const performSplitWithAgentSession = useCallback(
@@ -67,11 +64,11 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         activeTab.id,
         activeTab.activePaneId,
         direction,
-        insertBefore
+        insertBefore,
       );
       focusTab(activeTab.id);
     },
-    [activeTab, focusTab, splitPaneWithAgentSession]
+    [activeTab, focusTab, splitPaneWithAgentSession],
   );
 
   useEffect(() => {
@@ -125,10 +122,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
               down: { direction: "column", insertBefore: false },
             };
             const config = splitConfig[direction];
-            performSplitWithAgentSession(
-              config.direction,
-              config.insertBefore
-            );
+            performSplitWithAgentSession(config.direction, config.insertBefore);
           } else if (event.shiftKey && !event.ctrlKey) {
             const splitConfig: Record<
               PaneNavigationDirection,
@@ -152,9 +146,7 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
                 right: "next",
                 down: "next",
               };
-              navigateFocusedPane(
-                focusModeDirectionMap[direction]
-              );
+              navigateFocusedPane(focusModeDirectionMap[direction]);
             } else {
               navigatePane(activeTab.id, activeTab.activePaneId, direction);
             }
@@ -183,7 +175,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         focusTab(targetTab.id);
       }
     };
-
 
     window.addEventListener("keydown", handleKeydown);
     return () => {

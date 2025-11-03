@@ -57,7 +57,7 @@ export function enterFocusMode(tabId: string, paneId: string): void {
           ...t,
           activePaneId: paneId,
         };
-      })
+      }),
     );
   }
 
@@ -86,9 +86,7 @@ export function toggleFocusMode(tabId: string, paneId: string): void {
 /**
  * Navigate to the next or previous pane in focus mode
  */
-export function navigateFocusedPane(
-  direction: "next" | "prev"
-): void {
+export function navigateFocusedPane(direction: "next" | "prev"): void {
   const applicationMode = store.get(applicationModeAtom);
   if (applicationMode !== "focus") {
     return;
@@ -133,6 +131,6 @@ export function navigateFocusedPane(
         ...t,
         activePaneId: nextPaneId,
       };
-    })
+    }),
   );
 }

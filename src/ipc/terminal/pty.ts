@@ -19,4 +19,4 @@ export function spawnTerminalProcess(cwd?: string) {
     cwd: cwd ?? homeDirectory,
     env: process.env,
   });
-};
+}

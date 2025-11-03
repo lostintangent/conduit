@@ -44,7 +44,7 @@ export function AgentCleanupDialog({
         }
         return b.createdAt - a.createdAt;
       }),
-    [sessions]
+    [sessions],
   );
 
   if (!isOpen) {

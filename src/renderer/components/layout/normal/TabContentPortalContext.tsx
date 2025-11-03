@@ -27,7 +27,9 @@ export function TabContentPortalProvider({
   children: React.ReactNode;
 }) {
   const [layoutMountPoints, setLayoutMountPoints] = useState<ContainerMap>({});
-  const [previewMountPoints, setPreviewMountPoints] = useState<ContainerMap>({});
+  const [previewMountPoints, setPreviewMountPoints] = useState<ContainerMap>(
+    {},
+  );
 
   const setLayoutMountPoint = useCallback(
     (tabId: string, element: HTMLElement | null) => {
@@ -46,14 +48,14 @@ export function TabContentPortalProvider({
         return { ...previous, [tabId]: element };
       });
     },
-    []
+    [],
   );
 
   const mountTabsInPreview = useCallback(
     (mounts: Record<string, HTMLElement>) => {
       setPreviewMountPoints(mounts);
     },
-    []
+    [],
   );
 
   const unmountTabsFromPreview = useCallback(() => {
@@ -67,14 +69,14 @@ export function TabContentPortalProvider({
       }
       return layoutMountPoints[tabId];
     },
-    [layoutMountPoints, previewMountPoints]
+    [layoutMountPoints, previewMountPoints],
   );
 
   const isTabInPreview = useCallback(
     (tabId: string) => {
       return !!previewMountPoints[tabId];
     },
-    [previewMountPoints]
+    [previewMountPoints],
   );
 
   const value = useMemo<TabContentPortalContextValue>(
@@ -91,7 +93,7 @@ export function TabContentPortalProvider({
       setLayoutMountPoint,
       unmountTabsFromPreview,
       isTabInPreview,
-    ]
+    ],
   );
 
   return (
@@ -105,7 +107,7 @@ export const useTabContentPortal = () => {
   const context = useContext(TabContentPortalContext);
   if (!context) {
     throw new Error(
-      "useTabContentPortal must be used within a TabContentPortalProvider"
+      "useTabContentPortal must be used within a TabContentPortalProvider",
     );
   }
   return context;

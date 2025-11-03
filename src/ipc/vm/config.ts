@@ -23,7 +23,7 @@ export async function loadConfig(): Promise<VMConfig> {
   }
 
   const configPath = path.join(app.getAppPath(), ".env.local");
-  
+
   try {
     const content = await fs.readFile(configPath, "utf-8");
     const config: Partial<VMConfig> = {};
@@ -48,7 +48,7 @@ export async function loadConfig(): Promise<VMConfig> {
 
     if (!config.managerUrl || !config.token || !config.defaultImageId) {
       throw new Error(
-        "Missing required configuration. Ensure NODE, TOKEN, and IMAGE_ID are set in .env.local"
+        "Missing required configuration. Ensure NODE, TOKEN, and IMAGE_ID are set in .env.local",
       );
     }
 
@@ -57,7 +57,7 @@ export async function loadConfig(): Promise<VMConfig> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw new Error(
-        ".env.local file not found. Please create it with NODE, TOKEN, and IMAGE_ID"
+        ".env.local file not found. Please create it with NODE, TOKEN, and IMAGE_ID",
       );
     }
     throw error;

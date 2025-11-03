@@ -1,5 +1,8 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
-import { getCommandDisplayTitle, useCommand } from "@/commands/hooks/useCommand";
+import {
+  getCommandDisplayTitle,
+  useCommand,
+} from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import { TabPreviewOverlay } from "@/components/shell/tabs/preview/TabPreviewOverlay";
 import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
@@ -11,7 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { dismissNotification, enqueueNotification, updateNotification } from "@/store/actions/notifications";
+import {
+  dismissNotification,
+  enqueueNotification,
+  updateNotification,
+} from "@/store/actions/notifications";
 import { focusTab, moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -34,7 +41,13 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type TabDescriptor = {
   id: string;
@@ -91,8 +104,12 @@ export const TabStrip = ({
   const [showTabsOverview, setShowTabsOverview] = useState(false);
 
   // Command hooks for button actions
-  const toggleFocusModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE);
-  const toggleDesignModeCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE);
+  const toggleFocusModeCmd = useCommand(
+    ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
+  );
+  const toggleDesignModeCmd = useCommand(
+    ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
+  );
 
   const tabStripTransitionStyle = useMemo<React.CSSProperties>(() => {
     const collapsed = isInFocusMode;
@@ -179,7 +196,7 @@ export const TabStrip = ({
 
       return pathValue;
     },
-    [homeDirectory]
+    [homeDirectory],
   );
 
   const descriptors = useMemo<TabDescriptor[]>(
@@ -223,7 +240,7 @@ export const TabStrip = ({
           title: tab.title?.trim() || undefined,
         };
       }),
-    [activeTabId, tabs]
+    [activeTabId, tabs],
   );
 
   useEffect(() => {
@@ -249,41 +266,41 @@ export const TabStrip = ({
   }, [clearPreviewCloseTimeout]);
 
   // TODO: See if we can remove this code in favor of mergining it with the descriptors and tabs w/placeholders memos
-  const { reorderableTabs, placeholderIndex, nonDraggingIndexById } = useMemo(() => {
-    if (!draggingTab) {
-      return {
-        reorderableTabs: descriptors,
-        placeholderIndex: null,
-        nonDraggingIndexById: {} as Record<string, number>,
-      };
-    }
+  const { reorderableTabs, placeholderIndex, nonDraggingIndexById } =
+    useMemo(() => {
+      if (!draggingTab) {
+        return {
+          reorderableTabs: descriptors,
+          placeholderIndex: null,
+          nonDraggingIndexById: {} as Record<string, number>,
+        };
+      }
 
-    const reorderableTabs = descriptors.filter(
-      (tab) => tab.id !== draggingTab.id
-    );
-    const nonDraggingIndexById = reorderableTabs.reduce<Record<string, number>>(
-      (acc, tab, index) => {
+      const reorderableTabs = descriptors.filter(
+        (tab) => tab.id !== draggingTab.id,
+      );
+      const nonDraggingIndexById = reorderableTabs.reduce<
+        Record<string, number>
+      >((acc, tab, index) => {
         acc[tab.id] = index;
         return acc;
-      },
-      {}
-    );
+      }, {});
 
-    const baseIndex = Math.max(0, draggingTab.originalIndex);
-    const fallbackIndex = Math.min(baseIndex, reorderableTabs.length);
-    const clampedTarget = Math.max(
-      0,
-      Math.min(dropTargetIndex ?? fallbackIndex, reorderableTabs.length)
-    );
-    const placeholderIndex =
-      clampedTarget === fallbackIndex ? null : clampedTarget;
+      const baseIndex = Math.max(0, draggingTab.originalIndex);
+      const fallbackIndex = Math.min(baseIndex, reorderableTabs.length);
+      const clampedTarget = Math.max(
+        0,
+        Math.min(dropTargetIndex ?? fallbackIndex, reorderableTabs.length),
+      );
+      const placeholderIndex =
+        clampedTarget === fallbackIndex ? null : clampedTarget;
 
-    return {
-      reorderableTabs,
-      placeholderIndex,
-      nonDraggingIndexById,
-    };
-  }, [descriptors, dropTargetIndex, draggingTab]);
+      return {
+        reorderableTabs,
+        placeholderIndex,
+        nonDraggingIndexById,
+      };
+    }, [descriptors, dropTargetIndex, draggingTab]);
 
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLButtonElement>, tabId: string) => {
@@ -304,20 +321,23 @@ export const TabStrip = ({
       setDropTargetIndex(null);
       setHoverPreview(null);
     },
-    [descriptors]
+    [descriptors],
   );
 
-  const handlePreviewHoverChange = useCallback((isHovering: boolean) => {
-    if (isHovering) {
-      // Mouse entered - cancel any pending close timeout
-      clearPreviewCloseTimeout();
-      setIsPreviewHovered(true);
-    } else {
-      // Mouse truly left (relatedTarget check passed) - close immediately
-      setIsPreviewHovered(false);
-      setHoverPreview(null);
-    }
-  }, [clearPreviewCloseTimeout]);
+  const handlePreviewHoverChange = useCallback(
+    (isHovering: boolean) => {
+      if (isHovering) {
+        // Mouse entered - cancel any pending close timeout
+        clearPreviewCloseTimeout();
+        setIsPreviewHovered(true);
+      } else {
+        // Mouse truly left (relatedTarget check passed) - close immediately
+        setIsPreviewHovered(false);
+        setHoverPreview(null);
+      }
+    },
+    [clearPreviewCloseTimeout],
+  );
 
   const handleTabHoverChange = useCallback(
     (tabId: string, element: HTMLButtonElement | null) => {
@@ -355,7 +375,13 @@ export const TabStrip = ({
         top: rect.top,
       });
     },
-    [activeTabId, draggingTab, isPreviewHovered, isDesignMode, clearPreviewCloseTimeout]
+    [
+      activeTabId,
+      draggingTab,
+      isPreviewHovered,
+      isDesignMode,
+      clearPreviewCloseTimeout,
+    ],
   );
 
   const handleDragOverTab = useCallback(
@@ -391,7 +417,7 @@ export const TabStrip = ({
       const rect = event.currentTarget.getBoundingClientRect();
       const isBefore = event.clientX < rect.left + rect.width / 2;
       const overIndex = reorderableTabs.findIndex(
-        (tab) => tab.id === overTabId
+        (tab) => tab.id === overTabId,
       );
 
       if (overIndex === -1) {
@@ -403,7 +429,15 @@ export const TabStrip = ({
         setDropTargetIndex(nextIndex);
       }
     },
-    [activeTabId, applyMoveDropEffect, clearPaneDragHoverTimeout, dropTargetIndex, draggingTab, isPaneDrag, reorderableTabs]
+    [
+      activeTabId,
+      applyMoveDropEffect,
+      clearPaneDragHoverTimeout,
+      dropTargetIndex,
+      draggingTab,
+      isPaneDrag,
+      reorderableTabs,
+    ],
   );
 
   const handleDragLeaveTab = useCallback(
@@ -422,7 +456,7 @@ export const TabStrip = ({
         clearPaneDragHoverTimeout();
       }
     },
-    [clearPaneDragHoverTimeout]
+    [clearPaneDragHoverTimeout],
   );
 
   const handleDrop = useCallback(
@@ -439,7 +473,13 @@ export const TabStrip = ({
       clearDragState();
       clearPaneDragHoverTimeout();
     },
-    [clearDragState, clearPaneDragHoverTimeout, draggingTab, dropTargetIndex, reorderableTabs.length]
+    [
+      clearDragState,
+      clearPaneDragHoverTimeout,
+      draggingTab,
+      dropTargetIndex,
+      reorderableTabs.length,
+    ],
   );
 
   const tabsWithPlaceholders = useMemo<React.ReactNode[]>(() => {
@@ -465,7 +505,7 @@ export const TabStrip = ({
             width={draggingTab?.width}
             onDragOver={applyMoveDropEffect}
             onDrop={handleDrop}
-          />
+          />,
         );
       }
 
@@ -488,7 +528,7 @@ export const TabStrip = ({
             onDrop={handleDrop}
             onDragEnd={clearDragState}
             onHoverChange={handleTabHoverChange}
-          />
+          />,
         );
       }
     });
@@ -500,7 +540,7 @@ export const TabStrip = ({
           width={draggingTab?.width}
           onDragOver={applyMoveDropEffect}
           onDrop={handleDrop}
-        />
+        />,
       );
     }
 
@@ -522,7 +562,7 @@ export const TabStrip = ({
   const handleOpenQuickTerminal = useCallback(async () => {
     const api = window.conduit;
     const result = await api.createTerminal(
-      homeDirectory ? { cwd: homeDirectory } : undefined
+      homeDirectory ? { cwd: homeDirectory } : undefined,
     );
     if (!result || !onOpenQuickPane) {
       return;
@@ -538,43 +578,46 @@ export const TabStrip = ({
     setIsRepoDialogOpen(true);
   }, []);
 
-  const handleRepoSubmit = useCallback(async (repo?: { owner: string; name: string }) => {
-    const api = window.conduit;
+  const handleRepoSubmit = useCallback(
+    async (repo?: { owner: string; name: string }) => {
+      const api = window.conduit;
 
-    const notificationId = enqueueNotification({
-      kind: "info",
-      message: "Creating cloud VM...",
-      persistent: true,
-    });
-
-    try {
-      const result = await api.createTerminal({
-        isRemoteVM: true,
-        githubRepo: repo,
+      const notificationId = enqueueNotification({
+        kind: "info",
+        message: "Creating cloud VM...",
+        persistent: true,
       });
 
-      if (!result || !onOpenQuickPane) {
-        throw new Error("Failed to create VM terminal");
+      try {
+        const result = await api.createTerminal({
+          isRemoteVM: true,
+          githubRepo: repo,
+        });
+
+        if (!result || !onOpenQuickPane) {
+          throw new Error("Failed to create VM terminal");
+        }
+
+        dismissNotification(notificationId);
+
+        onOpenQuickPane({
+          type: "terminal",
+          sessionId: result.sessionId,
+          cwd: result.cwd ?? null,
+          vmMetadata: result.vmMetadata ?? undefined,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        updateNotification(notificationId, {
+          kind: "error",
+          message: "Failed to create cloud VM",
+          details: message,
+          autoCloseMs: null,
+        });
       }
-
-      dismissNotification(notificationId);
-
-      onOpenQuickPane({
-        type: "terminal",
-        sessionId: result.sessionId,
-        cwd: result.cwd ?? null,
-        vmMetadata: result.vmMetadata ?? undefined,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      updateNotification(notificationId, {
-        kind: "error",
-        message: "Failed to create cloud VM",
-        details: message,
-        autoCloseMs: null,
-      });
-    }
-  }, [onOpenQuickPane]);
+    },
+    [onOpenQuickPane],
+  );
 
   const handleOpenQuickEditor = useCallback(() => {
     if (!homeDirectory || !onOpenQuickPane) {
@@ -596,7 +639,11 @@ export const TabStrip = ({
     });
   }, [onOpenQuickPane]);
 
-  const borderClass = alwaysShowTabs ? (position === "top" ? "border-b" : "border-t rounded-b-xl") : "";
+  const borderClass = alwaysShowTabs
+    ? position === "top"
+      ? "border-b"
+      : "border-t rounded-b-xl"
+    : "";
 
   return (
     <>
@@ -666,7 +713,6 @@ export const TabStrip = ({
           )}
         </div>
 
-
         {/* Action buttons - far right */}
         <div className="flex items-center gap-2 ml-auto">
           <button
@@ -723,7 +769,10 @@ export const TabStrip = ({
             onDragStart={(e) => {
               if (!activeTab) return;
               e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData("application/x-conduit-focus-mode", "true");
+              e.dataTransfer.setData(
+                "application/x-conduit-focus-mode",
+                "true",
+              );
             }}
           >
             <Expand size={18} />
@@ -731,10 +780,11 @@ export const TabStrip = ({
 
           <button
             type="button"
-            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
-              ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-              : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
+            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
+              isDesignMode
+                ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+            }`}
             title={getCommandDisplayTitle(toggleDesignModeCmd)}
             aria-label={toggleDesignModeCmd.title}
             onClick={toggleDesignModeCmd.execute}
@@ -752,7 +802,7 @@ export const TabStrip = ({
       <TabsOverview
         isOpen={showTabsOverview}
         onClose={() => setShowTabsOverview(false)}
-        tabs={descriptors.map(d => ({ id: d.id, label: d.label }))}
+        tabs={descriptors.map((d) => ({ id: d.id, label: d.label }))}
       />
 
       <RepositoryDialog

@@ -22,11 +22,5 @@ export function ResizeHandle({
     className ? ` ${className}` : ""
   }`;
 
-  return (
-    <div
-      className={mergedClassName}
-      style={style}
-      {...divProps}
-    />
-  );
+  return <div className={mergedClassName} style={style} {...divProps} />;
 }

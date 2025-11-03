@@ -126,7 +126,7 @@ export function BrowserPane({
 
       // Schedule follow-up update in preview mode
       if (isInPreview) {
-        requestAnimationFrame(updatePosition)
+        requestAnimationFrame(updatePosition);
       }
 
       const rect = anchor.getBoundingClientRect();
@@ -222,7 +222,7 @@ export function BrowserPane({
       onTitleChange(title);
 
     const handleWebViewContextMenu = (
-      event: Event & { params?: ContextMenuParams }
+      event: Event & { params?: ContextMenuParams },
     ) => {
       const { left, top } = webview.getBoundingClientRect();
       const { x, y } = event.params;
@@ -277,35 +277,33 @@ export function BrowserPane({
   useEffect(() => {
     if (!webviewRef.current) return;
 
-    webviewRef.current.style.pointerEvents = disableInteraction ? "none" : "auto";
+    webviewRef.current.style.pointerEvents = disableInteraction
+      ? "none"
+      : "auto";
   }, [disableInteraction]);
 
   /* URL bar handlers */
 
-  const handleUrlSubmit = useCallback(
-    () => {
-      let targetUrl = inputUrl.trim();
-      if (targetUrl.length === 0) return;
+  const handleUrlSubmit = useCallback(() => {
+    let targetUrl = inputUrl.trim();
+    if (targetUrl.length === 0) return;
 
-      // Add protocol if missing
-      if (!targetUrl.match(/^http(s)?:\/\//i)) {
-        const lowerTarget = targetUrl.toLowerCase();
-        const host = lowerTarget.split("/")[0];
+    // Add protocol if missing
+    if (!targetUrl.match(/^http(s)?:\/\//i)) {
+      const lowerTarget = targetUrl.toLowerCase();
+      const host = lowerTarget.split("/")[0];
 
-        const isLocalhost =
-          host === "localhost" || host.startsWith("localhost:");
+      const isLocalhost = host === "localhost" || host.startsWith("localhost:");
 
-        const protocol = isLocalhost ? "http" : "https";
-        targetUrl = `${protocol}://${targetUrl}`;
-      }
+      const protocol = isLocalhost ? "http" : "https";
+      targetUrl = `${protocol}://${targetUrl}`;
+    }
 
-      addUrlToHistory(targetUrl);
-      setShowHistory(false);
+    addUrlToHistory(targetUrl);
+    setShowHistory(false);
 
-      webviewRef.current?.loadURL(targetUrl);
-    },
-    [inputUrl, addUrlToHistory]
-  );
+    webviewRef.current?.loadURL(targetUrl);
+  }, [inputUrl, addUrlToHistory]);
 
   const handleUrlInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -316,7 +314,7 @@ export function BrowserPane({
       // show the MRU history dropdown (if we have any).
       setShowHistory(value.trim().length === 0 && urlHistory.length > 0);
     },
-    []
+    [],
   );
 
   const handleUrlInputBlur = useCallback(() => {
@@ -339,12 +337,11 @@ export function BrowserPane({
       addUrlToHistory(historyUrl);
       setShowHistory(false);
     },
-    [addUrlToHistory]
+    [addUrlToHistory],
   );
 
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0">
-
       {/* URL Bar */}
       <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
         <button
