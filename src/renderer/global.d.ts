@@ -1,10 +1,10 @@
-export {};
+export { };
 
-import type { DetailedHTMLProps, HTMLAttributes, RefAttributes } from "react";
 import type { WebviewTag } from "electron";
+import type { DetailedHTMLProps, HTMLAttributes, RefAttributes } from "react";
 import type { ConduitAPI } from "../preload";
 
-declare global {  
+declare global {
   interface Window {
     conduit: ConduitAPI;
   }
@@ -12,7 +12,7 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       webview: DetailedHTMLProps<HTMLAttributes<WebviewTag>, WebviewTag> &
-        RefAttributes<WebviewTag>;
+      RefAttributes<WebviewTag>;
     }
   }
 }

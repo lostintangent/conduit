@@ -1,6 +1,6 @@
-import { paneActionsAtom } from '@/store/atoms';
-import { getDefaultStore } from 'jotai';
-import type { Action } from '../core/types';
+import { paneActionsAtom } from "@/store/atoms";
+import { getDefaultStore } from "jotai";
+import type { Action } from "../core/types";
 
 /**
  * Update the paneActions atom with new actions

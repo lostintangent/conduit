@@ -15,7 +15,7 @@ const api = window.conduit;
 const store = getDefaultStore();
 
 export async function openTab(
-  initialCommand?: string
+  initialCommand?: string,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   const result = await api.createTerminal();
   if (!result) {
@@ -112,7 +112,7 @@ export function openTabFromExistingSession({
 }
 
 export async function openTabFromPaneDescriptor(
-  descriptor: PaneDescriptor
+  descriptor: PaneDescriptor,
 ): Promise<{ tabId: string; paneId: string } | null> {
   const paneId = generateId();
 
@@ -177,7 +177,7 @@ export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
       });
 
       return changed ? updatedTab : tab;
-    })
+    }),
   );
 }
 
@@ -192,6 +192,7 @@ export function focusTab(tabId: string) {
 
 export function closeTab(tabId: string) {
   const sessionsToClose: string[] = [];
+  const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
   const previousActiveTabId = store.get(activeTabIdAtom);
   let nextActiveTabId: string | null | undefined = undefined;
@@ -204,6 +205,9 @@ export function closeTab(tabId: string) {
       if (tab.id === tabId) {
         removedTabIndex = index;
         Object.values(tab.panes).forEach((pane) => {
+          // Collect pane IDs for DOM cleanup
+          paneIdsToCleanup.push(pane.id);
+
           if (pane.type === "terminal") {
             sessionsToClose.push(pane.sessionId);
           }
@@ -237,6 +241,14 @@ export function closeTab(tabId: string) {
     store.set(activeTabIdAtom, nextActiveTabId);
   }
 
+  // Clean up DOM elements for all panes
+  paneIdsToCleanup.forEach((paneId) => {
+    const paneElement = document.getElementById(paneId);
+    if (paneElement) {
+      paneElement.remove();
+    }
+  });
+
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
 
   if (shouldOpenReplacement) {
@@ -255,7 +267,7 @@ export function moveTab(tabId: string, targetIndex: number) {
     const [tab] = reorderedTabs.splice(fromIndex, 1);
     const boundedIndex = Math.max(
       0,
-      Math.min(targetIndex, reorderedTabs.length)
+      Math.min(targetIndex, reorderedTabs.length),
     );
     reorderedTabs.splice(boundedIndex, 0, tab);
     return reorderedTabs;
@@ -264,7 +276,7 @@ export function moveTab(tabId: string, targetIndex: number) {
 
 export function movePaneToTab(
   tabId: string,
-  paneId: string
+  paneId: string,
 ): { tabId: string; paneId: string } | null {
   const tabs = store.get(tabsAtom);
   const sourceTab = tabs.find((tab) => tab.id === tabId);
@@ -307,7 +319,7 @@ export function movePaneToTab(
 
 export function registerTabEventHandlers() {
   if (!api) {
-    return () => { };
+    return () => {};
   }
 
   const unsubscribeTitle = api.onTitle(({ sessionId, title }) => {
@@ -323,7 +335,7 @@ export function registerTabEventHandlers() {
 
     for (const tab of tabs) {
       const targetPane = Object.values(tab.panes).find(
-        (pane) => pane.type === "terminal" && pane.sessionId === sessionId
+        (pane) => pane.type === "terminal" && pane.sessionId === sessionId,
       );
       if (targetPane) {
         const paneCount = Object.keys(tab.panes).length;
@@ -341,8 +353,8 @@ export function registerTabEventHandlers() {
     void openTab();
   });
 
-  const unsubscribeOpenWorkspace = api.onOpenWorkspaceRequest((workspace: Workspace) =>
-    openWorkspace(workspace)
+  const unsubscribeOpenWorkspace = api.onOpenWorkspaceRequest(
+    (workspace: Workspace) => openWorkspace(workspace),
   );
 
   return () => {

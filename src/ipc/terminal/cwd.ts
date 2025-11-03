@@ -7,7 +7,7 @@ import type { SendToRendererFn, TerminalInstance } from "./types";
 // eslint-disable-next-line no-control-regex
 const OSC_CWD_PATTERN = new RegExp(
   "\\u001b]7;file://[^/]*(/[^\\u0007]*)\\u0007",
-  "g"
+  "g",
 );
 
 export const normalizeCwd = (raw: string | null): string | null => {
@@ -64,7 +64,7 @@ const resolveProcessCwd = async (pid: number): Promise<string | null> => {
             .map((line) => line.trim())
             .find((line) => line.startsWith("n"));
           resolve(entry ? entry.slice(1) : null);
-        }
+        },
       );
     });
   }
@@ -75,7 +75,7 @@ const resolveProcessCwd = async (pid: number): Promise<string | null> => {
 export const consumeOscSequences = (
   session: TerminalInstance,
   chunk: string,
-  sendToRenderer: SendToRendererFn
+  sendToRenderer: SendToRendererFn,
 ) => {
   if (!chunk.includes("\u001b]7;")) {
     session.scheduleCwdPoll?.(150);
@@ -112,7 +112,7 @@ export const consumeOscSequences = (
 
 export const startCwdPolling = (
   session: TerminalInstance,
-  sendToRenderer: SendToRendererFn
+  sendToRenderer: SendToRendererFn,
 ) => {
   const poll = async () => {
     if (session.isPollingCwd) {

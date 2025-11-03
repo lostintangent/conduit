@@ -50,54 +50,46 @@ export function initializeUIHandlers(window: BrowserWindow) {
 
       await saveSettings(userSettings);
       return requireUserSettings();
-    }
+    },
   );
 
-  ipcMain.handle(
-    "ui:add-command-history-entry",
-    async (_, command: string) => {
-      const currentSettings = requireUserSettings();
-      const trimmedCommand = command.trim();
-      const updatedHistory = [
-        trimmedCommand,
-        ...currentSettings.commandHistory.filter(
-          (entry) => entry !== trimmedCommand
-        ),
-      ].slice(0, 5);
+  ipcMain.handle("ui:add-command-history-entry", async (_, command: string) => {
+    const currentSettings = requireUserSettings();
+    const trimmedCommand = command.trim();
+    const updatedHistory = [
+      trimmedCommand,
+      ...currentSettings.commandHistory.filter(
+        (entry) => entry !== trimmedCommand,
+      ),
+    ].slice(0, 5);
 
-      userSettings = {
-        ...currentSettings,
-        commandHistory: updatedHistory,
-      };
+    userSettings = {
+      ...currentSettings,
+      commandHistory: updatedHistory,
+    };
 
-      await saveSettings(userSettings);
+    await saveSettings(userSettings);
 
-      return requireUserSettings().commandHistory;
-    }
-  );
+    return requireUserSettings().commandHistory;
+  });
 
-  ipcMain.handle(
-    "ui:add-url-to-history",
-    async (_, url: string) => {
-      const currentSettings = requireUserSettings();
-      const trimmedUrl = url.trim();
-      const updatedHistory = [
-        trimmedUrl,
-        ...currentSettings.urlHistory.filter(
-          (entry) => entry !== trimmedUrl
-        ),
-      ].slice(0, 5);
+  ipcMain.handle("ui:add-url-to-history", async (_, url: string) => {
+    const currentSettings = requireUserSettings();
+    const trimmedUrl = url.trim();
+    const updatedHistory = [
+      trimmedUrl,
+      ...currentSettings.urlHistory.filter((entry) => entry !== trimmedUrl),
+    ].slice(0, 5);
 
-      userSettings = {
-        ...currentSettings,
-        urlHistory: updatedHistory,
-      };
+    userSettings = {
+      ...currentSettings,
+      urlHistory: updatedHistory,
+    };
 
-      await saveSettings(userSettings);
+    await saveSettings(userSettings);
 
-      return requireUserSettings().urlHistory;
-    }
-  );
+    return requireUserSettings().urlHistory;
+  });
 
   ipcMain.handle(
     "ui:remove-command-history-entry",
@@ -106,30 +98,33 @@ export function initializeUIHandlers(window: BrowserWindow) {
       userSettings = {
         ...currentSettings,
         commandHistory: currentSettings.commandHistory.filter(
-          (entry) => entry !== command
+          (entry) => entry !== command,
         ),
       };
 
       await saveSettings(userSettings);
 
       return requireUserSettings().commandHistory;
-    }
+    },
   );
 
   ipcMain.on("ui:show-context-menu", (_, options: ContextMenuOptions) =>
-    showContextMenu(window, options)
+    showContextMenu(window, options),
   );
 
   ipcMain.handle(
     "ui:run-background-command",
     async (_, payload: BackgroundCommandRequest) => {
-      const command = typeof payload?.command === "string" ? payload.command : "";
+      const command =
+        typeof payload?.command === "string" ? payload.command : "";
       if (command.trim().length === 0) {
         throw new Error("Command must be a non-empty string.");
       }
 
       const args = Array.isArray(payload?.args)
-        ? payload.args.filter((value): value is string => typeof value === "string")
+        ? payload.args.filter(
+            (value): value is string => typeof value === "string",
+          )
         : [];
 
       const cwd =
@@ -163,10 +158,10 @@ export function initializeUIHandlers(window: BrowserWindow) {
           reject(error as Error);
         }
       });
-    }
+    },
   );
 
   ipcMain.handle("ui:open-url", async (_, url: string) =>
-    shell.openExternal(url)
+    shell.openExternal(url),
   );
 }

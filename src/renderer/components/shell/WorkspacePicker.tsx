@@ -44,7 +44,7 @@ export function WorkspacePicker({
       if (key === "arrowdown") {
         event.preventDefault();
         setSelectedIndex((current) =>
-          current >= workspaces.length - 1 ? 0 : current + 1
+          current >= workspaces.length - 1 ? 0 : current + 1,
         );
         return;
       }
@@ -52,7 +52,7 @@ export function WorkspacePicker({
       if (key === "arrowup") {
         event.preventDefault();
         setSelectedIndex((current) =>
-          current <= 0 ? workspaces.length - 1 : current - 1
+          current <= 0 ? workspaces.length - 1 : current - 1,
         );
       }
 
@@ -67,22 +67,21 @@ export function WorkspacePicker({
             }
 
             await api.deleteSession(session.timestamp);
-            const updatedSessions =
-              (await api.loadSessions()) as Workspace[];
+            const updatedSessions = (await api.loadSessions()) as Workspace[];
             onSessionsUpdate(updatedSessions);
 
             if (updatedSessions.length === 0) {
               onClose();
             } else {
               setSelectedIndex((current) =>
-                Math.min(current, updatedSessions.length - 1)
+                Math.min(current, updatedSessions.length - 1),
               );
             }
           })();
         }
       }
     },
-    [onClose, selectedIndex, workspaces, onSessionsUpdate]
+    [onClose, selectedIndex, workspaces, onSessionsUpdate],
   );
 
   const handleRestoreSession = useCallback(
@@ -92,7 +91,7 @@ export function WorkspacePicker({
         onClose();
       })();
     },
-    [onClose]
+    [onClose],
   );
 
   const handleDeleteSession = useCallback(
@@ -112,11 +111,11 @@ export function WorkspacePicker({
         onClose();
       } else {
         setSelectedIndex((current) =>
-          Math.min(current, updatedSessions.length - 1)
+          Math.min(current, updatedSessions.length - 1),
         );
       }
     },
-    [onClose, onSessionsUpdate]
+    [onClose, onSessionsUpdate],
   );
 
   const formatTimestamp = (timestamp: number) => {
@@ -176,10 +175,11 @@ export function WorkspacePicker({
                     role="option"
                     aria-selected={isActive}
                     onMouseEnter={() => setSelectedIndex(index)}
-                    className={`flex w-full items-center rounded-md border transition ${isActive
-                      ? "border-white/30 bg-white/10 text-white"
-                      : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
-                      }`}
+                    className={`flex w-full items-center rounded-md border transition ${
+                      isActive
+                        ? "border-white/30 bg-white/10 text-white"
+                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
+                    }`}
                   >
                     <button
                       type="button"

@@ -37,7 +37,7 @@ export async function findRepoRoot(startPath: string): Promise<string | null> {
 
 export async function runGit(
   cwd: string,
-  args: string[]
+  args: string[],
 ): Promise<{ stdout: string; stderr: string }> {
   try {
     const { stdout, stderr } = await execFileAsync("git", args, {
@@ -64,7 +64,7 @@ export async function runGit(
 
     const message = stderr.trim().length > 0 ? stderr.trim() : stdout.trim();
     throw new Error(
-      `Failed to run git ${args.join(" ")} (code ${execError.code ?? "unknown"}): ${message}`
+      `Failed to run git ${args.join(" ")} (code ${execError.code ?? "unknown"}): ${message}`,
     );
   }
 }

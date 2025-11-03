@@ -1,9 +1,9 @@
-import { useAtomValue } from 'jotai';
-import { useCallback } from 'react';
-import { keybindingsAtom } from '@/store/atoms';
-import { tryGetCommandRegistry, executeCommand } from '@/commands';
-import { formatKeybindingForDisplay } from '../keybindings/utils';
-import type { KeyChord } from '../keybindings/types';
+import { useAtomValue } from "jotai";
+import { useCallback } from "react";
+import { keybindingsAtom } from "@/store/atoms";
+import { tryGetCommandRegistry, executeCommand } from "@/commands";
+import { formatKeybindingForDisplay } from "../keybindings/utils";
+import type { KeyChord } from "../keybindings/types";
 
 export interface CommandKeybinding {
   /** The formatted display string (e.g., "⌘⌥F" or "Ctrl+Alt+F") */
@@ -40,8 +40,8 @@ export interface CommandInfo {
  * getCommandDisplayTitle(cmd, false)  // → "Toggle Focus Mode"
  */
 export function getCommandDisplayTitle(
-  cmd: Pick<CommandInfo, 'title' | 'primaryKeybinding'>,
-  showKeybinding = true
+  cmd: Pick<CommandInfo, "title" | "primaryKeybinding">,
+  showKeybinding = true,
 ): string {
   if (showKeybinding && cmd.primaryKeybinding) {
     return `${cmd.title} (${cmd.primaryKeybinding})`;
@@ -84,7 +84,7 @@ export function useCommand(commandId: string): CommandInfo {
   // This ensures user overrides (weight 1000) come before defaults (weight 0)
   const sortedBindings = [...rawBindings].sort((a, b) => b.weight - a.weight);
 
-  const keybindings: CommandKeybinding[] = sortedBindings.map(binding => ({
+  const keybindings: CommandKeybinding[] = sortedBindings.map((binding) => ({
     display: formatKeybindingForDisplay(binding.chords),
     chords: binding.chords,
     weight: binding.weight,
@@ -93,14 +93,16 @@ export function useCommand(commandId: string): CommandInfo {
   const execute = useCallback(async () => {
     // Guard against executing when command system isn't ready
     if (!commandRegistry || !command) {
-      console.warn(`Cannot execute command "${commandId}": command system not ready or command not found`);
+      console.warn(
+        `Cannot execute command "${commandId}": command system not ready or command not found`,
+      );
       return;
     }
     await executeCommand(commandId);
   }, [commandId, commandRegistry, command]);
 
   return {
-    title: command?.title ?? '',
+    title: command?.title ?? "",
     keybindings,
     primaryKeybinding: keybindings[0]?.display ?? null,
     execute,

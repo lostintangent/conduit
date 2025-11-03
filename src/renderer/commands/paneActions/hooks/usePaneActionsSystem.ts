@@ -5,12 +5,12 @@
  * and syncs with Jotai atom.
  */
 
-import { useEffect, useState, useRef } from 'react';
-import { useSetAtom } from 'jotai';
-import { paneActionsAtom } from '@/store/atoms';
-import { PaneActionsRegistry } from '../core/PaneActionsRegistry';
-import { getUserPaneActionsPath } from '../io/fileOperations';
-import type { PaneActionsWatcher } from '../io/watchPaneActions';
+import { useEffect, useState, useRef } from "react";
+import { useSetAtom } from "jotai";
+import { paneActionsAtom } from "@/store/atoms";
+import { PaneActionsRegistry } from "../core/PaneActionsRegistry";
+import { getUserPaneActionsPath } from "../io/fileOperations";
+import type { PaneActionsWatcher } from "../io/watchPaneActions";
 
 /**
  * Options for pane actions system initialization
@@ -53,7 +53,7 @@ export interface PaneActionsSystem {
  * @returns System state (registry and ready flag)
  */
 export function usePaneActionsSystem(
-  options: UsePaneActionsSystemOptions = {}
+  options: UsePaneActionsSystemOptions = {},
 ): PaneActionsSystem | null {
   const { homeDirectory } = options;
 
@@ -102,14 +102,14 @@ export function usePaneActionsSystem(
         if (!isMounted) return;
 
         if (loaded) {
-          console.log('[PaneActions] Loaded user configuration');
+          console.log("[PaneActions] Loaded user configuration");
         } else {
-          console.log('[PaneActions] Using default configuration');
+          console.log("[PaneActions] Using default configuration");
         }
 
         // Set up file watcher for external changes
         watcherRef.current = registry.watchFile(filePath, (error) => {
-          console.error('[PaneActions] Config file error:', error.message);
+          console.error("[PaneActions] Config file error:", error.message);
           // Optionally reset to defaults on error
           // registry.resetToDefaults();
         });
@@ -117,7 +117,7 @@ export function usePaneActionsSystem(
         // Mark as ready
         setIsReady(true);
       } catch (error) {
-        console.error('[PaneActions] Failed to initialize:', error);
+        console.error("[PaneActions] Failed to initialize:", error);
 
         // Still mark as ready (using defaults)
         if (isMounted) {

@@ -56,11 +56,7 @@ export async function saveSettings(settings: UserSettings) {
   }
 
   try {
-    await fs.writeFile(
-      settingsPath,
-      JSON.stringify(payload, null, 2),
-      "utf-8"
-    );
+    await fs.writeFile(settingsPath, JSON.stringify(payload, null, 2), "utf-8");
   } catch (error) {
     console.error("Failed to save settings:", error);
   }

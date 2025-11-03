@@ -8,10 +8,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import {
-  completeAgentSession,
-  deleteAgentSession,
-} from "@/store/actions/pane";
+import { completeAgentSession, deleteAgentSession } from "@/store/actions/pane";
 import type { AgentSessionInfo } from "@shared/types";
 
 /**
@@ -54,7 +51,11 @@ export async function handleMergeAndClose(activeTab: any): Promise<void> {
       ? activeTab.panes[activeTab.activePaneId]
       : undefined;
 
-  if (!activePane || activePane.type !== "terminal" || !activePane.agentSessionId) {
+  if (
+    !activePane ||
+    activePane.type !== "terminal" ||
+    !activePane.agentSessionId
+  ) {
     return;
   }
 
@@ -66,7 +67,10 @@ export async function handleMergeAndClose(activeTab: any): Promise<void> {
   });
 
   try {
-    const result = await completeAgentSession(activeTab.id, activePane.agentSessionId);
+    const result = await completeAgentSession(
+      activeTab.id,
+      activePane.agentSessionId,
+    );
     if (!result) {
       throw new Error("Unable to finalize agent session");
     }
@@ -112,7 +116,11 @@ export async function handleTerminate(activeTab: any): Promise<void> {
       ? activeTab.panes[activeTab.activePaneId]
       : undefined;
 
-  if (!activePane || activePane.type !== "terminal" || !activePane.agentSessionId) {
+  if (
+    !activePane ||
+    activePane.type !== "terminal" ||
+    !activePane.agentSessionId
+  ) {
     return;
   }
 
@@ -124,7 +132,10 @@ export async function handleTerminate(activeTab: any): Promise<void> {
   });
 
   try {
-    const result = await deleteAgentSession(activeTab.id, activePane.agentSessionId);
+    const result = await deleteAgentSession(
+      activeTab.id,
+      activePane.agentSessionId,
+    );
     if (!result) {
       throw new Error("Unable to clean up agent session");
     }

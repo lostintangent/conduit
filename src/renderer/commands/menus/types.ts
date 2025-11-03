@@ -1,16 +1,16 @@
-import type { WhenClause } from '../whenClauses/WhenClause';
-import type React from 'react';
+import type { WhenClause } from "../whenClauses/WhenClause";
+import type React from "react";
 
 /**
  * Menu location identifiers
  */
 export enum MenuId {
-  CommandPalette = 'CommandPalette',
-  PaneContext = 'PaneContext',
-  TabContext = 'TabContext',
-  TitleBar = 'TitleBar',
-  EditorContext = 'EditorContext',
-  TerminalContext = 'TerminalContext'
+  CommandPalette = "CommandPalette",
+  PaneContext = "PaneContext",
+  TabContext = "TabContext",
+  TitleBar = "TitleBar",
+  EditorContext = "EditorContext",
+  TerminalContext = "TerminalContext",
 }
 
 /**

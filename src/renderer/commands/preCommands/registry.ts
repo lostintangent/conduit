@@ -28,7 +28,9 @@ export class PreCommandRegistry {
    */
   register(command: PreCommand): void {
     if (this.commands.has(command.id)) {
-      console.warn(`[PreCommands] Overwriting existing pre-command: ${command.id}`);
+      console.warn(
+        `[PreCommands] Overwriting existing pre-command: ${command.id}`,
+      );
     }
     this.commands.set(command.id, command);
   }
@@ -58,7 +60,7 @@ export class PreCommandRegistry {
    */
   async execute(
     id: string,
-    terminalConfig: TerminalConfig
+    terminalConfig: TerminalConfig,
   ): Promise<PreCommandResult> {
     const command = this.commands.get(id);
 
@@ -72,7 +74,10 @@ export class PreCommandRegistry {
     try {
       return await command.run(terminalConfig);
     } catch (error) {
-      console.error(`[PreCommands] Error executing pre-command "${id}":`, error);
+      console.error(
+        `[PreCommands] Error executing pre-command "${id}":`,
+        error,
+      );
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",

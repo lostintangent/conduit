@@ -14,20 +14,20 @@ export type {
   PaneConfig,
   Action,
   PaneActionsConfig,
-} from './core/types';
+} from "./core/types";
 
 // Type guards
 export {
   isTerminalConfig,
   isEditorConfig,
   isBrowserConfig,
-} from './core/types';
+} from "./core/types";
 
 // Registry
-export { PaneActionsRegistry } from './core/PaneActionsRegistry';
+export { PaneActionsRegistry } from "./core/PaneActionsRegistry";
 
 // Defaults
-export { getDefaultActions } from './core/defaults';
+export { getDefaultActions } from "./core/defaults";
 
 // File I/O
 export {
@@ -36,20 +36,20 @@ export {
   writePaneActionsFile,
   parsePaneActionsContent,
   readPaneActionsFileOrNull,
-} from './io/fileOperations';
+} from "./io/fileOperations";
 
 // User actions (save/reset)
 export {
   savePaneActions,
   resetPaneActionsToDefaults,
   hasUserPaneActionsFile,
-} from './io/userPaneActions';
+} from "./io/userPaneActions";
 
 // Atom updates
-export { updatePaneActionsAtom } from './io/updatePaneActionsAtom';
+export { updatePaneActionsAtom } from "./io/updatePaneActionsAtom";
 
 // Validation
-export { validatePaneActionsConfig, ValidationError } from './io/validation';
+export { validatePaneActionsConfig, ValidationError } from "./io/validation";
 
 // File watching
 export {
@@ -58,25 +58,25 @@ export {
   type FileChangeCallback,
   type FileErrorCallback,
   type WatchPaneActionsOptions,
-} from './io/watchPaneActions';
+} from "./io/watchPaneActions";
 
 // React hooks
 export {
   usePaneActionsSystem,
   type UsePaneActionsSystemOptions,
   type PaneActionsSystem,
-} from './hooks/usePaneActionsSystem';
+} from "./hooks/usePaneActionsSystem";
 
 export {
   usePaneActions,
   useEnabledPaneActions,
   usePaneAction,
   usePaneActionByIndex,
-} from './hooks/usePaneActions';
+} from "./hooks/usePaneActions";
 
 // UI components
 export {
   PaneActionIcon,
   PANE_ACTION_ICON_MAP,
   getAvailableIconIds,
-} from './ui/PaneActionIcon';
+} from "./ui/PaneActionIcon";

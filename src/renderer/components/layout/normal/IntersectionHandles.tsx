@@ -16,22 +16,19 @@ type IntersectionHandlesProps = {
   onHandleMouseDown: (
     event: React.MouseEvent<HTMLDivElement>,
     handle: IntersectionHandleData,
-    highlightKeys: string[]
+    highlightKeys: string[],
   ) => void;
   onHandleMouseEnter: (
     handle: IntersectionHandleData,
-    highlightKeys: string[]
+    highlightKeys: string[],
   ) => void;
   onHandleMouseLeave: () => void;
 };
 
 const buildHighlightKeys = (
   baseHighlightKeys: string[],
-  handle: IntersectionHandleData
-) =>
-  Array.from(
-    new Set([...baseHighlightKeys, ...handle.axisKeys])
-  );
+  handle: IntersectionHandleData,
+) => Array.from(new Set([...baseHighlightKeys, ...handle.axisKeys]));
 
 export function IntersectionHandles({
   direction,

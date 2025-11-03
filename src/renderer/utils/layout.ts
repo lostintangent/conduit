@@ -21,7 +21,7 @@ const PANE_DIRECTION_CONFIG: Record<PaneDirection, PaneDirectionConfig> = {
 };
 
 export const getPaneDirectionConfig = (
-  direction: PaneDirection
+  direction: PaneDirection,
 ): PaneDirectionConfig => PANE_DIRECTION_CONFIG[direction];
 
 export type WalkLayoutCallback = (context: {
@@ -38,7 +38,7 @@ export const walkLayout = (
   node: LayoutNode,
   callback: WalkLayoutCallback,
   parent: LayoutSplitNode | null = null,
-  index = 0
+  index = 0,
 ): boolean => {
   const result = callback({ node, parent, index });
   if (result === false) {
@@ -62,7 +62,7 @@ export const walkLayout = (
 
 export function findPaneNodeByPaneId(
   root: LayoutNode,
-  paneId: string
+  paneId: string,
 ): LayoutPaneNode | null {
   let match: LayoutPaneNode | null = null;
 
@@ -98,7 +98,7 @@ export function countPanesInLayout(root: LayoutNode): number {
  */
 export function layoutContainsPaneId(
   node: LayoutNode,
-  paneId: string
+  paneId: string,
 ): boolean {
   if (node.type === "pane") {
     return node.paneId === paneId;
@@ -107,4 +107,3 @@ export function layoutContainsPaneId(
   // For split nodes, check children recursively
   return node.children.some((child) => layoutContainsPaneId(child, paneId));
 }
-

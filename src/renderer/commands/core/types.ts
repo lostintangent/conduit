@@ -1,7 +1,7 @@
-import type { WhenClause } from '../whenClauses/WhenClause';
-import type { KeybindingDescriptor } from '../keybindings/types';
-import type { MenuContribution } from '../menus/types';
-import type { ApplicationMode } from '@/store/atoms';
+import type { WhenClause } from "../whenClauses/WhenClause";
+import type { KeybindingDescriptor } from "../keybindings/types";
+import type { MenuContribution } from "../menus/types";
+import type { ApplicationMode } from "@/store/atoms";
 
 /**
  * Base context available to all commands
@@ -43,7 +43,9 @@ export interface CommandContext {
 /**
  * Command descriptor with typed context
  */
-export interface CommandDescriptor<TContext extends CommandContext = CommandContext> {
+export interface CommandDescriptor<
+  TContext extends CommandContext = CommandContext,
+> {
   /** Unique command identifier */
   id: string;
 

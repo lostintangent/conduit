@@ -19,7 +19,7 @@ const DrawerOverlay = React.forwardRef<
     ref={ref}
     className={cn(
       "fixed inset-0 z-50 bg-transparent pointer-events-none",
-      className
+      className,
     )}
     {...props}
   />
@@ -50,7 +50,7 @@ const DrawerContent = React.forwardRef<
           "fixed z-50 w-full bg-surface-muted border-border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           sideClasses[side],
           side === "top" ? "border-b" : "border-t rounded-b-xl",
-          className
+          className,
         )}
         {...props}
       >
@@ -61,4 +61,11 @@ const DrawerContent = React.forwardRef<
 });
 DrawerContent.displayName = DialogPrimitive.Content.displayName;
 
-export { Drawer, DrawerClose, DrawerContent, DrawerOverlay, DrawerPortal, DrawerTrigger };
+export {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerOverlay,
+  DrawerPortal,
+  DrawerTrigger,
+};

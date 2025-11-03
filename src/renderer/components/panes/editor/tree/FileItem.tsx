@@ -13,10 +13,13 @@ export function FileItem({ node, onSelect, onOpen }: FileItemProps) {
     onSelect?.(node);
   }, [node, onSelect]);
 
-  const handleOpen = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onOpen?.(node);
-  }, [node, onOpen]);
+  const handleOpen = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onOpen?.(node);
+    },
+    [node, onOpen],
+  );
 
   return (
     <li>

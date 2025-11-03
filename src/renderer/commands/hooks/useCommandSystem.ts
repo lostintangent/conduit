@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useSetAtom } from 'jotai';
+import { useState, useEffect } from "react";
+import { useSetAtom } from "jotai";
 import {
   initializeCommandSystem,
   getCommandRegistry,
@@ -8,14 +8,17 @@ import {
   type ICommandRegistry,
   type KeybindingRegistry,
   type IContextKeyService,
-} from '@/commands';
-import { registerApplicationCommands } from '@/commands/applicationCommands';
-import { loadUserKeybindings, getUserKeybindingsPath } from '@/commands/keybindings/userKeybindings';
-import { watchKeybindingsFile } from '@/commands/keybindings/watchKeybindings';
-import { updateKeybindingsAtom } from '@/commands/keybindings/updateKeybindingsAtom';
-import { keybindingsAtom } from '@/store/atoms';
-import { toggleFocusMode } from '@/store/actions/focusMode';
-import type { ApplicationMode } from '@/store/atoms';
+} from "@/commands";
+import { registerApplicationCommands } from "@/commands/applicationCommands";
+import {
+  loadUserKeybindings,
+  getUserKeybindingsPath,
+} from "@/commands/keybindings/userKeybindings";
+import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
+import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsAtom";
+import { keybindingsAtom } from "@/store/atoms";
+import { toggleFocusMode } from "@/store/actions/focusMode";
+import type { ApplicationMode } from "@/store/atoms";
 
 export interface CommandSystemState {
   commandRegistry: ICommandRegistry;
@@ -56,7 +59,9 @@ export interface UseCommandSystemOptions {
  *
  * @returns Command system state with registries and ready flag
  */
-export function useCommandSystem(options: UseCommandSystemOptions): CommandSystemState | null {
+export function useCommandSystem(
+  options: UseCommandSystemOptions,
+): CommandSystemState | null {
   const {
     activeTab,
     tabs,
@@ -198,36 +203,48 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
     const contextKeyService = commandSystem.contextKeyService;
 
     // Update global context keys
-    contextKeyService.setGlobal('hasWorkspace', !!workspaceName);
-    contextKeyService.setGlobal('hasLastWorkspace', hasLastWorkspace ?? false);
-    contextKeyService.setGlobal('tabCount', tabs?.length ?? 0);
-    contextKeyService.setGlobal('hasActivePane', !!(activeTab && activeTab.activePaneId));
+    contextKeyService.setGlobal("hasWorkspace", !!workspaceName);
+    contextKeyService.setGlobal("hasLastWorkspace", hasLastWorkspace ?? false);
+    contextKeyService.setGlobal("tabCount", tabs?.length ?? 0);
+    contextKeyService.setGlobal(
+      "hasActivePane",
+      !!(activeTab && activeTab.activePaneId),
+    );
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {
-      contextKeyService.setGlobal('hasCustomLayout', hasCustomLayout(activeTab.id));
+      contextKeyService.setGlobal(
+        "hasCustomLayout",
+        hasCustomLayout(activeTab.id),
+      );
     } else {
-      contextKeyService.setGlobal('hasCustomLayout', false);
+      contextKeyService.setGlobal("hasCustomLayout", false);
     }
 
     // Update pane-level context keys for active pane
     if (activeTab?.activePaneId) {
       const activePane = activeTab.panes?.[activeTab.activePaneId];
       if (activePane) {
-        contextKeyService.setGlobal('activePaneType', activePane.type || '');
-        contextKeyService.setGlobal('isInAgentSession', !!activePane.agentSessionId);
-        contextKeyService.setGlobal('hasCwd', !!(activePane.type === 'terminal' && activePane.cwd));
+        contextKeyService.setGlobal("activePaneType", activePane.type || "");
+        contextKeyService.setGlobal(
+          "isInAgentSession",
+          !!activePane.agentSessionId,
+        );
+        contextKeyService.setGlobal(
+          "hasCwd",
+          !!(activePane.type === "terminal" && activePane.cwd),
+        );
       } else {
         // Clear pane context keys if no active pane
-        contextKeyService.setGlobal('activePaneType', '');
-        contextKeyService.setGlobal('isInAgentSession', false);
-        contextKeyService.setGlobal('hasCwd', false);
+        contextKeyService.setGlobal("activePaneType", "");
+        contextKeyService.setGlobal("isInAgentSession", false);
+        contextKeyService.setGlobal("hasCwd", false);
       }
     } else {
       // Clear pane context keys if no active pane
-      contextKeyService.setGlobal('activePaneType', '');
-      contextKeyService.setGlobal('isInAgentSession', false);
-      contextKeyService.setGlobal('hasCwd', false);
+      contextKeyService.setGlobal("activePaneType", "");
+      contextKeyService.setGlobal("isInAgentSession", false);
+      contextKeyService.setGlobal("hasCwd", false);
     }
   }, [
     commandSystem,
@@ -248,13 +265,16 @@ export function useCommandSystem(options: UseCommandSystemOptions): CommandSyste
 
     const unwatch = watchKeybindingsFile(keybindingsPath, async () => {
       try {
-        console.log('Keybindings file changed, reloading...');
+        console.log("Keybindings file changed, reloading...");
         // Reload keybindings from file
-        await loadUserKeybindings(commandSystem.keybindingRegistry, keybindingsPath);
+        await loadUserKeybindings(
+          commandSystem.keybindingRegistry,
+          keybindingsPath,
+        );
         // Update global atom for reactive components
         updateKeybindingsAtom();
       } catch (error) {
-        console.error('Failed to reload keybindings after file change:', error);
+        console.error("Failed to reload keybindings after file change:", error);
       }
     });
 

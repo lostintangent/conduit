@@ -3,7 +3,15 @@ import { userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
-import { ChevronDown, FolderUp, Loader2, RefreshCw, Undo, Redo, Save } from "lucide-react";
+import {
+  ChevronDown,
+  FolderUp,
+  Loader2,
+  RefreshCw,
+  Undo,
+  Redo,
+  Save,
+} from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
@@ -121,13 +129,13 @@ export function EditorPane({
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [originalContent, setOriginalContent] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
@@ -268,7 +276,7 @@ export function EditorPane({
         console.error("Failed to open file:", error);
       }
     },
-    [onFileChange]
+    [onFileChange],
   );
 
   const handleClearFile = useCallback(() => {
@@ -280,14 +288,14 @@ export function EditorPane({
       setCurrentContent(value);
       setHasUnsavedChanges(value !== originalContent);
     },
-    [originalContent]
+    [originalContent],
   );
 
   const handleDirectoryChange = useCallback(
     (newPath: string) => {
       onCwdChange?.(newPath);
     },
-    [onCwdChange]
+    [onCwdChange],
   );
 
   const handleNavigateUp = useCallback(() => {
@@ -326,50 +334,53 @@ export function EditorPane({
     }
   }, [hasOpenFile, filePath, cwd]);
 
-  const handleEditorMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor) => {
-    // Clean up previous disposable if it exists
-    if (disposableRef.current) {
-      disposableRef.current.dispose();
-      disposableRef.current = null;
-    }
-
-    // Reset state when remounting
-    setCanUndo(false);
-    setCanRedo(false);
-
-    editorRef.current = editor;
-    
-    // Update undo/redo state when editor content changes
-    const updateUndoRedoState = () => {
-      const model = editor.getModel();
-      if (model) {
-        setCanUndo(model.canUndo());
-        setCanRedo(model.canRedo());
-      } else {
-        // Model is null/undefined, disable both buttons
-        setCanUndo(false);
-        setCanRedo(false);
+  const handleEditorMount = useCallback(
+    (editor: monaco.editor.IStandaloneCodeEditor) => {
+      // Clean up previous disposable if it exists
+      if (disposableRef.current) {
+        disposableRef.current.dispose();
+        disposableRef.current = null;
       }
-    };
 
-    // Initial state
-    updateUndoRedoState();
+      // Reset state when remounting
+      setCanUndo(false);
+      setCanRedo(false);
 
-    // Listen for content changes to update undo/redo state
-    disposableRef.current = editor.onDidChangeModelContent(() => {
+      editorRef.current = editor;
+
+      // Update undo/redo state when editor content changes
+      const updateUndoRedoState = () => {
+        const model = editor.getModel();
+        if (model) {
+          setCanUndo(model.canUndo());
+          setCanRedo(model.canRedo());
+        } else {
+          // Model is null/undefined, disable both buttons
+          setCanUndo(false);
+          setCanRedo(false);
+        }
+      };
+
+      // Initial state
       updateUndoRedoState();
-    });
-  }, []);
+
+      // Listen for content changes to update undo/redo state
+      disposableRef.current = editor.onDidChangeModelContent(() => {
+        updateUndoRedoState();
+      });
+    },
+    [],
+  );
 
   const handleUndo = useCallback(() => {
     if (editorRef.current) {
-      editorRef.current.trigger('keyboard', 'undo', null);
+      editorRef.current.trigger("keyboard", "undo", null);
     }
   }, []);
 
   const handleRedo = useCallback(() => {
     if (editorRef.current) {
-      editorRef.current.trigger('keyboard', 'redo', null);
+      editorRef.current.trigger("keyboard", "redo", null);
     }
   }, []);
 

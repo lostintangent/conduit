@@ -25,21 +25,25 @@ export function SandboxIndicator({
 
   const showVmIndicator = isSandboxVisibleMode && !!vmId;
   const showAgentControls = isSandboxVisibleMode && !!agentSessionId;
-  const overlayKey = showVmIndicator ? vmId : showAgentControls ? agentSessionId : null;
+  const overlayKey = showVmIndicator
+    ? vmId
+    : showAgentControls
+      ? agentSessionId
+      : null;
 
   const overlayColor = useMemo(
     () => (overlayKey ? getHashedColor(overlayKey) : undefined),
-    [overlayKey]
+    [overlayKey],
   );
 
   const overlayStyle = useMemo(
     () =>
       overlayColor
         ? {
-          backgroundColor: overlayColor,
-        }
+            backgroundColor: overlayColor,
+          }
         : undefined,
-    [overlayColor]
+    [overlayColor],
   );
 
   const vmTitle = useMemo(() => {

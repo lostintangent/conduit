@@ -12,8 +12,8 @@ import type {
   TerminalConfig,
   EditorConfig,
   BrowserConfig,
-} from '../core/types';
-import { MAX_ACTIONS } from '../core/types';
+} from "../core/types";
+import { MAX_ACTIONS } from "../core/types";
 
 /**
  * Validation error with context
@@ -21,7 +21,7 @@ import { MAX_ACTIONS } from '../core/types';
 export class ValidationError extends Error {
   constructor(message: string, context?: string) {
     super(context ? `${context}: ${message}` : message);
-    this.name = 'ValidationError';
+    this.name = "ValidationError";
   }
 }
 
@@ -36,23 +36,23 @@ export function validatePaneActionsConfig(data: unknown): Action[] {
   // Must be an array
   if (!Array.isArray(data)) {
     throw new ValidationError(
-      'Configuration must be an array of actions',
-      'Root validation'
+      "Configuration must be an array of actions",
+      "Root validation",
     );
   }
 
   // Must have 1-5 actions
   if (data.length === 0) {
     throw new ValidationError(
-      'Configuration must contain at least 1 action',
-      'Array length validation'
+      "Configuration must contain at least 1 action",
+      "Array length validation",
     );
   }
 
   if (data.length > MAX_ACTIONS) {
     throw new ValidationError(
       `Configuration can contain at most ${MAX_ACTIONS} actions, found ${data.length}`,
-      'Array length validation'
+      "Array length validation",
     );
   }
 
@@ -78,49 +78,49 @@ export function validateAction(data: unknown, index: number): Action {
   const context = `Action[${index}]`;
 
   if (!isObject(data)) {
-    throw new ValidationError('Action must be an object', context);
+    throw new ValidationError("Action must be an object", context);
   }
 
   // Validate name (required, non-empty string)
-  if (typeof data.name !== 'string') {
-    throw new ValidationError('name must be a string', context);
+  if (typeof data.name !== "string") {
+    throw new ValidationError("name must be a string", context);
   }
-  if (data.name.trim() === '') {
-    throw new ValidationError('name cannot be empty', context);
+  if (data.name.trim() === "") {
+    throw new ValidationError("name cannot be empty", context);
   }
 
   // Validate icon (required, non-empty string)
-  if (typeof data.icon !== 'string') {
-    throw new ValidationError('icon must be a string', context);
+  if (typeof data.icon !== "string") {
+    throw new ValidationError("icon must be a string", context);
   }
-  if (data.icon.trim() === '') {
-    throw new ValidationError('icon cannot be empty', context);
+  if (data.icon.trim() === "") {
+    throw new ValidationError("icon cannot be empty", context);
   }
 
   // Validate enabled (required, boolean)
-  if (typeof data.enabled !== 'boolean') {
-    throw new ValidationError('enabled must be a boolean', context);
+  if (typeof data.enabled !== "boolean") {
+    throw new ValidationError("enabled must be a boolean", context);
   }
 
   // Validate paneType (required, valid enum value)
-  if (typeof data.paneType !== 'string') {
-    throw new ValidationError('paneType must be a string', context);
+  if (typeof data.paneType !== "string") {
+    throw new ValidationError("paneType must be a string", context);
   }
   if (!isValidPaneType(data.paneType)) {
     throw new ValidationError(
       `paneType must be one of: terminal, editor, browser. Got: "${data.paneType}"`,
-      context
+      context,
     );
   }
 
   // Validate config (required, matches paneType)
   if (!isObject(data.config)) {
-    throw new ValidationError('config must be an object', context);
+    throw new ValidationError("config must be an object", context);
   }
   const validatedConfig = validatePaneConfig(
     data.paneType as PaneType,
     data.config,
-    context
+    context,
   );
 
   return {
@@ -144,24 +144,21 @@ export function validateAction(data: unknown, index: number): Action {
 export function validatePaneConfig(
   paneType: PaneType,
   data: unknown,
-  context: string
+  context: string,
 ): PaneConfig {
   if (!isObject(data)) {
-    throw new ValidationError('config must be an object', context);
+    throw new ValidationError("config must be an object", context);
   }
 
   switch (paneType) {
-    case 'terminal':
+    case "terminal":
       return validateTerminalConfig(data, context);
-    case 'editor':
+    case "editor":
       return validateEditorConfig(data, context);
-    case 'browser':
+    case "browser":
       return validateBrowserConfig(data, context);
     default:
-      throw new ValidationError(
-        `Unknown paneType: ${paneType}`,
-        context
-      );
+      throw new ValidationError(`Unknown paneType: ${paneType}`, context);
   }
 }
 
@@ -170,45 +167,51 @@ export function validatePaneConfig(
  */
 function validateTerminalConfig(
   data: Record<string, unknown>,
-  context: string
+  context: string,
 ): TerminalConfig {
   const configContext = `${context}.config`;
 
   // command is required
-  if (typeof data.command !== 'string') {
+  if (typeof data.command !== "string") {
     throw new ValidationError(
-      'terminal config: command must be a string',
-      configContext
+      "terminal config: command must be a string",
+      configContext,
     );
   }
 
   // cwd is optional string
-  if (data.cwd !== undefined && typeof data.cwd !== 'string') {
+  if (data.cwd !== undefined && typeof data.cwd !== "string") {
     throw new ValidationError(
-      'terminal config: cwd must be a string',
-      configContext
+      "terminal config: cwd must be a string",
+      configContext,
     );
   }
 
   // preCommandId is optional string
-  if (data.preCommandId !== undefined && typeof data.preCommandId !== 'string') {
+  if (
+    data.preCommandId !== undefined &&
+    typeof data.preCommandId !== "string"
+  ) {
     throw new ValidationError(
-      'terminal config: preCommandId must be a string',
-      configContext
+      "terminal config: preCommandId must be a string",
+      configContext,
     );
   }
 
   // Warn if pre-command ID is provided but not found in registry
   // (Don't throw - allow forward compatibility)
-  if (data.preCommandId !== undefined && typeof data.preCommandId === 'string') {
+  if (
+    data.preCommandId !== undefined &&
+    typeof data.preCommandId === "string"
+  ) {
     try {
       // Lazy import to avoid circular dependencies during module initialization
-      const { PreCommandRegistry } = require('@/preCommands/registry');
+      const { PreCommandRegistry } = require("@/preCommands/registry");
       const registry = PreCommandRegistry.getInstance();
       if (!registry.get(data.preCommandId as string)) {
         console.warn(
           `[PaneActions] Pre-command not found: "${data.preCommandId}". ` +
-          `This pre-command will be skipped when the action is executed.`
+            `This pre-command will be skipped when the action is executed.`,
         );
       }
     } catch (error) {
@@ -236,15 +239,15 @@ function validateTerminalConfig(
  */
 function validateEditorConfig(
   data: Record<string, unknown>,
-  context: string
+  context: string,
 ): EditorConfig {
   const configContext = `${context}.config`;
 
   // cwd is optional string
-  if (data.cwd !== undefined && typeof data.cwd !== 'string') {
+  if (data.cwd !== undefined && typeof data.cwd !== "string") {
     throw new ValidationError(
-      'editor config: cwd must be a string',
-      configContext
+      "editor config: cwd must be a string",
+      configContext,
     );
   }
 
@@ -260,22 +263,22 @@ function validateEditorConfig(
  */
 function validateBrowserConfig(
   data: Record<string, unknown>,
-  context: string
+  context: string,
 ): BrowserConfig {
   const configContext = `${context}.config`;
 
   // url is required
-  if (typeof data.url !== 'string') {
+  if (typeof data.url !== "string") {
     throw new ValidationError(
-      'browser config: url must be a string',
-      configContext
+      "browser config: url must be a string",
+      configContext,
     );
   }
 
-  if (data.url.trim() === '') {
+  if (data.url.trim() === "") {
     throw new ValidationError(
-      'browser config: url cannot be empty',
-      configContext
+      "browser config: url cannot be empty",
+      configContext,
     );
   }
 
@@ -288,12 +291,12 @@ function validateBrowserConfig(
  * Type guard for valid pane types
  */
 function isValidPaneType(value: string): value is PaneType {
-  return value === 'terminal' || value === 'editor' || value === 'browser';
+  return value === "terminal" || value === "editor" || value === "browser";
 }
 
 /**
  * Type guard for objects
  */
 function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

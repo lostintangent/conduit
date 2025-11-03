@@ -1,5 +1,5 @@
-import type { KeybindingDescriptor, ResolvedKeybinding } from './types';
-import { parseKeybinding, matchesEvent } from './parser';
+import type { KeybindingDescriptor, ResolvedKeybinding } from "./types";
+import { parseKeybinding, matchesEvent } from "./parser";
 
 /**
  * Registry for keyboard shortcuts
@@ -10,16 +10,20 @@ export class KeybindingRegistry {
   /**
    * Register a keybinding for a command
    */
-  register(commandId: string, descriptor: KeybindingDescriptor, weight = 0): void {
+  register(
+    commandId: string,
+    descriptor: KeybindingDescriptor,
+    weight = 0,
+  ): void {
     // Resolve platform-specific key
     const platform = this.getPlatform();
     let keyString = descriptor.key;
 
-    if (platform === 'mac' && descriptor.mac) {
+    if (platform === "mac" && descriptor.mac) {
       keyString = descriptor.mac;
-    } else if (platform === 'win' && descriptor.win) {
+    } else if (platform === "win" && descriptor.win) {
       keyString = descriptor.win;
-    } else if (platform === 'linux' && descriptor.linux) {
+    } else if (platform === "linux" && descriptor.linux) {
       keyString = descriptor.linux;
     }
 
@@ -30,7 +34,7 @@ export class KeybindingRegistry {
     this.keybindings.push({
       commandId,
       chords,
-      weight
+      weight,
     });
   }
 
@@ -39,7 +43,7 @@ export class KeybindingRegistry {
    */
   findCommand(event: KeyboardEvent, chordIndex = 0): string | undefined {
     // Find all keybindings that match this event at the current chord index
-    const matches = this.keybindings.filter(kb => {
+    const matches = this.keybindings.filter((kb) => {
       if (kb.chords.length <= chordIndex) return false;
       return matchesEvent(kb.chords[chordIndex], event);
     });
@@ -57,7 +61,7 @@ export class KeybindingRegistry {
    * Check if there are any keybindings that start with this chord
    */
   hasChordContinuation(event: KeyboardEvent, chordIndex = 0): boolean {
-    return this.keybindings.some(kb => {
+    return this.keybindings.some((kb) => {
       if (kb.chords.length <= chordIndex + 1) return false;
       return matchesEvent(kb.chords[chordIndex], event);
     });
@@ -67,7 +71,7 @@ export class KeybindingRegistry {
    * Get all keybindings for a command
    */
   getKeybindingsForCommand(commandId: string): ResolvedKeybinding[] {
-    return this.keybindings.filter(kb => kb.commandId === commandId);
+    return this.keybindings.filter((kb) => kb.commandId === commandId);
   }
 
   /**
@@ -89,7 +93,9 @@ export class KeybindingRegistry {
    * Unregister all keybindings for a command
    */
   unregister(commandId: string): void {
-    this.keybindings = this.keybindings.filter(kb => kb.commandId !== commandId);
+    this.keybindings = this.keybindings.filter(
+      (kb) => kb.commandId !== commandId,
+    );
   }
 
   /**
@@ -99,9 +105,9 @@ export class KeybindingRegistry {
     this.keybindings = [];
   }
 
-  private getPlatform(): 'mac' | 'win' | 'linux' {
-    if (navigator.platform.toLowerCase().includes('mac')) return 'mac';
-    if (navigator.platform.toLowerCase().includes('win')) return 'win';
-    return 'linux';
+  private getPlatform(): "mac" | "win" | "linux" {
+    if (navigator.platform.toLowerCase().includes("mac")) return "mac";
+    if (navigator.platform.toLowerCase().includes("win")) return "win";
+    return "linux";
   }
 }

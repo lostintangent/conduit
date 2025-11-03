@@ -26,7 +26,7 @@ const store = getDefaultStore();
 export async function handleSaveWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
-  setShowCreateWorkspaceDialog: (show: boolean) => void
+  setShowCreateWorkspaceDialog: (show: boolean) => void,
 ): Promise<void> {
   if (!activeTabId) {
     return;
@@ -38,7 +38,7 @@ export async function handleSaveWorkspace(
     const sessions = (await window.conduit.saveSession(
       workspaceName,
       tabs,
-      activeTabId
+      activeTabId,
     )) as Workspace[];
 
     store.set(workspacesAtom, sessions);
@@ -58,7 +58,7 @@ export async function handleSaveWorkspace(
  * @param setShowRenameWorkspaceDialog - Function to show rename dialog
  */
 export function handleRenameWorkspace(
-  setShowRenameWorkspaceDialog: (show: boolean) => void
+  setShowRenameWorkspaceDialog: (show: boolean) => void,
 ): void {
   setShowRenameWorkspaceDialog(true);
 }
@@ -77,7 +77,7 @@ export async function handleCloseWorkspace(): Promise<void> {
  * @param setShowWorkspacePicker - Function to show workspace picker
  */
 export function handleOpenWorkspace(
-  setShowWorkspacePicker: (show: boolean) => void
+  setShowWorkspacePicker: (show: boolean) => void,
 ): void {
   setShowWorkspacePicker(true);
 }
@@ -86,7 +86,8 @@ export function handleOpenWorkspace(
  * Open the last workspace
  */
 export async function handleOpenLastWorkspace(): Promise<void> {
-  const lastWorkspace = (await window.conduit.loadLastWorkspace()) as Workspace | null;
+  const lastWorkspace =
+    (await window.conduit.loadLastWorkspace()) as Workspace | null;
   if (lastWorkspace) {
     const { openWorkspace } = await import("@/store/actions/workspace");
     await openWorkspace(lastWorkspace);

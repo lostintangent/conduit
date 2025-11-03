@@ -1,4 +1,4 @@
-import type { MenuItem, MenuId, MenuContribution } from './types';
+import type { MenuItem, MenuId, MenuContribution } from "./types";
 
 /**
  * Registry for menu contributions
@@ -13,10 +13,10 @@ export class MenuRegistry {
     const item: MenuItem = {
       commandId,
       menuId: contribution.id,
-      group: contribution.group || 'default',
+      group: contribution.group || "default",
       order: contribution.order ?? 0,
       when: contribution.when,
-      icon: contribution.icon
+      icon: contribution.icon,
     };
 
     // Add to registry
@@ -56,7 +56,7 @@ export class MenuRegistry {
     for (const [menuId, items] of this.items.entries()) {
       this.items.set(
         menuId,
-        items.filter(item => item.commandId !== commandId)
+        items.filter((item) => item.commandId !== commandId),
       );
     }
   }

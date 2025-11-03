@@ -3,13 +3,13 @@
  */
 export enum ContextLevel {
   /** Pane-level keys (set per-pane) */
-  Pane = 'pane',
+  Pane = "pane",
 
   /** Tab-level keys (set per-tab) */
-  Tab = 'tab',
+  Tab = "tab",
 
   /** Global-level keys (set globally) */
-  Global = 'global'
+  Global = "global",
 }
 
 /**
@@ -17,16 +17,16 @@ export enum ContextLevel {
  */
 export enum AggregateMode {
   /** Parent true if ANY child is true (OR) */
-  Any = 'any',
+  Any = "any",
 
   /** Parent true if ALL children are true (AND) */
-  All = 'all',
+  All = "all",
 
   /** Parent = count of truthy children */
-  Count = 'count',
+  Count = "count",
 
   /** Parent = active child's value (no aggregation) */
-  First = 'first'
+  First = "first",
 }
 
 /**

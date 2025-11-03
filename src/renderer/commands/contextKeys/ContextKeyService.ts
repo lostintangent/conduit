@@ -1,4 +1,4 @@
-import type { ContextValues } from './types';
+import type { ContextValues } from "./types";
 
 /**
  * Service for managing hierarchical context keys
@@ -34,5 +34,7 @@ export interface IContextKeyService {
   /**
    * Subscribe to context changes
    */
-  onDidChangeContext(listener: (key: string, value: unknown) => void): () => void;
+  onDidChangeContext(
+    listener: (key: string, value: unknown) => void,
+  ): () => void;
 }

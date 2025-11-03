@@ -75,7 +75,7 @@ export type SSHConnectionInfo = {
  */
 async function apiCall<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const config = await loadConfig();
   const url = `${config.managerUrl.replace(/\/$/, "")}/api${endpoint}`;
@@ -107,7 +107,7 @@ async function apiCall<T>(
  * Create a new VM
  */
 export async function createVM(
-  request?: Partial<CreateVMRequest>
+  request?: Partial<CreateVMRequest>,
 ): Promise<VM> {
   const config = await loadConfig();
 
@@ -142,10 +142,8 @@ export async function createVM(
  * List all VMs accessible to the authenticated user
  */
 export async function listVMs(labels?: string[]): Promise<VM[]> {
-  const query = labels?.length
-    ? `?labels=${labels.join(",")}`
-    : "";
-  
+  const query = labels?.length ? `?labels=${labels.join(",")}` : "";
+
   return apiCall<VM[]>(`/vms${query}`);
 }
 
@@ -204,7 +202,7 @@ export async function resumeVM(vmId: string): Promise<VM> {
  * Get all forwarded ports for a VM
  */
 export async function getForwardedPorts(
-  vmId: string
+  vmId: string,
 ): Promise<VM["forwarded_ports"]> {
   return apiCall<VM["forwarded_ports"]>(`/vms/${vmId}/ports`);
 }
@@ -216,7 +214,7 @@ export async function getForwardedPorts(
 export async function addPortForward(
   vmId: string,
   internalPort: number,
-  description?: string
+  description?: string,
 ): Promise<AddPortForwardResponse> {
   const request: AddPortForwardRequest = {
     internal_port: internalPort.toString(),
@@ -226,16 +224,13 @@ export async function addPortForward(
     request.description = description;
   }
 
-  const response = await apiCall<AddPortForwardResponse>(
-    `/vms/${vmId}/ports`,
-    {
-      method: "POST",
-      body: JSON.stringify(request),
-    }
-  );
+  const response = await apiCall<AddPortForwardResponse>(`/vms/${vmId}/ports`, {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
 
   console.log(
-    `[VM] Added port forwarding for VM ${vmId}: ${internalPort} -> ${response.external_port}`
+    `[VM] Added port forwarding for VM ${vmId}: ${internalPort} -> ${response.external_port}`,
   );
   return response;
 }
@@ -245,7 +240,7 @@ export async function addPortForward(
  */
 export async function removePortForward(
   vmId: string,
-  port: string
+  port: string,
 ): Promise<void> {
   await apiCall<void>(`/vms/${vmId}/ports/${port}`, {
     method: "DELETE",
@@ -258,7 +253,7 @@ export async function removePortForward(
  */
 export async function forkVM(
   vmId: string,
-  options?: ForkVMRequest
+  options?: ForkVMRequest,
 ): Promise<VM> {
   const vm = await apiCall<VM>(`/vms/${vmId}/fork`, {
     method: "POST",
@@ -281,7 +276,7 @@ export async function listConduitVMs(): Promise<VM[]> {
  */
 export function getSSHConnectionInfo(vm: VM): SSHConnectionInfo {
   const sshPort = vm.forwarded_ports["22"];
-  
+
   if (!sshPort) {
     throw new Error(`VM ${vm.id} does not have SSH port forwarded`);
   }
@@ -290,9 +285,7 @@ export function getSSHConnectionInfo(vm: VM): SSHConnectionInfo {
   const port = parseInt(portStr, 10);
 
   if (!host || !port) {
-    throw new Error(
-      `Invalid SSH connection URL: ${sshPort.connection_url}`
-    );
+    throw new Error(`Invalid SSH connection URL: ${sshPort.connection_url}`);
   }
 
   return {

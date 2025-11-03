@@ -1,4 +1,12 @@
-import { activeTabIdAtom, tabsAtom, userSettingsAtom, workspaceHasChangesAtom, workspaceNameAtom, workspacesAtom, previousTabsSnapshotAtom } from "@/store/atoms";
+import {
+  activeTabIdAtom,
+  tabsAtom,
+  userSettingsAtom,
+  workspaceHasChangesAtom,
+  workspaceNameAtom,
+  workspacesAtom,
+  previousTabsSnapshotAtom,
+} from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,7 +20,9 @@ export function useWorkspaces() {
   const activeTabId = useAtomValue(activeTabIdAtom);
   const userSettings = useAtomValue(userSettingsAtom);
   const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
-  const [previousTabsSnapshot, setPreviousTabsSnapshot] = useAtom(previousTabsSnapshotAtom);
+  const [previousTabsSnapshot, setPreviousTabsSnapshot] = useAtom(
+    previousTabsSnapshotAtom,
+  );
   const [hasWorkspaces, setHasWorkspaces] = useState(false);
   const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
@@ -51,7 +61,8 @@ export function useWorkspaces() {
         // Schedule auto-save after 2 seconds
         autoSaveTimerRef.current = setTimeout(() => {
           if (activeTabId) {
-            api.saveSession(workspaceName, tabs, activeTabId)
+            api
+              .saveSession(workspaceName, tabs, activeTabId)
               .then((sessions) => {
                 setWorkspaces(sessions as Workspace[]);
                 setPreviousTabsSnapshot(JSON.stringify(tabs));
@@ -66,7 +77,16 @@ export function useWorkspaces() {
         }, 2000);
       }
     }
-  }, [tabs, workspaceName, activeTabId, userSettings.autoSaveWorkspaces, setWorkspaceHasChanges, setWorkspaces, previousTabsSnapshot, setPreviousTabsSnapshot]);
+  }, [
+    tabs,
+    workspaceName,
+    activeTabId,
+    userSettings.autoSaveWorkspaces,
+    setWorkspaceHasChanges,
+    setWorkspaces,
+    previousTabsSnapshot,
+    setPreviousTabsSnapshot,
+  ]);
 
   // Reset change tracking when workspace changes
   useEffect(() => {
@@ -122,7 +142,7 @@ export function useWorkspaces() {
       const sessions = (await api.saveSession(
         name,
         tabs,
-        activeTabId
+        activeTabId,
       )) as Workspace[];
 
       setWorkspaces(sessions);
@@ -130,7 +150,7 @@ export function useWorkspaces() {
       setShowCreateWorkspaceDialog(false);
       setWorkspaceName(name);
     },
-    [setWorkspaceName]
+    [setWorkspaceName],
   );
 
   const renameWorkspace = useCallback(
@@ -144,7 +164,7 @@ export function useWorkspaces() {
       try {
         const sessions = (await api.renameWorkspace(
           workspaceName,
-          trimmedName
+          trimmedName,
         )) as Workspace[];
 
         setWorkspaces(sessions);
@@ -154,7 +174,7 @@ export function useWorkspaces() {
         console.error("Failed to rename workspace:", error);
       }
     },
-    [workspaceName, setWorkspaceName]
+    [workspaceName, setWorkspaceName],
   );
 
   const updateWorkspaces = useCallback((sessions: Workspace[]) => {
@@ -162,19 +182,24 @@ export function useWorkspaces() {
     setHasWorkspaces(sessions.length > 0);
   }, []);
 
-  const closeWorkspace = useCallback(async (tabs: any[], activeTabId?: string) => {
-    if (workspaceName && tabs.length > 0 && activeTabId) {
-      const sessions = (await api.saveSession(
-        workspaceName,
-        tabs,
-        activeTabId
-      )) as Workspace[];
-      updateWorkspaces(sessions);
-    }
+  const closeWorkspace = useCallback(
+    async (tabs: any[], activeTabId?: string) => {
+      if (workspaceName && tabs.length > 0 && activeTabId) {
+        const sessions = (await api.saveSession(
+          workspaceName,
+          tabs,
+          activeTabId,
+        )) as Workspace[];
+        updateWorkspaces(sessions);
+      }
 
-    const { closeWorkspace: closeWorkspaceAction } = await import("@/store/actions/workspace");
-    closeWorkspaceAction();
-  }, [workspaceName, updateWorkspaces]);
+      const { closeWorkspace: closeWorkspaceAction } = await import(
+        "@/store/actions/workspace"
+      );
+      closeWorkspaceAction();
+    },
+    [workspaceName, updateWorkspaces],
+  );
 
   return {
     workspaceName,

@@ -5,7 +5,7 @@
  * Based on: docs/pane-actions-schema.md
  */
 
-import type { Action } from './types';
+import type { Action } from "./types";
 
 /**
  * Get the default pane actions
@@ -19,38 +19,38 @@ import type { Action } from './types';
 export function getDefaultActions(): Action[] {
   return [
     {
-      name: 'Editor',
-      icon: 'code',
+      name: "Editor",
+      icon: "code",
       enabled: true,
-      paneType: 'editor',
+      paneType: "editor",
       config: {},
     },
     {
-      name: 'Agent',
-      icon: 'bot',
+      name: "Agent",
+      icon: "bot",
       enabled: true,
-      paneType: 'terminal',
+      paneType: "terminal",
       config: {
-        command: '',
-        preCommandId: 'create-agent-session',
+        command: "",
+        preCommandId: "create-agent-session",
       },
     },
     {
-      name: 'Browser',
-      icon: 'globe',
+      name: "Browser",
+      icon: "globe",
       enabled: true,
-      paneType: 'browser',
+      paneType: "browser",
       config: {
-        url: 'https://github.com',
+        url: "https://github.com",
       },
     },
     {
-      name: 'Source Control',
-      icon: 'git-branch',
+      name: "Source Control",
+      icon: "git-branch",
       enabled: false,
-      paneType: 'terminal',
+      paneType: "terminal",
       config: {
-        command: 'git status',
+        command: "git status",
       },
     },
   ];

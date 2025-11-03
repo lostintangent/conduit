@@ -61,11 +61,11 @@ const stripLayoutSizes = (node: LayoutNode): LayoutNode => {
  */
 export function handleToggleDesignMode(
   applicationMode: ApplicationMode | undefined,
-  setApplicationMode: ((mode: ApplicationMode) => void) | undefined
+  setApplicationMode: ((mode: ApplicationMode) => void) | undefined,
 ): void {
   if (!setApplicationMode) return;
 
-  const newMode = applicationMode === 'design' ? 'normal' : 'design';
+  const newMode = applicationMode === "design" ? "normal" : "design";
   setApplicationMode(newMode);
 }
 
@@ -75,7 +75,7 @@ export function handleToggleDesignMode(
  * @param setShowKeybindingsEditor - Function to show the keybindings editor
  */
 export function handleOpenKeyboardShortcuts(
-  setShowKeybindingsEditor: (show: boolean) => void
+  setShowKeybindingsEditor: (show: boolean) => void,
 ): void {
   setShowKeybindingsEditor(true);
 }
@@ -86,7 +86,7 @@ export function handleOpenKeyboardShortcuts(
  * @param setIsCommandPaletteOpenOverride - Function to override command palette open state
  */
 export function handleShowCommandPalette(
-  setIsCommandPaletteOpenOverride: (open: boolean) => void
+  setIsCommandPaletteOpenOverride: (open: boolean) => void,
 ): void {
   setIsCommandPaletteOpenOverride(true);
 }
@@ -114,6 +114,6 @@ export function handleResetLayout(tabId: string): void {
         ...tab,
         layout: cleanedLayout,
       };
-    })
+    }),
   );
 }

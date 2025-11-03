@@ -9,7 +9,7 @@ export type ContextMenuOptions = {
 
 export function showContextMenu(
   window: BrowserWindow,
-  options: ContextMenuOptions
+  options: ContextMenuOptions,
 ) {
   if (!window || window.isDestroyed()) {
     return;
@@ -56,28 +56,28 @@ export function showContextMenu(
     },
     ...(options.hasGitRepo
       ? [
-        { type: "separator" as const },
-        {
-          label: "Split left with agent session",
-          accelerator: "Cmd+Shift+Ctrl+Left",
-          click: () => sendActionToRenderer("split-left-agent"),
-        },
-        {
-          label: "Split right with agent session",
-          accelerator: "Cmd+Shift+Ctrl+Right",
-          click: () => sendActionToRenderer("split-right-agent"),
-        },
-        {
-          label: "Split top with agent session",
-          accelerator: "Cmd+Shift+Ctrl+Up",
-          click: () => sendActionToRenderer("split-top-agent"),
-        },
-        {
-          label: "Split bottom with agent session",
-          accelerator: "Cmd+Shift+Ctrl+Down",
-          click: () => sendActionToRenderer("split-bottom-agent"),
-        },
-      ]
+          { type: "separator" as const },
+          {
+            label: "Split left with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Left",
+            click: () => sendActionToRenderer("split-left-agent"),
+          },
+          {
+            label: "Split right with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Right",
+            click: () => sendActionToRenderer("split-right-agent"),
+          },
+          {
+            label: "Split top with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Up",
+            click: () => sendActionToRenderer("split-top-agent"),
+          },
+          {
+            label: "Split bottom with agent session",
+            accelerator: "Cmd+Shift+Ctrl+Down",
+            click: () => sendActionToRenderer("split-bottom-agent"),
+          },
+        ]
       : []),
     { type: "separator" },
     {

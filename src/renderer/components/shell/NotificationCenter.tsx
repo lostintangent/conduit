@@ -1,6 +1,4 @@
-import {
-  dismissNotification,
-} from "@/store/actions/notifications";
+import { dismissNotification } from "@/store/actions/notifications";
 import { notificationsAtom } from "@/store/atoms";
 import { Notification } from "@/types";
 import { X } from "lucide-react";
@@ -31,7 +29,7 @@ export function NotificationCenter() {
         <div
           key={notification.id}
           className={`pointer-events-auto overflow-hidden rounded-lg border border-white/10 px-3 py-2 shadow-lg backdrop-blur ${notificationStyles(
-            notification.kind
+            notification.kind,
           )}`}
         >
           <div className="flex items-start justify-between gap-3">

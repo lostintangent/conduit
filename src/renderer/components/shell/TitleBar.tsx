@@ -11,6 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import {
+  useCommand,
+  getCommandDisplayTitle,
+} from "@/commands/hooks/useCommand";
 import { openWorkspace } from "@/store/actions/workspace";
 import {
   workspaceHasChangesAtom,
@@ -64,7 +69,7 @@ export const TitleBar = ({
   const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
   const keyboardShortcutsCmd = useCommand(
-    ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
+    ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
   );
   const paneActionsCmd = useCommand(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS);
 
@@ -78,7 +83,7 @@ export const TitleBar = ({
       }
       void openWorkspace(workspace);
     },
-    [workspaceName]
+    [workspaceName],
   );
 
   const handleDeleteWorkspace = useCallback(
@@ -93,7 +98,7 @@ export const TitleBar = ({
       const updatedWorkspaces = (await api.loadSessions()) as Workspace[];
       setWorkspaces(updatedWorkspaces);
     },
-    [api, setWorkspaces]
+    [api, setWorkspaces],
   );
 
   return (

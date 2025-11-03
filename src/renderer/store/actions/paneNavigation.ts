@@ -98,7 +98,7 @@ const rangesOverlap = (
   startA: number,
   endA: number,
   startB: number,
-  endB: number
+  endB: number,
 ) => Math.min(endA, endB) - Math.max(startA, startB) > OVERLAP_EPSILON;
 
 const toCandidate = (pane: PaneRect): Candidate => ({
@@ -111,7 +111,7 @@ const findNeighborPaneId = (
   panes: PaneRect[],
   activePaneId: string,
   direction: PaneNavigationDirection,
-  wrap = true
+  wrap = true,
 ): string | null => {
   const current = panes.find((pane) => pane.paneId === activePaneId);
   if (!current) {
@@ -130,7 +130,7 @@ const findNeighborPaneId = (
           current.rect.y,
           current.rect.y + current.rect.height,
           pane.rect.y,
-          pane.rect.y + pane.rect.height
+          pane.rect.y + pane.rect.height,
         );
       }
 
@@ -138,7 +138,7 @@ const findNeighborPaneId = (
         current.rect.x,
         current.rect.x + current.rect.width,
         pane.rect.x,
-        pane.rect.x + pane.rect.width
+        pane.rect.x + pane.rect.width,
       );
     })
     .map(toCandidate);
@@ -193,7 +193,7 @@ const findNeighborPaneId = (
       Math.abs(candidate[axisKey] - wrapExtremum) <= CENTER_EPSILON ||
       (isForward
         ? candidate[axisKey] === wrapExtremum
-        : candidate[axisKey] === wrapExtremum)
+        : candidate[axisKey] === wrapExtremum),
   );
 
   wrapOptions.sort((a, b) => compareCandidates(a, b, true));
@@ -208,7 +208,7 @@ const findNeighborPaneId = (
 export const hasNeighborPane = (
   layout: LayoutNode,
   paneId: string,
-  direction: PaneNavigationDirection
+  direction: PaneNavigationDirection,
 ): boolean => {
   const paneRects: PaneRect[] = [];
   collectPaneRects(layout, paneRects);
@@ -224,7 +224,7 @@ export const hasNeighborPane = (
 export const navigatePane = (
   tabId: string,
   paneId: string,
-  direction: PaneNavigationDirection
+  direction: PaneNavigationDirection,
 ): boolean => {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((entry) => entry.id === tabId);

@@ -1,8 +1,12 @@
-import { parseKeybindingsFile, isRemovalBinding, getRemovalCommandId } from './keybindingsFile';
-import type { KeybindingRegistry } from './KeybindingRegistry';
-import type { ICommandRegistry } from '../core/CommandRegistry';
-import { USER_KEYBINDING_WEIGHT, type UserKeybinding } from './types';
-import { updateKeybindingsAtom } from './updateKeybindingsAtom';
+import {
+  parseKeybindingsFile,
+  isRemovalBinding,
+  getRemovalCommandId,
+} from "./keybindingsFile";
+import type { KeybindingRegistry } from "./KeybindingRegistry";
+import type { ICommandRegistry } from "../core/CommandRegistry";
+import { USER_KEYBINDING_WEIGHT, type UserKeybinding } from "./types";
+import { updateKeybindingsAtom } from "./updateKeybindingsAtom";
 
 /**
  * Get the path to the user keybindings file
@@ -15,9 +19,11 @@ export function getUserKeybindingsPath(homeDirectory: string): string {
  * Read user keybindings from file
  * Returns empty array if file doesn't exist
  */
-async function readUserKeybindingsFile(filePath: string): Promise<UserKeybinding[]> {
+async function readUserKeybindingsFile(
+  filePath: string,
+): Promise<UserKeybinding[]> {
   if (!window.conduit?.readFile) {
-    console.warn('window.conduit.readFile is not available');
+    console.warn("window.conduit.readFile is not available");
     return [];
   }
 
@@ -27,7 +33,7 @@ async function readUserKeybindingsFile(filePath: string): Promise<UserKeybinding
     return parseKeybindingsFile(content);
   } catch (error: any) {
     // File doesn't exist yet, that's ok - start with empty array
-    if (error?.message?.includes('ENOENT')) {
+    if (error?.message?.includes("ENOENT")) {
       return [];
     }
     throw error;
@@ -37,9 +43,12 @@ async function readUserKeybindingsFile(filePath: string): Promise<UserKeybinding
 /**
  * Write user keybindings to file
  */
-async function writeUserKeybindingsFile(filePath: string, bindings: UserKeybinding[]): Promise<void> {
+async function writeUserKeybindingsFile(
+  filePath: string,
+  bindings: UserKeybinding[],
+): Promise<void> {
   if (!window.conduit?.writeFile) {
-    throw new Error('window.conduit.writeFile is not available');
+    throw new Error("window.conduit.writeFile is not available");
   }
 
   const json = JSON.stringify(bindings, null, 2);
@@ -53,7 +62,7 @@ async function writeUserKeybindingsFile(filePath: string, bindings: UserKeybindi
  */
 export async function loadUserKeybindings(
   keybindingRegistry: KeybindingRegistry,
-  filePath: string
+  filePath: string,
 ): Promise<void> {
   try {
     // Read file (use fs in Electron main process)
@@ -77,14 +86,14 @@ export async function loadUserKeybindings(
         keybindingRegistry.register(
           binding.command,
           { key: binding.key },
-          USER_KEYBINDING_WEIGHT
+          USER_KEYBINDING_WEIGHT,
         );
       }
     }
   } catch (error: any) {
     // Don't log error if file doesn't exist yet - that's expected on first run
-    if (!error?.message?.includes('ENOENT')) {
-      console.error('Failed to load user keybindings:', error);
+    if (!error?.message?.includes("ENOENT")) {
+      console.error("Failed to load user keybindings:", error);
     }
   }
 }
@@ -104,18 +113,18 @@ export async function saveUserKeybinding(
   commandId: string,
   keybinding: string,
   filePath: string,
-  keybindingRegistry: KeybindingRegistry
+  keybindingRegistry: KeybindingRegistry,
 ): Promise<void> {
   // Read existing user keybindings
   let userBindings = await readUserKeybindingsFile(filePath);
 
   // Remove existing binding for this command
-  userBindings = userBindings.filter(kb => kb.command !== commandId);
+  userBindings = userBindings.filter((kb) => kb.command !== commandId);
 
   // Add new binding
   userBindings.push({
     key: keybinding,
-    command: commandId
+    command: commandId,
   });
 
   // Save to file
@@ -125,9 +134,13 @@ export async function saveUserKeybinding(
   keybindingRegistry.unregister(commandId);
 
   // Register new keybinding in registry with high weight
-  keybindingRegistry.register(commandId, {
-    key: keybinding
-  }, USER_KEYBINDING_WEIGHT);
+  keybindingRegistry.register(
+    commandId,
+    {
+      key: keybinding,
+    },
+    USER_KEYBINDING_WEIGHT,
+  );
 
   // Update global atom for reactive components
   updateKeybindingsAtom();
@@ -148,13 +161,13 @@ export async function removeUserKeybinding(
   commandId: string,
   filePath: string,
   commandRegistry: ICommandRegistry,
-  keybindingRegistry: KeybindingRegistry
+  keybindingRegistry: KeybindingRegistry,
 ): Promise<void> {
   // Read existing user keybindings
   let userBindings = await readUserKeybindingsFile(filePath);
 
   // Remove binding for this command
-  userBindings = userBindings.filter(kb => kb.command !== commandId);
+  userBindings = userBindings.filter((kb) => kb.command !== commandId);
 
   // Save to file
   await writeUserKeybindingsFile(filePath, userBindings);
@@ -175,7 +188,7 @@ export async function removeUserKeybinding(
 export function restoreDefaultKeybindings(
   commandId: string,
   commandRegistry: ICommandRegistry,
-  keybindingRegistry: KeybindingRegistry
+  keybindingRegistry: KeybindingRegistry,
 ): void {
   // Unregister all keybindings for this command
   keybindingRegistry.unregister(commandId);

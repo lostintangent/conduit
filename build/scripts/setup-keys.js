@@ -35,7 +35,7 @@ try {
   // Generate SSH key with no passphrase
   execSync(
     `ssh-keygen -t rsa -b 4096 -f "${PRIVATE_KEY}" -N "" -C "conduit-vm-key"`,
-    { stdio: "inherit" }
+    { stdio: "inherit" },
   );
 
   // Set appropriate permissions
@@ -54,7 +54,7 @@ try {
   console.error("");
   console.error("You can manually create keys by running:");
   console.error(
-    `  ssh-keygen -t rsa -b 4096 -f "${PRIVATE_KEY}" -N "" -C "conduit-vm-key"`
+    `  ssh-keygen -t rsa -b 4096 -f "${PRIVATE_KEY}" -N "" -C "conduit-vm-key"`,
   );
   process.exit(1);
 }

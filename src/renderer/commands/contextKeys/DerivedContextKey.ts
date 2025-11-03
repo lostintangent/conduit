@@ -1,5 +1,5 @@
-import { AggregateMode } from './types';
-import type { WhenClause } from '../whenClauses/WhenClause';
+import { AggregateMode } from "./types";
+import type { WhenClause } from "../whenClauses/WhenClause";
 
 /**
  * Represents a context key whose value is automatically aggregated from child keys
@@ -8,7 +8,7 @@ export class DerivedContextKey {
   constructor(
     public readonly key: string,
     public readonly sourceKey: string,
-    public readonly aggregateMode: AggregateMode
+    public readonly aggregateMode: AggregateMode,
   ) {}
 
   /**
@@ -41,7 +41,7 @@ export class DerivedContextKey {
         const value = ctx[this.key];
         return !!value;
       },
-      toString: () => this.key
+      toString: () => this.key,
     };
   }
 
@@ -54,7 +54,7 @@ export class DerivedContextKey {
         const value = ctx[this.key];
         return value === true;
       },
-      toString: () => this.key
+      toString: () => this.key,
     };
   }
 
@@ -67,7 +67,7 @@ export class DerivedContextKey {
         const value = ctx[this.key];
         return value === false;
       },
-      toString: () => `!${this.key}`
+      toString: () => `!${this.key}`,
     };
   }
 
@@ -77,7 +77,7 @@ export class DerivedContextKey {
   isDefined(): WhenClause {
     return {
       evaluate: (ctx) => ctx[this.key] !== undefined,
-      toString: () => this.key
+      toString: () => this.key,
     };
   }
 
@@ -87,7 +87,7 @@ export class DerivedContextKey {
   isUndefined(): WhenClause {
     return {
       evaluate: (ctx) => ctx[this.key] === undefined,
-      toString: () => `!${this.key}`
+      toString: () => `!${this.key}`,
     };
   }
 
@@ -100,7 +100,7 @@ export class DerivedContextKey {
         const currentValue = ctx[this.key];
         return currentValue === value;
       },
-      toString: () => `${this.key} == ${JSON.stringify(value)}`
+      toString: () => `${this.key} == ${JSON.stringify(value)}`,
     };
   }
 
@@ -113,7 +113,7 @@ export class DerivedContextKey {
         const currentValue = ctx[this.key];
         return currentValue !== value;
       },
-      toString: () => `${this.key} != ${JSON.stringify(value)}`
+      toString: () => `${this.key} != ${JSON.stringify(value)}`,
     };
   }
 
@@ -126,7 +126,7 @@ export class DerivedContextKey {
         const currentValue = ctx[this.key];
         return (currentValue as any) > (value as any);
       },
-      toString: () => `${this.key} > ${value}`
+      toString: () => `${this.key} > ${value}`,
     };
   }
 
@@ -139,7 +139,7 @@ export class DerivedContextKey {
         const currentValue = ctx[this.key];
         return (currentValue as any) >= (value as any);
       },
-      toString: () => `${this.key} >= ${value}`
+      toString: () => `${this.key} >= ${value}`,
     };
   }
 
@@ -152,7 +152,7 @@ export class DerivedContextKey {
         const currentValue = ctx[this.key];
         return (currentValue as any) < (value as any);
       },
-      toString: () => `${this.key} < ${value}`
+      toString: () => `${this.key} < ${value}`,
     };
   }
 
@@ -165,7 +165,7 @@ export class DerivedContextKey {
         const currentValue = ctx[this.key];
         return (currentValue as any) <= (value as any);
       },
-      toString: () => `${this.key} <= ${value}`
+      toString: () => `${this.key} <= ${value}`,
     };
   }
 
@@ -176,10 +176,10 @@ export class DerivedContextKey {
     return {
       evaluate: (ctx) => {
         const value = ctx[this.key];
-        if (typeof value !== 'string') return false;
+        if (typeof value !== "string") return false;
         return pattern.test(value);
       },
-      toString: () => `${this.key} =~ ${pattern.toString()}`
+      toString: () => `${this.key} =~ ${pattern.toString()}`,
     };
   }
 
@@ -192,7 +192,7 @@ export class DerivedContextKey {
         const value = ctx[this.key];
         return !value;
       },
-      toString: () => `!${this.key}`
+      toString: () => `!${this.key}`,
     };
   }
 }

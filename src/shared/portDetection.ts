@@ -11,17 +11,17 @@ const PORT_PATTERNS = [
   /Server (?:running|started|listening) (?:at|on) .*?:(\d+)/i,
   /Local:\s+https?:\/\/(?:localhost|127\.0\.0\.1):(\d+)/i,
   /Network:\s+https?:\/\/.*?:(\d+)/i,
-  
+
   // Framework-specific patterns
   /ready - started server on .*?:(\d+)/i, // Next.js
   /Local:\s+https?:\/\/(?:localhost|127\.0\.0\.1):(\d+)/i, // Vite
   /App running at:.*?localhost:(\d+)/i, // Vue CLI
   /Listening on .*?:(\d+)/i, // Express/generic
   /started on port[:\s]+(\d+)/i, // Generic
-  
+
   // Direct localhost/127.0.0.1 references
   /(?:localhost|127\.0\.0\.1):(\d+)/gi,
-  
+
   // Generic "port XXXX" or "port: XXXX"
   /(?:^|\s)port[:\s]+(\d+)/i,
 ];
@@ -32,11 +32,11 @@ const PORT_PATTERNS = [
  */
 export function detectPorts(output: string): number[] {
   const ports = new Set<number>();
-  
+
   for (const pattern of PORT_PATTERNS) {
     // Reset lastIndex for global patterns
     pattern.lastIndex = 0;
-    
+
     let match;
     if (pattern.global) {
       while ((match = pattern.exec(output)) !== null) {
@@ -55,7 +55,7 @@ export function detectPorts(output: string): number[] {
       }
     }
   }
-  
+
   return Array.from(ports);
 }
 
@@ -82,7 +82,7 @@ export function createPortLinkPattern(): RegExp {
 export function extractPortFromMatch(match: string): number | null {
   const portMatch = match.match(/:(\d+)$/);
   if (!portMatch) return null;
-  
+
   const port = parseInt(portMatch[1], 10);
   return isValidPort(port) ? port : null;
 }

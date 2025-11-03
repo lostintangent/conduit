@@ -1,20 +1,24 @@
-import { openEditorPane, openWebViewPane, splitPane } from "@/store/actions/pane";
+import {
+  PaneActionIcon,
+  isBrowserConfig,
+  isEditorConfig,
+  isTerminalConfig,
+  useEnabledPaneActions,
+} from "@/commands/paneActions";
+import type { Action } from "@/commands/paneActions/core/types";
+import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
+import { PreCommandRegistry } from "@/commands/preCommands/registry";
 import { enqueueNotification } from "@/store/actions/notifications";
+import {
+  openEditorPane,
+  openWebViewPane,
+  splitPane,
+} from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import { useAtomValue } from "jotai";
 import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-  useEnabledPaneActions,
-  PaneActionIcon,
-  isTerminalConfig,
-  isEditorConfig,
-  isBrowserConfig,
-} from "@/paneActions";
-import type { Action } from "@/paneActions/core/types";
-import { MAX_ACTIONS } from "@/paneActions/core/types";
-import { PreCommandRegistry } from "@/preCommands/registry";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
 
@@ -51,13 +55,11 @@ export function PaneControlFanButtons({
   // Create an array with pane actions and placeholders (max 5 total)
   const actions: Array<Action | null> = [
     ...paneActions,
-    ...Array(Math.max(0, MAX_ACTIONS - paneActions.length)).fill(null)
+    ...Array(Math.max(0, MAX_ACTIONS - paneActions.length)).fill(null),
   ];
 
   // Get the current pane to determine its cwd
-  const currentPane = tabs
-    .find((tab) => tab.id === tabId)
-    ?.panes[paneId];
+  const currentPane = tabs.find((tab) => tab.id === tabId)?.panes[paneId];
 
   // Show/hide fan buttons based on hover state with delay
   useEffect(() => {
@@ -124,7 +126,7 @@ export function PaneControlFanButtons({
           const terminalCwd = terminalConfig.cwd || cwd;
 
           let paneOptions: any = {
-            terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined
+            terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined,
           };
 
           // Execute pre-command if specified
@@ -132,15 +134,15 @@ export function PaneControlFanButtons({
             const registry = PreCommandRegistry.getInstance();
             const result = await registry.execute(terminalConfig.preCommandId, {
               ...terminalConfig,
-              cwd: terminalCwd
+              cwd: terminalCwd,
             });
 
             if (!result.success) {
               // Show error notification and abort
               enqueueNotification({
-                kind: 'error',
+                kind: "error",
                 message: `Pre-command failed: ${result.error}`,
-                persistent: true
+                persistent: true,
               });
               return;
             }
@@ -152,19 +154,28 @@ export function PaneControlFanButtons({
                 ...result.paneOptions,
                 terminalOptions: {
                   ...paneOptions.terminalOptions,
-                  ...result.paneOptions.terminalOptions
-                }
+                  ...result.paneOptions.terminalOptions,
+                },
               };
             }
           }
 
           // Create terminal pane with merged options
-          const newPane = await splitPane(tabId, paneId, direction, insertBefore, paneOptions);
+          const newPane = await splitPane(
+            tabId,
+            paneId,
+            direction,
+            insertBefore,
+            paneOptions
+          );
 
           // If there's a command configured, send it
           if (newPane?.sessionId && terminalConfig.command) {
             setTimeout(() => {
-              api.sendKeypress(newPane.sessionId, terminalConfig.command + '\r');
+              api.sendKeypress(
+                newPane.sessionId,
+                terminalConfig.command + "\r"
+              );
             }, 100);
           }
         }
@@ -185,7 +196,9 @@ export function PaneControlFanButtons({
 
           if (!editorCwd) {
             // Fallback to home directory
-            const homeDir = await api.getSettings().then(s => s.homeDirectory);
+            const homeDir = await api
+              .getSettings()
+              .then((s) => s.homeDirectory);
             editorCwd = homeDir || ".";
           }
 
@@ -216,10 +229,14 @@ export function PaneControlFanButtons({
   // Get the starting angle for the 180° arc based on position
   const getStartAngle = () => {
     switch (position) {
-      case "top": return 180;
-      case "bottom": return 0;
-      case "left": return 90;
-      case "right": return -90;
+      case "top":
+        return 180;
+      case "bottom":
+        return 0;
+      case "left":
+        return 90;
+      case "right":
+        return -90;
     }
   };
 
@@ -238,9 +255,11 @@ export function PaneControlFanButtons({
     let angleOffset = 0;
     if (hasMoveButton) {
       const unusedAngle = 180 - arcAngle;
-      angleOffset = (position === "bottom" || position === "left") ? unusedAngle : 0;
+      angleOffset =
+        position === "bottom" || position === "left" ? unusedAngle : 0;
     }
-    const angle = (getStartAngle() + angleOffset + angleStep * index) * (Math.PI / 180);
+    const angle =
+      (getStartAngle() + angleOffset + angleStep * index) * (Math.PI / 180);
 
     const x = Math.cos(angle) * BUTTON_RADIUS;
     const y = Math.sin(angle) * BUTTON_RADIUS;
@@ -346,15 +365,36 @@ export function PaneControlFanButtons({
       />
 
       {/* Fan-out buttons */}
-      {isVisible && actions.map((action, index) => {
-        const pos = getFanButtonPosition(index);
+      {isVisible &&
+        actions.map((action, index) => {
+          const pos = getFanButtonPosition(index);
 
-        // If action is null, render a placeholder button
-        if (action === null) {
+          // If action is null, render a placeholder button
+          if (action === null) {
+            return (
+              <button
+                key={`placeholder-${index}`}
+                className={`${buttonClass} absolute pointer-events-auto bg-black/40 border border-gray-600 border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
+                style={{
+                  ...pos,
+                  animationDelay: `${index * 30}ms`,
+                  animationFillMode: "forwards",
+                }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onClick={handlePlaceholderClick}
+                title="Configure pane actions"
+              >
+                <Settings className={`${iconClass} opacity-50`} />
+              </button>
+            );
+          }
+
+          // Render actual action button
           return (
             <button
-              key={`placeholder-${index}`}
-              className={`${buttonClass} absolute pointer-events-auto bg-black/40 border border-gray-600 border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
+              key={`action-${index}-${action.name}`}
+              className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
               style={{
                 ...pos,
                 animationDelay: `${index * 30}ms`,
@@ -362,34 +402,13 @@ export function PaneControlFanButtons({
               }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
-              onClick={handlePlaceholderClick}
-              title="Configure pane actions"
+              onClick={() => void handleActionClick(action)}
+              title={`Split ${position} - ${action.name}`}
             >
-              <Settings className={`${iconClass} opacity-50`} />
+              <PaneActionIcon iconId={action.icon} className={iconClass} />
             </button>
           );
-        }
-
-        // Render actual action button
-        return (
-          <button
-            key={`action-${index}-${action.name}`}
-            className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
-            style={{
-              ...pos,
-              animationDelay: `${index * 30}ms`,
-              animationFillMode: "forwards",
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => void handleActionClick(action)}
-            title={`Split ${position} - ${action.name}`}
-          >
-            <PaneActionIcon iconId={action.icon} className={iconClass} />
-          </button>
-        );
-      })}
-
+        })}
     </div>
   );
 }

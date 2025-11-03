@@ -1,5 +1,5 @@
-import type { ContextKeyConfig } from './types';
-import type { WhenClause } from '../whenClauses/WhenClause';
+import type { ContextKeyConfig } from "./types";
+import type { WhenClause } from "../whenClauses/WhenClause";
 
 /**
  * Represents a context key that can be evaluated in when clauses
@@ -8,7 +8,7 @@ export class ContextKey<T> {
   constructor(
     public readonly key: string,
     public readonly defaultValue: T,
-    public readonly config?: ContextKeyConfig
+    public readonly config?: ContextKeyConfig,
   ) {}
 
   /**
@@ -41,7 +41,7 @@ export class ContextKey<T> {
         const value = ctx[this.key] ?? this.defaultValue;
         return !!value;
       },
-      toString: () => this.key
+      toString: () => this.key,
     };
   }
 
@@ -54,7 +54,7 @@ export class ContextKey<T> {
         const value = ctx[this.key] ?? this.defaultValue;
         return value === true;
       },
-      toString: () => this.key
+      toString: () => this.key,
     };
   }
 
@@ -67,7 +67,7 @@ export class ContextKey<T> {
         const value = ctx[this.key] ?? this.defaultValue;
         return value === false;
       },
-      toString: () => `!${this.key}`
+      toString: () => `!${this.key}`,
     };
   }
 
@@ -77,7 +77,7 @@ export class ContextKey<T> {
   isDefined(): WhenClause {
     return {
       evaluate: (ctx) => ctx[this.key] !== undefined,
-      toString: () => this.key
+      toString: () => this.key,
     };
   }
 
@@ -87,7 +87,7 @@ export class ContextKey<T> {
   isUndefined(): WhenClause {
     return {
       evaluate: (ctx) => ctx[this.key] === undefined,
-      toString: () => `!${this.key}`
+      toString: () => `!${this.key}`,
     };
   }
 
@@ -100,7 +100,7 @@ export class ContextKey<T> {
         const currentValue = ctx[this.key] ?? this.defaultValue;
         return currentValue === value;
       },
-      toString: () => `${this.key} == ${JSON.stringify(value)}`
+      toString: () => `${this.key} == ${JSON.stringify(value)}`,
     };
   }
 
@@ -113,7 +113,7 @@ export class ContextKey<T> {
         const currentValue = ctx[this.key] ?? this.defaultValue;
         return currentValue !== value;
       },
-      toString: () => `${this.key} != ${JSON.stringify(value)}`
+      toString: () => `${this.key} != ${JSON.stringify(value)}`,
     };
   }
 
@@ -126,7 +126,7 @@ export class ContextKey<T> {
         const currentValue = ctx[this.key] ?? this.defaultValue;
         return (currentValue as any) > (value as any);
       },
-      toString: () => `${this.key} > ${value}`
+      toString: () => `${this.key} > ${value}`,
     };
   }
 
@@ -139,7 +139,7 @@ export class ContextKey<T> {
         const currentValue = ctx[this.key] ?? this.defaultValue;
         return (currentValue as any) >= (value as any);
       },
-      toString: () => `${this.key} >= ${value}`
+      toString: () => `${this.key} >= ${value}`,
     };
   }
 
@@ -152,7 +152,7 @@ export class ContextKey<T> {
         const currentValue = ctx[this.key] ?? this.defaultValue;
         return (currentValue as any) < (value as any);
       },
-      toString: () => `${this.key} < ${value}`
+      toString: () => `${this.key} < ${value}`,
     };
   }
 
@@ -165,7 +165,7 @@ export class ContextKey<T> {
         const currentValue = ctx[this.key] ?? this.defaultValue;
         return (currentValue as any) <= (value as any);
       },
-      toString: () => `${this.key} <= ${value}`
+      toString: () => `${this.key} <= ${value}`,
     };
   }
 
@@ -176,10 +176,10 @@ export class ContextKey<T> {
     return {
       evaluate: (ctx) => {
         const value = ctx[this.key] ?? this.defaultValue;
-        if (typeof value !== 'string') return false;
+        if (typeof value !== "string") return false;
         return pattern.test(value);
       },
-      toString: () => `${this.key} =~ ${pattern.toString()}`
+      toString: () => `${this.key} =~ ${pattern.toString()}`,
     };
   }
 
@@ -192,7 +192,7 @@ export class ContextKey<T> {
         const value = ctx[this.key] ?? this.defaultValue;
         return !value;
       },
-      toString: () => `!${this.key}`
+      toString: () => `!${this.key}`,
     };
   }
 }

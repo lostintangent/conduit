@@ -2,7 +2,7 @@ import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import { disposeSession } from "@/store/terminals";
+import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -54,7 +54,7 @@ function splitLayoutNode(
   targetPaneId: string,
   direction: SplitDirection,
   newNode: LayoutNode,
-  insertBefore = false
+  insertBefore = false,
 ): { node: LayoutNode; modified: boolean } {
   if (node.type === "pane") {
     if (node.paneId === targetPaneId) {
@@ -73,7 +73,7 @@ function splitLayoutNode(
   }
 
   const childIndex = node.children.findIndex((child) =>
-    containsPane(child, targetPaneId)
+    containsPane(child, targetPaneId),
   );
   if (childIndex === -1) {
     return { node, modified: false };
@@ -102,7 +102,7 @@ function splitLayoutNode(
     targetPaneId,
     direction,
     newNode,
-    insertBefore
+    insertBefore,
   );
   if (modified) {
     const newChildren = [...node.children];
@@ -138,7 +138,7 @@ function splitLayoutNode(
 
 function removePaneFromLayoutNode(
   node: LayoutNode,
-  targetPaneId: string
+  targetPaneId: string,
 ): { node: LayoutNode | null; removed: boolean } {
   const {
     node: updatedNode,
@@ -174,7 +174,7 @@ export function findLayoutPath(
   node: LayoutNode,
   predicate: (candidate: LayoutNode) => boolean,
   parent: LayoutSplitNode | null = null,
-  index = 0
+  index = 0,
 ): LayoutPathEntry[] | null {
   const currentEntry: LayoutPathEntry = { node, parent, index };
   if (predicate(node)) {
@@ -265,7 +265,7 @@ function extractPaneNode(node: LayoutNode, paneId: string): ExtractPaneResult {
 
 export function updatePaneProperty(
   sessionId: string,
-  updates: Partial<TerminalPane>
+  updates: Partial<TerminalPane>,
 ) {
   store.set(tabsAtom, (current) =>
     current.map((tab) => {
@@ -290,14 +290,14 @@ export function updatePaneProperty(
         ...tab,
         panes,
       };
-    })
+    }),
   );
 }
 
 export function movePane(
   tabId: string,
   paneId: string,
-  direction: PaneDirection
+  direction: PaneDirection,
 ) {
   store.set(tabsAtom, (current) =>
     current.map((tab) => {
@@ -311,7 +311,7 @@ export function movePane(
 
       const path = findLayoutPath(
         tab.layout,
-        (candidate) => candidate.type === "pane" && candidate.paneId === paneId
+        (candidate) => candidate.type === "pane" && candidate.paneId === paneId,
       );
 
       if (!path || path.length < 2) {
@@ -352,7 +352,7 @@ export function movePane(
         if (detachResult.node) {
           const updatedChild =
             originalChildSize !== undefined &&
-              detachResult.node.size === undefined
+            detachResult.node.size === undefined
               ? { ...detachResult.node, size: originalChildSize }
               : detachResult.node;
           newChildren[childEntry.index] = updatedChild;
@@ -361,7 +361,7 @@ export function movePane(
         }
 
         const neighborPosition = newChildren.findIndex(
-          (candidate) => candidate.id === neighborNodeId
+          (candidate) => candidate.id === neighborNodeId,
         );
         if (neighborPosition === -1) {
           continue;
@@ -414,7 +414,7 @@ export function movePane(
       }
 
       return tab;
-    })
+    }),
   );
 }
 
@@ -425,7 +425,7 @@ type DetachPaneResult = {
 
 export function detachPane(
   tabId: string,
-  paneId: string
+  paneId: string,
 ): DetachPaneResult | null {
   const tabs = store.get(tabsAtom);
   const targetTab = tabs.find((tab) => tab.id === tabId);
@@ -463,7 +463,7 @@ export function detachPane(
 
       const { node: newLayout, removed } = removePaneFromLayoutNode(
         tab.layout,
-        paneId
+        paneId,
       );
 
       if (!removed) {
@@ -532,7 +532,7 @@ export async function splitPane(
   paneId: string,
   direction: SplitDirection,
   insertBefore = false,
-  options: SplitPaneOptions = {}
+  options: SplitPaneOptions = {},
 ) {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
@@ -567,8 +567,7 @@ export async function splitPane(
   const agentRepoRoot =
     options.agentSession?.repoRoot ?? sourceTerminalPane?.agentRepoRoot;
   const agentWorktreePath =
-    options.agentSession?.worktreePath ??
-    sourceTerminalPane?.agentWorktreePath;
+    options.agentSession?.worktreePath ?? sourceTerminalPane?.agentWorktreePath;
 
   const result = await api.createTerminal(requestOptions);
   if (!result) {
@@ -607,7 +606,7 @@ export async function splitPane(
         paneId,
         direction,
         newLayoutNode,
-        insertBefore
+        insertBefore,
       );
 
       if (!modified) {
@@ -623,7 +622,7 @@ export async function splitPane(
         layout: newLayout,
         activePaneId: newPaneId,
       };
-    })
+    }),
   );
 
   return newPaneState;
@@ -633,7 +632,7 @@ export async function splitPaneWithAgentSession(
   tabId: string,
   paneId: string,
   direction: SplitDirection,
-  insertBefore = false
+  insertBefore = false,
 ) {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
@@ -670,7 +669,8 @@ export async function splitPaneWithAgentSession(
       enqueueNotification({
         kind: "error",
         message: "No Git repository found",
-        details: "The current directory is not part of a Git repository. Agent sessions require a Git repository to create an isolated worktree.",
+        details:
+          "The current directory is not part of a Git repository. Agent sessions require a Git repository to create an isolated worktree.",
         autoCloseMs: 5000,
       });
     } else {
@@ -690,7 +690,7 @@ export function openWebViewPane(
   paneId: string,
   url: string,
   direction: SplitDirection = "row",
-  insertBefore = false
+  insertBefore = false,
 ) {
   const newPaneId = generateId();
   const newPaneState: Pane = {
@@ -716,7 +716,7 @@ export function openWebViewPane(
         paneId,
         direction,
         newLayoutNode,
-        insertBefore
+        insertBefore,
       );
 
       if (!modified) {
@@ -732,7 +732,7 @@ export function openWebViewPane(
         layout: newLayout,
         activePaneId: newPaneId,
       };
-    })
+    }),
   );
 }
 
@@ -741,7 +741,7 @@ export function openEditorPane(
   paneId: string,
   cwd: string,
   direction: SplitDirection = "row",
-  insertBefore = false
+  insertBefore = false,
 ) {
   const newPaneId = generateId();
   const newPaneState: Pane = {
@@ -767,7 +767,7 @@ export function openEditorPane(
         paneId,
         direction,
         newLayoutNode,
-        insertBefore
+        insertBefore,
       );
 
       if (!modified) {
@@ -783,7 +783,7 @@ export function openEditorPane(
         layout: newLayout,
         activePaneId: newPaneId,
       };
-    })
+    }),
   );
 }
 
@@ -794,7 +794,7 @@ type RemovePaneOptions = {
 export function removePane(
   tabId: string,
   paneId: string,
-  options: RemovePaneOptions = {}
+  options: RemovePaneOptions = {},
 ) {
   if (!api) {
     return;
@@ -813,7 +813,7 @@ export function removePane(
 
       const { node: newLayout, removed } = removePaneFromLayoutNode(
         tab.layout,
-        paneId
+        paneId,
       );
 
       if (!removed || !newLayout) {
@@ -848,14 +848,11 @@ export function removePane(
         layout: newLayout,
         activePaneId: newActivePaneId,
       };
-    })
+    }),
   );
 }
 
-function closeAgentSessionPanes(
-  tabId: string,
-  agentSessionId: string
-): number {
+function closeAgentSessionPanes(tabId: string, agentSessionId: string): number {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
@@ -865,7 +862,7 @@ function closeAgentSessionPanes(
   const paneIds = Object.entries(tab.panes)
     .filter(
       ([, pane]) =>
-        pane.type === "terminal" && pane.agentSessionId === agentSessionId
+        pane.type === "terminal" && pane.agentSessionId === agentSessionId,
     )
     .map(([paneId]) => paneId);
 
@@ -878,7 +875,7 @@ function closeAgentSessionPanes(
 
 export async function completeAgentSession(
   tabId: string,
-  agentSessionId: string
+  agentSessionId: string,
 ): Promise<AgentSessionFinalizeResult | null> {
   if (!api) {
     return null;
@@ -895,7 +892,7 @@ export async function completeAgentSession(
 
 export async function deleteAgentSession(
   tabId: string,
-  agentSessionId: string
+  agentSessionId: string,
 ): Promise<AgentSessionCleanupResult | null> {
   if (!api) {
     return null;
@@ -923,7 +920,7 @@ export function activatePane(tabId: string, paneId: string) {
         ...tab,
         activePaneId: paneId,
       };
-    })
+    }),
   );
 }
 
@@ -932,6 +929,12 @@ export function closePane(tabId: string, paneId: string) {
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
     return;
+  }
+
+  // Clean up any DOM element with the pane's ID (e.g., webview elements)
+  const paneElement = document.getElementById(paneId);
+  if (paneElement) {
+    paneElement.remove();
   }
 
   // If this is the only pane in the tab, close the entire tab
@@ -951,7 +954,7 @@ export async function forwardPortAndOpen(
   tabId: string,
   paneId: string,
   vmId: string,
-  port: number
+  port: number,
 ): Promise<void> {
   try {
     // Show loading notification
@@ -970,7 +973,13 @@ export async function forwardPortAndOpen(
 
     // Split the pane vertically and open the connection URL in a WebPane
     // openWebViewPane handles both splitting and creating the webview pane
-    openWebViewPane(tabId, paneId, `http://${result.connection_url}`, "row", false);
+    openWebViewPane(
+      tabId,
+      paneId,
+      `http://${result.connection_url}`,
+      "row",
+      false,
+    );
 
     // Show success notification
     enqueueNotification({

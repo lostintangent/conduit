@@ -45,7 +45,7 @@ function isGitIgnored(gitRoot: string, relativePath: string): Promise<boolean> {
 }
 
 async function createIgnorePredicate(
-  startPath: string
+  startPath: string,
 ): Promise<IgnorePredicate> {
   const gitRoot = await getGitRoot(startPath);
   if (!gitRoot) {
@@ -76,7 +76,7 @@ async function createIgnorePredicate(
 async function readDirectory(
   rootPath: string,
   targetPath: string,
-  shouldIgnore: IgnorePredicate
+  shouldIgnore: IgnorePredicate,
 ): Promise<FileTreeNode[]> {
   let dirEntries: Dirent[];
   try {

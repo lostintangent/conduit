@@ -63,7 +63,7 @@ export function KeybindingsEditor({
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "user" | "conflicts">(
-    "all"
+    "all",
   );
   const [copiedCommandId, setCopiedCommandId] = useState<string | null>(null);
 
@@ -105,7 +105,7 @@ export function KeybindingsEditor({
 
       // Sort by weight (highest first) to get primary keybinding
       const sortedBindings = [...bindings].sort(
-        (a, b) => (b.weight || 0) - (a.weight || 0)
+        (a, b) => (b.weight || 0) - (a.weight || 0),
       );
       const primaryKeybinding = sortedBindings[0] || null;
 
@@ -173,7 +173,7 @@ export function KeybindingsEditor({
 
   const handleSaveKeybinding = async (
     commandId: string,
-    keybinding: string
+    keybinding: string,
   ) => {
     try {
       const keybindingsPath = getUserKeybindingsPath(homeDirectory);
@@ -181,7 +181,7 @@ export function KeybindingsEditor({
         commandId,
         keybinding,
         keybindingsPath,
-        keybindingRegistry
+        keybindingRegistry,
       );
       setEditingCommandId(null);
     } catch (error) {
@@ -219,7 +219,7 @@ export function KeybindingsEditor({
         commandId,
         keybindingsPath,
         commandRegistry,
-        keybindingRegistry
+        keybindingRegistry,
       );
       setEditingCommandId(null);
     } catch (error) {
@@ -267,28 +267,31 @@ export function KeybindingsEditor({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setFilterMode("all")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${filterMode === "all"
-                ? "bg-gradient-to-br from-secondary-start to-secondary-end text-white"
-                : "bg-white/5 text-gray-400 hover:bg-white/10"
-                }`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${
+                filterMode === "all"
+                  ? "bg-gradient-to-br from-secondary-start to-secondary-end text-white"
+                  : "bg-white/5 text-gray-400 hover:bg-white/10"
+              }`}
             >
               All ({rows.length})
             </button>
             <button
               onClick={() => setFilterMode("user")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${filterMode === "user"
-                ? "bg-gradient-to-br from-secondary-start to-secondary-end text-white"
-                : "bg-white/5 text-gray-400 hover:bg-white/10"
-                }`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${
+                filterMode === "user"
+                  ? "bg-gradient-to-br from-secondary-start to-secondary-end text-white"
+                  : "bg-white/5 text-gray-400 hover:bg-white/10"
+              }`}
             >
               User Modified ({rows.filter((r) => r.isUserOverride).length})
             </button>
             <button
               onClick={() => setFilterMode("conflicts")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${filterMode === "conflicts"
-                ? "bg-gradient-to-br from-secondary-start to-secondary-end text-white"
-                : "bg-white/5 text-gray-400 hover:bg-white/10"
-                }`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[0.85rem] leading-none transition-colors duration-150 whitespace-nowrap select-none ${
+                filterMode === "conflicts"
+                  ? "bg-gradient-to-br from-secondary-start to-secondary-end text-white"
+                  : "bg-white/5 text-gray-400 hover:bg-white/10"
+              }`}
             >
               Conflicts ({rows.filter((r) => r.hasConflict).length})
             </button>
@@ -318,8 +321,9 @@ export function KeybindingsEditor({
               {filteredRows.map((row) => (
                 <tr
                   key={row.command.id}
-                  className={`hover:bg-gray-800/50 transition-colors ${row.hasConflict ? "bg-red-500/5" : ""
-                    } ${editingCommandId === row.command.id ? "relative" : ""}`}
+                  className={`hover:bg-gray-800/50 transition-colors ${
+                    row.hasConflict ? "bg-red-500/5" : ""
+                  } ${editingCommandId === row.command.id ? "relative" : ""}`}
                 >
                   {/* Command */}
                   <td className="px-6 py-2 overflow-visible">
@@ -424,8 +428,8 @@ export function KeybindingsEditor({
                           currentKeybinding={
                             row.keybinding
                               ? formatKeybindingForDisplay(
-                                row.keybinding.chords
-                              )
+                                  row.keybinding.chords,
+                                )
                               : undefined
                           }
                         />

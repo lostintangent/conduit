@@ -5,28 +5,28 @@ import { loadSessions } from "../workspace";
 export async function updateApplicationMenu(
   window: BrowserWindow,
   settings: UserSettings,
-  saveSettings: (settings: UserSettings) => Promise<void>
+  saveSettings: (settings: UserSettings) => Promise<void>,
 ) {
   const workspaces = await loadSessions();
 
   const template = [
     ...(process.platform === "darwin"
       ? [
-        {
-          label: app.name,
-          submenu: [
-            { role: "about" },
-            { type: "separator" },
-            { role: "services" },
-            { type: "separator" },
-            { role: "hide" },
-            { role: "hideOthers" },
-            { role: "unhide" },
-            { type: "separator" },
-            { role: "quit" },
-          ],
-        },
-      ]
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" },
+              { type: "separator" },
+              { role: "services" },
+              { type: "separator" },
+              { role: "hide" },
+              { role: "hideOthers" },
+              { role: "unhide" },
+              { type: "separator" },
+              { role: "quit" },
+            ],
+          },
+        ]
       : []),
     {
       label: "File",
@@ -42,22 +42,22 @@ export async function updateApplicationMenu(
         },
         ...(workspaces.length > 0
           ? [
-            { type: "separator" },
-            {
-              label: "Open Workspace...",
-              submenu: workspaces.map((workspace: Workspace) => ({
-                label: workspace.name,
-                click: () => {
-                  if (!window.isDestroyed()) {
-                    window.webContents.send(
-                      "ui:open-workspace-request",
-                      workspace
-                    );
-                  }
-                },
-              })),
-            },
-          ]
+              { type: "separator" },
+              {
+                label: "Open Workspace...",
+                submenu: workspaces.map((workspace: Workspace) => ({
+                  label: workspace.name,
+                  click: () => {
+                    if (!window.isDestroyed()) {
+                      window.webContents.send(
+                        "ui:open-workspace-request",
+                        workspace,
+                      );
+                    }
+                  },
+                })),
+              },
+            ]
           : []),
         { type: "separator" },
         process.platform === "darwin" ? { role: "close" } : { role: "quit" },
@@ -106,7 +106,7 @@ export async function updateApplicationMenu(
 
             window.webContents.send(
               "ui:set-always-show-tabs",
-              settings.alwaysShowTabs
+              settings.alwaysShowTabs,
             );
             await updateApplicationMenu(window, settings, saveSettings);
           },
@@ -122,7 +122,7 @@ export async function updateApplicationMenu(
 
             window.webContents.send(
               "ui:set-show-terminal-ruler",
-              settings.showTerminalRuler
+              settings.showTerminalRuler,
             );
 
             await updateApplicationMenu(window, settings, saveSettings);
@@ -143,7 +143,7 @@ export async function updateApplicationMenu(
   ];
 
   const menu = Menu.buildFromTemplate(
-    template as Electron.MenuItemConstructorOptions[]
+    template as Electron.MenuItemConstructorOptions[],
   );
 
   Menu.setApplicationMenu(menu);

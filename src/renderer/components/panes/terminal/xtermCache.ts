@@ -25,7 +25,7 @@ type GetOrCreateOptions = {
 
 export function getOrCreate(
   sessionId: string,
-  options: GetOrCreateOptions = {}
+  options: GetOrCreateOptions = {},
 ): TerminalInstance {
   let instance = store.get(sessionId);
   if (!instance) {
@@ -49,7 +49,7 @@ export function getOrCreate(
     const fit = new FitAddon();
     const search = new SearchAddon();
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
-      current: options.onLinkClick
+      current: options.onLinkClick,
     };
 
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
@@ -66,11 +66,11 @@ export function getOrCreate(
     terminal.loadAddon(webLinksAddon);
 
     const unsubData = api.onData(sessionId, (data: string) =>
-      terminal.write(data)
+      terminal.write(data),
     );
 
     const onKeyDispose = terminal.onData((input) =>
-      api.sendKeypress(sessionId, input)
+      api.sendKeypress(sessionId, input),
     );
 
     const newInstance: TerminalInstance = {

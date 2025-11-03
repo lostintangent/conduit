@@ -12,7 +12,10 @@ type TabPreviewOverlayProps = {
   onPreviewHoverChange?: (isHovering: boolean) => void;
 };
 
-export function TabPreviewOverlay({ preview, onPreviewHoverChange }: TabPreviewOverlayProps) {
+export function TabPreviewOverlay({
+  preview,
+  onPreviewHoverChange,
+}: TabPreviewOverlayProps) {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
 
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
@@ -55,7 +58,8 @@ export function TabPreviewOverlay({ preview, onPreviewHoverChange }: TabPreviewO
       onMouseLeave={(e) => {
         // Check if we're actually leaving the container, or just moving to a child element
         const relatedTarget = e.relatedTarget as Node | null;
-        const isLeavingToChild = relatedTarget && outerContainerRef.current?.contains(relatedTarget);
+        const isLeavingToChild =
+          relatedTarget && outerContainerRef.current?.contains(relatedTarget);
 
         // Only trigger hover change if we're actually leaving the container
         if (!isLeavingToChild) {
@@ -65,6 +69,6 @@ export function TabPreviewOverlay({ preview, onPreviewHoverChange }: TabPreviewO
     >
       <TabPreviewItem tabId={preview.tabId} onRefSet={handleRefSet} />
     </div>,
-    document.body
+    document.body,
   );
 }

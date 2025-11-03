@@ -1,8 +1,8 @@
-import type { IContextKeyService } from './ContextKeyService';
-import type { ContextValues } from './types';
-import { AggregateMode } from './types';
-import type { ContextKey } from './ContextKey';
-import type { DerivedContextKey } from './DerivedContextKey';
+import type { IContextKeyService } from "./ContextKeyService";
+import type { ContextValues } from "./types";
+import { AggregateMode } from "./types";
+import type { ContextKey } from "./ContextKey";
+import type { DerivedContextKey } from "./DerivedContextKey";
 
 /**
  * Implementation of the context key service with hierarchical support
@@ -102,9 +102,9 @@ export class ContextKeyService implements IContextKeyService {
     this.notifyChange(key, value);
 
     // Special handling for activeTabId and activePaneId
-    if (key === 'activeTabId') {
+    if (key === "activeTabId") {
       this.setActiveTab(value as string | undefined);
-    } else if (key === 'activePaneId') {
+    } else if (key === "activePaneId") {
       this.setActivePane(value as string | undefined);
     }
   }
@@ -112,7 +112,7 @@ export class ContextKeyService implements IContextKeyService {
   get<T = unknown>(key: string): T | undefined {
     // Check if this is a derived/aggregated key (check first before other lookups)
     const derivedKey = this.keyRegistry.get(key);
-    if (derivedKey && 'getSourceKey' in derivedKey) {
+    if (derivedKey && "getSourceKey" in derivedKey) {
       // Compute aggregated value on-demand
       return this.computeDerivedValue(derivedKey) as T;
     }
@@ -123,8 +123,8 @@ export class ContextKeyService implements IContextKeyService {
     }
 
     // Check activeTab.* keys
-    if (key.startsWith('activeTab.') && this.activeTabId) {
-      const tabKey = key.substring('activeTab.'.length);
+    if (key.startsWith("activeTab.") && this.activeTabId) {
+      const tabKey = key.substring("activeTab.".length);
       const tabMap = this.tabValues.get(this.activeTabId);
       if (tabMap?.has(tabKey)) {
         return tabMap.get(tabKey) as T;
@@ -132,8 +132,8 @@ export class ContextKeyService implements IContextKeyService {
     }
 
     // Check activePane.* keys
-    if (key.startsWith('activePane.') && this.activePaneId) {
-      const paneKey = key.substring('activePane.'.length);
+    if (key.startsWith("activePane.") && this.activePaneId) {
+      const paneKey = key.substring("activePane.".length);
       const paneMap = this.paneValues.get(this.activePaneId);
       if (paneMap?.has(paneKey)) {
         return paneMap.get(paneKey) as T;
@@ -142,7 +142,7 @@ export class ContextKeyService implements IContextKeyService {
 
     // Try to find default value from registry
     const contextKey = this.keyRegistry.get(key);
-    if (contextKey && 'getDefault' in contextKey) {
+    if (contextKey && "getDefault" in contextKey) {
       return contextKey.getDefault() as T;
     }
 
@@ -155,9 +155,9 @@ export class ContextKeyService implements IContextKeyService {
     const aggregateMode = derivedKey.getAggregateMode();
 
     // Check if this is an activeTab.* key aggregating from panes
-    if (key.startsWith('activeTab.') && sourceKey.startsWith('activePane.')) {
+    if (key.startsWith("activeTab.") && sourceKey.startsWith("activePane.")) {
       // Aggregate from panes in the active tab only
-      const property = sourceKey.substring('activePane.'.length);
+      const property = sourceKey.substring("activePane.".length);
       const values: unknown[] = [];
 
       if (this.activeTabId) {
@@ -177,9 +177,9 @@ export class ContextKeyService implements IContextKeyService {
 
     // Parse sourceKey to determine what to aggregate
     // Format: "level.property" where level can be activePane, activeTab, etc.
-    if (sourceKey.startsWith('activePane.')) {
+    if (sourceKey.startsWith("activePane.")) {
       // Aggregate from all panes across all tabs
-      const property = sourceKey.substring('activePane.'.length);
+      const property = sourceKey.substring("activePane.".length);
       const values: unknown[] = [];
       for (const paneMap of this.paneValues.values()) {
         const value = paneMap.get(property);
@@ -190,9 +190,9 @@ export class ContextKeyService implements IContextKeyService {
       return this.aggregateValues(values, aggregateMode);
     }
 
-    if (sourceKey.startsWith('activeTab.')) {
+    if (sourceKey.startsWith("activeTab.")) {
       // Aggregate from all tabs
-      const property = sourceKey.substring('activeTab.'.length);
+      const property = sourceKey.substring("activeTab.".length);
       const values: unknown[] = [];
       for (const tabMap of this.tabValues.values()) {
         const value = tabMap.get(property);
@@ -237,7 +237,9 @@ export class ContextKeyService implements IContextKeyService {
     return values;
   }
 
-  onDidChangeContext(listener: (key: string, value: unknown) => void): () => void {
+  onDidChangeContext(
+    listener: (key: string, value: unknown) => void,
+  ): () => void {
     this.listeners.push(listener);
     return () => {
       const index = this.listeners.indexOf(listener);
@@ -293,7 +295,7 @@ export class ContextKeyService implements IContextKeyService {
 
     // Check if there's a derived key at tab level
     const derivedKey = this.keyRegistry.get(targetKey);
-    if (!derivedKey || !('getAggregateMode' in derivedKey)) {
+    if (!derivedKey || !("getAggregateMode" in derivedKey)) {
       return;
     }
 
@@ -303,8 +305,8 @@ export class ContextKeyService implements IContextKeyService {
 
     const aggregateMode = derivedKey.getAggregateMode();
     const aggregatedValue = this.aggregateValues(
-      Array.from(this.paneValues.values()).map(m => m.get(key)),
-      aggregateMode
+      Array.from(this.paneValues.values()).map((m) => m.get(key)),
+      aggregateMode,
     );
 
     // Store aggregated value at tab level
@@ -319,7 +321,7 @@ export class ContextKeyService implements IContextKeyService {
 
     // Check if there's a derived key at global level
     const derivedKey = this.keyRegistry.get(targetKey);
-    if (!derivedKey || !('getAggregateMode' in derivedKey)) {
+    if (!derivedKey || !("getAggregateMode" in derivedKey)) {
       return;
     }
 
@@ -343,7 +345,7 @@ export class ContextKeyService implements IContextKeyService {
 
     // Check if there's a derived key at global level
     const derivedKey = this.keyRegistry.get(targetKey);
-    if (!derivedKey || !('getAggregateMode' in derivedKey)) {
+    if (!derivedKey || !("getAggregateMode" in derivedKey)) {
       return;
     }
 
@@ -364,13 +366,13 @@ export class ContextKeyService implements IContextKeyService {
   private aggregateValues(values: unknown[], mode: AggregateMode): unknown {
     switch (mode) {
       case AggregateMode.Any:
-        return values.some(v => !!v);
+        return values.some((v) => !!v);
 
       case AggregateMode.All:
-        return values.every(v => !!v);
+        return values.every((v) => !!v);
 
       case AggregateMode.Count:
-        return values.filter(v => !!v).length;
+        return values.filter((v) => !!v).length;
 
       case AggregateMode.First:
         return values[0];

@@ -16,7 +16,7 @@ export interface GitRepoHandlerResult {
  * @returns Result indicating success or failure with error message
  */
 export async function verifyGitRepoHandler(
-  cwd: string
+  cwd: string,
 ): Promise<GitRepoHandlerResult> {
   const api = window.conduit;
 

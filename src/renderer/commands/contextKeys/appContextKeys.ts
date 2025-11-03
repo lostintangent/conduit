@@ -1,4 +1,4 @@
-import { ContextKey } from './ContextKey';
+import { ContextKey } from "./ContextKey";
 
 /**
  * Application-level context keys for command visibility and enablement
@@ -15,31 +15,37 @@ import { ContextKey } from './ContextKey';
  * Whether a workspace is currently open
  * Used by: workspace.close, workspace.rename
  */
-export const hasWorkspace = new ContextKey<boolean>('hasWorkspace', false);
+export const hasWorkspace = new ContextKey<boolean>("hasWorkspace", false);
 
 /**
  * Whether a last workspace exists that can be restored
  * Used by: workspace.openLast
  */
-export const hasLastWorkspace = new ContextKey<boolean>('hasLastWorkspace', false);
+export const hasLastWorkspace = new ContextKey<boolean>(
+  "hasLastWorkspace",
+  false,
+);
 
 /**
  * Number of open tabs
  * Used by: tab.close (only show when > 1)
  */
-export const tabCount = new ContextKey<number>('tabCount', 1);
+export const tabCount = new ContextKey<number>("tabCount", 1);
 
 /**
  * Whether the active tab has an active pane
  * Used by: pane.openWebPage, terminal.createVM
  */
-export const hasActivePane = new ContextKey<boolean>('hasActivePane', false);
+export const hasActivePane = new ContextKey<boolean>("hasActivePane", false);
 
 /**
  * Whether the active tab has a custom layout
  * Used by: view.resetLayout
  */
-export const hasCustomLayout = new ContextKey<boolean>('hasCustomLayout', false);
+export const hasCustomLayout = new ContextKey<boolean>(
+  "hasCustomLayout",
+  false,
+);
 
 // ============================================================================
 // Pane-level Context Keys
@@ -49,16 +55,19 @@ export const hasCustomLayout = new ContextKey<boolean>('hasCustomLayout', false)
  * Type of the active pane ("terminal", "browser", etc.)
  * Used by: terminal commands (only show when type === "terminal")
  */
-export const activePaneType = new ContextKey<string>('activePaneType', '');
+export const activePaneType = new ContextKey<string>("activePaneType", "");
 
 /**
  * Whether the active pane is in an agent session
  * Used by: agent.mergeAndClose, agent.terminate
  */
-export const isInAgentSession = new ContextKey<boolean>('isInAgentSession', false);
+export const isInAgentSession = new ContextKey<boolean>(
+  "isInAgentSession",
+  false,
+);
 
 /**
  * Whether the active pane has a current working directory
  * Used by: terminal.openInVSCode
  */
-export const hasCwd = new ContextKey<boolean>('hasCwd', false);
+export const hasCwd = new ContextKey<boolean>("hasCwd", false);

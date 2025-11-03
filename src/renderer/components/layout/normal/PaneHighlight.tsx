@@ -11,7 +11,7 @@ const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.
 
 export const shouldShowPaneBorder = (
   tab: Tab,
-  applicationMode: string
+  applicationMode: string,
 ): boolean => {
   return Object.keys(tab.panes).length > 1 && applicationMode !== "focus";
 };
@@ -25,7 +25,9 @@ function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
   const activePaneId = useAtomValue(activePaneIdAtom);
   const applicationMode = useAtomValue(applicationModeAtom);
 
-  const [highlightedPaneId, setHighlightedPaneId] = useState<string | null>(null);
+  const [highlightedPaneId, setHighlightedPaneId] = useState<string | null>(
+    null,
+  );
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isResizingRef = useRef(isResizing);
 
@@ -49,12 +51,14 @@ function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
         setHighlightedPaneId(paneId);
 
         timeoutRef.current = setTimeout(() => {
-          setHighlightedPaneId((current) => (current === paneId ? null : current));
+          setHighlightedPaneId((current) =>
+            current === paneId ? null : current,
+          );
           timeoutRef.current = null;
         }, HIGHLIGHT_DURATION_MS);
       });
     },
-    [clearExistingTimeout]
+    [clearExistingTimeout],
   );
 
   useEffect(() => {
@@ -75,12 +79,7 @@ function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
     }
 
     triggerHighlight(activePaneId);
-  }, [
-    activePaneId,
-    activeTab,
-    applicationMode,
-    triggerHighlight,
-  ]);
+  }, [activePaneId, activeTab, applicationMode, triggerHighlight]);
 
   useEffect(() => {
     return () => {
@@ -111,7 +110,10 @@ type PaneHighlightProps = {
   isResizing?: boolean;
 };
 
-export function PaneHighlight({ paneId, isResizing = false }: PaneHighlightProps) {
+export function PaneHighlight({
+  paneId,
+  isResizing = false,
+}: PaneHighlightProps) {
   const highlightedPaneId = usePaneHighlight({ isResizing });
 
   if (paneId !== highlightedPaneId) {

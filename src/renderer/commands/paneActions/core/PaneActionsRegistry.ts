@@ -5,10 +5,13 @@
  * Based on: docs/pane-actions-schema.md
  */
 
-import type { Action } from './types';
-import { getDefaultActions } from './defaults';
-import { readPaneActionsFile } from '../io/fileOperations';
-import { watchPaneActionsFile, type PaneActionsWatcher } from '../io/watchPaneActions';
+import type { Action } from "./types";
+import { getDefaultActions } from "./defaults";
+import { readPaneActionsFile } from "../io/fileOperations";
+import {
+  watchPaneActionsFile,
+  type PaneActionsWatcher,
+} from "../io/watchPaneActions";
 
 /**
  * Registry for pane actions
@@ -113,7 +116,7 @@ export class PaneActionsRegistry {
    */
   watchFile(
     filePath: string,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
   ): PaneActionsWatcher {
     return watchPaneActionsFile({
       filePath,

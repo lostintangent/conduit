@@ -42,35 +42,35 @@ import { openTab, closeTab } from "@/store/actions/tab";
  */
 export const ApplicationCommands = {
   // View commands
-  VIEW_TOGGLE_FOCUS_MODE: 'view.toggleFocusMode',
-  VIEW_TOGGLE_DESIGN_MODE: 'view.toggleDesignMode',
-  VIEW_OPEN_KEYBOARD_SHORTCUTS: 'view.openKeyboardShortcuts',
-  VIEW_OPEN_PANE_ACTIONS: 'view.openPaneActions',
-  VIEW_SHOW_COMMAND_PALETTE: 'view.showCommandPalette',
-  VIEW_RESET_LAYOUT: 'view.resetLayout',
+  VIEW_TOGGLE_FOCUS_MODE: "view.toggleFocusMode",
+  VIEW_TOGGLE_DESIGN_MODE: "view.toggleDesignMode",
+  VIEW_OPEN_KEYBOARD_SHORTCUTS: "view.openKeyboardShortcuts",
+  VIEW_OPEN_PANE_ACTIONS: "view.openPaneActions",
+  VIEW_SHOW_COMMAND_PALETTE: "view.showCommandPalette",
+  VIEW_RESET_LAYOUT: "view.resetLayout",
 
   // Tab commands
-  TAB_NEW: 'tab.new',
-  TAB_CLOSE: 'tab.close',
+  TAB_NEW: "tab.new",
+  TAB_CLOSE: "tab.close",
 
   // Workspace commands
-  WORKSPACE_SAVE: 'workspace.save',
-  WORKSPACE_RENAME: 'workspace.rename',
-  WORKSPACE_CLOSE: 'workspace.close',
-  WORKSPACE_OPEN: 'workspace.open',
-  WORKSPACE_OPEN_LAST: 'workspace.openLast',
+  WORKSPACE_SAVE: "workspace.save",
+  WORKSPACE_RENAME: "workspace.rename",
+  WORKSPACE_CLOSE: "workspace.close",
+  WORKSPACE_OPEN: "workspace.open",
+  WORKSPACE_OPEN_LAST: "workspace.openLast",
 
   // Pane commands
-  PANE_OPEN_WEB_PAGE: 'pane.openWebPage',
+  PANE_OPEN_WEB_PAGE: "pane.openWebPage",
 
   // Terminal commands
-  TERMINAL_CREATE_VM: 'terminal.createVM',
-  TERMINAL_OPEN_IN_VSCODE: 'terminal.openInVSCode',
+  TERMINAL_CREATE_VM: "terminal.createVM",
+  TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
 
   // Agent session commands
-  AGENT_MANAGE_SESSIONS: 'agent.manageSessions',
-  AGENT_MERGE_AND_CLOSE: 'agent.mergeAndClose',
-  AGENT_TERMINATE: 'agent.terminate',
+  AGENT_MANAGE_SESSIONS: "agent.manageSessions",
+  AGENT_MERGE_AND_CLOSE: "agent.mergeAndClose",
+  AGENT_TERMINATE: "agent.terminate",
 } as const;
 
 /**
@@ -79,15 +79,17 @@ export const ApplicationCommands = {
  * This should be called during app initialization, after the command
  * system has been initialized.
  */
-export function registerApplicationCommands(commandRegistry: ICommandRegistry): void {
+export function registerApplicationCommands(
+  commandRegistry: ICommandRegistry,
+): void {
   // View: Toggle Focus Mode
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
-    title: 'Toggle Focus Mode',
-    description: 'Zoom into a single pane or return to normal view',
-    category: 'View',
+    title: "Toggle Focus Mode",
+    description: "Zoom into a single pane or return to normal view",
+    category: "View",
     keybinding: {
-      key: 'Cmd+Shift+F',
+      key: "Cmd+Shift+F",
     },
     run: (context) => {
       if (context.activeTab) {
@@ -99,16 +101,16 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // View: Toggle Design Mode
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
-    title: 'Toggle Design Mode',
-    description: 'Show or hide pane control buttons for layout manipulation',
-    category: 'View',
+    title: "Toggle Design Mode",
+    description: "Show or hide pane control buttons for layout manipulation",
+    category: "View",
     keybinding: {
-      key: 'Cmd+D',
+      key: "Cmd+D",
     },
     run: (context) => {
       handleToggleDesignMode(
         context.applicationMode,
-        context.setApplicationMode
+        context.setApplicationMode,
       );
     },
   });
@@ -116,11 +118,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // View: Open Keyboard Shortcuts
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
-    title: 'Keyboard Shortcuts',
-    description: 'View and customize keyboard shortcuts',
-    category: 'View',
+    title: "Keyboard Shortcuts",
+    description: "View and customize keyboard shortcuts",
+    category: "View",
     keybinding: {
-      key: 'Cmd+K Cmd+S',
+      key: "Cmd+K Cmd+S",
     },
     run: (context) => {
       handleOpenKeyboardShortcuts(context.setShowKeybindingsEditor);
@@ -130,9 +132,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // View: Open Pane Actions
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_PANE_ACTIONS,
-    title: 'Open Pane Actions',
-    description: 'View and customize pane action bindings',
-    category: 'View',
+    title: "Open Pane Actions",
+    description: "View and customize pane action bindings",
+    category: "View",
     run: (context) => {
       context.view.openPaneActions();
     },
@@ -141,11 +143,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // View: Show Command Palette
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
-    title: 'Show Command Palette',
-    description: 'Show all available commands',
-    category: 'View',
+    title: "Show Command Palette",
+    description: "Show all available commands",
+    category: "View",
     keybinding: {
-      key: 'Cmd+Shift+P',
+      key: "Cmd+Shift+P",
     },
     run: (context) => {
       handleShowCommandPalette(context.setIsCommandPaletteOpenOverride);
@@ -155,17 +157,17 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Workspace: Save
   commandRegistry.registerCommand({
     id: ApplicationCommands.WORKSPACE_SAVE,
-    title: 'Save Workspace',
-    description: 'Save current tab layout for later restoration',
-    category: 'Workspace',
+    title: "Save Workspace",
+    description: "Save current tab layout for later restoration",
+    category: "Workspace",
     keybinding: {
-      key: 'Cmd+K Cmd+W',
+      key: "Cmd+K Cmd+W",
     },
     run: (context) => {
       void handleSaveWorkspace(
         context.allTabs,
         context.activeTab?.id,
-        context.setShowCreateWorkspaceDialog
+        context.setShowCreateWorkspaceDialog,
       );
     },
   });
@@ -173,11 +175,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Workspace: Rename
   commandRegistry.registerCommand({
     id: ApplicationCommands.WORKSPACE_RENAME,
-    title: 'Rename Workspace',
-    description: 'Change the name of the current workspace',
-    category: 'Workspace',
+    title: "Rename Workspace",
+    description: "Change the name of the current workspace",
+    category: "Workspace",
     keybinding: {
-      key: 'Cmd+K Cmd+R',
+      key: "Cmd+K Cmd+R",
     },
     when: hasWorkspace.isTrue(),
     run: (context) => {
@@ -190,11 +192,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Workspace: Close
   commandRegistry.registerCommand({
     id: ApplicationCommands.WORKSPACE_CLOSE,
-    title: 'Close Workspace',
-    description: 'Close the current workspace',
-    category: 'Workspace',
+    title: "Close Workspace",
+    description: "Close the current workspace",
+    category: "Workspace",
     keybinding: {
-      key: 'Cmd+K Cmd+C',
+      key: "Cmd+K Cmd+C",
     },
     when: hasWorkspace.isTrue(),
     run: (context) => {
@@ -207,11 +209,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Workspace: Open
   commandRegistry.registerCommand({
     id: ApplicationCommands.WORKSPACE_OPEN,
-    title: 'Open Workspace',
-    description: 'Restore tabs from a saved workspace',
-    category: 'Workspace',
+    title: "Open Workspace",
+    description: "Restore tabs from a saved workspace",
+    category: "Workspace",
     keybinding: {
-      key: 'Cmd+K Cmd+O',
+      key: "Cmd+K Cmd+O",
     },
     run: (context) => {
       handleOpenWorkspace(context.setShowWorkspacePicker);
@@ -221,9 +223,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Workspace: Open Last
   commandRegistry.registerCommand({
     id: ApplicationCommands.WORKSPACE_OPEN_LAST,
-    title: 'Continue Last Session',
-    description: 'Restore your workspace from when you last closed the app',
-    category: 'Workspace',
+    title: "Continue Last Session",
+    description: "Restore your workspace from when you last closed the app",
+    category: "Workspace",
     when: hasLastWorkspace.isTrue(),
     run: () => {
       void handleOpenLastWorkspace();
@@ -233,9 +235,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // View: Reset Layout
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_RESET_LAYOUT,
-    title: 'Reset Layout',
-    description: 'Restore the default pane sizes for this tab',
-    category: 'View',
+    title: "Reset Layout",
+    description: "Restore the default pane sizes for this tab",
+    category: "View",
     when: hasCustomLayout.isTrue(),
     run: (context) => {
       if (context.activeTab) {
@@ -247,11 +249,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Tab: New
   commandRegistry.registerCommand({
     id: ApplicationCommands.TAB_NEW,
-    title: 'New Tab',
-    description: 'Create a new terminal tab',
-    category: 'Tab',
+    title: "New Tab",
+    description: "Create a new terminal tab",
+    category: "Tab",
     keybinding: {
-      key: 'Cmd+T',
+      key: "Cmd+T",
     },
     run: () => {
       void openTab();
@@ -261,11 +263,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Tab: Close
   commandRegistry.registerCommand({
     id: ApplicationCommands.TAB_CLOSE,
-    title: 'Close Tab',
-    description: 'Close the currently active tab',
-    category: 'Tab',
+    title: "Close Tab",
+    description: "Close the currently active tab",
+    category: "Tab",
     keybinding: {
-      key: 'Cmd+W',
+      key: "Cmd+W",
     },
     when: tabCount.greaterThan(1),
     run: (context) => {
@@ -278,11 +280,11 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Pane: Open Web Page
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_OPEN_WEB_PAGE,
-    title: 'Open Web Page',
-    description: 'Open a web page in a split view',
-    category: 'Pane',
+    title: "Open Web Page",
+    description: "Open a web page in a split view",
+    category: "Pane",
     keybinding: {
-      key: 'Cmd+L',
+      key: "Cmd+L",
     },
     when: hasActivePane.isTrue(),
     run: (context) => {
@@ -293,9 +295,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Terminal: Create VM
   commandRegistry.registerCommand({
     id: ApplicationCommands.TERMINAL_CREATE_VM,
-    title: 'Create VM Terminal',
-    description: 'Create a new terminal connected to a remote VM',
-    category: 'Terminal',
+    title: "Create VM Terminal",
+    description: "Create a new terminal connected to a remote VM",
+    category: "Terminal",
     when: hasActivePane.isTrue(),
     run: () => {
       void handleCreateVM();
@@ -305,13 +307,10 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Terminal: Open in VS Code
   commandRegistry.registerCommand({
     id: ApplicationCommands.TERMINAL_OPEN_IN_VSCODE,
-    title: 'Open in VS Code',
-    description: 'Open the active directory in Visual Studio Code',
-    category: 'Terminal',
-    when: When.and(
-      activePaneType.equals('terminal'),
-      hasCwd.isTrue()
-    ),
+    title: "Open in VS Code",
+    description: "Open the active directory in Visual Studio Code",
+    category: "Terminal",
+    when: When.and(activePaneType.equals("terminal"), hasCwd.isTrue()),
     run: (context) => {
       void handleOpenInVSCode(context.activeTab);
     },
@@ -320,9 +319,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Agent: Manage Sessions
   commandRegistry.registerCommand({
     id: ApplicationCommands.AGENT_MANAGE_SESSIONS,
-    title: 'Manage Agent Sessions',
-    description: 'Remove one or all agent worktrees without merging',
-    category: 'Agent',
+    title: "Manage Agent Sessions",
+    description: "Remove one or all agent worktrees without merging",
+    category: "Agent",
     run: (context) => {
       void handleManageSessions(context);
     },
@@ -331,9 +330,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Agent: Merge and Close
   commandRegistry.registerCommand({
     id: ApplicationCommands.AGENT_MERGE_AND_CLOSE,
-    title: 'Merge and Close Agent Session',
-    description: 'Commit, merge, and close the isolated agent worktree',
-    category: 'Agent',
+    title: "Merge and Close Agent Session",
+    description: "Commit, merge, and close the isolated agent worktree",
+    category: "Agent",
     when: isInAgentSession.isTrue(),
     run: (context) => {
       void handleMergeAndClose(context.activeTab);
@@ -343,9 +342,9 @@ export function registerApplicationCommands(commandRegistry: ICommandRegistry): 
   // Agent: Terminate
   commandRegistry.registerCommand({
     id: ApplicationCommands.AGENT_TERMINATE,
-    title: 'Terminate Agent Session',
-    description: 'Remove the isolated worktree without merging',
-    category: 'Agent',
+    title: "Terminate Agent Session",
+    description: "Remove the isolated worktree without merging",
+    category: "Agent",
     when: isInAgentSession.isTrue(),
     run: (context) => {
       void handleTerminate(context.activeTab);

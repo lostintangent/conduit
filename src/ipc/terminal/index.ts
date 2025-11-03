@@ -5,35 +5,45 @@ import type {
   TerminalResizePayload,
 } from "../../shared/types";
 import { getAllTerminals, getTerminal } from "./store";
-import { createTerminal, killTerminal, markTerminalReady } from "./store/actions";
+import {
+  createTerminal,
+  killTerminal,
+  markTerminalReady,
+} from "./store/actions";
 import type { CreateTerminalOptions, SendToRendererFn } from "./types";
 
 const CHANNEL = "terminal";
 export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
-  ipcMain.handle(`${CHANNEL}:create`, async (_, payload: CreateTerminalOptions) => {
-    const terminal = await createTerminal(sendToRenderer, payload);
-    return {
-      sessionId: terminal.id,
-      title: terminal.lastProcessName,
-      cwd: terminal.cwd,
-      vmMetadata: terminal.cloudEnvironment,
-    };
-  });
+  ipcMain.handle(
+    `${CHANNEL}:create`,
+    async (_, payload: CreateTerminalOptions) => {
+      const terminal = await createTerminal(sendToRenderer, payload);
+      return {
+        sessionId: terminal.id,
+        title: terminal.lastProcessName,
+        cwd: terminal.cwd,
+        vmMetadata: terminal.cloudEnvironment,
+      };
+    },
+  );
 
   ipcMain.on(`${CHANNEL}:ready`, (_, { sessionId }: TerminalPayload) =>
-    markTerminalReady(sessionId, sendToRenderer)
+    markTerminalReady(sessionId, sendToRenderer),
   );
 
   ipcMain.on(`${CHANNEL}:close`, (_, { sessionId }: TerminalPayload) =>
-    killTerminal(sessionId)
+    killTerminal(sessionId),
   );
 
-  ipcMain.on(`${CHANNEL}:input`, (_, { sessionId, input }: TerminalInputPayload) => {
-    const session = getTerminal(sessionId);
-    if (!session) return;
+  ipcMain.on(
+    `${CHANNEL}:input`,
+    (_, { sessionId, input }: TerminalInputPayload) => {
+      const session = getTerminal(sessionId);
+      if (!session) return;
 
-    session.pty.write(input);
-  });
+      session.pty.write(input);
+    },
+  );
 
   ipcMain.on(`${CHANNEL}:resize`, (_event, payload: TerminalResizePayload) => {
     const session = getTerminal(payload.sessionId);
@@ -44,7 +54,6 @@ export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
 
     session.pty.resize(cols, rows);
   });
-
 }
 
 export function cleanupTerminalSessions() {
