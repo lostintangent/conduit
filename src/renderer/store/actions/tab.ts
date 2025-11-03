@@ -192,6 +192,7 @@ export function focusTab(tabId: string) {
 
 export function closeTab(tabId: string) {
   const sessionsToClose: string[] = [];
+  const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
   const previousActiveTabId = store.get(activeTabIdAtom);
   let nextActiveTabId: string | null | undefined = undefined;
@@ -204,6 +205,9 @@ export function closeTab(tabId: string) {
       if (tab.id === tabId) {
         removedTabIndex = index;
         Object.values(tab.panes).forEach((pane) => {
+          // Collect pane IDs for DOM cleanup
+          paneIdsToCleanup.push(pane.id);
+          
           if (pane.type === "terminal") {
             sessionsToClose.push(pane.sessionId);
           }
@@ -236,6 +240,14 @@ export function closeTab(tabId: string) {
   if (nextActiveTabId !== undefined) {
     store.set(activeTabIdAtom, nextActiveTabId);
   }
+
+  // Clean up DOM elements for all panes
+  paneIdsToCleanup.forEach((paneId) => {
+    const paneElement = document.getElementById(paneId);
+    if (paneElement) {
+      paneElement.remove();
+    }
+  });
 
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
 
