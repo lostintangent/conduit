@@ -1,4 +1,9 @@
 import { useUserSettings } from "@/hooks/useUserSettings";
+import {
+  applyWebviewScaling,
+  calculateWebviewScale,
+  getPreviewScaleFromContainer,
+} from "@/utils/preview-scaling";
 import type {
   ContextMenuParams,
   DidNavigateEvent,
@@ -123,39 +128,16 @@ export function WebPane({
       currentWebview.style.top = `${top}px`;
       currentWebview.style.left = `${left}px`;
 
-      let scaleX = layoutWidth > 0 ? rect.width / layoutWidth : 1;
-      let scaleY = layoutHeight > 0 ? rect.height / layoutHeight : 1;
+      const previewScale = getPreviewScaleFromContainer(anchor);
+      const scaling = calculateWebviewScale({
+        layoutWidth,
+        layoutHeight,
+        rectWidth: rect.width,
+        rectHeight: rect.height,
+        previewScale,
+      });
 
-      const previewScaleAttr = previewContainer?.dataset.tabPreviewScale;
-      if (previewScaleAttr) {
-        const previewScale = Number(previewScaleAttr);
-        if (!Number.isNaN(previewScale) && previewScale > 0) {
-          const EPSILON = 0.001;
-          if (Math.abs(scaleX - 1) < EPSILON) {
-            scaleX = previewScale;
-          }
-          if (Math.abs(scaleY - 1) < EPSILON) {
-            scaleY = previewScale;
-          }
-        }
-      }
-
-      const isScaled =
-        Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001;
-
-      if (isScaled) {
-        const targetWidth = layoutWidth || rect.width;
-        const targetHeight = layoutHeight || rect.height;
-        currentWebview.style.width = `${targetWidth - 3}px`;
-        currentWebview.style.height = `${targetHeight - 3}px`;
-        currentWebview.style.transformOrigin = "top left";
-        currentWebview.style.transform = `scale(${scaleX}, ${scaleY})`;
-      } else {
-        currentWebview.style.width = `${rect.width}px`;
-        currentWebview.style.height = `${rect.height}px`;
-        currentWebview.style.transformOrigin = "";
-        currentWebview.style.transform = "";
-      }
+      applyWebviewScaling(currentWebview, scaling);
     };
 
     const resizeObserver = new ResizeObserver(() => updatePosition());
