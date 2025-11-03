@@ -934,6 +934,12 @@ export function closePane(tabId: string, paneId: string) {
     return;
   }
 
+  // Clean up any DOM element with the pane's ID (e.g., webview elements)
+  const paneElement = document.getElementById(paneId);
+  if (paneElement) {
+    paneElement.remove();
+  }
+
   // If this is the only pane in the tab, close the entire tab
   if (Object.keys(tab.panes).length === 1) {
     closeTab(tabId);
