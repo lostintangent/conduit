@@ -1,8 +1,6 @@
 import {
   calculatePreviewDimensions,
-  PREVIEW_HEIGHT,
   PREVIEW_SCALE,
-  PREVIEW_WIDTH,
 } from "@/utils/preview-scaling";
 import { useEffect, useRef } from "react";
 

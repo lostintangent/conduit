@@ -22,34 +22,35 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 
-// Delay before hiding history dropdown to allow clicking on items
-const HISTORY_DROPDOWN_HIDE_DELAY = 200;
-
-type WebPaneProps = {
+type BrowserPaneProps = {
   url: string;
   paneId: string;
-  onTitleChange?: (title: string) => void;
-  onUrlChange?: (url: string) => void;
-  disableInteraction?: boolean;
-  onContextMenu?: (coords: { clientX: number; clientY: number }) => void;
-  isInPreview?: boolean;
-  onHover?: (isHovering: boolean) => void;
+
+  onUrlChange: (url: string) => void;
+  onTitleChange: (title: string) => void;
+
+  // TODO: See if we can remove the X/Y coordinates and let Electron handle it internally
+  onContextMenu: (coords: { clientX: number; clientY: number }) => void;
+  onHover: (isHovering: boolean) => void;
+
+  disableInteraction: boolean;
+  isInPreview: boolean;
 };
 
-export function WebPane({
+export function BrowserPane({
   url,
   paneId,
   onTitleChange,
   onUrlChange,
-  disableInteraction = false,
   onContextMenu,
-  isInPreview = false,
   onHover,
-}: WebPaneProps) {
+  disableInteraction = false,
+  isInPreview = false,
+}: BrowserPaneProps) {
   const { urlHistory, addUrlToHistory } = useUserSettings();
 
   const webviewRef = useRef<WebviewTag | null>(null);
-  const webviewContainerRef = useRef<HTMLDivElement | null>(null);
+  const webviewAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const previewOverlayRef = useRef<HTMLDivElement | null>(null);
   const isPreviewHoveredRef = useRef(false);
@@ -65,7 +66,7 @@ export function WebPane({
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
   useEffect(() => {
-    if (!webviewContainerRef.current) return;
+    if (!webviewAnchorRef.current) return;
 
     let webview = document.getElementById(paneId) as WebviewTag | null;
     if (!webview) {
@@ -105,13 +106,14 @@ export function WebPane({
         overlay.style.position = "absolute";
         overlay.style.zIndex = "10005";
         overlay.style.pointerEvents = "none";
+
         previewOverlayRef.current = overlay;
         document.body.appendChild(overlay);
       }
     };
 
     const updatePosition = () => {
-      const anchor = webviewContainerRef.current;
+      const anchor = webviewAnchorRef.current;
       const currentWebview = webviewRef.current;
       if (!anchor || !currentWebview) {
         return;
@@ -162,7 +164,7 @@ export function WebPane({
     };
 
     const resizeObserver = new ResizeObserver(updatePosition);
-    resizeObserver.observe(webviewContainerRef.current);
+    resizeObserver.observe(webviewAnchorRef.current);
 
     updatePosition();
 
@@ -187,7 +189,7 @@ export function WebPane({
         webviewRef.current = null;
       }
     };
-  }, [webviewContainerRef]);
+  }, [webviewAnchorRef]);
 
   // Once we have a new or existing webview, we need to hook
   // up the event listeners to it (e.g. navigation, title change, etc)
@@ -207,7 +209,6 @@ export function WebPane({
     const handleDidNavigate = ({
       url,
     }: DidNavigateEvent | DidNavigateInPageEvent) => {
-
       setCurrentUrl(url);
       setInputUrl(url);
 
@@ -234,12 +235,12 @@ export function WebPane({
 
     const handleWebViewMouseEnter = () => {
       isPreviewHoveredRef.current = true;
-      onHover?.(true);
+      onHover(true);
     };
 
     const handleWebViewMouseLeave = () => {
       isPreviewHoveredRef.current = false;
-      onHover?.(false);
+      onHover(false);
     };
 
     webview.addEventListener("did-start-loading", handleStartLoading);
@@ -287,11 +288,13 @@ export function WebPane({
       if (targetUrl.length === 0) return;
 
       // Add protocol if missing
-      if (!targetUrl.match(/^[a-z]+:\/\//i)) {
+      if (!targetUrl.match(/^http(s)?:\/\//i)) {
         const lowerTarget = targetUrl.toLowerCase();
         const host = lowerTarget.split("/")[0];
+
         const isLocalhost =
           host === "localhost" || host.startsWith("localhost:");
+
         const protocol = isLocalhost ? "http" : "https";
         targetUrl = `${protocol}://${targetUrl}`;
       }
@@ -317,10 +320,9 @@ export function WebPane({
   );
 
   const handleUrlInputBlur = useCallback(() => {
-    // Reset to current URL if user didn't submit
+    // Reset the input URL to the current URL after a short delay
     setInputUrl(currentUrl);
-    // Delay hiding history to allow clicking on items
-    setTimeout(() => setShowHistory(false), HISTORY_DROPDOWN_HIDE_DELAY);
+    setShowHistory(false);
   }, [currentUrl]);
 
   const handleUrlInputFocus = useCallback(() => {
@@ -419,7 +421,7 @@ export function WebPane({
       {/* WebView */}
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">
         <div
-          ref={webviewContainerRef}
+          ref={webviewAnchorRef}
           className="absolute inset-0 bg-white/[0.02] pointer-events-none"
           aria-hidden
         />

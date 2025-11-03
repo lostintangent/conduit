@@ -1,6 +1,6 @@
+import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import { WebPane } from "@/components/panes/web/WebPane";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { applicationModeAtom } from "@/store/atoms";
 import type { Pane } from "@/types";
@@ -123,7 +123,7 @@ export function QuickDialog({
             />
           )}
           {currentDescriptor.type === "webview" && (
-            <WebPane
+            <BrowserPane
               url={currentDescriptor.url}
               paneId={quickPaneId}
               onUrlChange={(url) => handleWebViewUpdate({ url })}

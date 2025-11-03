@@ -8,9 +8,9 @@ import {
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
+import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import { WebPane } from "@/components/panes/web/WebPane";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import type {
   LayoutResizeAxis,
@@ -417,7 +417,7 @@ export function TabLayout({
                 onContextMenu={onPaneContextMenu}
                 onMouseDown={onPaneActivate}
               >
-                <WebPane
+                <BrowserPane
                   key={pane.id}
                   url={pane.url}
                   paneId={pane.id}
@@ -450,7 +450,7 @@ export function TabLayout({
 
           {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
           {isInPreview && hoveredPreviewPaneId === pane.id && (
-            <div className="pointer-events-none absolute inset-0 z-[20005] bg-blueprint/30 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-none absolute inset-0 z-20 bg-blueprint/30 backdrop-blur-[0.5px]" />
           )}
 
           {/* Drop zone overlay */}
