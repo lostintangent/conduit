@@ -27,7 +27,7 @@ jobs:
         run: npm ci
 
       - name: Run linter
-        run: npm run lint
+        run: npm run lint:ci
         env:
           NODE_OPTIONS: --max_old_space_size=4096
 
