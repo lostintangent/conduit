@@ -10,7 +10,14 @@ import type {
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
-import { ArrowLeft, ArrowRight, ExternalLink, Loader2, RefreshCw, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
@@ -39,74 +46,85 @@ export function WebPane({
   isInPreview = false,
   onHover,
 }: WebPaneProps) {
+  const { urlHistory, addUrlToHistory } = useUserSettings();
+
   const webviewRef = useRef<WebviewTag | null>(null);
-  const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null);
-  const followUpFrameRef = useRef<number | null>(null);
-  const followUpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webviewContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const previewOverlayRef = useRef<HTMLDivElement | null>(null);
+  const isPreviewHoveredRef = useRef(false);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [inputUrl, setInputUrl] = useState<string>(url);
+
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
   const [showHistory, setShowHistory] = useState<boolean>(false);
-  const hasInitializedRef = useRef(false);
-  const currentUrlRef = useRef(url);
-  const { urlHistory, addUrlToHistory } = useUserSettings();
-  const handleContainerRef = useCallback((node: HTMLDivElement | null) => {
-    setContainerNode(node);
-  }, []);
 
+  // After the component is mounted, we need to create or attach
+  // to the <wevbview> element for this pane
   useEffect(() => {
-    const container = containerNode;
-    if (!container) {
-      return;
-    }
+    if (!webviewContainerRef.current) return;
 
     let webview = document.getElementById(paneId) as WebviewTag | null;
     if (!webview) {
+      // Create a new webview
       webview = document.createElement("webview") as WebviewTag;
-      webview.setAttribute("src", url);
+      webview.src = url;
       webview.id = paneId;
       webview.style.position = "absolute";
-      webview.style.zIndex = "1";
 
-      hasInitializedRef.current = false;
       document.body.appendChild(webview);
+
+      setIsLoading(true);
+    } else {
+      // Attach to existing webview
+      setIsLoading(webview.isLoading ? webview.isLoading() : false);
+      setCanGoBack(webview.canGoBack());
+      setCanGoForward(webview.canGoForward());
     }
 
     webviewRef.current = webview;
+    setCurrentUrl(url);
+    setInputUrl(url);
 
-    const scheduleFollowUpUpdate = () => {
-      if (followUpFrameRef.current !== null) {
-        cancelAnimationFrame(followUpFrameRef.current);
+    const ensurePreviewOverlay = () => {
+      if (!isInPreview || !isPreviewHoveredRef.current) {
+        if (previewOverlayRef.current) {
+          previewOverlayRef.current.remove();
+          previewOverlayRef.current = null;
+        }
+        return;
       }
-      followUpFrameRef.current = requestAnimationFrame(() => {
-        followUpFrameRef.current = null;
-        updatePosition();
-      });
 
-      if (followUpTimeoutRef.current !== null) {
-        clearTimeout(followUpTimeoutRef.current);
+      if (!previewOverlayRef.current) {
+        const overlay = document.createElement("div");
+        overlay.className =
+          "pointer-events-none bg-blueprint/30 backdrop-blur-[0.5px]";
+        overlay.style.position = "absolute";
+        overlay.style.zIndex = "10005";
+        overlay.style.pointerEvents = "none";
+        previewOverlayRef.current = overlay;
+        document.body.appendChild(overlay);
       }
-      followUpTimeoutRef.current = window.setTimeout(() => {
-        followUpTimeoutRef.current = null;
-        updatePosition();
-      }, 150);
     };
 
     const updatePosition = () => {
-      const anchor = container;
+      const anchor = webviewContainerRef.current;
       const currentWebview = webviewRef.current;
       if (!anchor || !currentWebview) {
         return;
       }
+
+      ensurePreviewOverlay();
 
       // Set z-index based on preview mode
       currentWebview.style.zIndex = isInPreview ? "10001" : "1";
 
       // Schedule follow-up update in preview mode
       if (isInPreview) {
-        scheduleFollowUpUpdate();
+        requestAnimationFrame(updatePosition)
       }
 
       const rect = anchor.getBoundingClientRect();
@@ -131,25 +149,35 @@ export function WebPane({
       });
 
       applyWebviewScaling(currentWebview, scaling);
+
+      const overlay = previewOverlayRef.current;
+      if (overlay) {
+        overlay.style.top = `${top}px`;
+        overlay.style.left = `${left}px`;
+        overlay.style.width = `${rect.width}px`;
+        overlay.style.height = `${rect.height}px`;
+        overlay.style.borderRadius =
+          getComputedStyle(anchor).borderRadius ?? "";
+      }
     };
 
-    const resizeObserver = new ResizeObserver(() => updatePosition());
-    resizeObserver.observe(container);
+    const resizeObserver = new ResizeObserver(updatePosition);
+    resizeObserver.observe(webviewContainerRef.current);
 
     updatePosition();
+
     window.addEventListener("scroll", updatePosition, true);
     window.addEventListener("resize", updatePosition);
+
     return () => {
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
+
       resizeObserver.disconnect();
-      if (followUpFrameRef.current !== null) {
-        cancelAnimationFrame(followUpFrameRef.current);
-        followUpFrameRef.current = null;
-      }
-      if (followUpTimeoutRef.current !== null) {
-        clearTimeout(followUpTimeoutRef.current);
-        followUpTimeoutRef.current = null;
+
+      if (previewOverlayRef.current) {
+        previewOverlayRef.current.remove();
+        previewOverlayRef.current = null;
       }
 
       if (webviewRef.current === webview) {
@@ -159,106 +187,42 @@ export function WebPane({
         webviewRef.current = null;
       }
     };
-  }, [paneId, containerNode, isInPreview]);
+  }, [webviewContainerRef]);
 
-  useEffect(() => {
-    const webview = webviewRef.current;
-    if (!webview) {
-      return;
-    }
-
-    webview.style.pointerEvents = disableInteraction ? "none" : "auto";
-  }, [disableInteraction, paneId]);
-
-  useEffect(() => {
-    currentUrlRef.current = currentUrl;
-  }, [currentUrl]);
-
-  useEffect(() => {
-    const webview = webviewRef.current;
-    if (!webview) {
-      return;
-    }
-
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      setCurrentUrl(url);
-      setInputUrl(url);
-      currentUrlRef.current = url;
-      return;
-    }
-
-    if (url === currentUrlRef.current) {
-      return;
-    }
-
-    currentUrlRef.current = url;
-    setCurrentUrl(url);
-    setInputUrl(url);
-    webview.loadURL(url);
-  }, [url, paneId]);
-
+  // Once we have a new or existing webview, we need to hook
+  // up the event listeners to it (e.g. navigation, title change, etc)
   useEffect(() => {
     const webview = webviewRef.current;
     if (!webview) return;
 
     const handleStopLoading = () => {
       setIsLoading(false);
+
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
     };
 
     const handleStartLoading = () => setIsLoading(true);
 
-    const handleDidNavigate = (event: DidNavigateEvent) => {
-      const nextUrl = event.url;
-      const previousUrl = currentUrlRef.current;
-      setCurrentUrl(nextUrl);
-      setInputUrl(nextUrl);
+    const handleDidNavigate = ({
+      url,
+    }: DidNavigateEvent | DidNavigateInPageEvent) => {
+
+      setCurrentUrl(url);
+      setInputUrl(url);
+
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
-      if (previousUrl !== nextUrl) {
-        currentUrlRef.current = nextUrl;
-        onUrlChange?.(nextUrl);
-      } else {
-        currentUrlRef.current = nextUrl;
-      }
+
+      onUrlChange(url);
     };
 
-    const handleDidNavigateInPage = (event: DidNavigateInPageEvent) => {
-      const nextUrl = event.url;
-      const previousUrl = currentUrlRef.current;
-      setCurrentUrl(nextUrl);
-      setInputUrl(nextUrl);
-      setCanGoBack(webview.canGoBack());
-      setCanGoForward(webview.canGoForward());
-      if (previousUrl !== nextUrl) {
-        currentUrlRef.current = nextUrl;
-        onUrlChange?.(nextUrl);
-      } else {
-        currentUrlRef.current = nextUrl;
-      }
-    };
-
-    webview.addEventListener("did-start-loading", handleStartLoading);
-    webview.addEventListener("did-stop-loading", handleStopLoading);
-    webview.addEventListener("did-finish-load", handleStopLoading);
-    webview.addEventListener("did-navigate", handleDidNavigate);
-    webview.addEventListener("did-navigate-in-page", handleDidNavigateInPage);
-
-    const notifyTitleChange = (event: PageTitleUpdatedEvent) =>
-      onTitleChange?.(event.title);
-    webview.addEventListener("page-title-updated", notifyTitleChange);
+    const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) =>
+      onTitleChange(title);
 
     const handleWebViewContextMenu = (
       event: Event & { params?: ContextMenuParams }
     ) => {
-      if (!event.params) {
-        return;
-      }
-
-      event.preventDefault();
-
       const { left, top } = webview.getBoundingClientRect();
       const { x, y } = event.params;
 
@@ -268,15 +232,25 @@ export function WebPane({
       });
     };
 
-    webview.addEventListener("context-menu", handleWebViewContextMenu);
-
     const handleWebViewMouseEnter = () => {
+      isPreviewHoveredRef.current = true;
       onHover?.(true);
     };
 
     const handleWebViewMouseLeave = () => {
+      isPreviewHoveredRef.current = false;
       onHover?.(false);
     };
+
+    webview.addEventListener("did-start-loading", handleStartLoading);
+    webview.addEventListener("did-stop-loading", handleStopLoading);
+    webview.addEventListener("did-finish-load", handleStopLoading);
+
+    webview.addEventListener("did-navigate", handleDidNavigate);
+    webview.addEventListener("did-navigate-in-page", handleDidNavigate);
+
+    webview.addEventListener("page-title-updated", notifyTitleChange);
+    webview.addEventListener("context-menu", handleWebViewContextMenu);
 
     webview.addEventListener("mouseenter", handleWebViewMouseEnter);
     webview.addEventListener("mouseleave", handleWebViewMouseLeave);
@@ -285,21 +259,30 @@ export function WebPane({
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);
       webview.removeEventListener("did-finish-load", handleStopLoading);
+
       webview.removeEventListener("did-navigate", handleDidNavigate);
-      webview.removeEventListener(
-        "did-navigate-in-page",
-        handleDidNavigateInPage
-      );
+      webview.removeEventListener("did-navigate-in-page", handleDidNavigate);
+
       webview.removeEventListener("page-title-updated", notifyTitleChange);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
+
       webview.removeEventListener("mouseenter", handleWebViewMouseEnter);
       webview.removeEventListener("mouseleave", handleWebViewMouseLeave);
     };
-  }, [paneId, onHover]);
+  }, [webviewRef]);
+
+  // Enable/disable pointer events for the wewbview
+  // whenever the parent asks for it (e.g. during a resize action)
+  useEffect(() => {
+    if (!webviewRef.current) return;
+
+    webviewRef.current.style.pointerEvents = disableInteraction ? "none" : "auto";
+  }, [disableInteraction]);
+
+  /* URL bar handlers */
 
   const handleUrlSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
+    () => {
       let targetUrl = inputUrl.trim();
       if (targetUrl.length === 0) return;
 
@@ -313,9 +296,10 @@ export function WebPane({
         targetUrl = `${protocol}://${targetUrl}`;
       }
 
-      webviewRef.current?.loadURL(targetUrl);
       addUrlToHistory(targetUrl);
       setShowHistory(false);
+
+      webviewRef.current?.loadURL(targetUrl);
     },
     [inputUrl, addUrlToHistory]
   );
@@ -324,7 +308,10 @@ export function WebPane({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setInputUrl(value);
-      setShowHistory(value.trim().length === 0);
+
+      // If the user cleared the input bar, then
+      // show the MRU history dropdown (if we have any).
+      setShowHistory(value.trim().length === 0 && urlHistory.length > 0);
     },
     []
   );
@@ -337,10 +324,10 @@ export function WebPane({
   }, [currentUrl]);
 
   const handleUrlInputFocus = useCallback(() => {
-    if (inputUrl.trim().length === 0) {
+    if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
       setShowHistory(true);
     }
-  }, [inputUrl]);
+  }, [inputUrl, urlHistory]);
 
   const handleHistoryItemClick = useCallback(
     (historyUrl: string) => {
@@ -378,7 +365,11 @@ export function WebPane({
         </button>
         <button
           type="button"
-          onClick={isLoading ? () => webviewRef.current?.stop() : () => webviewRef.current?.reload()}
+          onClick={
+            isLoading
+              ? () => webviewRef.current?.stop()
+              : () => webviewRef.current?.reload()
+          }
           className="p-1.5 rounded hover:bg-white/10 transition"
           title={isLoading ? "Stop" : "Refresh"}
         >
@@ -428,7 +419,7 @@ export function WebPane({
       {/* WebView */}
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">
         <div
-          ref={handleContainerRef}
+          ref={webviewContainerRef}
           className="absolute inset-0 bg-white/[0.02] pointer-events-none"
           aria-hidden
         />
