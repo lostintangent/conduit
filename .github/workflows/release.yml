@@ -17,7 +17,7 @@ jobs:
             artifact_path: out/make/zip/darwin/**/*.zip
           - os: ubuntu-latest
             artifact_name: Conduit-linux
-            artifact_path: out/make/**/*.{deb,rpm}
+            artifact_path: out/make/{deb,rpm}/**/*.{deb,rpm}
           - os: windows-latest
             artifact_name: Conduit-windows
             artifact_path: out/make/squirrel.windows/**/*.{exe,nupkg}
@@ -45,15 +45,49 @@ jobs:
           # Ensure we have the latest Xcode command line tools
           xcode-select --install || true
 
+      - name: Install Ubuntu dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libnss3-dev \
+            libatk-bridge2.0-dev \
+            libdrm2 \
+            libgtk-3-dev \
+            libxcomposite1 \
+            libxdamage1 \
+            libxrandr2 \
+            libgbm1 \
+            libxss1 \
+            libasound2-dev
+
       - name: Install dependencies
         run: npm ci
 
       - name: Update version with build number
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          # Get base version (remove any existing build suffix)
+          VERSION=$(node -p "require('./package.json').version.split('+')[0]")
           NEW_VERSION="${VERSION}+build.${{ github.run_number }}"
-          npm version "$NEW_VERSION" --no-git-tag-version
+          echo "Updating version from $(node -p "require('./package.json').version") to $NEW_VERSION"
+
+          # Use direct JSON modification instead of npm version to avoid conflicts
+          node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.version = '$NEW_VERSION';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
           echo "Build version: $NEW_VERSION"
+
+      - name: Setup virtual display (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get install -y xvfb
+          export DISPLAY=:99.0
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 
       - name: Run tests
         run: npm run test:run
@@ -65,6 +99,8 @@ jobs:
           NODE_OPTIONS: --max_old_space_size=4096
           # Skip code signing on CI
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Set display for Ubuntu (headless)
+          DISPLAY: ":99.0"
 
       - name: Debug - List build output
         run: |
