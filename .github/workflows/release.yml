@@ -14,13 +14,18 @@ jobs:
         include:
           - os: macos-latest
             artifact_name: Conduit-darwin-universal.zip
-            artifact_path: out/make/zip/darwin/**/*.zip
+            artifact_path: |
+              out/make/zip/darwin/**/*.zip
           - os: ubuntu-latest
             artifact_name: Conduit-linux
-            artifact_path: out/make/{deb,rpm}/**/*.{deb,rpm}
+            artifact_path: |
+              out/make/deb/**/*.deb
+              out/make/rpm/**/*.rpm
           - os: windows-latest
             artifact_name: Conduit-windows
-            artifact_path: out/make/squirrel.windows/**/*.{exe,nupkg}
+            artifact_path: |
+              out/make/squirrel.windows/**/*.exe
+              out/make/squirrel.windows/**/*.nupkg
 
     steps:
       - name: Checkout code
@@ -66,6 +71,7 @@ jobs:
         run: npm ci
 
       - name: Update version with build number
+        shell: bash
         run: |
           node -e "
           const fs = require('fs');
@@ -116,6 +122,8 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_path }}
           retention-days: 90
+          # Fail if artifacts are not found - this indicates a build issue that should be fixed
+          if-no-files-found: error
 
   release:
     name: Create Release
@@ -130,7 +138,13 @@ jobs:
 
       - name: Get version
         id: version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        run: |
+          BASE_VERSION=$(node -p "require('./package.json').version.split('+')[0]")
+          FULL_VERSION="${BASE_VERSION}+build.${{ github.run_number }}"
+          TAG_VERSION="${BASE_VERSION}-build.${{ github.run_number }}"
+          echo "version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag_version=${TAG_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -143,8 +157,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
-          name: Release v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          tag_name: v${{ steps.version.outputs.tag_version }}
+          name: Release v${{ steps.version.outputs.tag_version }}
           draft: false
           prerelease: false
           files: |
