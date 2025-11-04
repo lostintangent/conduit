@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, ubuntu-latest]
         include:
           - os: macos-latest
             artifact_name: Conduit-darwin-universal.zip
@@ -21,11 +21,6 @@ jobs:
             artifact_path: |
               out/make/deb/**/*.deb
               out/make/rpm/**/*.rpm
-          - os: windows-latest
-            artifact_name: Conduit-windows
-            artifact_path: |
-              out/make/squirrel.windows/**/*.exe
-              out/make/squirrel.windows/**/*.nupkg
 
     steps:
       - name: Checkout code
@@ -41,29 +36,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install Windows dependencies and configure build tools
-        if: matrix.os == 'windows-latest'
-        run: |
-          # Install node-gyp globally
-          npm install -g node-gyp
-
-          # Get Python path and configure node-gyp
-          $pythonPath = (Get-Command python).Path
-          Write-Host "Python path: $pythonPath"
-          npm config set python $pythonPath
-          npm config set msvs_version 2022
-
-          # Configure for Windows 10 SDK with ConPTY support
-          npm config set target_arch x64
-
-          # Display available Windows SDKs
-          Write-Host "Available Windows SDKs:"
-          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -ErrorAction SilentlyContinue | Select-Object Name
-
-          Write-Host "Node-gyp configuration:"
-          npm config list
-        shell: pwsh
 
       - name: Install macOS dependencies
         if: matrix.os == 'macos-latest'
@@ -203,11 +175,6 @@ jobs:
             ### Linux
             ```bash
             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/build/scripts/install.sh | bash
-            ```
-
-            ### Windows
-            ```powershell
-            irm https://raw.githubusercontent.com/${{ github.repository }}/main/build/scripts/install.ps1 | iex
             ```
 
             ## Changes
