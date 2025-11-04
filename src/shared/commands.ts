@@ -30,7 +30,7 @@ export const ApplicationCommands = {
   PANE_OPEN_WEB_PAGE: "pane.openWebPage",
 
   // Terminal commands
-  TERMINAL_CREATE_VM: "terminal.createVM",
+  TERMINAL_CREATE_CLOUD: "terminal.createCloud",
   TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
 
   // Agent session commands

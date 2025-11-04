@@ -14,6 +14,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   dismissNotification,
   enqueueNotification,
   updateNotification,
@@ -26,17 +31,18 @@ import {
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
-import type { TabLabelDescriptor } from "@/hooks/useTabLabels";
+import { tabLabelsAtom, type TabLabelDescriptor } from "@/store/tabLabels";
 import { useAtom, useAtomValue } from "jotai";
 import {
+  ChevronDown,
   Cloud,
+  Fullscreen,
+  LayoutGrid,
   MoreHorizontal,
   PlusSquare,
   SquareDashedMousePointer,
   SquareTerminal,
-  Terminal,
-  ZoomOut,
-  ZoomIn,
+  Terminal
 } from "lucide-react";
 import React, {
   useCallback,
@@ -53,7 +59,6 @@ type TabStripProps = {
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   position?: "top" | "bottom";
-  tabLabels: TabDescriptor[];
 };
 
 export const TabStrip = ({
@@ -61,8 +66,8 @@ export const TabStrip = ({
   onTabContextMenu,
   onOpenQuickPane,
   position = "top",
-  tabLabels,
 }: TabStripProps) => {
+  const tabLabels = useAtomValue(tabLabelsAtom);
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
@@ -70,6 +75,7 @@ export const TabStrip = ({
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
+  const hasMultipleTabs = tabs.length > 1;
 
   // Interactive tab preview state
   // The preview shows a scaled-down version of a tab when hovering over its button.
@@ -582,103 +588,143 @@ export const TabStrip = ({
           <div className="h-6 my-1 w-px bg-white/20 ml-2 mr-0.5" />
 
           {/* New tab button - after divider */}
-          <button
-            type="button"
-            className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-            title="New tab (⌘T)"
-            aria-label="New tab"
-            onClick={() => {
-              void openTab();
-            }}
-          >
-            <PlusSquare size={18} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
+                aria-label="New tab"
+                onClick={() => {
+                  void openTab();
+                }}
+              >
+                <PlusSquare size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">New tab (⌘T)</TooltipContent>
+          </Tooltip>
 
+          {/* Overview button - only when multiple tabs */}
+          {hasMultipleTabs && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  aria-label="View all tabs"
+                  onClick={() => setApplicationMode("overview")}
+                >
+                  <LayoutGrid size={18} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">View all tabs</TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         {/* Action buttons - far right */}
         <div className="flex items-center gap-2 ml-auto">
-          <button
-            type="button"
-            className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-            title="Show command palette (⌘⇧P)"
-            aria-label="Show command palette"
-            onClick={onOpenCommandPalette}
-          >
-            <MoreHorizontal size={18} />
-          </button>
-
-          {/* Quick pane dropdown button */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <button
                 type="button"
                 className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-                title="Quick pane"
-                aria-label="Quick pane"
+                aria-label="Show command palette"
+                onClick={onOpenCommandPalette}
               >
-                <SquareTerminal size={18} />
+                <MoreHorizontal size={18} />
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="max-w-40">
-              <DropdownMenuItem onClick={handleOpenQuickTerminal}>
-                <Terminal size={16} className="mr-3" />
-                Quick terminal
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
-                <Cloud size={16} className="mr-3" />
-                Cloud terminal
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Show command palette (⌘⇧P)
+            </TooltipContent>
+          </Tooltip>
 
-          <button
-            type="button"
-            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
-              isDesignMode
-                ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-                : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
-            title={getCommandDisplayTitle(toggleDesignModeCmd)}
-            aria-label={toggleDesignModeCmd.title}
-            onClick={toggleDesignModeCmd.execute}
-          >
-            <SquareDashedMousePointer size={18} />
-          </button>
+          {/* Quick pane split button */}
+          <div className="group flex items-stretch transition-colors duration-150 hover:bg-white/15 focus-within:bg-white/15 rounded-lg overflow-hidden">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="bg-transparent text-white/70 w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  aria-label="Open local quick terminal"
+                  onClick={handleOpenQuickTerminal}
+                >
+                  <SquareTerminal size={18} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Open quick terminal
+              </TooltipContent>
+            </Tooltip>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className=" text-white/70 w-4 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  aria-label="More quick terminal options"
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-w-40">
+                <DropdownMenuItem onClick={handleOpenQuickTerminal}>
+                  <Terminal size={16} className="mr-3" />
+                  Terminal (Local)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
+                  <Cloud size={16} className="mr-3" />
+                  Terminal (Cloud)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {/* Vertical divider */}
           <div className="h-6 my-1 w-px bg-white/20 mx-0.5" />
 
-          <button
-            type="button"
-            className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-            title="View all tabs"
-            aria-label="View all tabs"
-            onClick={() => setApplicationMode("overview")}
-          >
-            <ZoomOut size={18} />
-          </button>
-
           {/* Focus mode button */}
-          <button
-            type="button"
-            className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-            title={getCommandDisplayTitle(toggleFocusModeCmd)}
-            aria-label={toggleFocusModeCmd.title}
-            onClick={toggleFocusModeCmd.execute}
-            disabled={!activeTab}
-            draggable={!!activeTab}
-            onDragStart={(e) => {
-              if (!activeTab) return;
-              e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData(
-                "application/x-conduit-focus-mode",
-                "true",
-              );
-            }}
-          >
-            <ZoomIn size={18} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label={toggleFocusModeCmd.title}
+                onClick={toggleFocusModeCmd.execute}
+                disabled={!activeTab}
+                draggable={!!activeTab}
+                onDragStart={(e) => {
+                  if (!activeTab) return;
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData(
+                    "application/x-conduit-focus-mode",
+                    "true",
+                  );
+                }}
+              >
+                <Fullscreen size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{getCommandDisplayTitle(toggleFocusModeCmd)}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
+                  ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                  : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+                  }`}
+                aria-label={toggleDesignModeCmd.title}
+                onClick={toggleDesignModeCmd.execute}
+              >
+                <SquareDashedMousePointer size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{getCommandDisplayTitle(toggleDesignModeCmd)}</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

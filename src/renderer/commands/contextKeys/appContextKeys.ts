@@ -34,7 +34,7 @@ export const tabCount = new ContextKey<number>("tabCount", 1);
 
 /**
  * Whether the active tab has an active pane
- * Used by: pane.openWebPage, terminal.createVM
+ * Used by: pane.openWebPage, terminal.createCloud
  */
 export const hasActivePane = new ContextKey<boolean>("hasActivePane", false);
 
