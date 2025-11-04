@@ -66,7 +66,7 @@ export const ApplicationCommands = {
   PANE_OPEN_WEB_PAGE: "pane.openWebPage",
 
   // Terminal commands
-  TERMINAL_CREATE_VM: "terminal.createVM",
+  TERMINAL_CREATE_CLOUD: "terminal.createCloud",
   TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
 
   // Agent session commands
@@ -310,9 +310,9 @@ export function registerApplicationCommands(
 
   // Terminal: Create VM
   commandRegistry.registerCommand({
-    id: ApplicationCommands.TERMINAL_CREATE_VM,
-    title: "Create VM Terminal",
-    description: "Create a new terminal connected to a remote VM",
+    id: ApplicationCommands.TERMINAL_CREATE_CLOUD,
+    title: "New Cloud Terminal",
+    description: "Create a new cloud terminal",
     category: "Terminal",
     when: hasActivePane.isTrue(),
     run: () => {

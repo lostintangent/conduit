@@ -34,6 +34,7 @@ import {
 import { tabLabelsAtom, type TabLabelDescriptor } from "@/store/tabLabels";
 import { useAtom, useAtomValue } from "jotai";
 import {
+  ChevronDown,
   Cloud,
   Fullscreen,
   LayoutGrid,
@@ -639,33 +640,46 @@ export const TabStrip = ({
             </TooltipContent>
           </Tooltip>
 
-          {/* Quick pane dropdown button */}
-          <DropdownMenu>
+          {/* Quick pane split button */}
+          <div className="group flex items-stretch transition-colors duration-150 hover:bg-white/15 focus-within:bg-white/15 rounded-lg overflow-hidden">
             <Tooltip>
               <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-                    aria-label="Quick pane"
-                  >
-                    <SquareTerminal size={18} />
-                  </button>
-                </DropdownMenuTrigger>
+                <button
+                  type="button"
+                  className="bg-transparent text-white/70 w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  aria-label="Open local quick terminal"
+                  onClick={handleOpenQuickTerminal}
+                >
+                  <SquareTerminal size={18} />
+                </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Quick terminals...</TooltipContent>
+              <TooltipContent side="bottom">
+                Open quick terminal
+              </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" className="max-w-40">
-              <DropdownMenuItem onClick={handleOpenQuickTerminal}>
-                <Terminal size={16} className="mr-3" />
-                Quick terminal
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
-                <Cloud size={16} className="mr-3" />
-                Cloud terminal
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className=" text-white/70 w-4 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  aria-label="More quick terminal options"
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-w-40">
+                <DropdownMenuItem onClick={handleOpenQuickTerminal}>
+                  <Terminal size={16} className="mr-3" />
+                  Terminal (Local)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
+                  <Cloud size={16} className="mr-3" />
+                  Terminal (Cloud)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {/* Vertical divider */}
           <div className="h-6 my-1 w-px bg-white/20 mx-0.5" />

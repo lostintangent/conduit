@@ -16,7 +16,7 @@ import {
 import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
-import { TitleBar } from "@/components/shell/TitleBar";
+import { TitleBar } from "@/components/shell/title/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";

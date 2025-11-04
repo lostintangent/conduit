@@ -96,7 +96,7 @@ describe("applicationCommands", () => {
 
       // Terminal commands
       expect(
-        registeredCommands.has(ApplicationCommands.TERMINAL_CREATE_VM)
+        registeredCommands.has(ApplicationCommands.TERMINAL_CREATE_CLOUD)
       ).toBe(true);
       expect(
         registeredCommands.has(ApplicationCommands.TERMINAL_OPEN_IN_VSCODE)
@@ -313,7 +313,7 @@ describe("applicationCommands", () => {
     describe("TERMINAL_CREATE_VM", () => {
       it("should call handleCreateVM handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.TERMINAL_CREATE_VM
+          ApplicationCommands.TERMINAL_CREATE_CLOUD
         )!;
         const mockContext: CommandContext = {} as any;
 

@@ -79,7 +79,7 @@ export function TabsOverview() {
       </div>
 
       {/* Floating action buttons */}
-      <div className="pointer-events-none absolute bottom-3 right-3 z-[1000] flex items-center">
+      <div className="pointer-events-none fixed bottom-3 right-3 z-[1000] flex items-center">
         <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur pointer-events-auto">
           <Tooltip>
             <TooltipTrigger asChild>

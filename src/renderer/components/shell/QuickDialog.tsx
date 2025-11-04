@@ -2,6 +2,11 @@ import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { applicationModeAtom } from "@/store/atoms";
 import type { Pane } from "@/types";
 import { generateId } from "@/utils/id";
@@ -139,22 +144,32 @@ export function QuickDialog({
                 aria-hidden="true"
               />
             )}
-            <button
-              type="button"
-              onClick={() => onOpenAsTab(currentDescriptor)}
-              title="Open in tab"
-              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-            >
-              <ArrowUpRight size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              title="Close quick pane"
-              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-            >
-              <X size={16} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onOpenAsTab(currentDescriptor)}
+                  aria-label="Open in tab"
+                  className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+                >
+                  <ArrowUpRight size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Open in tab</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close dialog"
+                  className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </DialogContent>
