@@ -67,7 +67,7 @@
     "jotai": "^2.15.0",
     "lucide-react": "^0.545.0",
     "monaco-editor": "^0.54.0",
-    "node-pty": "^1.0.0",
+    "node-pty": "^1.1.0-beta39",
     "path-browserify": "^1.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
