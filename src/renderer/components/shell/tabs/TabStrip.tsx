@@ -5,7 +5,6 @@ import {
 } from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import { TabPreviewOverlay } from "@/components/shell/tabs/preview/TabPreviewOverlay";
-import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
 import {
@@ -19,7 +18,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { focusTab, moveTab, openTab } from "@/store/actions/tab";
+import { clearActiveTab, focusTab, moveTab, openTab } from "@/store/actions/tab";
 import {
   activeTabAtom,
   activeTabIdAtom,
@@ -85,6 +84,7 @@ export const TabStrip = ({
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
+  const isInOverviewMode = applicationMode === "overview";
 
   // Interactive tab preview state
   // The preview shows a scaled-down version of a tab when hovering over its button.
@@ -99,8 +99,6 @@ export const TabStrip = ({
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
   const previewCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [showTabsOverview, setShowTabsOverview] = useState(false);
-
   // Command hooks for button actions
   const toggleFocusModeCmd = useCommand(
     ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
@@ -110,7 +108,7 @@ export const TabStrip = ({
   );
 
   const tabStripTransitionStyle = useMemo<React.CSSProperties>(() => {
-    const collapsed = isInFocusMode;
+    const collapsed = isInFocusMode || isInOverviewMode;
     return {
       flexBasis: collapsed ? "0rem" : "2.7rem",
       minHeight: collapsed ? 0 : "2.7rem",
@@ -118,7 +116,7 @@ export const TabStrip = ({
       pointerEvents: collapsed ? "none" : "auto",
       willChange: "flex-basis, opacity",
     };
-  }, [isInFocusMode]);
+  }, [isInFocusMode, isInOverviewMode]);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -684,7 +682,12 @@ export const TabStrip = ({
               className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
               title="View all tabs"
               aria-label="View all tabs"
-              onClick={() => setShowTabsOverview(true)}
+              onClick={() => {
+                clearPreviewCloseTimeout();
+                setHoverPreview(null);
+                setApplicationMode("overview");
+                clearActiveTab();
+              }}
             >
               <LayoutGrid size={18} />
             </button>
@@ -769,12 +772,6 @@ export const TabStrip = ({
       <TabPreviewOverlay
         preview={hoverPreview}
         onPreviewHoverChange={handlePreviewHoverChange}
-      />
-
-      <TabsOverview
-        isOpen={showTabsOverview}
-        onClose={() => setShowTabsOverview(false)}
-        tabs={descriptors.map((d) => ({ id: d.id, label: d.label }))}
       />
 
       <RepositoryDialog
