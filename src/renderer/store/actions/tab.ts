@@ -4,7 +4,7 @@ import {
   removePane,
   updatePaneProperty,
 } from "@/store/actions/pane";
-import { activeTabIdAtom, applicationModeAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import { generateId } from "@/utils/id";
 import type { Workspace } from "@shared/types";
@@ -188,10 +188,6 @@ export function focusTab(tabId: string) {
   }
 
   store.set(activeTabIdAtom, tabId);
-
-  if (store.get(applicationModeAtom) === "overview") {
-    store.set(applicationModeAtom, "normal");
-  }
 }
 
 export function closeTab(tabId: string) {

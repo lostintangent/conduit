@@ -4,11 +4,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { focusTab, openTab } from "@/store/actions/tab";
+import { closeTab, focusTab, openTab } from "@/store/actions/tab";
 import { applicationModeAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Minimize2, Plus } from "lucide-react";
+import { Minimize2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
 
@@ -23,18 +23,26 @@ export function TabsOverview() {
 
   const handleRefSet = useCallback(
     (tabId: string, el: HTMLDivElement | null) => {
+      let didChange = false;
+
       if (el) {
-        allTabsContainerRefs.current[tabId] = el;
-      } else {
+        if (allTabsContainerRefs.current[tabId] !== el) {
+          allTabsContainerRefs.current[tabId] = el;
+          didChange = true;
+        }
+      } else if (allTabsContainerRefs.current[tabId]) {
         delete allTabsContainerRefs.current[tabId];
+        didChange = true;
       }
 
-      const allReady = tabLabels.every(
-        (tab) => allTabsContainerRefs.current[tab.id]
-      );
+      if (didChange) {
+        const allReady = tabLabels.every(
+          (tab) => allTabsContainerRefs.current[tab.id]
+        );
 
-      if (allReady && Object.keys(allTabsContainerRefs.current).length > 0) {
-        mountTabsInPreview(allTabsContainerRefs.current);
+        if (allReady && Object.keys(allTabsContainerRefs.current).length > 0) {
+          mountTabsInPreview({ ...allTabsContainerRefs.current });
+        }
       }
     },
     [tabLabels, mountTabsInPreview]
@@ -53,7 +61,19 @@ export function TabsOverview() {
     <div className="relative flex flex-1 overflow-auto bg-surface min-h-0">
       <div className="mx-auto flex w-full max-w-[90vw] flex-wrap gap-4 self-start px-6 py-8 justify-center">
         {tabLabels.map((tab) => (
-          <div key={tab.id} className="flex flex-col gap-2 items-center">
+          <div
+            key={tab.id}
+            className="flex flex-col items-center gap-2"
+            onMouseEnter={() => setHoveredTabId(tab.id)}
+            onMouseLeave={() => setHoveredTabId(null)}
+            onFocus={() => setHoveredTabId(tab.id)}
+            onBlur={(event) => {
+              const nextTarget = event.relatedTarget as Node | null;
+              if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+                setHoveredTabId(null);
+              }
+            }}
+          >
             <TabPreviewItem
               tabId={tab.id}
               onRefSet={handleRefSet}
@@ -61,19 +81,25 @@ export function TabsOverview() {
               scale={0.6}
               isHovered={hoveredTabId === tab.id}
             />
-
-            <button
-              type="button"
-              onClick={() => focusTab(tab.id)}
-              onMouseEnter={() => setHoveredTabId(tab.id)}
-              onMouseLeave={() => setHoveredTabId(null)}
-              onFocus={() => setHoveredTabId(tab.id)}
-              onBlur={() => setHoveredTabId(null)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-1 truncate max-w-[320px]"
-              title={tab.label}
-            >
-              {tab.label}
-            </button>
+            <div className="mx-auto flex items-center justify-center gap-4 px-1">
+              <button
+                type="button"
+                onClick={() => focusTab(tab.id)}
+                className="inline-flex items-center justify-center truncate text-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+                title={tab.label}
+              >
+                {tab.label}
+              </button>
+              <button
+                type="button"
+                onClick={() => closeTab(tab.id)}
+                className="inline-flex items-center justify-center text-white/70 transition hover:text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
+                aria-label="Close tab"
+                title={`Close tab`}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           </div>
         ))}
       </div>
