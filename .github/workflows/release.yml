@@ -14,13 +14,18 @@ jobs:
         include:
           - os: macos-latest
             artifact_name: Conduit-darwin-universal.zip
-            artifact_path: out/make/zip/darwin/**/*.zip
+            artifact_path: |
+              out/make/zip/darwin/**/*.zip
           - os: ubuntu-latest
             artifact_name: Conduit-linux
-            artifact_path: out/make/{deb,rpm}/**/*.{deb,rpm}
+            artifact_path: |
+              out/make/deb/**/*.deb
+              out/make/rpm/**/*.rpm
           - os: windows-latest
             artifact_name: Conduit-windows
-            artifact_path: out/make/squirrel.windows/**/*.{exe,nupkg}
+            artifact_path: |
+              out/make/squirrel.windows/**/*.exe
+              out/make/squirrel.windows/**/*.nupkg
 
     steps:
       - name: Checkout code
@@ -117,6 +122,7 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_path }}
           retention-days: 90
+          if-no-files-found: error
 
   release:
     name: Create Release
