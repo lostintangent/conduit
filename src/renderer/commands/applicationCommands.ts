@@ -36,44 +36,11 @@ import {
   handleToggleDesignMode,
 } from "@/commands/handlers";
 import { toggleFocusMode } from "@/store/actions/focusMode";
-import { closeTab, openTab } from "@/store/actions/tab";
+import { closeTab, duplicateTab, openTab } from "@/store/actions/tab";
+import { ApplicationCommands } from "@shared/commands";
 
-/**
- * Type-safe command IDs for application commands
- */
-export const ApplicationCommands = {
-  // View commands
-  VIEW_TOGGLE_FOCUS_MODE: "view.toggleFocusMode",
-  VIEW_TOGGLE_DESIGN_MODE: "view.toggleDesignMode",
-  VIEW_OPEN_KEYBOARD_SHORTCUTS: "view.openKeyboardShortcuts",
-  VIEW_OPEN_PANE_ACTIONS: "view.openPaneActions",
-  VIEW_SHOW_COMMAND_PALETTE: "view.showCommandPalette",
-  VIEW_RESET_LAYOUT: "view.resetLayout",
-
-  // Tab commands
-  TAB_NEW: "tab.new",
-  TAB_CLOSE: "tab.close",
-
-  // Workspace commands
-  WORKSPACE_SAVE: "workspace.save",
-  WORKSPACE_RENAME: "workspace.rename",
-  WORKSPACE_DUPLICATE: "workspace.duplicate",
-  WORKSPACE_CLOSE: "workspace.close",
-  WORKSPACE_OPEN: "workspace.open",
-  WORKSPACE_OPEN_LAST: "workspace.openLast",
-
-  // Pane commands
-  PANE_OPEN_WEB_PAGE: "pane.openWebPage",
-
-  // Terminal commands
-  TERMINAL_CREATE_CLOUD: "terminal.createCloud",
-  TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
-
-  // Agent session commands
-  AGENT_MANAGE_SESSIONS: "agent.manageSessions",
-  AGENT_MERGE_AND_CLOSE: "agent.mergeAndClose",
-  AGENT_TERMINATE: "agent.terminate",
-} as const;
+// Re-export for convenience
+export { ApplicationCommands };
 
 /**
  * Register all application-level commands
@@ -289,6 +256,22 @@ export function registerApplicationCommands(
     run: (context) => {
       if (context.activeTab) {
         closeTab(context.activeTab.id);
+      }
+    },
+  });
+
+  // Tab: Duplicate
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_DUPLICATE,
+    title: "Duplicate Tab",
+    description: "Duplicate the current tab with all its panes and layout",
+    category: "Tab",
+    keybinding: {
+      key: "Cmd+Shift+D",
+    },
+    run: (context) => {
+      if (context.activeTab) {
+        void duplicateTab(context.activeTab.id);
       }
     },
   });

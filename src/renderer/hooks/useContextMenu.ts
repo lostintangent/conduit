@@ -1,3 +1,5 @@
+import { useCommand } from "@/commands/hooks/useCommand";
+import { normalizeKeybinding } from "@/commands/keybindings/utils";
 import { enterFocusMode } from "@/store/actions/focusMode";
 import {
   closePane,
@@ -5,11 +7,12 @@ import {
   splitPane,
   splitPaneWithAgentSession,
 } from "@/store/actions/pane";
-import { closeTab, movePaneToTab } from "@/store/actions/tab";
+import { closeTab, duplicateTab, movePaneToTab } from "@/store/actions/tab";
 import { tabsAtom } from "@/store/atoms";
+import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
 import type { MouseEvent } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type UseContextMenuParams = {
   setTitleModal: (tabId: string, value: string) => void;
@@ -26,6 +29,28 @@ export function useContextMenu({
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
     Record<string, boolean>
   >({});
+
+  // Get command info for context menu commands
+  const duplicateTabCmd = useCommand(ApplicationCommands.TAB_DUPLICATE);
+  const closeTabCmd = useCommand(ApplicationCommands.TAB_CLOSE);
+
+  // Build command data for IPC
+  const commandData = useMemo(() => {
+    return {
+      [ApplicationCommands.TAB_DUPLICATE]: {
+        keybinding: duplicateTabCmd.keybindings[0]
+          ? normalizeKeybinding(duplicateTabCmd.keybindings[0].chords)
+          : undefined,
+        enabled: !duplicateTabCmd.disabled,
+      },
+      [ApplicationCommands.TAB_CLOSE]: {
+        keybinding: closeTabCmd.keybindings[0]
+          ? normalizeKeybinding(closeTabCmd.keybindings[0].chords)
+          : undefined,
+        enabled: !closeTabCmd.disabled,
+      },
+    };
+  }, [duplicateTabCmd, closeTabCmd]);
 
   const checkGitRepo = useCallback(
     async (cwd: string | null | undefined): Promise<boolean> => {
@@ -77,9 +102,10 @@ export function useContextMenu({
         paneId,
         canChangeTitle: allowTitleChange,
         hasGitRepo,
+        commandData,
       });
     },
-    [api, tabs, canChangeTitle, checkGitRepo],
+    [api, tabs, canChangeTitle, checkGitRepo, commandData],
   );
 
   useEffect(() => {
@@ -101,6 +127,9 @@ export function useContextMenu({
         switch (action) {
           case "change-title":
             setTitleModal(tabId, tab.title ?? "");
+            break;
+          case "duplicate-tab":
+            void duplicateTab(tabId);
             break;
           case "focus-pane":
             if (resolvedPaneId) {
@@ -200,6 +229,7 @@ export function useContextMenu({
     api,
     tabs,
     closeTab,
+    duplicateTab,
     movePane,
     movePaneToTab,
     setTitleModal,

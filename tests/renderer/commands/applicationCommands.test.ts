@@ -43,7 +43,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(20);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(21);
 
       // View commands
       expect(
@@ -68,6 +68,9 @@ describe("applicationCommands", () => {
       // Tab commands
       expect(registeredCommands.has(ApplicationCommands.TAB_NEW)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.TAB_CLOSE)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.TAB_DUPLICATE)).toBe(
+        true
+      );
 
       // Workspace commands
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_SAVE)).toBe(
@@ -196,6 +199,7 @@ describe("applicationCommands", () => {
         ApplicationCommands.WORKSPACE_RENAME,
         ApplicationCommands.WORKSPACE_CLOSE,
         ApplicationCommands.TAB_NEW,
+        ApplicationCommands.TAB_DUPLICATE,
       ];
 
       commandsWithKeybindings.forEach((commandId) => {

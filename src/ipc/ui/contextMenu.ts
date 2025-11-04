@@ -1,10 +1,17 @@
-import { BrowserWindow, Menu } from "electron";
+import { BrowserWindow, Menu, type MenuItemConstructorOptions } from "electron";
+import { ApplicationCommands } from "../../shared/commands";
+
+export type ContextMenuCommandData = {
+  keybinding?: string;
+  enabled?: boolean;
+};
 
 export type ContextMenuOptions = {
   tabId: string;
   paneId?: string;
   canChangeTitle: boolean;
   hasGitRepo?: boolean;
+  commandData?: Record<string, ContextMenuCommandData>;
 };
 
 export function showContextMenu(
@@ -15,6 +22,9 @@ export function showContextMenu(
     return;
   }
 
+  // Default commandData to empty object for simpler access
+  const commandData = options.commandData ?? {};
+
   const sendActionToRenderer = (action: string) => {
     window.webContents.send(`ui:context-menu-action`, {
       action,
@@ -22,11 +32,19 @@ export function showContextMenu(
     });
   };
 
-  const menu = Menu.buildFromTemplate([
+  const menuTemplate: MenuItemConstructorOptions[] = [
     {
       label: "Change title...",
       enabled: options.canChangeTitle,
       click: () => sendActionToRenderer("change-title"),
+    },
+    {
+      label: "Duplicate tab",
+      accelerator: commandData[ApplicationCommands.TAB_DUPLICATE]?.keybinding,
+      enabled:
+        commandData[ApplicationCommands.TAB_DUPLICATE]?.enabled !== false &&
+        !options.paneId, // Only show for tab context menu, not pane
+      click: () => sendActionToRenderer("duplicate-tab"),
     },
     {
       label: "Focus pane",
@@ -108,9 +126,16 @@ export function showContextMenu(
     },
     {
       label: "Close " + (options.paneId ? "pane" : "tab"),
+      accelerator: !options.paneId
+        ? commandData[ApplicationCommands.TAB_CLOSE]?.keybinding
+        : undefined,
+      enabled: !options.paneId
+        ? commandData[ApplicationCommands.TAB_CLOSE]?.enabled !== false
+        : true,
       click: () => sendActionToRenderer("close"),
     },
-  ]);
+  ];
 
+  const menu = Menu.buildFromTemplate(menuTemplate);
   menu.popup();
 }

@@ -321,6 +321,163 @@ export function movePaneToTab(
   return { tabId: newTabId, paneId: paneState.id };
 }
 
+/**
+ * Duplicate a tab with all its panes and layout
+ */
+export async function duplicateTab(
+  sourceTabId: string,
+): Promise<{ tabId: string } | null> {
+  const tabs = store.get(tabsAtom);
+  const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
+  if (!sourceTab) {
+    return null;
+  }
+
+  // Map old pane IDs to new pane IDs
+  const paneIdMap = new Map<string, string>();
+
+  // Create new panes by duplicating the source panes
+  const newPanes: Record<string, Pane> = {};
+  for (const [oldPaneId, sourcePane] of Object.entries(sourceTab.panes)) {
+    const newPaneId = generateId();
+    paneIdMap.set(oldPaneId, newPaneId);
+
+    if (sourcePane.type === "terminal") {
+      // Create a new terminal session with the same cwd
+      const result = await api.createTerminal(
+        sourcePane.cwd ? { cwd: sourcePane.cwd } : undefined,
+      );
+      if (!result) {
+        continue;
+      }
+
+      newPanes[newPaneId] = {
+        id: newPaneId,
+        type: "terminal",
+        sessionId: result.sessionId,
+        cwd: result.cwd ?? null,
+        processTitle: result.title,
+        vmMetadata: result.vmMetadata,
+        // Preserve agent session info if present
+        agentSessionId: sourcePane.agentSessionId,
+        agentBranchName: sourcePane.agentBranchName,
+        agentBaseBranch: sourcePane.agentBaseBranch,
+        agentRepoRoot: sourcePane.agentRepoRoot,
+        agentWorktreePath: sourcePane.agentWorktreePath,
+      };
+    } else if (sourcePane.type === "editor") {
+      newPanes[newPaneId] = {
+        id: newPaneId,
+        type: "editor",
+        cwd: sourcePane.cwd,
+        filePath: sourcePane.filePath,
+      };
+    } else if (sourcePane.type === "webview") {
+      newPanes[newPaneId] = {
+        id: newPaneId,
+        type: "webview",
+        url: sourcePane.url,
+        title: sourcePane.title,
+      };
+    }
+  }
+
+  // Clone the layout tree, replacing old pane IDs with new ones
+  const cloneLayoutNode = (node: LayoutNode): LayoutNode => {
+    if (node.type === "pane") {
+      const newPaneId = paneIdMap.get(node.paneId);
+      if (!newPaneId) {
+        // This shouldn't happen, but return the original if mapping is missing
+        return node;
+      }
+      return {
+        id: generateId(),
+        type: "pane",
+        paneId: newPaneId,
+        size: node.size,
+      };
+    }
+
+    // Split node - recursively clone children
+    return {
+      id: generateId(),
+      type: "split",
+      direction: node.direction,
+      children: node.children.map(cloneLayoutNode),
+      size: node.size,
+    };
+  };
+
+  const newLayout = cloneLayoutNode(sourceTab.layout);
+
+  // Generate incremented title
+  const generateTitle = (baseTitle: string | undefined): string | undefined => {
+    if (!baseTitle) {
+      return undefined;
+    }
+
+    // Extract number suffix if present (e.g., "My Tab 2" -> "My Tab", 2)
+    const match = baseTitle.match(/^(.+?)\s+(\d+)$/);
+    const baseName = match ? match[1] : baseTitle;
+    const currentNumber = match ? parseInt(match[2], 10) : 1;
+
+    // Find the highest number used by existing tabs with the same base name
+    let highestNumber = currentNumber;
+    for (const tab of tabs) {
+      if (tab.title) {
+        const tabMatch = tab.title.match(/^(.+?)\s+(\d+)$/);
+        const tabBaseName = tabMatch ? tabMatch[1] : tab.title;
+        const tabNumber = tabMatch ? parseInt(tabMatch[2], 10) : 1;
+
+        if (tabBaseName === baseName && tabNumber >= highestNumber) {
+          highestNumber = tabNumber + 1;
+        }
+      }
+    }
+
+    return `${baseName} ${highestNumber}`;
+  };
+
+  const newTitle = generateTitle(sourceTab.title);
+
+  // Map the active pane ID
+  const newActivePaneId = paneIdMap.get(sourceTab.activePaneId);
+  if (!newActivePaneId) {
+    // Fallback to first pane if mapping fails
+    const firstPaneId = Object.keys(newPanes)[0];
+    if (!firstPaneId) {
+      return null;
+    }
+  }
+
+  // Create the new tab
+  const newTabId = generateId();
+  const newTab: Tab = {
+    id: newTabId,
+    panes: newPanes,
+    layout: newLayout,
+    activePaneId: newActivePaneId || Object.keys(newPanes)[0],
+    title: newTitle,
+  };
+
+  // Insert the new tab immediately after the source tab
+  store.set(tabsAtom, (current) => {
+    const sourceIndex = current.findIndex((tab) => tab.id === sourceTabId);
+    if (sourceIndex === -1) {
+      return [...current, newTab];
+    }
+
+    const newTabs = [...current];
+    newTabs.splice(sourceIndex + 1, 0, newTab);
+    return newTabs;
+  });
+
+  // Activate the new tab
+  focusTab(newTabId);
+
+  return { tabId: newTabId };
+}
+
 export function registerTabEventHandlers() {
   if (!api) {
     return () => { };
