@@ -1,4 +1,5 @@
 import {
+  exitFocusMode,
   isFocusModeActive,
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
@@ -12,9 +13,9 @@ import {
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
 import { focusTab, movePaneToTab } from "@/store/actions/tab";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, applicationModeAtom, tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 
 type UseGlobalKeyHandlersResult = {
@@ -28,6 +29,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
+  const setApplicationMode = useSetAtom(applicationModeAtom);
 
   const openCommandPalette = useCallback(() => {
     setCommandPaletteOpen(true);
@@ -73,6 +76,20 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (isFocusModeActive()) {
+          event.preventDefault();
+          exitFocusMode();
+          return;
+        }
+
+        if (applicationMode === "overview") {
+          event.preventDefault();
+          setApplicationMode("normal");
+          return;
+        }
+      }
+
       const key = event.key.toLowerCase();
 
       // NOTE: Cmd+Shift+P is now handled by the command system (VIEW_SHOW_COMMAND_PALETTE)
@@ -188,6 +205,8 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     performSplit,
     performSplitWithAgentSession,
     tabs,
+    applicationMode,
+    setApplicationMode,
   ]);
 
   return {

@@ -5,7 +5,6 @@ import {
 } from "@/commands/hooks/useCommand";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import { TabPreviewOverlay } from "@/components/shell/tabs/preview/TabPreviewOverlay";
-import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
 import {
@@ -27,17 +26,17 @@ import {
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
-import type { Pane, Tab } from "@/types";
+import type { TabLabelDescriptor } from "@/hooks/useTabLabels";
 import { useAtom, useAtomValue } from "jotai";
 import {
   Cloud,
-  Expand,
-  LayoutGrid,
   MoreHorizontal,
   PlusSquare,
   SquareDashedMousePointer,
   SquareTerminal,
-  Terminal
+  Terminal,
+  ZoomOut,
+  ZoomIn,
 } from "lucide-react";
 import React, {
   useCallback,
@@ -47,29 +46,14 @@ import React, {
   useState,
 } from "react";
 
-type TabDescriptor = {
-  id: string;
-  label: string;
-  tooltip: string;
-  isActive: boolean;
-  title: string | undefined;
-};
+type TabDescriptor = TabLabelDescriptor;
 
 type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   position?: "top" | "bottom";
-};
-
-const resolveActivePane = (tab: Tab): Pane | undefined => {
-  const activePane = tab.panes[tab.activePaneId];
-  if (activePane) {
-    return activePane;
-  }
-
-  const firstPane = Object.values(tab.panes)[0];
-  return firstPane;
+  tabLabels: TabDescriptor[];
 };
 
 export const TabStrip = ({
@@ -77,6 +61,7 @@ export const TabStrip = ({
   onTabContextMenu,
   onOpenQuickPane,
   position = "top",
+  tabLabels,
 }: TabStripProps) => {
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
@@ -99,8 +84,6 @@ export const TabStrip = ({
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
   const previewCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [showTabsOverview, setShowTabsOverview] = useState(false);
-
   // Command hooks for button actions
   const toggleFocusModeCmd = useCommand(
     ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
@@ -109,8 +92,10 @@ export const TabStrip = ({
     ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
   );
 
+  const isInOverviewMode = applicationMode === "overview";
+
   const tabStripTransitionStyle = useMemo<React.CSSProperties>(() => {
-    const collapsed = isInFocusMode;
+    const collapsed = isInFocusMode || isInOverviewMode || !activeTabId;
     return {
       flexBasis: collapsed ? "0rem" : "2.7rem",
       minHeight: collapsed ? 0 : "2.7rem",
@@ -118,7 +103,7 @@ export const TabStrip = ({
       pointerEvents: collapsed ? "none" : "auto",
       willChange: "flex-basis, opacity",
     };
-  }, [isInFocusMode]);
+  }, [activeTabId, isInFocusMode, isInOverviewMode]);
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
@@ -166,86 +151,18 @@ export const TabStrip = ({
     e.dataTransfer.dropEffect = "move";
   };
 
-  const formatPathForLabel = useCallback(
-    (pathValue: string | null | undefined) => {
-      if (!pathValue) {
-        return null;
-      }
-
-      if (!homeDirectory) {
-        return pathValue;
-      }
-
-      const normalizedPath = pathValue.replace(/\\/g, "/");
-      const normalizedHome = homeDirectory.replace(/\\/g, "/");
-
-      if (normalizedPath === normalizedHome) {
-        return "~";
-      }
-
-      const homeWithSlash = normalizedHome.endsWith("/")
-        ? normalizedHome
-        : `${normalizedHome}/`;
-
-      if (normalizedPath.startsWith(homeWithSlash)) {
-        const suffix = normalizedPath.slice(homeWithSlash.length);
-        return suffix ? `~/${suffix}` : "~";
-      }
-
-      return pathValue;
-    },
-    [homeDirectory],
-  );
-
-  const descriptors = useMemo<TabDescriptor[]>(
-    () =>
-      tabs.map((tab) => {
-        const activePane = resolveActivePane(tab);
-        let fallbackLabel = "Shell";
-        let tooltipBase = "Shell";
-
-        if (activePane?.type === "terminal") {
-          fallbackLabel =
-            formatPathForLabel(activePane.cwd) ??
-            activePane.processTitle ??
-            "Shell";
-
-          tooltipBase =
-            activePane.cwd ?? activePane.processTitle ?? fallbackLabel;
-        } else if (activePane?.type === "webview") {
-          const title = activePane.title?.trim();
-          fallbackLabel = title && title.length > 0 ? title : activePane.url;
-          tooltipBase = fallbackLabel;
-        } else if (activePane?.type === "editor") {
-          const editorPath = activePane.filePath ?? activePane.cwd ?? null;
-          if (editorPath) {
-            fallbackLabel = formatPathForLabel(editorPath) ?? editorPath;
-            tooltipBase = editorPath;
-          } else {
-            fallbackLabel = "Editor";
-            tooltipBase = fallbackLabel;
-          }
-        }
-
-        const label = tab.title?.trim() ? tab.title.trim() : fallbackLabel;
-        const tooltip = tab.title?.trim() ?? tooltipBase;
-
-        return {
-          id: tab.id,
-          label,
-          tooltip,
-          isActive: tab.id === activeTabId,
-          title: tab.title?.trim() || undefined,
-        };
-      }),
-    [activeTabId, tabs],
-  );
-
   useEffect(() => {
+    if (!activeTabId || isInOverviewMode) {
+      clearPreviewCloseTimeout();
+      setHoverPreview(null);
+      setIsPreviewHovered(false);
+      return;
+    }
+
     if (hoverPreview && hoverPreview.tabId === activeTabId) {
       setHoverPreview(null);
     }
-  }, [activeTabId, hoverPreview]);
+  }, [activeTabId, hoverPreview, clearPreviewCloseTimeout, isInOverviewMode]);
 
   // Clear preview when entering design mode
   useEffect(() => {
@@ -268,13 +185,13 @@ export const TabStrip = ({
     useMemo(() => {
       if (!draggingTab) {
         return {
-          reorderableTabs: descriptors,
+          reorderableTabs: tabLabels,
           placeholderIndex: null,
           nonDraggingIndexById: {} as Record<string, number>,
         };
       }
 
-      const reorderableTabs = descriptors.filter(
+      const reorderableTabs = tabLabels.filter(
         (tab) => tab.id !== draggingTab.id,
       );
       const nonDraggingIndexById = reorderableTabs.reduce<
@@ -298,7 +215,7 @@ export const TabStrip = ({
         placeholderIndex,
         nonDraggingIndexById,
       };
-    }, [descriptors, dropTargetIndex, draggingTab]);
+    }, [tabLabels, dropTargetIndex, draggingTab]);
 
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLButtonElement>, tabId: string) => {
@@ -308,7 +225,7 @@ export const TabStrip = ({
       }
 
       const { width } = e.currentTarget.getBoundingClientRect();
-      const originalIndex = descriptors.findIndex((tab) => tab.id === tabId);
+      const originalIndex = tabLabels.findIndex((tab) => tab.id === tabId);
 
       setDraggingTab({
         id: tabId,
@@ -319,7 +236,7 @@ export const TabStrip = ({
       setDropTargetIndex(null);
       setHoverPreview(null);
     },
-    [descriptors],
+    [tabLabels],
   );
 
   const handlePreviewHoverChange = useCallback(
@@ -489,7 +406,7 @@ export const TabStrip = ({
 
     const elements: React.ReactNode[] = [];
 
-    descriptors.forEach((tab, index) => {
+    tabLabels.forEach((tab, index) => {
       const nonDraggingIndex = nonDraggingIndexById[tab.id];
       const showLeadingPlaceholder =
         shouldShowPlaceholder &&
@@ -545,7 +462,7 @@ export const TabStrip = ({
     return elements;
   }, [
     clearDragState,
-    descriptors,
+    tabLabels,
     draggingTab,
     handleDragLeaveTab,
     handleDragOverTab,
@@ -677,18 +594,6 @@ export const TabStrip = ({
             <PlusSquare size={18} />
           </button>
 
-          {/* Show all tabs overview button - only when there are multiple tabs */}
-          {tabs.length > 1 && (
-            <button
-              type="button"
-              className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-              title="View all tabs"
-              aria-label="View all tabs"
-              onClick={() => setShowTabsOverview(true)}
-            >
-              <LayoutGrid size={18} />
-            </button>
-          )}
         </div>
 
         {/* Action buttons - far right */}
@@ -727,10 +632,34 @@ export const TabStrip = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <button
+            type="button"
+            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
+              isDesignMode
+                ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+            }`}
+            title={getCommandDisplayTitle(toggleDesignModeCmd)}
+            aria-label={toggleDesignModeCmd.title}
+            onClick={toggleDesignModeCmd.execute}
+          >
+            <SquareDashedMousePointer size={18} />
+          </button>
+
           {/* Vertical divider */}
           <div className="h-6 my-1 w-px bg-white/20 mx-0.5" />
 
-          {/* Expand button for focus mode */}
+          <button
+            type="button"
+            className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+            title="View all tabs"
+            aria-label="View all tabs"
+            onClick={() => setApplicationMode("overview")}
+          >
+            <ZoomOut size={18} />
+          </button>
+
+          {/* Focus mode button */}
           <button
             type="button"
             className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
@@ -748,20 +677,7 @@ export const TabStrip = ({
               );
             }}
           >
-            <Expand size={18} />
-          </button>
-
-          <button
-            type="button"
-            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
-              ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-              : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
-            title={getCommandDisplayTitle(toggleDesignModeCmd)}
-            aria-label={toggleDesignModeCmd.title}
-            onClick={toggleDesignModeCmd.execute}
-          >
-            <SquareDashedMousePointer size={18} />
+            <ZoomIn size={18} />
           </button>
         </div>
       </div>
@@ -769,12 +685,6 @@ export const TabStrip = ({
       <TabPreviewOverlay
         preview={hoverPreview}
         onPreviewHoverChange={handlePreviewHoverChange}
-      />
-
-      <TabsOverview
-        isOpen={showTabsOverview}
-        onClose={() => setShowTabsOverview(false)}
-        tabs={descriptors.map((d) => ({ id: d.id, label: d.label }))}
       />
 
       <RepositoryDialog

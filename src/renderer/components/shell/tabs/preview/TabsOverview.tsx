@@ -1,82 +1,87 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { focusTab } from "@/store/actions/tab";
+import { applicationModeAtom } from "@/store/atoms";
+import type { TabLabelDescriptor } from "@/hooks/useTabLabels";
 import { useCallback, useEffect, useRef } from "react";
+import { useSetAtom } from "jotai";
 import { TabPreviewItem } from "./TabPreviewItem";
 
-type TabInfo = {
-  id: string;
-  label: string;
-};
-
 type TabsOverviewProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  tabs: TabInfo[];
+  tabLabels: Pick<TabLabelDescriptor, "id" | "label">[];
 };
 
-export function TabsOverview({ isOpen, onClose, tabs }: TabsOverviewProps) {
+export function TabsOverview({ tabLabels }: TabsOverviewProps) {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
-  const isOpenRef = useRef(isOpen);
-
-  // Track isOpen state
-  useEffect(() => {
-    isOpenRef.current = isOpen;
-  }, [isOpen]);
+  const setApplicationMode = useSetAtom(applicationModeAtom);
 
   const handleRefSet = useCallback(
     (tabId: string, el: HTMLDivElement | null) => {
-      if (el && isOpenRef.current) {
+      if (el) {
         allTabsContainerRefs.current[tabId] = el;
+      } else {
+        delete allTabsContainerRefs.current[tabId];
+      }
 
-        // Check if all containers are now ready
-        const allReady = tabs.every(
-          (tab) => allTabsContainerRefs.current[tab.id],
-        );
+      const allReady = tabLabels.every(
+        (tab) => allTabsContainerRefs.current[tab.id],
+      );
 
-        if (allReady) {
-          mountTabsInPreview(allTabsContainerRefs.current);
-        }
+      if (allReady && Object.keys(allTabsContainerRefs.current).length > 0) {
+        mountTabsInPreview(allTabsContainerRefs.current);
       }
     },
-    [tabs, mountTabsInPreview],
+    [tabLabels, mountTabsInPreview],
   );
 
   const handleTabClick = useCallback(
     (tabId: string) => {
       focusTab(tabId);
-      onClose();
+      setApplicationMode("normal");
     },
-    [onClose],
+    [setApplicationMode],
   );
 
   useEffect(() => {
-    if (!isOpen) {
+    if (tabLabels.length === 0) {
       unmountTabsFromPreview();
       allTabsContainerRefs.current = {};
     }
-  }, [isOpen, unmountTabsFromPreview]);
+  }, [tabLabels.length, unmountTabsFromPreview]);
+
+  useEffect(() => {
+    return () => {
+      unmountTabsFromPreview();
+      allTabsContainerRefs.current = {};
+    };
+  }, [unmountTabsFromPreview]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[90vw] max-h-[90vh] bg-surface-elevated border-border overflow-auto flex flex-col">
-        <div className="flex flex-wrap gap-4 justify-center items-center flex-1">
-          {tabs.map((tab) => (
-            <div key={tab.id} className="flex flex-col gap-2">
-              <div className="text-sm text-muted-foreground px-1 truncate max-w-[320px]">
-                {tab.label}
-              </div>
+    <div className="flex flex-1 overflow-auto bg-surface min-h-0">
+      <div className="mx-auto flex w-full max-w-[90vw] flex-wrap gap-4 self-start px-6 py-8 justify-center">
+        {tabLabels.map((tab) => {
+          const focusThisTab = () => handleTabClick(tab.id);
+
+          return (
+            <div key={tab.id} className="flex flex-col gap-2 items-center">
               <TabPreviewItem
                 tabId={tab.id}
                 onRefSet={handleRefSet}
                 onClick={handleTabClick}
                 scale={0.6}
               />
+              <button
+                type="button"
+                onClick={focusThisTab}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-1 truncate max-w-[320px]"
+                title={tab.label}
+              >
+                {tab.label}
+              </button>
             </div>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
+          );
+        })}
+      </div>
+    </div>
   );
 }

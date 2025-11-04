@@ -1,54 +1,104 @@
-import type { LayoutNode } from "@/types";
-import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { activatePane } from "@/store/actions/pane";
+import { exitFocusMode, getAllPaneIds } from "@/store/actions/focusMode";
+import { focusTab } from "@/store/actions/tab";
+import {
+  activeTabAtom,
+  activeTabIdAtom,
+  tabsAtom,
+} from "@/store/atoms";
+import { ArrowLeft, ArrowRight, ZoomOut } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FocusModeMiniMap } from "./FocusModeMiniMap";
 
-type FocusModeIndicatorProps = {
-  onExit: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  currentPaneIndex?: number;
-  totalPanes?: number;
-  layout: LayoutNode;
-  activePaneId: string;
-  onSelectPane: (paneId: string) => void;
-};
-
-export function FocusModeIndicator({
-  onExit,
-  onPrevious,
-  onNext,
-  currentPaneIndex,
-  totalPanes,
-  layout,
-  activePaneId,
-  onSelectPane,
-}: FocusModeIndicatorProps) {
+export function FocusModeIndicator() {
   const [isVisible, setIsVisible] = useState(false);
-  const hasMultiplePanes = (totalPanes ?? 0) > 1;
+  const tabs = useAtomValue(tabsAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
+  const activeTab = useAtomValue(activeTabAtom);
+
+  const totalTabs = tabs.length;
+  const activeTabIndex = useMemo(() => {
+    if (!activeTabId) {
+      return -1;
+    }
+    return tabs.findIndex((tab) => tab.id === activeTabId);
+  }, [tabs, activeTabId]);
+
+  const activeTabPaneIds = useMemo(() => {
+    if (!activeTab) {
+      return [];
+    }
+    return getAllPaneIds(activeTab);
+  }, [activeTab]);
+
+  const hasMultipleTabs = totalTabs > 1;
+  const canGoPrev = hasMultipleTabs && activeTabIndex > 0;
+  const canGoNext =
+    hasMultipleTabs && activeTabIndex >= 0 && activeTabIndex < totalTabs - 1;
 
   useEffect(() => {
-    // Fade in animation
     const timer = setTimeout(() => setIsVisible(true), 10);
     return () => clearTimeout(timer);
   }, []);
 
-  const paneInfo =
-    currentPaneIndex !== undefined && totalPanes !== undefined
-      ? `${currentPaneIndex + 1} of ${totalPanes}`
-      : "";
+  const navigateToAdjacentTab = useCallback(
+    (direction: "prev" | "next") => {
+      if (activeTabIndex === -1) {
+        return;
+      }
 
-  const miniMap = useMemo(
-    () =>
-      hasMultiplePanes ? (
-        <FocusModeMiniMap
-          layout={layout}
-          activePaneId={activePaneId}
-          onSelectPane={onSelectPane}
-        />
-      ) : null,
-    [activePaneId, hasMultiplePanes, layout, onSelectPane],
+      if (direction === "prev") {
+        if (!canGoPrev) {
+          return;
+        }
+        focusTab(tabs[activeTabIndex - 1].id);
+        return;
+      }
+
+      if (!canGoNext) {
+        return;
+      }
+
+      focusTab(tabs[activeTabIndex + 1].id);
+    },
+    [activeTabIndex, canGoNext, canGoPrev, tabs],
   );
+
+  const handleSelectPane = useCallback(
+    (paneId: string) => {
+      if (!activeTab) {
+        return;
+      }
+
+      activatePane(activeTab.id, paneId);
+    },
+    [activeTab],
+  );
+
+  const miniMap = useMemo(() => {
+    if (!activeTab || activeTabPaneIds.length <= 1) {
+      return null;
+    }
+
+    return (
+      <FocusModeMiniMap
+        key={activeTabPaneIds.join("|")}
+        layout={activeTab.layout}
+        activePaneId={activeTab.activePaneId}
+        onSelectPane={handleSelectPane}
+      />
+    );
+  }, [activeTab, activeTabPaneIds, handleSelectPane]);
+
+  if (!activeTab) {
+    return null;
+  }
+
+  const tabInfo =
+    totalTabs > 0 && activeTabIndex >= 0
+      ? `${activeTabIndex + 1} of ${totalTabs}`
+      : "";
 
   return (
     <div
@@ -61,35 +111,35 @@ export function FocusModeIndicator({
       <div className="flex flex-col items-end gap-2">
         {miniMap}
         <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
-          <span className="text-xs text-white/90 font-medium">{paneInfo}</span>
+          <span className="text-xs text-white/90 font-medium">{tabInfo}</span>
           <button
             type="button"
             className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:text-white/80"
-            onClick={onPrevious}
-            aria-label="Previous pane"
-            title="Previous pane (⌘←)"
-            disabled={!hasMultiplePanes}
+            onClick={() => navigateToAdjacentTab("prev")}
+            aria-label="Previous tab"
+            title="Previous tab (⌘←)"
+            disabled={!canGoPrev}
           >
             <ArrowLeft size={16} />
           </button>
           <button
             type="button"
             className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 disabled:hover:text-white/80"
-            onClick={onNext}
-            aria-label="Next pane"
-            title="Next pane (⌘→)"
-            disabled={!hasMultiplePanes}
+            onClick={() => navigateToAdjacentTab("next")}
+            aria-label="Next tab"
+            title="Next tab (⌘→)"
+            disabled={!canGoNext}
           >
             <ArrowRight size={16} />
           </button>
           <button
             type="button"
             className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            onClick={onExit}
+            onClick={() => exitFocusMode()}
             aria-label="Exit focus mode"
             title="Exit focus mode (⌘⌥F)"
           >
-            <Shrink size={16} />
+            <ZoomOut size={16} />
           </button>
         </div>
       </div>

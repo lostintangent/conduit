@@ -44,13 +44,11 @@ export function TabPreviewOverlay({
   return createPortal(
     <div
       ref={outerContainerRef}
-      className="pointer-events-auto fixed z-[9999] transition-all duration-150 bg-surface shadow-xl backdrop-blur-sm rounded-lg border border-white/[0.08] hover:border-blueprint/50 hover:shadow-2xl cursor-pointer"
+      className="pointer-events-auto fixed z-[9999] bg-surface shadow-xl backdrop-blur-sm  hover:border-blueprint/50 hover:shadow-2xl cursor-pointer"
       style={{
         left: preview.left,
         top: preview.top,
         transform: "translate3d(0, calc(-106%), 0)",
-        // Add padding to extend the hover area and bridge the gap to the tab
-        padding: "0.5rem",
       }}
       onMouseEnter={() => {
         onPreviewHoverChange?.(true);

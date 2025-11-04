@@ -35,7 +35,12 @@ export const previousTabsSnapshotAtom = atom<string>("");
 
 export const notificationsAtom = atom<Notification[]>([]);
 
-export type ApplicationMode = "normal" | "design" | "quick" | "focus";
+export type ApplicationMode =
+  | "normal"
+  | "design"
+  | "quick"
+  | "focus"
+  | "overview";
 
 export const applicationModeAtom = atom<ApplicationMode>("normal");
 

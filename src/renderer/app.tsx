@@ -13,6 +13,7 @@ import {
   QuickDialog,
   type PaneDescriptor,
 } from "@/components/shell/QuickDialog";
+import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
 import { TitleBar } from "@/components/shell/TitleBar";
@@ -23,6 +24,7 @@ import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
+import { useTabLabels } from "@/hooks/useTabLabels";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
@@ -114,6 +116,8 @@ export function App() {
 
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
+
+  const tabLabels = useTabLabels();
 
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
@@ -499,9 +503,8 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${
-            failures.length > 1 ? "s" : ""
-          }`,
+          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
+            }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -591,7 +594,7 @@ export function App() {
   const titleBarBg = tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
 
   return (
-    <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl">
+    <div className="flex-1 flex flex-col bg-inherit min-h-0 rounded-xl overflow-hidden">
       <TitleBar
         backgroundClass={titleBarBg}
         alwaysShowTabs={alwaysShowTabs}
@@ -608,6 +611,7 @@ export function App() {
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
             position={tabPosition}
+            tabLabels={tabLabels}
           />
         )}
 
@@ -619,20 +623,37 @@ export function App() {
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
                 position={tabPosition}
+                tabLabels={tabLabels}
               />
             </DrawerContent>
           </Drawer>
         )}
 
-        <TabLayout
-          handleContextMenu={handleContextMenu}
-          handleResizeStart={handleResizeStart}
-          resizingNode={resizingNode}
-          handleWebViewUpdate={handleWebViewUpdate}
-          handleEditorUpdate={handleEditorUpdate}
-          onOpenQuickPane={handleOpenQuickPane}
-          onOpenPaneActions={() => setShowPaneActionsEditor(true)}
-        />
+        <div className="relative flex-1 flex min-h-0">
+          <div
+            className={`flex-1 flex min-h-0 ${applicationMode === "overview"
+              ? "opacity-0 pointer-events-none"
+              : ""
+              }`}
+            aria-hidden={applicationMode === "overview" ? true : undefined}
+          >
+            <TabLayout
+              handleContextMenu={handleContextMenu}
+              handleResizeStart={handleResizeStart}
+              resizingNode={resizingNode}
+              handleWebViewUpdate={handleWebViewUpdate}
+              handleEditorUpdate={handleEditorUpdate}
+              onOpenQuickPane={handleOpenQuickPane}
+              onOpenPaneActions={() => setShowPaneActionsEditor(true)}
+            />
+          </div>
+
+          {applicationMode === "overview" ? (
+            <div className="absolute inset-0 flex min-h-0">
+              <TabsOverview tabLabels={tabLabels} />
+            </div>
+          ) : null}
+        </div>
 
         {/* Bottom positioned tabs */}
         {tabPosition === "bottom" && !shouldUseDrawer && (
@@ -641,6 +662,7 @@ export function App() {
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
             position={tabPosition}
+            tabLabels={tabLabels}
           />
         )}
 
@@ -652,6 +674,7 @@ export function App() {
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
                 position={tabPosition}
+                tabLabels={tabLabels}
               />
             </DrawerContent>
           </Drawer>

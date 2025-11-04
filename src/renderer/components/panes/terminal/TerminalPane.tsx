@@ -9,10 +9,16 @@ import {
   forwardPortAndOpen,
   splitPane,
 } from "@/store/actions/pane";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { exitFocusMode } from "@/store/actions/focusMode";
+import {
+  applicationModeAtom,
+  tabsAtom,
+  userSettingsAtom,
+} from "@/store/atoms";
+import type { ApplicationMode } from "@/store/atoms";
 import { attach, getOrCreate } from "./xtermCache";
 import { extractPortFromMatch } from "@shared/portDetection";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -33,10 +39,14 @@ const registerTerminalKeyHandler = ({
   entry,
   terminalId,
   showSearchWidget,
+  getApplicationMode,
+  setNormalMode,
 }: {
   entry: TerminalInstance;
   terminalId: string;
   showSearchWidget: () => void;
+  getApplicationMode: () => ApplicationMode;
+  setNormalMode: () => void;
 }): (() => void) => {
   const terminal = entry.terminal;
 
@@ -50,6 +60,20 @@ const registerTerminalKeyHandler = ({
     }
 
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+
+    if (!isCtrlOrMeta && event.key === "Escape") {
+      const mode = getApplicationMode();
+      if (mode === "focus") {
+        event.preventDefault();
+        exitFocusMode();
+        return false;
+      }
+      if (mode === "overview") {
+        event.preventDefault();
+        setNormalMode();
+        return false;
+      }
+    }
 
     if (
       isCtrlOrMeta &&
@@ -121,9 +145,19 @@ export const TerminalPane = ({
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
+  const setApplicationMode = useSetAtom(applicationModeAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
+  const applicationModeRef = useRef<ApplicationMode>(applicationMode);
+  applicationModeRef.current = applicationMode;
+
+  const setApplicationModeRef = useRef<typeof setApplicationMode>(
+    setApplicationMode,
+  );
+  setApplicationModeRef.current = setApplicationMode;
+  const previousApplicationModeRef = useRef<ApplicationMode>(applicationMode);
 
   const [dimensions, setDimensions] = useState<{
     width: number;
@@ -308,6 +342,8 @@ export const TerminalPane = ({
       entry: terminal,
       terminalId,
       showSearchWidget,
+      getApplicationMode: () => applicationModeRef.current,
+      setNormalMode: () => setApplicationModeRef.current("normal"),
     });
 
     terminal.setLinkHandler((url: string) => {
@@ -347,6 +383,23 @@ export const TerminalPane = ({
 
     focusTerminal();
   }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) {
+      previousApplicationModeRef.current = applicationMode;
+      return;
+    }
+
+    if (applicationMode === previousApplicationModeRef.current) {
+      return;
+    }
+
+    previousApplicationModeRef.current = applicationMode;
+
+    if (applicationMode === "focus" || applicationMode === "normal") {
+      focusTerminal();
+    }
+  }, [applicationMode, isActive, focusTerminal]);
 
   // Hide/show the terminal ruler based on the user
   // setting, which can be changed at any time.
