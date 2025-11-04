@@ -1,4 +1,9 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { focusTab, openTab } from "@/store/actions/tab";
 import { applicationModeAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
@@ -76,24 +81,32 @@ export function TabsOverview() {
       {/* Floating action buttons */}
       <div className="pointer-events-none absolute bottom-3 right-3 z-[1000] flex items-center">
         <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur pointer-events-auto">
-          <button
-            type="button"
-            className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            onClick={() => openTab()}
-            aria-label="New tab"
-            title="New tab (⌘T)"
-          >
-            <Plus size={16} />
-          </button>
-          <button
-            type="button"
-            className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            onClick={() => setApplicationMode("normal")}
-            aria-label="Exit tab overview"
-            title="Exit tab overview"
-          >
-            <Minimize2 size={16} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                onClick={() => openTab()}
+                aria-label="New tab"
+              >
+                <Plus size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">New tab (⌘T)</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                onClick={() => setApplicationMode("normal")}
+                aria-label="Exit tab overview"
+              >
+                <Minimize2 size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Exit tab overview</TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>

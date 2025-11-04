@@ -11,6 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { openWorkspace } from "@/store/actions/workspace";
 import {
   workspaceHasChangesAtom,
@@ -125,17 +130,22 @@ export const TitleBar = ({
       <div className="flex-1 flex justify-end gap-2">
         <div className="flex gap-2 [app-region:no-drag]">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="relative p-1 rounded text-white mt-1 hover:bg-white/10 transition-colors"
-                aria-label="Workspace menu"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                {hasChanges && !autoSaveWorkspaces && (
-                  <span className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="relative p-1 rounded text-white mt-1 hover:bg-white/10 transition-colors"
+                    aria-label="Workspace menu"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    {hasChanges && !autoSaveWorkspaces && (
+                      <span className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full" />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Workspace menu</TooltipContent>
+            </Tooltip>
             <DropdownMenuContent align="end" className="w-56">
               {/* List of workspaces */}
               {workspaces.length > 0 && (
@@ -156,13 +166,22 @@ export const TitleBar = ({
                         {isCurrentWorkspace ? (
                           <Check className="w-4 h-4 mr-1" />
                         ) : (
-                          <button
-                            onClick={(e) => handleDeleteWorkspace(workspace, e)}
-                            className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 group"
-                            aria-label="Delete workspace"
-                          >
-                            <Trash2 className="w-4 h-4 group-hover:text-red-500" />
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) =>
+                                  handleDeleteWorkspace(workspace, e)
+                                }
+                                className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 group"
+                                aria-label="Delete workspace"
+                              >
+                                <Trash2 className="w-4 h-4 group-hover:text-red-500" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              Delete workspace
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </DropdownMenuItem>
                     );
@@ -213,14 +232,19 @@ export const TitleBar = ({
           <div className="h-5 w-px bg-white/10 mt-[6px]" />
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="p-1 rounded text-white mt-1 hover:bg-white/10 transition-colors"
-                aria-label="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="p-1 rounded text-white mt-1 hover:bg-white/10 transition-colors"
+                    aria-label="Settings"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Settings</TooltipContent>
+            </Tooltip>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuCheckboxItem
                 checked={alwaysShowTabs}
