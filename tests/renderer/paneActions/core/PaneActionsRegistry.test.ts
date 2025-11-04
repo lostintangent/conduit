@@ -252,6 +252,9 @@ describe("PaneActionsRegistry", () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
+    // TODO: This test is flaky on macOS (Darwin) - the listener is unexpectedly called
+    // with an empty array even though no file exists. Root cause may be related to
+    // test setup/teardown timing or mock initialization. Should be investigated and fixed.
     it.skipIf(process.platform === "darwin")(
       "should not notify listeners when file does not exist",
       async () => {

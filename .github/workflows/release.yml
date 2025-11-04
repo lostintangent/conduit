@@ -122,6 +122,7 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_path }}
           retention-days: 90
+          # Fail if artifacts are not found - this indicates a build issue that should be fixed
           if-no-files-found: error
 
   release:
