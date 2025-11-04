@@ -1,48 +1,46 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import type { Tab } from "@/types";
 
-// Mock window.conduit API - must be hoisted
-const { mockCreateTerminal } = vi.hoisted(() => ({
-  mockCreateTerminal: vi.fn(),
-}));
+// Use hoisted pattern to ensure all mocks are set up before modules load
+const { mockApi, mockStoreGet, mockStoreSet } = vi.hoisted(() => {
+  const mockApi = {
+    createTerminal: vi.fn(),
+  };
 
-// Set up global mocks before any imports
-global.window = {
-  conduit: {
-    createTerminal: mockCreateTerminal,
-  },
-} as any;
-
-// Mock jotai store
-vi.mock("jotai", async () => {
-  const actual = await vi.importActual("jotai");
-  const mockGet = vi.fn();
-  const mockSet = vi.fn();
+  // Set up window.conduit in hoisted scope
+  (global as any).window = {
+    conduit: mockApi,
+  };
 
   return {
-    ...actual,
-    getDefaultStore: vi.fn(() => ({
-      get: mockGet,
-      set: mockSet,
-    })),
-    _mockStoreGet: mockGet,
-    _mockStoreSet: mockSet,
+    mockApi,
+    mockStoreGet: vi.fn(),
+    mockStoreSet: vi.fn(),
   };
 });
 
+vi.mock("jotai", async () => {
+  const actual = await vi.importActual("jotai");
+  return {
+    ...actual,
+    getDefaultStore: vi.fn(() => ({
+      get: mockStoreGet,
+      set: mockStoreSet,
+    })),
+  };
+});
+
+// Mock focusTab action
+vi.mock("@/store/actions/focusMode", () => ({
+  focusTab: vi.fn(),
+}));
+
 // Import after setting up mocks
 import { duplicateTab } from "@/store/actions/tab";
-import * as jotaiModule from "jotai";
+import type { Tab } from "@/types";
 
 describe("duplicateTab", () => {
-  let mockStoreGet: ReturnType<typeof vi.fn>;
-  let mockStoreSet: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
-    // Reset mocks
     vi.clearAllMocks();
-    mockStoreGet = (jotaiModule as any)._mockStoreGet;
-    mockStoreSet = (jotaiModule as any)._mockStoreSet;
   });
 
   afterEach(() => {
@@ -79,7 +77,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
-    mockCreateTerminal.mockResolvedValue({
+    mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user",
       title: "bash",
@@ -91,7 +89,7 @@ describe("duplicateTab", () => {
     expect(result?.tabId).toBeDefined();
 
     // Verify createTerminal was called with correct cwd
-    expect(mockCreateTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
+    expect(mockApi.createTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
 
     // Verify new tab was added
     expect(mockStoreSet).toHaveBeenCalled();
@@ -135,7 +133,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
-    mockCreateTerminal
+    mockApi.createTerminal
       .mockResolvedValueOnce({
         sessionId: "session-3",
         cwd: "/home/user/project",
@@ -150,7 +148,7 @@ describe("duplicateTab", () => {
     const result = await duplicateTab("tab-1");
 
     expect(result).not.toBeNull();
-    expect(mockCreateTerminal).toHaveBeenCalledTimes(2);
+    expect(mockApi.createTerminal).toHaveBeenCalledTimes(2);
 
     const setCallback = mockStoreSet.mock.calls[0][1];
     const newTabs = setCallback([sourceTab]);
@@ -259,7 +257,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
-    mockCreateTerminal.mockResolvedValue({
+    mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user/worktree",
       title: "bash",
@@ -316,7 +314,7 @@ describe("duplicateTab", () => {
     ];
 
     mockStoreGet.mockReturnValue(tabs);
-    mockCreateTerminal.mockResolvedValue({
+    mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-3",
       cwd: "/home/user",
       title: "bash",
@@ -383,7 +381,7 @@ describe("duplicateTab", () => {
     ];
 
     mockStoreGet.mockReturnValue(tabs);
-    mockCreateTerminal.mockResolvedValue({
+    mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-4",
       cwd: "/home",
       title: "bash",
@@ -433,7 +431,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
-    mockCreateTerminal
+    mockApi.createTerminal
       .mockResolvedValueOnce({
         sessionId: "session-3",
         cwd: "/home",
@@ -507,7 +505,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
-    mockCreateTerminal
+    mockApi.createTerminal
       .mockResolvedValueOnce({
         sessionId: "session-4",
         cwd: "/home",
@@ -555,7 +553,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
-    mockCreateTerminal.mockResolvedValue({
+    mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home",
       title: "bash",
