@@ -67,22 +67,16 @@ jobs:
 
       - name: Update version with build number
         run: |
-          # Get base version (remove any existing build suffix)
-          VERSION=$(node -p "require('./package.json').version.split('+')[0]")
-          NEW_VERSION="${VERSION}+build.${{ github.run_number }}"
-          echo "Updating version from $(node -p "require('./package.json').version") to $NEW_VERSION"
-
-          # Use direct JSON modification instead of npm version to avoid conflicts
           node -e "
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          pkg.version = '$NEW_VERSION';
+          const baseVersion = pkg.version.split('+')[0];
+          const newVersion = baseVersion + '+build.${{ github.run_number }}';
+          console.log('Updating version from', pkg.version, 'to', newVersion);
+          pkg.version = newVersion;
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-
-          echo "Build version: $NEW_VERSION"
-
-      - name: Setup virtual display (Ubuntu)
+          console.log('Build version:', newVersion);
+          "      - name: Setup virtual display (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get install -y xvfb
