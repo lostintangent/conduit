@@ -38,9 +38,32 @@ jobs:
           cache: "npm"
 
       - name: Setup Python (for native modules)
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Install Windows dependencies and configure build tools
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Install node-gyp globally
+          npm install -g node-gyp
+
+          # Get Python path and configure node-gyp
+          $pythonPath = (Get-Command python).Path
+          Write-Host "Python path: $pythonPath"
+          npm config set python $pythonPath
+          npm config set msvs_version 2022
+
+          # Configure for Windows 10 SDK with ConPTY support
+          npm config set target_arch x64
+
+          # Display available Windows SDKs
+          Write-Host "Available Windows SDKs:"
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -ErrorAction SilentlyContinue | Select-Object Name
+
+          Write-Host "Node-gyp configuration:"
+          npm config list
+        shell: pwsh
 
       - name: Install macOS dependencies
         if: matrix.os == 'macos-latest'
@@ -69,6 +92,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          # Set minimum Windows SDK version for ConPTY support in node-pty
+          npm_config_msvs_version: "2022"
+          npm_config_target_arch: "x64"
 
       - name: Update version with build number
         shell: bash
@@ -103,6 +130,8 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           # Set display for Ubuntu (headless)
           DISPLAY: ":99.0"
+          # Ensure Windows builds use the correct MSVS version
+          npm_config_msvs_version: "2022"
 
       - name: Debug - List build output
         run: |
