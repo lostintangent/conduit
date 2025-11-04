@@ -9,6 +9,7 @@ type TabPreviewItemProps = {
   onRefSet: (tabId: string, element: HTMLDivElement | null) => void;
   onClick?: (tabId: string) => void;
   scale?: number;
+  isHovered?: boolean;
 };
 
 /**
@@ -20,6 +21,7 @@ export function TabPreviewItem({
   onRefSet,
   onClick,
   scale = PREVIEW_SCALE,
+  isHovered = false,
 }: TabPreviewItemProps) {
   const isMountedRef = useRef(true);
 
@@ -49,13 +51,14 @@ export function TabPreviewItem({
   const { displayWidth, displayHeight, contentWidth, contentHeight } =
     calculatePreviewDimensions(scale);
 
+  const borderClass = isHovered ? "border-blueprint shadow-lg" : "border-white/[0.08]";
+  const interactivityClass = onClick
+    ? "cursor-pointer hover:border-blueprint transition-colors pointer-events-auto"
+    : "pointer-events-none";
+
   return (
     <div
-      className={`flex overflow-hidden rounded border border-white/[0.08] ${
-        onClick
-          ? "cursor-pointer hover:border-blueprint transition-colors pointer-events-auto"
-          : "pointer-events-none"
-      }`}
+      className={`flex overflow-hidden rounded border ${borderClass} ${interactivityClass}`}
       style={{
         width: displayWidth,
         height: displayHeight,

@@ -2,7 +2,7 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import { focusTab } from "@/store/actions/tab";
 import { applicationModeAtom } from "@/store/atoms";
 import type { TabLabelDescriptor } from "@/hooks/useTabLabels";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSetAtom } from "jotai";
 import { TabPreviewItem } from "./TabPreviewItem";
 
@@ -14,6 +14,7 @@ export function TabsOverview({ tabLabels }: TabsOverviewProps) {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
   const setApplicationMode = useSetAtom(applicationModeAtom);
+  const [hoveredTabId, setHoveredTabId] = useState<string | null>(null);
 
   const handleRefSet = useCallback(
     (tabId: string, el: HTMLDivElement | null) => {
@@ -69,10 +70,15 @@ export function TabsOverview({ tabLabels }: TabsOverviewProps) {
                 onRefSet={handleRefSet}
                 onClick={handleTabClick}
                 scale={0.6}
+                isHovered={hoveredTabId === tab.id}
               />
               <button
                 type="button"
                 onClick={focusThisTab}
+                onMouseEnter={() => setHoveredTabId(tab.id)}
+                onMouseLeave={() => setHoveredTabId(null)}
+                onFocus={() => setHoveredTabId(tab.id)}
+                onBlur={() => setHoveredTabId(null)}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors px-1 truncate max-w-[320px]"
                 title={tab.label}
               >
