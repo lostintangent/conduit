@@ -76,7 +76,9 @@ jobs:
           pkg.version = newVersion;
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           console.log('Build version:', newVersion);
-          "      - name: Setup virtual display (Ubuntu)
+          "
+
+      - name: Setup virtual display (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get install -y xvfb
