@@ -109,6 +109,10 @@ jobs:
           echo "Full directory structure:"
           ls -la out/ || true
           ls -la out/make/ || true
+          echo "Looking for executables in packaged app:"
+          find out -type f -executable -name "*conduit*" -o -name "*Conduit*" || true
+          echo "Complete out directory tree:"
+          find out -type f || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

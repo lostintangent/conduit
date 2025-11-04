@@ -14,6 +14,7 @@ const config: ForgeConfig = {
       unpack: "**/node_modules/node-pty/**/*",
     },
     icon: "./build/assets/icon",
+    executableName: "conduit",
   },
   rebuildConfig: {
     onlyModules: ["node-pty"],
