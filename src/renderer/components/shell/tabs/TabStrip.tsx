@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { tabLabelsAtom, type TabLabelDescriptor } from "@/store/tabLabels";
 import {
   dismissNotification,
   enqueueNotification,
@@ -26,17 +27,16 @@ import {
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
-import type { TabLabelDescriptor } from "@/hooks/useTabLabels";
 import { useAtom, useAtomValue } from "jotai";
 import {
   Cloud,
+  Fullscreen,
+  LayoutGrid,
   MoreHorizontal,
   PlusSquare,
   SquareDashedMousePointer,
   SquareTerminal,
-  Terminal,
-  ZoomOut,
-  ZoomIn,
+  Terminal
 } from "lucide-react";
 import React, {
   useCallback,
@@ -53,7 +53,6 @@ type TabStripProps = {
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   position?: "top" | "bottom";
-  tabLabels: TabDescriptor[];
 };
 
 export const TabStrip = ({
@@ -61,8 +60,8 @@ export const TabStrip = ({
   onTabContextMenu,
   onOpenQuickPane,
   position = "top",
-  tabLabels,
 }: TabStripProps) => {
+  const tabLabels = useAtomValue(tabLabelsAtom);
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
@@ -70,6 +69,7 @@ export const TabStrip = ({
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
+  const hasMultipleTabs = tabs.length > 1;
 
   // Interactive tab preview state
   // The preview shows a scaled-down version of a tab when hovering over its button.
@@ -594,6 +594,19 @@ export const TabStrip = ({
             <PlusSquare size={18} />
           </button>
 
+          {/* Overview button - only when multiple tabs */}
+          {hasMultipleTabs && (
+            <button
+              type="button"
+              className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+              title="View all tabs"
+              aria-label="View all tabs"
+              onClick={() => setApplicationMode("overview")}
+            >
+              <LayoutGrid size={18} />
+            </button>
+          )}
+
         </div>
 
         {/* Action buttons - far right */}
@@ -632,32 +645,8 @@ export const TabStrip = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <button
-            type="button"
-            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
-              isDesignMode
-                ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-                : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-            }`}
-            title={getCommandDisplayTitle(toggleDesignModeCmd)}
-            aria-label={toggleDesignModeCmd.title}
-            onClick={toggleDesignModeCmd.execute}
-          >
-            <SquareDashedMousePointer size={18} />
-          </button>
-
           {/* Vertical divider */}
           <div className="h-6 my-1 w-px bg-white/20 mx-0.5" />
-
-          <button
-            type="button"
-            className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
-            title="View all tabs"
-            aria-label="View all tabs"
-            onClick={() => setApplicationMode("overview")}
-          >
-            <ZoomOut size={18} />
-          </button>
 
           {/* Focus mode button */}
           <button
@@ -677,7 +666,20 @@ export const TabStrip = ({
               );
             }}
           >
-            <ZoomIn size={18} />
+            <Fullscreen size={18} />
+          </button>
+
+          <button
+            type="button"
+            className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${isDesignMode
+              ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+              : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+            title={getCommandDisplayTitle(toggleDesignModeCmd)}
+            aria-label={toggleDesignModeCmd.title}
+            onClick={toggleDesignModeCmd.execute}
+          >
+            <SquareDashedMousePointer size={18} />
           </button>
         </div>
       </div>

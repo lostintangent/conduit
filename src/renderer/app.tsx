@@ -24,7 +24,6 @@ import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import { useTabLabels } from "@/hooks/useTabLabels";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
@@ -117,7 +116,6 @@ export function App() {
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
 
-  const tabLabels = useTabLabels();
 
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
@@ -611,7 +609,6 @@ export function App() {
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
             position={tabPosition}
-            tabLabels={tabLabels}
           />
         )}
 
@@ -623,7 +620,6 @@ export function App() {
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
                 position={tabPosition}
-                tabLabels={tabLabels}
               />
             </DrawerContent>
           </Drawer>
@@ -650,7 +646,7 @@ export function App() {
 
           {applicationMode === "overview" ? (
             <div className="absolute inset-0 flex min-h-0">
-              <TabsOverview tabLabels={tabLabels} />
+              <TabsOverview />
             </div>
           ) : null}
         </div>
@@ -662,7 +658,6 @@ export function App() {
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
             position={tabPosition}
-            tabLabels={tabLabels}
           />
         )}
 
@@ -674,7 +669,6 @@ export function App() {
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
                 position={tabPosition}
-                tabLabels={tabLabels}
               />
             </DrawerContent>
           </Drawer>

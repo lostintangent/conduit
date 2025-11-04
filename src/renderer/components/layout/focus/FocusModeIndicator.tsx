@@ -6,9 +6,10 @@ import {
   activeTabIdAtom,
   tabsAtom,
 } from "@/store/atoms";
-import { ArrowLeft, ArrowRight, ZoomOut } from "lucide-react";
+import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { tabLabelsAtom } from "@/store/tabLabels";
 import { FocusModeMiniMap } from "./FocusModeMiniMap";
 
 export function FocusModeIndicator() {
@@ -18,6 +19,7 @@ export function FocusModeIndicator() {
   const activeTab = useAtomValue(activeTabAtom);
 
   const totalTabs = tabs.length;
+  const tabLabels = useAtomValue(tabLabelsAtom);
   const activeTabIndex = useMemo(() => {
     if (!activeTabId) {
       return -1;
@@ -77,7 +79,7 @@ export function FocusModeIndicator() {
   );
 
   const miniMap = useMemo(() => {
-    if (!activeTab || activeTabPaneIds.length <= 1) {
+    if (!activeTab) {
       return null;
     }
 
@@ -95,9 +97,19 @@ export function FocusModeIndicator() {
     return null;
   }
 
+  const activeTabLabel = useMemo(() => {
+    if (!activeTab) {
+      return "";
+    }
+    const match = tabLabels.find((tab) => tab.id === activeTab.id);
+    return match?.label ?? "";
+  }, [tabLabels, activeTab?.id]);
+
   const tabInfo =
     totalTabs > 0 && activeTabIndex >= 0
-      ? `${activeTabIndex + 1} of ${totalTabs}`
+      ? `${activeTabIndex + 1}/${totalTabs}${
+          activeTabLabel ? ` (${activeTabLabel})` : ""
+        }`
       : "";
 
   return (
@@ -135,12 +147,12 @@ export function FocusModeIndicator() {
           <button
             type="button"
             className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            onClick={() => exitFocusMode()}
-            aria-label="Exit focus mode"
-            title="Exit focus mode (⌘⌥F)"
-          >
-            <ZoomOut size={16} />
-          </button>
+          onClick={() => exitFocusMode()}
+          aria-label="Exit focus mode"
+          title="Exit focus mode (⌘⌥F)"
+        >
+          <Shrink size={16} />
+        </button>
         </div>
       </div>
     </div>
