@@ -27,10 +27,11 @@ import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
 import {
   activePaneIdAtom,
-  activeTabAtom,
+  activeTabIdAtom,
   applicationModeAtom,
   tabsAtom,
 } from "@/store/atoms";
+import type { ApplicationMode } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -39,8 +40,9 @@ import type {
   Tab,
 } from "@/types";
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
-import { useAtomValue } from "jotai";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { calculatePreviewDimensions, PREVIEW_SCALE } from "@/utils/preview-scaling";
+import { useAtomValue, useSetAtom } from "jotai";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
@@ -246,12 +248,35 @@ export function TabLayout({
   onOpenPaneActions,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
-  const activeTab = useAtomValue(activeTabAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
-  const activeTabId = activeTab?.id ?? null;
   const applicationMode = useAtomValue(applicationModeAtom);
+  const setApplicationMode = useSetAtom(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
   const shouldShowTerminalDimensions = applicationMode === "normal";
+  const previewDimensions = useMemo(
+    () => calculatePreviewDimensions(PREVIEW_SCALE),
+    [],
+  );
+  const previousModeRef = useRef<ApplicationMode>("normal");
+
+  useEffect(() => {
+    if (applicationMode !== "overview") {
+      previousModeRef.current = applicationMode;
+    }
+  }, [applicationMode]);
+
+  useEffect(() => {
+    if (applicationMode === "overview" && activeTabId) {
+      const timeout = window.setTimeout(() => {
+        setApplicationMode(previousModeRef.current ?? "normal");
+      }, 220);
+
+      return () => {
+        window.clearTimeout(timeout);
+      };
+    }
+  }, [applicationMode, activeTabId, setApplicationMode]);
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
@@ -654,20 +679,18 @@ export function TabLayout({
   );
 
   const renderTab = useCallback(
-    (tab: Tab): React.ReactNode => {
+    (tab: Tab, index: number): React.ReactNode => {
       const isActive = tab.id === activeTabId;
       const isInFocusMode = applicationMode === "focus";
+      const isOverviewMode = applicationMode === "overview";
+      const hasOverviewSelection = isOverviewMode && Boolean(activeTabId);
 
-      // If this is the first time we're rendering this tab, create and store
-      // its container ref callback that sets up the portal mount point.
       if (!tabContainerCallbackRefs.current[tab.id]) {
         tabContainerCallbackRefs.current[tab.id] = (
           node: HTMLDivElement | null,
         ) => setLayoutMountPoint(tab.id, node);
       }
 
-      // Get the ref callback for this tab container and it's active
-      // mount point, which is either the tab or the tab preview hover.
       const tabContainerRef = tabContainerCallbackRefs.current[tab.id];
       const portalTarget = getActiveMountPoint(tab.id);
 
@@ -696,19 +719,116 @@ export function TabLayout({
         </>
       );
 
+      const isOverviewActive = hasOverviewSelection && isActive;
+      const previewLabel = tab.title?.trim() || `Tab ${index + 1}`;
+
+      const containerStyle: React.CSSProperties = (() => {
+        if (isOverviewMode) {
+          if (hasOverviewSelection) {
+            return {
+              flexGrow: isOverviewActive ? 1 : 0,
+              flexBasis: isOverviewActive ? "100%" : "0%",
+              transition: "flex-grow 220ms ease, flex-basis 220ms ease",
+            };
+          }
+
+          return {
+            flexGrow: 0,
+            flexBasis: `${previewDimensions.displayWidth}px`,
+            maxWidth: `${previewDimensions.displayWidth}px`,
+            width: `${previewDimensions.displayWidth}px`,
+          };
+        }
+
+        return {
+          flexGrow: isActive ? 1 : 0,
+          flexBasis: isActive ? "100%" : "0%",
+          transition: "flex-grow 220ms ease, flex-basis 220ms ease",
+        };
+      })();
+
+      const cardStyle: React.CSSProperties = (() => {
+        if (isOverviewMode) {
+          return {
+            width: isOverviewActive
+              ? "100%"
+              : `${previewDimensions.displayWidth}px`,
+            height: isOverviewActive
+              ? "100%"
+              : `${previewDimensions.displayHeight}px`,
+            transition: "width 220ms ease, height 220ms ease",
+          };
+        }
+
+        return {
+          width: "100%",
+          height: "100%",
+        };
+      })();
+
+      const contentStyle: React.CSSProperties = {
+        transform:
+          isOverviewMode && !isOverviewActive
+            ? `scale(${PREVIEW_SCALE})`
+            : "none",
+        transformOrigin: "top left",
+        width:
+          isOverviewMode && !isOverviewActive
+            ? `${previewDimensions.contentWidth}px`
+            : "100%",
+        height:
+          isOverviewMode && !isOverviewActive
+            ? `${previewDimensions.contentHeight}px`
+            : "100%",
+        transition: isOverviewMode ? "transform 200ms ease" : undefined,
+        pointerEvents:
+          !isOverviewMode || isOverviewActive ? "auto" : "none",
+      };
+
+      const wrapperClassName = `flex ${
+        isOverviewMode
+          ? "flex-col items-center gap-2"
+          : "flex-1 min-h-0 min-w-0 overflow-hidden relative"
+      } ${!hasOverviewSelection && isOverviewMode ? "cursor-pointer" : ""}`;
+
+      const cardClassName = isOverviewMode
+        ? `flex overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.03] min-h-0 min-w-0 relative ${
+            isOverviewActive ? "flex-1 w-full h-full" : ""
+          } ${
+            hasOverviewSelection
+              ? ""
+              : "hover:border-blueprint transition-colors duration-150"
+          }`
+        : "flex flex-1 w-full h-full min-h-0 min-w-0 overflow-hidden relative";
+
       return (
         <div
           key={tab.id}
-          role="tabpanel"
-          aria-hidden={!isActive}
-          className={
-            isActive
-              ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
-              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
+          className={wrapperClassName}
+          style={containerStyle}
+          onClick={
+            isOverviewMode && !hasOverviewSelection
+              ? () => {
+                  focusTab(tab.id);
+                }
+              : undefined
           }
-          ref={tabContainerRef}
         >
-          {portalTarget ? createPortal(tabContent, portalTarget) : null}
+          <div className={cardClassName} style={cardStyle}>
+            <div
+              ref={tabContainerRef}
+              role="tabpanel"
+              aria-hidden={!isOverviewMode && !isActive}
+              className="flex w-full h-full min-h-0 min-w-0 overflow-hidden"
+              style={contentStyle}
+            />
+            {portalTarget ? createPortal(tabContent, portalTarget) : null}
+          </div>
+          {isOverviewMode && !hasOverviewSelection && (
+            <div className="text-sm text-muted-foreground px-1 truncate max-w-[320px]">
+              {previewLabel}
+            </div>
+          )}
         </div>
       );
     },
@@ -716,14 +836,20 @@ export function TabLayout({
       activeTabId,
       applicationMode,
       getActiveMountPoint,
+      previewDimensions,
       renderLayout,
       setLayoutMountPoint,
     ],
   );
 
+  const isOverviewMode = applicationMode === "overview";
+  const containerClassName = isOverviewMode
+    ? "flex-1 flex flex-wrap content-start items-start justify-center gap-6 p-6 min-h-0 overflow-auto relative"
+    : "flex-1 flex relative min-h-0 overflow-hidden";
+
   return (
-    <div className="flex-1 flex relative min-h-0 overflow-hidden">
-      {tabs.map(renderTab)}
+    <div className={containerClassName}>
+      {tabs.map((tab, index) => renderTab(tab, index))}
       {tabs.length === 0 && (
         <div className="flex-1 flex min-h-0 min-w-0" aria-live="polite">
           <div className="flex-1 flex items-center justify-center text-[0.95rem] text-white/60 bg-white/[0.03] border border-dashed border-white/[0.08] rounded-lg m-2">

@@ -190,6 +190,10 @@ export function focusTab(tabId: string) {
   store.set(activeTabIdAtom, tabId);
 }
 
+export function clearActiveTab() {
+  store.set(activeTabIdAtom, null);
+}
+
 export function closeTab(tabId: string) {
   const sessionsToClose: string[] = [];
   const paneIdsToCleanup: string[] = [];

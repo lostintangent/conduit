@@ -13,7 +13,7 @@ type TabPreviewItemProps = {
 
 /**
  * Shared component for rendering a single tab preview
- * Used by both TabPreview (overlay) and TabsOverview (dialog)
+ * Used by the hover overlay and other preview contexts
  */
 export function TabPreviewItem({
   tabId,

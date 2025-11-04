@@ -16,7 +16,7 @@ export const userSettingsAtom = atom<UserSettings>({
 
 export const tabsAtom = atom<Tab[]>([]);
 
-export const activeTabIdAtom = atom<string>();
+export const activeTabIdAtom = atom<string | null>(null);
 export const activeTabAtom = atom<Tab | null>((get) => {
   const tabs = get(tabsAtom);
   const activeTabId = get(activeTabIdAtom);
@@ -35,7 +35,12 @@ export const previousTabsSnapshotAtom = atom<string>("");
 
 export const notificationsAtom = atom<Notification[]>([]);
 
-export type ApplicationMode = "normal" | "design" | "quick" | "focus";
+export type ApplicationMode =
+  | "normal"
+  | "design"
+  | "quick"
+  | "focus"
+  | "overview";
 
 export const applicationModeAtom = atom<ApplicationMode>("normal");
 
