@@ -6,6 +6,27 @@ It takes massive inspiration from things VS Code or tmux, in order to provide a 
 
 That said, since pictures are worth a whole bunch of words...check out the following parade of screenshots in oder to get a sense of what it can do...
 
+## 🚀 Installation
+
+### Quick Install
+
+**macOS & Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/lostintangent/conduit/main/build/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/lostintangent/conduit/main/build/scripts/install.ps1 | iex
+```
+
+### Manual Installation
+
+Download the latest release for your platform from the [releases page](https://github.com/lostintangent/conduit/releases/latest):
+- **macOS**: Download the `.zip` file, extract it, and move `Conduit.app` to your Applications folder
+- **Linux**: Download the `.deb` (Debian/Ubuntu) or `.rpm` (Fedora/RHEL) file and install it using your package manager
+- **Windows**: Download and run the `Setup.exe` installer
+
 # 🔌 Conduit
 
 Create information-dense tabs, each with a flexible grid of terminal, editor, and browser panes (that can be arbitrarily resized, and organized)
@@ -81,6 +102,12 @@ Run global commands at any time (`cmd+shift+p`), including spinning up quick ter
 <img width="1630" height="1083" alt="image" src="https://github.com/user-attachments/assets/6deaeb5d-61c1-4c86-92de-517fac83837d" />
 
 ## Appendix: Getting started
+
+### For End Users
+
+See the [Installation](#-installation) section above to quickly install Conduit on your machine.
+
+### For Developers
 
 1. Clone this repo
 1. Run `npm install`
