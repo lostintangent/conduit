@@ -8,34 +8,35 @@
 import type { ICommandRegistry } from "@/commands";
 import { When } from "@/commands";
 import {
-  hasWorkspace,
-  hasLastWorkspace,
-  tabCount,
+  activePaneType,
   hasActivePane,
   hasCustomLayout,
-  activePaneType,
-  isInAgentSession,
   hasCwd,
+  hasLastWorkspace,
+  hasWorkspace,
+  isInAgentSession,
+  tabCount,
 } from "@/commands/contextKeys/appContextKeys";
 import {
-  handleCreateVM,
-  handleOpenInVSCode,
-  handleMergeAndClose,
-  handleTerminate,
-  handleManageSessions,
-  handleToggleDesignMode,
-  handleOpenKeyboardShortcuts,
-  handleShowCommandPalette,
-  handleResetLayout,
-  handleSaveWorkspace,
-  handleRenameWorkspace,
   handleCloseWorkspace,
-  handleOpenWorkspace,
+  handleCreateVM,
+  handleDuplicateWorkspace,
+  handleManageSessions,
+  handleMergeAndClose,
+  handleOpenInVSCode,
+  handleOpenKeyboardShortcuts,
   handleOpenLastWorkspace,
   handleOpenWebPage,
+  handleOpenWorkspace,
+  handleRenameWorkspace,
+  handleResetLayout,
+  handleSaveWorkspace,
+  handleShowCommandPalette,
+  handleTerminate,
+  handleToggleDesignMode,
 } from "@/commands/handlers";
 import { toggleFocusMode } from "@/store/actions/focusMode";
-import { openTab, closeTab } from "@/store/actions/tab";
+import { closeTab, openTab } from "@/store/actions/tab";
 
 /**
  * Type-safe command IDs for application commands
@@ -56,6 +57,7 @@ export const ApplicationCommands = {
   // Workspace commands
   WORKSPACE_SAVE: "workspace.save",
   WORKSPACE_RENAME: "workspace.rename",
+  WORKSPACE_DUPLICATE: "workspace.duplicate",
   WORKSPACE_CLOSE: "workspace.close",
   WORKSPACE_OPEN: "workspace.open",
   WORKSPACE_OPEN_LAST: "workspace.openLast",
@@ -80,7 +82,7 @@ export const ApplicationCommands = {
  * system has been initialized.
  */
 export function registerApplicationCommands(
-  commandRegistry: ICommandRegistry,
+  commandRegistry: ICommandRegistry
 ): void {
   // View: Toggle Focus Mode
   commandRegistry.registerCommand({
@@ -110,7 +112,7 @@ export function registerApplicationCommands(
     run: (context) => {
       handleToggleDesignMode(
         context.applicationMode,
-        context.setApplicationMode,
+        context.setApplicationMode
       );
     },
   });
@@ -167,7 +169,7 @@ export function registerApplicationCommands(
       void handleSaveWorkspace(
         context.allTabs,
         context.activeTab?.id,
-        context.setShowCreateWorkspaceDialog,
+        context.setShowCreateWorkspaceDialog
       );
     },
   });
@@ -185,6 +187,20 @@ export function registerApplicationCommands(
     run: (context) => {
       if (context.workspaceName) {
         handleRenameWorkspace(context.setShowRenameWorkspaceDialog);
+      }
+    },
+  });
+
+  // Workspace: Duplicate
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_DUPLICATE,
+    title: "Duplicate Workspace",
+    description: "Create a copy of the current workspace with a new name",
+    category: "Workspace",
+    when: hasWorkspace.isTrue(),
+    run: (context) => {
+      if (context.workspaceName) {
+        handleDuplicateWorkspace(context.setShowDuplicateWorkspaceDialog);
       }
     },
   });

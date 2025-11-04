@@ -4,14 +4,14 @@
  * Handlers for workspace-related commands including save, rename, close, and open.
  */
 
-import type { Tab } from "@/types";
-import type { Workspace } from "@shared/types";
 import {
+  previousTabsSnapshotAtom,
+  workspaceHasChangesAtom,
   workspaceNameAtom,
   workspacesAtom,
-  workspaceHasChangesAtom,
-  previousTabsSnapshotAtom,
 } from "@/store/atoms";
+import type { Tab } from "@/types";
+import type { Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 
 const store = getDefaultStore();
@@ -26,7 +26,7 @@ const store = getDefaultStore();
 export async function handleSaveWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
-  setShowCreateWorkspaceDialog: (show: boolean) => void,
+  setShowCreateWorkspaceDialog: (show: boolean) => void
 ): Promise<void> {
   if (!activeTabId) {
     return;
@@ -38,7 +38,7 @@ export async function handleSaveWorkspace(
     const sessions = (await window.conduit.saveSession(
       workspaceName,
       tabs,
-      activeTabId,
+      activeTabId
     )) as Workspace[];
 
     store.set(workspacesAtom, sessions);
@@ -58,9 +58,20 @@ export async function handleSaveWorkspace(
  * @param setShowRenameWorkspaceDialog - Function to show rename dialog
  */
 export function handleRenameWorkspace(
-  setShowRenameWorkspaceDialog: (show: boolean) => void,
+  setShowRenameWorkspaceDialog: (show: boolean) => void
 ): void {
   setShowRenameWorkspaceDialog(true);
+}
+
+/**
+ * Duplicate the current workspace with a new name
+ *
+ * @param setShowDuplicateWorkspaceDialog - Function to show duplicate workspace dialog
+ */
+export function handleDuplicateWorkspace(
+  setShowDuplicateWorkspaceDialog: (show: boolean) => void
+): void {
+  setShowDuplicateWorkspaceDialog(true);
 }
 
 /**
@@ -77,7 +88,7 @@ export async function handleCloseWorkspace(): Promise<void> {
  * @param setShowWorkspacePicker - Function to show workspace picker
  */
 export function handleOpenWorkspace(
-  setShowWorkspacePicker: (show: boolean) => void,
+  setShowWorkspacePicker: (show: boolean) => void
 ): void {
   setShowWorkspacePicker(true);
 }

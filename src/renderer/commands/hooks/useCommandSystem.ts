@@ -1,24 +1,23 @@
-import { useState, useEffect } from "react";
-import { useSetAtom } from "jotai";
 import {
-  initializeCommandSystem,
   getCommandRegistry,
-  getKeybindingRegistry,
   getContextKeyService,
+  getKeybindingRegistry,
+  initializeCommandSystem,
   type ICommandRegistry,
-  type KeybindingRegistry,
   type IContextKeyService,
+  type KeybindingRegistry,
 } from "@/commands";
 import { registerApplicationCommands } from "@/commands/applicationCommands";
+import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsAtom";
 import {
-  loadUserKeybindings,
   getUserKeybindingsPath,
+  loadUserKeybindings,
 } from "@/commands/keybindings/userKeybindings";
 import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
-import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsAtom";
-import { keybindingsAtom } from "@/store/atoms";
-import { toggleFocusMode } from "@/store/actions/focusMode";
 import type { ApplicationMode } from "@/store/atoms";
+import { keybindingsAtom } from "@/store/atoms";
+import { useSetAtom } from "jotai";
+import { useEffect, useState } from "react";
 
 export interface CommandSystemState {
   commandRegistry: ICommandRegistry;
@@ -46,6 +45,7 @@ export interface UseCommandSystemOptions {
   setIsUrlDialogOpen: (open: boolean) => void;
   setCleanupDialogSessions: (sessions: any[] | null) => void;
   setShowCreateWorkspaceDialog: (show: boolean) => void;
+  setShowDuplicateWorkspaceDialog: (show: boolean) => void;
 }
 
 /**
@@ -60,7 +60,7 @@ export interface UseCommandSystemOptions {
  * @returns Command system state with registries and ready flag
  */
 export function useCommandSystem(
-  options: UseCommandSystemOptions,
+  options: UseCommandSystemOptions
 ): CommandSystemState | null {
   const {
     activeTab,
@@ -79,6 +79,7 @@ export function useCommandSystem(
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
+    setShowDuplicateWorkspaceDialog,
   } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
@@ -173,6 +174,7 @@ export function useCommandSystem(
       setIsUrlDialogOpen,
       setCleanupDialogSessions,
       setShowCreateWorkspaceDialog,
+      setShowDuplicateWorkspaceDialog,
     }));
 
     // Signal that context builder is ready - this causes keyboard listener to attach on next render
@@ -192,6 +194,7 @@ export function useCommandSystem(
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
+    setShowDuplicateWorkspaceDialog,
   ]);
 
   // Update context keys whenever app state changes
@@ -208,14 +211,14 @@ export function useCommandSystem(
     contextKeyService.setGlobal("tabCount", tabs?.length ?? 0);
     contextKeyService.setGlobal(
       "hasActivePane",
-      !!(activeTab && activeTab.activePaneId),
+      !!(activeTab && activeTab.activePaneId)
     );
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {
       contextKeyService.setGlobal(
         "hasCustomLayout",
-        hasCustomLayout(activeTab.id),
+        hasCustomLayout(activeTab.id)
       );
     } else {
       contextKeyService.setGlobal("hasCustomLayout", false);
@@ -228,11 +231,11 @@ export function useCommandSystem(
         contextKeyService.setGlobal("activePaneType", activePane.type || "");
         contextKeyService.setGlobal(
           "isInAgentSession",
-          !!activePane.agentSessionId,
+          !!activePane.agentSessionId
         );
         contextKeyService.setGlobal(
           "hasCwd",
-          !!(activePane.type === "terminal" && activePane.cwd),
+          !!(activePane.type === "terminal" && activePane.cwd)
         );
       } else {
         // Clear pane context keys if no active pane
@@ -269,7 +272,7 @@ export function useCommandSystem(
         // Reload keybindings from file
         await loadUserKeybindings(
           commandSystem.keybindingRegistry,
-          keybindingsPath,
+          keybindingsPath
         );
         // Update global atom for reactive components
         updateKeybindingsAtom();

@@ -84,7 +84,7 @@ export function App() {
     initialValue: string;
   } | null>(null);
   const [quickPaneState, setQuickPaneState] = useState<PaneDescriptor | null>(
-    null,
+    null
   );
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
@@ -112,6 +112,9 @@ export function App() {
     closeWorkspace,
   } = useWorkspaces();
 
+  const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
+    useState(false);
+
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
     activeTab,
@@ -132,6 +135,7 @@ export function App() {
     setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
+    setShowDuplicateWorkspaceDialog,
   });
 
   // Initialize pane actions system
@@ -146,7 +150,7 @@ export function App() {
 
   useKeybindingDispatch(
     commandSystem?.commandRegistry,
-    commandSystem?.keybindingRegistry,
+    commandSystem?.keybindingRegistry
   );
 
   useEffect(() => {
@@ -235,7 +239,7 @@ export function App() {
 
       setTitleModalState(null);
     },
-    [titleModalState, updateTabProperty],
+    [titleModalState, updateTabProperty]
   );
 
   const handleWebViewUpdate = useCallback(
@@ -245,7 +249,7 @@ export function App() {
       updates: {
         url?: string;
         title?: string;
-      },
+      }
     ) => {
       setTabs((current) =>
         current.map((tab) => {
@@ -275,10 +279,10 @@ export function App() {
               [paneId]: nextPane,
             },
           };
-        }),
+        })
       );
     },
-    [setTabs],
+    [setTabs]
   );
 
   const handleEditorUpdate = useCallback(
@@ -288,7 +292,7 @@ export function App() {
       updates: {
         cwd?: string;
         filePath?: string;
-      },
+      }
     ) => {
       setTabs((current) =>
         current.map((tab) => {
@@ -313,10 +317,10 @@ export function App() {
               [paneId]: nextPane,
             },
           };
-        }),
+        })
       );
     },
-    [setTabs],
+    [setTabs]
   );
 
   const handleContextMenu = useContextMenu({
@@ -338,7 +342,7 @@ export function App() {
   const runShellCommand = useCallback(
     async (
       rawCommand: string,
-      options: { cwd?: string; trackHistory?: boolean } = {},
+      options: { cwd?: string; trackHistory?: boolean } = {}
     ) => {
       const command = rawCommand.trim();
       if (command.length === 0) {
@@ -357,7 +361,7 @@ export function App() {
           : undefined;
 
       const result = await api.createTerminal(
-        requestedCwd ? { cwd: requestedCwd } : undefined,
+        requestedCwd ? { cwd: requestedCwd } : undefined
       );
       if (!result) {
         return;
@@ -379,7 +383,7 @@ export function App() {
         await recordCommandHistoryEntry(command);
       }
     },
-    [recordCommandHistoryEntry, quickPaneState],
+    [recordCommandHistoryEntry, quickPaneState]
   );
 
   const handleVMRepoSubmit = useCallback(
@@ -422,7 +426,7 @@ export function App() {
         });
       }
     },
-    [],
+    []
   );
 
   const closeAgentSessionPanes = useCallback(
@@ -435,7 +439,7 @@ export function App() {
         });
       });
     },
-    [tabs],
+    [tabs]
   );
 
   const handleAgentSessionCleanup = useCallback(
@@ -447,7 +451,7 @@ export function App() {
       }
 
       const lookup = new Map(
-        cleanupDialogSessions.map((session) => [session.id, session]),
+        cleanupDialogSessions.map((session) => [session.id, session])
       );
       const targets = sessionIds
         .map((id) => lookup.get(id))
@@ -479,7 +483,7 @@ export function App() {
           const message =
             error instanceof Error ? error.message : String(error);
           failures.push(
-            `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`,
+            `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`
           );
         }
       }
@@ -510,14 +514,14 @@ export function App() {
       closeAgentSessionPanes,
       enqueueNotification,
       updateNotification,
-    ],
+    ]
   );
 
   const handleShellCommand = useCallback(
     async (rawCommand: string) => {
       await runShellCommand(rawCommand, { trackHistory: true });
     },
-    [runShellCommand],
+    [runShellCommand]
   );
 
   const handleOpenWebPage = useCallback(
@@ -529,7 +533,20 @@ export function App() {
       openWebViewPane(activeTab.id, activeTab.activePaneId, url);
       setIsUrlDialogOpen(false);
     },
-    [activeTab],
+    [activeTab]
+  );
+
+  const handleDuplicateWorkspace = useCallback(
+    async (name: string) => {
+      if (!workspaceName || !activeTab) {
+        return;
+      }
+
+      // Save the current tabs as a new workspace with the provided name
+      await saveWorkspace(name, tabs, activeTab.id);
+      setShowDuplicateWorkspaceDialog(false);
+    },
+    [workspaceName, activeTab, tabs, saveWorkspace]
   );
 
   const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
@@ -540,7 +557,7 @@ export function App() {
   const commandItems = useCommands(
     commandSystem?.commandRegistry,
     commandSystem?.keybindingRegistry,
-    commandSystem?.contextKeyService,
+    commandSystem?.contextKeyService
   );
 
   const handleCloseQuickPane = useCallback(() => {
@@ -566,7 +583,7 @@ export function App() {
       setQuickPaneState(null);
       await openTabFromPaneDescriptor(descriptor);
     },
-    [],
+    []
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -700,6 +717,15 @@ export function App() {
         onSave={renameWorkspace}
         title="Rename workspace"
         placeholder="Enter new worspace name..."
+      />
+
+      <InputDialog
+        isOpen={showDuplicateWorkspaceDialog}
+        initialValue=""
+        onClose={() => setShowDuplicateWorkspaceDialog(false)}
+        onSave={handleDuplicateWorkspace}
+        title="Duplicate workspace"
+        placeholder="Enter name for the duplicated workspace..."
       />
 
       <WorkspacePicker

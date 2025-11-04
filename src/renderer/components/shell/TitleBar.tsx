@@ -62,6 +62,9 @@ export const TitleBar = ({
   // Command hooks
   const saveWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_SAVE);
   const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);
+  const duplicateWorkspaceCmd = useCommand(
+    ApplicationCommands.WORKSPACE_DUPLICATE
+  );
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
   const keyboardShortcutsCmd = useCommand(
     ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
@@ -183,6 +186,15 @@ export const TitleBar = ({
                 title={getCommandDisplayTitle(renameWorkspaceCmd)}
               >
                 {renameWorkspaceCmd.title}
+              </DropdownMenuItem>
+
+              {/* Duplicate workspace - only enabled when in a workspace */}
+              <DropdownMenuItem
+                onClick={duplicateWorkspaceCmd.execute}
+                disabled={!workspaceName}
+                title={getCommandDisplayTitle(duplicateWorkspaceCmd)}
+              >
+                {duplicateWorkspaceCmd.title}
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
