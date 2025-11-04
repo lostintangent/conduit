@@ -787,7 +787,7 @@ export function TabLayout({
 
       const wrapperClassName = `flex ${
         isOverviewMode
-          ? "flex-col items-center gap-2"
+          ? "flex-col items-stretch gap-2"
           : "flex-1 min-h-0 min-w-0 overflow-hidden relative"
       } ${!hasOverviewSelection && isOverviewMode ? "cursor-pointer" : ""}`;
 
@@ -825,7 +825,7 @@ export function TabLayout({
             {portalTarget ? createPortal(tabContent, portalTarget) : null}
           </div>
           {isOverviewMode && !hasOverviewSelection && (
-            <div className="text-sm text-muted-foreground px-1 truncate max-w-[320px]">
+            <div className="text-sm text-muted-foreground px-1 text-center truncate max-w-[320px]">
               {previewLabel}
             </div>
           )}
