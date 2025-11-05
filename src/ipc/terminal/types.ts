@@ -1,5 +1,5 @@
-import type { IPty } from "node-pty";
 import type { CloudTerminalOptions } from "@shared/types";
+import type { IPty } from "node-pty";
 
 export type TerminalInstance = {
   id: string;
