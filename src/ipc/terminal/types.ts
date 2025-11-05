@@ -1,4 +1,5 @@
 import type { IPty } from "node-pty";
+import type { CloudTerminalOptions } from "@shared/types";
 
 export type TerminalInstance = {
   id: string;
@@ -23,19 +24,9 @@ export type TerminalInstance = {
 
 export type CreateTerminalOptions = {
   cwd?: string;
-
-  // VM-specific options
-  isRemoteVM?: boolean;
   existingVMId?: string; // Connect to an existing VM instead of creating one
-  vmImageId?: string;
-  vmLabels?: string[];
   vmIdleTimeout?: number;
-  githubRepo?: {
-    owner: string;
-    name: string;
-    branch?: string;
-  };
-};
+} & CloudTerminalOptions;
 
 export type CloudEnvironment = {
   vmId: string;

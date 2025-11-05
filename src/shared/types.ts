@@ -41,20 +41,41 @@ export type TerminalCreateResponse = TerminalPayload & {
   vmMetadata?: VMMetadata;
 };
 
-export type TerminalCreateOptions = {
-  cwd?: string;
-  // VM-specific options
+/**
+ * Cloud/VM terminal configuration options
+ * Shared across pane actions, pre-commands, and terminal creation
+ */
+export interface CloudTerminalOptions {
+  /**
+   * Whether this should be a remote VM terminal
+   */
   isRemoteVM?: boolean;
-  existingVMId?: string; // Connect to an existing VM instead of creating one
+
+  /**
+   * VM image identifier to use for the cloud terminal
+   */
   vmImageId?: string;
+
+  /**
+   * Labels to tag the VM with (e.g., for organization/billing)
+   */
   vmLabels?: string[];
-  vmIdleTimeout?: number;
+
+  /**
+   * GitHub repository to clone into the VM
+   */
   githubRepo?: {
     owner: string;
     name: string;
     branch?: string;
   };
-};
+}
+
+export type TerminalCreateOptions = {
+  cwd?: string;
+  existingVMId?: string; // Connect to an existing VM instead of creating one
+  vmIdleTimeout?: number;
+} & CloudTerminalOptions;
 
 export type VMMetadata = {
   vmId: string;

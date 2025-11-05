@@ -1,4 +1,4 @@
-import type { AgentSessionInfo, TerminalCreateOptions } from "@shared/types";
+import type { AgentSessionInfo, CloudTerminalOptions, TerminalCreateOptions } from "@shared/types";
 
 /**
  * Options that can be passed to splitPane function
@@ -45,18 +45,8 @@ export interface PreCommand {
  * Terminal configuration from pane action
  * Used as input to pre-command handlers
  */
-export interface TerminalConfig {
+export interface TerminalConfig extends CloudTerminalOptions {
   command: string;
   cwd?: string;
   preCommandId?: string;
-  
-  // Cloud terminal options (optional)
-  isRemoteVM?: boolean;
-  vmImageId?: string;
-  vmLabels?: string[];
-  githubRepo?: {
-    owner: string;
-    name: string;
-    branch?: string;
-  };
 }

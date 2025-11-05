@@ -4,6 +4,8 @@
  * Based on: docs/pane-actions-schema.md
  */
 
+import type { CloudTerminalOptions } from "@shared/types";
+
 /**
  * Supported pane types
  */
@@ -26,7 +28,7 @@ export const MAX_ACTIONS = 5;
 /**
  * Terminal pane configuration
  */
-export interface TerminalConfig {
+export interface TerminalConfig extends CloudTerminalOptions {
   /**
    * Command to execute in the terminal
    */
@@ -42,18 +44,6 @@ export interface TerminalConfig {
    * Pre-commands can perform setup, validation, or configuration tasks
    */
   preCommandId?: string;
-
-  /**
-   * Cloud terminal options (optional)
-   */
-  isRemoteVM?: boolean;
-  vmImageId?: string;
-  vmLabels?: string[];
-  githubRepo?: {
-    owner: string;
-    name: string;
-    branch?: string;
-  };
 }
 
 /**
