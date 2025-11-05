@@ -75,7 +75,7 @@ export async function detectGitHubRepoHandler(
  */
 export function buildCloudTerminalResult(
   handlerResult: CloudTerminalHandlerResult,
-  isRemoteVM: boolean = true
+  isRemoteVM = true
 ): PreCommandResult {
   if (!handlerResult.success) {
     return {
