@@ -120,10 +120,6 @@ export const TabButton = ({
     }
   };
 
-  const handleBlur = () => {
-    handleCancelEdit();
-  };
-
   return (
     <button
       type="button"
@@ -175,7 +171,7 @@ export const TabButton = ({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
+            onBlur={handleSaveEdit}
             className="bg-white/20 text-white border-0 outline-none rounded px-1"
             style={{
               minWidth: "50px",
