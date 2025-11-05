@@ -15,6 +15,7 @@ import type { Action } from "./types";
  * - Editor (enabled)
  * - Agent (enabled)
  * - Browser (disabled)
+ * - Cloud Terminal (disbled)
  */
 export function getDefaultActions(): Action[] {
   return [
@@ -42,6 +43,16 @@ export function getDefaultActions(): Action[] {
       paneType: "browser",
       config: {
         url: "https://github.com",
+      },
+    },
+    {
+      name: "Cloud",
+      icon: "cloud",
+      enabled: false,
+      paneType: "terminal",
+      config: {
+        command: "",
+        preCommandId: "detect-github-repo-for-cloud",
       },
     },
     {

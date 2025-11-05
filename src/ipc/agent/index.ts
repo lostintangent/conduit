@@ -13,7 +13,11 @@ import type {
 import {
   fileExists,
   findRepoRoot,
+  getCurrentBranch,
+  getGitHubRepoInfo,
+  getRemoteOriginUrl,
   hasGitRepository,
+  parseGitHubRepo,
   runGit,
   safeGitCommand,
 } from "./git";
@@ -293,6 +297,21 @@ export function initializeAgentHandlers() {
   ipcMain.handle("agent:has-git-repo", async (_event, cwd: string) => {
     return await hasGitRepository(cwd);
   });
+
+  ipcMain.handle("agent:get-current-branch", async (_event, cwd: string) => {
+    return await getCurrentBranch(cwd);
+  });
+
+  ipcMain.handle("agent:get-remote-origin-url", async (_event, cwd: string) => {
+    return await getRemoteOriginUrl(cwd);
+  });
+
+  ipcMain.handle("agent:get-github-repo-info", async (_event, cwd: string) => {
+    return await getGitHubRepoInfo(cwd);
+  });
 }
 
-export { hasGitRepository };
+export {
+  getCurrentBranch, getGitHubRepoInfo, getRemoteOriginUrl, hasGitRepository, parseGitHubRepo
+};
+

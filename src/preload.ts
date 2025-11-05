@@ -201,6 +201,19 @@ const conduitAPI = {
   hasGitRepository: (cwd: string) =>
     ipcRenderer.invoke("agent:has-git-repo", cwd) as Promise<boolean>,
 
+  getCurrentBranch: (cwd: string) =>
+    ipcRenderer.invoke("agent:get-current-branch", cwd) as Promise<string | null>,
+
+  getRemoteOriginUrl: (cwd: string) =>
+    ipcRenderer.invoke("agent:get-remote-origin-url", cwd) as Promise<string | null>,
+
+  getGitHubRepoInfo: (cwd: string) =>
+    ipcRenderer.invoke("agent:get-github-repo-info", cwd) as Promise<{
+      owner: string;
+      name: string;
+      branch: string;
+    } | null>,
+
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",

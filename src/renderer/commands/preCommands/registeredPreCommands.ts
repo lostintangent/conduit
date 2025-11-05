@@ -1,7 +1,7 @@
+import { createAgentSessionHandler } from "./handlers/agentSessionHandler";
+import { verifyGitRepoHandler } from "./handlers/gitRepoHandler";
 import { PreCommandRegistry } from "./registry";
 import type { PreCommand } from "./types";
-import { verifyGitRepoHandler } from "./handlers/gitRepoHandler";
-import { createAgentSessionHandler } from "./handlers/agentSessionHandler";
 
 /**
  * Verify Git Repository Pre-Command
@@ -98,19 +98,68 @@ export const createAgentSession: PreCommand = {
 };
 
 /**
- * Register default pre-commands with the registry
+ * Detect GitHub Repo for Cloud Terminal Pre-Command
  *
- * This function should be called during app initialization to make
- * the default pre-commands available to pane actions.
+ * Automatically detects if the current directory is a GitHub repository
+ * and configures cloud terminal to clone it. If no GitHub repo is found,
+ * the cloud terminal dialog will be shown as normal.
+ */
+export const detectGitHubRepoForCloud: PreCommand = {
+  id: "detect-github-repo-for-cloud",
+  label: "Detect GitHub Repo (Cloud Terminal)",
+  description: "Automatically clones the current GitHub repository into a cloud VM",
+
+  run: async (terminalConfig) => {
+    const api = window.conduit;
+
+    // Determine cwd from config or fallback to home directory
+    let cwd = terminalConfig.cwd;
+    if (!cwd) {
+      const settings = await api.getSettings();
+      cwd = settings.homeDirectory;
+    }
+
+    if (!cwd) {
+      // No cwd available - cloud terminal will show dialog
+      return {
+        success: true,
+        paneOptions: {
+          terminalOptions: {
+            isRemoteVM: true,
+          },
+        },
+      };
+    }
+
+    // Import handler
+    const { detectGitHubRepoHandler, buildCloudTerminalResult } = await import(
+      "./handlers/cloudTerminalHandler"
+    );
+
+    // Detect GitHub repo info
+    const result = await detectGitHubRepoHandler(cwd);
+
+    // Build cloud terminal options
+    return buildCloudTerminalResult(result, true);
+  },
+};
+
+/**
+ * Register all default pre-commands
+ *
+ * This function should be called once at application startup to register
+ * all built-in pre-commands with the registry.
  */
 export function registerDefaultPreCommands(): void {
   const registry = PreCommandRegistry.getInstance();
 
   registry.register(verifyGitRepo);
   registry.register(createAgentSession);
+  registry.register(detectGitHubRepoForCloud);
 
   console.log("[PreCommands] Default pre-commands registered:", {
     verifyGitRepo: verifyGitRepo.id,
     createAgentSession: createAgentSession.id,
+    detectGitHubRepoForCloud: detectGitHubRepoForCloud.id,
   });
 }

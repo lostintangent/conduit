@@ -42,6 +42,18 @@ export interface TerminalConfig {
    * Pre-commands can perform setup, validation, or configuration tasks
    */
   preCommandId?: string;
+
+  /**
+   * Cloud terminal options (optional)
+   */
+  isRemoteVM?: boolean;
+  vmImageId?: string;
+  vmLabels?: string[];
+  githubRepo?: {
+    owner: string;
+    name: string;
+    branch?: string;
+  };
 }
 
 /**
