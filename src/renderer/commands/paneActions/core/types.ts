@@ -4,6 +4,8 @@
  * Based on: docs/pane-actions-schema.md
  */
 
+import type { CloudTerminalOptions } from "@shared/types";
+
 /**
  * Supported pane types
  */
@@ -26,7 +28,7 @@ export const MAX_ACTIONS = 5;
 /**
  * Terminal pane configuration
  */
-export interface TerminalConfig {
+export interface TerminalConfig extends CloudTerminalOptions {
   /**
    * Command to execute in the terminal
    */

@@ -125,8 +125,15 @@ export function PaneControlFanButtons({
           const terminalConfig = action.config;
           const terminalCwd = terminalConfig.cwd || cwd;
 
+          // Start with base options including any cloud terminal config from pane action
           let paneOptions: any = {
-            terminalOptions: terminalCwd ? { cwd: terminalCwd } : undefined,
+            terminalOptions: {
+              ...(terminalCwd ? { cwd: terminalCwd } : {}),
+              ...(terminalConfig.isRemoteVM !== undefined ? { isRemoteVM: terminalConfig.isRemoteVM } : {}),
+              ...(terminalConfig.vmImageId ? { vmImageId: terminalConfig.vmImageId } : {}),
+              ...(terminalConfig.vmLabels ? { vmLabels: terminalConfig.vmLabels } : {}),
+              ...(terminalConfig.githubRepo ? { githubRepo: terminalConfig.githubRepo } : {}),
+            }
           };
 
           // Execute pre-command if specified
@@ -148,6 +155,7 @@ export function PaneControlFanButtons({
             }
 
             // Merge paneOptions from pre-command result
+            // Pre-command options take precedence over pane action config
             if (result.paneOptions) {
               paneOptions = {
                 ...paneOptions,
