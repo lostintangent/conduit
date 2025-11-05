@@ -2,7 +2,11 @@ import { app, BrowserWindow } from "electron";
 import started from "electron-squirrel-startup";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { cleanupTerminalSessions, initializeIpcHandlers } from "./ipc";
+import {
+  cleanupTerminalSessions,
+  initializeIpcHandlers,
+  shutdownCliServer,
+} from "./ipc";
 
 // Build-time constants injected by @electron-forge/plugin-vite.
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -73,7 +77,7 @@ async function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.on("will-navigate", (e) => e.preventDefault());
 
-  initializeIpcHandlers(mainWindow);
+  await initializeIpcHandlers(mainWindow);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -121,11 +125,15 @@ app.on("before-quit", () => {
   if (mainWindow) {
     mainWindow.removeAllListeners("close");
   }
+
+  shutdownCliServer();
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     cleanupTerminalSessions();
+    shutdownCliServer();
+
     app.quit();
   }
 });

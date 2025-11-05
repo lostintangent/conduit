@@ -9,6 +9,7 @@ export const userSettingsAtom = atom<UserSettings>({
   alwaysShowTabs: true,
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
+  useConduitAsEditor: true,
   commandHistory: [],
   urlHistory: [],
   homeDirectory: null,

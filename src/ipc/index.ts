@@ -1,5 +1,6 @@
 import { BrowserWindow } from "electron";
 import { initializeAgentHandlers } from "./agent";
+import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { initializeFsHandlers } from "./fs";
 import {
   cleanupTerminalSessions,
@@ -18,6 +19,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 
   const { refreshMenu } = await initializeUserSettings(window);
 
+  await initializeCliHandlers(sendToRenderer);
   initializeTerminalHandlers(sendToRenderer);
   initializeWorkspaceHandlers(refreshMenu);
   initializeUIHandlers(window);
@@ -26,4 +28,4 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeVMHandlers();
 }
 
-export { cleanupTerminalSessions, initializeIpcHandlers };
+export { cleanupTerminalSessions, initializeIpcHandlers, shutdownCliServer };

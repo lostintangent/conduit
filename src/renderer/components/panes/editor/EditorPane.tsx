@@ -7,10 +7,10 @@ import {
   ChevronDown,
   FolderUp,
   Loader2,
-  RefreshCw,
-  Undo,
   Redo,
+  RefreshCw,
   Save,
+  Undo,
 } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
@@ -115,6 +115,8 @@ type EditorPaneProps = {
   onClearFile?: () => void;
   onCwdChange?: (cwd: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
+  isLocked?: boolean;
+  onSave?: () => void;
 };
 
 export function EditorPane({
@@ -124,18 +126,20 @@ export function EditorPane({
   onClearFile,
   onCwdChange,
   onFileOpen,
+  isLocked = false,
+  onSave,
 }: EditorPaneProps) {
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
-    undefined,
+    undefined
   );
   const [originalContent, setOriginalContent] = useState<string | undefined>(
-    undefined,
+    undefined
   );
   const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(
-    undefined,
+    undefined
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
@@ -192,10 +196,11 @@ export function EditorPane({
       await api.writeFile(filePath, currentContent);
       setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
+      onSave?.();
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, currentContent, hasUnsavedChanges]);
+  }, [filePath, currentContent, hasUnsavedChanges, onSave]);
 
   // Ctrl+S keyboard handler
   useEffect(() => {
@@ -276,7 +281,7 @@ export function EditorPane({
         console.error("Failed to open file:", error);
       }
     },
-    [onFileChange],
+    [onFileChange]
   );
 
   const handleClearFile = useCallback(() => {
@@ -288,14 +293,14 @@ export function EditorPane({
       setCurrentContent(value);
       setHasUnsavedChanges(value !== originalContent);
     },
-    [originalContent],
+    [originalContent]
   );
 
   const handleDirectoryChange = useCallback(
     (newPath: string) => {
       onCwdChange?.(newPath);
     },
-    [onCwdChange],
+    [onCwdChange]
   );
 
   const handleNavigateUp = useCallback(() => {
@@ -369,7 +374,7 @@ export function EditorPane({
         updateUndoRedoState();
       });
     },
-    [],
+    []
   );
 
   const handleUndo = useCallback(() => {
@@ -457,20 +462,22 @@ export function EditorPane({
               >
                 <Save size={14} className="text-white/60" />
               </button>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                title="Refresh file"
-              >
-                <RefreshCw size={14} className="text-white/60" />
-              </button>
+              {!isLocked && (
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                  title="Refresh file"
+                >
+                  <RefreshCw size={14} className="text-white/60" />
+                </button>
+              )}
             </>
           ) : (
             <>
               <div className="h-4 w-px bg-white/10 shrink-0" />
               <div className="flex items-center gap-1 shrink-0">
-                {canNavigateUp && (
+                {canNavigateUp && !isLocked && (
                   <button
                     type="button"
                     onClick={handleNavigateUp}
@@ -480,20 +487,22 @@ export function EditorPane({
                     <FolderUp size={14} className="text-white/60" />
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                  title="Refresh directory"
-                >
-                  <RefreshCw size={14} className="text-white/60" />
-                </button>
+                {!isLocked && (
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                    title="Refresh directory"
+                  >
+                    <RefreshCw size={14} className="text-white/60" />
+                  </button>
+                )}
               </div>
             </>
           )}
         </div>
         <div className="flex items-center gap-1">
-          {hasOpenFile && (
+          {hasOpenFile && !isLocked && (
             <button
               type="button"
               onClick={handleClearFile}

@@ -36,6 +36,9 @@ export function useUserSettings() {
       api.onShowTerminalRulerChange((value) =>
         updateSetting("showTerminalRuler", value === true),
       ),
+      api.onUseConduitAsEditorChange((value) =>
+        updateSetting("useConduitAsEditor", value === true),
+      ),
     ];
 
     return () => eventListeners.forEach((unsubscribe) => unsubscribe());

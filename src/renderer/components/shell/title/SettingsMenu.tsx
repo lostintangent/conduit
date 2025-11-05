@@ -27,7 +27,7 @@ type SettingsMenuProps = {
 };
 
 export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
-  const { alwaysShowTabs, showTerminalRuler, autoSaveWorkspaces } =
+  const { alwaysShowTabs, showTerminalRuler, autoSaveWorkspaces, useConduitAsEditor } =
     useAtomValue(userSettingsAtom);
 
   const keyboardShortcutsCmd = useCommand(
@@ -78,6 +78,15 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
           }
         >
           Auto-save workspaces
+        </DropdownMenuCheckboxItem>
+
+        <DropdownMenuCheckboxItem
+          checked={useConduitAsEditor}
+          onClick={() =>
+            onUpdateSettings({ useConduitAsEditor: !useConduitAsEditor })
+          }
+        >
+          Use Conduit as editor
         </DropdownMenuCheckboxItem>
 
         <DropdownMenuSeparator />

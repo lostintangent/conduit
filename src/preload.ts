@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
 import packageJson from "../package.json";
 import type {
+  CliOpenFileRequestPayload,
+  CliResponse,
+} from "./shared/cli";
+import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
   AgentSessionFinalizeRequest,
@@ -115,6 +119,17 @@ const conduitAPI = {
 
   onShowTerminalRulerChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-show-terminal-ruler", listener),
+
+  onUseConduitAsEditorChange: (listener: (value: boolean) => void) =>
+    createEventListener<boolean>("ui:set-use-conduit-editor", listener),
+
+  /* CLI integration */
+
+  onCliOpenFileRequest: (listener: (payload: CliOpenFileRequestPayload) => void) =>
+    createEventListener("cli:open-file", listener),
+
+  respondToCliRequest: (payload: CliResponse) =>
+    ipcRenderer.invoke("cli:respond", payload) as Promise<void>,
 
   /* UI-related methods (UI->main) */
 

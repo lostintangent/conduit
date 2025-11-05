@@ -5,6 +5,7 @@ export type UserSettings = {
   alwaysShowTabs: boolean;
   showTerminalRuler: boolean;
   autoSaveWorkspaces: boolean;
+  useConduitAsEditor: boolean;
   commandHistory: string[];
   urlHistory: string[];
   homeDirectory: string | null;
