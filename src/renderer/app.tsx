@@ -595,15 +595,9 @@ export function App() {
 
   const shouldUseDrawer = !alwaysShowTabs;
 
-  const titleBarBg = tabPosition === "top" ? "bg-surface-muted" : "bg-surface";
-
   return (
     <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
       <TitleBar
-        backgroundClass={titleBarBg}
-        alwaysShowTabs={alwaysShowTabs}
-        showTerminalRuler={showTerminalRuler}
-        autoSaveWorkspaces={autoSaveWorkspaces}
         onUpdateSettings={updateSettings}
       />
 
