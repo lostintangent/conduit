@@ -8,7 +8,10 @@ export type CliRequest = {
   command: CliCommand;
 };
 
-export type CliCommand = CliOpenFileCommand | CliGetPanesCommand;
+export type CliCommand =
+  | CliOpenFileCommand
+  | CliGetPanesCommand
+  | CliReadTerminalCommand;
 
 export type CliOpenFileCommand = {
   type: "open-file";
@@ -18,6 +21,11 @@ export type CliOpenFileCommand = {
 
 export type CliGetPanesCommand = {
   type: "get-panes";
+};
+
+export type CliReadTerminalCommand = {
+  type: "read-terminal";
+  sessionId: string;
 };
 
 /* Renderer -> IPC -> CLI */

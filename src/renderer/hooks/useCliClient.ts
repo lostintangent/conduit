@@ -1,3 +1,4 @@
+import { serializeSession } from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
@@ -75,6 +76,20 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               .map((pane) => ({ ...pane }));
 
             respondOk(panes);
+            break;
+          }
+
+          case "read-terminal": {
+            const serialized = serializeSession(command.sessionId);
+
+            if (serialized === null) {
+              respondError(
+                `Unable to read terminal buffer; session ${command.sessionId} is not active.`,
+              );
+              break;
+            }
+
+            respondOk(serialized);
             break;
           }
 

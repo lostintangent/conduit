@@ -2,12 +2,17 @@ import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import {
+  SerializeAddon,
+  type ISerializeOptions,
+} from "@xterm/addon-serialize";
 import { Terminal } from "@xterm/xterm";
 
 export type TerminalInstance = {
   terminal: Terminal;
   fit: FitAddon;
   search: SearchAddon;
+  serializer: SerializeAddon;
 
   ready: boolean;
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
@@ -48,6 +53,7 @@ export function getOrCreate(
 
     const fit = new FitAddon();
     const search = new SearchAddon();
+    const serializer = new SerializeAddon();
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
       current: options.onLinkClick,
     };
@@ -64,6 +70,7 @@ export function getOrCreate(
     terminal.loadAddon(fit);
     terminal.loadAddon(search);
     terminal.loadAddon(webLinksAddon);
+    terminal.loadAddon(serializer);
 
     const unsubData = api.onData(sessionId, (data: string) =>
       terminal.write(data),
@@ -96,7 +103,9 @@ export function getOrCreate(
         terminal.dispose();
         linkHandlerRef.current = null;
         newInstance.ready = false;
+        serializer.dispose();
       },
+      serializer,
     };
     store.set(sessionId, newInstance);
     instance = newInstance;
@@ -125,4 +134,19 @@ export function disposeSession(sessionId: string) {
 
   instance.dispose();
   store.delete(sessionId);
+}
+
+export function serializeSession(
+  sessionId: string,
+  options?: ISerializeOptions,
+): string | null {
+  const instance = store.get(sessionId);
+  if (!instance) return null;
+
+  try {
+    return instance.serializer.serialize(options);
+  } catch (error) {
+    console.error("Failed to serialize terminal session", error);
+    return null;
+  }
 }

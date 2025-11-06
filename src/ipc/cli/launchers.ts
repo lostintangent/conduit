@@ -2,21 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CLI_COMMAND_NAME } from "../../shared/cli";
 
-async function writeFileIfChanged(targetPath: string, contents: string, mode?: number) {
-  let existing: string | null = null;
-  try {
-    existing = await fs.readFile(targetPath, "utf8");
-  } catch (error) {
-    if (!(error instanceof Error && "code" in error && (error as { code?: string }).code === "ENOENT")) {
-      throw error;
-    }
-  }
-
-  if (existing !== contents) {
-    await fs.writeFile(targetPath, contents, { mode });
-  }
-}
-
 function buildUnixLauncher(electronBinary: string, bundlePath: string) {
   return `#!/bin/sh
 if [ -z "$CONDUIT_SOCKET_PATH" ]; then
@@ -26,8 +11,7 @@ fi
 ELECTRON_BIN=${JSON.stringify(electronBinary)}
 CLI_ENTRY=${JSON.stringify(bundlePath)}
 export ELECTRON_RUN_AS_NODE=1
-exec "$ELECTRON_BIN" "$CLI_ENTRY" "$@"
-`;
+exec "$ELECTRON_BIN" "$CLI_ENTRY" "$@"`;
 }
 
 function buildCmdLauncher(electronBinary: string, bundlePath: string) {
@@ -70,20 +54,24 @@ export async function ensureLauncherScripts(
   electronBinary: string,
   bundlePath: string,
 ) {
-  await writeFileIfChanged(
-    path.join(binDir, CLI_COMMAND_NAME),
-    buildUnixLauncher(electronBinary, bundlePath),
-    0o755,
-  );
+  const rootPath = path.join(binDir, CLI_COMMAND_NAME);
 
-  await writeFileIfChanged(
-    path.join(binDir, `${CLI_COMMAND_NAME}.cmd`),
-    buildCmdLauncher(electronBinary, bundlePath),
-  );
+  if (process.platform === "win32") {
+    await fs.writeFile(
+      `${rootPath}.cmd`,
+      buildCmdLauncher(electronBinary, bundlePath),
+    );
 
-  await writeFileIfChanged(
-    path.join(binDir, `${CLI_COMMAND_NAME}.ps1`),
-    buildPowerShellLauncher(electronBinary, bundlePath),
-  );
+    await fs.writeFile(
+      `${rootPath}.ps1`,
+      buildPowerShellLauncher(electronBinary, bundlePath),
+    );
+  } else {
+    await fs.writeFile(
+      rootPath,
+      buildUnixLauncher(electronBinary, bundlePath),
+      { mode: 0o755 },
+    );
+  }
 }
 
