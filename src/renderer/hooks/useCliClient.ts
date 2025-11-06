@@ -1,4 +1,7 @@
-import { serializeSession } from "@/components/panes/terminal/xtermCache";
+import {
+  inputToSession,
+  serializeSession,
+} from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
@@ -90,6 +93,20 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             }
 
             respondOk(serialized);
+            break;
+          }
+
+          case "write-terminal": {
+            const didWrite = inputToSession(command.sessionId, command.input);
+
+            if (!didWrite) {
+              respondError(
+                `Unable to write to terminal; session ${command.sessionId} is not active.`,
+              );
+              break;
+            }
+
+            respondOk();
             break;
           }
 

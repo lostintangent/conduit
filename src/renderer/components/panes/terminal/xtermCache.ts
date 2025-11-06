@@ -150,3 +150,11 @@ export function serializeSession(
     return null;
   }
 }
+
+export function inputToSession(sessionId: string, input: string): boolean {
+  const instance = store.get(sessionId);
+  if (!instance) return false;
+
+  instance.terminal.input(input);
+  return true;
+}
