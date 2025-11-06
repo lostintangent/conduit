@@ -25,7 +25,7 @@ export const TitleBar = ({
 
   return (
     <div
-      className={cn("h-[28px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium rounded-xl [app-region:drag]", backgroundClass)}
+      className={cn("h-[28px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium rounded-tl-xl rounded-tr-xl [app-region:drag]", backgroundClass)}
     >
       {/* Left area (Drag area) */}
       <div className="flex-1" />

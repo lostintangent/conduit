@@ -119,39 +119,49 @@ body {
   animation: pane-highlight 2s ease-out forwards;
 }
 
-/* Animated gradient border - rotates around the window */
-@keyframes gradient-spin {
+/* Gradient canvas technique - sliding horizontal gradient for synchronized borders */
+@keyframes slideGradient {
   0% {
-    background-position: 0% 0%;
-  }
-  25% {
-    background-position: 100% 0%;
+    background-position: 0% 0;
   }
   50% {
-    background-position: 100% 100%;
-  }
-  75% {
-    background-position: 0% 100%;
+    background-position: 400% 0;
   }
   100% {
-    background-position: 0% 0%;
+    background-position: 0% 0;
   }
 }
 
-.gradient-border-animated {
+.gradient-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
   background: linear-gradient(
-    45deg,
-    #4ade80,
-    #3b82f6,
-    #8b5cf6,
-    #d946ef,
-    #f43f5e,
-    #fb923c,
-    #fbbf24,
-    #4ade80
+    90deg,
+    #4ade80 0%,
+    #3b82f6 14.28%,
+    #8b5cf6 28.56%,
+    #d946ef 42.84%,
+    #f43f5e 57.12%,
+    #fb923c 71.4%,
+    #fbbf24 85.68%,
+    #4ade80 100%
   );
-  background-size: 400% 400%;
-  animation: gradient-spin 240s ease-in-out infinite;
+  background-size: 400% 100%;
+  animation: slideGradient 240s linear infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .gradient-canvas {
+    animation: none;
+    background-position: 0% 0;
+  }
 }
 
 /* Fan-out menu animation */

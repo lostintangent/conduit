@@ -519,11 +519,14 @@ export function TabLayout({
 
       const tabShowsBorder = shouldShowPaneBorder(tab, applicationMode);
 
+      // Use grid gap to create spaces that reveal the gradient canvas
+      const gridGapClass = isInFocusMode ? "gap-0" : "gap-[1px]";
+
       return (
         /* Render the split container (the grid which positions the child panes) */
         <div
           data-node-id={node.id}
-          className="grid flex-1 min-h-0 min-w-0 gap-0 overflow-hidden"
+          className={`grid flex-1 min-h-0 min-w-0 overflow-hidden ${gridGapClass}`}
           style={
             resizingNode === null
               ? { ...gridTemplate } // ...GRID_TEMPLATE_TRANSITION_STYLE } (Disabling this for now due to jank)
@@ -535,15 +538,14 @@ export function TabLayout({
               index !== 0 ? node.children[index - 1] : null;
             const isBeingResized = resizingNode === child.id;
 
-            const borderSideClass =
-              node.direction === "row" ? "border-l" : "border-t";
-            const borderColorClass = isInDesignMode
-              ? "border-blueprint border-dashed"
-              : "border-white/[0.12]";
-            // Don't show borders in focus mode
+            // In design mode, add dashed borders as visual indicators (overlaid on content)
+            // Grid gap handles the spacing that reveals the gradient canvas
+            const designModeBorderClass = isInDesignMode
+              ? `${node.direction === "row" ? "border-l" : "border-t"} border-blueprint border-dashed`
+              : "";
             const splitBorderClass =
-              index !== 0 && !isInFocusMode
-                ? `${borderSideClass} ${borderColorClass}`
+              index !== 0 && isInDesignMode
+                ? designModeBorderClass
                 : "";
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling

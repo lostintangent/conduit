@@ -1,3 +1,4 @@
+import { exitFocusMode } from "@/store/actions/focusMode";
 import {
   dismissNotification,
   enqueueNotification,
@@ -9,14 +10,12 @@ import {
   forwardPortAndOpen,
   splitPane,
 } from "@/store/actions/pane";
-import { exitFocusMode } from "@/store/actions/focusMode";
+import type { ApplicationMode } from "@/store/atoms";
 import {
   applicationModeAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
-import type { ApplicationMode } from "@/store/atoms";
-import { attach, getOrCreate } from "./xtermCache";
 import { extractPortFromMatch } from "@shared/portDetection";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, {
@@ -29,6 +28,7 @@ import React, {
 import { createFitController } from "./FitController";
 import { SandboxIndicator } from "./SandboxIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
+import { attach, getOrCreate } from "./xtermCache";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -412,7 +412,7 @@ export const TerminalPane = ({
 
   return (
     <div
-      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative"
+      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-surface"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
     >
