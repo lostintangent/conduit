@@ -18,12 +18,7 @@ export function registerWriteTerminalCommand(program: Command) {
         inputParts: string[],
         options: WriteTerminalOptions,
       ) => {
-        if (inputParts.length === 0) {
-          throw new Error("No input provided for write-terminal command.");
-        }
-
         let input = inputParts.join(" ");
-
         if (options.appendNewline && !input.endsWith("\n")) {
           input += "\n";
         }
