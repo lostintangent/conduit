@@ -43,7 +43,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(21);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(22);
 
       // View commands
       expect(
@@ -100,6 +100,9 @@ describe("applicationCommands", () => {
       // Terminal commands
       expect(
         registeredCommands.has(ApplicationCommands.TERMINAL_CREATE_CLOUD)
+      ).toBe(true);
+      expect(
+        registeredCommands.has(ApplicationCommands.TERMINAL_CONNECT_TO_VM)
       ).toBe(true);
       expect(
         registeredCommands.has(ApplicationCommands.TERMINAL_OPEN_IN_VSCODE)
@@ -324,6 +327,23 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleCreateVM).toHaveBeenCalled();
+      });
+    });
+
+    describe("TERMINAL_CONNECT_TO_VM", () => {
+      it("should call handleShowConnectToVMDialog handler", () => {
+        const command = registeredCommands.get(
+          ApplicationCommands.TERMINAL_CONNECT_TO_VM
+        )!;
+        const mockContext: CommandContext = {
+          setShowConnectToVMDialog: vi.fn(),
+        } as any;
+
+        command.run(mockContext);
+
+        expect(handlers.handleShowConnectToVMDialog).toHaveBeenCalledWith(
+          mockContext.setShowConnectToVMDialog
+        );
       });
     });
 
