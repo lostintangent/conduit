@@ -4,7 +4,6 @@ import { Cable } from "lucide-react";
 import { workspaceNameAtom } from "@/store/atoms";
 import type { UserSettings } from "@shared/types";
 
-import { cn } from "@/utils";
 import { SettingsMenu } from "./SettingsMenu";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 
@@ -23,7 +22,7 @@ export const TitleBar = ({
 
   return (
     <div
-      className="h-[28px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium rounded-tl-xl rounded-tr-xl bg-surface-muted mb-[1px] [app-region:drag]"
+      className="h-[30px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium rounded-tl-xl rounded-tr-xl bg-surface-muted mb-[1px] [app-region:drag]"
     >
       {/* Left area (Drag area) */}
       <div className="flex-1" />
@@ -41,7 +40,7 @@ export const TitleBar = ({
           <WorkspaceMenu />
 
           {/* Vertical divider */}
-          <div className="h-5 w-px bg-white/10 mt-[6px]" />
+          <div className="h-4.5 w-px bg-gray-700 mt-[3px]" />
 
           <SettingsMenu onUpdateSettings={onUpdateSettings} />
         </div>

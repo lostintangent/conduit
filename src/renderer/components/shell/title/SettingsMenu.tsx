@@ -43,7 +43,7 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
-              className="p-1 rounded text-white mt-1 hover:bg-white/10 transition-colors"
+              className="p-1 rounded text-white hover:bg-white/10 transition-colors"
               aria-label="Settings"
             >
               <Settings className="w-4 h-4" />
