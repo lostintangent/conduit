@@ -43,6 +43,8 @@ export type TerminalCreateResponse = TerminalPayload & {
   vmMetadata?: VMMetadata;
 };
 
+export type TerminalCaptureCommandResponse = string | null;
+
 /**
  * Cloud/VM terminal configuration options
  * Shared across pane actions, pre-commands, and terminal creation

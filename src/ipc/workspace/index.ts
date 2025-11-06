@@ -1,10 +1,9 @@
 import { app, ipcMain } from "electron";
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import type { Tab } from "../../renderer/types";
 import type { Workspace } from "../../shared/types";
+import { captureTerminalCommand } from "../terminal/command";
 import { getAllTerminals } from "../terminal/store";
 import type { TerminalInstance } from "../terminal/types";
 
@@ -52,207 +51,6 @@ async function saveSessionsFile(sessionsFile: SessionsFile): Promise<void> {
   );
 }
 
-const execFileAsync = promisify(execFile);
-
-type ProcessInfo = {
-  pid: number;
-  ppid: number;
-  stat: string;
-  command: string;
-};
-
-const SHELL_PROCESS_NAMES = new Set(
-  ["bash", "zsh", "fish", "sh", "ksh", "tcsh", "csh"].map((name) =>
-    name.toLowerCase(),
-  ),
-);
-
-const normalizeBinaryName = (command: string): string => {
-  if (!command) {
-    return "";
-  }
-
-  const firstToken = command.trim().split(/\s+/)[0] ?? "";
-  const baseName = path.basename(firstToken);
-  if (baseName.startsWith("-")) {
-    return baseName.slice(1).toLowerCase();
-  }
-  return baseName.toLowerCase();
-};
-
-const isShellProcess = (command: string): boolean => {
-  const normalized = normalizeBinaryName(command);
-  return normalized.length > 0 && SHELL_PROCESS_NAMES.has(normalized);
-};
-
-const parseProcessList = (output: string): ProcessInfo[] => {
-  return output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => {
-      const match = line.match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/);
-      if (!match) {
-        return null;
-      }
-
-      const pid = Number.parseInt(match[1] ?? "", 10);
-      const ppid = Number.parseInt(match[2] ?? "", 10);
-      const stat = match[3] ?? "";
-      const command = match[4] ?? "";
-
-      if (!Number.isInteger(pid) || !Number.isInteger(ppid) || !command) {
-        return null;
-      }
-
-      const entry: ProcessInfo = { pid, ppid, stat, command };
-      return entry;
-    })
-    .filter((entry): entry is ProcessInfo => entry !== null);
-};
-
-const getTtyForPid = async (pid: number): Promise<string | null> => {
-  try {
-    const { stdout } = await execFileAsync("ps", [
-      "-p",
-      String(pid),
-      "-o",
-      "tty=",
-    ]);
-    const tty = stdout.trim();
-    if (!tty || tty === "?" || tty.toLowerCase() === "??") {
-      return null;
-    }
-    return tty;
-  } catch (error) {
-    console.warn(`[Session Save] Failed to resolve TTY for pid ${pid}:`, error);
-    return null;
-  }
-};
-
-const getProcessesForTty = async (tty: string): Promise<ProcessInfo[]> => {
-  try {
-    const { stdout } = await execFileAsync("ps", [
-      "-t",
-      tty,
-      "-o",
-      "pid=,ppid=,stat=,command=",
-    ]);
-    return parseProcessList(stdout);
-  } catch (error) {
-    console.warn(
-      `[Session Save] Failed to list processes for TTY ${tty}:`,
-      error,
-    );
-    return [];
-  }
-};
-
-const pickActiveCommand = (
-  processes: ProcessInfo[],
-  shellPid: number,
-): string | null => {
-  if (processes.length === 0) {
-    return null;
-  }
-
-  const childMap = new Map<number, ProcessInfo[]>();
-  for (const entry of processes) {
-    if (!childMap.has(entry.ppid)) {
-      childMap.set(entry.ppid, []);
-    }
-    childMap.get(entry.ppid)!.push(entry);
-  }
-
-  const visited = new Set<number>([shellPid]);
-  const queue: number[] = [shellPid];
-  let fallback: string | null = null;
-
-  while (queue.length > 0) {
-    const currentPid = queue.shift()!;
-    const children = childMap.get(currentPid);
-    if (!children) {
-      continue;
-    }
-
-    for (const child of children) {
-      if (visited.has(child.pid)) {
-        continue;
-      }
-      visited.add(child.pid);
-      queue.push(child.pid);
-
-      const command = child.command.trim();
-      if (!command) {
-        continue;
-      }
-
-      const isZombie = child.stat.startsWith("Z");
-      if (isZombie) {
-        continue;
-      }
-
-      const isShell = isShellProcess(command);
-      if (!isShell) {
-        if (child.stat.includes("+")) {
-          return command;
-        }
-
-        if (fallback === null) {
-          fallback = command;
-        }
-      }
-    }
-  }
-
-  return fallback;
-};
-
-const detectActiveCommand = async (
-  session: TerminalInstance,
-): Promise<string | null> => {
-  if (process.platform === "win32") {
-    return null;
-  }
-
-  const shellPid = session.pty.pid;
-  if (!Number.isInteger(shellPid) || shellPid <= 0) {
-    return null;
-  }
-
-  const tty = await getTtyForPid(shellPid);
-  if (!tty) {
-    return null;
-  }
-
-  const processes = await getProcessesForTty(tty);
-  if (processes.length === 0) {
-    return null;
-  }
-
-  const command = pickActiveCommand(processes, shellPid);
-  return command ? command.trim() : null;
-};
-
-const commandFromProcessTitle = (
-  lastProcessName: string | undefined,
-): string | null => {
-  if (!lastProcessName) {
-    return null;
-  }
-
-  const trimmed = lastProcessName.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (isShellProcess(trimmed)) {
-    return null;
-  }
-
-  return trimmed;
-};
-
 type TabPane = Tab["panes"][string];
 type SerializedTab = Workspace["tabs"][number];
 type SerializedPane = SerializedTab["panes"][number];
@@ -271,14 +69,7 @@ const serializePane = async (
 
     let capturedCommand: string | null = null;
     if (terminalSession) {
-      const activeCommand = await detectActiveCommand(terminalSession);
-      if (activeCommand && activeCommand.length > 0) {
-        capturedCommand = activeCommand;
-      } else {
-        capturedCommand = commandFromProcessTitle(
-          terminalSession.lastProcessName,
-        );
-      }
+      capturedCommand = await captureTerminalCommand(terminalSession);
     }
 
     if (options.logTerminalActivity) {

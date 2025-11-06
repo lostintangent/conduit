@@ -339,6 +339,11 @@ export async function duplicateTab(
     paneIdMap.set(oldPaneId, newPaneId);
 
     if (sourcePane.type === "terminal") {
+      // Capture command from source terminal before creating new one
+      const capturedCommand = await api.captureTerminalCommand(
+        sourcePane.sessionId,
+      );
+
       // Create a new terminal session with the same cwd
       const result = await api.createTerminal(
         sourcePane.cwd ? { cwd: sourcePane.cwd } : undefined,
@@ -361,6 +366,14 @@ export async function duplicateTab(
         agentRepoRoot: sourcePane.agentRepoRoot,
         agentWorktreePath: sourcePane.agentWorktreePath,
       };
+
+      // Auto-execute the captured command in the new terminal
+      if (capturedCommand && capturedCommand.trim().length > 0) {
+        const commandWithNewline = capturedCommand.endsWith("\n")
+          ? capturedCommand
+          : `${capturedCommand}\n`;
+        api.sendKeypress(result.sessionId, commandWithNewline);
+      }
     } else if (sourcePane.type === "editor") {
       newPanes[newPaneId] = {
         id: newPaneId,
