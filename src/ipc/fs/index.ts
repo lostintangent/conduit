@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
 import { FSWatcher } from "node:fs";
 import { listDirectory, readFile } from "./utils";
 

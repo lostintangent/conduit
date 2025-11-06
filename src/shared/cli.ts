@@ -12,6 +12,7 @@ export type CliCommand =
   | CliOpenFileCommand
   | CliGetPanesCommand
   | CliReadTerminalCommand
+  | CliCaptureBrowserCommand;
   | CliWriteTerminalCommand;
 
 export type CliOpenFileCommand = {
@@ -28,6 +29,11 @@ export type CliReadTerminalCommand = {
   type: "read-terminal";
   sessionId: string;
 };
+
+export type CliCaptureBrowserCommand = {
+  type: "capture-browser";
+  paneId: string;
+}
 
 export type CliWriteTerminalCommand = {
   type: "write-terminal";

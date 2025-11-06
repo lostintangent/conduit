@@ -128,6 +128,11 @@ const conduitAPI = {
   respondToCliRequest: (payload: CliResponse) =>
     ipcRenderer.invoke("cli:respond", payload) as Promise<void>,
 
+  completeCaptureBrowserRequest: (payload: {
+    requestId: string;
+    webContentsId: number;
+  }) => ipcRenderer.invoke("cli:complete-capture-browser", payload) as Promise<void>,
+
   /* UI-related methods (UI->main) */
 
   getSettings: () =>

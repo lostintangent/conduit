@@ -1,5 +1,7 @@
-import { app, ipcMain } from "electron";
+import { app, ipcMain, webContents } from "electron";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { CLI_COMMAND_NAME, type CliResponse } from "../../shared/cli";
 import { ensureLauncherScripts } from "./launchers";
@@ -59,6 +61,13 @@ async function prepareCliEnvironment(
   };
 }
 
+function respondToCli(requestId: string, response: Omit<CliResponse, "requestId">) {
+  cliState.server.respond({
+    requestId,
+    ...response,
+  });
+}
+
 export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
   try {
     cliState = await prepareCliEnvironment(sendToRenderer);
@@ -69,6 +78,38 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
 
   ipcMain.handle("cli:respond", async (_, payload: CliResponse) =>
     cliState.server.respond(payload)
+  );
+
+  // See the note in useCliClient about why this is done in the main process.
+  ipcMain.handle(
+    "cli:complete-capture-browser",
+    async (
+      _,
+      { requestId, webContentsId }: {
+        requestId: string;
+        webContentsId: number;
+      },
+    ) => {
+      try {
+        const contents = webContents.fromId(webContentsId);
+
+        const image = await contents.capturePage();
+        const buffer = image.toPNG();
+
+        const filePath = path.join(tmpdir(), `capture-${randomUUID()}.png`);
+        await fs.writeFile(filePath, buffer);
+
+        respondToCli(requestId, {
+          status: "ok",
+          data: filePath,
+        });
+      } catch (error) {
+        respondToCli(requestId, {
+          status: "error",
+          message: "Failed to capture browser pane",
+        });
+      }
+    },
   );
 }
 

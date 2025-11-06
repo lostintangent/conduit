@@ -6,6 +6,7 @@ import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli";
+import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 
@@ -97,11 +98,27 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
+          case "capture-browser": {
+            const webview = document.getElementById(command.paneId) as WebviewTag;
+            const webContentsId = webview.getWebContentsId();
+
+            // Note that when trying to capture the page from the renderer, Chrome
+            // kept throwing exceptions that I couldn't figure out. So we're currently
+            // delegating this back to the main process to handle. This feels like a 
+            // total hack, but it works for now. And we'll eventually move from using
+            // <webviews> to WebContentsViews in the future anyways. So it seems OK for now.
+            await api.completeCaptureBrowserRequest({
+              requestId: payload.requestId,
+              webContentsId,
+            });
+            break;
+          }
+
           case "write-terminal": {
             const didWrite = inputToSession(command.sessionId, command.input);
 
             if (!didWrite) {
-              respondError(`Unable to write to terminal.`);
+              respondError("Unable to write to terminal.");
               break;
             }
 
