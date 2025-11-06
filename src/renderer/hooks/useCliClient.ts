@@ -4,6 +4,7 @@ import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli";
 import { useAtomValue } from "jotai";
+import type { NativeImage, WebviewTag } from "electron";
 import { useEffect, useRef } from "react";
 
 const api = window.conduit;
@@ -90,6 +91,37 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             }
 
             respondOk(serialized);
+            break;
+          }
+
+          case "capture-browser": {
+            const webview = document.getElementById(command.paneId) as
+              | (WebviewTag & { capturePage?: () => Promise<NativeImage> })
+              | null;
+
+            if (!webview) {
+              respondError(`Unable to find browser pane with id "${command.paneId}".`);
+              break;
+            }
+
+            if (typeof webview.capturePage !== "function") {
+              respondError(
+                `Pane "${command.paneId}" does not support capturePage().`,
+              );
+              break;
+            }
+
+            try {
+              const image = await webview.capturePage();
+              const pngBuffer = image.toPNG();
+              const filePath = await api.writeTempFile(pngBuffer, "png");
+              respondOk({ filePath });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : "Unknown capture error.";
+              respondError(`Failed to capture browser pane: ${message}`);
+            }
+
             break;
           }
 

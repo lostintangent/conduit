@@ -11,7 +11,8 @@ export type CliRequest = {
 export type CliCommand =
   | CliOpenFileCommand
   | CliGetPanesCommand
-  | CliReadTerminalCommand;
+  | CliReadTerminalCommand
+  | CliCaptureBrowserCommand;
 
 export type CliOpenFileCommand = {
   type: "open-file";
@@ -26,6 +27,11 @@ export type CliGetPanesCommand = {
 export type CliReadTerminalCommand = {
   type: "read-terminal";
   sessionId: string;
+};
+
+export type CliCaptureBrowserCommand = {
+  type: "capture-browser";
+  paneId: string;
 };
 
 /* Renderer -> IPC -> CLI */
