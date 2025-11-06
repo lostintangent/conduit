@@ -1,4 +1,7 @@
-import { serializeSession } from "@/components/panes/terminal/xtermCache";
+import {
+  inputToSession,
+  serializeSession,
+} from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
@@ -23,21 +26,22 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
   useEffect(() => {
     const handleCliRequest = async (payload: CliRequest) => {
-      const respond = (response: Omit<CliResponse, "requestId">) => api.respondToCliRequest({
-        requestId: payload.requestId,
-        ...response,
-      });
+      const respond = (response: Omit<CliResponse, "requestId">) =>
+        api.respondToCliRequest({
+          requestId: payload.requestId,
+          ...response,
+        });
 
       const respondOk = (data?: any) => respond({ status: "ok", data });
-      const respondError = (message: string) => respond({ status: "error", message });
+      const respondError = (message: string) =>
+        respond({ status: "error", message });
 
       try {
         const { command } = payload;
         switch (command.type) {
-
           case "open-file": {
             const isCommitMessageRequest = command.filePath?.endsWith(
-              COMMIT_EDITMSG_FILENAME,
+              COMMIT_EDITMSG_FILENAME
             );
 
             const descriptor: QuickPaneDescriptor = {
@@ -64,14 +68,14 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             const matchingTab = currentTabs.find((tab) =>
               Object.values(tab.panes).some(
                 (pane) =>
-                  pane.type === "terminal" && pane.sessionId === sessionId,
-              ),
+                  pane.type === "terminal" && pane.sessionId === sessionId
+              )
             );
 
             const panes = Object.values(matchingTab.panes)
               .filter(
                 (pane) =>
-                  !(pane.type === "terminal" && pane.sessionId === sessionId),
+                  !(pane.type === "terminal" && pane.sessionId === sessionId)
               )
               .map((pane) => ({ ...pane }));
 
@@ -84,12 +88,24 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
             if (serialized === null) {
               respondError(
-                `Unable to read terminal buffer; session ${command.sessionId} is not active.`,
+                `Unable to read terminal buffer; session ${command.sessionId} is not active.`
               );
               break;
             }
 
             respondOk(serialized);
+            break;
+          }
+
+          case "write-terminal": {
+            const didWrite = inputToSession(command.sessionId, command.input);
+
+            if (!didWrite) {
+              respondError(`Unable to write to terminal.`);
+              break;
+            }
+
+            respondOk();
             break;
           }
 

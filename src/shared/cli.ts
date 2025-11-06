@@ -11,7 +11,8 @@ export type CliRequest = {
 export type CliCommand =
   | CliOpenFileCommand
   | CliGetPanesCommand
-  | CliReadTerminalCommand;
+  | CliReadTerminalCommand
+  | CliWriteTerminalCommand;
 
 export type CliOpenFileCommand = {
   type: "open-file";
@@ -26,6 +27,12 @@ export type CliGetPanesCommand = {
 export type CliReadTerminalCommand = {
   type: "read-terminal";
   sessionId: string;
+};
+
+export type CliWriteTerminalCommand = {
+  type: "write-terminal";
+  sessionId: string;
+  input: string;
 };
 
 /* Renderer -> IPC -> CLI */
