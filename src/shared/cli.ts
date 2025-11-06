@@ -12,7 +12,7 @@ export type CliCommand =
   | CliOpenFileCommand
   | CliGetPanesCommand
   | CliReadTerminalCommand
-  | CliCaptureBrowserCommand;
+  | CliCaptureBrowserCommand
   | CliWriteTerminalCommand;
 
 export type CliOpenFileCommand = {
@@ -21,8 +21,11 @@ export type CliOpenFileCommand = {
   cwd: string;
 };
 
+export const PANE_TYPES = ["editor", "browser", "terminal", "all"] as const;
+export type PaneType = (typeof PANE_TYPES)[number];
 export type CliGetPanesCommand = {
-  type: "get-panes";
+  type: "list-panes";
+  paneType: PaneType;
 };
 
 export type CliReadTerminalCommand = {

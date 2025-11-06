@@ -62,10 +62,9 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "get-panes": {
+          case "list-panes": {
             const sessionId = payload.sessionId;
             const currentTabs = tabsRef.current;
-
             const matchingTab = currentTabs.find((tab) =>
               Object.values(tab.panes).some(
                 (pane) =>
@@ -74,10 +73,24 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             );
 
             const panes = Object.values(matchingTab.panes)
+              // Filter out the calling terminal pane
               .filter(
                 (pane) =>
                   !(pane.type === "terminal" && pane.sessionId === sessionId)
               )
+              // Filter the panes by the requested type
+              .filter((pane) => {
+                if (command.paneType === "all") {
+                  return true;
+                }
+
+                // TODO: Remove this once we rename "webview" panes to "browser".
+                if (command.paneType === "browser") {
+                  return pane.type === "webview";
+                }
+
+                return pane.type === command.paneType;
+              })
               .map((pane) => ({ ...pane }));
 
             respondOk(panes);
