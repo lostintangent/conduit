@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import packageJson from "../package.json";
+import type { CliRequest, CliResponse } from "./shared/cli";
 import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
@@ -29,7 +30,7 @@ import type {
 
 function createEventListener<T>(
   channel: string,
-  listener: (payload: T) => void,
+  listener: (payload: T) => void
 ) {
   const handler = (_: Electron.IpcRendererEvent, payload: T) =>
     listener(payload);
@@ -47,7 +48,7 @@ const conduitAPI = {
   createTerminal: (options?: TerminalCreateOptions) =>
     ipcRenderer.invoke(
       "terminal:create",
-      options,
+      options
     ) as Promise<TerminalCreateResponse | null>,
 
   closeTerminal: (sessionId: string) =>
@@ -99,7 +100,7 @@ const conduitAPI = {
       action: string;
       tabId: string;
       paneId?: string;
-    }) => void,
+    }) => void
   ) => createEventListener("ui:context-menu-action", listener),
 
   // Notify when the app is about to close
@@ -115,6 +116,17 @@ const conduitAPI = {
 
   onShowTerminalRulerChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-show-terminal-ruler", listener),
+
+  onUseConduitAsEditorChange: (listener: (value: boolean) => void) =>
+    createEventListener<boolean>("ui:set-use-conduit-editor", listener),
+
+  /* CLI integration */
+
+  onCliRequest: (listener: (payload: CliRequest) => void) =>
+    createEventListener("cli:request", listener),
+
+  respondToCliRequest: (payload: CliResponse) =>
+    ipcRenderer.invoke("cli:respond", payload) as Promise<void>,
 
   /* UI-related methods (UI->main) */
 
@@ -163,7 +175,7 @@ const conduitAPI = {
       "session:save-session",
       name,
       tabs,
-      activeTabId,
+      activeTabId
     ) as Promise<unknown[]>,
 
   deleteSession: (timestamp: number) =>
@@ -184,7 +196,7 @@ const conduitAPI = {
     ipcRenderer.invoke(
       "session:save-last-workspace",
       tabs,
-      activeTabId,
+      activeTabId
     ) as Promise<void>,
 
   /* Agent session management */
@@ -192,7 +204,7 @@ const conduitAPI = {
   spawnAgentSession: (payload: AgentSessionSpawnRequest) =>
     ipcRenderer.invoke(
       "agent:spawn-session",
-      payload,
+      payload
     ) as Promise<AgentSessionInfo>,
 
   listAgentSessions: () =>
@@ -202,10 +214,14 @@ const conduitAPI = {
     ipcRenderer.invoke("agent:has-git-repo", cwd) as Promise<boolean>,
 
   getCurrentBranch: (cwd: string) =>
-    ipcRenderer.invoke("agent:get-current-branch", cwd) as Promise<string | null>,
+    ipcRenderer.invoke("agent:get-current-branch", cwd) as Promise<
+      string | null
+    >,
 
   getRemoteOriginUrl: (cwd: string) =>
-    ipcRenderer.invoke("agent:get-remote-origin-url", cwd) as Promise<string | null>,
+    ipcRenderer.invoke("agent:get-remote-origin-url", cwd) as Promise<
+      string | null
+    >,
 
   getGitHubRepoInfo: (cwd: string) =>
     ipcRenderer.invoke("agent:get-github-repo-info", cwd) as Promise<{
@@ -217,13 +233,13 @@ const conduitAPI = {
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",
-      payload,
+      payload
     ) as Promise<AgentSessionFinalizeResult>,
 
   cleanupAgentSession: (payload: AgentSessionCleanupRequest) =>
     ipcRenderer.invoke(
       "agent:cleanup-session",
-      payload,
+      payload
     ) as Promise<AgentSessionCleanupResult>,
 
   /* File system methods (UI->main) */

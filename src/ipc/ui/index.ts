@@ -9,6 +9,7 @@ import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
 import { loadSettings, saveSettings } from "./settings";
 
 let userSettings: UserSettings | null = null;
+let refreshMenuCallback: (() => Promise<void>) | null = null;
 
 const requireUserSettings = (): UserSettings => {
   if (!userSettings) {
@@ -16,6 +17,10 @@ const requireUserSettings = (): UserSettings => {
   }
   return userSettings;
 };
+
+export function getCurrentUserSettings(): UserSettings {
+  return requireUserSettings();
+}
 
 /**
  * Loads the user's settings and then initializes
@@ -26,6 +31,8 @@ export async function initializeUserSettings(window: BrowserWindow) {
 
   const refreshMenu = async () =>
     updateApplicationMenu(window, requireUserSettings(), saveSettings);
+
+  refreshMenuCallback = refreshMenu;
   await refreshMenu();
 
   return {
@@ -49,6 +56,9 @@ export function initializeUIHandlers(window: BrowserWindow) {
       };
 
       await saveSettings(userSettings);
+      if (refreshMenuCallback) {
+        await refreshMenuCallback();
+      }
       return requireUserSettings();
     },
   );

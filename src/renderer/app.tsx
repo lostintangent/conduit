@@ -12,6 +12,7 @@ import { PaneActionsEditor } from "@/components/shell/paneActions";
 import {
   QuickDialog,
   type PaneDescriptor,
+  type QuickPaneDescriptor,
 } from "@/components/shell/QuickDialog";
 import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
@@ -20,6 +21,7 @@ import { TitleBar } from "@/components/shell/title/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
+import { useCliClient } from "@/hooks/useCliClient";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -84,9 +86,8 @@ export function App() {
     tabId: string;
     initialValue: string;
   } | null>(null);
-  const [quickPaneState, setQuickPaneState] = useState<PaneDescriptor | null>(
-    null
-  );
+  const [quickPaneState, setQuickPaneState] =
+    useState<QuickPaneDescriptor | null>(null);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
@@ -116,6 +117,9 @@ export function App() {
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
 
+  useCliClient({
+    onOpenFile: setQuickPaneState,
+  });
 
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
@@ -566,6 +570,8 @@ export function App() {
       if (!current) {
         return current;
       }
+
+      current.onClose?.();
 
       if (current.type === "terminal") {
         const api = window.conduit;

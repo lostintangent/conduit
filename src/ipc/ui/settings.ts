@@ -12,6 +12,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   urlHistory: [],
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
+  useConduitAsEditor: true,
 };
 
 export async function loadSettings(): Promise<UserSettings> {

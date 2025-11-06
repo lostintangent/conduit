@@ -10,6 +10,7 @@ export const userSettingsAtom = atom<UserSettings>({
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
   useGradientBorders: true,
+  useConduitAsEditor: true,
   commandHistory: [],
   urlHistory: [],
   homeDirectory: null,

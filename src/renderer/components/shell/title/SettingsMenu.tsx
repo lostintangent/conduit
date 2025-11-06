@@ -27,7 +27,7 @@ type SettingsMenuProps = {
 };
 
 export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
-  const { alwaysShowTabs, showTerminalRuler, autoSaveWorkspaces, useGradientBorders } =
+  const { alwaysShowTabs, showTerminalRuler, autoSaveWorkspaces, useGradientBorders, useConduitAsEditor } =
     useAtomValue(userSettingsAtom);
 
   const keyboardShortcutsCmd = useCommand(
@@ -87,6 +87,15 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
           }
         >
           Use gradient borders
+        </DropdownMenuCheckboxItem>
+
+        <DropdownMenuCheckboxItem
+          checked={useConduitAsEditor}
+          onClick={() =>
+            onUpdateSettings({ useConduitAsEditor: !useConduitAsEditor })
+          }
+        >
+          Use Conduit as editor
         </DropdownMenuCheckboxItem>
 
         <DropdownMenuSeparator />

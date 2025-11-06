@@ -128,6 +128,22 @@ export async function updateApplicationMenu(
             await updateApplicationMenu(window, settings, saveSettings);
           },
         },
+        {
+          label: "Use Conduit as Editor",
+          type: "checkbox",
+          checked: settings.useConduitAsEditor,
+          click: async () => {
+            settings.useConduitAsEditor = !settings.useConduitAsEditor;
+            await saveSettings(settings);
+
+            window.webContents.send(
+              "ui:set-use-conduit-editor",
+              settings.useConduitAsEditor,
+            );
+
+            await updateApplicationMenu(window, settings, saveSettings);
+          },
+        },
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },
