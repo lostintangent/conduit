@@ -324,6 +324,37 @@ export const TerminalPane = ({
     }
   }, [vmId, currentTab, paneId]);
 
+  const handleShareVM = useCallback(async () => {
+    if (!vmId) {
+      return;
+    }
+
+    try {
+      // Create a shareable message with instructions
+      const shareMessage = `Connect to my cloud terminal in Conduit:\n\nVM ID: ${vmId}\n\nTo connect, use the command palette (Cmd+Shift+P) and select "Connect to Existing VM", then paste this VM ID.`;
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareMessage);
+      
+      enqueueNotification({
+        kind: "success",
+        message: "VM connection info copied to clipboard",
+        details: `VM ID: ${vmId}`,
+        autoCloseMs: 5000,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to copy connection info to clipboard",
+        details: errorMessage,
+        autoCloseMs: 5000,
+      });
+      console.error("Failed to copy VM connection info", error);
+    }
+  }, [vmId]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -440,6 +471,7 @@ export const TerminalPane = ({
         agentSessionId={agentSessionId}
         onCompleteAgentSession={handleCompleteAgentSession}
         onDeleteAgentSession={handleDeleteAgentSession}
+        onShareVM={vmId ? handleShareVM : undefined}
         onForkVM={vmId ? handleForkVM : undefined}
       />
     </div>

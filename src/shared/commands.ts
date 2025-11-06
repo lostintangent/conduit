@@ -31,6 +31,7 @@ export const ApplicationCommands = {
 
   // Terminal commands
   TERMINAL_CREATE_CLOUD: "terminal.createCloud",
+  TERMINAL_CONNECT_TO_VM: "terminal.connectToVM",
   TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
 
   // Agent session commands

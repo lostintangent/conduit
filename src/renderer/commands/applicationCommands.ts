@@ -32,6 +32,7 @@ import {
   handleResetLayout,
   handleSaveWorkspace,
   handleShowCommandPalette,
+  handleShowConnectToVMDialog,
   handleTerminate,
   handleToggleDesignMode,
 } from "@/commands/handlers";
@@ -300,6 +301,17 @@ export function registerApplicationCommands(
     when: hasActivePane.isTrue(),
     run: () => {
       void handleCreateVM();
+    },
+  });
+
+  // Terminal: Connect to existing VM
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TERMINAL_CONNECT_TO_VM,
+    title: "Connect to Existing VM",
+    description: "Connect to an existing cloud VM terminal",
+    category: "Terminal",
+    run: (context) => {
+      handleShowConnectToVMDialog(context.setShowConnectToVMDialog);
     },
   });
 

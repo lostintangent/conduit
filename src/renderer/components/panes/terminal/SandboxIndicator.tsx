@@ -1,7 +1,7 @@
 import { applicationModeAtom } from "@/store/atoms";
 import { getHashedColor } from "@/utils/theme";
 import { useAtomValue } from "jotai";
-import { Check, Cloud, GitFork, Trash2 } from "lucide-react";
+import { Check, Cloud, GitFork, Share2, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
 type SandboxIndicatorProps = {
@@ -10,6 +10,7 @@ type SandboxIndicatorProps = {
   onCompleteAgentSession?: () => void;
   onDeleteAgentSession?: () => void;
   onForkVM?: () => void;
+  onShareVM?: () => void;
 };
 
 export function SandboxIndicator({
@@ -18,6 +19,7 @@ export function SandboxIndicator({
   onCompleteAgentSession,
   onDeleteAgentSession,
   onForkVM,
+  onShareVM,
 }: SandboxIndicatorProps) {
   const applicationMode = useAtomValue(applicationModeAtom);
   const isSandboxVisibleMode =
@@ -67,6 +69,16 @@ export function SandboxIndicator({
           title={vmTitle}
         >
           <Cloud size={16} aria-hidden="true" />
+          {onShareVM && (
+            <button
+              type="button"
+              onClick={onShareVM}
+              title="Share VM (copy link to clipboard)"
+              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+            >
+              <Share2 size={14} />
+            </button>
+          )}
           {onForkVM && (
             <button
               type="button"

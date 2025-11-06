@@ -53,6 +53,61 @@ export async function handleCreateVM(): Promise<void> {
 }
 
 /**
+ * Connect to an existing VM terminal
+ * 
+ * @param vmId - The VM ID to connect to
+ */
+export async function handleConnectToVM(vmId: string): Promise<void> {
+  const notificationId = enqueueNotification({
+    kind: "info",
+    message: `Connecting to VM ${vmId}...`,
+    persistent: true,
+  });
+
+  try {
+    const result = await window.conduit.createTerminal({
+      existingVMId: vmId,
+    });
+
+    if (!result) {
+      throw new Error("Failed to connect to VM terminal");
+    }
+
+    updateNotification(notificationId, {
+      kind: "success",
+      message: "Connected to VM successfully",
+      autoCloseMs: 2500,
+    });
+
+    openTabFromExistingSession({
+      sessionId: result.sessionId,
+      cwd: result.cwd,
+      title: result.title,
+      vmMetadata: result.vmMetadata ?? undefined,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    updateNotification(notificationId, {
+      kind: "error",
+      message: "Failed to connect to VM terminal",
+      details: message,
+      autoCloseMs: null,
+    });
+  }
+}
+
+/**
+ * Show the Connect to VM dialog
+ * 
+ * @param setShowConnectToVMDialog - Function to show the dialog
+ */
+export function handleShowConnectToVMDialog(
+  setShowConnectToVMDialog: (show: boolean) => void
+): void {
+  setShowConnectToVMDialog(true);
+}
+
+/**
  * Open the current working directory in VS Code
  *
  * @param activeTab - The active tab containing panes

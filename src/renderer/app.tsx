@@ -7,6 +7,7 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { ConnectToVMDialog } from "@/components/shell/ConnectToVMDialog";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import { PaneActionsEditor } from "@/components/shell/paneActions";
 import {
@@ -116,6 +117,7 @@ export function App() {
 
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
+  const [showConnectToVMDialog, setShowConnectToVMDialog] = useState(false);
 
   useCliClient({
     onOpenFile: setQuickPaneState,
@@ -142,6 +144,7 @@ export function App() {
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
+    setShowConnectToVMDialog,
   });
 
   // Initialize pane actions system
@@ -769,6 +772,11 @@ export function App() {
         isOpen={isVMRepoDialogOpen}
         onClose={() => setIsVMRepoDialogOpen(false)}
         onSubmit={handleVMRepoSubmit}
+      />
+
+      <ConnectToVMDialog
+        isOpen={showConnectToVMDialog}
+        onClose={() => setShowConnectToVMDialog(false)}
       />
 
       {showKeybindingsEditor && commandSystem && homeDirectory ? (
