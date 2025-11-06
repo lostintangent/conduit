@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import {
+  handleConnectToVM,
   handleCreateVM,
   handleOpenInVSCode,
+  handleShowConnectToVMDialog,
 } from "@/commands/handlers/terminalHandlers";
 import * as notifications from "@/store/actions/notifications";
 import * as tabActions from "@/store/actions/tab";
@@ -149,6 +151,99 @@ describe("terminalHandlers", () => {
         title: "VM Terminal",
         vmMetadata: undefined,
       });
+    });
+  });
+
+  describe("handleConnectToVM", () => {
+    it("should connect to existing VM and show success notification", async () => {
+      const vmId = "vm-123abc";
+      const mockResult = {
+        sessionId: "session-789",
+        cwd: "/home/user",
+        title: "VM Terminal",
+        vmMetadata: { vmId: "vm-123abc", host: "vm-host" },
+      };
+
+      mockApi.createTerminal.mockResolvedValue(mockResult);
+      vi.mocked(notifications.enqueueNotification).mockReturnValue("notif-10");
+
+      await handleConnectToVM(vmId);
+
+      // Should show "Connecting to VM..." notification
+      expect(notifications.enqueueNotification).toHaveBeenCalledWith({
+        kind: "info",
+        message: "Connecting to VM vm-123abc...",
+        persistent: true,
+      });
+
+      // Should create terminal with existing VM ID
+      expect(mockApi.createTerminal).toHaveBeenCalledWith({
+        existingVMId: "vm-123abc",
+      });
+
+      // Should update notification to success
+      expect(notifications.updateNotification).toHaveBeenCalledWith("notif-10", {
+        kind: "success",
+        message: "Connected to VM successfully",
+        autoCloseMs: 2500,
+      });
+
+      // Should open tab with the session
+      expect(tabActions.openTabFromExistingSession).toHaveBeenCalledWith({
+        sessionId: "session-789",
+        cwd: "/home/user",
+        title: "VM Terminal",
+        vmMetadata: { vmId: "vm-123abc", host: "vm-host" },
+      });
+    });
+
+    it("should handle VM connection failure", async () => {
+      const vmId = "vm-nonexistent";
+      mockApi.createTerminal.mockResolvedValue(null);
+      vi.mocked(notifications.enqueueNotification).mockReturnValue("notif-11");
+
+      await handleConnectToVM(vmId);
+
+      // Should show error notification
+      expect(notifications.updateNotification).toHaveBeenCalledWith("notif-11", {
+        kind: "error",
+        message: "Failed to connect to VM terminal",
+        details: "Failed to connect to VM terminal",
+        autoCloseMs: null,
+      });
+
+      // Should not open tab
+      expect(tabActions.openTabFromExistingSession).not.toHaveBeenCalled();
+    });
+
+    it("should handle connection error exception", async () => {
+      const vmId = "vm-error";
+      const error = new Error("VM not found");
+      mockApi.createTerminal.mockRejectedValue(error);
+      vi.mocked(notifications.enqueueNotification).mockReturnValue("notif-12");
+
+      await handleConnectToVM(vmId);
+
+      // Should show error notification with error message
+      expect(notifications.updateNotification).toHaveBeenCalledWith("notif-12", {
+        kind: "error",
+        message: "Failed to connect to VM terminal",
+        details: "VM not found",
+        autoCloseMs: null,
+      });
+
+      // Should not open tab
+      expect(tabActions.openTabFromExistingSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("handleShowConnectToVMDialog", () => {
+    it("should call setShowConnectToVMDialog with true", () => {
+      const mockSetter = vi.fn();
+      
+      handleShowConnectToVMDialog(mockSetter);
+      
+      expect(mockSetter).toHaveBeenCalledWith(true);
     });
   });
 
