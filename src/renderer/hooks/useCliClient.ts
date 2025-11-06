@@ -4,7 +4,7 @@ import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli";
 import { useAtomValue } from "jotai";
-import type { NativeImage, WebviewTag } from "electron";
+import type { WebviewTag } from "electron";
 import { useEffect, useRef } from "react";
 
 const api = window.conduit;
@@ -96,7 +96,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "capture-browser": {
             const webview = document.getElementById(command.paneId) as
-              | (WebviewTag & { capturePage?: () => Promise<NativeImage> })
+              | (WebviewTag & { getWebContentsId?: () => number })
               | null;
 
             if (!webview) {
@@ -104,23 +104,27 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               break;
             }
 
-            if (typeof webview.capturePage !== "function") {
+            const getWebContentsId = webview.getWebContentsId;
+            if (typeof getWebContentsId !== "function") {
               respondError(
-                `Pane "${command.paneId}" does not support capturePage().`,
+                `Pane "${command.paneId}" does not support getWebContentsId().`,
               );
               break;
             }
 
-            try {
-              const image = await webview.capturePage();
-              const pngBuffer = image.toPNG();
-              const filePath = await api.writeTempFile(pngBuffer, "png");
-              respondOk({ filePath });
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : "Unknown capture error.";
-              respondError(`Failed to capture browser pane: ${message}`);
+            const webContentsId = getWebContentsId.call(webview);
+            if (typeof webContentsId !== "number") {
+              respondError(
+                `Pane "${command.paneId}" returned an invalid webContentsId.`,
+              );
+              break;
             }
+
+            await api.captureBrowserPane({
+              requestId: payload.requestId,
+              paneId: command.paneId,
+              webContentsId,
+            });
 
             break;
           }

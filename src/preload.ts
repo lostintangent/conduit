@@ -128,6 +128,12 @@ const conduitAPI = {
   respondToCliRequest: (payload: CliResponse) =>
     ipcRenderer.invoke("cli:respond", payload) as Promise<void>,
 
+  captureBrowserPane: (payload: {
+    requestId: string;
+    paneId: string;
+    webContentsId: number;
+  }) => ipcRenderer.invoke("cli:capture-browser", payload) as Promise<void>,
+
   /* UI-related methods (UI->main) */
 
   getSettings: () =>
@@ -255,62 +261,6 @@ const conduitAPI = {
 
   deleteFile: (filePath: string) =>
     ipcRenderer.invoke("fs:delete-file", filePath) as Promise<void>,
-
-  writeTempFile: (data: Uint8Array, extension?: string) => {
-    const requestId = `write-temp-${Date.now()}-${Math.random()
-      .toString(16)
-      .slice(2)}`;
-
-    const view = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-
-    const payload = {
-      requestId,
-      data: view,
-      extension,
-    };
-
-    return new Promise<string>((resolve, reject) => {
-      const handleResponse = (
-        _: Electron.IpcRendererEvent,
-        response: {
-          requestId: string;
-          status: "ok" | "error";
-          filePath?: string;
-          message?: string;
-        },
-      ) => {
-        if (response.requestId !== requestId) {
-          return;
-        }
-
-        ipcRenderer.removeListener("fs:write-temp-file:response", handleResponse);
-
-        if (response.status === "ok" && response.filePath) {
-          resolve(response.filePath);
-        } else {
-          reject(new Error(response.message ?? "Failed to write temp file."));
-        }
-      };
-
-      ipcRenderer.on("fs:write-temp-file:response", handleResponse);
-      try {
-        // `postMessage` accepts a transferable list, but Electron's types only
-        // account for MessagePorts. Cast to satisfy the compiler while still
-        // transferring the ArrayBuffer to avoid copying.
-        const postMessageWithTransfer =
-          ipcRenderer.postMessage as unknown as (
-            channel: string,
-            message: unknown,
-            transfer?: ArrayBuffer[],
-          ) => void;
-
-        postMessageWithTransfer("fs:write-temp-file", payload, [view.buffer]);
-      } catch (error) {
-        ipcRenderer.removeListener("fs:write-temp-file:response", handleResponse);
-        reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    });
-  },
 
   watchFile: (filePath: string, onChange: () => void) => {
     const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;

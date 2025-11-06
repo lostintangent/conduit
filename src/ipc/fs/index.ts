@@ -1,8 +1,5 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { randomUUID } from "node:crypto";
-import { FSWatcher, promises as fsPromises } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { FSWatcher } from "node:fs";
 import { listDirectory, readFile } from "./utils";
 
 // Store active file watchers
@@ -58,77 +55,6 @@ export function initializeFsHandlers() {
       throw error;
     }
   });
-
-  ipcMain.on(
-    "fs:write-temp-file",
-    async (
-      event,
-      payload: {
-        requestId: string;
-        data: Uint8Array | ArrayBuffer;
-        extension?: string;
-      },
-    ) => {
-      const respond = (response: {
-        requestId: string;
-        status: "ok" | "error";
-        filePath?: string;
-        message?: string;
-      }) => {
-        event.reply("fs:write-temp-file:response", response);
-      };
-
-      if (!payload || typeof payload.requestId !== "string") {
-        respond({
-          requestId: payload?.requestId ?? "",
-          status: "error",
-          message: "Invalid write temp file payload.",
-        });
-        return;
-      }
-
-      const { requestId } = payload;
-
-      try {
-        const { data, extension = "" } = payload;
-
-        if (!data) {
-          throw new Error("Missing data buffer.");
-        }
-
-        const view =
-          data instanceof Uint8Array
-            ? data
-            : new Uint8Array(data);
-
-        const buffer = Buffer.from(
-          view.buffer,
-          view.byteOffset,
-          view.byteLength,
-        );
-
-        const normalizedExtension = extension
-          ? extension.startsWith(".")
-            ? extension
-            : `.${extension}`
-          : "";
-
-        const fileName = `conduit-${randomUUID()}${normalizedExtension}`;
-        const filePath = path.join(tmpdir(), fileName);
-
-        await fsPromises.writeFile(filePath, buffer);
-        respond({ requestId, status: "ok", filePath });
-      } catch (error) {
-        console.error("Failed to write temp file", error);
-        respond({
-          requestId,
-          status: "error",
-          message:
-            error instanceof Error ? error.message : "Unknown temp file error.",
-        });
-      }
-    },
-  );
 
   ipcMain.handle(
     "fs:watch-file",
