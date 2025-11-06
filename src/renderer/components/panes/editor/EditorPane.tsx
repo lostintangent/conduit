@@ -420,7 +420,7 @@ export function EditorPane({
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 flex-col bg-surface">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted mb-[1px] text-[13px] text-white/70">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted text-[13px] text-white/70 border-b border-white/10">
         <div className="flex items-center gap-2 truncate">
           {hasUnsavedChanges && (
             <div

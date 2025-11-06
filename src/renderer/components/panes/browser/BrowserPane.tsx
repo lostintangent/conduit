@@ -363,7 +363,7 @@ export function BrowserPane({
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-surface">
       {/* URL Bar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted mb-[1px]">
+      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
         <button
           type="button"
           onClick={() => webviewRef.current?.goBack()}
