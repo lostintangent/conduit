@@ -30,7 +30,9 @@ async function removeStaleSocket(socketPath: string) {
 
   try {
     await fs.unlink(socketPath);
-  } catch { }
+  } catch {
+    // Ignore errors if socket file doesn't exist
+  }
 }
 
 async function prepareCliEnvironment(
@@ -91,7 +93,9 @@ export async function shutdownCliServer() {
   if (socketPath && process.platform !== "win32") {
     try {
       await fs.unlink(socketPath);
-    } catch { }
+    } catch {
+      // Ignore errors if socket file doesn't exist
+    }
   }
 
   cliState = null;

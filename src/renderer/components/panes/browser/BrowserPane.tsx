@@ -361,9 +361,9 @@ export function BrowserPane({
   );
 
   return (
-    <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0">
+    <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-surface">
       {/* URL Bar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
+      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted mb-[1px]">
         <button
           type="button"
           onClick={() => webviewRef.current?.goBack()}
@@ -439,7 +439,7 @@ export function BrowserPane({
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">
         <div
           ref={webviewAnchorRef}
-          className="absolute inset-0 bg-white/[0.02] pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           aria-hidden
         />
         {isLoading && (

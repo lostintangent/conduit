@@ -540,16 +540,17 @@ export const TabStrip = ({
     [onOpenQuickPane],
   );
 
-  const borderClass = alwaysShowTabs
+  // Use margins to create gaps that reveal the overlay underneath
+  const marginClass = alwaysShowTabs
     ? position === "top"
-      ? "border-b"
-      : "border-t rounded-b-xl"
+      ? "mb-[1px]"
+      : "mt-[1px] rounded-b-xl"
     : "";
 
   return (
     <>
       <div
-        className={`flex items-center gap-2 px-2 bg-surface-muted ${borderClass} border-border w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
+        className={`flex items-center gap-2 px-2 bg-surface-muted ${marginClass} w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
         style={tabStripTransitionStyle}
       >
         {/* Tab buttons */}
