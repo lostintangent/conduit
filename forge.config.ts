@@ -48,7 +48,7 @@ const config: ForgeConfig = {
           target: "preload",
         },
         {
-          entry: "src/cli/conduit.ts",
+          entry: "src/cli/index.ts",
           config: "build/vite.cli.config.ts",
           target: "main",
         },

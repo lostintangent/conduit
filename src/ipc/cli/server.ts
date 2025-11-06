@@ -1,17 +1,7 @@
 import net from "node:net";
-import type {
-  CliCommand,
-  CliOpenFileRequestPayload,
-  CliRequest,
-  CliResponse,
-} from "../../shared/cli";
+import type { CliRequest, CliResponse } from "../../shared/cli";
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;
-
-type PendingRequest = {
-  socket: net.Socket;
-  timeout: NodeJS.Timeout | null;
-};
 
 export type CliServer = {
   socketPath: string;
@@ -19,7 +9,7 @@ export type CliServer = {
   shutdown: (reason?: string) => Promise<void>;
 };
 
-function respondWithSocket(socket: net.Socket, response: Omit<CliResponse, "requestId">) {
+function respondWithSocket(socket: net.Socket, response: Partial<CliResponse>) {
   try {
     socket.write(`${JSON.stringify(response)}\n`);
   } catch (error) {
@@ -32,66 +22,32 @@ function respondWithSocket(socket: net.Socket, response: Omit<CliResponse, "requ
 export async function createCliServer(
   socketPath: string,
   sendToRenderer: SendToRendererFn,
-  timeoutMs = 15_000,
 ): Promise<CliServer> {
-  const pendingRequests = new Map<string, PendingRequest>();
+  const pendingRequests = new Map<string, net.Socket>();
 
   function respondToCli(response: CliResponse) {
     const { requestId } = response;
-    const pending = pendingRequests.get(requestId);
-    if (!pending) {
-      return;
-    }
+    const socket = pendingRequests.get(requestId);
+    if (!socket) return;
 
-    if (pending.timeout) {
-      clearTimeout(pending.timeout);
-    }
-
-    respondWithSocket(pending.socket, response);
+    respondWithSocket(socket, response);
     pendingRequests.delete(requestId);
   }
 
   function handleCliRequest(request: CliRequest, socket: net.Socket) {
-    if (request.command.type !== "open-file") {
-      respondWithSocket(socket, {
-        status: "error",
-        message: `Unsupported CLI command: ${(request.command as CliCommand).type}`,
-      });
-      return;
-    }
-
-    const payload: CliOpenFileRequestPayload = {
-      requestId: request.requestId,
-      filePath: request.command.filePath,
-      cwd: request.command.cwd,
-    };
-
-    const timeout = setTimeout(() => {
-      respondToCli({
-        requestId: request.requestId,
-        status: "error",
-        message: "Timed out waiting for Conduit UI to handle request.",
-      });
-    }, timeoutMs);
-
-    pendingRequests.set(request.requestId, { socket, timeout });
+    pendingRequests.set(request.requestId, socket);
 
     socket.once("close", () => {
-      const pending = pendingRequests.get(request.requestId);
-      if (pending && pending.socket === socket) {
-        if (pending.timeout) {
-          clearTimeout(pending.timeout);
-        }
+      if (pendingRequests.get(request.requestId) === socket) {
         pendingRequests.delete(request.requestId);
       }
     });
 
-    sendToRenderer("cli:open-file", payload);
+    sendToRenderer("cli:request", request);
   }
 
   const server = net.createServer((socket) => {
     let buffer = "";
-
     socket.on("data", (chunk: Buffer) => {
       buffer += chunk.toString("utf8");
       const messages = buffer.split("\n");
@@ -127,10 +83,7 @@ export async function createCliServer(
 
   async function shutdown(reason?: string) {
     for (const [requestId, pending] of pendingRequests) {
-      if (pending.timeout) {
-        clearTimeout(pending.timeout);
-      }
-      respondWithSocket(pending.socket, {
+      respondWithSocket(pending, {
         status: "error",
         message: reason ?? "Conduit is shutting down.",
       });

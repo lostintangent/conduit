@@ -46,7 +46,7 @@ const describeProcess = (session: TerminalInstance) => {
 
 export async function createTerminal(
   sendToRenderer: SendToRendererFn,
-  options?: CreateTerminalOptions,
+  options?: CreateTerminalOptions
 ) {
   const id = randomUUID();
 
@@ -55,7 +55,7 @@ export async function createTerminal(
     console.log(
       options?.existingVMId
         ? `[VM] Connecting to existing VM ${options.existingVMId}`
-        : "[VM] Creating remote VM terminal session",
+        : "[VM] Creating remote VM terminal session"
     );
 
     try {
@@ -77,10 +77,10 @@ export async function createTerminal(
           idle_timeout: options.vmIdleTimeout,
           github_repo: options.githubRepo
             ? {
-                owner: options.githubRepo.owner,
-                name: options.githubRepo.name,
-                branch_or_hash: options.githubRepo.branch,
-              }
+              owner: options.githubRepo.owner,
+              name: options.githubRepo.name,
+              branch_or_hash: options.githubRepo.branch,
+            }
             : undefined,
         });
         console.log("[VM] VM created, setting up SSH access...");
@@ -99,19 +99,19 @@ export async function createTerminal(
           useSSHKey = await setupSSHKeyInVM(
             vm.id,
             config.managerUrl,
-            config.token,
+            config.token
           );
 
           if (useSSHKey) {
             console.log("[SSH] SSH key authentication enabled");
           } else {
             console.log(
-              "[SSH] Failed to setup SSH key, will use password authentication",
+              "[SSH] Failed to setup SSH key, will use password authentication"
             );
           }
         } else {
           console.log(
-            "[SSH] No SSH keys found in keys/ folder, will use password authentication",
+            "[SSH] No SSH keys found in keys/ folder, will use password authentication"
           );
         }
       } else {
@@ -119,7 +119,7 @@ export async function createTerminal(
         const keysAvailable = await hasSSHKeys();
         useSSHKey = keysAvailable;
         console.log(
-          `[SSH] Connecting to existing VM, SSH key auth: ${useSSHKey}`,
+          `[SSH] Connecting to existing VM, SSH key auth: ${useSSHKey}`
         );
       }
 
@@ -128,7 +128,7 @@ export async function createTerminal(
 
       // Spawn a regular local shell
       const homeDirectory = process.env.HOME ?? process.cwd();
-      const pty = spawnTerminalProcess(homeDirectory);
+      const pty = spawnTerminalProcess(id, homeDirectory);
 
       const session: TerminalInstance = {
         id,
@@ -165,7 +165,7 @@ export async function createTerminal(
 
   // Regular local session
   const cwd = options?.cwd ?? path.resolve(process.env.HOME ?? process.cwd());
-  const pty = spawnTerminalProcess(cwd);
+  const pty = spawnTerminalProcess(id, cwd);
 
   const terminal: TerminalInstance = {
     id,
@@ -188,7 +188,7 @@ export async function createTerminal(
 
 function setupTerminalListeners(
   terminal: TerminalInstance,
-  sendToRenderer: SendToRendererFn,
+  sendToRenderer: SendToRendererFn
 ) {
   const { id, pty } = terminal;
 
@@ -232,24 +232,24 @@ function setupTerminalListeners(
     // Clean up VM if this was a VM session
     if (terminal.cloudEnvironment) {
       console.log(
-        `[VM] Terminal exited, cleaning up VM ${terminal.cloudEnvironment.vmId}`,
+        `[VM] Terminal exited, cleaning up VM ${terminal.cloudEnvironment.vmId}`
       );
       try {
         const { deleteVM } = await import("../../vm/client");
         await deleteVM(terminal.cloudEnvironment.vmId);
         console.log(
-          `[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`,
+          `[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`
         );
       } catch (error) {
         // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
         if (error instanceof Error && error.message.includes("404")) {
           console.log(
-            `[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`,
+            `[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`
           );
         } else {
           console.error(
             `[VM] Failed to delete VM ${terminal.cloudEnvironment.vmId}:`,
-            error,
+            error
           );
         }
       }
@@ -295,24 +295,24 @@ export async function killTerminal(terminalId: string) {
   // Clean up VM if this is a VM session
   if (terminal.cloudEnvironment) {
     console.log(
-      `[VM] Closing session, deleting VM ${terminal.cloudEnvironment.vmId}`,
+      `[VM] Closing session, deleting VM ${terminal.cloudEnvironment.vmId}`
     );
     try {
       const { deleteVM } = await import("../../vm/client");
       await deleteVM(terminal.cloudEnvironment.vmId);
       console.log(
-        `[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`,
+        `[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`
       );
     } catch (error) {
       // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
       if (error instanceof Error && error.message.includes("404")) {
         console.log(
-          `[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`,
+          `[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`
         );
       } else {
         console.error(
           `[VM] Failed to delete VM ${terminal.cloudEnvironment.vmId}:`,
-          error,
+          error
         );
       }
     }
@@ -330,7 +330,7 @@ export async function killTerminal(terminalId: string) {
 
 export function markTerminalReady(
   terminalId: string,
-  sendToRenderer: SendToRendererFn,
+  sendToRenderer: SendToRendererFn
 ) {
   const terminal = getTerminal(terminalId);
   if (!terminal) return;
@@ -339,7 +339,7 @@ export function markTerminalReady(
 
   if (terminal.bufferedOutput.length > 0) {
     terminal.bufferedOutput.forEach((data) =>
-      sendToRenderer("terminal:data", { sessionId: terminal.id, data }),
+      sendToRenderer("terminal:data", { sessionId: terminal.id, data })
     );
 
     terminal.bufferedOutput = [];
@@ -354,13 +354,13 @@ export function markTerminalReady(
       const keyPath = getPrivateKeyPath();
       sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
       console.log(
-        `[VM] Terminal ready, sending SSH command with key: ${sshCommand.trim()}`,
+        `[VM] Terminal ready, sending SSH command with key: ${sshCommand.trim()}`
       );
     } else {
       // Use password authentication
       sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
       console.log(
-        `[VM] Terminal ready, sending SSH command: ${sshCommand.trim()}`,
+        `[VM] Terminal ready, sending SSH command: ${sshCommand.trim()}`
       );
     }
 

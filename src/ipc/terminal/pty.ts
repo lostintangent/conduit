@@ -11,10 +11,10 @@ export const resolveShell = () => {
   return process.env.SHELL ?? "bash";
 };
 
-export function spawnTerminalProcess(cwd?: string) {
+export function spawnTerminalProcess(sessionId: string, cwd?: string) {
   const shell = resolveShell();
   const homeDirectory = process.env.HOME ?? process.cwd();
-  const env = buildTerminalEnv();
+  const env = buildTerminalEnv(sessionId);
 
   return spawn(shell, [], {
     name: "xterm-color",
@@ -25,7 +25,7 @@ export function spawnTerminalProcess(cwd?: string) {
   });
 }
 
-function buildTerminalEnv(): NodeJS.ProcessEnv {
+function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };
   const cliBinDir = getCliBinDirectory();
 
@@ -49,6 +49,7 @@ function buildTerminalEnv(): NodeJS.ProcessEnv {
   if (socketPath) {
     env.CONDUIT_SOCKET_PATH = socketPath;
   }
+  env.CONDUIT_SESSION_ID = sessionId;
 
   return env;
 }

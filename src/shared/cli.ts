@@ -1,18 +1,14 @@
-export const CLI_DIRECTORY_NAME = "cli";
-export const CLI_BUNDLE_FILENAME = "conduit.js";
 export const CLI_COMMAND_NAME = "conduit";
 
-type Request = {
-  requestId: string;
-};
-
-/* CLI -> IPC */
+/* CLI -> IPC -> Renderer */
 
 export type CliRequest = {
+  sessionId: string;
+  requestId: string;
   command: CliCommand;
-} & Request;
+};
 
-export type CliCommand = CliOpenFileCommand;
+export type CliCommand = CliOpenFileCommand | CliGetPanesCommand;
 
 export type CliOpenFileCommand = {
   type: "open-file";
@@ -20,16 +16,15 @@ export type CliOpenFileCommand = {
   cwd: string;
 };
 
-/* IPC -> Renderer */
-
-export type CliOpenFileRequestPayload = {
-  filePath: string | null;
-  cwd: string;
-} & Request;
+export type CliGetPanesCommand = {
+  type: "get-panes";
+};
 
 /* Renderer -> IPC -> CLI */
 
 export type CliResponse = {
+  requestId: string;
   status: "ok" | "error";
   message?: string;
-} & Request;
+  data?: any;
+};

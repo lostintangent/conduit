@@ -1,12 +1,7 @@
 import { app, ipcMain } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import {
-  CLI_BUNDLE_FILENAME,
-  CLI_COMMAND_NAME,
-  CLI_DIRECTORY_NAME,
-  type CliResponse,
-} from "../../shared/cli";
+import { CLI_COMMAND_NAME, type CliResponse } from "../../shared/cli";
 import { ensureLauncherScripts } from "./launchers";
 import {
   createCliServer,
@@ -35,26 +30,18 @@ async function removeStaleSocket(socketPath: string) {
 
   try {
     await fs.unlink(socketPath);
-  } catch (error) {
-    console.warn(`Failed to remove stale CLI socket at ${socketPath}`, error);
-  }
+  } catch { }
 }
 
 async function prepareCliEnvironment(
   sendToRenderer: SendToRendererFn
 ): Promise<CliState> {
-  const baseDir = path.join(app.getPath("userData"), CLI_DIRECTORY_NAME);
+  const baseDir = path.join(app.getPath("userData"), "cli");
   const binDir = path.join(baseDir, "bin");
   await fs.mkdir(binDir, { recursive: true });
 
   const electronBinary = process.execPath;
-  const bundlePath = path.join(
-    app.getAppPath(),
-    ".vite",
-    "build",
-    "cli",
-    CLI_BUNDLE_FILENAME
-  );
+  const bundlePath = path.join(app.getAppPath(), ".vite", "build", "cli.js");
 
   await ensureLauncherScripts(binDir, electronBinary, bundlePath);
 
@@ -62,6 +49,7 @@ async function prepareCliEnvironment(
   await removeStaleSocket(socketPath);
 
   const server = await createCliServer(socketPath, sendToRenderer);
+
   return {
     binDir,
     socketPath,
@@ -74,16 +62,12 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
     cliState = await prepareCliEnvironment(sendToRenderer);
   } catch (error) {
     console.warn("Failed to initialize Conduit CLI support.", error);
-
-    cliState = null;
     return;
   }
 
-  ipcMain.handle("cli:respond", async (_, payload: CliResponse) => {
-    if (!cliState) return;
-
-    cliState.server.respond(payload);
-  });
+  ipcMain.handle("cli:respond", async (_, payload: CliResponse) =>
+    cliState.server.respond(payload)
+  );
 }
 
 export function getCliBinDirectory() {
@@ -107,9 +91,7 @@ export async function shutdownCliServer() {
   if (socketPath && process.platform !== "win32") {
     try {
       await fs.unlink(socketPath);
-    } catch (error) {
-      console.warn(`Failed to cleanup CLI socket ${socketPath}`, error);
-    }
+    } catch { }
   }
 
   cliState = null;
