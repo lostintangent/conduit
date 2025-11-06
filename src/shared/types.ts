@@ -5,6 +5,7 @@ export type UserSettings = {
   alwaysShowTabs: boolean;
   showTerminalRuler: boolean;
   autoSaveWorkspaces: boolean;
+  useGradientBorders: boolean;
   commandHistory: string[];
   urlHistory: string[];
   homeDirectory: string | null;

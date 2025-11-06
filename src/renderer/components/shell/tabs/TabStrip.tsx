@@ -540,7 +540,7 @@ export const TabStrip = ({
     [onOpenQuickPane],
   );
 
-  // Use margins to create gaps that reveal the gradient canvas
+  // Use margins to create gaps that reveal the overlay underneath
   const marginClass = alwaysShowTabs
     ? position === "top"
       ? "mb-[1px]"

@@ -519,7 +519,7 @@ export function TabLayout({
 
       const tabShowsBorder = shouldShowPaneBorder(tab, applicationMode);
 
-      // Use grid gap to create spaces that reveal the gradient canvas
+      // Use grid gap to create spaces that reveal the overlay underneath
       const gridGapClass = isInFocusMode ? "gap-0" : "gap-[1px]";
 
       return (
@@ -539,7 +539,7 @@ export function TabLayout({
             const isBeingResized = resizingNode === child.id;
 
             // In design mode, add dashed borders as visual indicators (overlaid on content)
-            // Grid gap handles the spacing that reveals the gradient canvas
+            // Grid gap handles the spacing that reveals the overlay underneath
             const designModeBorderClass = isInDesignMode
               ? `${node.direction === "row" ? "border-l" : "border-t"} border-blueprint border-dashed`
               : "";
