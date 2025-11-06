@@ -59,11 +59,53 @@ export function initializeFsHandlers() {
     }
   });
 
-  ipcMain.handle(
+  ipcMain.on(
     "fs:write-temp-file",
-    async (_, data: Uint8Array, extension = "") => {
+    async (
+      event,
+      payload: {
+        requestId: string;
+        data: Uint8Array | ArrayBuffer;
+        extension?: string;
+      },
+    ) => {
+      const respond = (response: {
+        requestId: string;
+        status: "ok" | "error";
+        filePath?: string;
+        message?: string;
+      }) => {
+        event.reply("fs:write-temp-file:response", response);
+      };
+
+      if (!payload || typeof payload.requestId !== "string") {
+        respond({
+          requestId: payload?.requestId ?? "",
+          status: "error",
+          message: "Invalid write temp file payload.",
+        });
+        return;
+      }
+
+      const { requestId } = payload;
+
       try {
-        const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+        const { data, extension = "" } = payload;
+
+        if (!data) {
+          throw new Error("Missing data buffer.");
+        }
+
+        const view =
+          data instanceof Uint8Array
+            ? data
+            : new Uint8Array(data);
+
+        const buffer = Buffer.from(
+          view.buffer,
+          view.byteOffset,
+          view.byteLength,
+        );
 
         const normalizedExtension = extension
           ? extension.startsWith(".")
@@ -75,10 +117,15 @@ export function initializeFsHandlers() {
         const filePath = path.join(tmpdir(), fileName);
 
         await fsPromises.writeFile(filePath, buffer);
-        return filePath;
+        respond({ requestId, status: "ok", filePath });
       } catch (error) {
         console.error("Failed to write temp file", error);
-        throw error;
+        respond({
+          requestId,
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "Unknown temp file error.",
+        });
       }
     },
   );
