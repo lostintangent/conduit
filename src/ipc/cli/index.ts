@@ -1,8 +1,8 @@
 import { app, ipcMain, webContents } from "electron";
-import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import path from "node:path";
+import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
+import path from "node:path";
 import { CLI_COMMAND_NAME, type CliResponse } from "../../shared/cli";
 import { ensureLauncherScripts } from "./launchers";
 import {
@@ -61,16 +61,7 @@ async function prepareCliEnvironment(
   };
 }
 
-async function writeCaptureToTempFile(buffer: Buffer) {
-  const fileName = `conduit-${randomUUID()}.png`;
-  const filePath = path.join(tmpdir(), fileName);
-  await fs.writeFile(filePath, buffer);
-  return filePath;
-}
-
 function respondToCli(requestId: string, response: Omit<CliResponse, "requestId">) {
-  if (!cliState) return;
-
   cliState.server.respond({
     requestId,
     ...response,
@@ -89,61 +80,33 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
     cliState.server.respond(payload)
   );
 
+  // See the note in useCliClient about why this is done in the main process.
   ipcMain.handle(
-    "cli:capture-browser",
+    "cli:complete-capture-browser",
     async (
       _,
-      payload: {
+      { requestId, webContentsId }: {
         requestId: string;
-        paneId: string;
         webContentsId: number;
       },
     ) => {
-      if (!cliState) {
-        return;
-      }
-
-      const requestId = payload?.requestId;
-      if (typeof requestId !== "string" || !requestId) {
-        return;
-      }
-
-      const paneId = payload?.paneId;
-      const { webContentsId } = payload ?? {};
-
-      if (typeof webContentsId !== "number") {
-        respondToCli(requestId, {
-          status: "error",
-          message: "Renderer did not provide a valid webContentsId for capture.",
-        });
-        return;
-      }
-
       try {
         const contents = webContents.fromId(webContentsId);
 
-        if (!contents) {
-          throw new Error(
-            paneId
-              ? `Unable to locate webContents for pane "${paneId}".`
-              : "Unable to locate webContents for requested pane.",
-          );
-        }
-
         const image = await contents.capturePage();
         const buffer = image.toPNG();
-        const filePath = await writeCaptureToTempFile(buffer);
+
+        const filePath = path.join(tmpdir(), `capture-${randomUUID()}.png`);
+        await fs.writeFile(filePath, buffer);
 
         respondToCli(requestId, {
           status: "ok",
-          data: { filePath },
+          data: filePath,
         });
       } catch (error) {
         respondToCli(requestId, {
           status: "error",
-          message: `Failed to capture browser pane: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          message: "Failed to capture browser pane",
         });
       }
     },

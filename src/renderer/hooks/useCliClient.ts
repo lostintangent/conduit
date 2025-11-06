@@ -3,8 +3,8 @@ import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli";
-import { useAtomValue } from "jotai";
 import type { WebviewTag } from "electron";
+import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 
 const api = window.conduit;
@@ -95,34 +95,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "capture-browser": {
-            const webview = document.getElementById(command.paneId) as
-              | (WebviewTag & { getWebContentsId?: () => number })
-              | null;
+            const webview = document.getElementById(command.paneId) as WebviewTag;
+            const webContentsId = webview.getWebContentsId();
 
-            if (!webview) {
-              respondError(`Unable to find browser pane with id "${command.paneId}".`);
-              break;
-            }
-
-            const getWebContentsId = webview.getWebContentsId;
-            if (typeof getWebContentsId !== "function") {
-              respondError(
-                `Pane "${command.paneId}" does not support getWebContentsId().`,
-              );
-              break;
-            }
-
-            const webContentsId = getWebContentsId.call(webview);
-            if (typeof webContentsId !== "number") {
-              respondError(
-                `Pane "${command.paneId}" returned an invalid webContentsId.`,
-              );
-              break;
-            }
-
-            await api.captureBrowserPane({
+            // Note that when trying to capture the page from the renderer, Chrome
+            // kept throwing exceptions that I couldn't figure out. So we're currently
+            // delegating this back to the main process to handle. This feels like a 
+            // total hack, but it works for now. And we'll eventually move from using
+            // <webviews> to WebContentsViews in the future anyways. So it seems OK for now.
+            await api.completeCaptureBrowserRequest({
               requestId: payload.requestId,
-              paneId: command.paneId,
               webContentsId,
             });
 

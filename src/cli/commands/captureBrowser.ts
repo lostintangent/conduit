@@ -5,18 +5,13 @@ export function registerCaptureBrowserCommand(program: Command) {
   program
     .command("capture-browser")
     .argument("<paneId>", "The browser pane to capture")
-    .description("Capture a browser pane to a temporary PNG file")
+    .description("Capture a screenshot of a specific browser pane")
     .action(async (paneId: string) => {
-      const { data } = await sendCommand({
+      const { data: filePath } = await sendCommand({
         type: "capture-browser",
         paneId,
       });
 
-      const filePath = data?.filePath;
-      if (typeof filePath !== "string") {
-        throw new Error("Renderer did not return a capture file path.");
-      }
-
-      process.stdout.write(`${filePath}\n`);
+      process.stdout.write(`Screenshot saved to: ${filePath}\n`);
     });
 }
