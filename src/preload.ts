@@ -98,15 +98,6 @@ const conduitAPI = {
   onOpenWorkspaceRequest: (listener: (workspace: unknown) => void) =>
     createEventListener("ui:open-workspace-request", listener),
 
-  // Notify when the user clicks a context menu action (deprecated - use onContextMenuCommand)
-  onContextMenuAction: (
-    listener: (payload: {
-      action: string;
-      tabId: string;
-      paneId?: string;
-    }) => void
-  ) => createEventListener("ui:context-menu-action", listener),
-
   // Notify when the user clicks a context menu command
   onContextMenuCommand: (
     listener: (payload: {
