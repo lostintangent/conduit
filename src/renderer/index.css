@@ -89,8 +89,8 @@
   --color-foreground-inverse: #fafafa;
   --color-selection: #b3d4fc;
   --color-accent: #3b82f6;
-  --color-accent-start: #3f8cff;
-  --color-accent-end: #9358ff;
+  --color-accent-start: #4f46e5;
+  --color-accent-end: #6366f1;
   --color-secondary-start: #10b981;
   --color-secondary-end: #06b6d4;
   --color-focus-ring: rgba(59, 130, 246, 0.5);
@@ -225,7 +225,9 @@ body {
 
 /* Theme-aware utility overrides for light mode */
 :root[data-theme="light"] {
-  /* Override common text colors */
+  /* ========== TEXT COLORS ========== */
+
+  /* Standard text colors - convert white to dark */
   .text-white {
     color: var(--color-foreground);
   }
@@ -254,57 +256,7 @@ body {
     color: rgb(23 23 23 / 0.4);
   }
 
-  /* Override background opacity utilities */
-  .bg-white\/10 {
-    background-color: rgb(0 0 0 / 0.08);
-  }
-
-  .bg-white\/5 {
-    background-color: rgb(0 0 0 / 0.04);
-  }
-
-  .bg-white\/20 {
-    background-color: rgb(0 0 0 / 0.15);
-  }
-
-  /* Override border opacity utilities */
-  .border-white\/10 {
-    border-color: rgb(0 0 0 / 0.1);
-  }
-
-  .border-white\/20 {
-    border-color: rgb(0 0 0 / 0.15);
-  }
-
-  .border-white\/30 {
-    border-color: rgb(0 0 0 / 0.2);
-  }
-
-  .border-white\/40 {
-    border-color: rgb(0 0 0 / 0.25);
-  }
-
-  /* Gray colors for light mode */
-  .bg-gray-700 {
-    background-color: #f3f3f3;
-  }
-
-  .bg-gray-800 {
-    background-color: #e8e8e8;
-  }
-
-  .bg-gray-800\/50 {
-    background-color: rgb(232 232 232 / 0.5);
-  }
-
-  .bg-gray-800\/30 {
-    background-color: rgb(232 232 232 / 0.3);
-  }
-
-  .bg-gray-900 {
-    background-color: #fafafa;
-  }
-
+  /* Gray text colors */
   .text-gray-300 {
     color: #525252;
   }
@@ -321,6 +273,78 @@ body {
     color: #d4d4d4;
   }
 
+  /* Placeholder colors */
+  .placeholder-white\/40::placeholder {
+    color: rgb(23 23 23 / 0.4);
+  }
+
+  .placeholder-gray-500::placeholder {
+    color: #a3a3a3;
+  }
+
+  /* ========== BACKGROUND COLORS ========== */
+
+  /* White opacity backgrounds */
+  .bg-white\/5 {
+    background-color: rgb(0 0 0 / 0.04);
+  }
+
+  .bg-white\/10 {
+    background-color: rgb(0 0 0 / 0.08);
+  }
+
+  .bg-white\/20 {
+    background-color: rgb(0 0 0 / 0.15);
+  }
+
+  /* Gray backgrounds */
+  .bg-gray-700 {
+    background-color: #f3f3f3;
+  }
+
+  .bg-gray-800 {
+    background-color: #e8e8e8;
+  }
+
+  .bg-gray-800\/30 {
+    background-color: rgb(232 232 232 / 0.3);
+  }
+
+  .bg-gray-800\/50 {
+    background-color: rgb(232 232 232 / 0.5);
+  }
+
+  .bg-gray-900 {
+    background-color: #fafafa;
+  }
+
+  /* Notification backgrounds - darker for better visibility */
+  .bg-emerald-500\/20 {
+    background-color: rgb(16 185 129 / 0.4);
+  }
+
+  .bg-red-500\/15 {
+    background-color: rgb(239 68 68 / 0.3);
+  }
+
+  /* ========== BORDER COLORS ========== */
+
+  .border-white\/10 {
+    border-color: rgb(0 0 0 / 0.1);
+  }
+
+  .border-white\/20 {
+    border-color: rgb(0 0 0 / 0.15);
+  }
+
+  .border-white\/30 {
+    border-color: rgb(0 0 0 / 0.2);
+  }
+
+  .border-white\/40 {
+    border-color: rgb(0 0 0 / 0.25);
+  }
+
   .border-gray-700 {
     border-color: #e5e5e5;
   }
@@ -329,7 +353,8 @@ body {
     border-color: #d4d4d4;
   }
 
-  /* Hover states */
+  /* ========== HOVER STATES ========== */
+
   .hover\:bg-white\/10:hover {
     background-color: rgb(0 0 0 / 0.08);
   }
@@ -350,12 +375,40 @@ body {
     background-color: rgb(232 232 232 / 0.5);
   }
 
-  /* Placeholder colors */
-  .placeholder-white\/40::placeholder {
-    color: rgb(23 23 23 / 0.4);
+  .hover\:bg-accent\/10:hover {
+    background-color: rgb(59 130 246 / 0.1);
   }
 
-  .placeholder-gray-500::placeholder {
-    color: #a3a3a3;
+  /* ========== COMPONENT-SPECIFIC OVERRIDES ========== */
+
+  /* Dropdown menu items */
+  [role="menuitem"],
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"] {
+    color: var(--color-foreground) !important;
+  }
+
+  /* Gradient backgrounds - keep text white for readability */
+  .bg-gradient-to-br .text-white,
+  .bg-gradient-to-br .text-white\/90,
+  .bg-gradient-to-br .text-white\/80,
+  .bg-gradient-to-br .text-white\/70,
+  .bg-gradient-to-br .text-white\/60,
+  .bg-gradient-to-br .text-white\/50,
+  .bg-gradient-to-br .text-white\/40,
+  [class*="bg-gradient"] .text-white,
+  [class*="bg-gradient"] .text-white\/90,
+  [class*="bg-gradient"] .text-white\/80,
+  [class*="bg-gradient"] .text-white\/70,
+  [class*="bg-gradient"] .text-white\/60,
+  [class*="bg-gradient"] .text-white\/50,
+  [class*="bg-gradient"] .text-white\/40 {
+    color: white !important;
+  }
+
+  /* Tab buttons and gradient elements - ensure white text */
+  button[class*="bg-gradient"] *,
+  [role="tab"][class*="bg-gradient"] * {
+    color: white !important;
   }
 }
