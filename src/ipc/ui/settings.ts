@@ -12,7 +12,9 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   urlHistory: [],
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
+  useGradientBorders: true,
   useConduitAsEditor: true,
+  theme: "dark",
 };
 
 export async function loadSettings(): Promise<UserSettings> {

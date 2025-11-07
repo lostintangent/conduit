@@ -4,7 +4,10 @@ import { usePaneActionsSystem } from "@/commands/paneActions";
 import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
-import { disposeSession } from "@/components/panes/terminal/xtermCache";
+import {
+  disposeSession,
+  updateTerminalThemes,
+} from "@/components/panes/terminal/xtermCache";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
@@ -46,6 +49,7 @@ import {
   keybindingsAtom,
   tabsAtom,
 } from "@/store/atoms";
+import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -66,10 +70,28 @@ export function App() {
     autoSaveWorkspaces,
     commandHistory,
     homeDirectory,
+    theme,
+    themeOverrides,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
   } = useUserSettings();
+
+  // Apply theme on mount and when it changes
+  useEffect(() => {
+    applyTheme(theme, themeOverrides);
+    // Update terminal colors for all active terminals
+    updateTerminalThemes();
+  }, [theme, themeOverrides]);
+
+  // Watch for system theme changes when in "system" mode
+  useEffect(() => {
+    return watchSystemTheme(theme, () => {
+      applyTheme(theme, themeOverrides);
+      // Update terminal colors for all active terminals
+      updateTerminalThemes();
+    });
+  }, [theme, themeOverrides]);
 
   const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
     useGlobalKeyHandlers();
@@ -505,8 +527,9 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
-            }`,
+          message: `Failed to remove ${failures.length} session${
+            failures.length > 1 ? "s" : ""
+          }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -597,9 +620,7 @@ export function App() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
-      <TitleBar
-        onUpdateSettings={updateSettings}
-      />
+      <TitleBar onUpdateSettings={updateSettings} />
 
       <TabContentPortalProvider>
         {/* Top positioned tabs */}
@@ -627,10 +648,11 @@ export function App() {
 
         <div className="relative flex-1 flex min-h-0">
           <div
-            className={`flex-1 flex min-h-0 ${applicationMode === "overview"
-              ? "opacity-0 pointer-events-none"
-              : ""
-              }`}
+            className={`flex-1 flex min-h-0 ${
+              applicationMode === "overview"
+                ? "opacity-0 pointer-events-none"
+                : ""
+            }`}
             aria-hidden={applicationMode === "overview" ? true : undefined}
           >
             <TabLayout
