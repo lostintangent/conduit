@@ -4,17 +4,11 @@ import {
   navigateFocusedPane,
 } from "@/store/actions/focusMode";
 import {
-  movePane,
-  splitPane,
-  splitPaneWithAgentSession,
-} from "@/store/actions/pane";
-import {
   navigatePane,
   type PaneNavigationDirection,
 } from "@/store/actions/paneNavigation";
-import { focusTab, movePaneToTab } from "@/store/actions/tab";
+import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, applicationModeAtom, tabsAtom } from "@/store/atoms";
-import type { SplitDirection } from "@/types";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 
@@ -39,40 +33,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
   const closeCommandPalette = useCallback(() => {
     setCommandPaletteOpen(false);
   }, []);
-
-  const performSplit = useCallback(
-    async (direction: SplitDirection, insertBefore = false) => {
-      if (!activeTab) {
-        return;
-      }
-
-      await splitPane(
-        activeTab.id,
-        activeTab.activePaneId,
-        direction,
-        insertBefore,
-      );
-      focusTab(activeTab.id);
-    },
-    [activeTab, focusTab, splitPane],
-  );
-
-  const performSplitWithAgentSession = useCallback(
-    async (direction: SplitDirection, insertBefore = false) => {
-      if (!activeTab) {
-        return;
-      }
-
-      await splitPaneWithAgentSession(
-        activeTab.id,
-        activeTab.activePaneId,
-        direction,
-        insertBefore,
-      );
-      focusTab(activeTab.id);
-    },
-    [activeTab, focusTab, splitPaneWithAgentSession],
-  );
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -105,14 +65,11 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         return;
       }
 
-      // Cmd+Alt+T: Move pane to new tab
-      if (event.altKey && key === "t") {
-        if (activeTab && activeTab.activePaneId) {
-          event.preventDefault();
-          movePaneToTab(activeTab.id, activeTab.activePaneId);
-        }
-        return;
-      }
+      // NOTE: Cmd+Alt+T is now handled by the command system (PANE_MOVE_TO_TAB)
+      // NOTE: Cmd+Alt+Arrow is now handled by the command system (PANE_MOVE_*)
+      // NOTE: Cmd+Shift+Arrow is now handled by the command system (PANE_SPLIT_*)
+      // NOTE: Cmd+Shift+Ctrl+Arrow is now handled by the command system (PANE_SPLIT_*_AGENT)
+      // See: src/renderer/commands/applicationCommands.ts
 
       const directionKeyMap: Record<string, PaneNavigationDirection> = {
         arrowleft: "left",
@@ -121,52 +78,24 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
         arrowdown: "down",
       };
 
-      // Cmd+Arrow: Navigate or move pane or split pane
+      // Cmd+Arrow: Navigate pane (without modifiers)
       const direction = directionKeyMap[key];
-      if (direction) {
+      if (direction && !event.altKey && !event.shiftKey) {
         if (activeTab && activeTab.activePaneId) {
           event.preventDefault();
-          if (event.altKey) {
-            movePane(activeTab.id, activeTab.activePaneId, direction);
-          } else if (event.shiftKey && event.ctrlKey) {
-            const splitConfig: Record<
+          if (isFocusModeActive()) {
+            const focusModeDirectionMap: Record<
               PaneNavigationDirection,
-              { direction: SplitDirection; insertBefore: boolean }
+              "next" | "prev"
             > = {
-              left: { direction: "row", insertBefore: true },
-              right: { direction: "row", insertBefore: false },
-              up: { direction: "column", insertBefore: true },
-              down: { direction: "column", insertBefore: false },
+              left: "prev",
+              up: "prev",
+              right: "next",
+              down: "next",
             };
-            const config = splitConfig[direction];
-            performSplitWithAgentSession(config.direction, config.insertBefore);
-          } else if (event.shiftKey && !event.ctrlKey) {
-            const splitConfig: Record<
-              PaneNavigationDirection,
-              { direction: SplitDirection; insertBefore: boolean }
-            > = {
-              left: { direction: "row", insertBefore: true },
-              right: { direction: "row", insertBefore: false },
-              up: { direction: "column", insertBefore: true },
-              down: { direction: "column", insertBefore: false },
-            };
-            const config = splitConfig[direction];
-            void performSplit(config.direction, config.insertBefore);
+            navigateFocusedPane(focusModeDirectionMap[direction]);
           } else {
-            if (isFocusModeActive()) {
-              const focusModeDirectionMap: Record<
-                PaneNavigationDirection,
-                "next" | "prev"
-              > = {
-                left: "prev",
-                up: "prev",
-                right: "next",
-                down: "next",
-              };
-              navigateFocusedPane(focusModeDirectionMap[direction]);
-            } else {
-              navigatePane(activeTab.id, activeTab.activePaneId, direction);
-            }
+            navigatePane(activeTab.id, activeTab.activePaneId, direction);
           }
         }
         return;
@@ -201,9 +130,6 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
     activeTab,
     focusTab,
     isCommandPaletteOpen,
-    movePaneToTab,
-    performSplit,
-    performSplitWithAgentSession,
     tabs,
     applicationMode,
     setApplicationMode,

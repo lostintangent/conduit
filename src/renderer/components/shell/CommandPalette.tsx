@@ -399,7 +399,7 @@ export function CommandPalette({
                       )}
                     </div>
                     {command.keybinding && (
-                      <kbd className="ml-3 text-xs px-2 py-1 bg-white/10 rounded border border-white/10 text-white/50 whitespace-nowrap flex-shrink-0">
+                      <kbd className="ml-3 px-2 py-1 bg-white/10 rounded border border-white/10 font-sans text-xs text-white/60 tracking-wider whitespace-nowrap flex-shrink-0">
                         {command.keybinding}
                       </kbd>
                     )}

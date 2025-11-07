@@ -17,7 +17,6 @@ interface KeybindingRecorderProps {
 export function KeybindingRecorder({
   onKeybindingRecorded,
   onCancel,
-  currentKeybinding,
 }: KeybindingRecorderProps) {
   const [recordedKeys, setRecordedKeys] = useState<string[]>([]);
   const [currentChord, setCurrentChord] = useState<string[]>([]);
@@ -55,7 +54,8 @@ export function KeybindingRecorder({
       }
 
       // Add the actual key (not a modifier)
-      const key = normalizeKey(event.key);
+      // Use event.code instead of event.key to get the physical key, not the character
+      const key = normalizeKey(event.code, event.key);
       if (!isModifierKey(event.key)) {
         parts.push(key);
       }
@@ -109,7 +109,7 @@ export function KeybindingRecorder({
           displayKeys.map((chord, i) => (
             <span key={i} className="flex items-center gap-1">
               {i > 0 && <span className="text-gray-400 mx-1">then</span>}
-              <kbd className="px-2 py-1 bg-gray-700 rounded font-mono text-xs">
+              <kbd className="px-2 py-1 bg-gray-700 rounded font-sans text-xs text-gray-200 tracking-wider">
                 {formatKeybindingDisplay(chord)}
               </kbd>
             </span>
@@ -132,12 +132,10 @@ export function KeybindingRecorder({
   );
 }
 
-function normalizeKey(key: string): string {
-  const keyMap: Record<string, string> = {
-    " ": "Space",
-    Meta: "Cmd",
-    Control: "Ctrl",
-    Alt: "Alt",
+function normalizeKey(code: string, fallbackKey: string): string {
+  // Map event.code values to key names
+  const codeMap: Record<string, string> = {
+    Space: "Space",
     ArrowLeft: "Left",
     ArrowRight: "Right",
     ArrowUp: "Up",
@@ -149,26 +147,53 @@ function normalizeKey(key: string): string {
     Tab: "Tab",
   };
 
-  // Check exact match first
-  if (keyMap[key]) {
-    return keyMap[key];
+  // Check for special keys in the code
+  if (codeMap[code]) {
+    return codeMap[code];
   }
 
-  // Check lowercase match
-  const lowerKey = key.toLowerCase();
-  for (const [k, v] of Object.entries(keyMap)) {
-    if (k.toLowerCase() === lowerKey) {
-      return v;
-    }
+  // Handle letter keys (e.g., "KeyA" -> "A")
+  if (code.startsWith("Key")) {
+    return code.substring(3).toUpperCase();
   }
 
-  // Single character keys
-  if (key.length === 1) {
-    return key.toUpperCase();
+  // Handle digit keys (e.g., "Digit1" -> "1")
+  if (code.startsWith("Digit")) {
+    return code.substring(5);
   }
 
-  // Default: capitalize first letter
-  return key.charAt(0).toUpperCase() + key.slice(1);
+  // Handle function keys (e.g., "F1" -> "F1")
+  if (code.match(/^F\d+$/)) {
+    return code;
+  }
+
+  // Handle numpad keys (e.g., "Numpad1" -> "Num1")
+  if (code.startsWith("Numpad")) {
+    return "Num" + code.substring(6);
+  }
+
+  // Fallback to event.key for other cases
+  const keyMap: Record<string, string> = {
+    " ": "Space",
+    Meta: "Cmd",
+    Control: "Ctrl",
+    Alt: "Alt",
+    ArrowLeft: "Left",
+    ArrowRight: "Right",
+    ArrowUp: "Up",
+    ArrowDown: "Down",
+  };
+
+  if (keyMap[fallbackKey]) {
+    return keyMap[fallbackKey];
+  }
+
+  // Single character fallback
+  if (fallbackKey.length === 1) {
+    return fallbackKey.toUpperCase();
+  }
+
+  return fallbackKey;
 }
 
 function isModifierKey(key: string): boolean {

@@ -149,6 +149,8 @@ export function App() {
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
     setShowDuplicateTabWithCwdDialog,
+    setTitleModal: (tabId: string, value: string) =>
+      setTitleModalState({ tabId, initialValue: value }),
   });
 
   // Initialize pane actions system
@@ -337,8 +339,6 @@ export function App() {
   );
 
   const handleContextMenu = useContextMenu({
-    setTitleModal: (tabId: string, value: string) =>
-      setTitleModalState({ tabId, initialValue: value }),
     canChangeTitle: (tabId: string) => {
       if (tabs.length > 1) {
         return true;
@@ -350,7 +350,6 @@ export function App() {
 
       return false;
     },
-    setShowDuplicateTabWithCwdDialog,
   });
 
   const runShellCommand = useCallback(
