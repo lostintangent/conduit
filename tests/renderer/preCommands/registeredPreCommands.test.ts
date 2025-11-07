@@ -31,6 +31,9 @@ describe("registeredPreCommands", () => {
         hasGitRepository: vi.fn(),
         spawnAgentSession: vi.fn(),
         getGitHubRepoInfo: vi.fn(),
+        hasUncommittedChanges: vi.fn(),
+        hasUnpushedCommits: vi.fn(),
+        createDiffPatch: vi.fn(),
         getSettings: vi.fn().mockResolvedValue({
           homeDirectory: "/home/user",
         }),
@@ -298,6 +301,8 @@ describe("registeredPreCommands", () => {
         name: "test-repo",
         branch: "main",
       });
+      mockApi.hasUncommittedChanges.mockResolvedValue(false);
+      mockApi.hasUnpushedCommits.mockResolvedValue(false);
 
       const config: TerminalConfig = {
         command: "",
@@ -409,6 +414,8 @@ describe("registeredPreCommands", () => {
         name: "conduit",
         branch: "feature-branch",
       });
+      mockApi.hasUncommittedChanges.mockResolvedValue(false);
+      mockApi.hasUnpushedCommits.mockResolvedValue(false);
 
       const config: TerminalConfig = {
         command: "",
