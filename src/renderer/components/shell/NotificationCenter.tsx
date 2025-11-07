@@ -29,7 +29,7 @@ export function NotificationCenter() {
         <div
           key={notification.id}
           className={`pointer-events-auto overflow-hidden rounded-lg border border-white/10 px-3 py-2 shadow-lg backdrop-blur ${notificationStyles(
-            notification.kind,
+            notification.kind
           )}`}
         >
           <div className="flex items-start justify-between gap-3">
@@ -37,12 +37,29 @@ export function NotificationCenter() {
               <p className="text-sm font-medium leading-snug">
                 {notification.message}
               </p>
-              {notification.details ? (
+
+              {notification.details && (
                 <p className="mt-1 text-xs leading-snug text-white/80">
                   {notification.details}
                 </p>
-              ) : null}
+              )}
+
+              {notification.actions?.length && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {notification.actions.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      className="rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 border border-white/20 bg-white/5 text-white hover:bg-white/10 focus-visible:outline-white"
+                      onClick={action.onClick}
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
             <button
               type="button"
               onClick={() => dismissNotification(notification.id)}

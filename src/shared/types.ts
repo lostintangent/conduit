@@ -233,3 +233,21 @@ export type VMInfo = {
     };
   };
 };
+
+/* Auto-update types */
+
+export type UpdateStatus =
+  | "idle"
+  | "checking"
+  | "unavailable"
+  | "downloading"
+  | "downloaded"
+  | "installing"
+  | "disabled";
+
+export type UpdateState = {
+  status: UpdateStatus;
+  availableVersion?: string;
+  releaseNotes?: string | null;
+  releaseDate?: string | null;
+};

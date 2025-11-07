@@ -73,11 +73,17 @@ export type Command = {
 
 export type NotificationKind = "info" | "success" | "error";
 
+export type NotificationAction = {
+  label: string;
+  onClick: () => void;
+};
+
 export type Notification = {
   id: string;
   kind: NotificationKind;
   message: string;
   details?: string;
   persistent?: boolean;
+  actions?: NotificationAction[];
   createdAt: number;
 };

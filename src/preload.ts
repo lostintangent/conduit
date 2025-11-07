@@ -22,6 +22,7 @@ import type {
   TerminalDataPayload,
   TerminalExitPayload,
   TerminalTitlePayload,
+  UpdateState,
   UserSettings,
   VMInfo,
 } from "./shared/types";
@@ -135,7 +136,11 @@ const conduitAPI = {
   completeCaptureBrowserRequest: (payload: {
     requestId: string;
     webContentsId: number;
-  }) => ipcRenderer.invoke("cli:complete-capture-browser", payload) as Promise<void>,
+  }) =>
+    ipcRenderer.invoke(
+      "cli:complete-capture-browser",
+      payload
+    ) as Promise<void>,
 
   /* UI-related methods (UI->main) */
 
@@ -319,6 +324,13 @@ const conduitAPI = {
 
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,
+
+  /* Auto update methods */
+
+  onUpdateEvent: (listener: (state: UpdateState) => void) =>
+    createEventListener<UpdateState>("updates:event", listener),
+
+  installUpdate: () => ipcRenderer.invoke("updates:install"),
 };
 
 export type ConduitAPI = typeof conduitAPI;

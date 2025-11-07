@@ -1,6 +1,42 @@
 import { BrowserWindow, Menu, app } from "electron";
-import type { UserSettings, Workspace } from "../../shared/types";
+import type { UpdateState, UserSettings, Workspace } from "../../shared/types";
+import { getUpdateController } from "../updates";
 import { loadSessions } from "../workspace";
+
+function getUpdateMenuLabel(status: UpdateState["status"]) {
+  switch (status) {
+    case "checking":
+      return "Checking for update...";
+    case "downloading":
+      return "Downloading update...";
+    case "downloaded":
+      return "Restart to update...";
+    default:
+      return "Check for updates...";
+  }
+}
+
+function buildCheckForUpdatesMenuItem(): Electron.MenuItemConstructorOptions {
+  const controller = getUpdateController();
+  const status = controller?.getState().status || "disabled";
+
+  // Set the menu item's label and enabled state based on update status
+  const label = getUpdateMenuLabel(status);
+  const enabled = ["idle", "downloaded"].includes(status);
+
+  return {
+    label,
+    enabled,
+    click: () => {
+      const currentStatus = controller.getState().status;
+      if (currentStatus === "downloaded") {
+        controller.installUpdate();
+      } else if (currentStatus === "idle") {
+        controller.checkForUpdate();
+      }
+    },
+  };
+}
 
 export async function updateApplicationMenu(
   window: BrowserWindow,
@@ -8,25 +44,27 @@ export async function updateApplicationMenu(
   saveSettings: (settings: UserSettings) => Promise<void>,
 ) {
   const workspaces = await loadSessions();
+  const updateMenuItem = buildCheckForUpdatesMenuItem();
 
   const template = [
     ...(process.platform === "darwin"
       ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: "about" },
-              { type: "separator" },
-              { role: "services" },
-              { type: "separator" },
-              { role: "hide" },
-              { role: "hideOthers" },
-              { role: "unhide" },
-              { type: "separator" },
-              { role: "quit" },
-            ],
-          },
-        ]
+        {
+          label: app.name,
+          submenu: [
+            { role: "about" },
+            updateMenuItem,
+            { type: "separator" },
+            { role: "services" },
+            { type: "separator" },
+            { role: "hide" },
+            { role: "hideOthers" },
+            { role: "unhide" },
+            { type: "separator" },
+            { role: "quit" },
+          ],
+        },
+      ]
       : []),
     {
       label: "File",
@@ -42,22 +80,22 @@ export async function updateApplicationMenu(
         },
         ...(workspaces.length > 0
           ? [
-              { type: "separator" },
-              {
-                label: "Open Workspace...",
-                submenu: workspaces.map((workspace: Workspace) => ({
-                  label: workspace.name,
-                  click: () => {
-                    if (!window.isDestroyed()) {
-                      window.webContents.send(
-                        "ui:open-workspace-request",
-                        workspace,
-                      );
-                    }
-                  },
-                })),
-              },
-            ]
+            { type: "separator" },
+            {
+              label: "Open Workspace...",
+              submenu: workspaces.map((workspace: Workspace) => ({
+                label: workspace.name,
+                click: () => {
+                  if (!window.isDestroyed()) {
+                    window.webContents.send(
+                      "ui:open-workspace-request",
+                      workspace,
+                    );
+                  }
+                },
+              })),
+            },
+          ]
           : []),
         { type: "separator" },
         process.platform === "darwin" ? { role: "close" } : { role: "quit" },
@@ -156,6 +194,14 @@ export async function updateApplicationMenu(
       ],
     },
     { role: "windowMenu" },
+    ...(process.platform !== "darwin"
+      ? [
+        {
+          label: "Help",
+          submenu: [updateMenuItem],
+        },
+      ]
+      : []),
   ];
 
   const menu = Menu.buildFromTemplate(

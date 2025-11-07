@@ -25,6 +25,7 @@ import { TitleBar } from "@/components/shell/title/TitleBar";
 import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
+import { useAutoUpdater } from "@/hooks/useAutoUpdater";
 import { useCliClient } from "@/hooks/useCliClient";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -39,13 +40,13 @@ import {
 } from "@/store/actions/notifications";
 import { openWebViewPane, removePane } from "@/store/actions/pane";
 import {
+  duplicateTab,
+  generateIncrementedTabTitle,
+  getActiveTabCwd,
   openTab,
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
   updateTabProperty,
-  duplicateTab,
-  generateIncrementedTabTitle,
-  getActiveTabCwd,
 } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -70,8 +71,6 @@ export function App() {
   const {
     tabPosition,
     alwaysShowTabs,
-    showTerminalRuler,
-    autoSaveWorkspaces,
     commandHistory,
     homeDirectory,
     theme,
@@ -148,6 +147,10 @@ export function App() {
   useCliClient({
     onOpenFile: setQuickPaneState,
   });
+
+  // TODO: Once we ship a web variant of Conduit, this should
+  // be conditioned on whether we're running in Electron or not.
+  useAutoUpdater();
 
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
@@ -534,9 +537,8 @@ export function App() {
       } else {
         updateNotification(notificationId, {
           kind: "error",
-          message: `Failed to remove ${failures.length} session${
-            failures.length > 1 ? "s" : ""
-          }`,
+          message: `Failed to remove ${failures.length} session${failures.length > 1 ? "s" : ""
+            }`,
           details: failures.join("\n"),
           autoCloseMs: null,
         });
@@ -688,11 +690,10 @@ export function App() {
 
         <div className="relative flex-1 flex min-h-0">
           <div
-            className={`flex-1 flex min-h-0 ${
-              applicationMode === "overview"
-                ? "opacity-0 pointer-events-none"
-                : ""
-            }`}
+            className={`flex-1 flex min-h-0 ${applicationMode === "overview"
+              ? "opacity-0 pointer-events-none"
+              : ""
+              }`}
             aria-hidden={applicationMode === "overview" ? true : undefined}
           >
             <TabLayout

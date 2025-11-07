@@ -6,6 +6,7 @@ import {
   cleanupTerminalSessions,
   initializeIpcHandlers,
   shutdownCliServer,
+  type UpdateController,
 } from "./ipc";
 
 // Build-time constants injected by @electron-forge/plugin-vite.
@@ -13,6 +14,7 @@ declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
 let mainWindow: BrowserWindow | null = null;
+let updateController: UpdateController | null = null;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -77,7 +79,7 @@ async function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.on("will-navigate", (e) => e.preventDefault());
 
-  await initializeIpcHandlers(mainWindow);
+  updateController = await initializeIpcHandlers(mainWindow);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -110,8 +112,11 @@ async function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
+app.whenReady().then(async () => {
+  await createWindow();
+
+  // Perform an initial update check
+  updateController?.checkForUpdate();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
