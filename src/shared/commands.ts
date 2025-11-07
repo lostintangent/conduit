@@ -17,6 +17,7 @@ export const ApplicationCommands = {
   TAB_NEW: "tab.new",
   TAB_CLOSE: "tab.close",
   TAB_DUPLICATE: "tab.duplicate",
+  TAB_DUPLICATE_WITH_CWD: "tab.duplicateWithCwd",
 
   // Workspace commands
   WORKSPACE_SAVE: "workspace.save",

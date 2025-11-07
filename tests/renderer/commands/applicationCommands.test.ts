@@ -43,7 +43,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(21);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(22);
 
       // View commands
       expect(
@@ -69,6 +69,9 @@ describe("applicationCommands", () => {
       expect(registeredCommands.has(ApplicationCommands.TAB_NEW)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.TAB_CLOSE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.TAB_DUPLICATE)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.TAB_DUPLICATE_WITH_CWD)).toBe(
         true
       );
 

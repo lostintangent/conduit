@@ -7,6 +7,7 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { DuplicateTabDialog } from "@/components/shell/DuplicateTabDialog";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import { PaneActionsEditor } from "@/components/shell/paneActions";
 import {
@@ -39,6 +40,9 @@ import {
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
   updateTabProperty,
+  duplicateTab,
+  generateIncrementedTabTitle,
+  getActiveTabCwd,
 } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -116,6 +120,8 @@ export function App() {
 
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
+  const [showDuplicateTabWithCwdDialog, setShowDuplicateTabWithCwdDialog] =
+    useState(false);
 
   useCliClient({
     onOpenFile: setQuickPaneState,
@@ -142,6 +148,7 @@ export function App() {
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
+    setShowDuplicateTabWithCwdDialog,
   });
 
   // Initialize pane actions system
@@ -343,6 +350,7 @@ export function App() {
 
       return false;
     },
+    setShowDuplicateTabWithCwdDialog,
   });
 
   const runShellCommand = useCallback(
@@ -554,6 +562,39 @@ export function App() {
     [workspaceName, activeTab, tabs, saveWorkspace]
   );
 
+  const handleDuplicateTabWithCwd = useCallback(
+    async (cwd: string, title?: string) => {
+      if (!activeTab) {
+        return;
+      }
+
+      const trimmedCwd = cwd.trim();
+      if (trimmedCwd.length === 0) {
+        setShowDuplicateTabWithCwdDialog(false);
+        return;
+      }
+
+      // Validate that the directory exists
+      try {
+        await api.listDirectory(trimmedCwd);
+      } catch (error) {
+        enqueueNotification({
+          kind: "error",
+          message: `Directory not found: ${trimmedCwd}`,
+        });
+        return;
+      }
+
+      // Duplicate the tab with the specified CWD and optional title
+      await duplicateTab(activeTab.id, {
+        cwd: trimmedCwd,
+        title: title || undefined
+      });
+      setShowDuplicateTabWithCwdDialog(false);
+    },
+    [activeTab]
+  );
+
   const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
     setQuickPaneState(descriptor);
   }, []);
@@ -743,6 +784,14 @@ export function App() {
         onSave={handleDuplicateWorkspace}
         title="Duplicate workspace"
         placeholder="Enter name for the duplicated workspace..."
+      />
+
+      <DuplicateTabDialog
+        isOpen={showDuplicateTabWithCwdDialog}
+        initialCwd={getActiveTabCwd(activeTab, homeDirectory ?? "")}
+        initialTitle={generateIncrementedTabTitle(activeTab?.title, tabs) ?? ""}
+        onClose={() => setShowDuplicateTabWithCwdDialog(false)}
+        onSave={handleDuplicateTabWithCwd}
       />
 
       <WorkspacePicker

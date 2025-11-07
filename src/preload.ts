@@ -171,6 +171,9 @@ const conduitAPI = {
   openExternal: (url: string) =>
     ipcRenderer.invoke("ui:open-url", url) as Promise<void>,
 
+  showFolderPicker: (defaultPath?: string) =>
+    ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<string | null>,
+
   /* Session management methods */
 
   hasSessions: () =>

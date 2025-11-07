@@ -47,6 +47,14 @@ export function showContextMenu(
       click: () => sendActionToRenderer("duplicate-tab"),
     },
     {
+      label: "Duplicate tab with custom directory...",
+      accelerator: commandData[ApplicationCommands.TAB_DUPLICATE_WITH_CWD]?.keybinding,
+      enabled:
+        commandData[ApplicationCommands.TAB_DUPLICATE_WITH_CWD]?.enabled !== false &&
+        !options.paneId, // Only show for tab context menu, not pane
+      click: () => sendActionToRenderer("duplicate-tab-with-cwd"),
+    },
+    {
       label: "Focus pane",
       enabled: !!options.paneId,
       click: () => sendActionToRenderer("focus-pane"),

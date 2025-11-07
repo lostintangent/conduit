@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from "electron";
+import { BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
 import type {
   BackgroundCommandRequest,
@@ -174,4 +174,17 @@ export function initializeUIHandlers(window: BrowserWindow) {
   ipcMain.handle("ui:open-url", async (_, url: string) =>
     shell.openExternal(url),
   );
+
+  ipcMain.handle("ui:show-folder-picker", async (_, defaultPath?: string) => {
+    const result = await dialog.showOpenDialog(window, {
+      properties: ["openDirectory"],
+      defaultPath,
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    return result.filePaths[0];
+  });
 }

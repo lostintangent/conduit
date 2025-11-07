@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 type UseContextMenuParams = {
   setTitleModal: (tabId: string, value: string) => void;
   canChangeTitle: (tabId: string) => boolean;
+  setShowDuplicateTabWithCwdDialog: (show: boolean) => void;
 };
 
 const api = window.conduit;
@@ -24,6 +25,7 @@ const api = window.conduit;
 export function useContextMenu({
   setTitleModal,
   canChangeTitle,
+  setShowDuplicateTabWithCwdDialog,
 }: UseContextMenuParams) {
   const tabs = useAtomValue(tabsAtom);
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
@@ -32,6 +34,7 @@ export function useContextMenu({
 
   // Get command info for context menu commands
   const duplicateTabCmd = useCommand(ApplicationCommands.TAB_DUPLICATE);
+  const duplicateTabWithCwdCmd = useCommand(ApplicationCommands.TAB_DUPLICATE_WITH_CWD);
   const closeTabCmd = useCommand(ApplicationCommands.TAB_CLOSE);
 
   // Build command data for IPC
@@ -43,6 +46,12 @@ export function useContextMenu({
           : undefined,
         enabled: !duplicateTabCmd.disabled,
       },
+      [ApplicationCommands.TAB_DUPLICATE_WITH_CWD]: {
+        keybinding: duplicateTabWithCwdCmd.keybindings[0]
+          ? normalizeKeybinding(duplicateTabWithCwdCmd.keybindings[0].chords)
+          : undefined,
+        enabled: !duplicateTabWithCwdCmd.disabled,
+      },
       [ApplicationCommands.TAB_CLOSE]: {
         keybinding: closeTabCmd.keybindings[0]
           ? normalizeKeybinding(closeTabCmd.keybindings[0].chords)
@@ -50,7 +59,7 @@ export function useContextMenu({
         enabled: !closeTabCmd.disabled,
       },
     };
-  }, [duplicateTabCmd, closeTabCmd]);
+  }, [duplicateTabCmd, duplicateTabWithCwdCmd, closeTabCmd]);
 
   const checkGitRepo = useCallback(
     async (cwd: string | null | undefined): Promise<boolean> => {
@@ -130,6 +139,9 @@ export function useContextMenu({
             break;
           case "duplicate-tab":
             void duplicateTab(tabId);
+            break;
+          case "duplicate-tab-with-cwd":
+            setShowDuplicateTabWithCwdDialog(true);
             break;
           case "focus-pane":
             if (resolvedPaneId) {
@@ -233,6 +245,7 @@ export function useContextMenu({
     movePane,
     movePaneToTab,
     setTitleModal,
+    setShowDuplicateTabWithCwdDialog,
     splitPane,
     splitPaneWithAgentSession,
   ]);
