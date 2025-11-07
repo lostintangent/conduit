@@ -1,5 +1,14 @@
 import { useAtomValue } from "jotai";
-import { Keyboard, Moon, Settings, Sun, Zap } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Check,
+  Keyboard,
+  Monitor,
+  Moon,
+  Settings,
+  Sun,
+  Zap,
+} from "lucide-react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import {
@@ -11,10 +20,10 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -23,11 +32,22 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
+import { cn } from "@/utils";
 import type { ThemeMode, UserSettings } from "@shared/types";
 
 type SettingsMenuProps = {
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
 };
+
+const themeOptions: Array<{
+  value: ThemeMode;
+  label: string;
+  icon: LucideIcon;
+}> = [
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+    { value: "system", label: "System", icon: Monitor },
+  ];
 
 export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
   const {
@@ -38,6 +58,10 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
     useConduitAsEditor,
     theme,
   } = useAtomValue(userSettingsAtom);
+
+  const currentThemeOption =
+    themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
+  const CurrentThemeIcon = currentThemeOption.icon;
 
   const keyboardShortcutsCmd = useCommand(
     ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
@@ -68,15 +92,6 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
         </DropdownMenuCheckboxItem>
 
         <DropdownMenuCheckboxItem
-          checked={showTerminalRuler}
-          onClick={() =>
-            onUpdateSettings({ showTerminalRuler: !showTerminalRuler })
-          }
-        >
-          Show terminal ruler
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuCheckboxItem
           checked={autoSaveWorkspaces}
           onClick={() =>
             onUpdateSettings({ autoSaveWorkspaces: !autoSaveWorkspaces })
@@ -85,46 +100,74 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
           Auto-save workspaces
         </DropdownMenuCheckboxItem>
 
-        <DropdownMenuCheckboxItem
-          checked={useGradientBorders}
-          onClick={() =>
-            onUpdateSettings({ useGradientBorders: !useGradientBorders })
-          }
-        >
-          Use gradient borders
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuCheckboxItem
-          checked={useConduitAsEditor}
-          onClick={() =>
-            onUpdateSettings({ useConduitAsEditor: !useConduitAsEditor })
-          }
-        >
-          Use Conduit as editor
-        </DropdownMenuCheckboxItem>
-
         <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-xs text-gray-400 px-2 py-1.5">
-          Theme
-        </DropdownMenuLabel>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
+            <span>Color theme</span>
+            <span className="flex items-center gap-2 text-xs text-white/70">
+              <CurrentThemeIcon className="w-4 h-4" />
+              {currentThemeOption.label}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-52">
+            {themeOptions.map(({ value, label, icon: Icon }) => {
+              const isSelected = theme === value;
 
-        <DropdownMenuRadioGroup
-          value={theme}
-          onValueChange={(value) =>
-            onUpdateSettings({ theme: value as ThemeMode })
-          }
-        >
-          <DropdownMenuRadioItem value="light">
-            <Sun className="w-4 h-4 mr-2" />
-            Light
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
-            <Moon className="w-4 h-4 mr-2" />
-            Dark
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+              return (
+                <DropdownMenuItem
+                  key={value}
+                  onClick={() => onUpdateSettings({ theme: value })}
+                  className={cn(
+                    "flex items-center justify-between gap-2",
+                    isSelected &&
+                    "bg-gradient-to-br from-accent-start to-accent-end text-white"
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </span>
+                  {isSelected && <Check className="w-4 h-4" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
+            <span>Advanced settings</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-60">
+            <DropdownMenuCheckboxItem
+              checked={showTerminalRuler}
+              onClick={() =>
+                onUpdateSettings({ showTerminalRuler: !showTerminalRuler })
+              }
+            >
+              Show terminal ruler
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuCheckboxItem
+              checked={useGradientBorders}
+              onClick={() =>
+                onUpdateSettings({ useGradientBorders: !useGradientBorders })
+              }
+            >
+              Use gradient borders
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuCheckboxItem
+              checked={useConduitAsEditor}
+              onClick={() =>
+                onUpdateSettings({ useConduitAsEditor: !useConduitAsEditor })
+              }
+            >
+              Use Conduit as $EDITOR
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         <DropdownMenuSeparator />
 
