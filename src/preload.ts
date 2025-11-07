@@ -98,14 +98,14 @@ const conduitAPI = {
   onOpenWorkspaceRequest: (listener: (workspace: unknown) => void) =>
     createEventListener("ui:open-workspace-request", listener),
 
-  // Notify when the user clicks a context menu action
-  onContextMenuAction: (
+  // Notify when the user clicks a context menu command
+  onContextMenuCommand: (
     listener: (payload: {
-      action: string;
+      commandId: string;
       tabId: string;
       paneId?: string;
     }) => void
-  ) => createEventListener("ui:context-menu-action", listener),
+  ) => createEventListener("ui:context-menu-command", listener),
 
   // Notify when the app is about to close
   onBeforeClose: (listener: () => void) =>
@@ -150,6 +150,7 @@ const conduitAPI = {
     paneId?: string;
     canChangeTitle: boolean;
     hasGitRepo?: boolean;
+    commandData?: Record<string, { keybinding?: string; enabled?: boolean }>;
   }) => ipcRenderer.send("ui:show-context-menu", options),
 
   addCommandHistoryEntry: (command: string) =>

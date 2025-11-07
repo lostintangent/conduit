@@ -365,7 +365,7 @@ export function KeybindingsEditor({
                   <td className="px-6 py-2">
                     <div className="flex items-center gap-2">
                       {row.keybinding ? (
-                        <kbd className="px-2 py-1 bg-gray-700 rounded font-mono text-xs text-gray-300">
+                        <kbd className="px-2 py-1 bg-gray-700 rounded font-sans text-xs text-gray-200 tracking-wider">
                           {formatKeybindingForDisplay(row.keybinding.chords)}
                         </kbd>
                       ) : (

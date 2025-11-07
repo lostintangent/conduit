@@ -35,8 +35,14 @@ import {
   handleTerminate,
   handleToggleDesignMode,
 } from "@/commands/handlers";
-import { toggleFocusMode } from "@/store/actions/focusMode";
-import { closeTab, duplicateTab, openTab } from "@/store/actions/tab";
+import { enterFocusMode, toggleFocusMode } from "@/store/actions/focusMode";
+import {
+  closePane,
+  movePane,
+  splitPane,
+  splitPaneWithAgentSession,
+} from "@/store/actions/pane";
+import { closeTab, duplicateTab, movePaneToTab, openTab } from "@/store/actions/tab";
 import { ApplicationCommands } from "@shared/commands";
 
 // Re-export for convenience
@@ -285,6 +291,300 @@ export function registerApplicationCommands(
     run: (context) => {
       if (context.activeTab && context.setShowDuplicateTabWithCwdDialog) {
         context.setShowDuplicateTabWithCwdDialog(true);
+      }
+    },
+  });
+
+  // Tab: Change Title
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_CHANGE_TITLE,
+    title: "Change Tab Title",
+    description: "Change the title of the current tab",
+    category: "Tab",
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId && context.setTitleModal) {
+        const tab = context.allTabs.find((t) => t.id === targetTabId);
+        context.setTitleModal(targetTabId, tab?.title ?? "");
+      }
+    },
+  });
+
+  // Pane: Focus
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_FOCUS,
+    title: "Focus Pane",
+    description: "Enter focus mode for the current pane",
+    category: "Pane",
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        enterFocusMode(targetTabId, targetPaneId);
+      }
+    },
+  });
+
+  // Pane: Close
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_CLOSE,
+    title: "Close Pane",
+    description: "Close the current pane",
+    category: "Pane",
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        closePane(targetTabId, targetPaneId);
+      }
+    },
+  });
+
+  // Pane: Split Left
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT,
+    title: "Split Pane Left",
+    description: "Create a new pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Left",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT,
+    title: "Split Pane Right",
+    description: "Create a new pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Right",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "row");
+      }
+    },
+  });
+
+  // Pane: Split Top
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP,
+    title: "Split Pane Top",
+    description: "Create a new pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Up",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "column", true);
+      }
+    },
+  });
+
+  // Pane: Split Bottom
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM,
+    title: "Split Pane Bottom",
+    description: "Create a new pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Down",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "column");
+      }
+    },
+  });
+
+  // Pane: Split Left with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_AGENT,
+    title: "Split Pane Left with Agent Session",
+    description: "Create a new pane to the left with an isolated agent worktree",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Left",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(targetTabId, targetPaneId, "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_AGENT,
+    title: "Split Pane Right with Agent Session",
+    description: "Create a new pane to the right with an isolated agent worktree",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Right",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(targetTabId, targetPaneId, "row");
+      }
+    },
+  });
+
+  // Pane: Split Top with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_AGENT,
+    title: "Split Pane Top with Agent Session",
+    description: "Create a new pane above with an isolated agent worktree",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Up",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(targetTabId, targetPaneId, "column", true);
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT,
+    title: "Split Pane Bottom with Agent Session",
+    description: "Create a new pane below with an isolated agent worktree",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Down",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(targetTabId, targetPaneId, "column");
+      }
+    },
+  });
+
+  // Pane: Move Left
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_LEFT,
+    title: "Move Pane Left",
+    description: "Move the current pane to the left",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Alt+Left",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "left");
+      }
+    },
+  });
+
+  // Pane: Move Right
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_RIGHT,
+    title: "Move Pane Right",
+    description: "Move the current pane to the right",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Alt+Right",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "right");
+      }
+    },
+  });
+
+  // Pane: Move Up
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_UP,
+    title: "Move Pane Up",
+    description: "Move the current pane upward",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Alt+Up",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "up");
+      }
+    },
+  });
+
+  // Pane: Move Down
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_DOWN,
+    title: "Move Pane Down",
+    description: "Move the current pane downward",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Alt+Down",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "down");
+      }
+    },
+  });
+
+  // Pane: Move to New Tab
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_TO_TAB,
+    title: "Move Pane to New Tab",
+    description: "Move the current pane to a new tab",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Alt+T",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePaneToTab(targetTabId, targetPaneId);
       }
     },
   });

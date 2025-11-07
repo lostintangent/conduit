@@ -49,20 +49,28 @@ export function normalizeKeybinding(chords: KeyChord[]): string {
  * Format a key for display (handle special keys)
  */
 function formatKey(key: string): string {
+  // Case-insensitive lookup
+  const lowerKey = key.toLowerCase();
+
   const keyMap: Record<string, string> = {
-    ArrowUp: "↑",
-    ArrowDown: "↓",
-    ArrowLeft: "←",
-    ArrowRight: "→",
-    Enter: "↵",
-    Backspace: "⌫",
-    Delete: "⌦",
-    Escape: "Esc",
-    Space: "␣",
-    Tab: "⇥",
+    arrowup: "↑",
+    arrowdown: "↓",
+    arrowleft: "←",
+    arrowright: "→",
+    up: "↑",
+    down: "↓",
+    left: "←",
+    right: "→",
+    enter: "↵",
+    backspace: "⌫",
+    delete: "⌦",
+    escape: "Esc",
+    esc: "Esc",
+    space: "␣",
+    tab: "⇥",
   };
 
-  return keyMap[key] ?? key.toUpperCase();
+  return keyMap[lowerKey] ?? key.toUpperCase();
 }
 
 /**
@@ -127,6 +135,65 @@ export function formatKeybindingForDisplay(chords: KeyChord[]): string {
 
   // Join multi-chords with space
   return formattedChords.join(" ");
+}
+
+/**
+ * Format a keybinding for Electron menu accelerator
+ *
+ * Electron accelerators expect a specific format like "Cmd+Alt+F" or "CmdOrCtrl+X"
+ * This is different from formatKeybindingForDisplay which uses Unicode symbols
+ *
+ * NOTE: This is ONLY for passing to Electron's accelerator field.
+ * For displaying keybindings to users in the UI, use formatKeybindingForDisplay() instead,
+ * or better yet, use the `primaryKeybinding` from the useCommand() hook.
+ *
+ * @param chords - The key chords to format
+ * @returns Electron-compatible accelerator string
+ *
+ * @example
+ * formatKeybindingForElectron([{ meta: true, alt: true, key: "F" }])
+ * // → "Cmd+Alt+F" (on Mac) or "Ctrl+Alt+F" (on Windows/Linux)
+ *
+ * @example
+ * formatKeybindingForElectron([{ meta: true, key: "ArrowUp" }])
+ * // → "Cmd+Up"
+ */
+export function formatKeybindingForElectron(chords: KeyChord[]): string {
+  const isMac = navigator.userAgent.toLowerCase().includes("mac");
+
+  // Only support single-chord keybindings for Electron menus
+  // Multi-chord sequences (like Cmd+K Cmd+S) cannot be represented as Electron accelerators
+  if (chords.length !== 1) {
+    return "";
+  }
+
+  const chord = chords[0];
+  const parts: string[] = [];
+
+  // Add modifiers in Electron's expected order
+  if (chord.ctrl) parts.push("Ctrl");
+  if (chord.alt) parts.push("Alt");
+  if (chord.shift) parts.push("Shift");
+  if (chord.meta) parts.push(isMac ? "Cmd" : "Ctrl");
+
+  // Format the key for Electron
+  const keyMap: Record<string, string> = {
+    ArrowUp: "Up",
+    ArrowDown: "Down",
+    ArrowLeft: "Left",
+    ArrowRight: "Right",
+    Enter: "Enter",
+    Backspace: "Backspace",
+    Delete: "Delete",
+    Escape: "Esc",
+    Space: "Space",
+    Tab: "Tab",
+  };
+
+  const key = keyMap[chord.key] ?? chord.key.toUpperCase();
+  parts.push(key);
+
+  return parts.join("+");
 }
 
 /**

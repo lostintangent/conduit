@@ -25,9 +25,9 @@ export function showContextMenu(
   // Default commandData to empty object for simpler access
   const commandData = options.commandData ?? {};
 
-  const sendActionToRenderer = (action: string) => {
-    window.webContents.send(`ui:context-menu-action`, {
-      action,
+  const sendCommandToRenderer = (commandId: string) => {
+    window.webContents.send(`ui:context-menu-command`, {
+      commandId,
       ...options,
     });
   };
@@ -35,8 +35,11 @@ export function showContextMenu(
   const menuTemplate: MenuItemConstructorOptions[] = [
     {
       label: "Change title...",
-      enabled: options.canChangeTitle,
-      click: () => sendActionToRenderer("change-title"),
+      accelerator: commandData[ApplicationCommands.TAB_CHANGE_TITLE]?.keybinding,
+      enabled:
+        options.canChangeTitle &&
+        commandData[ApplicationCommands.TAB_CHANGE_TITLE]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.TAB_CHANGE_TITLE),
     },
     {
       label: "Duplicate tab",
@@ -44,7 +47,7 @@ export function showContextMenu(
       enabled:
         commandData[ApplicationCommands.TAB_DUPLICATE]?.enabled !== false &&
         !options.paneId, // Only show for tab context menu, not pane
-      click: () => sendActionToRenderer("duplicate-tab"),
+      click: () => sendCommandToRenderer(ApplicationCommands.TAB_DUPLICATE),
     },
     {
       label: "Duplicate tab with custom directory...",
@@ -52,95 +55,116 @@ export function showContextMenu(
       enabled:
         commandData[ApplicationCommands.TAB_DUPLICATE_WITH_CWD]?.enabled !== false &&
         !options.paneId, // Only show for tab context menu, not pane
-      click: () => sendActionToRenderer("duplicate-tab-with-cwd"),
+      click: () => sendCommandToRenderer(ApplicationCommands.TAB_DUPLICATE_WITH_CWD),
     },
     {
       label: "Focus pane",
-      enabled: !!options.paneId,
-      click: () => sendActionToRenderer("focus-pane"),
+      accelerator: commandData[ApplicationCommands.PANE_FOCUS]?.keybinding,
+      enabled:
+        !!options.paneId &&
+        commandData[ApplicationCommands.PANE_FOCUS]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_FOCUS),
     },
     { type: "separator" },
     {
       label: "Split left",
-      accelerator: "Cmd+Shift+Left",
-      click: () => sendActionToRenderer("split-left"),
+      accelerator: commandData[ApplicationCommands.PANE_SPLIT_LEFT]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_SPLIT_LEFT]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_LEFT),
     },
     {
       label: "Split right",
-      accelerator: "Cmd+Shift+Right",
-      click: () => sendActionToRenderer("split-right"),
+      accelerator: commandData[ApplicationCommands.PANE_SPLIT_RIGHT]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_SPLIT_RIGHT]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_RIGHT),
     },
     {
       label: "Split top",
-      accelerator: "Cmd+Shift+Up",
-      click: () => sendActionToRenderer("split-top"),
+      accelerator: commandData[ApplicationCommands.PANE_SPLIT_TOP]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_SPLIT_TOP]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_TOP),
     },
     {
       label: "Split bottom",
-      accelerator: "Cmd+Shift+Down",
-      click: () => sendActionToRenderer("split-bottom"),
+      accelerator: commandData[ApplicationCommands.PANE_SPLIT_BOTTOM]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_SPLIT_BOTTOM]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_BOTTOM),
     },
     ...(options.hasGitRepo
       ? [
           { type: "separator" as const },
           {
             label: "Split left with agent session",
-            accelerator: "Cmd+Shift+Ctrl+Left",
-            click: () => sendActionToRenderer("split-left-agent"),
+            accelerator: commandData[ApplicationCommands.PANE_SPLIT_LEFT_AGENT]?.keybinding,
+            enabled: commandData[ApplicationCommands.PANE_SPLIT_LEFT_AGENT]?.enabled !== false,
+            click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_LEFT_AGENT),
           },
           {
             label: "Split right with agent session",
-            accelerator: "Cmd+Shift+Ctrl+Right",
-            click: () => sendActionToRenderer("split-right-agent"),
+            accelerator: commandData[ApplicationCommands.PANE_SPLIT_RIGHT_AGENT]?.keybinding,
+            enabled: commandData[ApplicationCommands.PANE_SPLIT_RIGHT_AGENT]?.enabled !== false,
+            click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_RIGHT_AGENT),
           },
           {
             label: "Split top with agent session",
-            accelerator: "Cmd+Shift+Ctrl+Up",
-            click: () => sendActionToRenderer("split-top-agent"),
+            accelerator: commandData[ApplicationCommands.PANE_SPLIT_TOP_AGENT]?.keybinding,
+            enabled: commandData[ApplicationCommands.PANE_SPLIT_TOP_AGENT]?.enabled !== false,
+            click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_TOP_AGENT),
           },
           {
             label: "Split bottom with agent session",
-            accelerator: "Cmd+Shift+Ctrl+Down",
-            click: () => sendActionToRenderer("split-bottom-agent"),
+            accelerator: commandData[ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT]?.keybinding,
+            enabled: commandData[ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT]?.enabled !== false,
+            click: () => sendCommandToRenderer(ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT),
           },
         ]
       : []),
     { type: "separator" },
     {
       label: "Move left",
-      accelerator: "Cmd+Alt+Left",
-      click: () => sendActionToRenderer("move-left"),
+      accelerator: commandData[ApplicationCommands.PANE_MOVE_LEFT]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_MOVE_LEFT]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_MOVE_LEFT),
     },
     {
       label: "Move right",
-      accelerator: "Cmd+Alt+Right",
-      click: () => sendActionToRenderer("move-right"),
+      accelerator: commandData[ApplicationCommands.PANE_MOVE_RIGHT]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_MOVE_RIGHT]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_MOVE_RIGHT),
     },
     {
       label: "Move up",
-      accelerator: "Cmd+Alt+Up",
-      click: () => sendActionToRenderer("move-up"),
+      accelerator: commandData[ApplicationCommands.PANE_MOVE_UP]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_MOVE_UP]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_MOVE_UP),
     },
     {
       label: "Move down",
-      accelerator: "Cmd+Alt+Down",
-      click: () => sendActionToRenderer("move-down"),
+      accelerator: commandData[ApplicationCommands.PANE_MOVE_DOWN]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_MOVE_DOWN]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_MOVE_DOWN),
     },
     { type: "separator" },
     {
       label: "Move to new tab",
-      accelerator: "Cmd+Alt+T",
-      click: () => sendActionToRenderer("move-to-tab"),
+      accelerator: commandData[ApplicationCommands.PANE_MOVE_TO_TAB]?.keybinding,
+      enabled: commandData[ApplicationCommands.PANE_MOVE_TO_TAB]?.enabled !== false,
+      click: () => sendCommandToRenderer(ApplicationCommands.PANE_MOVE_TO_TAB),
     },
     {
       label: "Close " + (options.paneId ? "pane" : "tab"),
       accelerator: !options.paneId
         ? commandData[ApplicationCommands.TAB_CLOSE]?.keybinding
-        : undefined,
+        : commandData[ApplicationCommands.PANE_CLOSE]?.keybinding,
       enabled: !options.paneId
         ? commandData[ApplicationCommands.TAB_CLOSE]?.enabled !== false
-        : true,
-      click: () => sendActionToRenderer("close"),
+        : commandData[ApplicationCommands.PANE_CLOSE]?.enabled !== false,
+      click: () =>
+        sendCommandToRenderer(
+          !options.paneId
+            ? ApplicationCommands.TAB_CLOSE
+            : ApplicationCommands.PANE_CLOSE
+        ),
     },
   ];
 

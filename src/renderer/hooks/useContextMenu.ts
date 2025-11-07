@@ -1,13 +1,6 @@
+import { executeCommand } from "@/commands";
 import { useCommand } from "@/commands/hooks/useCommand";
-import { normalizeKeybinding } from "@/commands/keybindings/utils";
-import { enterFocusMode } from "@/store/actions/focusMode";
-import {
-  closePane,
-  movePane,
-  splitPane,
-  splitPaneWithAgentSession,
-} from "@/store/actions/pane";
-import { closeTab, duplicateTab, movePaneToTab } from "@/store/actions/tab";
+import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { tabsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
@@ -15,17 +8,13 @@ import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type UseContextMenuParams = {
-  setTitleModal: (tabId: string, value: string) => void;
   canChangeTitle: (tabId: string) => boolean;
-  setShowDuplicateTabWithCwdDialog: (show: boolean) => void;
 };
 
 const api = window.conduit;
 
 export function useContextMenu({
-  setTitleModal,
   canChangeTitle,
-  setShowDuplicateTabWithCwdDialog,
 }: UseContextMenuParams) {
   const tabs = useAtomValue(tabsAtom);
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
@@ -33,33 +22,80 @@ export function useContextMenu({
   >({});
 
   // Get command info for context menu commands
+  const changeTitleCmd = useCommand(ApplicationCommands.TAB_CHANGE_TITLE);
   const duplicateTabCmd = useCommand(ApplicationCommands.TAB_DUPLICATE);
   const duplicateTabWithCwdCmd = useCommand(ApplicationCommands.TAB_DUPLICATE_WITH_CWD);
   const closeTabCmd = useCommand(ApplicationCommands.TAB_CLOSE);
+  const focusPaneCmd = useCommand(ApplicationCommands.PANE_FOCUS);
+  const closePaneCmd = useCommand(ApplicationCommands.PANE_CLOSE);
+  const splitLeftCmd = useCommand(ApplicationCommands.PANE_SPLIT_LEFT);
+  const splitRightCmd = useCommand(ApplicationCommands.PANE_SPLIT_RIGHT);
+  const splitTopCmd = useCommand(ApplicationCommands.PANE_SPLIT_TOP);
+  const splitBottomCmd = useCommand(ApplicationCommands.PANE_SPLIT_BOTTOM);
+  const splitLeftAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_LEFT_AGENT);
+  const splitRightAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_RIGHT_AGENT);
+  const splitTopAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_TOP_AGENT);
+  const splitBottomAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT);
+  const moveLeftCmd = useCommand(ApplicationCommands.PANE_MOVE_LEFT);
+  const moveRightCmd = useCommand(ApplicationCommands.PANE_MOVE_RIGHT);
+  const moveUpCmd = useCommand(ApplicationCommands.PANE_MOVE_UP);
+  const moveDownCmd = useCommand(ApplicationCommands.PANE_MOVE_DOWN);
+  const moveToTabCmd = useCommand(ApplicationCommands.PANE_MOVE_TO_TAB);
 
   // Build command data for IPC
   const commandData = useMemo(() => {
-    return {
-      [ApplicationCommands.TAB_DUPLICATE]: {
-        keybinding: duplicateTabCmd.keybindings[0]
-          ? normalizeKeybinding(duplicateTabCmd.keybindings[0].chords)
-          : undefined,
-        enabled: !duplicateTabCmd.disabled,
-      },
-      [ApplicationCommands.TAB_DUPLICATE_WITH_CWD]: {
-        keybinding: duplicateTabWithCwdCmd.keybindings[0]
-          ? normalizeKeybinding(duplicateTabWithCwdCmd.keybindings[0].chords)
-          : undefined,
-        enabled: !duplicateTabWithCwdCmd.disabled,
-      },
-      [ApplicationCommands.TAB_CLOSE]: {
-        keybinding: closeTabCmd.keybindings[0]
-          ? normalizeKeybinding(closeTabCmd.keybindings[0].chords)
-          : undefined,
-        enabled: !closeTabCmd.disabled,
-      },
+    const buildCommandData = (cmd: ReturnType<typeof useCommand>) => {
+      const keybinding = cmd.keybindings[0]
+        ? formatKeybindingForElectron(cmd.keybindings[0].chords)
+        : undefined;
+      return {
+        keybinding,
+        enabled: !cmd.disabled,
+      };
     };
-  }, [duplicateTabCmd, duplicateTabWithCwdCmd, closeTabCmd]);
+
+    return {
+      [ApplicationCommands.TAB_CHANGE_TITLE]: buildCommandData(changeTitleCmd),
+      [ApplicationCommands.TAB_DUPLICATE]: buildCommandData(duplicateTabCmd),
+      [ApplicationCommands.TAB_DUPLICATE_WITH_CWD]: buildCommandData(duplicateTabWithCwdCmd),
+      [ApplicationCommands.TAB_CLOSE]: buildCommandData(closeTabCmd),
+      [ApplicationCommands.PANE_FOCUS]: buildCommandData(focusPaneCmd),
+      [ApplicationCommands.PANE_CLOSE]: buildCommandData(closePaneCmd),
+      [ApplicationCommands.PANE_SPLIT_LEFT]: buildCommandData(splitLeftCmd),
+      [ApplicationCommands.PANE_SPLIT_RIGHT]: buildCommandData(splitRightCmd),
+      [ApplicationCommands.PANE_SPLIT_TOP]: buildCommandData(splitTopCmd),
+      [ApplicationCommands.PANE_SPLIT_BOTTOM]: buildCommandData(splitBottomCmd),
+      [ApplicationCommands.PANE_SPLIT_LEFT_AGENT]: buildCommandData(splitLeftAgentCmd),
+      [ApplicationCommands.PANE_SPLIT_RIGHT_AGENT]: buildCommandData(splitRightAgentCmd),
+      [ApplicationCommands.PANE_SPLIT_TOP_AGENT]: buildCommandData(splitTopAgentCmd),
+      [ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT]: buildCommandData(splitBottomAgentCmd),
+      [ApplicationCommands.PANE_MOVE_LEFT]: buildCommandData(moveLeftCmd),
+      [ApplicationCommands.PANE_MOVE_RIGHT]: buildCommandData(moveRightCmd),
+      [ApplicationCommands.PANE_MOVE_UP]: buildCommandData(moveUpCmd),
+      [ApplicationCommands.PANE_MOVE_DOWN]: buildCommandData(moveDownCmd),
+      [ApplicationCommands.PANE_MOVE_TO_TAB]: buildCommandData(moveToTabCmd),
+    };
+  }, [
+    changeTitleCmd,
+    duplicateTabCmd,
+    duplicateTabWithCwdCmd,
+    closeTabCmd,
+    focusPaneCmd,
+    closePaneCmd,
+    splitLeftCmd,
+    splitRightCmd,
+    splitTopCmd,
+    splitBottomCmd,
+    splitLeftAgentCmd,
+    splitRightAgentCmd,
+    splitTopAgentCmd,
+    splitBottomAgentCmd,
+    moveLeftCmd,
+    moveRightCmd,
+    moveUpCmd,
+    moveDownCmd,
+    moveToTabCmd,
+  ]);
 
   const checkGitRepo = useCallback(
     async (cwd: string | null | undefined): Promise<boolean> => {
@@ -118,13 +154,14 @@ export function useContextMenu({
   );
 
   useEffect(() => {
-    const unsubscribeContextMenu = api.onContextMenuAction(
-      ({ action, tabId, paneId }) => {
+    const unsubscribeContextMenu = api.onContextMenuCommand(
+      ({ commandId, tabId, paneId }) => {
         const tab = tabs.find((t) => t.id === tabId);
         if (!tab) {
           return;
         }
 
+        // Resolve the pane ID if needed
         const availablePaneIds = Object.keys(tab.panes);
         const resolvedPaneId =
           (paneId && tab.panes[paneId] ? paneId : undefined) ??
@@ -133,122 +170,16 @@ export function useContextMenu({
             : undefined) ??
           availablePaneIds[0];
 
-        switch (action) {
-          case "change-title":
-            setTitleModal(tabId, tab.title ?? "");
-            break;
-          case "duplicate-tab":
-            void duplicateTab(tabId);
-            break;
-          case "duplicate-tab-with-cwd":
-            setShowDuplicateTabWithCwdDialog(true);
-            break;
-          case "focus-pane":
-            if (resolvedPaneId) {
-              enterFocusMode(tabId, resolvedPaneId);
-            }
-            break;
-          case "split-right":
-            if (resolvedPaneId) {
-              void splitPane(tabId, resolvedPaneId, "row");
-            }
-            break;
-          case "split-left":
-            if (resolvedPaneId) {
-              void splitPane(tabId, resolvedPaneId, "row", true);
-            }
-            break;
-          case "split-bottom":
-            if (resolvedPaneId) {
-              void splitPane(tabId, resolvedPaneId, "column");
-            }
-            break;
-          case "split-top":
-            if (resolvedPaneId) {
-              void splitPane(tabId, resolvedPaneId, "column", true);
-            }
-            break;
-          case "split-right-agent":
-            if (resolvedPaneId) {
-              void splitPaneWithAgentSession(tabId, resolvedPaneId, "row");
-            }
-            break;
-          case "split-left-agent":
-            if (resolvedPaneId) {
-              void splitPaneWithAgentSession(
-                tabId,
-                resolvedPaneId,
-                "row",
-                true,
-              );
-            }
-            break;
-          case "split-bottom-agent":
-            if (resolvedPaneId) {
-              void splitPaneWithAgentSession(tabId, resolvedPaneId, "column");
-            }
-            break;
-          case "split-top-agent":
-            if (resolvedPaneId) {
-              void splitPaneWithAgentSession(
-                tabId,
-                resolvedPaneId,
-                "column",
-                true,
-              );
-            }
-            break;
-          case "move-left":
-            if (resolvedPaneId) {
-              movePane(tabId, resolvedPaneId, "left");
-            }
-            break;
-          case "move-right":
-            if (resolvedPaneId) {
-              movePane(tabId, resolvedPaneId, "right");
-            }
-            break;
-          case "move-up":
-            if (resolvedPaneId) {
-              movePane(tabId, resolvedPaneId, "up");
-            }
-            break;
-          case "move-down":
-            if (resolvedPaneId) {
-              movePane(tabId, resolvedPaneId, "down");
-            }
-            break;
-          case "move-to-tab":
-            if (resolvedPaneId) {
-              movePaneToTab(tabId, resolvedPaneId);
-            }
-            break;
-          case "close":
-            if (!paneId) {
-              closeTab(tabId);
-            } else if (resolvedPaneId) {
-              closePane(tabId, resolvedPaneId);
-            }
-            break;
-        }
+        // Execute the command with tabId and paneId as arguments
+        // Commands will use these if provided, otherwise fall back to context
+        void executeCommand(commandId, tabId, resolvedPaneId);
       },
     );
 
     return () => {
       unsubscribeContextMenu();
     };
-  }, [
-    api,
-    tabs,
-    closeTab,
-    duplicateTab,
-    movePane,
-    movePaneToTab,
-    setTitleModal,
-    setShowDuplicateTabWithCwdDialog,
-    splitPane,
-    splitPaneWithAgentSession,
-  ]);
+  }, [api, tabs]);
 
   return handleContextMenu;
 }

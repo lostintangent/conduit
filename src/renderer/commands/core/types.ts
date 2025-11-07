@@ -39,6 +39,7 @@ export interface CommandContext {
   readonly setIsUrlDialogOpen?: (open: boolean) => void;
   readonly setCleanupDialogSessions?: (sessions: any[] | null) => void;
   readonly setShowDuplicateTabWithCwdDialog?: (show: boolean) => void;
+  readonly setTitleModal?: (tabId: string, value: string) => void;
 }
 
 /**
