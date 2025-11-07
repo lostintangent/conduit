@@ -150,6 +150,8 @@ export async function createTerminal(
           useSSHKey,
           detectedPorts: new Set(),
           forwardedPorts: new Map(),
+          diffPatch: options.diffPatch,
+          repoName: options.githubRepo?.name,
         },
       };
 
@@ -365,5 +367,98 @@ export function markTerminalReady(
     }
 
     terminal.pty.write(sshCommand);
+
+    // If there's a diff patch to apply, schedule it after repo clone
+    if (terminal.cloudEnvironment.diffPatch && terminal.cloudEnvironment.repoName) {
+      console.log(`[VM] Will apply diff patch after repo clone completes`);
+      
+      // Poll for repo clone completion instead of using fixed delay
+      const waitForRepo = async () => {
+        const maxAttempts = 6; // 6 attempts * 5 seconds each = 30 seconds max
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const { executeInVM } = await import("../../vm/client");
+            
+            // Use a bash loop that checks every second for 5 seconds
+            // Check that git repo exists AND git status works (meaning clone is complete)
+            const startTime = Date.now();
+            const checkResult = await executeInVM(
+              terminal.cloudEnvironment!.vmId,
+              "bash",
+              ["-c", `cd /workspace || exit 1; for i in {1..5}; do if git status > /dev/null 2>&1; then echo "ready"; exit 0; fi; sleep 1; done; echo "not-ready"; exit 1`],
+              7  // 5 seconds loop + 2 seconds buffer
+            );
+            const elapsed = Date.now() - startTime;
+            
+            const status = checkResult.stdout?.trim() || "unknown";
+            console.log(`[VM] Repo check attempt ${attempt}: status="${status}", exit=${checkResult.exit_code}, elapsed=${elapsed}ms`);
+            
+            if (checkResult.exit_code === 0 && status === "ready") {
+              console.log(`[VM] Repository ready after attempt ${attempt}`);
+              return true;
+            }
+          } catch (error) {
+            console.log(`[VM] Repo check attempt ${attempt} failed:`, error);
+          }
+        }
+        
+        console.warn(`[VM] Timeout waiting for repo clone after ${maxAttempts} attempts`);
+        return false;
+      };
+      
+      // Wait for repo, then apply patch
+      (async () => {
+        const repoReady = await waitForRepo();
+        
+        if (!repoReady) {
+          console.error(`[VM] Repo clone did not complete in time`);
+          sendToRenderer("notification:show", {
+            type: "error",
+            message: "Timeout waiting for repo clone",
+            timeout: 5000,
+          });
+          return;
+        }
+        
+        try {
+          const { applyDiffToVM } = await import("../../vm/client");
+          const repoPath = `/workspace`;
+          
+          console.log(`[VM] Applying diff patch to ${repoPath} in VM ${terminal.cloudEnvironment!.vmId}`);
+          
+          const result = await applyDiffToVM(
+            terminal.cloudEnvironment!.vmId,
+            terminal.cloudEnvironment!.diffPatch!,
+            repoPath
+          );
+
+          if (result.success) {
+            console.log(`[VM] Successfully applied local changes to VM`);
+            // Show success notification as toast
+            sendToRenderer("notification:show", {
+              type: "success",
+              message: "Local changes synced to VM",
+              timeout: 3000,
+            });
+          } else {
+            console.error(`[VM] Failed to apply diff patch:`, result.error);
+            // Show error notification as toast
+            sendToRenderer("notification:show", {
+              type: "error",
+              message: `Failed to sync local changes: ${result.error}`,
+              timeout: 5000,
+            });
+          }
+        } catch (error) {
+          console.error(`[VM] Error applying diff patch:`, error);
+          sendToRenderer("notification:show", {
+            type: "error",
+            message: "Error syncing local changes",
+            timeout: 5000,
+          });
+        }
+      })();
+    }
   }
 }

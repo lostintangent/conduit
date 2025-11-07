@@ -90,6 +90,12 @@ export interface CloudTerminalOptions {
     name: string;
     branch?: string;
   };
+
+  /**
+   * Git diff patch to apply to the repository after cloning
+   * This allows syncing local changes to the VM without pushing to remote
+   */
+  diffPatch?: Buffer;
 }
 
 export type TerminalCreateOptions = {

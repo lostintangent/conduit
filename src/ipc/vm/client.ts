@@ -296,6 +296,127 @@ export function getSSHConnectionInfo(vm: VM): SSHConnectionInfo {
 }
 
 /**
+ * Execute a command in a VM using the /exec endpoint
+ */
+export async function executeInVM(
+  vmId: string,
+  command: string,
+  args?: string[],
+  timeoutSeconds = 30,
+): Promise<{ exit_code: number; stdout: string; stderr: string; error?: string }> {
+  const payload = {
+    command,
+    args: args || [],
+    timeout_seconds: timeoutSeconds,
+  };
+
+  return apiCall<{ exit_code: number; stdout: string; stderr: string; error?: string }>(
+    `/vms/${vmId}/exec`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+/**
+ * Transfer a diff patch to a VM and apply it to the repository
+ * 
+ * @param vmId - VM identifier
+ * @param diffPatch - The git diff patch as Buffer
+ * @param repoPath - Path to the repository in the VM (usually ~/repo_name)
+ * @returns true if successful, false otherwise
+ */
+export async function applyDiffToVM(
+  vmId: string,
+  diffPatch: Buffer,
+  repoPath: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log(`[VM] Applying diff patch to ${repoPath} in VM ${vmId}`);
+    console.log(`[VM] Patch size: ${diffPatch.length} bytes`);
+    console.log(`[VM] Patch type: ${diffPatch.constructor.name}`);
+    console.log(`[VM] Is Buffer: ${Buffer.isBuffer(diffPatch)}`);
+
+    // IMPORTANT: When passed through IPC, Buffer becomes Uint8Array
+    // We need to convert it back to a proper Buffer
+    const patchBuffer = Buffer.isBuffer(diffPatch) 
+      ? diffPatch 
+      : Buffer.from(diffPatch);
+
+    // Step 1: Write the patch file using the files/write API endpoint
+    // Write to /tmp with world-readable permissions
+    const patchPath = "/tmp/conduit.patch";
+    
+    // Convert Buffer to base64 string - MUST ensure it's a string, not Buffer!
+    const patchBase64 = patchBuffer.toString("base64");
+    console.log(`[VM] Base64 type: ${typeof patchBase64}`);
+    console.log(`[VM] Base64 encoded size: ${patchBase64.length} characters`);
+    console.log(`[VM] Base64 sample (first 50 chars): ${patchBase64.slice(0, 50)}`);
+    
+    const requestBody = {
+      path: patchPath,
+      content: patchBase64,
+      mode: 0o666,  // Make file readable/writable by everyone
+      create_dirs: false,
+    };
+    
+    console.log(`[VM] Content in requestBody type: ${typeof requestBody.content}`);
+    
+    const jsonBody = JSON.stringify(requestBody);
+    console.log(`[VM] Request body size: ${jsonBody.length} bytes`);
+    console.log(`[VM] Request body sample (first 200 chars): ${jsonBody.slice(0, 200)}`);
+    
+    const writeResponse = await apiCall<{ success: boolean; error?: string; message: string }>(
+      `/vms/${vmId}/files/write`,
+      {
+        method: "POST",
+        body: jsonBody,
+      }
+    );
+
+    if (!writeResponse.success) {
+      console.error(`[VM] Failed to write patch file:`, writeResponse.error);
+      return {
+        success: false,
+        error: `Failed to write patch: ${writeResponse.error}`,
+      };
+    }
+
+    console.log(`[VM] Patch file written to ${patchPath}`);
+
+    // Step 2: Apply the patch using git apply with --3way for better handling of differences
+    // --3way: attempt 3-way merge if patch doesn't apply cleanly
+    // We don't use --index since we're applying to a clean working tree
+    const applyCommand = `cd ${repoPath} && git apply --3way /tmp/conduit.patch && rm /tmp/conduit.patch`;
+
+    const result = await executeInVM(vmId, "bash", ["-c", applyCommand], 60);
+
+    if (result.exit_code !== 0) {
+      console.error(`[VM] Failed to apply diff patch:`, result.stderr);
+      return {
+        success: false,
+        error: result.stderr || result.error || "Unknown error applying patch",
+      };
+    }
+
+    console.log(`[VM] Successfully applied diff patch`);
+    if (result.stdout) {
+      console.log(`[VM] Output:`, result.stdout);
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[VM] Error applying diff to VM:`, errorMessage);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
  * Reload configuration (useful after .env.local changes)
  */
 export function reloadConfig(): void {

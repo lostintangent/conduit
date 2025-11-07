@@ -121,6 +121,10 @@ const conduitAPI = {
   onAlwaysShowTabsChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-always-show-tabs", listener),
 
+  // Notify when showing a notification/toast message
+  onShowNotification: (listener: (payload: { type: "success" | "error" | "info"; message: string; timeout?: number }) => void) =>
+    createEventListener("notification:show", listener),
+
   onShowTerminalRulerChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-show-terminal-ruler", listener),
 
@@ -256,6 +260,18 @@ const conduitAPI = {
       branch: string;
     } | null>,
 
+  hasUncommittedChanges: (cwd: string) =>
+    ipcRenderer.invoke("agent:has-uncommitted-changes", cwd) as Promise<boolean>,
+
+  hasUnpushedCommits: (cwd: string) =>
+    ipcRenderer.invoke("agent:has-unpushed-commits", cwd) as Promise<boolean>,
+
+  createDiffPatch: (cwd: string) =>
+    ipcRenderer.invoke("agent:create-diff-patch", cwd) as Promise<Buffer | null>,
+
+  applyDiffPatch: (cwd: string, patchData: Buffer) =>
+    ipcRenderer.invoke("agent:apply-diff-patch", cwd, patchData) as Promise<boolean>,
+
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",
@@ -322,6 +338,21 @@ const conduitAPI = {
 
   forkVM: (vmId: string, payload?: Omit<ForkVMPayload, "vmId">) =>
     ipcRenderer.invoke("vm:fork", { vmId, ...payload }) as Promise<VMInfo>,
+
+  executeInVM: (vmId: string, command: string, args?: string[], timeoutSeconds?: number) =>
+    ipcRenderer.invoke("vm:execute", {
+      vmId,
+      command,
+      args,
+      timeoutSeconds,
+    }) as Promise<{ exit_code: number; stdout: string; stderr: string; error?: string }>,
+
+  applyDiffToVM: (vmId: string, diffPatch: Buffer, repoPath: string) =>
+    ipcRenderer.invoke("vm:apply-diff", {
+      vmId,
+      diffPatch,
+      repoPath,
+    }) as Promise<{ success: boolean; error?: string }>,
 
   forwardPort: (vmId: string, port: number, description?: string) =>
     ipcRenderer.invoke("vm:forward-port", {

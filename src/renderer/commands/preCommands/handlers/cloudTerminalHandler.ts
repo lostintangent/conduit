@@ -3,6 +3,9 @@
  *
  * Detects if the current directory is a GitHub repository and automatically
  * configures cloud terminal creation with the detected repo info.
+ * 
+ * If changes are detected (uncommitted or unpushed), creates a diff patch
+ * and applies it to the VM after the repository is cloned.
  */
 
 import type { PreCommandResult } from "../types";
@@ -14,18 +17,20 @@ export interface CloudTerminalHandlerResult {
     name: string;
     branch: string;
   };
+  diffPatch?: Buffer;
   error?: string;
 }
 
 /**
  * Detects GitHub repository information from the current working directory
- *
+ * and creates a diff patch if there are local changes
+ * 
  * If a GitHub repo is detected, returns the owner/name/branch so cloud terminal
- * can clone it automatically. If no repo is found, returns success without
- * repo info (allows fallback to dialog).
- *
+ * can clone it automatically. If there are uncommitted or unpushed changes,
+ * creates a diff patch that will be applied to the VM.
+ * 
  * @param cwd - Current working directory
- * @returns Handler result with optional GitHub repo info
+ * @returns Handler result with optional GitHub repo info and diff patch
  */
 export async function detectGitHubRepoHandler(
   cwd: string,
@@ -51,11 +56,37 @@ export async function detectGitHubRepoHandler(
       return { success: true };
     }
 
-    // Found GitHub repo! Return the info
-    console.log("[CloudTerminal] Detected GitHub repo:", repoInfo);
+    // Found GitHub repo! Check for local changes
+    console.log('[CloudTerminal] Detected GitHub repo:', repoInfo);
+
+    const [hasUncommitted, hasUnpushed] = await Promise.all([
+      api.hasUncommittedChanges(cwd),
+      api.hasUnpushedCommits(cwd),
+    ]);
+
+    let diffPatch: Buffer | undefined;
+
+    if (hasUncommitted || hasUnpushed) {
+      console.log('[CloudTerminal] Local changes detected, creating diff patch...');
+      console.log(`[CloudTerminal] - Uncommitted changes: ${hasUncommitted}`);
+      console.log(`[CloudTerminal] - Unpushed commits: ${hasUnpushed}`);
+
+      const patch = await api.createDiffPatch(cwd);
+      
+      if (patch) {
+        diffPatch = patch;
+        console.log(`[CloudTerminal] Created diff patch (${patch.length} bytes)`);
+      } else {
+        console.warn('[CloudTerminal] Failed to create diff patch despite detected changes');
+      }
+    } else {
+      console.log('[CloudTerminal] No local changes detected');
+    }
+
     return {
       success: true,
       githubRepo: repoInfo,
+      diffPatch,
     };
   } catch (error) {
     // If anything goes wrong, just treat as no repo found
@@ -92,6 +123,15 @@ export function buildCloudTerminalResult(
   // Add GitHub repo info if detected
   if (handlerResult.githubRepo) {
     terminalOptions.githubRepo = handlerResult.githubRepo;
+    console.log(`[CloudTerminal] Including GitHub repo: ${handlerResult.githubRepo.owner}/${handlerResult.githubRepo.name}`);
+  }
+
+  // Add diff patch if there are local changes
+  if (handlerResult.diffPatch) {
+    terminalOptions.diffPatch = handlerResult.diffPatch;
+    console.log(`[CloudTerminal] Including diff patch: ${handlerResult.diffPatch.length} bytes`);
+  } else {
+    console.log(`[CloudTerminal] No diff patch to include`);
   }
 
   return {

@@ -38,6 +38,10 @@ export type CloudEnvironment = {
   // Port forwarding state
   detectedPorts: Set<number>;
   forwardedPorts: Map<number, string>; // port -> connection_url
+
+  // Diff patch to apply after repo clone (if githubRepo was provided)
+  diffPatch?: Buffer;
+  repoName?: string; // Repository name for determining clone path
 };
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;
