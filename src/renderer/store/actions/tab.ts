@@ -322,6 +322,7 @@ export function movePaneToTab(
  */
 export async function duplicateTab(
   sourceTabId: string,
+  options?: { cwd?: string },
 ): Promise<{ tabId: string } | null> {
   const tabs = store.get(tabsAtom);
   const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
@@ -344,9 +345,10 @@ export async function duplicateTab(
         sourcePane.sessionId,
       );
 
-      // Create a new terminal session with the same cwd
+      // Create a new terminal session with the specified cwd or the source's cwd
+      const cwdToUse = options?.cwd || sourcePane.cwd;
       const result = await api.createTerminal(
-        sourcePane.cwd ? { cwd: sourcePane.cwd } : undefined,
+        cwdToUse ? { cwd: cwdToUse } : undefined,
       );
       if (!result) {
         continue;
@@ -378,7 +380,7 @@ export async function duplicateTab(
       newPanes[newPaneId] = {
         id: newPaneId,
         type: "editor",
-        cwd: sourcePane.cwd,
+        cwd: options?.cwd || sourcePane.cwd,
         filePath: sourcePane.filePath,
       };
     } else if (sourcePane.type === "webview") {

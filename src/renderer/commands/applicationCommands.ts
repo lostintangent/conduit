@@ -276,6 +276,19 @@ export function registerApplicationCommands(
     },
   });
 
+  // Tab: Duplicate with Custom CWD
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_DUPLICATE_WITH_CWD,
+    title: "Duplicate Tab with Custom Working Directory",
+    description: "Duplicate the current tab and set a custom working directory for all panes",
+    category: "Tab",
+    run: (context) => {
+      if (context.activeTab && context.setShowDuplicateTabWithCwdDialog) {
+        context.setShowDuplicateTabWithCwdDialog(true);
+      }
+    },
+  });
+
   // Pane: Open Web Page
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_OPEN_WEB_PAGE,

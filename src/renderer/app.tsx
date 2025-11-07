@@ -39,6 +39,7 @@ import {
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
   updateTabProperty,
+  duplicateTab,
 } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -116,6 +117,8 @@ export function App() {
 
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
+  const [showDuplicateTabWithCwdDialog, setShowDuplicateTabWithCwdDialog] =
+    useState(false);
 
   useCliClient({
     onOpenFile: setQuickPaneState,
@@ -142,6 +145,7 @@ export function App() {
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
+    setShowDuplicateTabWithCwdDialog,
   });
 
   // Initialize pane actions system
@@ -343,6 +347,7 @@ export function App() {
 
       return false;
     },
+    setShowDuplicateTabWithCwdDialog,
   });
 
   const runShellCommand = useCallback(
@@ -554,6 +559,25 @@ export function App() {
     [workspaceName, activeTab, tabs, saveWorkspace]
   );
 
+  const handleDuplicateTabWithCwd = useCallback(
+    async (cwd: string) => {
+      if (!activeTab) {
+        return;
+      }
+
+      const trimmedCwd = cwd.trim();
+      if (trimmedCwd.length === 0) {
+        setShowDuplicateTabWithCwdDialog(false);
+        return;
+      }
+
+      // Duplicate the tab with the specified CWD
+      await duplicateTab(activeTab.id, { cwd: trimmedCwd });
+      setShowDuplicateTabWithCwdDialog(false);
+    },
+    [activeTab]
+  );
+
   const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
     setQuickPaneState(descriptor);
   }, []);
@@ -743,6 +767,15 @@ export function App() {
         onSave={handleDuplicateWorkspace}
         title="Duplicate workspace"
         placeholder="Enter name for the duplicated workspace..."
+      />
+
+      <InputDialog
+        isOpen={showDuplicateTabWithCwdDialog}
+        initialValue={homeDirectory ?? ""}
+        onClose={() => setShowDuplicateTabWithCwdDialog(false)}
+        onSave={handleDuplicateTabWithCwd}
+        title="Duplicate tab with custom directory"
+        placeholder="Enter working directory path..."
       />
 
       <WorkspacePicker
