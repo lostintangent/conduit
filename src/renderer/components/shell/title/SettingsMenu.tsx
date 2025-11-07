@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { Keyboard, Settings, Zap } from "lucide-react";
+import { Keyboard, Moon, Settings, Sun, Zap } from "lucide-react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import {
@@ -11,6 +11,9 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -20,22 +23,26 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
-import type { UserSettings } from "@shared/types";
+import type { ThemeMode, UserSettings } from "@shared/types";
 
 type SettingsMenuProps = {
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
 };
 
 export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
-  const { alwaysShowTabs, showTerminalRuler, autoSaveWorkspaces, useGradientBorders, useConduitAsEditor } =
-    useAtomValue(userSettingsAtom);
+  const {
+    alwaysShowTabs,
+    showTerminalRuler,
+    autoSaveWorkspaces,
+    useGradientBorders,
+    useConduitAsEditor,
+    theme,
+  } = useAtomValue(userSettingsAtom);
 
   const keyboardShortcutsCmd = useCommand(
     ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
   );
-  const paneActionsCmd = useCommand(
-    ApplicationCommands.VIEW_OPEN_PANE_ACTIONS
-  );
+  const paneActionsCmd = useCommand(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS);
 
   return (
     <DropdownMenu>
@@ -55,9 +62,7 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuCheckboxItem
           checked={alwaysShowTabs}
-          onClick={() =>
-            onUpdateSettings({ alwaysShowTabs: !alwaysShowTabs })
-          }
+          onClick={() => onUpdateSettings({ alwaysShowTabs: !alwaysShowTabs })}
         >
           Always show tabs
         </DropdownMenuCheckboxItem>
@@ -97,6 +102,29 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
         >
           Use Conduit as editor
         </DropdownMenuCheckboxItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuLabel className="text-xs text-gray-400 px-2 py-1.5">
+          Theme
+        </DropdownMenuLabel>
+
+        <DropdownMenuRadioGroup
+          value={theme}
+          onValueChange={(value) =>
+            onUpdateSettings({ theme: value as ThemeMode })
+          }
+        >
+          <DropdownMenuRadioItem value="light">
+            <Sun className="w-4 h-4 mr-2" />
+            Light
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">
+            <Moon className="w-4 h-4 mr-2" />
+            Dark
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
 

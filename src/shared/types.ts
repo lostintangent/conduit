@@ -1,5 +1,20 @@
 import { Tab } from "@/types";
 
+export type ThemeMode = "light" | "dark" | "system";
+
+export type ThemeOverrides = {
+  surface?: string;
+  surfaceElevated?: string;
+  surfaceMuted?: string;
+  input?: string;
+  border?: string;
+  borderMuted?: string;
+  foreground?: string;
+  foregroundInverse?: string;
+  selection?: string;
+  accent?: string;
+};
+
 export type UserSettings = {
   tabPosition: "top" | "bottom";
   alwaysShowTabs: boolean;
@@ -7,6 +22,8 @@ export type UserSettings = {
   autoSaveWorkspaces: boolean;
   useGradientBorders: boolean;
   useConduitAsEditor: boolean;
+  theme: ThemeMode;
+  themeOverrides?: ThemeOverrides;
   commandHistory: string[];
   urlHistory: string[];
   homeDirectory: string | null;

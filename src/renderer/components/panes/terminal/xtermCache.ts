@@ -1,11 +1,8 @@
 import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
+import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import {
-  SerializeAddon,
-  type ISerializeOptions,
-} from "@xterm/addon-serialize";
 import { Terminal } from "@xterm/xterm";
 
 export type TerminalInstance = {
@@ -30,7 +27,7 @@ type GetOrCreateOptions = {
 
 export function getOrCreate(
   sessionId: string,
-  options: GetOrCreateOptions = {},
+  options: GetOrCreateOptions = {}
 ): TerminalInstance {
   let instance = store.get(sessionId);
   if (!instance) {
@@ -73,11 +70,11 @@ export function getOrCreate(
     terminal.loadAddon(serializer);
 
     const unsubData = api.onData(sessionId, (data: string) =>
-      terminal.write(data),
+      terminal.write(data)
     );
 
     const onKeyDispose = terminal.onData((input) =>
-      api.sendKeypress(sessionId, input),
+      api.sendKeypress(sessionId, input)
     );
 
     const newInstance: TerminalInstance = {
@@ -138,7 +135,7 @@ export function disposeSession(sessionId: string) {
 
 export function serializeSession(
   sessionId: string,
-  options?: ISerializeOptions,
+  options?: ISerializeOptions
 ): string | null {
   const instance = store.get(sessionId);
   if (!instance) return null;
@@ -157,4 +154,21 @@ export function inputToSession(sessionId: string, input: string): boolean {
 
   instance.terminal.input(input);
   return true;
+}
+
+/**
+ * Update terminal theme for all active terminals
+ * Called when the app theme changes
+ */
+export function updateTerminalThemes() {
+  const terminalTheme = {
+    background: resolveColor("surface"),
+    foreground: resolveColor("foreground"),
+    cursor: resolveColor("foreground"),
+    selectionBackground: resolveColor("selection"),
+  };
+
+  store.forEach((instance) => {
+    instance.terminal.options.theme = terminalTheme;
+  });
 }
