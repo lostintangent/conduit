@@ -4,6 +4,8 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 const { mockApi, mockStoreGet, mockStoreSet } = vi.hoisted(() => {
   const mockApi = {
     createTerminal: vi.fn(),
+    captureTerminalCommand: vi.fn(),
+    sendKeypress: vi.fn(),
   };
 
   // Set up window.conduit in hoisted scope
@@ -77,6 +79,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user",
@@ -88,8 +91,14 @@ describe("duplicateTab", () => {
     expect(result).not.toBeNull();
     expect(result?.tabId).toBeDefined();
 
+    // Verify captureTerminalCommand was called
+    expect(mockApi.captureTerminalCommand).toHaveBeenCalledWith("session-1");
+
     // Verify createTerminal was called with correct cwd
     expect(mockApi.createTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
+
+    // Verify sendKeypress was not called (no command to restore)
+    expect(mockApi.sendKeypress).not.toHaveBeenCalled();
 
     // Verify new tab was added
     expect(mockStoreSet).toHaveBeenCalled();
@@ -133,6 +142,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal
       .mockResolvedValueOnce({
         sessionId: "session-3",
@@ -148,6 +158,7 @@ describe("duplicateTab", () => {
     const result = await duplicateTab("tab-1");
 
     expect(result).not.toBeNull();
+    expect(mockApi.captureTerminalCommand).toHaveBeenCalledTimes(2);
     expect(mockApi.createTerminal).toHaveBeenCalledTimes(2);
 
     const setCallback = mockStoreSet.mock.calls[0][1];
@@ -257,6 +268,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user/worktree",
@@ -314,6 +326,7 @@ describe("duplicateTab", () => {
     ];
 
     mockStoreGet.mockReturnValue(tabs);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-3",
       cwd: "/home/user",
@@ -381,6 +394,7 @@ describe("duplicateTab", () => {
     ];
 
     mockStoreGet.mockReturnValue(tabs);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-4",
       cwd: "/home",
@@ -431,6 +445,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal
       .mockResolvedValueOnce({
         sessionId: "session-3",
@@ -553,6 +568,7 @@ describe("duplicateTab", () => {
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home",
@@ -568,5 +584,160 @@ describe("duplicateTab", () => {
 
     // Should not have a title
     expect(newTabs[1].title).toBeUndefined();
+  });
+
+  it("should capture and restore running commands in duplicated terminals", async () => {
+    const sourceTab: Tab = {
+      id: "tab-1",
+      title: "Dev Server",
+      activePaneId: "pane-1",
+      panes: {
+        "pane-1": {
+          id: "pane-1",
+          type: "terminal",
+          sessionId: "session-1",
+          cwd: "/home/user/project",
+          processTitle: "npm",
+        },
+      },
+      layout: {
+        id: "layout-1",
+        type: "pane",
+        paneId: "pane-1",
+      },
+    };
+
+    const mockCommand = "npm run dev";
+
+    mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue(mockCommand);
+    mockApi.createTerminal.mockResolvedValue({
+      sessionId: "session-2",
+      cwd: "/home/user/project",
+      title: "npm",
+    });
+
+    const result = await duplicateTab("tab-1");
+
+    expect(result).not.toBeNull();
+
+    // Verify command was captured from source terminal
+    expect(mockApi.captureTerminalCommand).toHaveBeenCalledWith("session-1");
+
+    // Verify command was auto-executed in new terminal
+    expect(mockApi.sendKeypress).toHaveBeenCalledWith(
+      "session-2",
+      "npm run dev\n"
+    );
+  });
+
+  it("should handle terminals with no active command during duplication", async () => {
+    const sourceTab: Tab = {
+      id: "tab-1",
+      activePaneId: "pane-1",
+      panes: {
+        "pane-1": {
+          id: "pane-1",
+          type: "terminal",
+          sessionId: "session-1",
+          cwd: "/home/user",
+          processTitle: "bash",
+        },
+      },
+      layout: {
+        id: "layout-1",
+        type: "pane",
+        paneId: "pane-1",
+      },
+    };
+
+    mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue(null);
+    mockApi.createTerminal.mockResolvedValue({
+      sessionId: "session-2",
+      cwd: "/home/user",
+      title: "bash",
+    });
+
+    const result = await duplicateTab("tab-1");
+
+    expect(result).not.toBeNull();
+
+    // Verify command capture was attempted
+    expect(mockApi.captureTerminalCommand).toHaveBeenCalledWith("session-1");
+
+    // Verify no command was sent (terminal was idle)
+    expect(mockApi.sendKeypress).not.toHaveBeenCalled();
+  });
+
+  it("should add newline to commands that don't have one", async () => {
+    const sourceTab: Tab = {
+      id: "tab-1",
+      activePaneId: "pane-1",
+      panes: {
+        "pane-1": {
+          id: "pane-1",
+          type: "terminal",
+          sessionId: "session-1",
+          cwd: "/home/user",
+          processTitle: "bash",
+        },
+      },
+      layout: {
+        id: "layout-1",
+        type: "pane",
+        paneId: "pane-1",
+      },
+    };
+
+    mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue("top");
+    mockApi.createTerminal.mockResolvedValue({
+      sessionId: "session-2",
+      cwd: "/home/user",
+      title: "bash",
+    });
+
+    await duplicateTab("tab-1");
+
+    // Command should have newline added
+    expect(mockApi.sendKeypress).toHaveBeenCalledWith("session-2", "top\n");
+  });
+
+  it("should not add extra newline if command already has one", async () => {
+    const sourceTab: Tab = {
+      id: "tab-1",
+      activePaneId: "pane-1",
+      panes: {
+        "pane-1": {
+          id: "pane-1",
+          type: "terminal",
+          sessionId: "session-1",
+          cwd: "/home/user",
+          processTitle: "bash",
+        },
+      },
+      layout: {
+        id: "layout-1",
+        type: "pane",
+        paneId: "pane-1",
+      },
+    };
+
+    mockStoreGet.mockReturnValue([sourceTab]);
+    mockApi.captureTerminalCommand.mockResolvedValue("vim file.txt\n");
+    mockApi.createTerminal.mockResolvedValue({
+      sessionId: "session-2",
+      cwd: "/home/user",
+      title: "bash",
+    });
+
+    await duplicateTab("tab-1");
+
+    // Command should not have extra newline
+    expect(mockApi.sendKeypress).toHaveBeenCalledWith(
+      "session-2",
+      "vim file.txt\n"
+    );
   });
 });

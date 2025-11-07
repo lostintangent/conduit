@@ -4,6 +4,7 @@ import type {
   TerminalPayload,
   TerminalResizePayload,
 } from "../../shared/types";
+import { captureTerminalCommand } from "./command";
 import { getAllTerminals, getTerminal } from "./store";
 import {
   createTerminal,
@@ -24,6 +25,19 @@ export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
         cwd: terminal.cwd,
         vmMetadata: terminal.cloudEnvironment,
       };
+    },
+  );
+
+  ipcMain.handle(
+    `${CHANNEL}:capture-command`,
+    async (_, { sessionId }: TerminalPayload) => {
+      const terminal = getTerminal(sessionId);
+      if (!terminal) {
+        return null;
+      }
+
+      const command = await captureTerminalCommand(terminal);
+      return command;
     },
   );
 

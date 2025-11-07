@@ -15,6 +15,7 @@ import type {
   ForkVMPayload,
   ForwardPortResponse,
   ListVMsPayload,
+  TerminalCaptureCommandResponse,
   TerminalCreateOptions,
   TerminalCreateResponse,
   TerminalCwdPayload,
@@ -63,6 +64,9 @@ const conduitAPI = {
 
   markTerminalReady: (sessionId: string) =>
     ipcRenderer.send("terminal:ready", { sessionId }),
+
+  captureTerminalCommand: (sessionId: string) =>
+    ipcRenderer.invoke("terminal:capture-command", { sessionId }) as Promise<TerminalCaptureCommandResponse>,
 
   /* UI event listeners (main->UI) */
 
