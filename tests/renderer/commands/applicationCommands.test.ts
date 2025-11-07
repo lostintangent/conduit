@@ -43,7 +43,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(22);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(38);
 
       // View commands
       expect(
@@ -74,6 +74,9 @@ describe("applicationCommands", () => {
       expect(registeredCommands.has(ApplicationCommands.TAB_DUPLICATE_WITH_CWD)).toBe(
         true
       );
+      expect(registeredCommands.has(ApplicationCommands.TAB_CHANGE_TITLE)).toBe(
+        true
+      );
 
       // Workspace commands
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_SAVE)).toBe(
@@ -99,6 +102,47 @@ describe("applicationCommands", () => {
       expect(
         registeredCommands.has(ApplicationCommands.PANE_OPEN_WEB_PAGE)
       ).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.PANE_FOCUS)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.PANE_CLOSE)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_LEFT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_RIGHT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_TOP)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_BOTTOM)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_LEFT_AGENT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_RIGHT_AGENT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_TOP_AGENT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_LEFT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_RIGHT)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_UP)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_DOWN)).toBe(
+        true
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_TO_TAB)).toBe(
+        true
+      );
 
       // Terminal commands
       expect(
