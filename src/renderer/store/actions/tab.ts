@@ -14,6 +14,64 @@ import { openWorkspace } from "./workspace";
 const api = window.conduit;
 const store = getDefaultStore();
 
+/**
+ * Get the current working directory from a tab's active pane
+ * @param tab - The tab to get the CWD from
+ * @param fallback - Fallback value if no CWD is found
+ * @returns The CWD from the active pane, or the fallback
+ */
+export function getActiveTabCwd(
+  tab: Tab | null | undefined,
+  fallback = "",
+): string {
+  if (!tab) {
+    return fallback;
+  }
+
+  const activePane = tab.panes[tab.activePaneId];
+  if (activePane?.type === "terminal" || activePane?.type === "editor") {
+    return activePane.cwd ?? fallback;
+  }
+
+  return fallback;
+}
+
+/**
+ * Generate an incremented title for a duplicated tab
+ * @param baseTitle - The title of the source tab
+ * @param existingTabs - Array of existing tabs to check for conflicts
+ * @returns A new title with an incremented number suffix, or undefined if no baseTitle
+ */
+export function generateIncrementedTabTitle(
+  baseTitle: string | undefined,
+  existingTabs: Tab[],
+): string | undefined {
+  if (!baseTitle) {
+    return undefined;
+  }
+
+  // Extract number suffix if present (e.g., "My Tab 2" -> "My Tab", 2)
+  const match = baseTitle.match(/^(.+?)\s+(\d+)$/);
+  const baseName = match ? match[1] : baseTitle;
+  const currentNumber = match ? parseInt(match[2], 10) : 1;
+
+  // Find the highest number used by existing tabs with the same base name
+  let highestNumber = currentNumber;
+  for (const tab of existingTabs) {
+    if (tab.title) {
+      const tabMatch = tab.title.match(/^(.+?)\s+(\d+)$/);
+      const tabBaseName = tabMatch ? tabMatch[1] : tab.title;
+      const tabNumber = tabMatch ? parseInt(tabMatch[2], 10) : 1;
+
+      if (tabBaseName === baseName && tabNumber >= highestNumber) {
+        highestNumber = tabNumber + 1;
+      }
+    }
+  }
+
+  return `${baseName} ${highestNumber}`;
+}
+
 export async function openTab(
   initialCommand?: string,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
@@ -322,7 +380,7 @@ export function movePaneToTab(
  */
 export async function duplicateTab(
   sourceTabId: string,
-  options?: { cwd?: string },
+  options?: { cwd?: string; title?: string },
 ): Promise<{ tabId: string } | null> {
   const tabs = store.get(tabsAtom);
   const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
@@ -421,35 +479,9 @@ export async function duplicateTab(
 
   const newLayout = cloneLayoutNode(sourceTab.layout);
 
-  // Generate incremented title
-  const generateTitle = (baseTitle: string | undefined): string | undefined => {
-    if (!baseTitle) {
-      return undefined;
-    }
-
-    // Extract number suffix if present (e.g., "My Tab 2" -> "My Tab", 2)
-    const match = baseTitle.match(/^(.+?)\s+(\d+)$/);
-    const baseName = match ? match[1] : baseTitle;
-    const currentNumber = match ? parseInt(match[2], 10) : 1;
-
-    // Find the highest number used by existing tabs with the same base name
-    let highestNumber = currentNumber;
-    for (const tab of tabs) {
-      if (tab.title) {
-        const tabMatch = tab.title.match(/^(.+?)\s+(\d+)$/);
-        const tabBaseName = tabMatch ? tabMatch[1] : tab.title;
-        const tabNumber = tabMatch ? parseInt(tabMatch[2], 10) : 1;
-
-        if (tabBaseName === baseName && tabNumber >= highestNumber) {
-          highestNumber = tabNumber + 1;
-        }
-      }
-    }
-
-    return `${baseName} ${highestNumber}`;
-  };
-
-  const newTitle = generateTitle(sourceTab.title);
+  // Use provided title or generate one
+  const newTitle =
+    options?.title || generateIncrementedTabTitle(sourceTab.title, tabs);
 
   // Map the active pane ID
   const newActivePaneId = paneIdMap.get(sourceTab.activePaneId);

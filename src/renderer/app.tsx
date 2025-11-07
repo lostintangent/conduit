@@ -7,6 +7,7 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { DuplicateTabDialog } from "@/components/shell/DuplicateTabDialog";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import { PaneActionsEditor } from "@/components/shell/paneActions";
 import {
@@ -40,6 +41,8 @@ import {
   registerTabEventHandlers,
   updateTabProperty,
   duplicateTab,
+  generateIncrementedTabTitle,
+  getActiveTabCwd,
 } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -560,7 +563,7 @@ export function App() {
   );
 
   const handleDuplicateTabWithCwd = useCallback(
-    async (cwd: string) => {
+    async (cwd: string, title?: string) => {
       if (!activeTab) {
         return;
       }
@@ -571,8 +574,22 @@ export function App() {
         return;
       }
 
-      // Duplicate the tab with the specified CWD
-      await duplicateTab(activeTab.id, { cwd: trimmedCwd });
+      // Validate that the directory exists
+      try {
+        await api.listDirectory(trimmedCwd);
+      } catch (error) {
+        enqueueNotification({
+          kind: "error",
+          message: `Directory not found: ${trimmedCwd}`,
+        });
+        return;
+      }
+
+      // Duplicate the tab with the specified CWD and optional title
+      await duplicateTab(activeTab.id, {
+        cwd: trimmedCwd,
+        title: title || undefined
+      });
       setShowDuplicateTabWithCwdDialog(false);
     },
     [activeTab]
@@ -769,13 +786,12 @@ export function App() {
         placeholder="Enter name for the duplicated workspace..."
       />
 
-      <InputDialog
+      <DuplicateTabDialog
         isOpen={showDuplicateTabWithCwdDialog}
-        initialValue={homeDirectory ?? ""}
+        initialCwd={getActiveTabCwd(activeTab, homeDirectory ?? "")}
+        initialTitle={generateIncrementedTabTitle(activeTab?.title, tabs) ?? ""}
         onClose={() => setShowDuplicateTabWithCwdDialog(false)}
         onSave={handleDuplicateTabWithCwd}
-        title="Duplicate tab with custom directory"
-        placeholder="Enter working directory path..."
       />
 
       <WorkspacePicker
