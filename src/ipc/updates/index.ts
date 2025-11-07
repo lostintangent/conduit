@@ -28,7 +28,7 @@ function updateState(partial: Partial<UpdateState>) {
   };
 
   // Notify renderer process of update state change
-  sendToRenderer("updates:event", currentState);
+  sendToRenderer?.("updates:event", currentState);
 
   // Notify any registered state listener
   stateListener(currentState);
