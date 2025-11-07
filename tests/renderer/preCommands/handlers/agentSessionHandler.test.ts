@@ -226,8 +226,7 @@ describe("agentSessionHandler", () => {
       const endTime = Date.now();
 
       expect(result.success).toBe(true);
-      // Allow 5ms margin for timing imprecision
-      expect(endTime - startTime).toBeGreaterThanOrEqual(95);
+      expect(endTime - startTime).toBeGreaterThanOrEqual(99);
     });
   });
 
