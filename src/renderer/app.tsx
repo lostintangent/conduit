@@ -259,6 +259,7 @@ export function App() {
       enqueueNotification({
         kind: payload.type,
         message: payload.message,
+        autoCloseMs: payload.timeout,
       });
     });
 
