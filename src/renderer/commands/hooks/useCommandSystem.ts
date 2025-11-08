@@ -7,7 +7,10 @@ import {
   type IContextKeyService,
   type KeybindingRegistry,
 } from "@/commands";
-import { registerApplicationCommands } from "@/commands/applicationCommands";
+import {
+  registerApplicationCommands,
+  registerMenuContextBuilders,
+} from "@/commands/applicationCommands";
 import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsAtom";
 import {
   getUserKeybindingsPath,
@@ -106,6 +109,9 @@ export function useCommandSystem(
 
       // Register application-level commands
       registerApplicationCommands(commandRegistry);
+
+      // Register menu context builders
+      registerMenuContextBuilders();
 
       // Load user keybindings if homeDirectory is available
       if (homeDirectory) {
@@ -221,6 +227,7 @@ export function useCommandSystem(
       "hasActivePane",
       !!(activeTab && activeTab.activePaneId)
     );
+    contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {
@@ -264,6 +271,7 @@ export function useCommandSystem(
     tabs,
     activeTab,
     hasCustomLayout,
+    applicationMode,
   ]);
 
   // Watch keybindings file for external changes

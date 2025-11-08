@@ -153,9 +153,13 @@ const conduitAPI = {
   showContextMenu: (options: {
     tabId: string;
     paneId?: string;
-    canChangeTitle: boolean;
-    hasGitRepo?: boolean;
-    commandData?: Record<string, { keybinding?: string; enabled?: boolean }>;
+    menuItems: Array<{
+      commandId: string;
+      title: string;
+      group: string;
+      enabled: boolean;
+      keybinding?: string;
+    }>;
   }) => ipcRenderer.send("ui:show-context-menu", options),
 
   addCommandHistoryEntry: (command: string) =>

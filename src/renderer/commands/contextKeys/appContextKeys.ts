@@ -47,6 +47,12 @@ export const hasCustomLayout = new ContextKey<boolean>(
   false,
 );
 
+/**
+ * Whether the application is in focus mode
+ * Used by: commands that should behave differently in focus mode
+ */
+export const isFocusMode = new ContextKey<boolean>("isFocusMode", false);
+
 // ============================================================================
 // Pane-level Context Keys
 // ============================================================================
@@ -71,3 +77,9 @@ export const isInAgentSession = new ContextKey<boolean>(
  * Used by: terminal.openInVSCode
  */
 export const hasCwd = new ContextKey<boolean>("hasCwd", false);
+
+/**
+ * Whether the active pane's working directory is a git repository
+ * Used by: agent split commands (menu visibility)
+ */
+export const hasGitRepo = new ContextKey<boolean>("hasGitRepo", false);
