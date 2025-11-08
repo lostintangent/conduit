@@ -520,7 +520,12 @@ export function TabLayout({
       const tabShowsBorder = shouldShowPaneBorder(tab, applicationMode);
 
       // Use grid gap to create spaces that reveal the overlay underneath
-      const gridGapClass = applicationMode === "normal" ? "gap-[1px]" : "gap-0";
+      // Hide gaps only in focus mode where we want a seamless view
+      // Use larger gaps in overview mode to compensate for scaling
+      const gridGapClass =
+        applicationMode === "focus" ? "gap-0" :
+        applicationMode === "overview" ? "gap-[3px]" :
+        "gap-[1px]";
 
       return (
         /* Render the split container (the grid which positions the child panes) */

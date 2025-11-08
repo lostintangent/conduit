@@ -64,6 +64,7 @@ export function TabPreviewItem({
       style={{
         width: displayWidth,
         height: displayHeight,
+        backgroundColor: "var(--color-border-fill-solid)",
       }}
       onClick={handleClick}
     >
