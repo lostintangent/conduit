@@ -29,6 +29,15 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const moveDownCommand = useCommand(ApplicationCommands.PANE_MOVE_DOWN);
   const moveToTabCommand = useCommand(ApplicationCommands.PANE_MOVE_TO_TAB);
 
+  const focusPaneCommand = useCommand(ApplicationCommands.PANE_FOCUS);
+  const closePaneCommand = useCommand(ApplicationCommands.PANE_CLOSE);
+  const closeTabCommand = useCommand(ApplicationCommands.TAB_CLOSE);
+
+  const splitLeftCommand = useCommand(ApplicationCommands.PANE_SPLIT_LEFT);
+  const splitRightCommand = useCommand(ApplicationCommands.PANE_SPLIT_RIGHT);
+  const splitTopCommand = useCommand(ApplicationCommands.PANE_SPLIT_TOP);
+  const splitBottomCommand = useCommand(ApplicationCommands.PANE_SPLIT_BOTTOM);
+
   const moveCommandMap = {
     left: moveLeftCommand,
     right: moveRightCommand,
@@ -37,15 +46,26 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     tab: moveToTabCommand,
   } as const;
 
+  const splitCommandMap = {
+    left: splitLeftCommand,
+    right: splitRightCommand,
+    top: splitTopCommand,
+    bottom: splitBottomCommand,
+  } as const;
+
   useEffect(() => {
     tabsRef.current = tabs;
   }, [tabs]);
 
   useEffect(() => {
-    const handleCliRequest = async (payload: CliRequest) => {
+    const handleCliRequest = async ({
+      requestId,
+      sessionId,
+      command,
+    }: CliRequest) => {
       const respond = (response: Omit<CliResponse, "requestId">) =>
         api.respondToCliRequest({
-          requestId: payload.requestId,
+          requestId,
           ...response,
         });
 
@@ -54,7 +74,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         respond({ status: "error", message });
 
       try {
-        const { command } = payload;
         switch (command.type) {
           case "open-file": {
             const isCommitMessageRequest = command.filePath?.endsWith(
@@ -79,7 +98,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "list-panes": {
-            const sessionId = payload.sessionId;
             const currentTabs = tabsRef.current;
             const matchingTab = currentTabs.find((tab) =>
               Object.values(tab.panes).some(
@@ -139,7 +157,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             // total hack, but it works for now. And we'll eventually move from using
             // <webviews> to WebContentsViews in the future anyways. So it seems OK for now.
             await api.completeCaptureBrowserRequest({
-              requestId: payload.requestId,
+              requestId,
               webContentsId,
             });
             break;
@@ -159,12 +177,32 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "move-pane": {
             const targetCommand = moveCommandMap[command.direction];
-            if (!targetCommand) {
-              respondError("Unable to move pane in the specified direction.");
-              break;
-            }
-
             await targetCommand.execute();
+
+            respondOk();
+            break;
+          }
+
+          case "split-pane": {
+            const targetCommand = splitCommandMap[command.direction];
+            await targetCommand.execute();
+
+            respondOk();
+            break;
+          }
+
+          case "focus-pane": {
+            await focusPaneCommand.execute();
+            respondOk();
+            break;
+          }
+
+          case "close-pane": {
+            const targetCommand = command.closeTab
+              ? closeTabCommand
+              : closePaneCommand;
+            await targetCommand.execute();
+
             respondOk();
             break;
           }
@@ -187,6 +225,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     moveLeftCommand,
     moveRightCommand,
     moveToTabCommand,
+    focusPaneCommand,
+    closePaneCommand,
+    closeTabCommand,
+    splitLeftCommand,
+    splitRightCommand,
+    splitTopCommand,
+    splitBottomCommand,
     onOpenFile,
   ]);
 }
