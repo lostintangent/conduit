@@ -26,6 +26,7 @@ import {
   workspaceNameAtom,
   workspacesAtom,
 } from "@/store/atoms";
+import { cn } from "@/utils";
 import type { Workspace } from "@shared/types";
 
 const api = window.conduit;
@@ -69,12 +70,13 @@ export const WorkspaceMenu = () => {
 
   return (
     <DropdownMenu>
+      {/* Workspaces button w/tooltip */}
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
               className="relative p-1 rounded text-white hover:bg-white/10 transition-colors"
-              aria-label="Workspace menu"
+              aria-label="Workspaces"
             >
               <LayoutDashboard className="w-4 h-4" />
               {hasWorkspaceChanges && !autoSaveWorkspaces && (
@@ -83,9 +85,11 @@ export const WorkspaceMenu = () => {
             </button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Workspaces</TooltipContent>
+        <TooltipContent>Workspaces</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-56">
+
+      {/* Workspaces list */}
+      <DropdownMenuContent align="end">
         {workspaces.length > 0 && (
           <>
             {workspaces.map((workspace) => {
@@ -93,13 +97,12 @@ export const WorkspaceMenu = () => {
 
               return (
                 <DropdownMenuItem
-                  key={workspace.timestamp}
                   onClick={() => handleOpenWorkspace(workspace)}
-                  className={
-                    isCurrentWorkspace
-                      ? "flex items-center justify-between bg-gradient-to-br from-accent-start to-accent-end text-white"
-                      : "flex items-center justify-between"
-                  }
+                  className={cn(
+                    "flex items-center justify-between",
+                    isCurrentWorkspace &&
+                    "bg-gradient-to-br from-accent-start to-accent-end text-white"
+                  )}
                 >
                   <span>{workspace.name}</span>
                   {isCurrentWorkspace ? (
@@ -115,9 +118,7 @@ export const WorkspaceMenu = () => {
                           <Trash2 className="w-4 h-4 group-hover:text-red-500" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        Delete workspace
-                      </TooltipContent>
+                      <TooltipContent>Delete workspace</TooltipContent>
                     </Tooltip>
                   )}
                 </DropdownMenuItem>
@@ -126,6 +127,8 @@ export const WorkspaceMenu = () => {
             <DropdownMenuSeparator />
           </>
         )}
+
+        {/* Workspace management actions */}
 
         <DropdownMenuItem
           onClick={saveWorkspaceCmd.execute}

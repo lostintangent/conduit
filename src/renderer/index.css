@@ -26,6 +26,8 @@
   /* Dark theme (default) */
   --color-surface: #1e1e1e;
   --color-surface-elevated: #1f1f1f;
+  --color-popover: var(--color-surface-elevated);
+  --color-text-popover: var(--color-foreground);
   --color-surface-muted: #141414;
   --color-input: #121212;
   --color-border: #2b2b2b;
@@ -81,6 +83,8 @@
 
   --color-surface: #fafafa;
   --color-surface-elevated: #ffffff;
+  --color-popover: var(--color-surface-elevated);
+  --color-text-popover: var(--color-foreground);
   --color-surface-muted: #f5f5f5;
   --color-input: #ffffff;
   --color-border: #e5e5e5;
