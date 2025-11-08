@@ -1,4 +1,4 @@
-import fs from "node:fs/promises";
+import fs from "node:fs";
 import net from "node:net";
 import type { CliRequest, CliResponse } from "../../shared/cli";
 
@@ -58,7 +58,7 @@ export async function createCliServer(
       } catch (error) {
         respondWithSocket(socket, {
           status: "error",
-          message: `Invalid request: ${error.message}`,
+          message: `Invalid request: ${error.message}.`,
         });
       }
     });
@@ -68,9 +68,9 @@ export async function createCliServer(
 
   // Start the server and wait for it to begin listening
   await new Promise<void>((resolve, reject) => {
-    cleanupSocket(socketPath);
     server.once("error", reject);
 
+    cleanupSocket(socketPath);
     server.listen(socketPath, () => {
       server.removeListener("error", reject);
       resolve();
@@ -80,10 +80,8 @@ export async function createCliServer(
   async function cleanupSocket(socketPath: string) {
     if (process.platform === "win32") return;
 
-    try {
-      await fs.unlink(socketPath);
-    } catch {
-      // Ignore errors if socket file doesn't exist
+    if (fs.existsSync(socketPath)) {
+      fs.unlinkSync(socketPath);
     }
   }
 
@@ -98,12 +96,12 @@ export async function createCliServer(
     sendToRenderer("cli:request", request);
   }
 
-  async function shutdown(reason?: string) {
+  async function shutdown() {
     // Close any pending requests
-    for (const [requestId, pending] of pendingRequests) {
-      respondWithSocket(pending, {
+    for (const [requestId, socket] of pendingRequests) {
+      respondWithSocket(socket, {
         status: "error",
-        message: reason ?? "Conduit is shutting down.",
+        message: "Conduit is shutting down.",
       });
       pendingRequests.delete(requestId);
     }
@@ -112,6 +110,8 @@ export async function createCliServer(
     if (server.listening) {
       await new Promise((resolve) => server.close(resolve));
     }
+
+    cleanupSocket(socketPath);
   }
 
   return {

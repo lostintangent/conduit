@@ -2,18 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CLI_COMMAND_NAME } from "../../shared/cli";
 
-function buildUnixLauncher(electronBinary: string, cliPath: string) {
-  return `#!/bin/sh
-if [ -z "$CONDUIT_SOCKET_PATH" ]; then
-  echo "CONDUIT_SOCKET_PATH is not set. Please run this command inside a Conduit terminal." >&2
-  exit 1
-fi
-ELECTRON_BIN=${JSON.stringify(electronBinary)}
-CLI_ENTRY=${JSON.stringify(cliPath)}
-export ELECTRON_RUN_AS_NODE=1
-exec "$ELECTRON_BIN" "$CLI_ENTRY" "$@"`;
-}
-
 function buildCmdLauncher(electronBinary: string, cliPath: string) {
   const escape = (value: string) => value.replace(/"/g, '""');
 
@@ -32,21 +20,19 @@ function buildCmdLauncher(electronBinary: string, cliPath: string) {
   ].join("\r\n");
 }
 
-function buildPowerShellLauncher(electronBinary: string, cliPath: string) {
-  const escape = (value: string) => value.replace(/'/g, "''");
+function buildUnixLauncher(electronBinary: string, cliPath: string) {
+  return `#!/bin/sh
 
-  return [
-    "if (-not $env:CONDUIT_SOCKET_PATH) {",
-    "  Write-Error 'CONDUIT_SOCKET_PATH is not set. Please run this command inside a Conduit terminal.'",
-    "  exit 1",
-    "}",
-    `$electronBin = '${escape(electronBinary)}'`,
-    `$cliEntry = '${escape(cliPath)}'`,
-    "$env:ELECTRON_RUN_AS_NODE = '1'",
-    "& $electronBin $cliEntry @Args",
-    "exit $LASTEXITCODE",
-    "",
-  ].join("\r\n");
+if [ -z "$CONDUIT_SOCKET_PATH" ]; then
+  echo "CONDUIT_SOCKET_PATH is not set. Please run this command inside a Conduit terminal." >&2
+  exit 1
+fi
+
+ELECTRON_BIN=${JSON.stringify(electronBinary)}
+CLI_ENTRY=${JSON.stringify(cliPath)}
+
+export ELECTRON_RUN_AS_NODE=1
+exec "$ELECTRON_BIN" "$CLI_ENTRY" "$@"`;
 }
 
 export async function ensureLauncherScripts(
@@ -57,14 +43,12 @@ export async function ensureLauncherScripts(
   const rootPath = path.join(binDir, CLI_COMMAND_NAME);
 
   if (process.platform === "win32") {
+    // Even when the user's shell is PowerShell, we need to create a .cmd launcher
+    // because only .cmd files are recognized as executables by default. Otherwise,
+    // if we wrote a .ps1 file, users would have to explicitly run `conduit.ps1` vs. `conduit`.
     await fs.writeFile(
       `${rootPath}.cmd`,
       buildCmdLauncher(electronBinary, cliPath),
-    );
-
-    await fs.writeFile(
-      `${rootPath}.ps1`,
-      buildPowerShellLauncher(electronBinary, cliPath),
     );
   } else {
     await fs.writeFile(rootPath, buildUnixLauncher(electronBinary, cliPath), {

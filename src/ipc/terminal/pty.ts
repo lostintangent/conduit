@@ -5,7 +5,7 @@ import { getCurrentUserSettings } from "../ui";
 
 export function resolveShell() {
   if (process.platform === "win32") {
-    return process.env.COMSPEC ?? "powershell.exe";
+    return "pwsh.exe";
   }
 
   return process.env.SHELL ?? "bash";
