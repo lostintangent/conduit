@@ -5,6 +5,7 @@ import { sendCliRequest } from "../ipc";
 const COMMAND_NAME = "list-panes";
 
 const command = new Command(COMMAND_NAME)
+  .alias("list")
   .description("List the other panes in the active Conduit tab.")
   .addOption(
     new Option("-t, --type <paneType>", "Filter panes by type")

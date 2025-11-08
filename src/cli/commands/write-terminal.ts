@@ -4,6 +4,7 @@ import { sendCliRequest } from "../ipc";
 const COMMAND_NAME = "write-terminal";
 
 const command = new Command(COMMAND_NAME)
+  .alias("write")
   .description("Send input to a terminal session")
   .argument("<sessionId>", "The terminal session to write to")
   .argument("<input...>", "Input to send to the terminal")

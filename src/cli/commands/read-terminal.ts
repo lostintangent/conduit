@@ -4,6 +4,7 @@ import { sendCliRequest } from "../ipc";
 const COMMAND_NAME = "read-terminal";
 
 const command = new Command(COMMAND_NAME)
+  .alias("read")
   .description("Read the contents of a terminal session")
   .argument("<sessionId>", "The terminal session to read")
   .action(async (sessionId: string) => {

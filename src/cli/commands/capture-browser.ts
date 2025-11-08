@@ -4,6 +4,7 @@ import { sendCliRequest } from "../ipc";
 const COMMAND_NAME = "capture-browser";
 
 const command = new Command(COMMAND_NAME)
+  .alias("capture")
   .description("Capture a screenshot of a specific browser pane")
   .argument("<paneId>", "The browser pane to capture")
   .action(async (paneId: string) => {
