@@ -77,6 +77,9 @@
   color: var(--color-foreground);
   accent-color: var(--color-accent);
 
+  --color-border-fill-gradient: rgba(0, 0, 0, 0.6);
+  --color-border-fill-solid: #3c3c3c;
+
   --background: 0 0% 11.8%;
   --foreground: 0 0% 83.1%;
   --card: 0 0% 11.8%;
@@ -116,6 +119,8 @@
   --color-input: #ffffff;
   --color-border: #e5e5e5;
   --color-border-muted: #d4d4d4;
+  --color-border-fill-gradient: rgba(255, 255, 255, 0.6);
+  --color-border-fill-solid: #f3f3f3;
   --color-foreground: #171717;
   --color-foreground-inverse: #fafafa;
   --color-selection: #b3d4fc;

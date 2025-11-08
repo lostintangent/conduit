@@ -92,6 +92,7 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
           <DropdownMenuSubContent>
             {Array.from(themeOptions.entries()).map(([value, Icon]) => (
               <DropdownMenuItem
+                key={value}
                 onClick={() => onUpdateSettings({ theme: value })}
                 className={cn(
                   "flex items-center justify-between gap-2",

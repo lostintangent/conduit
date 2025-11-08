@@ -14,7 +14,9 @@ function AppWrapper() {
 
   // When gradient borders are enabled: transparent overlay shows dimmed gradient
   // When disabled: solid overlay creates uniform border color
-  const overlayClass = useGradientBorders ? "bg-black/60" : "bg-gray-700";
+  const overlayColor = useGradientBorders
+    ? "var(--color-border-fill-gradient)"
+    : "var(--color-border-fill-solid)";
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -25,7 +27,8 @@ function AppWrapper() {
 
         {/* Muting overlay - dims gradient or provides solid color for inner borders */}
         <div
-          className={`absolute inset-[3px] rounded-xl pointer-events-none ${overlayClass}`}
+          className="absolute inset-[3px] rounded-xl pointer-events-none"
+          style={{ backgroundColor: overlayColor }}
         />
 
         {/* Content layer - inset creates the outer border effect */}
