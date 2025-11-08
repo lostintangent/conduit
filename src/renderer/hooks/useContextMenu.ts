@@ -1,11 +1,19 @@
 import { executeCommand } from "@/commands";
-import { useCommand } from "@/commands/hooks/useCommand";
+import {
+  getCommandRegistry,
+  getContextKeyService,
+  getKeybindingRegistry,
+  getMenuRegistry,
+} from "@/commands";
+import type { MenuItemData } from "@/commands/menus/useMenu";
+import { MenuId } from "@/commands/menus/types";
+import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
 import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { tabsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
 import type { MouseEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type UseContextMenuParams = {
   canChangeTitle: (tabId: string) => boolean;
@@ -13,89 +21,15 @@ type UseContextMenuParams = {
 
 const api = window.conduit;
 
-export function useContextMenu({
-  canChangeTitle,
-}: UseContextMenuParams) {
+export interface ContextMenuItemData extends MenuItemData {
+  keybinding?: string;
+}
+
+export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
   const tabs = useAtomValue(tabsAtom);
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
     Record<string, boolean>
   >({});
-
-  // Get command info for context menu commands
-  const changeTitleCmd = useCommand(ApplicationCommands.TAB_CHANGE_TITLE);
-  const duplicateTabCmd = useCommand(ApplicationCommands.TAB_DUPLICATE);
-  const duplicateTabWithCwdCmd = useCommand(ApplicationCommands.TAB_DUPLICATE_WITH_CWD);
-  const closeTabCmd = useCommand(ApplicationCommands.TAB_CLOSE);
-  const focusPaneCmd = useCommand(ApplicationCommands.PANE_FOCUS);
-  const closePaneCmd = useCommand(ApplicationCommands.PANE_CLOSE);
-  const splitLeftCmd = useCommand(ApplicationCommands.PANE_SPLIT_LEFT);
-  const splitRightCmd = useCommand(ApplicationCommands.PANE_SPLIT_RIGHT);
-  const splitTopCmd = useCommand(ApplicationCommands.PANE_SPLIT_TOP);
-  const splitBottomCmd = useCommand(ApplicationCommands.PANE_SPLIT_BOTTOM);
-  const splitLeftAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_LEFT_AGENT);
-  const splitRightAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_RIGHT_AGENT);
-  const splitTopAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_TOP_AGENT);
-  const splitBottomAgentCmd = useCommand(ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT);
-  const moveLeftCmd = useCommand(ApplicationCommands.PANE_MOVE_LEFT);
-  const moveRightCmd = useCommand(ApplicationCommands.PANE_MOVE_RIGHT);
-  const moveUpCmd = useCommand(ApplicationCommands.PANE_MOVE_UP);
-  const moveDownCmd = useCommand(ApplicationCommands.PANE_MOVE_DOWN);
-  const moveToTabCmd = useCommand(ApplicationCommands.PANE_MOVE_TO_TAB);
-
-  // Build command data for IPC
-  const commandData = useMemo(() => {
-    const buildCommandData = (cmd: ReturnType<typeof useCommand>) => {
-      const keybinding = cmd.keybindings[0]
-        ? formatKeybindingForElectron(cmd.keybindings[0].chords)
-        : undefined;
-      return {
-        keybinding,
-        enabled: !cmd.disabled,
-      };
-    };
-
-    return {
-      [ApplicationCommands.TAB_CHANGE_TITLE]: buildCommandData(changeTitleCmd),
-      [ApplicationCommands.TAB_DUPLICATE]: buildCommandData(duplicateTabCmd),
-      [ApplicationCommands.TAB_DUPLICATE_WITH_CWD]: buildCommandData(duplicateTabWithCwdCmd),
-      [ApplicationCommands.TAB_CLOSE]: buildCommandData(closeTabCmd),
-      [ApplicationCommands.PANE_FOCUS]: buildCommandData(focusPaneCmd),
-      [ApplicationCommands.PANE_CLOSE]: buildCommandData(closePaneCmd),
-      [ApplicationCommands.PANE_SPLIT_LEFT]: buildCommandData(splitLeftCmd),
-      [ApplicationCommands.PANE_SPLIT_RIGHT]: buildCommandData(splitRightCmd),
-      [ApplicationCommands.PANE_SPLIT_TOP]: buildCommandData(splitTopCmd),
-      [ApplicationCommands.PANE_SPLIT_BOTTOM]: buildCommandData(splitBottomCmd),
-      [ApplicationCommands.PANE_SPLIT_LEFT_AGENT]: buildCommandData(splitLeftAgentCmd),
-      [ApplicationCommands.PANE_SPLIT_RIGHT_AGENT]: buildCommandData(splitRightAgentCmd),
-      [ApplicationCommands.PANE_SPLIT_TOP_AGENT]: buildCommandData(splitTopAgentCmd),
-      [ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT]: buildCommandData(splitBottomAgentCmd),
-      [ApplicationCommands.PANE_MOVE_LEFT]: buildCommandData(moveLeftCmd),
-      [ApplicationCommands.PANE_MOVE_RIGHT]: buildCommandData(moveRightCmd),
-      [ApplicationCommands.PANE_MOVE_UP]: buildCommandData(moveUpCmd),
-      [ApplicationCommands.PANE_MOVE_DOWN]: buildCommandData(moveDownCmd),
-      [ApplicationCommands.PANE_MOVE_TO_TAB]: buildCommandData(moveToTabCmd),
-    };
-  }, [
-    changeTitleCmd,
-    duplicateTabCmd,
-    duplicateTabWithCwdCmd,
-    closeTabCmd,
-    focusPaneCmd,
-    closePaneCmd,
-    splitLeftCmd,
-    splitRightCmd,
-    splitTopCmd,
-    splitBottomCmd,
-    splitLeftAgentCmd,
-    splitRightAgentCmd,
-    splitTopAgentCmd,
-    splitBottomAgentCmd,
-    moveLeftCmd,
-    moveRightCmd,
-    moveUpCmd,
-    moveDownCmd,
-    moveToTabCmd,
-  ]);
 
   const checkGitRepo = useCallback(
     async (cwd: string | null | undefined): Promise<boolean> => {
@@ -129,28 +63,86 @@ export function useContextMenu({
 
       const allowTitleChange = canChangeTitle(tabId);
 
-      let hasGitRepo = false;
-      if (paneId) {
-        const pane = tab.panes[paneId];
-        if (pane && pane.type === "terminal") {
-          hasGitRepo = await checkGitRepo(pane.cwd);
-        }
-      } else {
-        const activePane = tab.panes[tab.activePaneId];
-        if (activePane && activePane.type === "terminal") {
-          hasGitRepo = await checkGitRepo(activePane.cwd);
-        }
+      // Determine menu ID based on context (tab vs pane)
+      const menuId = paneId ? MenuId.PaneContext : MenuId.TabContext;
+
+      // Get registries lazily (only when context menu is triggered)
+      const menuRegistry = getMenuRegistry();
+      const contextKeyService = getContextKeyService();
+      const commandRegistry = getCommandRegistry();
+      const keybindingRegistry = getKeybindingRegistry();
+
+      // Get the context builder for this menu
+      const contextBuilder = getMenuContextBuilder(menuId);
+
+      // Build menu context (updates context keys)
+      if (contextBuilder) {
+        const pane = paneId ? tab.panes[paneId] : undefined;
+        await contextBuilder(
+          contextKeyService,
+          {
+            tabId,
+            paneId,
+            tab,
+            pane,
+            canChangeTitle: allowTitleChange,
+          },
+          checkGitRepo,
+        );
       }
+
+      // Get fresh menu items with updated context
+      const menuItems = menuRegistry.getSortedMenuItems(menuId);
+      const contextValues = contextKeyService.getAll();
+
+      // Filter by menu when clauses and build menu item data
+      const visibleItems = menuItems
+        .filter((item) => {
+          if (!item.when) return true;
+          return item.when.evaluate(contextValues);
+        })
+        .map((item) => {
+          const command = commandRegistry.getCommand(item.commandId);
+          return {
+            commandId: item.commandId,
+            title: command?.title || item.commandId,
+            group: item.group,
+            enabled: !command?.when || command.when.evaluate(contextValues),
+          };
+        });
+
+      // Filter out "Change title" if not allowed
+      const filteredItems = visibleItems.filter((item) => {
+        if (item.commandId === ApplicationCommands.TAB_CHANGE_TITLE) {
+          return allowTitleChange;
+        }
+        return true;
+      });
+
+      // Augment menu items with keybindings
+      const menuItemsWithKeybindings: ContextMenuItemData[] = filteredItems.map(
+        (item) => {
+          const keybindings = keybindingRegistry.getKeybindingsForCommand(
+            item.commandId,
+          );
+          const keybinding = keybindings[0]
+            ? formatKeybindingForElectron(keybindings[0].chords)
+            : undefined;
+
+          return {
+            ...item,
+            keybinding,
+          };
+        },
+      );
 
       api.showContextMenu({
         tabId,
         paneId,
-        canChangeTitle: allowTitleChange,
-        hasGitRepo,
-        commandData,
+        menuItems: menuItemsWithKeybindings,
       });
     },
-    [api, tabs, canChangeTitle, checkGitRepo, commandData],
+    [api, tabs, canChangeTitle, checkGitRepo],
   );
 
   useEffect(() => {

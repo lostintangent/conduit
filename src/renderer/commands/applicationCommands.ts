@@ -12,6 +12,7 @@ import {
   hasActivePane,
   hasCustomLayout,
   hasCwd,
+  hasGitRepo,
   hasLastWorkspace,
   hasWorkspace,
   isInAgentSession,
@@ -35,14 +36,24 @@ import {
   handleTerminate,
   handleToggleDesignMode,
 } from "@/commands/handlers";
-import { enterFocusMode, toggleFocusMode } from "@/store/actions/focusMode";
+import {
+  registerMenuContextBuilder,
+  type MenuContextBuilder,
+} from "@/commands/menus/menuContextBuilders";
+import { MenuId } from "@/commands/menus/types";
+import { toggleFocusMode } from "@/store/actions/focusMode";
 import {
   closePane,
   movePane,
   splitPane,
   splitPaneWithAgentSession,
 } from "@/store/actions/pane";
-import { closeTab, duplicateTab, movePaneToTab, openTab } from "@/store/actions/tab";
+import {
+  closeTab,
+  duplicateTab,
+  movePaneToTab,
+  openTab,
+} from "@/store/actions/tab";
 import { ApplicationCommands } from "@shared/commands";
 
 // Re-export for convenience
@@ -55,7 +66,7 @@ export { ApplicationCommands };
  * system has been initialized.
  */
 export function registerApplicationCommands(
-  commandRegistry: ICommandRegistry
+  commandRegistry: ICommandRegistry,
 ): void {
   // View: Toggle Focus Mode
   commandRegistry.registerCommand({
@@ -85,7 +96,7 @@ export function registerApplicationCommands(
     run: (context) => {
       handleToggleDesignMode(
         context.applicationMode,
-        context.setApplicationMode
+        context.setApplicationMode,
       );
     },
   });
@@ -142,7 +153,7 @@ export function registerApplicationCommands(
       void handleSaveWorkspace(
         context.allTabs,
         context.activeTab?.id,
-        context.setShowCreateWorkspaceDialog
+        context.setShowCreateWorkspaceDialog,
       );
     },
   });
@@ -259,6 +270,11 @@ export function registerApplicationCommands(
       key: "Cmd+W",
     },
     when: tabCount.greaterThan(1),
+    menu: {
+      id: MenuId.TabContext,
+      group: "9_close",
+      order: 1,
+    },
     run: (context) => {
       if (context.activeTab) {
         closeTab(context.activeTab.id);
@@ -275,6 +291,11 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+D",
     },
+    menu: {
+      id: MenuId.TabContext,
+      group: "2_tab",
+      order: 2,
+    },
     run: (context) => {
       if (context.activeTab) {
         void duplicateTab(context.activeTab.id);
@@ -285,9 +306,15 @@ export function registerApplicationCommands(
   // Tab: Duplicate with Custom CWD
   commandRegistry.registerCommand({
     id: ApplicationCommands.TAB_DUPLICATE_WITH_CWD,
-    title: "Duplicate Tab with Custom Working Directory",
-    description: "Duplicate the current tab and set a custom working directory for all panes",
+    title: "Duplicate Tab with CWD",
+    description:
+      "Duplicate the current tab and set a custom working directory for all panes",
     category: "Tab",
+    menu: {
+      id: MenuId.TabContext,
+      group: "2_tab",
+      order: 3,
+    },
     run: (context) => {
       if (context.activeTab && context.setShowDuplicateTabWithCwdDialog) {
         context.setShowDuplicateTabWithCwdDialog(true);
@@ -301,6 +328,13 @@ export function registerApplicationCommands(
     title: "Change Tab Title",
     description: "Change the title of the current tab",
     category: "Tab",
+    menu: [
+      {
+        id: MenuId.TabContext,
+        group: "1_tab",
+        order: 1,
+      },
+    ],
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       if (targetTabId && context.setTitleModal) {
@@ -310,18 +344,23 @@ export function registerApplicationCommands(
     },
   });
 
-  // Pane: Focus
+  // Pane: Toggle Focus
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_FOCUS,
-    title: "Focus Pane",
-    description: "Enter focus mode for the current pane",
+    title: "Toggle Focus on Pane",
+    description: "Toggle focus mode for the current pane",
     category: "Pane",
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "1_pane",
+      order: 2,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        enterFocusMode(targetTabId, targetPaneId);
+        toggleFocusMode(targetTabId, targetPaneId);
       }
     },
   });
@@ -333,6 +372,11 @@ export function registerApplicationCommands(
     description: "Close the current pane",
     category: "Pane",
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "9_close",
+      order: 1,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -352,6 +396,11 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+Left",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 1,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -371,6 +420,11 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+Right",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 2,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -390,6 +444,11 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+Up",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 3,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -409,6 +468,11 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+Down",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 4,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -422,12 +486,19 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_LEFT_AGENT,
     title: "Split Pane Left with Agent Session",
-    description: "Create a new pane to the left with an isolated agent worktree",
+    description:
+      "Create a new pane to the left with an isolated agent worktree",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Left",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_agent",
+      order: 1,
+      when: hasGitRepo.isTrue(),
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -441,12 +512,19 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_RIGHT_AGENT,
     title: "Split Pane Right with Agent Session",
-    description: "Create a new pane to the right with an isolated agent worktree",
+    description:
+      "Create a new pane to the right with an isolated agent worktree",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Right",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_agent",
+      order: 2,
+      when: hasGitRepo.isTrue(),
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -466,11 +544,22 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+Ctrl+Up",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_agent",
+      order: 3,
+      when: hasGitRepo.isTrue(),
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        void splitPaneWithAgentSession(targetTabId, targetPaneId, "column", true);
+        void splitPaneWithAgentSession(
+          targetTabId,
+          targetPaneId,
+          "column",
+          true,
+        );
       }
     },
   });
@@ -485,6 +574,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+Ctrl+Down",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_agent",
+      order: 4,
+      when: hasGitRepo.isTrue(),
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -504,6 +599,11 @@ export function registerApplicationCommands(
       key: "Cmd+Alt+Left",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 1,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -523,6 +623,11 @@ export function registerApplicationCommands(
       key: "Cmd+Alt+Right",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 2,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -542,6 +647,11 @@ export function registerApplicationCommands(
       key: "Cmd+Alt+Up",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 3,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -561,6 +671,11 @@ export function registerApplicationCommands(
       key: "Cmd+Alt+Down",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 4,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -580,6 +695,11 @@ export function registerApplicationCommands(
       key: "Cmd+Alt+T",
     },
     when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "5_tab_move",
+      order: 1,
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -662,4 +782,59 @@ export function registerApplicationCommands(
       void handleTerminate(context.activeTab);
     },
   });
+}
+
+/**
+ * Context builder for tab context menu
+ *
+ * Updates context keys based on the active pane in the tab.
+ */
+const tabContextBuilder: MenuContextBuilder = async (
+  contextKeyService,
+  params,
+  checkGitRepo,
+) => {
+  const { tab } = params;
+
+  // Get the active pane
+  const activePane = tab.panes[tab.activePaneId];
+
+  // Check git repository status for agent commands
+  let hasGitRepoValue = false;
+  if (activePane && activePane.type === "terminal") {
+    hasGitRepoValue = await checkGitRepo(activePane.cwd);
+  }
+
+  contextKeyService.setGlobal(hasGitRepo.key, hasGitRepoValue);
+};
+
+/**
+ * Context builder for pane context menu
+ *
+ * Updates context keys based on the specific pane being right-clicked.
+ */
+const paneContextBuilder: MenuContextBuilder = async (
+  contextKeyService,
+  params,
+  checkGitRepo,
+) => {
+  const { pane } = params;
+
+  // Check git repository status for agent commands
+  let hasGitRepoValue = false;
+  if (pane && pane.type === "terminal") {
+    hasGitRepoValue = await checkGitRepo(pane.cwd);
+  }
+
+  contextKeyService.setGlobal(hasGitRepo.key, hasGitRepoValue);
+};
+
+/**
+ * Register menu context builders for application menus
+ *
+ * This should be called during app initialization, after registering commands.
+ */
+export function registerMenuContextBuilders(): void {
+  registerMenuContextBuilder(MenuId.TabContext, tabContextBuilder);
+  registerMenuContextBuilder(MenuId.PaneContext, paneContextBuilder);
 }

@@ -35,6 +35,7 @@ export interface CommandContext {
   readonly setIsCommandPaletteOpenOverride?: (open: boolean) => void;
   readonly setShowCreateWorkspaceDialog?: (show: boolean) => void;
   readonly setShowRenameWorkspaceDialog?: (show: boolean) => void;
+  readonly setShowDuplicateWorkspaceDialog?: (show: boolean) => void;
   readonly setShowWorkspacePicker?: (show: boolean) => void;
   readonly setIsUrlDialogOpen?: (open: boolean) => void;
   readonly setCleanupDialogSessions?: (sessions: any[] | null) => void;

@@ -7,7 +7,10 @@ import {
   type IContextKeyService,
   type KeybindingRegistry,
 } from "@/commands";
-import { registerApplicationCommands } from "@/commands/applicationCommands";
+import {
+  registerApplicationCommands,
+  registerMenuContextBuilders,
+} from "@/commands/applicationCommands";
 import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsAtom";
 import {
   getUserKeybindingsPath,
@@ -62,7 +65,7 @@ export interface UseCommandSystemOptions {
  * @returns Command system state with registries and ready flag
  */
 export function useCommandSystem(
-  options: UseCommandSystemOptions
+  options: UseCommandSystemOptions,
 ): CommandSystemState | null {
   const {
     activeTab,
@@ -106,6 +109,9 @@ export function useCommandSystem(
 
       // Register application-level commands
       registerApplicationCommands(commandRegistry);
+
+      // Register menu context builders
+      registerMenuContextBuilders();
 
       // Load user keybindings if homeDirectory is available
       if (homeDirectory) {
@@ -219,14 +225,15 @@ export function useCommandSystem(
     contextKeyService.setGlobal("tabCount", tabs?.length ?? 0);
     contextKeyService.setGlobal(
       "hasActivePane",
-      !!(activeTab && activeTab.activePaneId)
+      !!(activeTab && activeTab.activePaneId),
     );
+    contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {
       contextKeyService.setGlobal(
         "hasCustomLayout",
-        hasCustomLayout(activeTab.id)
+        hasCustomLayout(activeTab.id),
       );
     } else {
       contextKeyService.setGlobal("hasCustomLayout", false);
@@ -239,11 +246,11 @@ export function useCommandSystem(
         contextKeyService.setGlobal("activePaneType", activePane.type || "");
         contextKeyService.setGlobal(
           "isInAgentSession",
-          !!activePane.agentSessionId
+          !!activePane.agentSessionId,
         );
         contextKeyService.setGlobal(
           "hasCwd",
-          !!(activePane.type === "terminal" && activePane.cwd)
+          !!(activePane.type === "terminal" && activePane.cwd),
         );
       } else {
         // Clear pane context keys if no active pane
@@ -264,6 +271,7 @@ export function useCommandSystem(
     tabs,
     activeTab,
     hasCustomLayout,
+    applicationMode,
   ]);
 
   // Watch keybindings file for external changes
@@ -280,7 +288,7 @@ export function useCommandSystem(
         // Reload keybindings from file
         await loadUserKeybindings(
           commandSystem.keybindingRegistry,
-          keybindingsPath
+          keybindingsPath,
         );
         // Update global atom for reactive components
         updateKeybindingsAtom();
