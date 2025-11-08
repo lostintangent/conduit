@@ -27,16 +27,6 @@ function resolveSocketPath(baseDir: string) {
   return path.join(baseDir, "cli.sock");
 }
 
-async function removeStaleSocket(socketPath: string) {
-  if (process.platform === "win32") return;
-
-  try {
-    await fs.unlink(socketPath);
-  } catch {
-    // Ignore errors if socket file doesn't exist
-  }
-}
-
 async function prepareCliEnvironment(
   sendToRenderer: SendToRendererFn,
 ): Promise<CliState> {
@@ -45,13 +35,11 @@ async function prepareCliEnvironment(
   await fs.mkdir(binDir, { recursive: true });
 
   const electronBinary = process.execPath;
-  const bundlePath = path.join(app.getAppPath(), ".vite", "build", "cli.js");
+  const cliPath = path.join(app.getAppPath(), ".vite", "build", "cli.js");
 
-  await ensureLauncherScripts(binDir, electronBinary, bundlePath);
+  await ensureLauncherScripts(binDir, electronBinary, cliPath);
 
   const socketPath = resolveSocketPath(baseDir);
-  await removeStaleSocket(socketPath);
-
   const server = await createCliServer(socketPath, sendToRenderer);
 
   return {
@@ -119,31 +107,14 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
   );
 }
 
-export function getCliBinDirectory() {
-  return cliState?.binDir ?? null;
-}
-
-export function getCliCommand() {
-  return CLI_COMMAND_NAME;
-}
-
-export function getCliSocketPath() {
-  return cliState?.socketPath ?? null;
-}
-
 export async function shutdownCliServer() {
-  if (!cliState) return;
+  await cliState.server.shutdown();
+}
 
-  await cliState.server.shutdown("Conduit is shutting down.");
-
-  const socketPath = cliState.socketPath;
-  if (socketPath && process.platform !== "win32") {
-    try {
-      await fs.unlink(socketPath);
-    } catch {
-      // Ignore errors if socket file doesn't exist
-    }
-  }
-
-  cliState = null;
+export function getCliState() {
+  return {
+    commandName: CLI_COMMAND_NAME,
+    cliDirectory: cliState.binDir,
+    socketPath: cliState.socketPath,
+  };
 }

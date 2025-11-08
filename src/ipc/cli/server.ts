@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import net from "node:net";
 import type { CliRequest, CliResponse } from "../../shared/cli";
 
@@ -9,6 +10,8 @@ export type CliServer = {
   shutdown: (reason?: string) => Promise<void>;
 };
 
+const pendingRequests = new Map<string, net.Socket>();
+
 function respondWithSocket(socket: net.Socket, response: Partial<CliResponse>) {
   try {
     socket.write(`${JSON.stringify(response)}\n`);
@@ -19,45 +22,28 @@ function respondWithSocket(socket: net.Socket, response: Partial<CliResponse>) {
   }
 }
 
+function forwardResponseToCli(response: CliResponse) {
+  const { requestId } = response;
+  const socket = pendingRequests.get(requestId);
+  if (!socket) return;
+
+  respondWithSocket(socket, response);
+  pendingRequests.delete(requestId);
+}
+
 export async function createCliServer(
   socketPath: string,
   sendToRenderer: SendToRendererFn,
 ): Promise<CliServer> {
-  const pendingRequests = new Map<string, net.Socket>();
-
-  function respondToCli(response: CliResponse) {
-    const { requestId } = response;
-    const socket = pendingRequests.get(requestId);
-    if (!socket) return;
-
-    respondWithSocket(socket, response);
-    pendingRequests.delete(requestId);
-  }
-
-  function handleCliRequest(request: CliRequest, socket: net.Socket) {
-    pendingRequests.set(request.requestId, socket);
-
-    socket.once("close", () => {
-      if (pendingRequests.get(request.requestId) === socket) {
-        pendingRequests.delete(request.requestId);
-      }
-    });
-
-    sendToRenderer("cli:request", request);
-  }
-
   const server = net.createServer((socket) => {
     let buffer = "";
     socket.on("data", (chunk: Buffer) => {
-      // Each CLI client sends exactly one newline-terminated request per socket
       buffer += chunk.toString("utf8");
       if (!buffer.endsWith("\n")) {
         return;
       }
 
       const message = buffer.slice(0, -1).trim();
-      buffer = "";
-
       if (!message) {
         respondWithSocket(socket, {
           status: "error",
@@ -67,8 +53,8 @@ export async function createCliServer(
       }
 
       try {
-        const parsed = JSON.parse(message) as CliRequest;
-        handleCliRequest(parsed, socket);
+        const request = JSON.parse(message) as CliRequest;
+        forwardRequestToRenderer(request, socket);
       } catch (error) {
         respondWithSocket(socket, {
           status: "error",
@@ -82,14 +68,38 @@ export async function createCliServer(
 
   // Start the server and wait for it to begin listening
   await new Promise<void>((resolve, reject) => {
+    cleanupSocket(socketPath);
     server.once("error", reject);
+
     server.listen(socketPath, () => {
       server.removeListener("error", reject);
       resolve();
     });
   });
 
+  async function cleanupSocket(socketPath: string) {
+    if (process.platform === "win32") return;
+
+    try {
+      await fs.unlink(socketPath);
+    } catch {
+      // Ignore errors if socket file doesn't exist
+    }
+  }
+
+  function forwardRequestToRenderer(request: CliRequest, socket: net.Socket) {
+    // Keep track of the pending request so that we
+    // can proxy the response when we get it from the renderer.
+    pendingRequests.set(request.requestId, socket);
+    socket.once("close", () => {
+      pendingRequests.delete(request.requestId);
+    });
+
+    sendToRenderer("cli:request", request);
+  }
+
   async function shutdown(reason?: string) {
+    // Close any pending requests
     for (const [requestId, pending] of pendingRequests) {
       respondWithSocket(pending, {
         status: "error",
@@ -98,16 +108,15 @@ export async function createCliServer(
       pendingRequests.delete(requestId);
     }
 
+    // Close the server
     if (server.listening) {
-      await new Promise<void>((resolve) => {
-        server.close(() => resolve());
-      });
+      await new Promise((resolve) => server.close(resolve));
     }
   }
 
   return {
     socketPath,
-    respond: respondToCli,
+    respond: forwardResponseToCli,
     shutdown,
   };
 }

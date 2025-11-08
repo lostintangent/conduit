@@ -1,14 +1,20 @@
 import { Command } from "commander";
-import { registerCommands } from "./commands";
+import captureBrowser from "./commands/capture-browser";
+import listPanes from "./commands/list-panes";
+import openFile from "./commands/open-file";
+import readTerminal from "./commands/read-terminal";
+import writeTerminal from "./commands/write-terminal";
 
-const program = new Command("conduit");
-
-program
+const program = new Command("conduit")
   .description("Interact with Conduit, from within Conduit!")
   .usage("[options] <path>")
   .showHelpAfterError("(use -h for help)");
 
-registerCommands(program);
+program.addCommand(openFile, { isDefault: true });
+program.addCommand(listPanes);
+program.addCommand(captureBrowser);
+program.addCommand(readTerminal);
+program.addCommand(writeTerminal);
 
 program.parseAsync(process.argv).catch(({ message }) => {
   console.error(message);

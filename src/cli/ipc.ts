@@ -1,21 +1,24 @@
 import { randomUUID } from "node:crypto";
 import net from "node:net";
-
 import type { CliCommand, CliRequest, CliResponse } from "../shared/cli";
 
-export async function sendCommand(command: CliCommand): Promise<CliResponse> {
-  const socketPath = process.env.CONDUIT_SOCKET_PATH;
-  const sessionId = process.env.CONDUIT_SESSION_ID;
+// Grab the environment details that were set by the main
+// process when it spawned the terminal the CLI is running in.
+const socketPath = process.env.CONDUIT_SOCKET_PATH;
+const sessionId = process.env.CONDUIT_SESSION_ID;
 
+export async function sendCliRequest(
+  command: CliCommand,
+): Promise<CliResponse> {
   return new Promise<CliResponse>((resolve, reject) => {
-    // Connect to the Conduit IPC server and send the provided command
+    // Connect to the Conduit IPC socket and send the requested command
     const socket = net.createConnection({ path: socketPath }, () => {
-      const payload = JSON.stringify({
+      const request = JSON.stringify({
         requestId: randomUUID(),
         sessionId,
         command,
       } as CliRequest);
-      socket.write(`${payload}\n`);
+      socket.write(`${request}\n`);
     });
 
     let buffer = "";
@@ -29,40 +32,40 @@ export async function sendCommand(command: CliCommand): Promise<CliResponse> {
 
       // We have a complete message, try to parse it
       const message = buffer.slice(0, -1).trim();
-      buffer = "";
-
       if (!message) {
-        return rejectAndDestroy("Received empty response");
+        rejectSocket("Received empty response");
+        return;
       }
 
       let response: CliResponse;
       try {
         response = JSON.parse(message) as CliResponse;
       } catch (error) {
-        return rejectAndDestroy("Received malformed response.");
+        rejectSocket("Received malformed response");
+        return;
       }
 
       if (response.status === "ok") {
         resolve(response);
         socket.end();
       } else {
-        rejectAndDestroy(response.message);
+        rejectSocket(response.message);
       }
     });
 
     socket.on("error", (error) =>
-      rejectAndDestroy(`Error occured: ${error.message}).`),
+      rejectSocket(`Error occured: ${error.message}`),
     );
 
     socket.on("end", () => {
       if (buffer.trim().length === 0) {
-        rejectAndDestroy("Connection closed before response was received.");
+        rejectSocket("No response received");
       }
     });
 
-    function rejectAndDestroy(reason: string) {
+    function rejectSocket(reason: string) {
       socket.destroy();
-      reject(reason);
+      reject(`${reason}.`);
     }
   });
 }

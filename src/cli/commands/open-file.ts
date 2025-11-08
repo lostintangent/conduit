@@ -1,8 +1,8 @@
-import type { Command } from "commander";
+import { Command } from "commander";
 import type { Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { sendCommand } from "../ipc";
+import { sendCliRequest } from "../ipc";
 
 type ResolvedFilePath = {
   cwd: string;
@@ -28,22 +28,17 @@ async function resolvePath(rawPath: string): Promise<ResolvedFilePath> {
   return { cwd: path.dirname(resolved), filePath: resolved };
 }
 
-async function handleOpenFile(rawPath: string) {
-  const resolvedTarget = await resolvePath(rawPath);
-  await sendCommand({
-    type: "open-file",
-    ...resolvedTarget,
+const COMMAND_NAME = "open-file";
+
+const command = new Command(COMMAND_NAME)
+  .description("Open a file or directory in the Conduit editor")
+  .argument("<path>", "File or directory to open")
+  .action(async (path: string) => {
+    const resolvedPath = await resolvePath(path);
+    await sendCliRequest({
+      type: COMMAND_NAME,
+      ...resolvedPath,
+    });
   });
-}
 
-export function registerOpenFileCommands(program: Command) {
-  program
-    .argument("<path>", "File or directory to open in Conduit")
-    .action(handleOpenFile);
-
-  program
-    .command("open-file")
-    .argument("<path>", "File or directory to open")
-    .description("Open a file or directory in the Conduit editor")
-    .action(handleOpenFile);
-}
+export default command;
