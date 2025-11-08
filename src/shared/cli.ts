@@ -17,7 +17,9 @@ export type CliCommand =
   | CliMovePaneCommand
   | CliSplitPaneCommand
   | CliFocusPaneCommand
-  | CliClosePaneCommand;
+  | CliClosePaneCommand
+  | CliNewTabCommand
+  | CliDuplicateTabCommand;
 
 export type CliOpenFileCommand = {
   type: "open-file";
@@ -75,6 +77,14 @@ export type CliFocusPaneCommand = {
 export type CliClosePaneCommand = {
   type: "close-pane";
   closeTab?: boolean;
+};
+
+export type CliNewTabCommand = {
+  type: "new-tab";
+};
+
+export type CliDuplicateTabCommand = {
+  type: "duplicate-tab";
 };
 
 /* Renderer -> IPC -> CLI */

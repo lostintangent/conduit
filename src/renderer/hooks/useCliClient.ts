@@ -32,6 +32,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const focusPaneCommand = useCommand(ApplicationCommands.PANE_FOCUS);
   const closePaneCommand = useCommand(ApplicationCommands.PANE_CLOSE);
   const closeTabCommand = useCommand(ApplicationCommands.TAB_CLOSE);
+  const newTabCommand = useCommand(ApplicationCommands.TAB_NEW);
+  const duplicateTabCommand = useCommand(ApplicationCommands.TAB_DUPLICATE);
 
   const splitLeftCommand = useCommand(ApplicationCommands.PANE_SPLIT_LEFT);
   const splitRightCommand = useCommand(ApplicationCommands.PANE_SPLIT_RIGHT);
@@ -207,6 +209,18 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
+          case "new-tab": {
+            await newTabCommand.execute();
+            respondOk();
+            break;
+          }
+
+          case "duplicate-tab": {
+            await duplicateTabCommand.execute();
+            respondOk();
+            break;
+          }
+
           default:
             respondError("Unsupported CLI command.");
         }
@@ -228,6 +242,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     focusPaneCommand,
     closePaneCommand,
     closeTabCommand,
+    newTabCommand,
+    duplicateTabCommand,
     splitLeftCommand,
     splitRightCommand,
     splitTopCommand,

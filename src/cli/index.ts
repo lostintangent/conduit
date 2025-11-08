@@ -1,9 +1,11 @@
 import { Command } from "commander";
 import captureBrowser from "./commands/capture-browser";
 import closePane from "./commands/close-pane";
+import duplicateTab from "./commands/duplicate-tab";
 import focusPane from "./commands/focus-pane";
 import listPanes from "./commands/list-panes";
 import movePane from "./commands/move-pane";
+import newTab from "./commands/new-tab";
 import openFile from "./commands/open-file";
 import readTerminal from "./commands/read-terminal";
 import splitPane from "./commands/split-pane";
@@ -20,6 +22,8 @@ program
   .addCommand(movePane)
   .addCommand(focusPane)
   .addCommand(closePane)
+  .addCommand(newTab)
+  .addCommand(duplicateTab)
   .addCommand(readTerminal)
   .addCommand(writeTerminal)
   .addCommand(captureBrowser);
