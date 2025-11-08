@@ -3,7 +3,7 @@ import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "focus-pane";
 
-const command = new Command(COMMAND_NAME)
+export default new Command(COMMAND_NAME)
   .alias("focus")
   .description("Toggle focus mode for the active pane.")
   .action(async () => {
@@ -11,5 +11,3 @@ const command = new Command(COMMAND_NAME)
       type: COMMAND_NAME,
     });
   });
-
-export default command;

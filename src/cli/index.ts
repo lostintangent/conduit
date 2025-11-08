@@ -9,20 +9,20 @@ import readTerminal from "./commands/read-terminal";
 import splitPane from "./commands/split-pane";
 import writeTerminal from "./commands/write-terminal";
 
-const program = new Command("conduit")
-  .description("Interact with Conduit, from within Conduit!")
-  .usage("[options] <path>")
-  .showHelpAfterError("(use -h for help)");
+const program = new Command("conduit").description(
+  "Interact with Conduit, from within Conduit!",
+);
 
-program.addCommand(openFile, { isDefault: true });
-program.addCommand(listPanes);
-program.addCommand(movePane);
-program.addCommand(focusPane);
-program.addCommand(closePane);
-program.addCommand(splitPane);
-program.addCommand(captureBrowser);
-program.addCommand(readTerminal);
-program.addCommand(writeTerminal);
+program
+  .addCommand(openFile, { isDefault: true })
+  .addCommand(listPanes)
+  .addCommand(splitPane)
+  .addCommand(movePane)
+  .addCommand(focusPane)
+  .addCommand(closePane)
+  .addCommand(readTerminal)
+  .addCommand(writeTerminal)
+  .addCommand(captureBrowser);
 
 program.parseAsync(process.argv).catch(({ message }) => {
   console.error(message);

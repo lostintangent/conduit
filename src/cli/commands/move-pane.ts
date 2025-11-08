@@ -4,7 +4,7 @@ import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "move-pane";
 
-const command = new Command(COMMAND_NAME)
+export default new Command(COMMAND_NAME)
   .alias("move")
   .description("Move the active pane to a new location.")
   .addArgument(
@@ -18,5 +18,3 @@ const command = new Command(COMMAND_NAME)
       direction,
     });
   });
-
-export default command;

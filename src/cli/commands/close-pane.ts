@@ -3,7 +3,7 @@ import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "close-pane";
 
-const command = new Command(COMMAND_NAME)
+export default new Command(COMMAND_NAME)
   .alias("close")
   .description("Close the active pane or tab.")
   .option("-t, --tab", "Close the active tab instead of the pane.")
@@ -13,5 +13,3 @@ const command = new Command(COMMAND_NAME)
       closeTab: Boolean(options?.tab),
     });
   });
-
-export default command;

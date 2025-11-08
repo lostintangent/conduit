@@ -4,7 +4,7 @@ import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "list-panes";
 
-const command = new Command(COMMAND_NAME)
+export default new Command(COMMAND_NAME)
   .alias("list")
   .description("List the other panes in the active Conduit tab.")
   .addOption(
@@ -19,5 +19,3 @@ const command = new Command(COMMAND_NAME)
     });
     console.log(JSON.stringify(data, null, 2));
   });
-
-export default command;

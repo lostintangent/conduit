@@ -4,7 +4,7 @@ import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "split-pane";
 
-const command = new Command(COMMAND_NAME)
+export default new Command(COMMAND_NAME)
   .alias("split")
   .description("Split the active pane in the requested direction.")
   .addArgument(
@@ -18,5 +18,3 @@ const command = new Command(COMMAND_NAME)
       direction,
     });
   });
-
-export default command;

@@ -30,7 +30,7 @@ async function resolvePath(rawPath: string): Promise<ResolvedFilePath> {
 
 const COMMAND_NAME = "open-file";
 
-const command = new Command(COMMAND_NAME)
+export default new Command(COMMAND_NAME)
   .alias("open")
   .description("Open a file or directory in the Conduit editor")
   .argument("<path>", "File or directory to open")
@@ -41,5 +41,3 @@ const command = new Command(COMMAND_NAME)
       ...resolvedPath,
     });
   });
-
-export default command;
