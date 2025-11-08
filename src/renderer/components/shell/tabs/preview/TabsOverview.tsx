@@ -37,7 +37,7 @@ export function TabsOverview() {
 
       if (didChange) {
         const allReady = tabLabels.every(
-          (tab) => allTabsContainerRefs.current[tab.id]
+          (tab) => allTabsContainerRefs.current[tab.id],
         );
 
         if (allReady && Object.keys(allTabsContainerRefs.current).length > 0) {
@@ -45,7 +45,7 @@ export function TabsOverview() {
         }
       }
     },
-    [tabLabels, mountTabsInPreview]
+    [tabLabels, mountTabsInPreview],
   );
 
   // Unmount tabs from preview whenever

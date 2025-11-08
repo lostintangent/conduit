@@ -41,7 +41,7 @@ export const WorkspaceMenu = () => {
   const saveWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_SAVE);
   const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);
   const duplicateWorkspaceCmd = useCommand(
-    ApplicationCommands.WORKSPACE_DUPLICATE
+    ApplicationCommands.WORKSPACE_DUPLICATE,
   );
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
 
@@ -51,7 +51,7 @@ export const WorkspaceMenu = () => {
 
       openWorkspace(workspace);
     },
-    [workspaceName]
+    [workspaceName],
   );
 
   const handleDeleteWorkspace = useCallback(
@@ -62,10 +62,10 @@ export const WorkspaceMenu = () => {
       await api.deleteSession(workspace.timestamp);
 
       setWorkspaces((current) =>
-        current.filter(({ name }) => name !== workspace.name)
+        current.filter(({ name }) => name !== workspace.name),
       );
     },
-    [setWorkspaces]
+    [setWorkspaces],
   );
 
   return (
@@ -101,7 +101,7 @@ export const WorkspaceMenu = () => {
                   className={cn(
                     "flex items-center justify-between",
                     isCurrentWorkspace &&
-                    "bg-gradient-to-br from-accent-start to-accent-end text-white"
+                      "bg-gradient-to-br from-accent-start to-accent-end text-white",
                   )}
                 >
                   <span>{workspace.name}</span>

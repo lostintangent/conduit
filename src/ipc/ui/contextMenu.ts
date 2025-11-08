@@ -30,13 +30,16 @@ export function showContextMenu(
   };
 
   // Group menu items by group property
-  const grouped = options.menuItems.reduce((acc, item) => {
-    if (!acc[item.group]) {
-      acc[item.group] = [];
-    }
-    acc[item.group].push(item);
-    return acc;
-  }, {} as Record<string, ContextMenuItemData[]>);
+  const grouped = options.menuItems.reduce(
+    (acc, item) => {
+      if (!acc[item.group]) {
+        acc[item.group] = [];
+      }
+      acc[item.group].push(item);
+      return acc;
+    },
+    {} as Record<string, ContextMenuItemData[]>,
+  );
 
   // Get sorted group names (they're already prefixed with numbers for ordering)
   const groupNames = Object.keys(grouped).sort();

@@ -38,7 +38,7 @@ async function removeStaleSocket(socketPath: string) {
 }
 
 async function prepareCliEnvironment(
-  sendToRenderer: SendToRendererFn
+  sendToRenderer: SendToRendererFn,
 ): Promise<CliState> {
   const baseDir = path.join(app.getPath("userData"), "cli");
   const binDir = path.join(baseDir, "bin");
@@ -61,7 +61,10 @@ async function prepareCliEnvironment(
   };
 }
 
-function respondToCli(requestId: string, response: Omit<CliResponse, "requestId">) {
+function respondToCli(
+  requestId: string,
+  response: Omit<CliResponse, "requestId">,
+) {
   cliState.server.respond({
     requestId,
     ...response,
@@ -77,7 +80,7 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
   }
 
   ipcMain.handle("cli:respond", async (_, payload: CliResponse) =>
-    cliState.server.respond(payload)
+    cliState.server.respond(payload),
   );
 
   // See the note in useCliClient about why this is done in the main process.
@@ -85,7 +88,10 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
     "cli:complete-capture-browser",
     async (
       _,
-      { requestId, webContentsId }: {
+      {
+        requestId,
+        webContentsId,
+      }: {
         requestId: string;
         webContentsId: number;
       },

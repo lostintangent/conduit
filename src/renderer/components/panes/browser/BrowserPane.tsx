@@ -298,7 +298,7 @@ export function BrowserPane({
 
     webviewRef.current.classList.toggle(
       "rounded-b-xl",
-      applicationMode === "focus"
+      applicationMode === "focus",
     );
   }, [applicationMode]);
 

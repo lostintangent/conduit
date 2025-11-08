@@ -95,7 +95,10 @@ const getTtyForPid = async (pid: number): Promise<string | null> => {
     }
     return tty;
   } catch (error) {
-    console.warn(`[Terminal Command] Failed to resolve TTY for pid ${pid}:`, error);
+    console.warn(
+      `[Terminal Command] Failed to resolve TTY for pid ${pid}:`,
+      error,
+    );
     return null;
   }
 };
@@ -146,7 +149,7 @@ const pickActiveCommand = (
     if (!childMap.has(entry.ppid)) {
       childMap.set(entry.ppid, []);
     }
-    childMap.get(entry.ppid)!.push(entry);
+    childMap.get(entry.ppid).push(entry);
   }
 
   const visited = new Set<number>([shellPid]);

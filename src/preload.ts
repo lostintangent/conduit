@@ -32,7 +32,7 @@ import type {
 
 function createEventListener<T>(
   channel: string,
-  listener: (payload: T) => void
+  listener: (payload: T) => void,
 ) {
   const handler = (_: Electron.IpcRendererEvent, payload: T) =>
     listener(payload);
@@ -50,7 +50,7 @@ const conduitAPI = {
   createTerminal: (options?: TerminalCreateOptions) =>
     ipcRenderer.invoke(
       "terminal:create",
-      options
+      options,
     ) as Promise<TerminalCreateResponse | null>,
 
   closeTerminal: (sessionId: string) =>
@@ -67,7 +67,9 @@ const conduitAPI = {
     ipcRenderer.send("terminal:ready", { sessionId }),
 
   captureTerminalCommand: (sessionId: string) =>
-    ipcRenderer.invoke("terminal:capture-command", { sessionId }) as Promise<TerminalCaptureCommandResponse>,
+    ipcRenderer.invoke("terminal:capture-command", {
+      sessionId,
+    }) as Promise<TerminalCaptureCommandResponse>,
 
   /* UI event listeners (main->UI) */
 
@@ -105,7 +107,7 @@ const conduitAPI = {
       commandId: string;
       tabId: string;
       paneId?: string;
-    }) => void
+    }) => void,
   ) => createEventListener("ui:context-menu-command", listener),
 
   // Notify when the app is about to close
@@ -139,7 +141,7 @@ const conduitAPI = {
   }) =>
     ipcRenderer.invoke(
       "cli:complete-capture-browser",
-      payload
+      payload,
     ) as Promise<void>,
 
   /* UI-related methods (UI->main) */
@@ -182,7 +184,9 @@ const conduitAPI = {
     ipcRenderer.invoke("ui:open-url", url) as Promise<void>,
 
   showFolderPicker: (defaultPath?: string) =>
-    ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<string | null>,
+    ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<
+      string | null
+    >,
 
   /* Session management methods */
 
@@ -197,7 +201,7 @@ const conduitAPI = {
       "session:save-session",
       name,
       tabs,
-      activeTabId
+      activeTabId,
     ) as Promise<unknown[]>,
 
   deleteSession: (timestamp: number) =>
@@ -218,7 +222,7 @@ const conduitAPI = {
     ipcRenderer.invoke(
       "session:save-last-workspace",
       tabs,
-      activeTabId
+      activeTabId,
     ) as Promise<void>,
 
   /* Agent session management */
@@ -226,7 +230,7 @@ const conduitAPI = {
   spawnAgentSession: (payload: AgentSessionSpawnRequest) =>
     ipcRenderer.invoke(
       "agent:spawn-session",
-      payload
+      payload,
     ) as Promise<AgentSessionInfo>,
 
   listAgentSessions: () =>
@@ -255,13 +259,13 @@ const conduitAPI = {
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",
-      payload
+      payload,
     ) as Promise<AgentSessionFinalizeResult>,
 
   cleanupAgentSession: (payload: AgentSessionCleanupRequest) =>
     ipcRenderer.invoke(
       "agent:cleanup-session",
-      payload
+      payload,
     ) as Promise<AgentSessionCleanupResult>,
 
   /* File system methods (UI->main) */

@@ -6,11 +6,7 @@ import {
 import { activatePane } from "@/store/actions/pane";
 import { exitFocusMode, getAllPaneIds } from "@/store/actions/focusMode";
 import { focusTab } from "@/store/actions/tab";
-import {
-  activeTabAtom,
-  activeTabIdAtom,
-  tabsAtom,
-} from "@/store/atoms";
+import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";

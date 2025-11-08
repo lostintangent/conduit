@@ -1,10 +1,6 @@
 import type { Tab, Pane } from "@/types";
 import { atom } from "jotai";
-import {
-  activeTabIdAtom,
-  tabsAtom,
-  userSettingsAtom,
-} from "@/store/atoms";
+import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 
 export type TabLabelDescriptor = {
   id: string;
@@ -75,12 +71,11 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
         activePane.processTitle ??
         "Shell";
 
-      tooltipBase =
-        activePane.cwd ?? activePane.processTitle ?? fallbackLabel;
+      tooltipBase = activePane.cwd ?? activePane.processTitle ?? fallbackLabel;
     } else if (activePane?.type === "webview") {
       const title = activePane.title?.trim();
       fallbackLabel =
-        title && title.length > 0 ? title : activePane.url ?? "Browser";
+        title && title.length > 0 ? title : (activePane.url ?? "Browser");
       tooltipBase = fallbackLabel;
     } else if (activePane?.type === "editor") {
       const editorPath = activePane.filePath ?? activePane.cwd ?? null;

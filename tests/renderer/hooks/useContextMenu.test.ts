@@ -1,10 +1,24 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  beforeAll,
+} from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { MenuId } from "@/commands/menus/types";
 import { ApplicationCommands } from "@shared/commands";
 
 // Use vi.hoisted to define mocks that can be used in vi.mock
-const { mockApi, mockMenuRegistry, mockContextKeyService, mockCommandRegistry, mockKeybindingRegistry } = vi.hoisted(() => {
+const {
+  mockApi,
+  mockMenuRegistry,
+  mockContextKeyService,
+  mockCommandRegistry,
+  mockKeybindingRegistry,
+} = vi.hoisted(() => {
   const api = {
     showContextMenu: vi.fn(),
     onContextMenuCommand: vi.fn(() => vi.fn()),
@@ -117,7 +131,7 @@ describe("useContextMenu", () => {
       (getMenuContextBuilder as any).mockReturnValue(mockContextBuilder);
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true })
+        useContextMenu({ canChangeTitle: () => true }),
       );
 
       const mockEvent = {
@@ -138,7 +152,7 @@ describe("useContextMenu", () => {
       (getMenuContextBuilder as any).mockReturnValue(mockContextBuilder);
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true })
+        useContextMenu({ canChangeTitle: () => true }),
       );
 
       const mockEvent = {
@@ -156,7 +170,7 @@ describe("useContextMenu", () => {
       (getMenuContextBuilder as any).mockReturnValue(mockContextBuilder);
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true })
+        useContextMenu({ canChangeTitle: () => true }),
       );
 
       const mockEvent = {
@@ -194,7 +208,7 @@ describe("useContextMenu", () => {
       ]);
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true })
+        useContextMenu({ canChangeTitle: () => true }),
       );
 
       const mockEvent = {
@@ -213,9 +227,15 @@ describe("useContextMenu", () => {
 
       // Should only include visible items
       expect(menuItems).toHaveLength(2);
-      expect(menuItems.some((item: any) => item.commandId === "command.visible")).toBe(true);
-      expect(menuItems.some((item: any) => item.commandId === "command.noWhen")).toBe(true);
-      expect(menuItems.some((item: any) => item.commandId === "command.hidden")).toBe(false);
+      expect(
+        menuItems.some((item: any) => item.commandId === "command.visible"),
+      ).toBe(true);
+      expect(
+        menuItems.some((item: any) => item.commandId === "command.noWhen"),
+      ).toBe(true);
+      expect(
+        menuItems.some((item: any) => item.commandId === "command.hidden"),
+      ).toBe(false);
     });
 
     it("should filter out change title command when not allowed", async () => {
@@ -234,8 +254,8 @@ describe("useContextMenu", () => {
         },
       ]);
 
-      const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => false }) // Not allowed
+      const { result } = renderHook(
+        () => useContextMenu({ canChangeTitle: () => false }), // Not allowed
       );
 
       const mockEvent = {
@@ -253,8 +273,15 @@ describe("useContextMenu", () => {
       const menuItems = callArgs.menuItems;
 
       // Should not include change title
-      expect(menuItems.some((item: any) => item.commandId === ApplicationCommands.TAB_CHANGE_TITLE)).toBe(false);
-      expect(menuItems.some((item: any) => item.commandId === "other.command")).toBe(true);
+      expect(
+        menuItems.some(
+          (item: any) =>
+            item.commandId === ApplicationCommands.TAB_CHANGE_TITLE,
+        ),
+      ).toBe(false);
+      expect(
+        menuItems.some((item: any) => item.commandId === "other.command"),
+      ).toBe(true);
     });
 
     it("should include change title command when allowed", async () => {
@@ -268,8 +295,8 @@ describe("useContextMenu", () => {
         },
       ]);
 
-      const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true }) // Allowed
+      const { result } = renderHook(
+        () => useContextMenu({ canChangeTitle: () => true }), // Allowed
       );
 
       const mockEvent = {
@@ -287,7 +314,12 @@ describe("useContextMenu", () => {
       const menuItems = callArgs.menuItems;
 
       // Should include change title
-      expect(menuItems.some((item: any) => item.commandId === ApplicationCommands.TAB_CHANGE_TITLE)).toBe(true);
+      expect(
+        menuItems.some(
+          (item: any) =>
+            item.commandId === ApplicationCommands.TAB_CHANGE_TITLE,
+        ),
+      ).toBe(true);
     });
 
     it("should augment menu items with keybindings", async () => {
@@ -308,7 +340,7 @@ describe("useContextMenu", () => {
       ]);
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true })
+        useContextMenu({ canChangeTitle: () => true }),
       );
 
       const mockEvent = {
@@ -322,14 +354,16 @@ describe("useContextMenu", () => {
         expect(mockApi.showContextMenu).toHaveBeenCalled();
       });
 
-      expect(mockKeybindingRegistry.getKeybindingsForCommand).toHaveBeenCalledWith("command.test");
+      expect(
+        mockKeybindingRegistry.getKeybindingsForCommand,
+      ).toHaveBeenCalledWith("command.test");
     });
 
     it("should early return if tab not found", async () => {
       (useAtomValue as any).mockReturnValue([]); // No tabs
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true })
+        useContextMenu({ canChangeTitle: () => true }),
       );
 
       const mockEvent = {
@@ -347,7 +381,7 @@ describe("useContextMenu", () => {
       (getMenuContextBuilder as any).mockReturnValue(mockContextBuilder);
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: (id) => id === "tab-1" })
+        useContextMenu({ canChangeTitle: (id) => id === "tab-1" }),
       );
 
       const mockEvent = {
@@ -383,7 +417,7 @@ describe("useContextMenu", () => {
       (getMenuContextBuilder as any).mockReturnValue(mockContextBuilder);
 
       const { result } = renderHook(() =>
-        useContextMenu({ canChangeTitle: () => true })
+        useContextMenu({ canChangeTitle: () => true }),
       );
 
       const mockEvent = {
@@ -395,7 +429,7 @@ describe("useContextMenu", () => {
       await result.current(mockEvent, "tab-1", "pane-1");
 
       // Wait for context builder to complete
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       const firstCallCount = mockApi.hasGitRepository.mock.calls.length;
       expect(firstCallCount).toBeGreaterThan(0);
@@ -404,7 +438,7 @@ describe("useContextMenu", () => {
       await result.current(mockEvent, "tab-1", "pane-1");
 
       // Wait for any async operations
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Should still be the same count - cache working
       expect(mockApi.hasGitRepository.mock.calls.length).toBe(firstCallCount);

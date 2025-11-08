@@ -11,11 +11,13 @@ That said, since pictures are worth a whole bunch of words...check out the follo
 ### Quick Install
 
 **macOS & Linux:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lostintangent/conduit/main/build/scripts/install.sh | bash
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 irm https://raw.githubusercontent.com/lostintangent/conduit/main/build/scripts/install.ps1 | iex
 ```
@@ -23,6 +25,7 @@ irm https://raw.githubusercontent.com/lostintangent/conduit/main/build/scripts/i
 ### Manual Installation
 
 Download the latest release for your platform from the [releases page](https://github.com/lostintangent/conduit/releases/latest):
+
 - **macOS**: Download the `.zip` file, extract it, and move `Conduit.app` to your Applications folder
 - **Linux**: Download the `.deb` (Debian/Ubuntu) or `.rpm` (Fedora/RHEL) file and install it using your package manager
 - **Windows**: Download and run the `Setup.exe` installer

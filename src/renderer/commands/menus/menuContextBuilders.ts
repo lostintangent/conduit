@@ -23,7 +23,7 @@ export interface MenuContextParams {
 export type MenuContextBuilder = (
   contextKeyService: IContextKeyService,
   params: MenuContextParams,
-  checkGitRepo: (cwd: string | null | undefined) => Promise<boolean>
+  checkGitRepo: (cwd: string | null | undefined) => Promise<boolean>,
 ) => Promise<void>;
 
 /**
@@ -36,7 +36,7 @@ const menuContextBuilders = new Map<MenuId, MenuContextBuilder>();
  */
 export function registerMenuContextBuilder(
   menuId: MenuId,
-  builder: MenuContextBuilder
+  builder: MenuContextBuilder,
 ): void {
   menuContextBuilders.set(menuId, builder);
 }
@@ -45,7 +45,7 @@ export function registerMenuContextBuilder(
  * Get the context builder for a menu ID
  */
 export function getMenuContextBuilder(
-  menuId: MenuId
+  menuId: MenuId,
 ): MenuContextBuilder | undefined {
   return menuContextBuilders.get(menuId);
 }

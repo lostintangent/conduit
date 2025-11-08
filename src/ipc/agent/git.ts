@@ -96,7 +96,11 @@ export async function getCurrentBranch(cwd: string): Promise<string | null> {
       return null;
     }
 
-    const { stdout } = await runGit(repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
+    const { stdout } = await runGit(repoRoot, [
+      "rev-parse",
+      "--abbrev-ref",
+      "HEAD",
+    ]);
     return stdout.trim() || null;
   } catch {
     return null;
@@ -113,7 +117,11 @@ export async function getRemoteOriginUrl(cwd: string): Promise<string | null> {
       return null;
     }
 
-    const { stdout } = await runGit(repoRoot, ["config", "--get", "remote.origin.url"]);
+    const { stdout } = await runGit(repoRoot, [
+      "config",
+      "--get",
+      "remote.origin.url",
+    ]);
     return stdout.trim() || null;
   } catch {
     return null;
@@ -126,13 +134,17 @@ export async function getRemoteOriginUrl(cwd: string): Promise<string | null> {
  * - https://github.com/owner/repo.git
  * - git@github.com:owner/repo.git
  */
-export function parseGitHubRepo(remoteUrl: string): { owner: string; name: string } | null {
+export function parseGitHubRepo(
+  remoteUrl: string,
+): { owner: string; name: string } | null {
   try {
     // Remove trailing .git if present
     const cleanUrl = remoteUrl.replace(/\.git$/, "");
 
     // Try HTTPS format: https://github.com/owner/repo
-    const httpsMatch = cleanUrl.match(/https?:\/\/github\.com\/([^/]+)\/([^/]+)/);
+    const httpsMatch = cleanUrl.match(
+      /https?:\/\/github\.com\/([^/]+)\/([^/]+)/,
+    );
     if (httpsMatch) {
       return {
         owner: httpsMatch[1],

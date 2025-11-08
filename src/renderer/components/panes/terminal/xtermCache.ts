@@ -27,7 +27,7 @@ type GetOrCreateOptions = {
 
 export function getOrCreate(
   sessionId: string,
-  options: GetOrCreateOptions = {}
+  options: GetOrCreateOptions = {},
 ): TerminalInstance {
   let instance = store.get(sessionId);
   if (!instance) {
@@ -70,11 +70,11 @@ export function getOrCreate(
     terminal.loadAddon(serializer);
 
     const unsubData = api.onData(sessionId, (data: string) =>
-      terminal.write(data)
+      terminal.write(data),
     );
 
     const onKeyDispose = terminal.onData((input) =>
-      api.sendKeypress(sessionId, input)
+      api.sendKeypress(sessionId, input),
     );
 
     const newInstance: TerminalInstance = {
@@ -135,7 +135,7 @@ export function disposeSession(sessionId: string) {
 
 export function serializeSession(
   sessionId: string,
-  options?: ISerializeOptions
+  options?: ISerializeOptions,
 ): string | null {
   const instance = store.get(sessionId);
   if (!instance) return null;

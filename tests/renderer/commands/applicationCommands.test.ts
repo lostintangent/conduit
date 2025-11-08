@@ -47,120 +47,122 @@ describe("applicationCommands", () => {
 
       // View commands
       expect(
-        registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE)
+        registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE),
       ).toBe(true);
       expect(
-        registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE)
+        registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE),
       ).toBe(true);
       expect(
-        registeredCommands.has(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS)
+        registeredCommands.has(
+          ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
+        ),
       ).toBe(true);
       expect(
-        registeredCommands.has(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS)
+        registeredCommands.has(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS),
       ).toBe(true);
       expect(
-        registeredCommands.has(ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE)
+        registeredCommands.has(ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE),
       ).toBe(true);
       expect(
-        registeredCommands.has(ApplicationCommands.VIEW_RESET_LAYOUT)
+        registeredCommands.has(ApplicationCommands.VIEW_RESET_LAYOUT),
       ).toBe(true);
 
       // Tab commands
       expect(registeredCommands.has(ApplicationCommands.TAB_NEW)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.TAB_CLOSE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.TAB_DUPLICATE)).toBe(
-        true
+        true,
       );
-      expect(registeredCommands.has(ApplicationCommands.TAB_DUPLICATE_WITH_CWD)).toBe(
-        true
-      );
+      expect(
+        registeredCommands.has(ApplicationCommands.TAB_DUPLICATE_WITH_CWD),
+      ).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.TAB_CHANGE_TITLE)).toBe(
-        true
+        true,
       );
 
       // Workspace commands
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_SAVE)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_RENAME)).toBe(
-        true
+        true,
       );
       expect(
-        registeredCommands.has(ApplicationCommands.WORKSPACE_DUPLICATE)
+        registeredCommands.has(ApplicationCommands.WORKSPACE_DUPLICATE),
       ).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_CLOSE)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_OPEN)).toBe(
-        true
+        true,
       );
       expect(
-        registeredCommands.has(ApplicationCommands.WORKSPACE_OPEN_LAST)
+        registeredCommands.has(ApplicationCommands.WORKSPACE_OPEN_LAST),
       ).toBe(true);
 
       // Pane commands
       expect(
-        registeredCommands.has(ApplicationCommands.PANE_OPEN_WEB_PAGE)
+        registeredCommands.has(ApplicationCommands.PANE_OPEN_WEB_PAGE),
       ).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.PANE_FOCUS)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.PANE_CLOSE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_LEFT)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_RIGHT)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_TOP)).toBe(
-        true
+        true,
       );
-      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_BOTTOM)).toBe(
-        true
-      );
-      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_LEFT_AGENT)).toBe(
-        true
-      );
-      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_RIGHT_AGENT)).toBe(
-        true
-      );
-      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_TOP_AGENT)).toBe(
-        true
-      );
-      expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT)).toBe(
-        true
-      );
+      expect(
+        registeredCommands.has(ApplicationCommands.PANE_SPLIT_BOTTOM),
+      ).toBe(true);
+      expect(
+        registeredCommands.has(ApplicationCommands.PANE_SPLIT_LEFT_AGENT),
+      ).toBe(true);
+      expect(
+        registeredCommands.has(ApplicationCommands.PANE_SPLIT_RIGHT_AGENT),
+      ).toBe(true);
+      expect(
+        registeredCommands.has(ApplicationCommands.PANE_SPLIT_TOP_AGENT),
+      ).toBe(true);
+      expect(
+        registeredCommands.has(ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT),
+      ).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_LEFT)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_RIGHT)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_UP)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_DOWN)).toBe(
-        true
+        true,
       );
       expect(registeredCommands.has(ApplicationCommands.PANE_MOVE_TO_TAB)).toBe(
-        true
+        true,
       );
 
       // Terminal commands
       expect(
-        registeredCommands.has(ApplicationCommands.TERMINAL_CREATE_CLOUD)
+        registeredCommands.has(ApplicationCommands.TERMINAL_CREATE_CLOUD),
       ).toBe(true);
       expect(
-        registeredCommands.has(ApplicationCommands.TERMINAL_OPEN_IN_VSCODE)
+        registeredCommands.has(ApplicationCommands.TERMINAL_OPEN_IN_VSCODE),
       ).toBe(true);
 
       // Agent commands
       expect(
-        registeredCommands.has(ApplicationCommands.AGENT_MANAGE_SESSIONS)
+        registeredCommands.has(ApplicationCommands.AGENT_MANAGE_SESSIONS),
       ).toBe(true);
       expect(
-        registeredCommands.has(ApplicationCommands.AGENT_MERGE_AND_CLOSE)
+        registeredCommands.has(ApplicationCommands.AGENT_MERGE_AND_CLOSE),
       ).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.AGENT_TERMINATE)).toBe(
-        true
+        true,
       );
     });
 
@@ -181,7 +183,7 @@ describe("applicationCommands", () => {
 
       // View commands
       const viewCommands = allCommands.filter((cmd) =>
-        cmd.id.startsWith("view.")
+        cmd.id.startsWith("view."),
       );
       viewCommands.forEach((command) => {
         expect(command.category).toBe("View");
@@ -189,7 +191,7 @@ describe("applicationCommands", () => {
 
       // Tab commands
       const tabCommands = allCommands.filter((cmd) =>
-        cmd.id.startsWith("tab.")
+        cmd.id.startsWith("tab."),
       );
       tabCommands.forEach((command) => {
         expect(command.category).toBe("Tab");
@@ -197,7 +199,7 @@ describe("applicationCommands", () => {
 
       // Workspace commands
       const workspaceCommands = allCommands.filter((cmd) =>
-        cmd.id.startsWith("workspace.")
+        cmd.id.startsWith("workspace."),
       );
       workspaceCommands.forEach((command) => {
         expect(command.category).toBe("Workspace");
@@ -205,7 +207,7 @@ describe("applicationCommands", () => {
 
       // Pane commands
       const paneCommands = allCommands.filter((cmd) =>
-        cmd.id.startsWith("pane.")
+        cmd.id.startsWith("pane."),
       );
       paneCommands.forEach((command) => {
         expect(command.category).toBe("Pane");
@@ -213,7 +215,7 @@ describe("applicationCommands", () => {
 
       // Terminal commands
       const terminalCommands = allCommands.filter((cmd) =>
-        cmd.id.startsWith("terminal.")
+        cmd.id.startsWith("terminal."),
       );
       terminalCommands.forEach((command) => {
         expect(command.category).toBe("Terminal");
@@ -221,7 +223,7 @@ describe("applicationCommands", () => {
 
       // Agent commands
       const agentCommands = allCommands.filter((cmd) =>
-        cmd.id.startsWith("agent.")
+        cmd.id.startsWith("agent."),
       );
       agentCommands.forEach((command) => {
         expect(command.category).toBe("Agent");
@@ -265,7 +267,7 @@ describe("applicationCommands", () => {
     describe("VIEW_TOGGLE_FOCUS_MODE", () => {
       it("should call toggleFocusMode action when activeTab exists", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE
+          ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
         )!;
         const mockContext: CommandContext = {
           activeTab: {
@@ -293,13 +295,13 @@ describe("applicationCommands", () => {
 
         expect(focusModeActions.toggleFocusMode).toHaveBeenCalledWith(
           "tab-123",
-          "pane-456"
+          "pane-456",
         );
       });
 
       it("should not call toggleFocusMode when activeTab is null", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE
+          ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
         )!;
         const mockContext: CommandContext = {
           activeTab: null,
@@ -364,7 +366,7 @@ describe("applicationCommands", () => {
     describe("TERMINAL_CREATE_VM", () => {
       it("should call handleCreateVM handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.TERMINAL_CREATE_CLOUD
+          ApplicationCommands.TERMINAL_CREATE_CLOUD,
         )!;
         const mockContext: CommandContext = {} as any;
 
@@ -377,7 +379,7 @@ describe("applicationCommands", () => {
     describe("TERMINAL_OPEN_IN_VSCODE", () => {
       it("should call handleOpenInVSCode handler with activeTab", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.TERMINAL_OPEN_IN_VSCODE
+          ApplicationCommands.TERMINAL_OPEN_IN_VSCODE,
         )!;
         const mockActiveTab = { id: "tab-123" };
         const mockContext: CommandContext = {
@@ -393,7 +395,7 @@ describe("applicationCommands", () => {
     describe("AGENT_MANAGE_SESSIONS", () => {
       it("should call handleManageSessions handler with context", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.AGENT_MANAGE_SESSIONS
+          ApplicationCommands.AGENT_MANAGE_SESSIONS,
         )!;
         const mockContext: CommandContext = {
           agent: {
@@ -410,7 +412,7 @@ describe("applicationCommands", () => {
     describe("AGENT_MERGE_AND_CLOSE", () => {
       it("should call handleMergeAndClose handler with activeTab", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.AGENT_MERGE_AND_CLOSE
+          ApplicationCommands.AGENT_MERGE_AND_CLOSE,
         )!;
         const mockActiveTab = { id: "tab-123" };
         const mockContext: CommandContext = {
@@ -420,7 +422,7 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleMergeAndClose).toHaveBeenCalledWith(
-          mockActiveTab
+          mockActiveTab,
         );
       });
     });
@@ -428,7 +430,7 @@ describe("applicationCommands", () => {
     describe("AGENT_TERMINATE", () => {
       it("should call handleTerminate handler with activeTab", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.AGENT_TERMINATE
+          ApplicationCommands.AGENT_TERMINATE,
         )!;
         const mockActiveTab = { id: "tab-123" };
         const mockContext: CommandContext = {
@@ -444,7 +446,7 @@ describe("applicationCommands", () => {
     describe("VIEW_TOGGLE_DESIGN_MODE", () => {
       it("should call handleToggleDesignMode handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE
+          ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
         )!;
         const mockContext: CommandContext = {
           applicationMode: "normal",
@@ -455,7 +457,7 @@ describe("applicationCommands", () => {
 
         expect(handlers.handleToggleDesignMode).toHaveBeenCalledWith(
           "normal",
-          mockContext.setApplicationMode
+          mockContext.setApplicationMode,
         );
       });
     });
@@ -463,7 +465,7 @@ describe("applicationCommands", () => {
     describe("VIEW_OPEN_KEYBOARD_SHORTCUTS", () => {
       it("should call handleOpenKeyboardShortcuts handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
+          ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
         )!;
         const mockContext: CommandContext = {
           setShowKeybindingsEditor: vi.fn(),
@@ -472,7 +474,7 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleOpenKeyboardShortcuts).toHaveBeenCalledWith(
-          mockContext.setShowKeybindingsEditor
+          mockContext.setShowKeybindingsEditor,
         );
       });
     });
@@ -480,7 +482,7 @@ describe("applicationCommands", () => {
     describe("VIEW_SHOW_COMMAND_PALETTE", () => {
       it("should call handleShowCommandPalette handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE
+          ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
         )!;
         const mockContext: CommandContext = {
           setIsCommandPaletteOpenOverride: vi.fn(),
@@ -489,7 +491,7 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleShowCommandPalette).toHaveBeenCalledWith(
-          mockContext.setIsCommandPaletteOpenOverride
+          mockContext.setIsCommandPaletteOpenOverride,
         );
       });
     });
@@ -497,7 +499,7 @@ describe("applicationCommands", () => {
     describe("VIEW_RESET_LAYOUT", () => {
       it("should call handleResetLayout handler with tab ID", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.VIEW_RESET_LAYOUT
+          ApplicationCommands.VIEW_RESET_LAYOUT,
         )!;
         const mockContext: CommandContext = {
           activeTab: { id: "tab-123" },
@@ -512,7 +514,7 @@ describe("applicationCommands", () => {
     describe("WORKSPACE_SAVE", () => {
       it("should call handleSaveWorkspace handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.WORKSPACE_SAVE
+          ApplicationCommands.WORKSPACE_SAVE,
         )!;
         const mockContext: CommandContext = {
           activeTab: { id: "tab-123" },
@@ -525,7 +527,7 @@ describe("applicationCommands", () => {
         expect(handlers.handleSaveWorkspace).toHaveBeenCalledWith(
           mockContext.allTabs,
           "tab-123",
-          mockContext.setShowCreateWorkspaceDialog
+          mockContext.setShowCreateWorkspaceDialog,
         );
       });
     });
@@ -533,7 +535,7 @@ describe("applicationCommands", () => {
     describe("WORKSPACE_RENAME", () => {
       it("should call handleRenameWorkspace when workspace name exists", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.WORKSPACE_RENAME
+          ApplicationCommands.WORKSPACE_RENAME,
         )!;
         const mockContext: CommandContext = {
           workspaceName: "my-workspace",
@@ -543,13 +545,13 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleRenameWorkspace).toHaveBeenCalledWith(
-          mockContext.setShowRenameWorkspaceDialog
+          mockContext.setShowRenameWorkspaceDialog,
         );
       });
 
       it("should not call handler when workspace name is undefined", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.WORKSPACE_RENAME
+          ApplicationCommands.WORKSPACE_RENAME,
         )!;
         const mockContext: CommandContext = {
           workspaceName: undefined,
@@ -565,7 +567,7 @@ describe("applicationCommands", () => {
     describe("WORKSPACE_CLOSE", () => {
       it("should call handleCloseWorkspace when workspace name exists", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.WORKSPACE_CLOSE
+          ApplicationCommands.WORKSPACE_CLOSE,
         )!;
         const mockContext: CommandContext = {
           workspaceName: "my-workspace",
@@ -580,7 +582,7 @@ describe("applicationCommands", () => {
     describe("WORKSPACE_OPEN", () => {
       it("should call handleOpenWorkspace handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.WORKSPACE_OPEN
+          ApplicationCommands.WORKSPACE_OPEN,
         )!;
         const mockContext: CommandContext = {
           setShowWorkspacePicker: vi.fn(),
@@ -589,7 +591,7 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleOpenWorkspace).toHaveBeenCalledWith(
-          mockContext.setShowWorkspacePicker
+          mockContext.setShowWorkspacePicker,
         );
       });
     });
@@ -597,7 +599,7 @@ describe("applicationCommands", () => {
     describe("WORKSPACE_OPEN_LAST", () => {
       it("should call handleOpenLastWorkspace handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.WORKSPACE_OPEN_LAST
+          ApplicationCommands.WORKSPACE_OPEN_LAST,
         )!;
         const mockContext: CommandContext = {} as any;
 
@@ -610,7 +612,7 @@ describe("applicationCommands", () => {
     describe("PANE_OPEN_WEB_PAGE", () => {
       it("should call handleOpenWebPage handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.PANE_OPEN_WEB_PAGE
+          ApplicationCommands.PANE_OPEN_WEB_PAGE,
         )!;
         const mockContext: CommandContext = {
           setIsUrlDialogOpen: vi.fn(),
@@ -619,7 +621,7 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleOpenWebPage).toHaveBeenCalledWith(
-          mockContext.setIsUrlDialogOpen
+          mockContext.setIsUrlDialogOpen,
         );
       });
     });

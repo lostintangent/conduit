@@ -129,11 +129,19 @@ export function PaneControlFanButtons({
           let paneOptions: any = {
             terminalOptions: {
               ...(terminalCwd ? { cwd: terminalCwd } : {}),
-              ...(terminalConfig.isRemoteVM !== undefined ? { isRemoteVM: terminalConfig.isRemoteVM } : {}),
-              ...(terminalConfig.vmImageId ? { vmImageId: terminalConfig.vmImageId } : {}),
-              ...(terminalConfig.vmLabels ? { vmLabels: terminalConfig.vmLabels } : {}),
-              ...(terminalConfig.githubRepo ? { githubRepo: terminalConfig.githubRepo } : {}),
-            }
+              ...(terminalConfig.isRemoteVM !== undefined
+                ? { isRemoteVM: terminalConfig.isRemoteVM }
+                : {}),
+              ...(terminalConfig.vmImageId
+                ? { vmImageId: terminalConfig.vmImageId }
+                : {}),
+              ...(terminalConfig.vmLabels
+                ? { vmLabels: terminalConfig.vmLabels }
+                : {}),
+              ...(terminalConfig.githubRepo
+                ? { githubRepo: terminalConfig.githubRepo }
+                : {}),
+            },
           };
 
           // Execute pre-command if specified
@@ -174,7 +182,7 @@ export function PaneControlFanButtons({
             paneId,
             direction,
             insertBefore,
-            paneOptions
+            paneOptions,
           );
 
           // If there's a command configured, send it
@@ -182,7 +190,7 @@ export function PaneControlFanButtons({
             setTimeout(() => {
               api.sendKeypress(
                 newPane.sessionId,
-                terminalConfig.command + "\r"
+                terminalConfig.command + "\r",
               );
             }, 100);
           }

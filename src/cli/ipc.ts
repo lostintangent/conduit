@@ -49,7 +49,7 @@ export async function sendCommand(command: CliCommand): Promise<CliResponse> {
     socket.on("error", (error) => {
       socket.destroy();
       reject(
-        `Unable to connect to Conduit IPC socket (${error.message}). Is the app running?`
+        `Unable to connect to Conduit IPC socket (${error.message}). Is the app running?`,
       );
     });
 

@@ -18,9 +18,7 @@ async function resolvePath(rawPath: string): Promise<ResolvedFilePath> {
   try {
     stats = await fs.stat(resolved);
   } catch {
-    throw new Error(
-      `No such file or directory: ${rawPath}`
-    );
+    throw new Error(`No such file or directory: ${rawPath}`);
   }
 
   if (stats.isDirectory()) {

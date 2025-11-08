@@ -42,7 +42,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         switch (command.type) {
           case "open-file": {
             const isCommitMessageRequest = command.filePath?.endsWith(
-              COMMIT_EDITMSG_FILENAME
+              COMMIT_EDITMSG_FILENAME,
             );
 
             const descriptor: QuickPaneDescriptor = {
@@ -68,15 +68,15 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             const matchingTab = currentTabs.find((tab) =>
               Object.values(tab.panes).some(
                 (pane) =>
-                  pane.type === "terminal" && pane.sessionId === sessionId
-              )
+                  pane.type === "terminal" && pane.sessionId === sessionId,
+              ),
             );
 
             const panes = Object.values(matchingTab.panes)
               // Filter out the calling terminal pane
               .filter(
                 (pane) =>
-                  !(pane.type === "terminal" && pane.sessionId === sessionId)
+                  !(pane.type === "terminal" && pane.sessionId === sessionId),
               )
               // Filter the panes by the requested type
               .filter((pane) => {
@@ -102,7 +102,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
             if (serialized === null) {
               respondError(
-                `Unable to read terminal buffer; session ${command.sessionId} is not active.`
+                `Unable to read terminal buffer; session ${command.sessionId} is not active.`,
               );
               break;
             }
@@ -112,12 +112,14 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "capture-browser": {
-            const webview = document.getElementById(command.paneId) as WebviewTag;
+            const webview = document.getElementById(
+              command.paneId,
+            ) as WebviewTag;
             const webContentsId = webview.getWebContentsId();
 
             // Note that when trying to capture the page from the renderer, Chrome
             // kept throwing exceptions that I couldn't figure out. So we're currently
-            // delegating this back to the main process to handle. This feels like a 
+            // delegating this back to the main process to handle. This feels like a
             // total hack, but it works for now. And we'll eventually move from using
             // <webviews> to WebContentsViews in the future anyways. So it seems OK for now.
             await api.completeCaptureBrowserRequest({

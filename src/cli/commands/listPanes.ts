@@ -11,19 +11,17 @@ function resolvePaneType(type?: string): PaneType {
   }
 
   throw new Error(
-    `Invalid pane type: ${type}. Expected one of: ${PANE_TYPES.join(", ")}.`
+    `Invalid pane type: ${type}. Expected one of: ${PANE_TYPES.join(", ")}.`,
   );
 }
 
 export function registerListPanesCommand(program: Command) {
   program
     .command("list-panes")
-    .description(
-      "List the other panes in the active Conduit tab."
-    )
+    .description("List the other panes in the active Conduit tab.")
     .option(
       "-t, --type <paneType>",
-      'Filter panes by type (editor|browser|terminal|all). Defaults to "all".'
+      'Filter panes by type (editor|browser|terminal|all). Defaults to "all".',
     )
     .action(async (options: { type?: string }) => {
       const paneType = resolvePaneType(options.type);

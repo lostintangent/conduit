@@ -1,4 +1,8 @@
-import type { AgentSessionInfo, CloudTerminalOptions, TerminalCreateOptions } from "@shared/types";
+import type {
+  AgentSessionInfo,
+  CloudTerminalOptions,
+  TerminalCreateOptions,
+} from "@shared/types";
 
 /**
  * Options that can be passed to splitPane function

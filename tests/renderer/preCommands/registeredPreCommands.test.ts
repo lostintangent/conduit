@@ -284,7 +284,9 @@ describe("registeredPreCommands", () => {
   describe("detectGitHubRepoForCloud", () => {
     it("should have correct metadata", () => {
       expect(detectGitHubRepoForCloud.id).toBe("detect-github-repo-for-cloud");
-      expect(detectGitHubRepoForCloud.label).toBe("Detect GitHub Repo (Cloud Terminal)");
+      expect(detectGitHubRepoForCloud.label).toBe(
+        "Detect GitHub Repo (Cloud Terminal)",
+      );
       expect(detectGitHubRepoForCloud.description).toBeDefined();
     });
 
@@ -419,9 +421,15 @@ describe("registeredPreCommands", () => {
       expect(result.paneOptions).toBeDefined();
       expect(result.paneOptions?.terminalOptions).toBeDefined();
       expect(result.paneOptions?.terminalOptions?.isRemoteVM).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.githubRepo?.owner).toBe("lostintangent");
-      expect(result.paneOptions?.terminalOptions?.githubRepo?.name).toBe("conduit");
-      expect(result.paneOptions?.terminalOptions?.githubRepo?.branch).toBe("feature-branch");
+      expect(result.paneOptions?.terminalOptions?.githubRepo?.owner).toBe(
+        "lostintangent",
+      );
+      expect(result.paneOptions?.terminalOptions?.githubRepo?.name).toBe(
+        "conduit",
+      );
+      expect(result.paneOptions?.terminalOptions?.githubRepo?.branch).toBe(
+        "feature-branch",
+      );
     });
   });
 

@@ -7,7 +7,7 @@ import {
   Moon,
   Palette,
   Settings,
-  Sun
+  Sun,
 } from "lucide-react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
@@ -58,7 +58,7 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
   const CurrentThemeIcon = themeOptions.get(theme);
 
   const keyboardShortcutsCmd = useCommand(
-    ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
+    ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
   );
   const paneActionsCmd = useCommand(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS);
 
@@ -95,8 +95,8 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
                 onClick={() => onUpdateSettings({ theme: value })}
                 className={cn(
                   "flex items-center justify-between gap-2",
-                  (value === theme) &&
-                  "bg-gradient-to-br from-accent-start to-accent-end text-white"
+                  value === theme &&
+                    "bg-gradient-to-br from-accent-start to-accent-end text-white",
                 )}
               >
                 <span className="flex items-center gap-2">
@@ -184,7 +184,6 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
           {paneActionsCmd.title}
         </DropdownMenuItem>
       </DropdownMenuContent>
-
     </DropdownMenu>
   );
 }

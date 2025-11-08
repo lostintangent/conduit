@@ -47,7 +47,7 @@ export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
     if (overrides.surfaceElevated)
       root.style.setProperty(
         "--color-surface-elevated",
-        overrides.surfaceElevated
+        overrides.surfaceElevated,
       );
     if (overrides.surfaceMuted)
       root.style.setProperty("--color-surface-muted", overrides.surfaceMuted);
@@ -62,7 +62,7 @@ export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
     if (overrides.foregroundInverse)
       root.style.setProperty(
         "--color-foreground-inverse",
-        overrides.foregroundInverse
+        overrides.foregroundInverse,
       );
     if (overrides.selection)
       root.style.setProperty("--color-selection", overrides.selection);
@@ -76,7 +76,7 @@ export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
  */
 export function watchSystemTheme(
   mode: ThemeMode,
-  callback: (theme: "light" | "dark") => void
+  callback: (theme: "light" | "dark") => void,
 ): () => void {
   if (mode !== "system") {
     return () => {};
@@ -110,7 +110,7 @@ export type HashedColorOptions = {
 
 export const getHashedColor = (
   key: string,
-  options: HashedColorOptions = {}
+  options: HashedColorOptions = {},
 ): string => {
   const saturation = options.saturation ?? 65;
   const [lightnessMinRaw, lightnessMaxRaw] = options.lightnessRange ?? [38, 55];

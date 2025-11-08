@@ -29,7 +29,7 @@ export function NotificationCenter() {
         <div
           key={notification.id}
           className={`pointer-events-auto overflow-hidden rounded-lg border border-white/10 px-3 py-2 shadow-lg backdrop-blur ${notificationStyles(
-            notification.kind
+            notification.kind,
           )}`}
         >
           <div className="flex items-start justify-between gap-3">

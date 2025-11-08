@@ -133,13 +133,13 @@ export function EditorPane({
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [originalContent, setOriginalContent] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(
-    undefined
+    undefined,
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
@@ -281,7 +281,7 @@ export function EditorPane({
         console.error("Failed to open file:", error);
       }
     },
-    [onFileChange]
+    [onFileChange],
   );
 
   const handleClearFile = useCallback(() => {
@@ -293,14 +293,14 @@ export function EditorPane({
       setCurrentContent(value);
       setHasUnsavedChanges(value !== originalContent);
     },
-    [originalContent]
+    [originalContent],
   );
 
   const handleDirectoryChange = useCallback(
     (newPath: string) => {
       onCwdChange?.(newPath);
     },
-    [onCwdChange]
+    [onCwdChange],
   );
 
   const handleNavigateUp = useCallback(() => {
@@ -374,7 +374,7 @@ export function EditorPane({
         updateUndoRedoState();
       });
     },
-    []
+    [],
   );
 
   const handleUndo = useCallback(() => {

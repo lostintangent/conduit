@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
-import { FSWatcher } from "node:fs";
+import { FSWatcher, promises as fs } from "node:fs";
 import { listDirectory, readFile } from "./utils";
+const path = require("node:path");
 
 // Store active file watchers
 const fileWatchers = new Map<string, FSWatcher>();
@@ -28,9 +29,6 @@ export function initializeFsHandlers() {
     "fs:write-file",
     async (_, filePath: string, content: string) => {
       try {
-        const fs = require("node:fs").promises;
-        const path = require("node:path");
-
         // Ensure directory exists
         const dir = path.dirname(filePath);
         await fs.mkdir(dir, { recursive: true });

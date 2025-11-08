@@ -49,22 +49,22 @@ export async function updateApplicationMenu(
   const template = [
     ...(process.platform === "darwin"
       ? [
-        {
-          label: app.name,
-          submenu: [
-            { role: "about" },
-            updateMenuItem,
-            { type: "separator" },
-            { role: "services" },
-            { type: "separator" },
-            { role: "hide" },
-            { role: "hideOthers" },
-            { role: "unhide" },
-            { type: "separator" },
-            { role: "quit" },
-          ],
-        },
-      ]
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" },
+              updateMenuItem,
+              { type: "separator" },
+              { role: "services" },
+              { type: "separator" },
+              { role: "hide" },
+              { role: "hideOthers" },
+              { role: "unhide" },
+              { type: "separator" },
+              { role: "quit" },
+            ],
+          },
+        ]
       : []),
     {
       label: "File",
@@ -80,22 +80,22 @@ export async function updateApplicationMenu(
         },
         ...(workspaces.length > 0
           ? [
-            { type: "separator" },
-            {
-              label: "Open Workspace...",
-              submenu: workspaces.map((workspace: Workspace) => ({
-                label: workspace.name,
-                click: () => {
-                  if (!window.isDestroyed()) {
-                    window.webContents.send(
-                      "ui:open-workspace-request",
-                      workspace,
-                    );
-                  }
-                },
-              })),
-            },
-          ]
+              { type: "separator" },
+              {
+                label: "Open Workspace...",
+                submenu: workspaces.map((workspace: Workspace) => ({
+                  label: workspace.name,
+                  click: () => {
+                    if (!window.isDestroyed()) {
+                      window.webContents.send(
+                        "ui:open-workspace-request",
+                        workspace,
+                      );
+                    }
+                  },
+                })),
+              },
+            ]
           : []),
         { type: "separator" },
         process.platform === "darwin" ? { role: "close" } : { role: "quit" },
@@ -196,11 +196,11 @@ export async function updateApplicationMenu(
     { role: "windowMenu" },
     ...(process.platform !== "darwin"
       ? [
-        {
-          label: "Help",
-          submenu: [updateMenuItem],
-        },
-      ]
+          {
+            label: "Help",
+            submenu: [updateMenuItem],
+          },
+        ]
       : []),
   ];
 

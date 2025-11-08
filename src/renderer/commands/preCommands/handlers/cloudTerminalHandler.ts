@@ -1,11 +1,11 @@
 /**
  * Cloud Terminal Pre-Command Handler
- * 
+ *
  * Detects if the current directory is a GitHub repository and automatically
  * configures cloud terminal creation with the detected repo info.
  */
 
-import type { PreCommandResult } from '../types';
+import type { PreCommandResult } from "../types";
 
 export interface CloudTerminalHandlerResult {
   success: boolean;
@@ -19,16 +19,16 @@ export interface CloudTerminalHandlerResult {
 
 /**
  * Detects GitHub repository information from the current working directory
- * 
+ *
  * If a GitHub repo is detected, returns the owner/name/branch so cloud terminal
  * can clone it automatically. If no repo is found, returns success without
  * repo info (allows fallback to dialog).
- * 
+ *
  * @param cwd - Current working directory
  * @returns Handler result with optional GitHub repo info
  */
 export async function detectGitHubRepoHandler(
-  cwd: string
+  cwd: string,
 ): Promise<CloudTerminalHandlerResult> {
   const api = window.conduit;
 
@@ -47,12 +47,12 @@ export async function detectGitHubRepoHandler(
     if (!repoInfo) {
       // Has git repo but not a GitHub repo (e.g., GitLab, Bitbucket, local)
       // Still success, will show dialog
-      console.log('[CloudTerminal] Git repository found but not a GitHub repo');
+      console.log("[CloudTerminal] Git repository found but not a GitHub repo");
       return { success: true };
     }
 
     // Found GitHub repo! Return the info
-    console.log('[CloudTerminal] Detected GitHub repo:', repoInfo);
+    console.log("[CloudTerminal] Detected GitHub repo:", repoInfo);
     return {
       success: true,
       githubRepo: repoInfo,
@@ -61,21 +61,21 @@ export async function detectGitHubRepoHandler(
     // If anything goes wrong, just treat as no repo found
     // This ensures we don't block cloud terminal creation
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn('[CloudTerminal] Failed to detect GitHub repo:', errorMessage);
+    console.warn("[CloudTerminal] Failed to detect GitHub repo:", errorMessage);
     return { success: true };
   }
 }
 
 /**
  * Transform handler result into pre-command result with paneOptions
- * 
+ *
  * @param handlerResult - Result from detectGitHubRepoHandler
  * @param isRemoteVM - Whether this should be a cloud terminal
  * @returns Pre-command result with cloud terminal options
  */
 export function buildCloudTerminalResult(
   handlerResult: CloudTerminalHandlerResult,
-  isRemoteVM = true
+  isRemoteVM = true,
 ): PreCommandResult {
   if (!handlerResult.success) {
     return {

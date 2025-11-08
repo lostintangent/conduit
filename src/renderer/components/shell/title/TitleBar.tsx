@@ -13,17 +13,13 @@ type TitleBarProps = {
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
 };
 
-export const TitleBar = ({
-  onUpdateSettings,
-}: TitleBarProps) => {
+export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
   if (api.platform !== "darwin") return null;
 
   const workspaceName = useAtomValue(workspaceNameAtom);
 
   return (
-    <div
-      className="h-[30px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium rounded-tl-xl rounded-tr-xl bg-surface-muted mb-[1px] [app-region:drag]"
-    >
+    <div className="h-[30px] flex items-center justify-between px-3 text-[0.8rem] text-white/40 font-medium rounded-tl-xl rounded-tr-xl bg-surface-muted mb-[1px] [app-region:drag]">
       {/* Left area (Drag area) */}
       <div className="flex-1" />
 

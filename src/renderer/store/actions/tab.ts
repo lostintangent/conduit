@@ -523,7 +523,7 @@ export async function duplicateTab(
 
 export function registerTabEventHandlers() {
   if (!api) {
-    return () => { };
+    return () => {};
   }
 
   const unsubscribeTitle = api.onTitle(({ sessionId, title }) => {

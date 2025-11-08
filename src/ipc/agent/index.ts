@@ -31,7 +31,7 @@ const agentSessions = new Map<string, AgentSessionRecord>();
 function formatTimestampSlug(date: Date) {
   const pad = (value: number) => value.toString().padStart(2, "0");
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(
-    date.getHours()
+    date.getHours(),
   )}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
@@ -45,18 +45,18 @@ async function ensureParentDirectories(target: string) {
 }
 
 export async function spawnAgentSession(
-  payload: AgentSessionSpawnRequest
+  payload: AgentSessionSpawnRequest,
 ): Promise<AgentSessionInfo> {
   if (!payload.cwd) {
     throw new Error(
-      "A current working directory is required to spawn a session"
+      "A current working directory is required to spawn a session",
     );
   }
 
   const repoRoot = await findRepoRoot(payload.cwd);
   if (!repoRoot) {
     throw new Error(
-      `Unable to find a Git repository root above ${path.resolve(payload.cwd)}`
+      `Unable to find a Git repository root above ${path.resolve(payload.cwd)}`,
     );
   }
 
@@ -93,7 +93,7 @@ export async function spawnAgentSession(
     repoRoot,
     ".conduit",
     "worktrees",
-    worktreeSlug
+    worktreeSlug,
   );
 
   await ensureParentDirectories(worktreePath);
@@ -101,7 +101,7 @@ export async function spawnAgentSession(
   const worktreeExists = await fileExists(worktreePath);
   if (worktreeExists) {
     throw new Error(
-      `Worktree destination already exists: ${worktreePath}. Please remove it and retry.`
+      `Worktree destination already exists: ${worktreePath}. Please remove it and retry.`,
     );
   }
 
@@ -140,17 +140,17 @@ export async function spawnAgentSession(
 
 export function listAgentSessions(): AgentSessionInfo[] {
   return Array.from(agentSessions.values()).map(
-    ({ worktreeSlug: _ignored, ...session }) => ({ ...session })
+    ({ worktreeSlug: _ignored, ...session }) => ({ ...session }),
   );
 }
 
 export async function finalizeAgentSession(
-  payload: AgentSessionFinalizeRequest
+  payload: AgentSessionFinalizeRequest,
 ): Promise<AgentSessionFinalizeResult> {
   const session = agentSessions.get(payload.sessionId);
   if (!session) {
     throw new Error(
-      `Unable to merge agent session ${payload.sessionId}; it no longer exists.`
+      `Unable to merge agent session ${payload.sessionId}; it no longer exists.`,
     );
   }
 
@@ -158,14 +158,14 @@ export async function finalizeAgentSession(
   if (!worktreeExists) {
     agentSessions.delete(payload.sessionId);
     throw new Error(
-      `Worktree ${session.worktreePath} is missing; cannot finalize session.`
+      `Worktree ${session.worktreePath} is missing; cannot finalize session.`,
     );
   }
 
   const repoStatus = await runGit(session.repoRoot, ["status", "--porcelain"]);
   if (repoStatus.stdout.trim().length > 0) {
     throw new Error(
-      "Primary repository has uncommitted changes. Please stash or commit before finalizing an agent session."
+      "Primary repository has uncommitted changes. Please stash or commit before finalizing an agent session.",
     );
   }
 
@@ -248,12 +248,12 @@ export async function finalizeAgentSession(
 }
 
 export async function cleanupAgentSession(
-  payload: AgentSessionCleanupRequest
+  payload: AgentSessionCleanupRequest,
 ): Promise<AgentSessionCleanupResult> {
   const session = agentSessions.get(payload.sessionId);
   if (!session) {
     throw new Error(
-      `Unable to clean up agent session ${payload.sessionId}; it no longer exists.`
+      `Unable to clean up agent session ${payload.sessionId}; it no longer exists.`,
     );
   }
 
@@ -312,6 +312,9 @@ export function initializeAgentHandlers() {
 }
 
 export {
-  getCurrentBranch, getGitHubRepoInfo, getRemoteOriginUrl, hasGitRepository, parseGitHubRepo
+  getCurrentBranch,
+  getGitHubRepoInfo,
+  getRemoteOriginUrl,
+  hasGitRepository,
+  parseGitHubRepo,
 };
-

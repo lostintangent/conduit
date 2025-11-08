@@ -45,7 +45,7 @@ export function QuickDialog({
     setApplicationMode("quick");
     return () => {
       setApplicationMode((current) =>
-        current === "quick" ? "normal" : current
+        current === "quick" ? "normal" : current,
       );
     };
   }, [setApplicationMode]);
@@ -60,7 +60,7 @@ export function QuickDialog({
         }));
       }
     },
-    [currentDescriptor.type]
+    [currentDescriptor.type],
   );
 
   // Handle updates from webview pane
@@ -73,7 +73,7 @@ export function QuickDialog({
         }));
       }
     },
-    [currentDescriptor.type]
+    [currentDescriptor.type],
   );
 
   // Handle file open from within editor pane
@@ -94,7 +94,7 @@ export function QuickDialog({
     () =>
       currentDescriptor.type === "terminal" &&
       !!currentDescriptor.vmMetadata?.vmId,
-    [currentDescriptor]
+    [currentDescriptor],
   );
   const vmTitle = useMemo(() => {
     if (!isVmTerminal) {

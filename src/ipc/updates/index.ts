@@ -28,7 +28,7 @@ function updateState(partial: Partial<UpdateState>) {
   };
 
   // Notify renderer process of update state change
-  sendToRenderer?.("updates:event", currentState);
+  sendToRenderer("updates:event", currentState);
 
   // Notify any registered state listener
   stateListener(currentState);
@@ -78,10 +78,10 @@ function installUpdate() {
 }
 
 export function initializeUpdateHandlers(
-  sendToRenderer: SendToRendererFn,
-  onStateChange: (state: UpdateState) => Promise<void>
+  sendToRendererFn: SendToRendererFn,
+  onStateChange: (state: UpdateState) => Promise<void>,
 ): UpdateController {
-  sendToRenderer = sendToRenderer;
+  sendToRenderer = sendToRendererFn;
   stateListener = onStateChange;
 
   const updatesSupported = determineSupport();

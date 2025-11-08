@@ -20,7 +20,7 @@ function buildCmdLauncher(electronBinary: string, bundlePath: string) {
   return [
     "@echo off",
     `if "%CONDUIT_SOCKET_PATH%"=="" (`,
-    '  echo CONDUIT_SOCKET_PATH is not set. Please run this command inside a Conduit terminal.',
+    "  echo CONDUIT_SOCKET_PATH is not set. Please run this command inside a Conduit terminal.",
     "  exit /b 1",
     ")",
     `set "ELECTRON_BIN=${escape(electronBinary)}"`,
@@ -74,4 +74,3 @@ export async function ensureLauncherScripts(
     );
   }
 }
-

@@ -7,10 +7,7 @@ import {
   initializeTerminalHandlers,
 } from "./terminal";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
-import {
-  initializeUpdateHandlers,
-  type UpdateController,
-} from "./updates";
+import { initializeUpdateHandlers, type UpdateController } from "./updates";
 import { initializeVMHandlers } from "./vm";
 import { initializeWorkspaceHandlers } from "./workspace";
 
@@ -31,10 +28,12 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeAgentHandlers();
   initializeVMHandlers();
 
-  const updateController = initializeUpdateHandlers(sendToRenderer, refreshMenu);
+  const updateController = initializeUpdateHandlers(
+    sendToRenderer,
+    refreshMenu,
+  );
   return updateController;
 }
 
 export { cleanupTerminalSessions, initializeIpcHandlers, shutdownCliServer };
 export type { UpdateController };
-

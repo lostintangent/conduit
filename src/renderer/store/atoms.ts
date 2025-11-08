@@ -52,7 +52,7 @@ export const applicationModeAtom = atom<ApplicationMode>("normal");
  * Updated when keybindings are loaded or reloaded from user configuration
  */
 export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
-  new Map()
+  new Map(),
 );
 
 /**

@@ -1,4 +1,4 @@
-export { };
+export {};
 
 import type { WebviewTag } from "electron";
 import type { DetailedHTMLProps, HTMLAttributes, RefAttributes } from "react";
@@ -12,7 +12,7 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       webview: DetailedHTMLProps<HTMLAttributes<WebviewTag>, WebviewTag> &
-      RefAttributes<WebviewTag>;
+        RefAttributes<WebviewTag>;
     }
   }
 }

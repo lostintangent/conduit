@@ -107,7 +107,8 @@ export const createAgentSession: PreCommand = {
 export const detectGitHubRepoForCloud: PreCommand = {
   id: "detect-github-repo-for-cloud",
   label: "Detect GitHub Repo (Cloud Terminal)",
-  description: "Automatically clones the current GitHub repository into a cloud VM",
+  description:
+    "Automatically clones the current GitHub repository into a cloud VM",
 
   run: async (terminalConfig) => {
     const api = window.conduit;

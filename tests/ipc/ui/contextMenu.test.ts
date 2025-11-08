@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { showContextMenu, type ContextMenuItemData } from "../../../src/ipc/ui/contextMenu";
-import { BrowserWindow, Menu } from "electron";
+import { Menu } from "electron";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  showContextMenu,
+  type ContextMenuItemData,
+} from "../../../src/ipc/ui/contextMenu";
 
 // Mock Electron modules
 vi.mock("electron", () => ({
@@ -380,7 +383,9 @@ describe("contextMenu", () => {
 
       // All items in same group - no separators
       expect(template).toHaveLength(3);
-      expect(template.every((item: any) => item.type !== "separator")).toBe(true);
+      expect(template.every((item: any) => item.type !== "separator")).toBe(
+        true,
+      );
     });
 
     it("should handle menu items without keybindings", () => {

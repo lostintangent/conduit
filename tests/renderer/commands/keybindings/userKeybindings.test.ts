@@ -355,13 +355,11 @@ describe("saveUserKeybinding", () => {
   });
 
   it("should handle file that does not exist (ENOENT)", async () => {
-    const mockReadFile = vi
-      .fn()
-      .mockRejectedValue(
-        Object.assign(new Error("ENOENT"), {
-          message: "ENOENT: file not found",
-        }),
-      );
+    const mockReadFile = vi.fn().mockRejectedValue(
+      Object.assign(new Error("ENOENT"), {
+        message: "ENOENT: file not found",
+      }),
+    );
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
@@ -505,13 +503,11 @@ describe("removeUserKeybinding", () => {
   });
 
   it("should handle file that does not exist", async () => {
-    const mockReadFile = vi
-      .fn()
-      .mockRejectedValue(
-        Object.assign(new Error("ENOENT"), {
-          message: "ENOENT: file not found",
-        }),
-      );
+    const mockReadFile = vi.fn().mockRejectedValue(
+      Object.assign(new Error("ENOENT"), {
+        message: "ENOENT: file not found",
+      }),
+    );
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({

@@ -93,14 +93,14 @@ const collectBoundaries = (node: LayoutNode): BoundaryInfo[] => {
 const computeIntersectionHandles = (
   previousSibling: LayoutNode,
   currChild: LayoutNode,
-  parentDirection: SplitDirection
+  parentDirection: SplitDirection,
 ): IntersectionHandleConfig[] => {
   const perpendicularDirection: SplitDirection =
     parentDirection === "row" ? "column" : "row";
 
   const prevBoundaries =
     previousSibling.type === "split" &&
-      previousSibling.direction === perpendicularDirection
+    previousSibling.direction === perpendicularDirection
       ? collectBoundaries(previousSibling)
       : [];
 
@@ -124,7 +124,7 @@ const computeIntersectionHandles = (
   const mergeSeed = (boundary: BoundaryInfo, splitId: string) => {
     const existing = seeds.find(
       (seed) =>
-        Math.abs(seed.position - boundary.position) <= INTERSECTION_TOLERANCE
+        Math.abs(seed.position - boundary.position) <= INTERSECTION_TOLERANCE,
     );
 
     const axis: LayoutResizeAxis = {
@@ -169,7 +169,7 @@ function buildGridTemplateStyles(
   children: LayoutNode[],
   direction: SplitDirection,
   activePaneId?: string,
-  isInFocusMode?: boolean
+  isInFocusMode?: boolean,
 ): React.CSSProperties {
   const buildTemplateString = (values: number[]): string => {
     if (values.length === 0) {
@@ -185,8 +185,8 @@ function buildGridTemplateStyles(
   if (isInFocusMode && activePaneId) {
     const templateValue = buildTemplateString(
       children.map((child) =>
-        layoutContainsPaneId(child, activePaneId) ? 1 : 0
-      )
+        layoutContainsPaneId(child, activePaneId) ? 1 : 0,
+      ),
     );
 
     return direction === "row"
@@ -195,7 +195,7 @@ function buildGridTemplateStyles(
   }
 
   const templateValue = buildTemplateString(
-    children.map((child) => child.size ?? 1)
+    children.map((child) => child.size ?? 1),
   );
 
   return direction === "row"
@@ -207,17 +207,17 @@ interface TabLayoutProps {
   handleContextMenu: (
     event: React.MouseEvent,
     tabId: string,
-    paneId?: string
+    paneId?: string,
   ) => void;
   handleResizeStart: (
     e: React.MouseEvent,
-    payload: LayoutResizeStartConfig
+    payload: LayoutResizeStartConfig,
   ) => void;
   resizingNode: string | null;
   handleWebViewUpdate: (
     tabId: string,
     paneId: string,
-    updates: { url?: string; title?: string }
+    updates: { url?: string; title?: string },
   ) => void;
   handleEditorUpdate: (
     tabId: string,
@@ -225,7 +225,7 @@ interface TabLayoutProps {
     updates: {
       cwd?: string;
       filePath?: string;
-    }
+    },
   ) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   onOpenPaneActions?: () => void;
@@ -287,7 +287,7 @@ export function TabLayout({
         setHoveredAxisKeys(keys);
       }
     },
-    [resizingNode, setHoveredAxisKeys]
+    [resizingNode, setHoveredAxisKeys],
   );
 
   const renderPaneNode = useCallback(
@@ -325,8 +325,8 @@ export function TabLayout({
         clientY: number;
       }) => {
         const syntheticEvent = {
-          preventDefault: () => { },
-          stopPropagation: () => { },
+          preventDefault: () => {},
+          stopPropagation: () => {},
           clientX: coords.clientX,
           clientY: coords.clientY,
         } as React.MouseEvent;
@@ -498,14 +498,14 @@ export function TabLayout({
       hoveredPreviewPaneId,
       setHoveredPreviewPaneId,
       setApplicationMode,
-    ]
+    ],
   );
 
   const renderSplitNode = useCallback(
     (
       node: LayoutSplitNode,
       tab: Tab,
-      renderChild: (node: LayoutNode, tab: Tab) => React.ReactNode
+      renderChild: (node: LayoutNode, tab: Tab) => React.ReactNode,
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
 
@@ -514,7 +514,7 @@ export function TabLayout({
         node.children,
         node.direction,
         tab.activePaneId,
-        isInFocusMode
+        isInFocusMode,
       );
 
       const tabShowsBorder = shouldShowPaneBorder(tab, applicationMode);
@@ -544,19 +544,17 @@ export function TabLayout({
               ? `${node.direction === "row" ? "border-l" : "border-t"} border-blueprint border-dashed`
               : "";
             const splitBorderClass =
-              index !== 0 && isInDesignMode
-                ? designModeBorderClass
-                : "";
+              index !== 0 && isInDesignMode ? designModeBorderClass : "";
 
             const primaryAxis: LayoutResizeAxis | null = previousSibling
               ? {
-                containerNodeId: node.id,
-                direction: node.direction,
-                leadingNodeId: previousSibling.id,
-                trailingNodeId: child.id,
-                leadingSize: previousSibling.size ?? 1,
-                trailingSize: child.size ?? 1,
-              }
+                  containerNodeId: node.id,
+                  direction: node.direction,
+                  leadingNodeId: previousSibling.id,
+                  trailingNodeId: child.id,
+                  leadingSize: previousSibling.size ?? 1,
+                  trailingSize: child.size ?? 1,
+                }
               : null;
 
             const primaryAxisKey = primaryAxis ? getAxisKey(primaryAxis) : null;
@@ -576,10 +574,10 @@ export function TabLayout({
             const intersectionHandles =
               shouldRenderHandles && primaryAxis
                 ? computeIntersectionHandles(
-                  previousSibling,
-                  child,
-                  node.direction
-                )
+                    previousSibling,
+                    child,
+                    node.direction,
+                  )
                 : [];
 
             const clearHover = () => {
@@ -642,7 +640,7 @@ export function TabLayout({
       isInDesignMode,
       resizingNode,
       setHoverKeys,
-    ]
+    ],
   );
 
   const renderLayout = useCallback(
@@ -652,7 +650,7 @@ export function TabLayout({
       }
       return renderSplitNode(node, tab, renderLayout);
     },
-    [renderPaneNode, renderSplitNode]
+    [renderPaneNode, renderSplitNode],
   );
 
   const isFocusModeActive = applicationMode === "focus";
@@ -665,7 +663,7 @@ export function TabLayout({
       // its container ref callback that sets up the portal mount point.
       if (!tabContainerCallbackRefs.current[tab.id]) {
         tabContainerCallbackRefs.current[tab.id] = (
-          node: HTMLDivElement | null
+          node: HTMLDivElement | null,
         ) => setLayoutMountPoint(tab.id, node);
       }
 
@@ -692,7 +690,7 @@ export function TabLayout({
         </div>
       );
     },
-    [activeTabId, getActiveMountPoint, renderLayout, setLayoutMountPoint]
+    [activeTabId, getActiveMountPoint, renderLayout, setLayoutMountPoint],
   );
 
   return (

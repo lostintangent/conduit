@@ -11,11 +11,7 @@ import {
   splitPane,
 } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
-import {
-  applicationModeAtom,
-  tabsAtom,
-  userSettingsAtom,
-} from "@/store/atoms";
+import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { extractPortFromMatch } from "@shared/portDetection";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, {
@@ -153,9 +149,8 @@ export const TerminalPane = ({
   const applicationModeRef = useRef<ApplicationMode>(applicationMode);
   applicationModeRef.current = applicationMode;
 
-  const setApplicationModeRef = useRef<typeof setApplicationMode>(
-    setApplicationMode,
-  );
+  const setApplicationModeRef =
+    useRef<typeof setApplicationMode>(setApplicationMode);
   setApplicationModeRef.current = setApplicationMode;
   const previousApplicationModeRef = useRef<ApplicationMode>(applicationMode);
 

@@ -627,7 +627,7 @@ describe("duplicateTab", () => {
     // Verify command was auto-executed in new terminal
     expect(mockApi.sendKeypress).toHaveBeenCalledWith(
       "session-2",
-      "npm run dev\n"
+      "npm run dev\n",
     );
   });
 
@@ -737,7 +737,7 @@ describe("duplicateTab", () => {
     // Command should not have extra newline
     expect(mockApi.sendKeypress).toHaveBeenCalledWith(
       "session-2",
-      "vim file.txt\n"
+      "vim file.txt\n",
     );
   });
 });

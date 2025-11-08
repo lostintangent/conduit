@@ -103,12 +103,16 @@ describe("menuContextBuilders", () => {
       registerMenuContextBuilder(MenuId.PaneContext, builder);
 
       const registeredBuilder = getMenuContextBuilder(MenuId.PaneContext);
-      await registeredBuilder?.(mockContextKeyService, params, mockCheckGitRepo);
+      await registeredBuilder?.(
+        mockContextKeyService,
+        params,
+        mockCheckGitRepo,
+      );
 
       expect(builder).toHaveBeenCalledWith(
         mockContextKeyService,
         params,
-        mockCheckGitRepo
+        mockCheckGitRepo,
       );
     });
 
@@ -127,15 +131,19 @@ describe("menuContextBuilders", () => {
       registerMenuContextBuilder(MenuId.TabContext, builder);
 
       const registeredBuilder = getMenuContextBuilder(MenuId.TabContext);
-      await registeredBuilder?.(mockContextKeyService, params, mockCheckGitRepo);
+      await registeredBuilder?.(
+        mockContextKeyService,
+        params,
+        mockCheckGitRepo,
+      );
 
       expect(mockContextKeyService.setGlobal).toHaveBeenCalledWith(
         "hasGitRepo",
-        true
+        true,
       );
       expect(mockContextKeyService.setGlobal).toHaveBeenCalledWith(
         "customKey",
-        "value"
+        "value",
       );
     });
 
@@ -145,7 +153,7 @@ describe("menuContextBuilders", () => {
       const builder: MenuContextBuilder = async (
         contextKeyService,
         params,
-        checkGitRepo
+        checkGitRepo,
       ) => {
         const hasRepo = await checkGitRepo(params.pane?.cwd);
         contextKeyService.setGlobal("hasGitRepo", hasRepo);
@@ -162,12 +170,16 @@ describe("menuContextBuilders", () => {
       registerMenuContextBuilder(MenuId.PaneContext, builder);
 
       const registeredBuilder = getMenuContextBuilder(MenuId.PaneContext);
-      await registeredBuilder?.(mockContextKeyService, params, mockCheckGitRepo);
+      await registeredBuilder?.(
+        mockContextKeyService,
+        params,
+        mockCheckGitRepo,
+      );
 
       expect(mockCheckGitRepo).toHaveBeenCalledWith("/my-repo");
       expect(mockContextKeyService.setGlobal).toHaveBeenCalledWith(
         "hasGitRepo",
-        true
+        true,
       );
     });
   });
@@ -177,7 +189,7 @@ describe("menuContextBuilders", () => {
       const tabContextBuilder: MenuContextBuilder = async (
         contextKeyService,
         params,
-        checkGitRepo
+        checkGitRepo,
       ) => {
         const { tab } = params;
         const activePane = tab.panes[tab.activePaneId];
@@ -209,7 +221,7 @@ describe("menuContextBuilders", () => {
       expect(mockCheckGitRepo).toHaveBeenCalledWith("/repo");
       expect(mockContextKeyService.setGlobal).toHaveBeenCalledWith(
         "hasGitRepo",
-        true
+        true,
       );
     });
 
@@ -217,7 +229,7 @@ describe("menuContextBuilders", () => {
       const paneContextBuilder: MenuContextBuilder = async (
         contextKeyService,
         params,
-        checkGitRepo
+        checkGitRepo,
       ) => {
         const { pane } = params;
 
@@ -244,7 +256,7 @@ describe("menuContextBuilders", () => {
       expect(mockCheckGitRepo).toHaveBeenCalledWith("/no-repo");
       expect(mockContextKeyService.setGlobal).toHaveBeenCalledWith(
         "hasGitRepo",
-        false
+        false,
       );
     });
 
@@ -252,7 +264,7 @@ describe("menuContextBuilders", () => {
       const paneContextBuilder: MenuContextBuilder = async (
         contextKeyService,
         params,
-        checkGitRepo
+        checkGitRepo,
       ) => {
         const { pane } = params;
 
@@ -277,7 +289,7 @@ describe("menuContextBuilders", () => {
       expect(mockCheckGitRepo).not.toHaveBeenCalled();
       expect(mockContextKeyService.setGlobal).toHaveBeenCalledWith(
         "hasGitRepo",
-        false
+        false,
       );
     });
   });

@@ -24,7 +24,9 @@ function AppWrapper() {
         <div className="gradient-canvas z-0" />
 
         {/* Muting overlay - dims gradient or provides solid color for inner borders */}
-        <div className={`absolute inset-[3px] rounded-xl pointer-events-none ${overlayClass}`} />
+        <div
+          className={`absolute inset-[3px] rounded-xl pointer-events-none ${overlayClass}`}
+        />
 
         {/* Content layer - inset creates the outer border effect */}
         {/* No background here - let gradient show through gaps */}

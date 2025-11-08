@@ -36,7 +36,7 @@ export type CliReadTerminalCommand = {
 export type CliCaptureBrowserCommand = {
   type: "capture-browser";
   paneId: string;
-}
+};
 
 export type CliWriteTerminalCommand = {
   type: "write-terminal";
