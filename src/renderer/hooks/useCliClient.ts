@@ -1,8 +1,8 @@
+import { useCommand } from "@/commands/hooks/useCommand";
 import {
   inputToSession,
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
-import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
@@ -28,6 +28,14 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const moveUpCommand = useCommand(ApplicationCommands.PANE_MOVE_UP);
   const moveDownCommand = useCommand(ApplicationCommands.PANE_MOVE_DOWN);
   const moveToTabCommand = useCommand(ApplicationCommands.PANE_MOVE_TO_TAB);
+
+  const moveCommandMap = {
+    left: moveLeftCommand,
+    right: moveRightCommand,
+    up: moveUpCommand,
+    down: moveDownCommand,
+    tab: moveToTabCommand,
+  } as const;
 
   useEffect(() => {
     tabsRef.current = tabs;
@@ -149,19 +157,10 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "move": {
-            const moveCommandMap = {
-              left: moveLeftCommand,
-              right: moveRightCommand,
-              up: moveUpCommand,
-              down: moveDownCommand,
-              tab: moveToTabCommand,
-            } as const;
-
+          case "move-pane": {
             const targetCommand = moveCommandMap[command.direction];
-
-            if (!targetCommand || targetCommand.disabled) {
-              respondError("Unable to move pane. Command unavailable.");
+            if (!targetCommand) {
+              respondError("Unable to move pane in the specified direction.");
               break;
             }
 

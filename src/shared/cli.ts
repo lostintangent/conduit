@@ -16,10 +16,17 @@ export type CliCommand =
   | CliWriteTerminalCommand
   | CliMovePaneCommand;
 
-export type CliMovePaneDirection = "left" | "right" | "up" | "down" | "tab";
+export const PANE_MOVE_TARGETS = [
+  "left",
+  "right",
+  "up",
+  "down",
+  "tab",
+] as const;
+export type PaneMoveTarget = (typeof PANE_MOVE_TARGETS)[number];
 export type CliMovePaneCommand = {
-  type: "move";
-  direction: CliMovePaneDirection;
+  type: "move-pane";
+  direction: PaneMoveTarget;
 };
 
 export type CliOpenFileCommand = {
