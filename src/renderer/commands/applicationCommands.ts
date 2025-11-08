@@ -347,7 +347,7 @@ export function registerApplicationCommands(
   // Pane: Toggle Focus
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_FOCUS,
-    title: "Toggle Focus on Pane",
+    title: "Toggle Focus Mode",
     description: "Toggle focus mode for the current pane",
     category: "Pane",
     when: hasActivePane.isTrue(),
