@@ -49,30 +49,38 @@ export async function createCliServer(
   const server = net.createServer((socket) => {
     let buffer = "";
     socket.on("data", (chunk: Buffer) => {
+      // Each CLI client sends exactly one newline-terminated request per socket
       buffer += chunk.toString("utf8");
-      const messages = buffer.split("\n");
-      buffer = messages.pop() ?? "";
+      if (!buffer.endsWith("\n")) {
+        return;
+      }
 
-      for (const message of messages) {
-        if (!message.trim()) continue;
+      const message = buffer.slice(0, -1).trim();
+      buffer = "";
 
-        try {
-          const parsed = JSON.parse(message) as CliRequest;
-          handleCliRequest(parsed, socket);
-        } catch (error) {
-          respondWithSocket(socket, {
-            status: "error",
-            message: `Invalid request payload: ${error instanceof Error ? error.message : error}`,
-          });
-        }
+      if (!message) {
+        respondWithSocket(socket, {
+          status: "error",
+          message: "Invalid request: empty message.",
+        });
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(message) as CliRequest;
+        handleCliRequest(parsed, socket);
+      } catch (error) {
+        respondWithSocket(socket, {
+          status: "error",
+          message: `Invalid request: ${error.message}`,
+        });
       }
     });
 
-    socket.on("error", (error) => {
-      console.warn("CLI socket error:", error);
-    });
+    socket.on("error", (error) => console.warn("CLI socket error:", error));
   });
 
+  // Start the server and wait for it to begin listening
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(socketPath, () => {

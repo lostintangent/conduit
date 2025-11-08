@@ -20,44 +20,49 @@ export async function sendCommand(command: CliCommand): Promise<CliResponse> {
 
     let buffer = "";
     socket.on("data", (chunk: Buffer) => {
+      // Keep accumulating data until we hit a newline,
+      // which indicates that the server has finished.
       buffer += chunk.toString("utf8");
-      const segments = buffer.split("\n");
-      buffer = segments.pop() ?? "";
+      if (!buffer.endsWith("\n")) {
+        return;
+      }
 
-      for (const segment of segments) {
-        if (!segment.trim()) continue;
+      // We have a complete message, try to parse it
+      const message = buffer.slice(0, -1).trim();
+      buffer = "";
 
-        let response: CliResponse;
-        try {
-          response = JSON.parse(segment) as CliResponse;
-        } catch (error) {
-          socket.destroy();
-          reject("Received malformed response from Conduit IPC socket.");
-          return;
-        }
+      if (!message) {
+        return rejectAndDestroy("Received empty response");
+      }
 
-        if (response.status === "ok") {
-          resolve(response);
-          socket.end();
-        } else {
-          socket.destroy();
-          reject(response.message);
-        }
+      let response: CliResponse;
+      try {
+        response = JSON.parse(message) as CliResponse;
+      } catch (error) {
+        return rejectAndDestroy("Received malformed response.");
+      }
+
+      if (response.status === "ok") {
+        resolve(response);
+        socket.end();
+      } else {
+        rejectAndDestroy(response.message);
       }
     });
 
-    socket.on("error", (error) => {
-      socket.destroy();
-      reject(
-        `Unable to connect to Conduit IPC socket (${error.message}). Is the app running?`,
-      );
-    });
+    socket.on("error", (error) =>
+      rejectAndDestroy(`Error occured: ${error.message}).`),
+    );
 
     socket.on("end", () => {
       if (buffer.trim().length === 0) {
-        socket.destroy();
-        reject("Connection closed before response was received.");
+        rejectAndDestroy("Connection closed before response was received.");
       }
     });
+
+    function rejectAndDestroy(reason: string) {
+      socket.destroy();
+      reject(reason);
+    }
   });
 }
