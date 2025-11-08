@@ -104,11 +104,11 @@ export function registerApplicationCommands(
     },
   });
 
-  // View: Open Pane Actions
+  // View: Manage Pane Actions
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_PANE_ACTIONS,
-    title: "Open Pane Actions",
-    description: "View and customize pane action bindings",
+    title: "Manage Pane Actions",
+    description: "Customize the action available in design mode",
     category: "View",
     run: (context) => {
       context.view.openPaneActions();

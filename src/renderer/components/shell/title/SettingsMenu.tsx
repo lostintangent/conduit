@@ -1,13 +1,13 @@
 import { useAtomValue } from "jotai";
 import type { LucideIcon } from "lucide-react";
 import {
-  Check,
+  ChevronRight,
   Keyboard,
   Monitor,
   Moon,
+  Palette,
   Settings,
-  Sun,
-  Zap,
+  Sun
 } from "lucide-react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
@@ -32,24 +32,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
-import { cn } from "@/utils";
+import { capitalize, cn } from "@/utils";
 import type { ThemeMode, UserSettings } from "@shared/types";
+
+const themeOptions = new Map<ThemeMode, LucideIcon>([
+  ["light", Sun],
+  ["dark", Moon],
+  ["system", Monitor],
+]);
 
 type SettingsMenuProps = {
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
 };
 
-const themeOptions: Array<{
-  value: ThemeMode;
-  label: string;
-  icon: LucideIcon;
-}> = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
-  ];
-
-export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
+export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
   const {
     alwaysShowTabs,
     showTerminalRuler,
@@ -59,9 +55,7 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
     theme,
   } = useAtomValue(userSettingsAtom);
 
-  const currentThemeOption =
-    themeOptions.find((option) => option.value === theme) ?? themeOptions[0];
-  const CurrentThemeIcon = currentThemeOption.icon;
+  const CurrentThemeIcon = themeOptions.get(theme);
 
   const keyboardShortcutsCmd = useCommand(
     ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS
@@ -70,6 +64,7 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
 
   return (
     <DropdownMenu>
+      {/* Settings button w/tooltip */}
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
@@ -81,65 +76,75 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
             </button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Settings</TooltipContent>
+        <TooltipContent>Settings</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuCheckboxItem
-          checked={alwaysShowTabs}
-          onClick={() => onUpdateSettings({ alwaysShowTabs: !alwaysShowTabs })}
-        >
-          Always show tabs
-        </DropdownMenuCheckboxItem>
 
-        <DropdownMenuCheckboxItem
-          checked={autoSaveWorkspaces}
-          onClick={() =>
-            onUpdateSettings({ autoSaveWorkspaces: !autoSaveWorkspaces })
-          }
-        >
-          Auto-save workspaces
-        </DropdownMenuCheckboxItem>
-
-        <DropdownMenuSeparator />
-
+      <DropdownMenuContent align="end">
+        {/* Theme selection submenu */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
             <span>Color theme</span>
             <span className="flex items-center gap-2 text-xs text-white/70">
               <CurrentThemeIcon className="w-4 h-4" />
-              {currentThemeOption.label}
+              {capitalize(theme)}
             </span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-52">
-            {themeOptions.map(({ value, label, icon: Icon }) => {
-              const isSelected = theme === value;
-
-              return (
-                <DropdownMenuItem
-                  key={value}
-                  onClick={() => onUpdateSettings({ theme: value })}
-                  className={cn(
-                    "flex items-center justify-between gap-2",
-                    isSelected &&
-                    "bg-gradient-to-br from-accent-start to-accent-end text-white"
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <Icon className="w-4 h-4" />
-                    {label}
-                  </span>
-                  {isSelected && <Check className="w-4 h-4" />}
-                </DropdownMenuItem>
-              );
-            })}
+          <DropdownMenuSubContent>
+            {Array.from(themeOptions.entries()).map(([value, Icon]) => (
+              <DropdownMenuItem
+                key={value}
+                onClick={() => onUpdateSettings({ theme: value })}
+                className={cn(
+                  "flex items-center justify-between gap-2",
+                  (value === theme) &&
+                  "bg-gradient-to-br from-accent-start to-accent-end text-white"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <Icon className="w-4 h-4" />
+                  {capitalize(value)}
+                </span>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
+        {/* Advanced settings submenu (TODO: Make this list dynamic) */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
             <span>Advanced settings</span>
+            <ChevronRight className="w-4 h-4 opacity-70" />
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-60">
+          <DropdownMenuSubContent>
+            <DropdownMenuCheckboxItem
+              checked={alwaysShowTabs}
+              onClick={() =>
+                onUpdateSettings({ alwaysShowTabs: !alwaysShowTabs })
+              }
+            >
+              Always show tabs
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuCheckboxItem
+              checked={autoSaveWorkspaces}
+              onClick={() =>
+                onUpdateSettings({ autoSaveWorkspaces: !autoSaveWorkspaces })
+              }
+            >
+              Auto-save workspaces
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuCheckboxItem
+              checked={useGradientBorders}
+              onClick={() =>
+                onUpdateSettings({ useGradientBorders: !useGradientBorders })
+              }
+            >
+              Show gradient borders
+            </DropdownMenuCheckboxItem>
+
             <DropdownMenuCheckboxItem
               checked={showTerminalRuler}
               onClick={() =>
@@ -149,14 +154,7 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
               Show terminal ruler
             </DropdownMenuCheckboxItem>
 
-            <DropdownMenuCheckboxItem
-              checked={useGradientBorders}
-              onClick={() =>
-                onUpdateSettings({ useGradientBorders: !useGradientBorders })
-              }
-            >
-              Use gradient borders
-            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
 
             <DropdownMenuCheckboxItem
               checked={useConduitAsEditor}
@@ -183,10 +181,11 @@ export const SettingsMenu = ({ onUpdateSettings }: SettingsMenuProps) => {
           onClick={paneActionsCmd.execute}
           title={getCommandDisplayTitle(paneActionsCmd)}
         >
-          <Zap className="w-4 h-4 mr-2" />
+          <Palette className="w-4 h-4 mr-2" />
           {paneActionsCmd.title}
         </DropdownMenuItem>
       </DropdownMenuContent>
+
     </DropdownMenu>
   );
-};
+}
