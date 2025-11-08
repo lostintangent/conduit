@@ -13,7 +13,14 @@ export type CliCommand =
   | CliGetPanesCommand
   | CliReadTerminalCommand
   | CliCaptureBrowserCommand
-  | CliWriteTerminalCommand;
+  | CliWriteTerminalCommand
+  | CliMovePaneCommand;
+
+export type CliMovePaneDirection = "left" | "right" | "up" | "down" | "tab";
+export type CliMovePaneCommand = {
+  type: "move";
+  direction: CliMovePaneDirection;
+};
 
 export type CliOpenFileCommand = {
   type: "open-file";

@@ -2,10 +2,12 @@ import {
   inputToSession,
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
+import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli";
+import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
@@ -20,6 +22,12 @@ type UseCliClientOptions = {
 export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const tabs = useAtomValue(tabsAtom);
   const tabsRef = useRef<Tab[]>(tabs);
+
+  const moveLeftCommand = useCommand(ApplicationCommands.PANE_MOVE_LEFT);
+  const moveRightCommand = useCommand(ApplicationCommands.PANE_MOVE_RIGHT);
+  const moveUpCommand = useCommand(ApplicationCommands.PANE_MOVE_UP);
+  const moveDownCommand = useCommand(ApplicationCommands.PANE_MOVE_DOWN);
+  const moveToTabCommand = useCommand(ApplicationCommands.PANE_MOVE_TO_TAB);
 
   useEffect(() => {
     tabsRef.current = tabs;
@@ -141,6 +149,27 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
+          case "move": {
+            const moveCommandMap = {
+              left: moveLeftCommand,
+              right: moveRightCommand,
+              up: moveUpCommand,
+              down: moveDownCommand,
+              tab: moveToTabCommand,
+            } as const;
+
+            const targetCommand = moveCommandMap[command.direction];
+
+            if (!targetCommand || targetCommand.disabled) {
+              respondError("Unable to move pane. Command unavailable.");
+              break;
+            }
+
+            await targetCommand.execute();
+            respondOk();
+            break;
+          }
+
           default:
             respondError("Unsupported CLI command.");
         }
@@ -153,5 +182,17 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     return () => {
       dispose();
     };
-  }, [onOpenFile]);
+  }, [
+    moveDownCommand.disabled,
+    moveDownCommand.execute,
+    moveLeftCommand.disabled,
+    moveLeftCommand.execute,
+    moveRightCommand.disabled,
+    moveRightCommand.execute,
+    moveToTabCommand.disabled,
+    moveToTabCommand.execute,
+    moveUpCommand.disabled,
+    moveUpCommand.execute,
+    onOpenFile,
+  ]);
 }

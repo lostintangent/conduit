@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import captureBrowser from "./commands/capture-browser";
 import listPanes from "./commands/list-panes";
+import move from "./commands/move";
 import openFile from "./commands/open-file";
 import readTerminal from "./commands/read-terminal";
 import writeTerminal from "./commands/write-terminal";
@@ -12,6 +13,7 @@ const program = new Command("conduit")
 
 program.addCommand(openFile, { isDefault: true });
 program.addCommand(listPanes);
+program.addCommand(move);
 program.addCommand(captureBrowser);
 program.addCommand(readTerminal);
 program.addCommand(writeTerminal);
