@@ -3,26 +3,30 @@ import path from "node:path";
 import { getCliState } from "../cli";
 import { getCurrentUserSettings } from "../ui";
 
+export function spawnTerminalProcess(sessionId: string, cwd?: string) {
+  const shell = resolveShell();
+  const env = buildTerminalEnv(sessionId);
+
+  // Default to the user's home directory if no CWD is provided
+  if (!cwd) {
+    cwd = process.env.HOME ?? process.cwd();
+  }
+
+  return spawn(shell, [], {
+    name: "xterm-256color",
+    cols: 80,
+    rows: 24,
+    cwd,
+    env,
+  });
+}
+
 export function resolveShell() {
   if (process.platform === "win32") {
     return "pwsh.exe";
   }
 
   return process.env.SHELL ?? "bash";
-}
-
-export function spawnTerminalProcess(sessionId: string, cwd?: string) {
-  const shell = resolveShell();
-  const homeDirectory = process.env.HOME ?? process.cwd();
-  const env = buildTerminalEnv(sessionId);
-
-  return spawn(shell, [], {
-    name: "xterm-color",
-    cols: 80,
-    rows: 24,
-    cwd: cwd ?? homeDirectory,
-    env,
-  });
 }
 
 function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
@@ -32,15 +36,15 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
 
   // Add the Conduit CLI's directory to the $PATH so that commands
   // like `conduit open-file` can be run from the terminal.
-  const existingPath = env.PATH ?? "";
-  const segments = existingPath
+  const currentPath = env.PATH ?? "";
+  const pathSegments = currentPath
     .split(path.delimiter)
     .filter((segment) => segment.length > 0 && segment !== cliDirectory);
-  env.PATH = [cliDirectory, ...segments].join(path.delimiter);
+  env.PATH = [cliDirectory, ...pathSegments].join(path.delimiter);
 
-  // Set Conduit as the default editor if the user hasn't disabled this behavior
-  const userSettings = getCurrentUserSettings();
-  if (userSettings.useConduitAsEditor !== false) {
+  // Set Conduit as the default editor (if the user hasn't disabled this behavior)
+  const { useConduitAsEditor } = getCurrentUserSettings();
+  if (useConduitAsEditor) {
     env.VISUAL = commandName;
     env.EDITOR = commandName;
   }
