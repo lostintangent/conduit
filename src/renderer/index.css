@@ -1,9 +1,37 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-
 @import "@xterm/xterm/css/xterm.css";
 
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    font-family: "Fira Code", Menlo, monospace;
+    background-color: inherit;
+    color: inherit;
+  }
+
+  body {
+    display: flex;
+    min-height: 100%;
+  }
+
+  #root {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  ::selection {
+    background-color: var(--color-selection);
+    color: var(--color-foreground);
+  }
+
   *,
   ::after,
   ::before,
@@ -23,7 +51,6 @@
 }
 
 @theme {
-  /* Dark theme (default) */
   --color-surface: #1e1e1e;
   --color-surface-elevated: #1f1f1f;
   --color-popover: var(--color-surface-elevated);
@@ -119,35 +146,6 @@
   --border: 0 0% 89.8%;
   --input: 0 0% 89.8%;
   --ring: 0 0% 10%;
-}
-
-::selection {
-  background-color: var(--color-selection);
-  color: var(--color-foreground);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  height: 100%;
-  margin: 0;
-  font-family: "Fira Code", Menlo, monospace;
-  background-color: inherit;
-  color: inherit;
-}
-
-body {
-  display: flex;
-  min-height: 100%;
-}
-
-#root {
-  flex: 1;
-  display: flex;
-  min-height: 0;
 }
 
 /* Pane highlight fade out over 2 seconds - duration matches HIGHLIGHT_DURATION_MS in usePaneHighlight.ts */
