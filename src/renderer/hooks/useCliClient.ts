@@ -182,16 +182,11 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       dispose();
     };
   }, [
-    moveDownCommand.disabled,
-    moveDownCommand.execute,
-    moveLeftCommand.disabled,
-    moveLeftCommand.execute,
-    moveRightCommand.disabled,
-    moveRightCommand.execute,
-    moveToTabCommand.disabled,
-    moveToTabCommand.execute,
-    moveUpCommand.disabled,
-    moveUpCommand.execute,
+    moveUpCommand,
+    moveDownCommand,
+    moveLeftCommand,
+    moveRightCommand,
+    moveToTabCommand,
     onOpenFile,
   ]);
 }
