@@ -65,7 +65,7 @@ export interface UseCommandSystemOptions {
  * @returns Command system state with registries and ready flag
  */
 export function useCommandSystem(
-  options: UseCommandSystemOptions
+  options: UseCommandSystemOptions,
 ): CommandSystemState | null {
   const {
     activeTab,
@@ -225,7 +225,7 @@ export function useCommandSystem(
     contextKeyService.setGlobal("tabCount", tabs?.length ?? 0);
     contextKeyService.setGlobal(
       "hasActivePane",
-      !!(activeTab && activeTab.activePaneId)
+      !!(activeTab && activeTab.activePaneId),
     );
     contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
 
@@ -233,7 +233,7 @@ export function useCommandSystem(
     if (activeTab && hasCustomLayout) {
       contextKeyService.setGlobal(
         "hasCustomLayout",
-        hasCustomLayout(activeTab.id)
+        hasCustomLayout(activeTab.id),
       );
     } else {
       contextKeyService.setGlobal("hasCustomLayout", false);
@@ -246,11 +246,11 @@ export function useCommandSystem(
         contextKeyService.setGlobal("activePaneType", activePane.type || "");
         contextKeyService.setGlobal(
           "isInAgentSession",
-          !!activePane.agentSessionId
+          !!activePane.agentSessionId,
         );
         contextKeyService.setGlobal(
           "hasCwd",
-          !!(activePane.type === "terminal" && activePane.cwd)
+          !!(activePane.type === "terminal" && activePane.cwd),
         );
       } else {
         // Clear pane context keys if no active pane
@@ -288,7 +288,7 @@ export function useCommandSystem(
         // Reload keybindings from file
         await loadUserKeybindings(
           commandSystem.keybindingRegistry,
-          keybindingsPath
+          keybindingsPath,
         );
         // Update global atom for reactive components
         updateKeybindingsAtom();

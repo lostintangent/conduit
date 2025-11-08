@@ -48,7 +48,12 @@ import {
   splitPane,
   splitPaneWithAgentSession,
 } from "@/store/actions/pane";
-import { closeTab, duplicateTab, movePaneToTab, openTab } from "@/store/actions/tab";
+import {
+  closeTab,
+  duplicateTab,
+  movePaneToTab,
+  openTab,
+} from "@/store/actions/tab";
 import { ApplicationCommands } from "@shared/commands";
 
 // Re-export for convenience
@@ -61,7 +66,7 @@ export { ApplicationCommands };
  * system has been initialized.
  */
 export function registerApplicationCommands(
-  commandRegistry: ICommandRegistry
+  commandRegistry: ICommandRegistry,
 ): void {
   // View: Toggle Focus Mode
   commandRegistry.registerCommand({
@@ -91,7 +96,7 @@ export function registerApplicationCommands(
     run: (context) => {
       handleToggleDesignMode(
         context.applicationMode,
-        context.setApplicationMode
+        context.setApplicationMode,
       );
     },
   });
@@ -148,7 +153,7 @@ export function registerApplicationCommands(
       void handleSaveWorkspace(
         context.allTabs,
         context.activeTab?.id,
-        context.setShowCreateWorkspaceDialog
+        context.setShowCreateWorkspaceDialog,
       );
     },
   });
@@ -302,7 +307,8 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.TAB_DUPLICATE_WITH_CWD,
     title: "Duplicate Tab with CWD",
-    description: "Duplicate the current tab and set a custom working directory for all panes",
+    description:
+      "Duplicate the current tab and set a custom working directory for all panes",
     category: "Tab",
     menu: {
       id: MenuId.TabContext,
@@ -480,7 +486,8 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_LEFT_AGENT,
     title: "Split Pane Left with Agent Session",
-    description: "Create a new pane to the left with an isolated agent worktree",
+    description:
+      "Create a new pane to the left with an isolated agent worktree",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Left",
@@ -505,7 +512,8 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_RIGHT_AGENT,
     title: "Split Pane Right with Agent Session",
-    description: "Create a new pane to the right with an isolated agent worktree",
+    description:
+      "Create a new pane to the right with an isolated agent worktree",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Right",
@@ -546,7 +554,12 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        void splitPaneWithAgentSession(targetTabId, targetPaneId, "column", true);
+        void splitPaneWithAgentSession(
+          targetTabId,
+          targetPaneId,
+          "column",
+          true,
+        );
       }
     },
   });
@@ -779,7 +792,7 @@ export function registerApplicationCommands(
 const tabContextBuilder: MenuContextBuilder = async (
   contextKeyService,
   params,
-  checkGitRepo
+  checkGitRepo,
 ) => {
   const { tab } = params;
 
@@ -803,7 +816,7 @@ const tabContextBuilder: MenuContextBuilder = async (
 const paneContextBuilder: MenuContextBuilder = async (
   contextKeyService,
   params,
-  checkGitRepo
+  checkGitRepo,
 ) => {
   const { pane } = params;
 

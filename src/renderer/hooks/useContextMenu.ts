@@ -25,9 +25,7 @@ export interface ContextMenuItemData extends MenuItemData {
   keybinding?: string;
 }
 
-export function useContextMenu({
-  canChangeTitle,
-}: UseContextMenuParams) {
+export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
   const tabs = useAtomValue(tabsAtom);
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
     Record<string, boolean>
@@ -89,7 +87,7 @@ export function useContextMenu({
             pane,
             canChangeTitle: allowTitleChange,
           },
-          checkGitRepo
+          checkGitRepo,
         );
       }
 
@@ -125,7 +123,7 @@ export function useContextMenu({
       const menuItemsWithKeybindings: ContextMenuItemData[] = filteredItems.map(
         (item) => {
           const keybindings = keybindingRegistry.getKeybindingsForCommand(
-            item.commandId
+            item.commandId,
           );
           const keybinding = keybindings[0]
             ? formatKeybindingForElectron(keybindings[0].chords)
@@ -135,7 +133,7 @@ export function useContextMenu({
             ...item,
             keybinding,
           };
-        }
+        },
       );
 
       api.showContextMenu({
@@ -144,12 +142,7 @@ export function useContextMenu({
         menuItems: menuItemsWithKeybindings,
       });
     },
-    [
-      api,
-      tabs,
-      canChangeTitle,
-      checkGitRepo,
-    ],
+    [api, tabs, canChangeTitle, checkGitRepo],
   );
 
   useEffect(() => {
