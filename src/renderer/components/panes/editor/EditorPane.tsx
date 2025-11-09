@@ -612,18 +612,18 @@ export function EditorPane({
       <div className="flex flex-1 min-h-0 min-w-0">
         {hasOpenFile ? (
           <Editor
-            key={filePath}
+            key={`${paneId}-${filePath}`}
             value={currentContent}
             onChange={handleEditorChange}
             onMount={handleEditorMount}
             language={currentLanguage}
-            path={filePath}
             theme="vs-dark"
             options={{
               minimap: { enabled: false },
               smoothScrolling: true,
               scrollBeyondLastLine: false,
               lineNumbers: "on",
+              automaticLayout: true,
             }}
             loading={
               <div className="flex h-full w-full items-center justify-center text-white/70">
