@@ -138,8 +138,10 @@ export function QuickDialog({
           )}
           {currentDescriptor.type === "editor" && (
             <EditorPane
+              paneId={quickPaneId}
               cwd={currentDescriptor.cwd}
               filePath={currentDescriptor.filePath}
+              agentSessionId={undefined}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
               onFileChange={({ filePath }) => handleEditorUpdate({ filePath })}
               onClearFile={() => handleEditorUpdate({ filePath: undefined })}

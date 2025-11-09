@@ -389,8 +389,10 @@ export function TabLayout({
               >
                 <EditorPane
                   key={pane.id}
+                  paneId={pane.id}
                   cwd={pane.cwd}
                   filePath={pane.filePath}
+                  agentSessionId={pane.agentSessionId}
                   onFileChange={(fileData) =>
                     handleEditorUpdate(tab.id, pane.id, {
                       filePath: fileData.filePath,

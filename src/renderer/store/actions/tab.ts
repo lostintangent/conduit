@@ -5,7 +5,14 @@ import {
   updatePaneProperty,
 } from "@/store/actions/pane";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import type { LayoutNode, Pane, Tab } from "@/types";
+import type {
+  EditorPane,
+  LayoutNode,
+  Pane,
+  Tab,
+  TerminalPane,
+  WebViewPane,
+} from "@/types";
 import { generateId } from "@/utils/id";
 import type { AgentSessionInfo, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
@@ -154,7 +161,7 @@ export function openTabFromExistingSession({
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
-  vmMetadata?: Pane["vmMetadata"] | null;
+  vmMetadata?: TerminalPane["vmMetadata"] | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -178,27 +185,35 @@ export async function openTabFromPaneDescriptor(
   let paneState: Pane | null = null;
 
   if (descriptor.type === "terminal") {
+    const terminalDescriptor = descriptor as Omit<TerminalPane, "id">;
     paneState = {
       id: paneId,
       type: "terminal",
-      sessionId: descriptor.sessionId,
-      cwd: descriptor.cwd,
-      processTitle: descriptor.processTitle,
-      vmMetadata: descriptor.vmMetadata,
+      sessionId: terminalDescriptor.sessionId,
+      cwd: terminalDescriptor.cwd,
+      processTitle: terminalDescriptor.processTitle,
+      vmMetadata: terminalDescriptor.vmMetadata,
     };
   } else if (descriptor.type === "editor") {
+    const editorDescriptor = descriptor as Omit<EditorPane, "id">;
     paneState = {
       id: paneId,
       type: "editor",
-      cwd: descriptor.cwd,
-      filePath: descriptor.filePath,
+      cwd: editorDescriptor.cwd,
+      filePath: editorDescriptor.filePath,
+      agentSessionId: editorDescriptor.agentSessionId,
+      agentBranchName: editorDescriptor.agentBranchName,
+      agentBaseBranch: editorDescriptor.agentBaseBranch,
+      agentRepoRoot: editorDescriptor.agentRepoRoot,
+      agentWorktreePath: editorDescriptor.agentWorktreePath,
     };
   } else if (descriptor.type === "webview") {
+    const webviewDescriptor = descriptor as Omit<WebViewPane, "id">;
     paneState = {
       id: paneId,
       type: "webview",
-      url: descriptor.url,
-      title: descriptor.title,
+      url: webviewDescriptor.url,
+      title: webviewDescriptor.title,
     };
   }
 
@@ -482,11 +497,28 @@ export async function duplicateTab(
         }
       }
 
+      // Use agent session from options if provided, otherwise preserve from source
+      const agentSessionId =
+        options?.agentSession?.id ?? sourcePane.agentSessionId;
+      const agentBranchName =
+        options?.agentSession?.branchName ?? sourcePane.agentBranchName;
+      const agentBaseBranch =
+        options?.agentSession?.baseBranch ?? sourcePane.agentBaseBranch;
+      const agentRepoRoot =
+        options?.agentSession?.repoRoot ?? sourcePane.agentRepoRoot;
+      const agentWorktreePath =
+        options?.agentSession?.worktreePath ?? sourcePane.agentWorktreePath;
+
       newPanes[newPaneId] = {
         id: newPaneId,
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         filePath: translatedFilePath,
+        agentSessionId,
+        agentBranchName,
+        agentBaseBranch,
+        agentRepoRoot,
+        agentWorktreePath,
       };
     } else if (sourcePane.type === "webview") {
       newPanes[newPaneId] = {

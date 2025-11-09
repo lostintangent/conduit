@@ -1,5 +1,13 @@
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
-import { userSettingsAtom } from "@/store/atoms";
+import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import {
+  enqueueNotification,
+} from "@/store/actions/notifications";
+import {
+  completeAgentSession,
+  deleteAgentSession,
+} from "@/store/actions/pane";
+import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
@@ -107,6 +115,8 @@ function inferLanguageFromFilePath(filePath: string): string {
 type EditorPaneProps = {
   cwd: string;
   filePath?: string;
+  paneId: string;
+  agentSessionId?: string | null;
   onFileChange?: (fileData: {
     filePath: string;
     language: string;
@@ -122,6 +132,8 @@ type EditorPaneProps = {
 export function EditorPane({
   cwd,
   filePath,
+  paneId,
+  agentSessionId,
   onFileChange,
   onClearFile,
   onCwdChange,
@@ -130,6 +142,7 @@ export function EditorPane({
   onSave,
 }: EditorPaneProps) {
   const { homeDirectory } = useAtomValue(userSettingsAtom);
+  const tabs = useAtomValue(tabsAtom);
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
@@ -148,6 +161,88 @@ export function EditorPane({
   const disposableRef = useRef<monaco.IDisposable | null>(null);
 
   const hasOpenFile = Boolean(filePath && currentContent !== undefined);
+
+  // Find the current tab for agent session operations
+  const currentTab = useMemo(() => {
+    for (const tab of tabs) {
+      if (tab.panes[paneId]) {
+        return tab;
+      }
+    }
+    return undefined;
+  }, [tabs, paneId]);
+
+  const handleCompleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+
+    try {
+      const result = await completeAgentSession(currentTab.id, agentSessionId);
+      if (!result) {
+        throw new Error("Failed to complete agent session");
+      }
+
+      if (result.status === "conflict") {
+        enqueueNotification({
+          kind: "error",
+          message: "Merge conflict",
+          details: result.message,
+          persistent: true,
+        });
+      } else {
+        enqueueNotification({
+          kind: "success",
+          message:
+            result.status === "merged"
+              ? "Agent session completed"
+              : "No changes to merge",
+          details: result.message,
+          autoCloseMs: 3000,
+        });
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to complete agent session",
+        details: errorMessage,
+        autoCloseMs: 5000,
+      });
+      console.error("Failed to finalize agent session", error);
+    }
+  }, [agentSessionId, currentTab]);
+
+  const handleDeleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+
+    try {
+      const result = await deleteAgentSession(currentTab.id, agentSessionId);
+      if (!result) {
+        throw new Error("Failed to delete agent session");
+      }
+
+      enqueueNotification({
+        kind: "success",
+        message: "Agent session deleted",
+        details: result.message,
+        autoCloseMs: 3000,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to delete agent session",
+        details: errorMessage,
+        autoCloseMs: 5000,
+      });
+      console.error("Failed to cleanup agent session", error);
+    }
+  }, [agentSessionId, currentTab]);
 
   // Load file content when filePath changes
   useEffect(() => {
@@ -558,6 +653,11 @@ export function EditorPane({
           </div>
         )}
       </div>
+      <SandboxIndicator
+        agentSessionId={agentSessionId ?? null}
+        onCompleteAgentSession={handleCompleteAgentSession}
+        onDeleteAgentSession={handleDeleteAgentSession}
+      />
     </div>
   );
 }
