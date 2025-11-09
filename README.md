@@ -82,12 +82,6 @@ Run global commands at any time (`cmd+shift+p`), including spinning up quick ter
 
 ## Appendix: Getting started
 
-### For End Users
-
-See the [Installation](#-installation) section above to quickly install Conduit on your machine.
-
-### For Developers
-
 1. Clone this repo
 1. Run `npm install`
 1. Run `npm start`
