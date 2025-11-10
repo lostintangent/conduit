@@ -115,8 +115,8 @@ async function createWindow() {
 app.whenReady().then(async () => {
   await createWindow();
 
-  // Perform an initial update check
-  updateController?.checkForUpdate();
+  // Uncommment this once we hook up the update server
+  //updateController?.checkForUpdate();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
