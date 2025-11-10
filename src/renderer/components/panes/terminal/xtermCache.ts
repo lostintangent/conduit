@@ -5,6 +5,11 @@ import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 
+import chimeUrl from "@/assets/chime.mp3";
+const bellAudio = new Audio(chimeUrl);
+bellAudio.preload = "auto";
+bellAudio.load();
+
 export type TerminalInstance = {
   terminal: Terminal;
   fit: FitAddon;
@@ -76,6 +81,9 @@ export function getOrCreate(
     const onKeyDispose = terminal.onData((input) =>
       api.sendKeypress(sessionId, input),
     );
+
+    // TODO: Allow configuring this
+    terminal.onBell(() => bellAudio.play());
 
     const newInstance: TerminalInstance = {
       terminal,
