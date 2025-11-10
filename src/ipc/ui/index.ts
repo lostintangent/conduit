@@ -1,5 +1,8 @@
-import { BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import type {
   BackgroundCommandRequest,
   UserSettings,
@@ -45,6 +48,31 @@ export async function initializeUserSettings(window: BrowserWindow) {
  */
 export function initializeUIHandlers(window: BrowserWindow) {
   ipcMain.handle("ui:get-settings", () => requireUserSettings());
+
+  ipcMain.handle("app:resolve-asset", (_, assetName: unknown) => {
+    if (typeof assetName !== "string" || assetName.trim().length === 0) {
+      return null;
+    }
+
+    const sanitized = path.normalize(assetName).replace(/^([/\\]+)/, "");
+
+    const basePath = app.isPackaged
+      ? path.join(process.resourcesPath, "assets")
+      : path.resolve(app.getAppPath(), "build", "assets");
+
+    const targetPath = path.resolve(basePath, sanitized);
+    const relativePath = path.relative(basePath, targetPath);
+
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      return null;
+    }
+
+    if (!existsSync(targetPath)) {
+      return null;
+    }
+
+    return pathToFileURL(targetPath).toString();
+  });
 
   ipcMain.handle(
     "ui:update-settings",

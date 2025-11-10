@@ -45,6 +45,11 @@ const conduitAPI = {
   platform: process.platform,
   version: packageJson.version,
 
+  resolveAsset: (assetName: string) =>
+    ipcRenderer.invoke("app:resolve-asset", assetName) as Promise<
+      string | null
+    >,
+
   /* Terminal methods (UI->main) */
 
   createTerminal: (options?: TerminalCreateOptions) =>
