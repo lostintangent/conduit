@@ -17,7 +17,6 @@ const config: ForgeConfig = {
     executableName: "conduit",
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",
-    extraResource: ["./build/assets"],
     osxSign: {},
   },
   rebuildConfig: {

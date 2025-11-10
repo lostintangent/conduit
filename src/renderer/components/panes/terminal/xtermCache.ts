@@ -1,10 +1,14 @@
-import chimeUrl from "@/assets/chime.mp3";
 import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { Terminal, type IDisposable } from "@xterm/xterm";
+import { Terminal } from "@xterm/xterm";
+
+import chimeUrl from "@/assets/chime.mp3";
+const bellAudio = new Audio(chimeUrl);
+bellAudio.preload = "auto";
+bellAudio.load();
 
 export type TerminalInstance = {
   terminal: Terminal;
@@ -56,11 +60,6 @@ export function getOrCreate(
       current: options.onLinkClick,
     };
 
-    const bellAudio = new Audio(chimeUrl);
-    bellAudio.preload = "auto";
-    bellAudio.load();
-    let bellListener: IDisposable | null = null;
-
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       const handler = linkHandlerRef.current;
       if (handler) {
@@ -83,20 +82,8 @@ export function getOrCreate(
       api.sendKeypress(sessionId, input),
     );
 
-    bellListener = terminal.onBell(() => {
-      if (!bellAudio.src) {
-        return;
-      }
-
-      try {
-        bellAudio.currentTime = 0;
-      } catch (error) {
-        console.debug("Failed to reset bell audio", error);
-      }
-
-      void bellAudio.play().catch((error) => {
-        console.debug("Failed to play bell audio", error);
-      });
+    const bellListener = terminal.onBell(() => {
+      bellAudio.play();
     });
 
     const newInstance: TerminalInstance = {
@@ -124,7 +111,6 @@ export function getOrCreate(
         linkHandlerRef.current = null;
         newInstance.ready = false;
         serializer.dispose();
-        bellAudio.src = "";
       },
       serializer,
     };
