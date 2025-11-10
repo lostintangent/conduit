@@ -15,6 +15,7 @@ export class MenuRegistry {
       menuId: contribution.id,
       group: contribution.group || "default",
       order: contribution.order ?? 0,
+      title: contribution.title,
       when: contribution.when,
       icon: contribution.icon,
     };

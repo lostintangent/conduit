@@ -297,4 +297,114 @@ describe("MenuRegistry", () => {
       expect(registry.getMenuItems(MenuId.TerminalContext)).toHaveLength(1);
     });
   });
+
+  describe("title override", () => {
+    it("should store title override when provided", () => {
+      registry.register("test.command", {
+        id: MenuId.TabContext,
+        title: "Short Title",
+      });
+
+      const items = registry.getMenuItems(MenuId.TabContext);
+      expect(items[0].title).toBe("Short Title");
+    });
+
+    it("should not store title when not provided", () => {
+      registry.register("test.command", {
+        id: MenuId.TabContext,
+      });
+
+      const items = registry.getMenuItems(MenuId.TabContext);
+      expect(items[0].title).toBeUndefined();
+    });
+
+    it("should allow different titles for same command in different menus", () => {
+      registry.register("test.command", {
+        id: MenuId.TabContext,
+        title: "Tab Title",
+      });
+      registry.register("test.command", {
+        id: MenuId.PaneContext,
+        title: "Pane Title",
+      });
+
+      const tabItems = registry.getMenuItems(MenuId.TabContext);
+      const paneItems = registry.getMenuItems(MenuId.PaneContext);
+
+      expect(tabItems[0].title).toBe("Tab Title");
+      expect(paneItems[0].title).toBe("Pane Title");
+    });
+
+    it("should preserve title through sorting", () => {
+      registry.register("command1", {
+        id: MenuId.CommandPalette,
+        group: "z_last",
+        order: 2,
+        title: "Command 1 Override",
+      });
+      registry.register("command2", {
+        id: MenuId.CommandPalette,
+        group: "a_first",
+        order: 1,
+        title: "Command 2 Override",
+      });
+
+      const items = registry.getSortedMenuItems(MenuId.CommandPalette);
+      expect(items[0].title).toBe("Command 2 Override");
+      expect(items[1].title).toBe("Command 1 Override");
+    });
+
+    it("should work with hierarchical groups", () => {
+      registry.register("submenu.command", {
+        id: MenuId.TabContext,
+        group: "2_tab/duplicate_into",
+        title: "with CWD...",
+      });
+
+      const items = registry.getMenuItems(MenuId.TabContext);
+      expect(items[0].title).toBe("with CWD...");
+      expect(items[0].group).toBe("2_tab/duplicate_into");
+    });
+  });
+
+  describe("hierarchical groups", () => {
+    it("should store hierarchical group paths", () => {
+      registry.register("test.command", {
+        id: MenuId.TabContext,
+        group: "2_tab/duplicate_into",
+      });
+
+      const items = registry.getMenuItems(MenuId.TabContext);
+      expect(items[0].group).toBe("2_tab/duplicate_into");
+    });
+
+    it("should sort hierarchical groups correctly", () => {
+      registry.register("top", {
+        id: MenuId.TabContext,
+        group: "2_tab",
+        order: 1,
+      });
+      registry.register("nested", {
+        id: MenuId.TabContext,
+        group: "2_tab/submenu",
+        order: 2,
+      });
+
+      const items = registry.getSortedMenuItems(MenuId.TabContext);
+
+      // Both have same parent group "2_tab", sorted by order
+      expect(items[0].commandId).toBe("top");
+      expect(items[1].commandId).toBe("nested");
+    });
+
+    it("should handle multiple levels of nesting in group name", () => {
+      registry.register("deep", {
+        id: MenuId.TabContext,
+        group: "1_group/sub1/sub2/sub3",
+      });
+
+      const items = registry.getMenuItems(MenuId.TabContext);
+      expect(items[0].group).toBe("1_group/sub1/sub2/sub3");
+    });
+  });
 });
