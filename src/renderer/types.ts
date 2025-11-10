@@ -46,6 +46,11 @@ export type EditorPane = {
   type: "editor";
   cwd: string;
   filePath?: string;
+  agentSessionId?: string;
+  agentBranchName?: string;
+  agentBaseBranch?: string | null;
+  agentRepoRoot?: string;
+  agentWorktreePath?: string;
 } & Identifiable;
 
 export type Pane = TerminalPane | WebViewPane | EditorPane;

@@ -60,21 +60,32 @@ export async function spawnAgentSession(
     );
   }
 
-  const baseBranchResult = await runGit(repoRoot, [
-    "rev-parse",
-    "--abbrev-ref",
-    "HEAD",
-  ]);
-  let baseRef = baseBranchResult.stdout.trim();
-  if (baseRef.length === 0) {
-    baseRef = "HEAD";
-  }
+  // Try to get the current branch/commit
+  let baseRef: string;
+  let baseBranch: string | null;
 
-  const baseBranch = baseRef === "HEAD" ? null : baseRef;
+  try {
+    const baseBranchResult = await runGit(repoRoot, [
+      "rev-parse",
+      "--abbrev-ref",
+      "HEAD",
+    ]);
+    baseRef = baseBranchResult.stdout.trim();
+    if (baseRef.length === 0) {
+      baseRef = "HEAD";
+    }
 
-  if (baseRef === "HEAD") {
-    const commit = await runGit(repoRoot, ["rev-parse", "HEAD"]);
-    baseRef = commit.stdout.trim();
+    baseBranch = baseRef === "HEAD" ? null : baseRef;
+
+    if (baseRef === "HEAD") {
+      const commit = await runGit(repoRoot, ["rev-parse", "HEAD"]);
+      baseRef = commit.stdout.trim();
+    }
+  } catch (error) {
+    // Repository has no commits yet - can't create worktree
+    throw new Error(
+      "Cannot create worktree: Repository has no commits yet. Please make an initial commit first.",
+    );
   }
 
   const now = new Date();

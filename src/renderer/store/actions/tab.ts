@@ -5,10 +5,18 @@ import {
   updatePaneProperty,
 } from "@/store/actions/pane";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import type { LayoutNode, Pane, Tab } from "@/types";
+import type {
+  EditorPane,
+  LayoutNode,
+  Pane,
+  Tab,
+  TerminalPane,
+  WebViewPane,
+} from "@/types";
 import { generateId } from "@/utils/id";
-import type { Workspace } from "@shared/types";
+import type { AgentSessionInfo, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
+import path from "path-browserify";
 import { openWorkspace } from "./workspace";
 
 const api = window.conduit;
@@ -153,7 +161,7 @@ export function openTabFromExistingSession({
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
-  vmMetadata?: Pane["vmMetadata"] | null;
+  vmMetadata?: TerminalPane["vmMetadata"] | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -177,27 +185,35 @@ export async function openTabFromPaneDescriptor(
   let paneState: Pane | null = null;
 
   if (descriptor.type === "terminal") {
+    const terminalDescriptor = descriptor as Omit<TerminalPane, "id">;
     paneState = {
       id: paneId,
       type: "terminal",
-      sessionId: descriptor.sessionId,
-      cwd: descriptor.cwd,
-      processTitle: descriptor.processTitle,
-      vmMetadata: descriptor.vmMetadata,
+      sessionId: terminalDescriptor.sessionId,
+      cwd: terminalDescriptor.cwd,
+      processTitle: terminalDescriptor.processTitle,
+      vmMetadata: terminalDescriptor.vmMetadata,
     };
   } else if (descriptor.type === "editor") {
+    const editorDescriptor = descriptor as Omit<EditorPane, "id">;
     paneState = {
       id: paneId,
       type: "editor",
-      cwd: descriptor.cwd,
-      filePath: descriptor.filePath,
+      cwd: editorDescriptor.cwd,
+      filePath: editorDescriptor.filePath,
+      agentSessionId: editorDescriptor.agentSessionId,
+      agentBranchName: editorDescriptor.agentBranchName,
+      agentBaseBranch: editorDescriptor.agentBaseBranch,
+      agentRepoRoot: editorDescriptor.agentRepoRoot,
+      agentWorktreePath: editorDescriptor.agentWorktreePath,
     };
   } else if (descriptor.type === "webview") {
+    const webviewDescriptor = descriptor as Omit<WebViewPane, "id">;
     paneState = {
       id: paneId,
       type: "webview",
-      url: descriptor.url,
-      title: descriptor.title,
+      url: webviewDescriptor.url,
+      title: webviewDescriptor.title,
     };
   }
 
@@ -378,9 +394,15 @@ export function movePaneToTab(
 /**
  * Duplicate a tab with all its panes and layout
  */
+type DuplicateTabOptions = {
+  cwd?: string;
+  title?: string;
+  agentSession?: AgentSessionInfo;
+};
+
 export async function duplicateTab(
   sourceTabId: string,
-  options?: { cwd?: string; title?: string },
+  options?: DuplicateTabOptions,
 ): Promise<{ tabId: string } | null> {
   const tabs = store.get(tabsAtom);
   const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
@@ -412,6 +434,18 @@ export async function duplicateTab(
         continue;
       }
 
+      // Use agent session from options if provided, otherwise preserve from source
+      const agentSessionId =
+        options?.agentSession?.id ?? sourcePane.agentSessionId;
+      const agentBranchName =
+        options?.agentSession?.branchName ?? sourcePane.agentBranchName;
+      const agentBaseBranch =
+        options?.agentSession?.baseBranch ?? sourcePane.agentBaseBranch;
+      const agentRepoRoot =
+        options?.agentSession?.repoRoot ?? sourcePane.agentRepoRoot;
+      const agentWorktreePath =
+        options?.agentSession?.worktreePath ?? sourcePane.agentWorktreePath;
+
       newPanes[newPaneId] = {
         id: newPaneId,
         type: "terminal",
@@ -419,12 +453,11 @@ export async function duplicateTab(
         cwd: result.cwd ?? null,
         processTitle: result.title,
         vmMetadata: result.vmMetadata,
-        // Preserve agent session info if present
-        agentSessionId: sourcePane.agentSessionId,
-        agentBranchName: sourcePane.agentBranchName,
-        agentBaseBranch: sourcePane.agentBaseBranch,
-        agentRepoRoot: sourcePane.agentRepoRoot,
-        agentWorktreePath: sourcePane.agentWorktreePath,
+        agentSessionId,
+        agentBranchName,
+        agentBaseBranch,
+        agentRepoRoot,
+        agentWorktreePath,
       };
 
       // Auto-execute the captured command in the new terminal
@@ -435,11 +468,57 @@ export async function duplicateTab(
         api.sendKeypress(result.sessionId, commandWithNewline);
       }
     } else if (sourcePane.type === "editor") {
+      // Translate file path if duplicating into a worktree
+      let translatedFilePath = sourcePane.filePath;
+      if (
+        options?.agentSession &&
+        sourcePane.filePath &&
+        options.agentSession.repoRoot &&
+        options.agentSession.worktreePath
+      ) {
+        // Normalize paths for comparison
+        const normalizedFilePath = path.normalize(sourcePane.filePath);
+        const normalizedRepoRoot = path.normalize(
+          options.agentSession.repoRoot,
+        );
+
+        // Check if file is within the repository
+        if (normalizedFilePath.startsWith(normalizedRepoRoot + path.sep)) {
+          // Get the relative path from repo root
+          const relativePath = path.relative(
+            normalizedRepoRoot,
+            normalizedFilePath,
+          );
+          // Construct the new path in the worktree
+          translatedFilePath = path.join(
+            options.agentSession.worktreePath,
+            relativePath,
+          );
+        }
+      }
+
+      // Use agent session from options if provided, otherwise preserve from source
+      const agentSessionId =
+        options?.agentSession?.id ?? sourcePane.agentSessionId;
+      const agentBranchName =
+        options?.agentSession?.branchName ?? sourcePane.agentBranchName;
+      const agentBaseBranch =
+        options?.agentSession?.baseBranch ?? sourcePane.agentBaseBranch;
+      const agentRepoRoot =
+        options?.agentSession?.repoRoot ?? sourcePane.agentRepoRoot;
+      const agentWorktreePath =
+        options?.agentSession?.worktreePath ?? sourcePane.agentWorktreePath;
+
       newPanes[newPaneId] = {
         id: newPaneId,
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
-        filePath: sourcePane.filePath,
+        filePath: translatedFilePath,
+        agentSessionId,
+        agentBranchName,
+        agentBaseBranch,
+        agentRepoRoot,
+        agentWorktreePath,
       };
     } else if (sourcePane.type === "webview") {
       newPanes[newPaneId] = {
@@ -519,6 +598,58 @@ export async function duplicateTab(
   focusTab(newTabId);
 
   return { tabId: newTabId };
+}
+
+/**
+ * Duplicate a tab into a new git worktree
+ * Creates an isolated worktree and duplicates the tab with all panes into that worktree
+ * @throws Error if no working directory is found or not in a git repository
+ */
+export async function duplicateTabIntoWorktree(
+  sourceTabId: string,
+  options?: { title?: string },
+): Promise<{ tabId: string; sessionId: string; branchName: string } | null> {
+  const tabs = store.get(tabsAtom);
+  const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
+  if (!sourceTab) {
+    return null;
+  }
+
+  // Get the CWD from the source tab
+  const cwd = getActiveTabCwd(sourceTab);
+  if (!cwd) {
+    throw new Error(
+      "Cannot create worktree: No working directory found in active pane",
+    );
+  }
+
+  // Check if the directory is in a git repository
+  const hasGitRepo = await api.hasGitRepository(cwd);
+  if (!hasGitRepo) {
+    throw new Error(
+      "Cannot create worktree: Current directory is not in a git repository",
+    );
+  }
+
+  // Create a new agent session (worktree)
+  const session = await api.spawnAgentSession({ cwd });
+
+  // Duplicate the tab with the worktree path as CWD and agent session metadata
+  const result = await duplicateTab(sourceTabId, {
+    cwd: session.worktreePath,
+    title: options?.title,
+    agentSession: session,
+  });
+
+  if (!result) {
+    throw new Error("Failed to duplicate tab into worktree");
+  }
+
+  return {
+    tabId: result.tabId,
+    sessionId: session.id,
+    branchName: session.branchName,
+  };
 }
 
 export function registerTabEventHandlers() {

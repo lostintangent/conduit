@@ -49,7 +49,7 @@ export interface UseCommandSystemOptions {
   setCleanupDialogSessions: (sessions: any[] | null) => void;
   setShowCreateWorkspaceDialog: (show: boolean) => void;
   setShowDuplicateWorkspaceDialog: (show: boolean) => void;
-  setShowDuplicateTabWithCwdDialog: (show: boolean) => void;
+  setShowDuplicateTabWithCwdDialog: (tabId: string) => void;
   setTitleModal: (tabId: string, value: string) => void;
 }
 

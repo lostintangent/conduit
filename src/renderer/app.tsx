@@ -141,8 +141,8 @@ export function App() {
 
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
-  const [showDuplicateTabWithCwdDialog, setShowDuplicateTabWithCwdDialog] =
-    useState(false);
+  const [duplicateTabWithCwdDialogState, setDuplicateTabWithCwdDialogState] =
+    useState<{ tabId: string } | null>(null);
 
   useCliClient({
     onOpenFile: setQuickPaneState,
@@ -173,7 +173,8 @@ export function App() {
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
-    setShowDuplicateTabWithCwdDialog,
+    setShowDuplicateTabWithCwdDialog: (tabId: string) =>
+      setDuplicateTabWithCwdDialogState({ tabId }),
     setTitleModal: (tabId: string, value: string) =>
       setTitleModalState({ tabId, initialValue: value }),
   });
@@ -589,13 +590,20 @@ export function App() {
 
   const handleDuplicateTabWithCwd = useCallback(
     async (cwd: string, title?: string) => {
-      if (!activeTab) {
+      if (!duplicateTabWithCwdDialogState) {
+        return;
+      }
+
+      const targetTab = tabs.find(
+        (t) => t.id === duplicateTabWithCwdDialogState.tabId,
+      );
+      if (!targetTab) {
         return;
       }
 
       const trimmedCwd = cwd.trim();
       if (trimmedCwd.length === 0) {
-        setShowDuplicateTabWithCwdDialog(false);
+        setDuplicateTabWithCwdDialogState(null);
         return;
       }
 
@@ -611,13 +619,13 @@ export function App() {
       }
 
       // Duplicate the tab with the specified CWD and optional title
-      await duplicateTab(activeTab.id, {
+      await duplicateTab(duplicateTabWithCwdDialogState.tabId, {
         cwd: trimmedCwd,
         title: title || undefined,
       });
-      setShowDuplicateTabWithCwdDialog(false);
+      setDuplicateTabWithCwdDialogState(null);
     },
-    [activeTab],
+    [duplicateTabWithCwdDialogState, tabs],
   );
 
   const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
@@ -811,10 +819,25 @@ export function App() {
       />
 
       <DuplicateTabDialog
-        isOpen={showDuplicateTabWithCwdDialog}
-        initialCwd={getActiveTabCwd(activeTab, homeDirectory ?? "")}
-        initialTitle={generateIncrementedTabTitle(activeTab?.title, tabs) ?? ""}
-        onClose={() => setShowDuplicateTabWithCwdDialog(false)}
+        isOpen={duplicateTabWithCwdDialogState !== null}
+        initialCwd={
+          duplicateTabWithCwdDialogState
+            ? getActiveTabCwd(
+                tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId),
+                homeDirectory ?? "",
+              )
+            : ""
+        }
+        initialTitle={
+          duplicateTabWithCwdDialogState
+            ? generateIncrementedTabTitle(
+                tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId)
+                  ?.title,
+                tabs,
+              ) ?? ""
+            : ""
+        }
+        onClose={() => setDuplicateTabWithCwdDialogState(null)}
         onSave={handleDuplicateTabWithCwd}
       />
 

@@ -860,7 +860,8 @@ function closeAgentSessionPanes(tabId: string, agentSessionId: string): number {
   const paneIds = Object.entries(tab.panes)
     .filter(
       ([, pane]) =>
-        pane.type === "terminal" && pane.agentSessionId === agentSessionId,
+        (pane.type === "terminal" || pane.type === "editor") &&
+        pane.agentSessionId === agentSessionId,
     )
     .map(([paneId]) => paneId);
 

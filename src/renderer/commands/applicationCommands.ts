@@ -42,6 +42,7 @@ import {
 } from "@/commands/menus/menuContextBuilders";
 import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
+import { enqueueNotification } from "@/store/actions/notifications";
 import {
   closePane,
   movePane,
@@ -51,6 +52,7 @@ import {
 import {
   closeTab,
   duplicateTab,
+  duplicateTabIntoWorktree,
   movePaneToTab,
   openTab,
 } from "@/store/actions/tab";
@@ -275,9 +277,10 @@ export function registerApplicationCommands(
       group: "9_close",
       order: 1,
     },
-    run: (context) => {
-      if (context.activeTab) {
-        closeTab(context.activeTab.id);
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId) {
+        closeTab(targetTabId);
       }
     },
   });
@@ -296,9 +299,10 @@ export function registerApplicationCommands(
       group: "2_tab",
       order: 2,
     },
-    run: (context) => {
-      if (context.activeTab) {
-        void duplicateTab(context.activeTab.id);
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId) {
+        void duplicateTab(targetTabId);
       }
     },
   });
@@ -315,9 +319,50 @@ export function registerApplicationCommands(
       group: "2_tab",
       order: 3,
     },
-    run: (context) => {
-      if (context.activeTab && context.setShowDuplicateTabWithCwdDialog) {
-        context.setShowDuplicateTabWithCwdDialog(true);
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId && context.setShowDuplicateTabWithCwdDialog) {
+        context.setShowDuplicateTabWithCwdDialog(targetTabId);
+      }
+    },
+  });
+
+  // Tab: Duplicate into Worktree
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_DUPLICATE_INTO_WORKTREE,
+    title: "Duplicate Tab into Worktree",
+    description:
+      "Create an isolated git worktree and duplicate the current tab into it",
+    category: "Tab",
+    when: When.and(hasGitRepo.isTrue()),
+    menu: {
+      id: MenuId.TabContext,
+      group: "2_tab",
+      order: 4,
+    },
+    run: async (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (!targetTabId) {
+        return;
+      }
+
+      let errorMessage: string | null = null;
+
+      try {
+        const result = await duplicateTabIntoWorktree(targetTabId);
+        if (!result) {
+          errorMessage = "Failed to duplicate tab into worktree";
+        }
+      } catch (error) {
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      if (errorMessage) {
+        enqueueNotification({
+          kind: "error",
+          message: errorMessage,
+          autoCloseMs: 5000,
+        });
       }
     },
   });
@@ -801,7 +846,7 @@ const tabContextBuilder: MenuContextBuilder = async (
 
   // Check git repository status for agent commands
   let hasGitRepoValue = false;
-  if (activePane && activePane.type === "terminal") {
+  if (activePane && (activePane.type === "terminal" || activePane.type === "editor")) {
     hasGitRepoValue = await checkGitRepo(activePane.cwd);
   }
 
@@ -822,7 +867,7 @@ const paneContextBuilder: MenuContextBuilder = async (
 
   // Check git repository status for agent commands
   let hasGitRepoValue = false;
-  if (pane && pane.type === "terminal") {
+  if (pane && (pane.type === "terminal" || pane.type === "editor")) {
     hasGitRepoValue = await checkGitRepo(pane.cwd);
   }
 

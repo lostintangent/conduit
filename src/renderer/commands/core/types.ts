@@ -39,7 +39,7 @@ export interface CommandContext {
   readonly setShowWorkspacePicker?: (show: boolean) => void;
   readonly setIsUrlDialogOpen?: (open: boolean) => void;
   readonly setCleanupDialogSessions?: (sessions: any[] | null) => void;
-  readonly setShowDuplicateTabWithCwdDialog?: (show: boolean) => void;
+  readonly setShowDuplicateTabWithCwdDialog?: (tabId: string) => void;
   readonly setTitleModal?: (tabId: string, value: string) => void;
 }
 
