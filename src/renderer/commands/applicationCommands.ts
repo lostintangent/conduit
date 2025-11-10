@@ -40,6 +40,7 @@ import {
   registerMenuContextBuilder,
   type MenuContextBuilder,
 } from "@/commands/menus/menuContextBuilders";
+import { registerSubmenu } from "@/commands/menus/submenuConfig";
 import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
@@ -314,10 +315,14 @@ export function registerApplicationCommands(
     description:
       "Duplicate the current tab and set a custom working directory for all panes",
     category: "Tab",
+    keybinding: {
+      key: "Cmd+Alt+D",
+    },
     menu: {
       id: MenuId.TabContext,
-      group: "2_tab",
-      order: 3,
+      group: "2_tab/duplicate_into",
+      order: 1,
+      title: "CWD",
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -334,11 +339,15 @@ export function registerApplicationCommands(
     description:
       "Create an isolated git worktree and duplicate the current tab into it",
     category: "Tab",
+    keybinding: {
+      key: "Cmd+Alt+W",
+    },
     when: When.and(hasGitRepo.isTrue()),
     menu: {
       id: MenuId.TabContext,
-      group: "2_tab",
-      order: 4,
+      group: "2_tab/duplicate_into",
+      order: 2,
+      title: "Worktree",
     },
     run: async (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -882,4 +891,7 @@ const paneContextBuilder: MenuContextBuilder = async (
 export function registerMenuContextBuilders(): void {
   registerMenuContextBuilder(MenuId.TabContext, tabContextBuilder);
   registerMenuContextBuilder(MenuId.PaneContext, paneContextBuilder);
+
+  // Register submenu labels
+  registerSubmenu(MenuId.TabContext, "2_tab/duplicate_into", "Duplicate Tab into...");
 }

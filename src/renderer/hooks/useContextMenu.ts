@@ -8,6 +8,7 @@ import {
 import type { MenuItemData } from "@/commands/menus/useMenu";
 import { MenuId } from "@/commands/menus/types";
 import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
+import { getSubmenuLabel } from "@/commands/menus/submenuConfig";
 import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { tabsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
@@ -103,11 +104,19 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
         })
         .map((item) => {
           const command = commandRegistry.getCommand(item.commandId);
+
+          // If this is a hierarchical group, look up submenu label from registry
+          let submenuLabel: string | undefined;
+          if (item.group.includes("/")) {
+            submenuLabel = getSubmenuLabel(menuId, item.group);
+          }
+
           return {
             commandId: item.commandId,
-            title: command?.title || item.commandId,
+            title: item.title || command?.title || item.commandId,
             group: item.group,
             enabled: !command?.when || command.when.evaluate(contextValues),
+            submenuLabel,
           };
         });
 
