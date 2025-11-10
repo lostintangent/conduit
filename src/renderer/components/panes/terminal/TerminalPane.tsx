@@ -1,17 +1,8 @@
 import { exitFocusMode } from "@/store/actions/focusMode";
-import {
-  dismissNotification,
-  enqueueNotification,
-  updateNotification,
-} from "@/store/actions/notifications";
-import {
-  completeAgentSession,
-  deleteAgentSession,
-  forwardPortAndOpen,
-  splitPane,
-} from "@/store/actions/pane";
+import { forwardPortAndOpen } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { extractPortFromMatch } from "@shared/portDetection";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, {
@@ -128,6 +119,7 @@ type TerminalPaneProps = {
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
   onLinkClick?: (url: string) => void;
   showDimensions?: boolean;
+  hideIndividualSandboxIndicator?: boolean;
 };
 
 export const TerminalPane = ({
@@ -138,6 +130,7 @@ export const TerminalPane = ({
   onActivate,
   onLinkClick,
   showDimensions = true,
+  hideIndividualSandboxIndicator = false,
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
@@ -181,6 +174,38 @@ export const TerminalPane = ({
   const agentSessionId = terminalPane?.agentSessionId ?? null;
   const vmId = terminalPane?.vmMetadata?.vmId ?? null;
 
+  // Use sandbox handlers from the shared hook
+  const {
+    handleCompleteAgentSession: handleCompleteAgentSessionBase,
+    handleDeleteAgentSession: handleDeleteAgentSessionBase,
+    handleForkVM: handleForkVMBase,
+  } = useSandboxHandlers({
+    tabId: currentTab?.id ?? "",
+    paneId,
+  });
+
+  // Wrap the base handlers to check for required values
+  const handleCompleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+    await handleCompleteAgentSessionBase(agentSessionId);
+  }, [agentSessionId, currentTab, handleCompleteAgentSessionBase]);
+
+  const handleDeleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+    await handleDeleteAgentSessionBase(agentSessionId);
+  }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
+
+  const handleForkVM = useCallback(async () => {
+    if (!vmId || !currentTab) {
+      return;
+    }
+    await handleForkVMBase(vmId);
+  }, [vmId, currentTab, handleForkVMBase]);
+
   const focusTerminal = useCallback(
     () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
     [],
@@ -193,131 +218,6 @@ export const TerminalPane = ({
       : "";
     searchWidgetRef.current?.show(selection ?? "");
   }, []);
-
-  const handleCompleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
-      return;
-    }
-
-    try {
-      const result = await completeAgentSession(currentTab.id, agentSessionId);
-      if (!result) {
-        throw new Error("Failed to complete agent session");
-      }
-
-      if (result.status === "conflict") {
-        enqueueNotification({
-          kind: "error",
-          message: "Merge conflict",
-          details: result.message,
-          persistent: true,
-        });
-      } else {
-        enqueueNotification({
-          kind: "success",
-          message:
-            result.status === "merged"
-              ? "Agent session completed"
-              : "No changes to merge",
-          details: result.message,
-          autoCloseMs: 3000,
-        });
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      enqueueNotification({
-        kind: "error",
-        message: "Failed to complete agent session",
-        details: errorMessage,
-        autoCloseMs: 5000,
-      });
-      console.error("Failed to finalize agent session", error);
-    }
-  }, [agentSessionId, currentTab]);
-
-  const handleDeleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
-      return;
-    }
-
-    try {
-      const result = await deleteAgentSession(currentTab.id, agentSessionId);
-      if (!result) {
-        throw new Error("Failed to delete agent session");
-      }
-
-      enqueueNotification({
-        kind: "success",
-        message: "Agent session deleted",
-        details: result.message,
-        autoCloseMs: 3000,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      enqueueNotification({
-        kind: "error",
-        message: "Failed to delete agent session",
-        details: errorMessage,
-        autoCloseMs: 5000,
-      });
-      console.error("Failed to cleanup agent session", error);
-    }
-  }, [agentSessionId, currentTab]);
-
-  const handleForkVM = useCallback(async () => {
-    if (!vmId || !currentTab) {
-      return;
-    }
-
-    const notificationId = enqueueNotification({
-      kind: "info",
-      message: "Forking VM...",
-      persistent: true,
-    });
-
-    try {
-      // Fork the VM using the VM API
-      const forkedVM = await api.forkVM(vmId);
-
-      if (!forkedVM) {
-        throw new Error("Failed to fork VM");
-      }
-
-      updateNotification(notificationId, {
-        kind: "info",
-        message: "Creating terminal session for forked VM...",
-        persistent: true,
-      });
-
-      dismissNotification(notificationId);
-
-      // Split the current pane vertically with the new terminal connected to forked VM
-      await splitPane(currentTab.id, paneId, "row", false, {
-        terminalOptions: {
-          existingVMId: forkedVM.id,
-        },
-      });
-
-      enqueueNotification({
-        kind: "success",
-        message: "VM forked successfully",
-        details: `New VM: ${forkedVM.id}`,
-        autoCloseMs: 3000,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      updateNotification(notificationId, {
-        kind: "error",
-        message: "Failed to fork VM",
-        details: errorMessage,
-        autoCloseMs: null,
-      });
-      console.error("Failed to fork VM", error);
-    }
-  }, [vmId, currentTab, paneId]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -430,13 +330,15 @@ export const TerminalPane = ({
         </div>
       )}
 
-      <SandboxIndicator
-        vmId={vmId}
-        agentSessionId={agentSessionId}
-        onCompleteAgentSession={handleCompleteAgentSession}
-        onDeleteAgentSession={handleDeleteAgentSession}
-        onForkVM={vmId ? handleForkVM : undefined}
-      />
+      {!hideIndividualSandboxIndicator && (
+        <SandboxIndicator
+          vmId={vmId}
+          agentSessionId={agentSessionId}
+          onCompleteAgentSession={handleCompleteAgentSession}
+          onDeleteAgentSession={handleDeleteAgentSession}
+          onForkVM={vmId ? handleForkVM : undefined}
+        />
+      )}
     </div>
   );
 };

@@ -1,13 +1,7 @@
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
-import {
-  enqueueNotification,
-} from "@/store/actions/notifications";
-import {
-  completeAgentSession,
-  deleteAgentSession,
-} from "@/store/actions/pane";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
@@ -127,6 +121,7 @@ type EditorPaneProps = {
   onFileOpen?: (node: FileTreeNode) => void;
   isLocked?: boolean;
   onSave?: () => void;
+  hideIndividualSandboxIndicator?: boolean;
 };
 
 export function EditorPane({
@@ -140,6 +135,7 @@ export function EditorPane({
   onFileOpen,
   isLocked = false,
   onSave,
+  hideIndividualSandboxIndicator = false,
 }: EditorPaneProps) {
   const { homeDirectory } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
@@ -172,77 +168,29 @@ export function EditorPane({
     return undefined;
   }, [tabs, paneId]);
 
+  // Use sandbox handlers from the shared hook
+  const {
+    handleCompleteAgentSession: handleCompleteAgentSessionBase,
+    handleDeleteAgentSession: handleDeleteAgentSessionBase,
+  } = useSandboxHandlers({
+    tabId: currentTab?.id ?? "",
+    paneId,
+  });
+
+  // Wrap the base handlers to check for required values
   const handleCompleteAgentSession = useCallback(async () => {
     if (!agentSessionId || !currentTab) {
       return;
     }
-
-    try {
-      const result = await completeAgentSession(currentTab.id, agentSessionId);
-      if (!result) {
-        throw new Error("Failed to complete agent session");
-      }
-
-      if (result.status === "conflict") {
-        enqueueNotification({
-          kind: "error",
-          message: "Merge conflict",
-          details: result.message,
-          persistent: true,
-        });
-      } else {
-        enqueueNotification({
-          kind: "success",
-          message:
-            result.status === "merged"
-              ? "Agent session completed"
-              : "No changes to merge",
-          details: result.message,
-          autoCloseMs: 3000,
-        });
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      enqueueNotification({
-        kind: "error",
-        message: "Failed to complete agent session",
-        details: errorMessage,
-        autoCloseMs: 5000,
-      });
-      console.error("Failed to finalize agent session", error);
-    }
-  }, [agentSessionId, currentTab]);
+    await handleCompleteAgentSessionBase(agentSessionId);
+  }, [agentSessionId, currentTab, handleCompleteAgentSessionBase]);
 
   const handleDeleteAgentSession = useCallback(async () => {
     if (!agentSessionId || !currentTab) {
       return;
     }
-
-    try {
-      const result = await deleteAgentSession(currentTab.id, agentSessionId);
-      if (!result) {
-        throw new Error("Failed to delete agent session");
-      }
-
-      enqueueNotification({
-        kind: "success",
-        message: "Agent session deleted",
-        details: result.message,
-        autoCloseMs: 3000,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      enqueueNotification({
-        kind: "error",
-        message: "Failed to delete agent session",
-        details: errorMessage,
-        autoCloseMs: 5000,
-      });
-      console.error("Failed to cleanup agent session", error);
-    }
-  }, [agentSessionId, currentTab]);
+    await handleDeleteAgentSessionBase(agentSessionId);
+  }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
 
   // Load file content when filePath changes
   useEffect(() => {
@@ -653,11 +601,13 @@ export function EditorPane({
           </div>
         )}
       </div>
-      <SandboxIndicator
-        agentSessionId={agentSessionId ?? null}
-        onCompleteAgentSession={handleCompleteAgentSession}
-        onDeleteAgentSession={handleDeleteAgentSession}
-      />
+      {!hideIndividualSandboxIndicator && (
+        <SandboxIndicator
+          agentSessionId={agentSessionId ?? null}
+          onCompleteAgentSession={handleCompleteAgentSession}
+          onDeleteAgentSession={handleDeleteAgentSession}
+        />
+      )}
     </div>
   );
 }
