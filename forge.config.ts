@@ -14,7 +14,6 @@ const config: ForgeConfig = {
       unpack: "**/node_modules/node-pty/**/*",
     },
     icon: "./build/assets/icon",
-    executableName: "conduit",
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",
     osxSign: {},

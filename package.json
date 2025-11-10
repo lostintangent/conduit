@@ -1,5 +1,6 @@
 {
   "name": "conduit",
+  "productName": "Conduit",
   "main": ".vite/build/main.js",
   "version": "0.1.0",
   "private": true,
@@ -12,12 +13,14 @@
     "lint:ci": "eslint --ext .ts,.tsx . --cache --cache-location node_modules/.cache/eslint --quiet",
     "format": "prettier --write .",
     "rebuild": "electron-rebuild",
+    "build:icon": "node build/scripts/generate-mac-icon.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "postinstall": "node build/scripts/setup-keys.js",
-    "prepare": "husky"
+    "prepare": "husky",
+    "premake": "npm run build:icon"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.10.2",

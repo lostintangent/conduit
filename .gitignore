@@ -1,6 +1,7 @@
 # Dependencies / system files
 node_modules/
 .DS_Store
+icon.icns
 
 # Build artifacts
 .vite/
