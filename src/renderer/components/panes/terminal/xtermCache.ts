@@ -82,9 +82,8 @@ export function getOrCreate(
       api.sendKeypress(sessionId, input),
     );
 
-    const bellListener = terminal.onBell(() => {
-      bellAudio.play();
-    });
+    // TODO: Allow configuring this
+    terminal.onBell(() => bellAudio.play());
 
     const newInstance: TerminalInstance = {
       terminal,
@@ -106,7 +105,6 @@ export function getOrCreate(
       dispose: () => {
         unsubData();
         onKeyDispose?.dispose();
-        bellListener?.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
         newInstance.ready = false;
