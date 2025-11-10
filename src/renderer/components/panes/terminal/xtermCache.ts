@@ -1,3 +1,4 @@
+import chimeUrl from "@/assets/chime.mp3";
 import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -55,23 +56,10 @@ export function getOrCreate(
       current: options.onLinkClick,
     };
 
-    const bellAudio = new Audio();
+    const bellAudio = new Audio(chimeUrl);
     bellAudio.preload = "auto";
+    bellAudio.load();
     let bellListener: IDisposable | null = null;
-
-    if (typeof api.resolveAsset === "function") {
-      void api
-        .resolveAsset("bell.mp3")
-        .then((assetUrl) => {
-          if (typeof assetUrl === "string" && assetUrl.length > 0) {
-            bellAudio.src = assetUrl;
-            bellAudio.load();
-          }
-        })
-        .catch((error) => {
-          console.warn("Failed to resolve bell asset", error);
-        });
-    }
 
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       const handler = linkHandlerRef.current;
