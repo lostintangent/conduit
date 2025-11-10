@@ -322,7 +322,7 @@ export function registerApplicationCommands(
       id: MenuId.TabContext,
       group: "2_tab/duplicate_into",
       order: 1,
-      title: "CWD...",
+      title: "CWD",
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -347,7 +347,7 @@ export function registerApplicationCommands(
       id: MenuId.TabContext,
       group: "2_tab/duplicate_into",
       order: 2,
-      title: "Worktree...",
+      title: "Worktree",
     },
     run: async (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
