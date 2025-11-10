@@ -8,6 +8,13 @@ export type CliRequest = {
   command: CliCommand;
 };
 
+type Command<
+  Type extends string,
+  Data extends object = Record<string, never>,
+> = {
+  type: Type;
+} & Data;
+
 export type CliCommand =
   | CliOpenFileCommand
   | CliListPanesCommand
@@ -16,39 +23,49 @@ export type CliCommand =
   | CliCaptureBrowserCommand
   | CliMovePaneCommand
   | CliSplitPaneCommand
-  | CliFocusPaneCommand
   | CliClosePaneCommand
-  | CliNewTabCommand
-  | CliDuplicateTabCommand;
+  | Command<"focus-pane">
+  | Command<"new-tab">
+  | Command<"duplicate-tab">;
 
-export type CliOpenFileCommand = {
-  type: "open-file";
-  filePath: string | null;
-  cwd: string;
-};
+type CliOpenFileCommand = Command<
+  "open-file",
+  {
+    filePath: string | null;
+    cwd: string;
+  }
+>;
 
 export const PANE_TYPES = ["editor", "browser", "terminal", "all"] as const;
 export type PaneType = (typeof PANE_TYPES)[number];
-export type CliListPanesCommand = {
-  type: "list-panes";
-  paneType: PaneType;
-};
+type CliListPanesCommand = Command<
+  "list-panes",
+  {
+    paneType: PaneType;
+  }
+>;
 
-export type CliReadTerminalCommand = {
-  type: "read-terminal";
-  sessionId: string;
-};
+type CliReadTerminalCommand = Command<
+  "read-terminal",
+  {
+    sessionId: string;
+  }
+>;
 
-export type CliWriteTerminalCommand = {
-  type: "write-terminal";
-  sessionId: string;
-  input: string;
-};
+type CliWriteTerminalCommand = Command<
+  "write-terminal",
+  {
+    sessionId: string;
+    input: string;
+  }
+>;
 
-export type CliCaptureBrowserCommand = {
-  type: "capture-browser";
-  paneId: string;
-};
+type CliCaptureBrowserCommand = Command<
+  "capture-browser",
+  {
+    paneId: string;
+  }
+>;
 
 export const PANE_MOVE_TARGETS = [
   "left",
@@ -58,34 +75,28 @@ export const PANE_MOVE_TARGETS = [
   "tab",
 ] as const;
 export type PaneMoveTarget = (typeof PANE_MOVE_TARGETS)[number];
-export type CliMovePaneCommand = {
-  type: "move-pane";
-  direction: PaneMoveTarget;
-};
+type CliMovePaneCommand = Command<
+  "move-pane",
+  {
+    direction: PaneMoveTarget;
+  }
+>;
 
 export const PANE_SPLIT_TARGETS = ["left", "right", "top", "bottom"] as const;
 export type PaneSplitTarget = (typeof PANE_SPLIT_TARGETS)[number];
-export type CliSplitPaneCommand = {
-  type: "split-pane";
-  direction: PaneSplitTarget;
-};
+type CliSplitPaneCommand = Command<
+  "split-pane",
+  {
+    direction: PaneSplitTarget;
+  }
+>;
 
-export type CliFocusPaneCommand = {
-  type: "focus-pane";
-};
-
-export type CliClosePaneCommand = {
-  type: "close-pane";
-  closeTab?: boolean;
-};
-
-export type CliNewTabCommand = {
-  type: "new-tab";
-};
-
-export type CliDuplicateTabCommand = {
-  type: "duplicate-tab";
-};
+type CliClosePaneCommand = Command<
+  "close-pane",
+  {
+    closeTab?: boolean;
+  }
+>;
 
 /* Renderer -> IPC -> CLI */
 
