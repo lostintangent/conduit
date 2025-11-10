@@ -10,6 +10,7 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
+import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import type {
@@ -20,6 +21,11 @@ import { enterFocusMode } from "@/store/actions/focusMode";
 import { activatePane, openWebViewPane } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
+import {
+  handleCompleteAgentSessionAction,
+  handleDeleteAgentSessionAction,
+  handleForkVMAction,
+} from "@/hooks/useSandboxHandlers";
 import {
   activePaneIdAtom,
   activeTabAtom,
@@ -34,8 +40,9 @@ import type {
   Tab,
 } from "@/types";
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
+import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
@@ -291,7 +298,7 @@ export function TabLayout({
   );
 
   const renderPaneNode = useCallback(
-    (node: LayoutPaneNode, tab: Tab): React.ReactNode => {
+    (node: LayoutPaneNode, tab: Tab, hasUnifiedSandbox: boolean): React.ReactNode => {
       const pane = tab.panes[node.paneId];
       if (!pane) {
         return null;
@@ -380,6 +387,7 @@ export function TabLayout({
                 onContextMenu={onPaneContextMenu}
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
                 showDimensions={shouldShowTerminalDimensions}
+                hideIndividualSandboxIndicator={hasUnifiedSandbox}
               />
             ) : pane.type === "editor" ? (
               <div
@@ -413,6 +421,7 @@ export function TabLayout({
                       filePath: node.path,
                     })
                   }
+                  hideIndividualSandboxIndicator={hasUnifiedSandbox}
                 />
               </div>
             ) : (
@@ -507,7 +516,8 @@ export function TabLayout({
     (
       node: LayoutSplitNode,
       tab: Tab,
-      renderChild: (node: LayoutNode, tab: Tab) => React.ReactNode,
+      renderChild: (node: LayoutNode, tab: Tab, hasUnifiedSandbox: boolean) => React.ReactNode,
+      hasUnifiedSandbox: boolean,
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
 
@@ -633,7 +643,7 @@ export function TabLayout({
                     />
                   </>
                 )}
-                {renderChild(child, tab)}
+                {renderChild(child, tab, hasUnifiedSandbox)}
               </div>
             );
           })}
@@ -651,11 +661,11 @@ export function TabLayout({
   );
 
   const renderLayout = useCallback(
-    (node: LayoutNode, tab: Tab) => {
+    (node: LayoutNode, tab: Tab, hasUnifiedSandbox: boolean) => {
       if (node.type === "pane") {
-        return renderPaneNode(node, tab);
+        return renderPaneNode(node, tab, hasUnifiedSandbox);
       }
-      return renderSplitNode(node, tab, renderLayout);
+      return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox);
     },
     [renderPaneNode, renderSplitNode],
   );
@@ -679,7 +689,11 @@ export function TabLayout({
       const tabContainerRef = tabContainerCallbackRefs.current[tab.id];
       const portalTarget = getActiveMountPoint(tab.id);
 
-      const tabContent = <>{renderLayout(tab.layout, tab)}</>;
+      // Check if all panes share the same sandbox context
+      const unifiedSandbox = getUnifiedSandboxForTab(tab);
+      const hasUnifiedSandbox = unifiedSandbox !== null;
+
+      const tabContent = <>{renderLayout(tab.layout, tab, hasUnifiedSandbox)}</>;
 
       return (
         <div
@@ -694,6 +708,44 @@ export function TabLayout({
           ref={tabContainerRef}
         >
           {portalTarget ? createPortal(tabContent, portalTarget) : null}
+          {unifiedSandbox && (
+            <SandboxIndicator
+              vmId={unifiedSandbox.type === "vm" ? unifiedSandbox.vmId : null}
+              agentSessionId={
+                unifiedSandbox.type === "agent"
+                  ? unifiedSandbox.agentSessionId
+                  : null
+              }
+              onCompleteAgentSession={
+                unifiedSandbox.type === "agent"
+                  ? () =>
+                      handleCompleteAgentSessionAction(
+                        tab.id,
+                        unifiedSandbox.agentSessionId,
+                      )
+                  : undefined
+              }
+              onDeleteAgentSession={
+                unifiedSandbox.type === "agent"
+                  ? () =>
+                      handleDeleteAgentSessionAction(
+                        tab.id,
+                        unifiedSandbox.agentSessionId,
+                      )
+                  : undefined
+              }
+              onForkVM={
+                unifiedSandbox.type === "vm"
+                  ? () =>
+                      handleForkVMAction(
+                        tab.id,
+                        tab.activePaneId,
+                        unifiedSandbox.vmId,
+                      )
+                  : undefined
+              }
+            />
+          )}
         </div>
       );
     },
