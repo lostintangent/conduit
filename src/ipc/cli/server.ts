@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import net from "node:net";
-import type { CliRequest, CliResponse } from "../../shared/cli/types";
 import { processCliMessage } from "../../shared/cli/protocol";
+import type { CliRequest, CliResponse } from "../../shared/cli/types";
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;
 
@@ -36,19 +36,18 @@ export async function createCliServer(
   socketPath: string,
   sendToRenderer: SendToRendererFn,
 ): Promise<CliServer> {
-  const server = net.createServer((socket) => {
-    processCliMessage<CliRequest>(socket)
-      .then((request) => {
-        forwardRequestToRenderer(request, socket);
-      })
-      .catch((reason) => {
-        const message =
-          typeof reason === "string" ? reason : "Invalid message received.";
-        respondWithSocket(socket, {
-          status: "error",
-          message,
-        });
+  const server = net.createServer(async (socket) => {
+    try {
+      // Process the incoming CLI request message and
+      // then forward it on to the renderer process.
+      const request = await processCliMessage<CliRequest>(socket);
+      forwardRequestToRenderer(request, socket);
+    } catch (error) {
+      respondWithSocket(socket, {
+        status: "error",
+        message: error.message,
       });
+    }
   });
 
   // Start the server and wait for it to begin listening

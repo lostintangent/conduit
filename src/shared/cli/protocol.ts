@@ -1,91 +1,43 @@
 import type { Socket } from "node:net";
 
+/**
+ * Processes a CLI protocol message, which represents either
+ * a request (on the server) or a response (on the client).
+ *
+ * @param socket The socket connection to process a message from
+ * @returns A promise that resolves with the parsed message object.
+ */
 export function processCliMessage<T>(socket: Socket): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     let buffer = "";
-    let receivedData = false;
-    let settled = false;
-
-    const cleanup = () => {
-      socket.off("data", handleChunk);
-      socket.off("end", handleEnd);
-      socket.off("error", handleError);
-    };
-
-    const normalizeReason = (reason: string) =>
-      reason.endsWith(".") ? reason : `${reason}.`;
-
-    const rejectSocket = (reason: string) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      reject(normalizeReason(reason));
-    };
-
-    const resolveMessage = (message: T) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      resolve(message);
-    };
-
-    const handleChunk = (chunk: Buffer) => {
-      if (chunk.length > 0) {
-        receivedData = true;
-      }
-
+    socket.on("data", (chunk: Buffer) => {
+      // Keep accumulating data until we hit a newline,
+      // which indicates the end of the message.
       buffer += chunk.toString("utf8");
       if (!buffer.endsWith("\n")) {
         return;
       }
 
+      // Remove the trailing newline and reject an empty message.
       const message = buffer.slice(0, -1).trim();
-      buffer = "";
-
       if (!message) {
-        rejectSocket(
-          receivedData ? "Received empty message" : "No message received",
-        );
+        reject("No message received.");
         return;
       }
 
       try {
-        resolveMessage(JSON.parse(message) as T);
+        resolve(JSON.parse(message) as T);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : typeof error === "string"
-              ? error
-              : "unknown error";
-        rejectSocket(`Invalid message: ${errorMessage}`);
+        reject(`Invalid message: ${error.message}.`);
       }
-    };
+    });
 
-    const handleEnd = () => {
+    socket.on("end", () => {
       if (buffer.trim().length === 0) {
-        rejectSocket(
-          receivedData ? "Received empty message" : "No message received",
-        );
+        reject("No message received.");
       }
-    };
+    });
 
-    const handleError = (error: unknown) => {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : typeof error === "string"
-            ? error
-            : "unknown error";
-      rejectSocket(`Message error: ${errorMessage}`);
-    };
-
-    socket.on("data", handleChunk);
-    socket.on("end", handleEnd);
-    socket.on("error", handleError);
+    socket.on("error", (error: Error) => reject(`Error: ${error.message}.`));
   });
 }
