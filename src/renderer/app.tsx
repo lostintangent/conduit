@@ -260,6 +260,15 @@ export function App() {
       if (tabs.length > 0) {
         void api.saveLastWorkspace(tabs, activeTab?.id);
       }
+
+      // Dispose all xterm instances for all terminal panes
+      tabs.forEach((tab) => {
+        Object.values(tab.panes).forEach((pane) => {
+          if (pane.type === "terminal") {
+            disposeSession(pane.sessionId);
+          }
+        });
+      });
     });
 
     return () => {
@@ -830,11 +839,11 @@ export function App() {
         }
         initialTitle={
           duplicateTabWithCwdDialogState
-            ? generateIncrementedTabTitle(
+            ? (generateIncrementedTabTitle(
                 tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId)
                   ?.title,
                 tabs,
-              ) ?? ""
+              ) ?? "")
             : ""
         }
         onClose={() => setDuplicateTabWithCwdDialogState(null)}

@@ -323,7 +323,11 @@ export function closeTab(tabId: string) {
     }
   });
 
-  sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
+  // Dispose xterm instances for all terminal sessions
+  sessionsToClose.forEach((sessionId) => {
+    disposeSession(sessionId);
+    api.closeTerminal(sessionId);
+  });
 
   if (shouldOpenReplacement) {
     openTab();

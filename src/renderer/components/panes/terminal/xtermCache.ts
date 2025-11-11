@@ -15,6 +15,7 @@ export type TerminalInstance = {
   fit: FitAddon;
   search: SearchAddon;
   serializer: SerializeAddon;
+  webLinks: WebLinksAddon;
 
   ready: boolean;
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
@@ -56,10 +57,6 @@ export function getOrCreate(
     const fit = new FitAddon();
     const search = new SearchAddon();
     const serializer = new SerializeAddon();
-    const linkHandlerRef: { current: ((url: string) => void) | null } = {
-      current: options.onLinkClick,
-    };
-
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       const handler = linkHandlerRef.current;
       if (handler) {
@@ -68,6 +65,9 @@ export function getOrCreate(
       }
       api.openExternal(uri);
     });
+    const linkHandlerRef: { current: ((url: string) => void) | null } = {
+      current: options.onLinkClick,
+    };
 
     terminal.loadAddon(fit);
     terminal.loadAddon(search);
@@ -89,6 +89,8 @@ export function getOrCreate(
       terminal,
       fit,
       search,
+      serializer,
+      webLinks: webLinksAddon,
       ready: false,
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
@@ -105,12 +107,16 @@ export function getOrCreate(
       dispose: () => {
         unsubData();
         onKeyDispose?.dispose();
+        // Dispose addons first
+        fit.dispose();
+        search.dispose();
+        serializer.dispose();
+        webLinksAddon.dispose();
+        // Then dispose the terminal itself
         terminal.dispose();
         linkHandlerRef.current = null;
         newInstance.ready = false;
-        serializer.dispose();
       },
-      serializer,
     };
     store.set(sessionId, newInstance);
     instance = newInstance;
