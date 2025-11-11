@@ -1,4 +1,5 @@
 import { MakerDeb } from "@electron-forge/maker-deb";
+import { MakerDMG } from "@electron-forge/maker-dmg";
 import { MakerRpm } from "@electron-forge/maker-rpm";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
@@ -7,6 +8,7 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { execSync } from "node:child_process";
+import path from "node:path";
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -32,6 +34,9 @@ const config: ForgeConfig = {
   },
   makers: [
     new MakerZIP({}, ["darwin"]),
+    new MakerDMG({
+      icon: path.resolve(__dirname, "build/assets/icon.icns"),
+    }),
     new MakerSquirrel({}),
     new MakerRpm({}),
     new MakerDeb({}),
