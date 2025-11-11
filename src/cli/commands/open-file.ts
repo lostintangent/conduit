@@ -36,8 +36,5 @@ export default new Command(COMMAND_NAME)
   .argument("<path>", "File or directory to open")
   .action(async (path: string) => {
     const resolvedPath = await resolvePath(path);
-    await sendCliCommand({
-      name: COMMAND_NAME,
-      ...resolvedPath,
-    });
+    await sendCliCommand(COMMAND_NAME, resolvedPath);
   });

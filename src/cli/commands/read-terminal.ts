@@ -8,9 +8,6 @@ export default new Command(COMMAND_NAME)
   .description("Read the contents of a terminal session")
   .argument("<sessionId>", "The terminal session to read")
   .action(async (sessionId: string) => {
-    const contents = await sendCliCommand<string>({
-      name: COMMAND_NAME,
-      sessionId,
-    });
+    const contents = await sendCliCommand<string>(COMMAND_NAME, { sessionId });
     process.stdout.write(contents);
   });

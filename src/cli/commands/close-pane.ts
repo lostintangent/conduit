@@ -8,8 +8,5 @@ export default new Command(COMMAND_NAME)
   .description("Close the active pane or tab.")
   .option("-t, --tab", "Close the active tab instead of the pane.")
   .action(async (options: { tab?: boolean }) => {
-    await sendCliCommand({
-      name: COMMAND_NAME,
-      closeTab: Boolean(options?.tab),
-    });
+    await sendCliCommand(COMMAND_NAME, { closeTab: Boolean(options?.tab) });
   });

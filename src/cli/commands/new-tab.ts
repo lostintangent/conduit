@@ -7,7 +7,5 @@ export default new Command(COMMAND_NAME)
   .alias("new")
   .description("Open a new tab.")
   .action(async () => {
-    await sendCliCommand({
-      name: COMMAND_NAME,
-    });
+    await sendCliCommand(COMMAND_NAME);
   });

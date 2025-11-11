@@ -13,8 +13,5 @@ export default new Command(COMMAND_NAME)
       .default("tab"),
   )
   .action(async (direction: PaneMoveTarget) => {
-    await sendCliCommand({
-      name: COMMAND_NAME,
-      direction,
-    });
+    await sendCliCommand(COMMAND_NAME, { direction });
   });

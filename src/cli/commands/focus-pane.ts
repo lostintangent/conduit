@@ -7,7 +7,5 @@ export default new Command(COMMAND_NAME)
   .alias("focus")
   .description("Toggle focus mode for the active pane.")
   .action(async () => {
-    await sendCliCommand({
-      name: COMMAND_NAME,
-    });
+    await sendCliCommand(COMMAND_NAME);
   });

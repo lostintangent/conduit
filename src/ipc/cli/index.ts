@@ -49,9 +49,9 @@ async function prepareCliEnvironment(
   };
 }
 
-function respondToCli(
+function respondToCli<ResultType>(
   requestId: string,
-  response: Omit<CliResponse, "requestId">,
+  response: Omit<CliResponse<ResultType>, "requestId">,
 ) {
   cliState.server.respond({
     requestId,

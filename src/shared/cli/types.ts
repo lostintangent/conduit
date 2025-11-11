@@ -8,9 +8,10 @@ export type CliRequest = {
   command: CliCommand;
 };
 
-type Command<Type extends string, Data extends object = object> = {
-  name: Type;
-} & Data;
+type Command<Name extends string, Args extends object = object> = {
+  name: Name;
+  args?: Args;
+};
 
 export type CliCommand =
   | CliOpenFileCommand
@@ -97,12 +98,8 @@ type CliClosePaneCommand = Command<
 
 /* Renderer -> IPC -> CLI */
 
-export type CliResponse<T> =
-  | {
-      requestId: string;
-      result?: T;
-    }
-  | {
-      requestId: string;
-      error: string;
-    };
+export type CliResponse<T = undefined> = {
+  requestId: string;
+  result?: T;
+  error?: string;
+};

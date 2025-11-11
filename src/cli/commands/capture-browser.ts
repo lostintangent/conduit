@@ -8,10 +8,6 @@ export default new Command(COMMAND_NAME)
   .description("Capture a screenshot of a specific browser pane")
   .argument("<paneId>", "The browser pane to capture")
   .action(async (paneId: string) => {
-    const filePath = await sendCliCommand<string>({
-      name: COMMAND_NAME,
-      paneId,
-    });
-
+    const filePath = await sendCliCommand<string>(COMMAND_NAME, { paneId });
     process.stdout.write(`Screenshot saved to: ${filePath}\n`);
   });

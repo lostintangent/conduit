@@ -63,7 +63,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     const handleCliRequest = async ({
       requestId,
       sessionId,
-      command,
+      command: { name, args },
     }: CliRequest) => {
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) =>
         api.respondToCliRequest<T>({
@@ -75,14 +75,14 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       const respondError = (error: string) => respond({ error });
 
       try {
-        switch (command.name) {
+        switch (name) {
           case "open-file": {
-            const isCommitMessageRequest = command.filePath?.endsWith(
+            const isCommitMessageRequest = args.filePath?.endsWith(
               COMMIT_EDITMSG_FILENAME,
             );
 
             const descriptor: QuickPaneDescriptor = {
-              ...command,
+              ...args,
               type: "editor",
             };
 
@@ -115,16 +115,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               )
               // Filter the panes by the requested type
               .filter((pane) => {
-                if (command.paneType === "all") {
+                if (args.paneType === "all") {
                   return true;
                 }
 
                 // TODO: Remove this once we rename "webview" panes to "browser".
-                if (command.paneType === "browser") {
+                if (args?.paneType === "browser") {
                   return pane.type === "webview";
                 }
 
-                return pane.type === command.paneType;
+                return pane.type === args.paneType;
               })
               .map((pane) => ({ ...pane }));
 
@@ -133,11 +133,11 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "read-terminal": {
-            const serialized = serializeSession(command.sessionId);
+            const serialized = serializeSession(args.sessionId);
 
             if (serialized === null) {
               respondError(
-                `Unable to read terminal buffer; session ${command.sessionId} is not active.`,
+                `Unable to read terminal buffer; session ${args.sessionId} is not active.`,
               );
               break;
             }
@@ -147,9 +147,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "capture-browser": {
-            const webview = document.getElementById(
-              command.paneId,
-            ) as WebviewTag;
+            const webview = document.getElementById(args?.paneId) as WebviewTag;
             const webContentsId = webview.getWebContentsId();
 
             // Note that when trying to capture the page from the renderer, Chrome
@@ -165,7 +163,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "write-terminal": {
-            const didWrite = inputToSession(command.sessionId, command.input);
+            const didWrite = inputToSession(args.sessionId, args.input);
 
             if (!didWrite) {
               respondError("Unable to write to terminal.");
@@ -177,7 +175,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "move-pane": {
-            const targetCommand = moveCommandMap[command.direction];
+            const targetCommand = moveCommandMap[args.direction];
             await targetCommand.execute();
 
             respondResult();
@@ -185,7 +183,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "split-pane": {
-            const targetCommand = splitCommandMap[command.direction];
+            const targetCommand = splitCommandMap[args.direction];
             await targetCommand.execute();
 
             respondResult();
@@ -199,7 +197,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "close-pane": {
-            const targetCommand = command.closeTab
+            const targetCommand = args.closeTab
               ? closeTabCommand
               : closePaneCommand;
             await targetCommand.execute();

@@ -20,10 +20,6 @@ export default new Command(COMMAND_NAME)
       }
 
       const input = inputParts.join(" ");
-      await sendCliCommand({
-        name: COMMAND_NAME,
-        sessionId,
-        input,
-      });
+      await sendCliCommand(COMMAND_NAME, { sessionId, input });
     },
   );

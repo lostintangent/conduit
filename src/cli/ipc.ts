@@ -11,21 +11,27 @@ const sessionId = process.env.CONDUIT_SESSION_ID;
 /**
  * Send a CLI command to the IPC server listening in the main process.
  *
- * @param command The CLI command to send.
+ * @param name The name of the CLI command to send.
+ * @param args Optional arguments for the command.
  * @returns The result from calling the IPC server.
  */
-export async function sendCliCommand<ResultType = void>(command: CliCommand) {
-  // Connect to the CLI server and send the request
-  // when the connection is established.
-  const socket = net.createConnection({ path: socketPath }, () => {
-    const request = JSON.stringify({
-      requestId: randomUUID(),
-      sessionId,
-      command,
-    } as CliRequest);
+export async function sendCliCommand<ResultType = undefined>(
+  name: CliCommand["name"],
+  args?: CliCommand["args"],
+) {
+  // Build the CLI request message.
+  const command = { name, args } as CliCommand;
+  const request = JSON.stringify({
+    requestId: randomUUID(),
+    sessionId,
+    command,
+  } as CliRequest);
 
-    socket.write(`${request}\n`);
-  });
+  // Connect to the CLI server and send the request
+  // as soon as the connection is established.
+  const socket = net.createConnection({ path: socketPath }, () =>
+    socket.write(`${request}\n`),
+  );
 
   // Wait for and process the response from the server.
   const response = await processCliMessage<CliResponse<ResultType>>(
@@ -33,7 +39,7 @@ export async function sendCliCommand<ResultType = void>(command: CliCommand) {
     true,
   );
 
-  if ("error" in response) {
+  if (response.error) {
     throw new Error(response.error);
   } else {
     return response.result;

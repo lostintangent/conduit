@@ -14,8 +14,7 @@ export default new Command(COMMAND_NAME)
       .default("all"),
   )
   .action(async (options: { type: PaneType }) => {
-    const panes = await sendCliCommand<Pane[]>({
-      name: COMMAND_NAME,
+    const panes = await sendCliCommand<Pane[]>(COMMAND_NAME, {
       paneType: options.type,
     });
     console.log(JSON.stringify(panes, null, 2));

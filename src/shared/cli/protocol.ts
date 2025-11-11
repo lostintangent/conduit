@@ -51,8 +51,8 @@ export function processCliMessage<MessageType>(
     );
 
     function rejectAndDestroy(message: string) {
-      socket.destroy();
       reject(new Error(message));
+      socket.destroy();
     }
   });
 }

@@ -16,8 +16,5 @@ export default new Command(COMMAND_NAME)
       .default("right"),
   )
   .action(async (direction: PaneSplitTarget) => {
-    await sendCliCommand({
-      name: COMMAND_NAME,
-      direction,
-    });
+    await sendCliCommand(COMMAND_NAME, { direction });
   });

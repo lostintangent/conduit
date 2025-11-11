@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { CLI_COMMAND_NAME } from "../../shared/cli/types";
 
-function buildCmdLauncher(electronBinary: string, cliPath: string) {
+function generateWindowsLauncher(electronBinary: string, cliPath: string) {
   const escape = (value: string) => value.replace(/"/g, '""');
 
   return [
@@ -20,7 +20,7 @@ function buildCmdLauncher(electronBinary: string, cliPath: string) {
   ].join("\r\n");
 }
 
-function buildUnixLauncher(electronBinary: string, cliPath: string) {
+function generateUnixLauncher(electronBinary: string, cliPath: string) {
   return `#!/bin/sh
 
 if [ -z "$CONDUIT_SOCKET_PATH" ]; then
@@ -35,6 +35,13 @@ export ELECTRON_RUN_AS_NODE=1
 exec "$ELECTRON_BIN" "$CLI_ENTRY" "$@"`;
 }
 
+/**
+ * Generates the launcher scripts that allow the CLI to be run from the terminal.
+ *
+ * @param binDir The directory where the launcher scripts should be written to.
+ * @param electronBinary The path to the Electron binary for Conduit (which is used as a Node process).
+ * @param cliPath The path to the Conduit CLI entry point.
+ */
 export async function ensureLauncherScripts(
   binDir: string,
   electronBinary: string,
@@ -48,11 +55,15 @@ export async function ensureLauncherScripts(
     // if we wrote a .ps1 file, users would have to explicitly run `conduit.ps1` vs. `conduit`.
     await fs.writeFile(
       `${rootPath}.cmd`,
-      buildCmdLauncher(electronBinary, cliPath),
+      generateWindowsLauncher(electronBinary, cliPath),
     );
   } else {
-    await fs.writeFile(rootPath, buildUnixLauncher(electronBinary, cliPath), {
-      mode: 0o755,
-    });
+    await fs.writeFile(
+      rootPath,
+      generateUnixLauncher(electronBinary, cliPath),
+      {
+        mode: 0o755,
+      },
+    );
   }
 }
