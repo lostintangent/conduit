@@ -1,5 +1,8 @@
 import { Argument, Command } from "commander";
-import { PANE_SPLIT_TARGETS, type PaneSplitTarget } from "../../shared/cli";
+import {
+  PANE_SPLIT_TARGETS,
+  type PaneSplitTarget,
+} from "../../shared/cli/types";
 import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "split-pane";
