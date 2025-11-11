@@ -83,7 +83,7 @@ export function getOrCreate(
     );
 
     // TODO: Allow configuring this
-    terminal.onBell(() => bellAudio.play());
+    //terminal.onBell(() => bellAudio.play());
 
     const newInstance: TerminalInstance = {
       terminal,
