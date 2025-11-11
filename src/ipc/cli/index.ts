@@ -94,13 +94,11 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
         await fs.writeFile(filePath, buffer);
 
         respondToCli(requestId, {
-          status: "ok",
-          data: filePath,
+          result: filePath,
         });
       } catch (error) {
         respondToCli(requestId, {
-          status: "error",
-          message: "Failed to capture browser pane",
+          error: "Failed to capture browser pane",
         });
       }
     },

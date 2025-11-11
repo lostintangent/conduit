@@ -1,6 +1,7 @@
+import { Pane } from "@/types";
 import { Command, Option } from "commander";
 import { PANE_TYPES, PaneType } from "../../shared/cli/types";
-import { sendCliRequest } from "../ipc";
+import { sendCliCommand } from "../ipc";
 
 const COMMAND_NAME = "list-panes";
 
@@ -13,9 +14,9 @@ export default new Command(COMMAND_NAME)
       .default("all"),
   )
   .action(async (options: { type: PaneType }) => {
-    const { data } = await sendCliRequest({
-      type: COMMAND_NAME,
+    const panes = await sendCliCommand<Pane[]>({
+      name: COMMAND_NAME,
       paneType: options.type,
     });
-    console.log(JSON.stringify(data, null, 2));
+    console.log(JSON.stringify(panes, null, 2));
   });

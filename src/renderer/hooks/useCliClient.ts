@@ -65,18 +65,17 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       sessionId,
       command,
     }: CliRequest) => {
-      const respond = (response: Omit<CliResponse, "requestId">) =>
-        api.respondToCliRequest({
+      const respond = <T>(response: Omit<CliResponse<T>, "requestId">) =>
+        api.respondToCliRequest<T>({
           requestId,
           ...response,
         });
 
-      const respondOk = (data?: any) => respond({ status: "ok", data });
-      const respondError = (message: string) =>
-        respond({ status: "error", message });
+      const respondResult = (result?: any) => respond({ result });
+      const respondError = (error: string) => respond({ error });
 
       try {
-        switch (command.type) {
+        switch (command.name) {
           case "open-file": {
             const isCommitMessageRequest = command.filePath?.endsWith(
               COMMIT_EDITMSG_FILENAME,
@@ -90,9 +89,9 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             if (isCommitMessageRequest) {
               descriptor.isLocked = true;
               descriptor.closeOnSave = true;
-              descriptor.onClose = respondOk;
+              descriptor.onClose = respondResult;
             } else {
-              respondOk();
+              respondResult();
             }
 
             onOpenFile(descriptor);
@@ -129,7 +128,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               })
               .map((pane) => ({ ...pane }));
 
-            respondOk(panes);
+            respondResult(panes);
             break;
           }
 
@@ -143,7 +142,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               break;
             }
 
-            respondOk(serialized);
+            respondResult(serialized);
             break;
           }
 
@@ -173,7 +172,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               break;
             }
 
-            respondOk();
+            respondResult();
             break;
           }
 
@@ -181,7 +180,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             const targetCommand = moveCommandMap[command.direction];
             await targetCommand.execute();
 
-            respondOk();
+            respondResult();
             break;
           }
 
@@ -189,13 +188,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             const targetCommand = splitCommandMap[command.direction];
             await targetCommand.execute();
 
-            respondOk();
+            respondResult();
             break;
           }
 
           case "focus-pane": {
             await focusPaneCommand.execute();
-            respondOk();
+            respondResult();
             break;
           }
 
@@ -205,19 +204,19 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               : closePaneCommand;
             await targetCommand.execute();
 
-            respondOk();
+            respondResult();
             break;
           }
 
           case "new-tab": {
             await newTabCommand.execute();
-            respondOk();
+            respondResult();
             break;
           }
 
           case "duplicate-tab": {
             await duplicateTabCommand.execute();
-            respondOk();
+            respondResult();
             break;
           }
 

@@ -8,11 +8,8 @@ export type CliRequest = {
   command: CliCommand;
 };
 
-type Command<
-  Type extends string,
-  Data extends object = Record<string, never>,
-> = {
-  type: Type;
+type Command<Type extends string, Data extends object = object> = {
+  name: Type;
 } & Data;
 
 export type CliCommand =
@@ -100,9 +97,12 @@ type CliClosePaneCommand = Command<
 
 /* Renderer -> IPC -> CLI */
 
-export type CliResponse = {
-  requestId: string;
-  status: "ok" | "error";
-  data?: any;
-  message?: string;
-};
+export type CliResponse<T> =
+  | {
+      requestId: string;
+      result?: T;
+    }
+  | {
+      requestId: string;
+      error: string;
+    };

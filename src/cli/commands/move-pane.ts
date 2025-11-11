@@ -1,6 +1,6 @@
 import { Argument, Command } from "commander";
 import { PANE_MOVE_TARGETS, type PaneMoveTarget } from "../../shared/cli/types";
-import { sendCliRequest } from "../ipc";
+import { sendCliCommand } from "../ipc";
 
 const COMMAND_NAME = "move-pane";
 
@@ -13,8 +13,8 @@ export default new Command(COMMAND_NAME)
       .default("tab"),
   )
   .action(async (direction: PaneMoveTarget) => {
-    await sendCliRequest({
-      type: COMMAND_NAME,
+    await sendCliCommand({
+      name: COMMAND_NAME,
       direction,
     });
   });

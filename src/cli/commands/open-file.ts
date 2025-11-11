@@ -2,7 +2,7 @@ import { Command } from "commander";
 import type { Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { sendCliRequest } from "../ipc";
+import { sendCliCommand } from "../ipc";
 
 type ResolvedFilePath = {
   cwd: string;
@@ -36,8 +36,8 @@ export default new Command(COMMAND_NAME)
   .argument("<path>", "File or directory to open")
   .action(async (path: string) => {
     const resolvedPath = await resolvePath(path);
-    await sendCliRequest({
-      type: COMMAND_NAME,
+    await sendCliCommand({
+      name: COMMAND_NAME,
       ...resolvedPath,
     });
   });

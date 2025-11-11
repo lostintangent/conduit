@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { sendCliRequest } from "../ipc";
+import { sendCliCommand } from "../ipc";
 
 const COMMAND_NAME = "write-terminal";
 
@@ -20,8 +20,8 @@ export default new Command(COMMAND_NAME)
       }
 
       const input = inputParts.join(" ");
-      await sendCliRequest({
-        type: COMMAND_NAME,
+      await sendCliCommand({
+        name: COMMAND_NAME,
         sessionId,
         input,
       });

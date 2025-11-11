@@ -3,7 +3,7 @@ import {
   PANE_SPLIT_TARGETS,
   type PaneSplitTarget,
 } from "../../shared/cli/types";
-import { sendCliRequest } from "../ipc";
+import { sendCliCommand } from "../ipc";
 
 const COMMAND_NAME = "split-pane";
 
@@ -16,8 +16,8 @@ export default new Command(COMMAND_NAME)
       .default("right"),
   )
   .action(async (direction: PaneSplitTarget) => {
-    await sendCliRequest({
-      type: COMMAND_NAME,
+    await sendCliCommand({
+      name: COMMAND_NAME,
       direction,
     });
   });

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { sendCliRequest } from "../ipc";
+import { sendCliCommand } from "../ipc";
 
 const COMMAND_NAME = "capture-browser";
 
@@ -8,8 +8,8 @@ export default new Command(COMMAND_NAME)
   .description("Capture a screenshot of a specific browser pane")
   .argument("<paneId>", "The browser pane to capture")
   .action(async (paneId: string) => {
-    const { data: filePath } = await sendCliRequest({
-      type: COMMAND_NAME,
+    const filePath = await sendCliCommand<string>({
+      name: COMMAND_NAME,
       paneId,
     });
 

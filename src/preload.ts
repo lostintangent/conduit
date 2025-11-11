@@ -132,7 +132,7 @@ const conduitAPI = {
   onCliRequest: (listener: (payload: CliRequest) => void) =>
     createEventListener("cli:request", listener),
 
-  respondToCliRequest: (payload: CliResponse) =>
+  respondToCliRequest: <T>(payload: CliResponse<T>) =>
     ipcRenderer.invoke("cli:respond", payload) as Promise<void>,
 
   completeCaptureBrowserRequest: (payload: {

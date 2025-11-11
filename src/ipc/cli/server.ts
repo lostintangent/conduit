@@ -7,13 +7,16 @@ export type SendToRendererFn = (channel: string, payload: unknown) => void;
 
 export type CliServer = {
   socketPath: string;
-  respond: (response: CliResponse) => void;
+  respond: <T>(response: CliResponse<T>) => void;
   shutdown: (reason?: string) => Promise<void>;
 };
 
 const pendingRequests = new Map<string, net.Socket>();
 
-function respondWithSocket(socket: net.Socket, response: Partial<CliResponse>) {
+function respondWithSocket<T>(
+  socket: net.Socket,
+  response: Partial<CliResponse<T>>,
+) {
   try {
     socket.write(`${JSON.stringify(response)}\n`);
   } catch (error) {
@@ -23,7 +26,7 @@ function respondWithSocket(socket: net.Socket, response: Partial<CliResponse>) {
   }
 }
 
-function forwardResponseToCli(response: CliResponse) {
+function forwardResponseToCli<T>(response: CliResponse<T>) {
   const { requestId } = response;
   const socket = pendingRequests.get(requestId);
   if (!socket) return;
@@ -44,8 +47,7 @@ export async function createCliServer(
       forwardRequestToRenderer(request, socket);
     } catch (error) {
       respondWithSocket(socket, {
-        status: "error",
-        message: error.message,
+        error: error.message,
       });
     }
   });
@@ -84,8 +86,7 @@ export async function createCliServer(
     // Close any pending requests
     for (const [requestId, socket] of pendingRequests) {
       respondWithSocket(socket, {
-        status: "error",
-        message: "Conduit is shutting down.",
+        error: "Conduit is shutting down.",
       });
       pendingRequests.delete(requestId);
     }

@@ -7,8 +7,11 @@ import type { Socket } from "node:net";
  * @param socket The socket connection to process a message from
  * @returns A promise that resolves with the parsed message object.
  */
-export function processCliMessage<T>(socket: Socket): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+export function processCliMessage<MessageType>(
+  socket: Socket,
+  closeOnResolve = false,
+) {
+  return new Promise<MessageType>((resolve, reject) => {
     let buffer = "";
     socket.on("data", (chunk: Buffer) => {
       // Keep accumulating data until we hit a newline,
@@ -21,23 +24,35 @@ export function processCliMessage<T>(socket: Socket): Promise<T> {
       // Remove the trailing newline and reject an empty message.
       const message = buffer.slice(0, -1).trim();
       if (!message) {
-        reject("No message received.");
+        rejectAndDestroy("No message received.");
         return;
       }
 
       try {
-        resolve(JSON.parse(message) as T);
+        const parsed = JSON.parse(message) as MessageType;
+        resolve(parsed);
+
+        if (closeOnResolve) {
+          socket.end();
+        }
       } catch (error) {
-        reject(`Invalid message: ${error.message}.`);
+        rejectAndDestroy(`Invalid message: ${error.message}.`);
       }
     });
 
-    socket.on("end", () => {
+    socket.once("end", () => {
       if (buffer.trim().length === 0) {
-        reject("No message received.");
+        rejectAndDestroy("No message received.");
       }
     });
 
-    socket.on("error", (error: Error) => reject(`Error: ${error.message}.`));
+    socket.once("error", (error: Error) =>
+      rejectAndDestroy(`Error: ${error.message}.`),
+    );
+
+    function rejectAndDestroy(message: string) {
+      socket.destroy();
+      reject(new Error(message));
+    }
   });
 }
