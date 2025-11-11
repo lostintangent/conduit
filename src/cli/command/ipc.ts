@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import net from "node:net";
-import { processCliMessage } from "../shared/cli/protocol";
-import type { CliCommand, CliRequest, CliResponse } from "../shared/cli/types";
+import { processCliMessage } from "../../shared/cli/protocol";
+import type {
+  CliCommand,
+  CliRequest,
+  CliResponse,
+} from "../../shared/cli/types";
+import type { ExtractArgs } from "./index";
 
 // When the main process spawns a terminal, it will expose
 // the ID of the session, and the socket path of the CLI server.
@@ -15,10 +20,10 @@ const sessionId = process.env.CONDUIT_SESSION_ID;
  * @param args Optional arguments for the command.
  * @returns The result from calling the IPC server.
  */
-export async function sendCliCommand<ResultType = undefined>(
-  name: CliCommand["name"],
-  args?: CliCommand["args"],
-) {
+export async function sendCliCommand<
+  Name extends CliCommand["name"],
+  Result = undefined,
+>(name: Name, args?: ExtractArgs<Name>) {
   // Build the CLI request message.
   const command = { name, args } as CliCommand;
   const request = JSON.stringify({
@@ -34,14 +39,11 @@ export async function sendCliCommand<ResultType = undefined>(
   );
 
   // Wait for and process the response from the server.
-  const response = await processCliMessage<CliResponse<ResultType>>(
-    socket,
-    true,
-  );
+  const response = await processCliMessage<CliResponse<Result>>(socket, true);
 
   if (response.error) {
     throw new Error(response.error);
-  } else {
-    return response.result;
   }
+
+  return response.result;
 }

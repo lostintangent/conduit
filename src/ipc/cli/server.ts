@@ -75,9 +75,7 @@ export async function createCliServer(
     // Keep track of the pending request so that we
     // can proxy the response when we get it from the renderer.
     pendingRequests.set(request.requestId, socket);
-    socket.once("close", () => {
-      pendingRequests.delete(request.requestId);
-    });
+    socket.once("close", () => pendingRequests.delete(request.requestId));
 
     sendToRenderer("cli:request", request);
   }
