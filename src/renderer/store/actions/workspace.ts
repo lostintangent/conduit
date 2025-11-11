@@ -8,7 +8,10 @@ const api = window.conduit;
 const store = getDefaultStore();
 
 export async function openWorkspace(workspace: Workspace) {
+  await closeWorkspace();
+
   if (!workspace.tabs || workspace.tabs.length === 0) {
+    store.set(workspaceNameAtom, workspace.name);
     return;
   }
 
@@ -71,11 +74,14 @@ export async function openWorkspace(workspace: Workspace) {
   if (workspaceTabs.length > 0) {
     store.set(tabsAtom, workspaceTabs);
     store.set(activeTabIdAtom, workspace.activeTabId);
-    store.set(workspaceNameAtom, workspace.name);
   }
+
+  store.set(workspaceNameAtom, workspace.name);
 }
 
 export async function closeWorkspace() {
   store.set(workspaceNameAtom, null);
-  store.get(tabsAtom).forEach((tab) => closeTab(tab.id));
+  store
+    .get(tabsAtom)
+    .forEach((tab) => closeTab(tab.id, { openReplacement: false }));
 }

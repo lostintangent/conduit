@@ -1,3 +1,4 @@
+import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import type { PaneDescriptor } from "@/components/shell/QuickDialog";
 import {
   detachPane,
@@ -264,7 +265,12 @@ export function focusTab(tabId: string) {
   store.set(activeTabIdAtom, tabId);
 }
 
-export function closeTab(tabId: string) {
+type CloseTabOptions = {
+  openReplacement?: boolean;
+};
+
+export function closeTab(tabId: string, options: CloseTabOptions = {}) {
+  const { openReplacement = true } = options;
   const sessionsToClose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
@@ -283,6 +289,7 @@ export function closeTab(tabId: string) {
           paneIdsToCleanup.push(pane.id);
 
           if (pane.type === "terminal") {
+            disposeSession(pane.sessionId);
             sessionsToClose.push(pane.sessionId);
           }
         });
@@ -297,7 +304,7 @@ export function closeTab(tabId: string) {
     }
 
     if (next.length === 0) {
-      shouldOpenReplacement = true;
+      shouldOpenReplacement = openReplacement;
       nextActiveTabId = null;
       return [];
     }
