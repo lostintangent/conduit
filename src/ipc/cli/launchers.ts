@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { CLI_COMMAND_NAME } from "../../shared/cli";
+import { CLI_COMMAND_NAME } from "../../shared/cli/types";
 
 function buildCmdLauncher(electronBinary: string, cliPath: string) {
   const escape = (value: string) => value.replace(/"/g, '""');

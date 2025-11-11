@@ -1,5 +1,5 @@
 import { Argument, Command } from "commander";
-import { PANE_MOVE_TARGETS, type PaneMoveTarget } from "../../shared/cli";
+import { PANE_MOVE_TARGETS, type PaneMoveTarget } from "../../shared/cli/types";
 import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "move-pane";

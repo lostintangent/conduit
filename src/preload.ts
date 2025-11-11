@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import packageJson from "../package.json";
-import type { CliRequest, CliResponse } from "./shared/cli";
+import type { CliRequest, CliResponse } from "./shared/cli/types";
 import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,

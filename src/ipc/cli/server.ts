@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import net from "node:net";
-import type { CliRequest, CliResponse } from "../../shared/cli";
+import type { CliRequest, CliResponse } from "../../shared/cli/types";
+import { processCliMessage } from "../../shared/cli/protocol";
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;
 
@@ -36,34 +37,18 @@ export async function createCliServer(
   sendToRenderer: SendToRendererFn,
 ): Promise<CliServer> {
   const server = net.createServer((socket) => {
-    let buffer = "";
-    socket.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString("utf8");
-      if (!buffer.endsWith("\n")) {
-        return;
-      }
-
-      const message = buffer.slice(0, -1).trim();
-      if (!message) {
-        respondWithSocket(socket, {
-          status: "error",
-          message: "Invalid request: empty message.",
-        });
-        return;
-      }
-
-      try {
-        const request = JSON.parse(message) as CliRequest;
+    processCliMessage<CliRequest>(socket)
+      .then((request) => {
         forwardRequestToRenderer(request, socket);
-      } catch (error) {
+      })
+      .catch((reason) => {
+        const message =
+          typeof reason === "string" ? reason : "Invalid message received.";
         respondWithSocket(socket, {
           status: "error",
-          message: `Invalid request: ${error.message}.`,
+          message,
         });
-      }
-    });
-
-    socket.on("error", (error) => console.warn("CLI socket error:", error));
+      });
   });
 
   // Start the server and wait for it to begin listening

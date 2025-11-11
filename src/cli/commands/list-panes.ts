@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { PANE_TYPES, PaneType } from "../../shared/cli";
+import { PANE_TYPES, PaneType } from "../../shared/cli/types";
 import { sendCliRequest } from "../ipc";
 
 const COMMAND_NAME = "list-panes";
