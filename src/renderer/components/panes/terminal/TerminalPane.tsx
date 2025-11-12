@@ -1,19 +1,11 @@
 import { exitFocusMode } from "@/store/actions/focusMode";
-import { forwardPortAndOpen } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
-import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
-import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { extractPortFromMatch } from "@shared/portDetection";
+import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import { useAtomValue, useSetAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
+import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
-import { SandboxIndicator } from "./SandboxIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 import { attach, getOrCreate } from "./xtermCache";
 
@@ -133,12 +125,12 @@ export const TerminalPane = ({
   hideIndividualSandboxIndicator = false,
 }: TerminalPaneProps) => {
   const { showTerminalRuler } = useAtomValue(userSettingsAtom);
-  const tabs = useAtomValue(tabsAtom);
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
+  const linkHandlerRef = useRef<((url: string) => void) | null>(null);
   const applicationModeRef = useRef<ApplicationMode>(applicationMode);
   applicationModeRef.current = applicationMode;
 
@@ -153,58 +145,6 @@ export const TerminalPane = ({
   } | null>(null);
 
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
-  const linkHandlerRef = useRef(onLinkClick);
-  linkHandlerRef.current = onLinkClick;
-
-  // Memoize the current pane and tab lookup
-  const { currentPane, currentTab } = useMemo(() => {
-    for (const tab of tabs) {
-      const pane = tab.panes[paneId];
-      if (pane) {
-        return { currentPane: pane, currentTab: tab };
-      }
-    }
-    return {};
-  }, [tabs, paneId]);
-
-  // This component is specifically for terminal panes, so we can safely cast
-  const terminalPane =
-    currentPane?.type === "terminal" ? currentPane : undefined;
-
-  const agentSessionId = terminalPane?.agentSessionId ?? null;
-  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
-
-  // Use sandbox handlers from the shared hook
-  const {
-    handleCompleteAgentSession: handleCompleteAgentSessionBase,
-    handleDeleteAgentSession: handleDeleteAgentSessionBase,
-    handleForkVM: handleForkVMBase,
-  } = useSandboxHandlers({
-    tabId: currentTab?.id ?? "",
-    paneId,
-  });
-
-  // Wrap the base handlers to check for required values
-  const handleCompleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
-      return;
-    }
-    await handleCompleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, currentTab, handleCompleteAgentSessionBase]);
-
-  const handleDeleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
-      return;
-    }
-    await handleDeleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
-
-  const handleForkVM = useCallback(async () => {
-    if (!vmId || !currentTab) {
-      return;
-    }
-    await handleForkVMBase(vmId);
-  }, [vmId, currentTab, handleForkVMBase]);
 
   const focusTerminal = useCallback(
     () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
@@ -241,32 +181,11 @@ export const TerminalPane = ({
       setNormalMode: () => setApplicationModeRef.current("normal"),
     });
 
-    terminal.setLinkHandler((url: string) => {
-      // Check if this is a localhost/127.0.0.1 URL and we're in a cloud VM
-      if (vmId) {
-        const port = extractPortFromMatch(url);
-
-        if (port && currentTab) {
-          // This is a port reference in a cloud VM - forward it!
-          forwardPortAndOpen(currentTab.id, paneId, vmId, port);
-          return;
-        }
-      }
-
-      // Otherwise, use the default link handler
-      const handler = linkHandlerRef.current;
-      if (handler) {
-        handler(url);
-      } else {
-        api.openExternal(url);
-      }
-    });
-
     return () => {
       detachKeyHandler();
       controller.dispose();
 
-      terminal.setLinkHandler(null);
+      linkHandlerRef.current = null;
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
@@ -330,15 +249,30 @@ export const TerminalPane = ({
         </div>
       )}
 
-      {!hideIndividualSandboxIndicator && (
-        <SandboxIndicator
-          vmId={vmId}
-          agentSessionId={agentSessionId}
-          onCompleteAgentSession={handleCompleteAgentSession}
-          onDeleteAgentSession={handleDeleteAgentSession}
-          onForkVM={vmId ? handleForkVM : undefined}
-        />
-      )}
+      {/* Compute target UI (VM/agent indicators, cloud overlays, port forwarding) */}
+      <ComputeTargetIndicator
+        paneId={paneId}
+        hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}
+        onLinkClick={onLinkClick}
+        setLinkHandler={(handler) => {
+          linkHandlerRef.current = handler;
+          if (terminalRef.current) {
+            terminalRef.current.setLinkHandler(
+              handler ||
+                ((url: string) => {
+                  if (onLinkClick) {
+                    onLinkClick(url);
+                  } else {
+                    api.openExternal(url);
+                  }
+                }),
+            );
+          }
+        }}
+      />
+
+      {/* Cloud terminal SSH connection state overlays */}
+      <CloudTerminalOverlay terminalId={terminalId} paneId={paneId} />
     </div>
   );
 };

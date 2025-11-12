@@ -15,6 +15,11 @@ export type ThemeOverrides = {
   accent?: string;
 };
 
+export type BrowserPage = {
+  url: string;
+  title: string;
+};
+
 export type UserSettings = {
   tabPosition: "top" | "bottom";
   alwaysShowTabs: boolean;
@@ -26,6 +31,7 @@ export type UserSettings = {
   themeOverrides?: ThemeOverrides;
   commandHistory: string[];
   urlHistory: string[];
+  starredPages: BrowserPage[];
   homeDirectory: string | null;
 };
 
@@ -148,6 +154,10 @@ export type TerminalResizePayload = TerminalPayload & {
 
 export type TerminalInputPayload = TerminalPayload & {
   input: string;
+};
+
+export type TerminalSSHStatePayload = TerminalPayload & {
+  state: "connecting" | "connected" | "disconnected";
 };
 
 export type BackgroundCommandRequest = {

@@ -23,8 +23,10 @@ import type {
   TerminalCwdPayload,
   TerminalDataPayload,
   TerminalExitPayload,
+  TerminalSSHStatePayload,
   TerminalTitlePayload,
   TreeChangedEvent,
+  BrowserPage,
   UpdateState,
   UserSettings,
   VMInfo,
@@ -95,6 +97,10 @@ const conduitAPI = {
   // Notify when terminal has exited (e.g. user ran `exit` command or closed shell)
   onExit: (listener: (payload: TerminalExitPayload) => void) =>
     createEventListener("terminal:exit", listener),
+
+  // Notify when SSH connection state changes for cloud terminals
+  onSSHStateChange: (listener: (payload: TerminalSSHStatePayload) => void) =>
+    createEventListener("terminal:ssh-state", listener),
 
   // Notify when user requests a new tab (e.g. via menu or keyboard shortcut)
   onNewTabRequest: (listener: () => void) =>
@@ -191,6 +197,12 @@ const conduitAPI = {
 
   removeUrlFromHistory: (url: string) =>
     ipcRenderer.invoke("ui:remove-url-from-history", url) as Promise<string[]>,
+
+  addStarredPage: (page: BrowserPage) =>
+    ipcRenderer.invoke("ui:add-starred-page", page) as Promise<BrowserPage[]>,
+
+  removeStarredPage: (url: string) =>
+    ipcRenderer.invoke("ui:remove-starred-page", url) as Promise<BrowserPage[]>,
 
   runBackgroundCommand: (options: BackgroundCommandRequest) =>
     ipcRenderer.invoke("ui:run-background-command", options) as Promise<void>,

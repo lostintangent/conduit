@@ -35,6 +35,10 @@ export type CloudEnvironment = {
   imageId: string;
   useSSHKey?: boolean;
 
+  // SSH connection state tracking
+  connectionState: "connecting" | "connected" | "disconnected";
+  connectionStartTime?: number; // Timestamp when connection started (for timeout detection)
+
   // Port forwarding state
   detectedPorts: Set<number>;
   forwardedPorts: Map<number, string>; // port -> connection_url
