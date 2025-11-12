@@ -82,7 +82,7 @@ export function BrowserPane({
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [showStarredList, setShowStarredList] = useState<boolean>(false);
 
-  const isCurrentUrlStarred = starredPages.some(
+  const isCurrentUrlStarred = starredPages?.some(
     (page) => page.url === currentUrl,
   );
 
@@ -108,14 +108,14 @@ export function BrowserPane({
       setIsLoading(webview.isLoading ? webview.isLoading() : false);
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
+      const initialTitle =
+        typeof webview?.getTitle === "function" ? webview.getTitle() : "";
+      setPageTitle(typeof initialTitle === "string" ? initialTitle.trim() : "");
     }
 
     webviewRef.current = webview;
     setCurrentUrl(url);
     setInputUrl(url);
-    const initialTitle =
-      typeof webview?.getTitle === "function" ? webview.getTitle() : "";
-    setPageTitle(typeof initialTitle === "string" ? initialTitle.trim() : "");
 
     // Because the webview is absolutely positioned and scaled
     // while in preview mode, we unfortunately need to implement
@@ -373,7 +373,7 @@ export function BrowserPane({
       return;
     }
 
-    const starredPage = starredPages.find((page) => page.url === currentUrl);
+    const starredPage = starredPages?.find((page) => page.url === currentUrl);
     if (starredPage && starredPage.title !== trimmedTitle) {
       void updateStarredPage({ url: currentUrl, title: trimmedTitle });
     }
@@ -475,14 +475,14 @@ export function BrowserPane({
   ]);
 
   const handleStarredDropdownToggle = useCallback(() => {
-    if (starredPages.length === 0) {
+    if (!starredPages || starredPages.length === 0) {
       setShowStarredList(false);
       return;
     }
 
     setShowStarredList((value) => !value);
     setShowHistory(false);
-  }, [starredPages.length]);
+  }, [starredPages]);
 
   const handleStarredNavigation = useCallback(
     (pageUrl: string) => {
@@ -553,7 +553,7 @@ export function BrowserPane({
               placeholder="Enter URL..."
             />
           </form>
-          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1">
+          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0">
             <button
               ref={starButtonRef}
               type="button"
@@ -580,14 +580,14 @@ export function BrowserPane({
               onMouseDown={(event) => event.preventDefault()}
               onClick={handleStarredDropdownToggle}
               className={`pointer-events-auto p-1 rounded transition-colors ${
-                starredPages.length === 0
+                !starredPages || starredPages.length === 0
                   ? "text-white/40 cursor-not-allowed"
                   : "text-white/70 hover:text-white"
               }`}
               title="Show starred pages"
               aria-haspopup="listbox"
               aria-expanded={showStarredList}
-              disabled={starredPages.length === 0}
+              disabled={!starredPages || starredPages.length === 0}
             >
               <ChevronDown className="w-4 h-4" />
             </button>
@@ -623,7 +623,7 @@ export function BrowserPane({
               ))}
             </div>
           )}
-          {showStarredList && starredPages.length > 0 && (
+          {showStarredList && starredPages && starredPages.length > 0 && (
             <div
               ref={starredDropdownRef}
               className="absolute top-full right-0 mt-1 w-72 bg-surface border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
