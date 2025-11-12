@@ -111,6 +111,9 @@ export const detectGitHubRepoForCloud: PreCommand = {
     "Automatically clones the current GitHub repository into a cloud VM",
 
   run: async (terminalConfig) => {
+    console.log(
+      "[PreCommand] User clicked cloud terminal pane action, starting detection...",
+    );
     const api = window.conduit;
 
     // Determine cwd from config or fallback to home directory
@@ -122,6 +125,9 @@ export const detectGitHubRepoForCloud: PreCommand = {
 
     if (!cwd) {
       // No cwd available - cloud terminal will show dialog
+      console.log(
+        "[PreCommand] No cwd available, will show cloud terminal dialog",
+      );
       return {
         success: true,
         paneOptions: {
@@ -132,6 +138,8 @@ export const detectGitHubRepoForCloud: PreCommand = {
       };
     }
 
+    console.log(`[PreCommand] Detecting GitHub repo in: ${cwd}`);
+
     // Import handler
     const { detectGitHubRepoHandler, buildCloudTerminalResult } = await import(
       "./handlers/cloudTerminalHandler"
@@ -139,6 +147,10 @@ export const detectGitHubRepoForCloud: PreCommand = {
 
     // Detect GitHub repo info
     const result = await detectGitHubRepoHandler(cwd);
+
+    console.log(
+      "[PreCommand] Detection complete, building cloud terminal options",
+    );
 
     // Build cloud terminal options
     return buildCloudTerminalResult(result, true);

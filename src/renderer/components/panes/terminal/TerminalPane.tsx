@@ -1,10 +1,10 @@
+import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { exitFocusMode } from "@/store/actions/focusMode";
-import { forwardPortAndOpen } from "@/store/actions/pane";
+import { closePane, forwardPortAndOpen } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
-import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { extractPortFromMatch } from "@shared/portDetection";
-import { useAtomValue, useSetAtom } from "jotai";
+import { getDefaultStore, useAtomValue, useSetAtom } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -20,6 +20,7 @@ import { attach, getOrCreate } from "./xtermCache";
 import "@xterm/xterm/css/xterm.css";
 
 const api = window.conduit;
+const store = getDefaultStore();
 type TerminalInstance = ReturnType<typeof getOrCreate>;
 
 const registerTerminalKeyHandler = ({
@@ -152,6 +153,13 @@ export const TerminalPane = ({
     height: number;
   } | null>(null);
 
+  const [sshConnectionState, setSSHConnectionState] = useState<
+    "connecting" | "connected" | "disconnected" | null
+  >(null);
+
+  // Track if this is a cloud VM that's still being prepared
+  const [isPreparingCloudVM, setIsPreparingCloudVM] = useState<boolean>(false);
+
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
   const linkHandlerRef = useRef(onLinkClick);
   linkHandlerRef.current = onLinkClick;
@@ -206,6 +214,22 @@ export const TerminalPane = ({
     await handleForkVMBase(vmId);
   }, [vmId, currentTab, handleForkVMBase]);
 
+  // Listen for SSH connection state changes
+  useEffect(() => {
+    const unsubscribe = api.onSSHStateChange((payload) => {
+      if (payload.sessionId === terminalId) {
+        console.log(`[TerminalPane] SSH state changed to: ${payload.state}`);
+        setSSHConnectionState(payload.state);
+        // Once we receive any SSH state, we're no longer in "preparing" phase
+        setIsPreparingCloudVM(false);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [terminalId]);
+
   const focusTerminal = useCallback(
     () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
     [],
@@ -219,9 +243,75 @@ export const TerminalPane = ({
     searchWidgetRef.current?.show(selection ?? "");
   }, []);
 
+  const handleClosePane = useCallback(() => {
+    if (!currentTab) return;
+    console.log("[TerminalPane] Closing pane");
+    closePane(currentTab.id, paneId);
+  }, [currentTab, paneId]);
+
+  const handleReconnect = useCallback(async () => {
+    // Create a new cloud terminal session and update this pane to use it
+    try {
+      console.log("[TerminalPane] Reconnecting - creating new VM session...");
+
+      // Reset state to show preparing overlay
+      setSSHConnectionState(null);
+      setIsPreparingCloudVM(true);
+
+      // Create a new VM terminal session
+      const result = await api.createTerminal({
+        isRemoteVM: true,
+      });
+
+      if (!result) {
+        throw new Error("Failed to create VM terminal");
+      }
+
+      console.log("[TerminalPane] New session created:", result.sessionId);
+
+      // Update the pane to use the new session
+      if (!currentTab) return;
+
+      store.set(tabsAtom, (tabs) =>
+        tabs.map((tab) => {
+          if (tab.id !== currentTab.id) return tab;
+
+          return {
+            ...tab,
+            panes: {
+              ...tab.panes,
+              [paneId]: {
+                ...tab.panes[paneId],
+                sessionId: result.sessionId,
+                vmMetadata: result.vmMetadata ?? undefined,
+                cwd: result.cwd,
+                title: result.title,
+              },
+            },
+          };
+        }),
+      );
+
+      console.log("[TerminalPane] Pane updated with new session");
+
+      // The component will re-render with new terminalId and show the connecting overlay
+    } catch (error) {
+      console.error("[TerminalPane] Failed to reconnect:", error);
+      setIsPreparingCloudVM(false);
+    }
+  }, [currentTab, paneId]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    // If this is a cloud VM and we haven't received any SSH state yet, show preparing overlay
+    if (vmId && sshConnectionState === null) {
+      console.log(
+        "[TerminalPane] Cloud VM detected, showing preparing overlay",
+      );
+      setIsPreparingCloudVM(true);
+    }
 
     const terminal = getOrCreate(terminalId);
     terminalRef.current = terminal;
@@ -338,6 +428,61 @@ export const TerminalPane = ({
           onDeleteAgentSession={handleDeleteAgentSession}
           onForkVM={vmId ? handleForkVM : undefined}
         />
+      )}
+
+      {/* SSH Connection State Overlays */}
+      {isPreparingCloudVM && (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface/95 z-[2000]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+            <div className="text-foreground text-lg font-medium">
+              Preparing cloud workspace...
+            </div>
+            <div className="text-foreground/60 text-sm">
+              Creating VM and setting up environment
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sshConnectionState === "connecting" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface/95 z-[2000]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+            <div className="text-foreground text-lg font-medium">
+              Connecting to cloud workspace...
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sshConnectionState === "disconnected" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface/95 z-[2000]">
+          <div className="flex flex-col items-center gap-6 max-w-md px-8">
+            <div className="text-center">
+              <div className="text-foreground text-xl font-semibold mb-2">
+                Cloud Session Ended
+              </div>
+              <div className="text-foreground/70 text-sm">
+                The SSH connection to the cloud workspace has been closed.
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleReconnect}
+                className="px-6 py-2 bg-accent text-white rounded-md hover:bg-accent/90 transition-colors font-medium"
+              >
+                Reconnect
+              </button>
+              <button
+                onClick={handleClosePane}
+                className="px-6 py-2 bg-foreground/10 text-foreground rounded-md hover:bg-foreground/20 transition-colors font-medium"
+              >
+                Close Pane
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

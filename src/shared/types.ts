@@ -150,6 +150,10 @@ export type TerminalInputPayload = TerminalPayload & {
   input: string;
 };
 
+export type TerminalSSHStatePayload = TerminalPayload & {
+  state: "connecting" | "connected" | "disconnected";
+};
+
 export type BackgroundCommandRequest = {
   command: string;
   args?: string[];

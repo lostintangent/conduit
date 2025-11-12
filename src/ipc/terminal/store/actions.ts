@@ -48,6 +48,12 @@ export async function createTerminal(
   sendToRenderer: SendToRendererFn,
   options?: CreateTerminalOptions,
 ) {
+  console.log("[createTerminal] Function called with options:", {
+    isRemoteVM: options?.isRemoteVM,
+    existingVMId: options?.existingVMId,
+    hasGithubRepo: !!options?.githubRepo,
+  });
+
   const id = randomUUID();
 
   // Check if this should be a remote VM session
@@ -152,6 +158,8 @@ export async function createTerminal(
           sshPort: sshInfo.port,
           imageId: vm.image_id,
           useSSHKey,
+          connectionState: "connecting",
+          connectionStartTime: Date.now(),
           detectedPorts: new Set(),
           forwardedPorts: new Map(),
           localRepoCwd: options.localRepoCwd,
@@ -164,6 +172,12 @@ export async function createTerminal(
 
       storeTerminal(session);
       setupTerminalListeners(session, sendToRenderer);
+
+      // Send initial connecting state to renderer
+      sendToRenderer("terminal:ssh-state", {
+        sessionId: session.id,
+        state: "connecting",
+      });
 
       return session;
     } catch (error) {
@@ -202,6 +216,67 @@ function setupTerminalListeners(
   const { id, pty } = terminal;
 
   pty.onData((data) => {
+    // Handle SSH connection state tracking for cloud terminals
+    if (terminal.cloudEnvironment) {
+      const currentState = terminal.cloudEnvironment.connectionState;
+
+      // Check for successful connection
+      // We use a hybrid approach: check if the SSH process is running AND we see a shell prompt
+      if (currentState === "connecting") {
+        const processName = pty.process;
+        const isSSHRunning = processName === "ssh";
+        const hasShellPrompt =
+          (data.includes("ace@") &&
+            (data.includes("$") || data.includes("#"))) ||
+          data.includes("/workspace");
+
+        // SSH is connected when the ssh process is running AND we see a remote shell prompt
+        if (isSSHRunning && hasShellPrompt) {
+          console.log(
+            "[VM] SSH connection established (ssh process + remote prompt detected)",
+          );
+          terminal.cloudEnvironment.connectionState = "connected";
+          sendToRenderer("terminal:ssh-state", {
+            sessionId: id,
+            state: "connected",
+          });
+
+          // Display welcome banner
+          const welcomeBanner =
+            "\r\n" +
+            "╔═══════════════════════════════════════════════╗\r\n" +
+            "║                                               ║\r\n" +
+            "║       Welcome to GitHub Cloud Sandbox         ║\r\n" +
+            "║                                               ║\r\n" +
+            "╚═══════════════════════════════════════════════╝\r\n" +
+            "\r\n";
+
+          if (terminal.isRendererReady) {
+            sendToRenderer("terminal:data", {
+              sessionId: id,
+              data: welcomeBanner,
+            });
+          } else {
+            terminal.bufferedOutput.push(welcomeBanner);
+          }
+
+          // Now that we're connected, send this data (the prompt) to the terminal
+          if (terminal.isRendererReady) {
+            sendToRenderer("terminal:data", { sessionId: id, data });
+          } else {
+            terminal.bufferedOutput.push(data);
+          }
+          return;
+        }
+
+        // During connection, buffer but don't display output
+        // This hides SSH warnings, Ubuntu banner, etc.
+        console.log("[VM] Buffering connection output:", data.substring(0, 50));
+        return;
+      }
+    }
+
+    // Normal data handling for connected cloud terminals or local terminals
     if (terminal.isRendererReady) {
       sendToRenderer("terminal:data", { sessionId: id, data });
     } else {
@@ -210,8 +285,32 @@ function setupTerminalListeners(
 
     const processName = pty.process;
     if (processName && processName !== terminal.lastProcessName) {
+      const previousProcess = terminal.lastProcessName;
       terminal.lastProcessName = processName;
       sendToRenderer("terminal:title", { sessionId: id, title: processName });
+
+      // For cloud terminals, detect SSH disconnection via process change
+      if (terminal.cloudEnvironment) {
+        const currentState = terminal.cloudEnvironment.connectionState;
+
+        // SSH session ended when process changes from 'ssh' to something else (local shell)
+        // This is more reliable than text parsing
+        if (
+          currentState === "connected" &&
+          previousProcess === "ssh" &&
+          processName !== "ssh"
+        ) {
+          console.log(
+            `[VM] SSH process ended (changed from ssh to ${processName}), terminal disconnected`,
+          );
+
+          terminal.cloudEnvironment.connectionState = "disconnected";
+          sendToRenderer("terminal:ssh-state", {
+            sessionId: id,
+            state: "disconnected",
+          });
+        }
+      }
     }
 
     // Detect ports in terminal output for cloud VMs
@@ -361,13 +460,13 @@ export function markTerminalReady(
     if (terminal.cloudEnvironment.useSSHKey) {
       // Use SSH key authentication with the Conduit key
       const keyPath = getPrivateKeyPath();
-      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
+      sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
       console.log(
         `[VM] Terminal ready, sending SSH command with key: ${sshCommand.trim()}`,
       );
     } else {
       // Use password authentication
-      sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
+      sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
       console.log(
         `[VM] Terminal ready, sending SSH command: ${sshCommand.trim()}`,
       );
