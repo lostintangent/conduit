@@ -572,6 +572,7 @@ export function EditorPane({
               scrollBeyondLastLine: false,
               lineNumbers: "on",
               automaticLayout: true,
+              wordWrap: "on",
             }}
             loading={
               <div className="flex h-full w-full items-center justify-center text-white/70">
