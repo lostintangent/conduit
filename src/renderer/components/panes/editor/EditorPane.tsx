@@ -1,7 +1,7 @@
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
+import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
@@ -16,6 +16,7 @@ import {
   Search,
   Undo,
 } from "lucide-react";
+import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
 import "monaco-editor/esm/vs/basic-languages/python/python.contribution";
@@ -23,10 +24,9 @@ import "monaco-editor/esm/vs/basic-languages/rust/rust.contribution";
 import "monaco-editor/esm/vs/basic-languages/shell/shell.contribution";
 import "monaco-editor/esm/vs/basic-languages/xml/xml.contribution";
 import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution";
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
 import "monaco-editor/esm/vs/editor/contrib/find/browser/findController";
 import "monaco-editor/esm/vs/editor/contrib/find/browser/findWidget.css";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import "monaco-editor/esm/vs/language/css/monaco.contribution";
 import "monaco-editor/esm/vs/language/html/monaco.contribution";
 import "monaco-editor/esm/vs/language/json/monaco.contribution";
@@ -332,11 +332,11 @@ export function EditorPane({
     setIsTreeCollapsed((prev) => !prev);
   }, []);
 
-  // Keyboard shortcuts
+  // Keyboard handlers for save and find
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Cmd/Ctrl+S: Save file
-      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         handleSave();
         return;
@@ -345,7 +345,7 @@ export function EditorPane({
       // Cmd/Ctrl+F: Find in file
       if (
         (event.ctrlKey || event.metaKey) &&
-        event.key === "f" &&
+        event.key.toLowerCase() === "f" &&
         hasOpenFile
       ) {
         event.preventDefault();
