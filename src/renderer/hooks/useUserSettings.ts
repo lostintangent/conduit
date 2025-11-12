@@ -71,6 +71,18 @@ export function useUserSettings() {
     setUserSettings(newSettings);
   }
 
+  async function addStarredPage(
+    page: (typeof userSettings)["starredPages"][number],
+  ) {
+    const starredPages = await api.addStarredPage(page);
+    updateSetting("starredPages", starredPages);
+  }
+
+  async function removeStarredPage(url: string) {
+    const starredPages = await api.removeStarredPage(url);
+    updateSetting("starredPages", starredPages);
+  }
+
   return {
     ...userSettings,
 
@@ -85,5 +97,8 @@ export function useUserSettings() {
     addUrlToHistory: (url: string) => updateUrlHistory(url),
 
     removeUrlFromHistory: (url: string) => removeUrlFromHistory(url),
+
+    addStarredPage,
+    removeStarredPage,
   };
 }

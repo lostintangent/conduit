@@ -10,6 +10,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   alwaysShowTabs: true,
   commandHistory: [],
   urlHistory: [],
+  starredPages: [],
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
   useGradientBorders: true,

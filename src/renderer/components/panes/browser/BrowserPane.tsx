@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StarredPagesMenu } from "./StarredPagesMenu";
 
 const api = window.conduit;
 
@@ -63,10 +64,15 @@ export function BrowserPane({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [inputUrl, setInputUrl] = useState<string>(url);
+  const [pageTitle, setPageTitle] = useState<string>("");
 
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
   const [showHistory, setShowHistory] = useState<boolean>(false);
+
+  const closeDropdowns = useCallback(() => {
+    setShowHistory(false);
+  }, []);
 
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
@@ -90,6 +96,9 @@ export function BrowserPane({
       setIsLoading(webview.isLoading ? webview.isLoading() : false);
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
+      const initialTitle =
+        typeof webview?.getTitle === "function" ? webview.getTitle() : "";
+      setPageTitle(typeof initialTitle === "string" ? initialTitle.trim() : "");
     }
 
     webviewRef.current = webview;
@@ -221,6 +230,9 @@ export function BrowserPane({
     }: DidNavigateEvent | DidNavigateInPageEvent) => {
       setCurrentUrl(url);
       setInputUrl(url);
+      const updatedTitle =
+        typeof webview.getTitle === "function" ? webview.getTitle() : "";
+      setPageTitle(typeof updatedTitle === "string" ? updatedTitle.trim() : "");
 
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
@@ -228,8 +240,11 @@ export function BrowserPane({
       onUrlChange(url);
     };
 
-    const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) =>
+    const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) => {
+      const normalizedTitle = typeof title === "string" ? title.trim() : "";
+      setPageTitle(normalizedTitle);
       onTitleChange(title);
+    };
 
     const handleWebViewContextMenu = (
       event: Event & { params?: ContextMenuParams },
@@ -322,10 +337,10 @@ export function BrowserPane({
     }
 
     addUrlToHistory(targetUrl);
-    setShowHistory(false);
+    closeDropdowns();
 
     webviewRef.current?.loadURL(targetUrl);
-  }, [inputUrl, addUrlToHistory]);
+  }, [inputUrl, addUrlToHistory, closeDropdowns]);
 
   const handleUrlInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -336,20 +351,20 @@ export function BrowserPane({
       // show the MRU history dropdown (if we have any).
       setShowHistory(value.trim().length === 0 && urlHistory.length > 0);
     },
-    [],
+    [urlHistory.length],
   );
 
   const handleUrlInputBlur = useCallback(() => {
     // Reset the input URL to the current URL after a short delay
     setInputUrl(currentUrl);
-    setShowHistory(false);
-  }, [currentUrl]);
+    closeDropdowns();
+  }, [currentUrl, closeDropdowns]);
 
   const handleUrlInputFocus = useCallback(() => {
     if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
       setShowHistory(true);
     }
-  }, [inputUrl, urlHistory]);
+  }, [inputUrl, urlHistory.length]);
 
   const handleHistoryItemClick = useCallback(
     (historyUrl: string) => {
@@ -357,9 +372,9 @@ export function BrowserPane({
       webviewRef.current?.loadURL(historyUrl);
 
       addUrlToHistory(historyUrl);
-      setShowHistory(false);
+      closeDropdowns();
     },
-    [addUrlToHistory],
+    [addUrlToHistory, closeDropdowns],
   );
 
   const handleHistoryItemRemove = useCallback(
@@ -368,6 +383,21 @@ export function BrowserPane({
     },
     [removeUrlFromHistory],
   );
+
+  const handleStarredNavigation = useCallback(
+    (pageUrl: string) => {
+      setInputUrl(pageUrl);
+      webviewRef.current?.loadURL(pageUrl);
+
+      addUrlToHistory(pageUrl);
+      closeDropdowns();
+    },
+    [addUrlToHistory, closeDropdowns],
+  );
+
+  const handleStarredCloseRequest = useCallback(() => {
+    setShowHistory(false);
+  }, []);
 
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-surface">
@@ -415,10 +445,17 @@ export function BrowserPane({
               onChange={handleUrlInputChange}
               onBlur={handleUrlInputBlur}
               onFocus={handleUrlInputFocus}
-              className="flex-1 px-3 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
+              className="flex-1 px-3 pr-20 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
               placeholder="Enter URL..."
             />
           </form>
+          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0">
+            <StarredPagesMenu
+              currentPage={{ url: currentUrl, title: pageTitle }}
+              onPageSelected={handleStarredNavigation}
+              onMenuOpened={handleStarredCloseRequest}
+            />
+          </div>
           {showHistory && urlHistory.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
               {urlHistory.map((historyUrl) => (
