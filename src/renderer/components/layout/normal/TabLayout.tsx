@@ -42,7 +42,13 @@ import type {
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
@@ -254,7 +260,6 @@ export function TabLayout({
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
-  const shouldShowTerminalDimensions = applicationMode === "normal";
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
@@ -264,6 +269,8 @@ export function TabLayout({
 
   const { setLayoutMountPoint, getActiveMountPoint, isTabInPreview } =
     useTabContentPortal();
+
+  const shouldShowTerminalDimensions = applicationMode === "normal";
 
   // In order to mount/unmound the tab content portals, we need a stable ref
   // callback for each tab container. So this is simply a map of tab IDs to ref callbacks.
@@ -298,7 +305,11 @@ export function TabLayout({
   );
 
   const renderPaneNode = useCallback(
-    (node: LayoutPaneNode, tab: Tab, hasUnifiedSandbox: boolean): React.ReactNode => {
+    (
+      node: LayoutPaneNode,
+      tab: Tab,
+      hasUnifiedSandbox: boolean,
+    ): React.ReactNode => {
       const pane = tab.panes[node.paneId];
       if (!pane) {
         return null;
@@ -386,7 +397,7 @@ export function TabLayout({
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
-                showDimensions={shouldShowTerminalDimensions}
+                showDimensions={shouldShowTerminalDimensions && !isInPreview}
                 hideIndividualSandboxIndicator={hasUnifiedSandbox}
               />
             ) : pane.type === "editor" ? (
@@ -516,7 +527,11 @@ export function TabLayout({
     (
       node: LayoutSplitNode,
       tab: Tab,
-      renderChild: (node: LayoutNode, tab: Tab, hasUnifiedSandbox: boolean) => React.ReactNode,
+      renderChild: (
+        node: LayoutNode,
+        tab: Tab,
+        hasUnifiedSandbox: boolean,
+      ) => React.ReactNode,
       hasUnifiedSandbox: boolean,
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
@@ -535,9 +550,11 @@ export function TabLayout({
       // Hide gaps only in focus mode where we want a seamless view
       // Use larger gaps in overview mode to compensate for scaling
       const gridGapClass =
-        applicationMode === "focus" ? "gap-0" :
-        applicationMode === "overview" ? "gap-[3px]" :
-        "gap-[1px]";
+        applicationMode === "focus"
+          ? "gap-0"
+          : applicationMode === "overview"
+            ? "gap-[3px]"
+            : "gap-[1px]";
 
       return (
         /* Render the split container (the grid which positions the child panes) */
@@ -693,7 +710,9 @@ export function TabLayout({
       const unifiedSandbox = getUnifiedSandboxForTab(tab);
       const hasUnifiedSandbox = unifiedSandbox !== null;
 
-      const tabContent = <>{renderLayout(tab.layout, tab, hasUnifiedSandbox)}</>;
+      const tabContent = (
+        <>{renderLayout(tab.layout, tab, hasUnifiedSandbox)}</>
+      );
 
       return (
         <div
