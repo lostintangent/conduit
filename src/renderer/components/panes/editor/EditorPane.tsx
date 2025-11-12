@@ -812,14 +812,17 @@ export function EditorPane({
                       <Search size={14} className="text-white/60" />
                     </button>
                     {!isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Refresh file"
-                      >
-                        <RefreshCw size={14} className="text-white/60" />
-                      </button>
+                      <>
+                        <div className="h-4 w-px bg-white/10 shrink-0" />
+                        <button
+                          type="button"
+                          onClick={handleRefresh}
+                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                          title="Refresh file"
+                        >
+                          <RefreshCw size={14} className="text-white/60" />
+                        </button>
+                      </>
                     )}
                   </>
                 )}
@@ -887,6 +890,7 @@ export function EditorPane({
                     scrollBeyondLastLine: false,
                     lineNumbers: "on",
                     automaticLayout: true,
+                    wordWrap: "on",
                   }}
                   loading={
                     <div className="flex h-full w-full items-center justify-center text-white/70">
@@ -972,14 +976,17 @@ export function EditorPane({
                     <Search size={14} className="text-white/60" />
                   </button>
                   {!isLocked && (
-                    <button
-                      type="button"
-                      onClick={handleRefresh}
-                      className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                      title="Refresh file"
-                    >
-                      <RefreshCw size={14} className="text-white/60" />
-                    </button>
+                    <>
+                      <div className="h-4 w-px bg-white/10 shrink-0" />
+                      <button
+                        type="button"
+                        onClick={handleRefresh}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        title="Refresh file"
+                      >
+                        <RefreshCw size={14} className="text-white/60" />
+                      </button>
+                    </>
                   )}
                 </>
               ) : (
@@ -1059,6 +1066,7 @@ export function EditorPane({
                     scrollBeyondLastLine: false,
                     lineNumbers: "on",
                     automaticLayout: true,
+                    wordWrap: "on",
                   }}
                   loading={
                     <div className="flex h-full w-full items-center justify-center text-white/70">
