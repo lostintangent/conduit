@@ -83,13 +83,6 @@ export function useUserSettings() {
     updateSetting("starredPages", starredPages);
   }
 
-  async function updateStarredPage(
-    page: (typeof userSettings)["starredPages"][number],
-  ) {
-    const starredPages = await api.updateStarredPage(page);
-    updateSetting("starredPages", starredPages);
-  }
-
   return {
     ...userSettings,
 
@@ -107,6 +100,5 @@ export function useUserSettings() {
 
     addStarredPage,
     removeStarredPage,
-    updateStarredPage,
   };
 }

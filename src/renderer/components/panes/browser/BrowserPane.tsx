@@ -59,7 +59,6 @@ export function BrowserPane({
     starredPages = [],
     addStarredPage,
     removeStarredPage,
-    updateStarredPage,
   } = useUserSettings();
   const applicationMode = useAtomValue(applicationModeAtom);
 
@@ -376,20 +375,6 @@ export function BrowserPane({
       setShowStarredList(false);
     }
   }, [hasStarredPages]);
-
-  useEffect(() => {
-    if (!currentUrl) return;
-
-    const trimmedTitle = pageTitle.trim();
-    if (trimmedTitle.length === 0) {
-      return;
-    }
-
-    const starredPage = starredPages.find((page) => page.url === currentUrl);
-    if (starredPage && starredPage.title !== trimmedTitle) {
-      void updateStarredPage({ url: currentUrl, title: trimmedTitle });
-    }
-  }, [currentUrl, pageTitle, starredPages, updateStarredPage]);
 
   /* URL bar handlers */
 

@@ -156,25 +156,6 @@ export function initializeUIHandlers(window: BrowserWindow) {
     return requireUserSettings().starredPages;
   });
 
-  ipcMain.handle("ui:update-starred-page", async (_, page: StarredPage) => {
-    const currentSettings = requireUserSettings();
-    const trimmedUrl = page.url.trim();
-    const title = page.title.trim() || trimmedUrl;
-
-    const updatedPages = currentSettings.starredPages.map((entry) =>
-      entry.url === trimmedUrl ? { ...entry, title } : entry,
-    );
-
-    userSettings = {
-      ...currentSettings,
-      starredPages: updatedPages,
-    };
-
-    await saveSettings(userSettings);
-
-    return requireUserSettings().starredPages;
-  });
-
   ipcMain.handle(
     "ui:remove-command-history-entry",
     async (_, command: string) => {
