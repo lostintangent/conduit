@@ -15,15 +15,14 @@ import { useAtomValue } from "jotai";
 import {
   ArrowLeft,
   ArrowRight,
-  ChevronDown,
   ExternalLink,
   Loader2,
   RefreshCw,
-  Star,
   Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StarredPagesMenu } from "./StarredPagesMenu";
 
 const api = window.conduit;
 
@@ -52,21 +51,12 @@ export function BrowserPane({
   disableInteraction = false,
   isInPreview = false,
 }: BrowserPaneProps) {
-  const {
-    urlHistory,
-    addUrlToHistory,
-    removeUrlFromHistory,
-    starredPages = [],
-    addStarredPage,
-    removeStarredPage,
-  } = useUserSettings();
+  const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
+    useUserSettings();
   const applicationMode = useAtomValue(applicationModeAtom);
 
   const webviewRef = useRef<WebviewTag | null>(null);
   const webviewAnchorRef = useRef<HTMLDivElement | null>(null);
-  const starButtonRef = useRef<HTMLButtonElement | null>(null);
-  const starMenuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const starredDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const previewOverlayRef = useRef<HTMLDivElement | null>(null);
   const isPreviewHoveredRef = useRef(false);
@@ -79,16 +69,9 @@ export function BrowserPane({
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
   const [showHistory, setShowHistory] = useState<boolean>(false);
-  const [showStarredList, setShowStarredList] = useState<boolean>(false);
-
-  const hasStarredPages = starredPages.length > 0;
-  const isCurrentUrlStarred = starredPages.some(
-    (page) => page.url === currentUrl,
-  );
 
   const closeDropdowns = useCallback(() => {
     setShowHistory(false);
-    setShowStarredList(false);
   }, []);
 
   // After the component is mounted, we need to create or attach
@@ -336,46 +319,6 @@ export function BrowserPane({
     );
   }, [applicationMode]);
 
-  useEffect(() => {
-    if (!showStarredList) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        starButtonRef.current?.contains(target) ||
-        starMenuButtonRef.current?.contains(target) ||
-        starredDropdownRef.current?.contains(target)
-      ) {
-        return;
-      }
-
-      setShowStarredList(false);
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showStarredList]);
-
-  useEffect(() => {
-    if (showHistory) {
-      setShowStarredList(false);
-    }
-  }, [showHistory]);
-
-  useEffect(() => {
-    setShowStarredList(false);
-  }, [currentUrl]);
-
-  useEffect(() => {
-    if (!hasStarredPages) {
-      setShowStarredList(false);
-    }
-  }, [hasStarredPages]);
-
   /* URL bar handlers */
 
   const handleUrlSubmit = useCallback(() => {
@@ -407,7 +350,6 @@ export function BrowserPane({
       // If the user cleared the input bar, then
       // show the MRU history dropdown (if we have any).
       setShowHistory(value.trim().length === 0 && urlHistory.length > 0);
-      setShowStarredList(false);
     },
     [urlHistory.length],
   );
@@ -422,7 +364,6 @@ export function BrowserPane({
     if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
       setShowHistory(true);
     }
-    setShowStarredList(false);
   }, [inputUrl, urlHistory.length]);
 
   const handleHistoryItemClick = useCallback(
@@ -443,40 +384,6 @@ export function BrowserPane({
     [removeUrlFromHistory],
   );
 
-  const handleToggleStar = useCallback(() => {
-    if (!currentUrl) {
-      return;
-    }
-
-    if (isCurrentUrlStarred) {
-      void removeStarredPage(currentUrl);
-    } else {
-      const trimmedTitle = pageTitle.trim();
-      void addStarredPage({
-        url: currentUrl,
-        title: trimmedTitle.length > 0 ? trimmedTitle : currentUrl,
-      });
-    }
-
-    closeDropdowns();
-  }, [
-    currentUrl,
-    isCurrentUrlStarred,
-    pageTitle,
-    addStarredPage,
-    removeStarredPage,
-    closeDropdowns,
-  ]);
-
-  const handleStarredDropdownToggle = useCallback(() => {
-    if (!hasStarredPages) {
-      return;
-    }
-
-    setShowStarredList((value) => !value);
-    setShowHistory(false);
-  }, [hasStarredPages]);
-
   const handleStarredNavigation = useCallback(
     (pageUrl: string) => {
       setInputUrl(pageUrl);
@@ -488,12 +395,9 @@ export function BrowserPane({
     [addUrlToHistory, closeDropdowns],
   );
 
-  const handleStarredRemove = useCallback(
-    (pageUrl: string) => {
-      void removeStarredPage(pageUrl);
-    },
-    [removeStarredPage],
-  );
+  const handleStarredCloseRequest = useCallback(() => {
+    setShowHistory(false);
+  }, []);
 
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-surface">
@@ -546,43 +450,12 @@ export function BrowserPane({
             />
           </form>
           <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0">
-            <button
-              ref={starButtonRef}
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={handleToggleStar}
-              className={`pointer-events-auto p-1 rounded transition-colors ${
-                isCurrentUrlStarred
-                  ? "text-yellow-400 hover:text-yellow-300"
-                  : "text-white/70 hover:text-white"
-              }`}
-              aria-pressed={isCurrentUrlStarred}
-              title={
-                isCurrentUrlStarred ? "Unstar this page" : "Star this page"
-              }
-            >
-              <Star
-                className="w-4 h-4"
-                fill={isCurrentUrlStarred ? "currentColor" : "none"}
-              />
-            </button>
-            <button
-              ref={starMenuButtonRef}
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={handleStarredDropdownToggle}
-              className={`pointer-events-auto p-1 rounded transition-colors ${
-                !hasStarredPages
-                  ? "text-white/40 cursor-not-allowed"
-                  : "text-white/70 hover:text-white"
-              }`}
-              title="Show starred pages"
-              aria-haspopup="listbox"
-              aria-expanded={showStarredList}
-              disabled={!hasStarredPages}
-            >
-              <ChevronDown className="w-4 h-4" />
-            </button>
+            <StarredPagesMenu
+              currentUrl={currentUrl}
+              pageTitle={pageTitle}
+              onNavigate={handleStarredNavigation}
+              onCloseRequest={handleStarredCloseRequest}
+            />
           </div>
           {showHistory && urlHistory.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
@@ -613,52 +486,6 @@ export function BrowserPane({
                   </button>
                 </div>
               ))}
-            </div>
-          )}
-          {showStarredList && hasStarredPages && (
-            <div
-              ref={starredDropdownRef}
-              className="absolute top-full right-0 mt-1 w-72 bg-surface border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
-              role="listbox"
-            >
-              {starredPages.map((page) => {
-                const displayTitle = page.title?.trim().length
-                  ? page.title
-                  : page.url;
-                return (
-                  <div
-                    key={page.url}
-                    className="group flex items-center border-b border-white/5 last:border-b-0 hover:bg-white/10 transition"
-                  >
-                    <button
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => handleStarredNavigation(page.url)}
-                      className="flex-1 px-3 py-2 text-left text-white transition overflow-hidden"
-                      role="option"
-                    >
-                      <span className="block text-sm truncate">
-                        {displayTitle}
-                      </span>
-                      <span className="block text-xs text-white/50 truncate">
-                        {page.url}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleStarredRemove(page.url);
-                      }}
-                      className="px-2 py-2 text-yellow-400 hover:text-yellow-300 transition"
-                      aria-label="Unstar this page"
-                    >
-                      <Star className="w-4 h-4" fill="currentColor" />
-                    </button>
-                  </div>
-                );
-              })}
             </div>
           )}
         </div>
