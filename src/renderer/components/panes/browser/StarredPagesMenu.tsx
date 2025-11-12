@@ -1,19 +1,18 @@
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { StarredPage } from "@/shared/types";
 import { ChevronDown, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type StarredPagesMenuProps = {
-  currentUrl: string;
-  pageTitle: string;
-  onNavigate: (url: string) => void;
-  onCloseRequest?: () => void;
+  currentPage: StarredPage;
+  onPageSelected: (url: string) => void;
+  onMenuOpened?: () => void;
 };
 
 export function StarredPagesMenu({
-  currentUrl,
-  pageTitle,
-  onNavigate,
-  onCloseRequest,
+  currentPage,
+  onPageSelected,
+  onMenuOpened,
 }: StarredPagesMenuProps) {
   const {
     starredPages = [],
@@ -29,7 +28,7 @@ export function StarredPagesMenu({
 
   const hasStarredPages = starredPages.length > 0;
   const isCurrentUrlStarred = starredPages.some(
-    (page) => page.url === currentUrl,
+    (page) => page.url === currentPage.url,
   );
 
   useEffect(() => {
@@ -58,7 +57,7 @@ export function StarredPagesMenu({
 
   useEffect(() => {
     setShowStarredList(false);
-  }, [currentUrl]);
+  }, [currentPage.url]);
 
   useEffect(() => {
     if (!hasStarredPages) {
@@ -67,31 +66,31 @@ export function StarredPagesMenu({
   }, [hasStarredPages]);
 
   useEffect(() => {
-    if (showStarredList && onCloseRequest) {
-      onCloseRequest();
+    if (showStarredList && onMenuOpened) {
+      onMenuOpened();
     }
-  }, [showStarredList, onCloseRequest]);
+  }, [showStarredList, onMenuOpened]);
 
   const handleToggleStar = useCallback(() => {
-    if (!currentUrl) {
+    if (!currentPage.url) {
       return;
     }
 
     if (isCurrentUrlStarred) {
-      void removeStarredPage(currentUrl);
+      void removeStarredPage(currentPage.url);
     } else {
-      const trimmedTitle = pageTitle.trim();
+      const trimmedTitle = currentPage.title.trim();
       void addStarredPage({
-        url: currentUrl,
-        title: trimmedTitle.length > 0 ? trimmedTitle : currentUrl,
+        url: currentPage.url,
+        title: trimmedTitle.length > 0 ? trimmedTitle : currentPage.url,
       });
     }
 
     setShowStarredList(false);
   }, [
-    currentUrl,
+    currentPage.url,
+    currentPage.title,
     isCurrentUrlStarred,
-    pageTitle,
     addStarredPage,
     removeStarredPage,
   ]);
@@ -106,10 +105,10 @@ export function StarredPagesMenu({
 
   const handleStarredNavigation = useCallback(
     (pageUrl: string) => {
-      onNavigate(pageUrl);
+      onPageSelected(pageUrl);
       setShowStarredList(false);
     },
-    [onNavigate],
+    [onPageSelected],
   );
 
   const handleStarredRemove = useCallback(
