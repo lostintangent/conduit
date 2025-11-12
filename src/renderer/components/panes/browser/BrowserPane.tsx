@@ -451,10 +451,9 @@ export function BrowserPane({
           </form>
           <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0">
             <StarredPagesMenu
-              currentUrl={currentUrl}
-              pageTitle={pageTitle}
-              onNavigate={handleStarredNavigation}
-              onCloseRequest={handleStarredCloseRequest}
+              currentPage={{ url: currentUrl, title: pageTitle }}
+              onPageSelected={handleStarredNavigation}
+              onMenuOpened={handleStarredCloseRequest}
             />
           </div>
           {showHistory && urlHistory.length > 0 && (
