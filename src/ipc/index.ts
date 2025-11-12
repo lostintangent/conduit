@@ -1,6 +1,7 @@
 import { BrowserWindow } from "electron";
 import { initializeAgentHandlers } from "./agent";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
+import { initializeFileWatcherHandlers } from "./fileWatcher";
 import { initializeFsHandlers } from "./fs";
 import {
   cleanupTerminalSessions,
@@ -25,6 +26,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeWorkspaceHandlers(refreshMenu);
   initializeUIHandlers(window);
   initializeFsHandlers();
+  initializeFileWatcherHandlers();
   initializeAgentHandlers();
   initializeVMHandlers();
 

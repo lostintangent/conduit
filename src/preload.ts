@@ -11,6 +11,8 @@ import type {
   BackgroundCommandRequest,
   CreateVMPayload,
   DeleteVMPayload,
+  FileChangedEvent,
+  FileRenamedEvent,
   FileTreeNode,
   ForkVMPayload,
   ForwardPortResponse,
@@ -23,6 +25,7 @@ import type {
   TerminalExitPayload,
   TerminalSSHStatePayload,
   TerminalTitlePayload,
+  TreeChangedEvent,
   BrowserPage,
   UpdateState,
   UserSettings,
@@ -346,6 +349,43 @@ const conduitAPI = {
 
   deleteFile: (filePath: string) =>
     ipcRenderer.invoke("fs:delete-file", filePath) as Promise<void>,
+
+  fileExists: (filePath: string) =>
+    ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,
+
+  /* File watcher methods (UI->main) */
+
+  subscribeFileWatcher: (cwd: string, paneId: string) =>
+    ipcRenderer.invoke("file-watcher:subscribe", cwd, paneId) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
+
+  unsubscribeFileWatcher: (cwd: string, paneId: string) =>
+    ipcRenderer.invoke("file-watcher:unsubscribe", cwd, paneId) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
+
+  onFileChanged: (listener: (payload: FileChangedEvent) => void) =>
+    createEventListener<FileChangedEvent>(
+      "file-watcher:file-changed",
+      listener,
+    ),
+
+  onFileRenamed: (listener: (payload: FileRenamedEvent) => void) =>
+    createEventListener<FileRenamedEvent>(
+      "file-watcher:file-renamed",
+      listener,
+    ),
+
+  onTreeChanged: (listener: (payload: TreeChangedEvent) => void) =>
+    createEventListener<TreeChangedEvent>(
+      "file-watcher:tree-changed",
+      listener,
+    ),
+
+  /* Legacy file watcher (deprecated - use file watcher methods above) */
 
   watchFile: (filePath: string, onChange: () => void) => {
     const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;

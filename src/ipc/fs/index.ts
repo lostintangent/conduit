@@ -96,4 +96,13 @@ export function initializeFsHandlers() {
       fileWatchers.delete(watcherId);
     }
   });
+
+  ipcMain.handle("fs:file-exists", async (_, filePath: string) => {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  });
 }

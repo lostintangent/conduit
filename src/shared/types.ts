@@ -207,6 +207,27 @@ export type FileTreeNode = {
   children?: FileTreeNode[];
 };
 
+/* File watcher event payloads */
+
+export type FileChangedEvent = {
+  cwd: string;
+  filePath: string;
+  relativePath: string;
+  eventType: "changed" | "deleted";
+};
+
+export type TreeChangedEvent = {
+  cwd: string;
+};
+
+export type FileRenamedEvent = {
+  cwd: string;
+  oldPath: string;
+  newPath: string;
+  oldRelativePath: string;
+  newRelativePath: string;
+};
+
 /* VM IPC payloads */
 
 export type CreateVMPayload = {
