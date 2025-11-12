@@ -187,6 +187,13 @@ export function EditorPane({
   const [activeView, setActiveView] = useState<"tree" | "editor">("tree");
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
+  // File watcher state
+  const [externallyModified, setExternallyModified] = useState(false);
+  const [externallyDeleted, setExternallyDeleted] = useState(false);
+  const [showExternalChangeWarning, setShowExternalChangeWarning] =
+    useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
 
@@ -305,15 +312,83 @@ export function EditorPane({
       return;
     }
 
+    // Check if file was externally modified before saving
+    if (externallyModified && !externallyDeleted) {
+      try {
+        const diskContent = await api.readFile(filePath);
+        // If disk content differs from what we last read, show warning
+        if (diskContent !== originalContent) {
+          setShowExternalChangeWarning(true);
+          return; // Don't save yet
+        }
+      } catch (error) {
+        console.error("Failed to check file before save:", error);
+      }
+    }
+
     try {
       await api.writeFile(filePath, currentContent);
       setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
+      setExternallyModified(false);
+      setExternallyDeleted(false);
+      setShowExternalChangeWarning(false);
       onSave?.();
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, currentContent, hasUnsavedChanges, onSave]);
+  }, [
+    filePath,
+    currentContent,
+    hasUnsavedChanges,
+    externallyModified,
+    externallyDeleted,
+    originalContent,
+    onSave,
+  ]);
+
+  // Handler to reload file from disk (discard local changes)
+  const handleReloadFromDisk = useCallback(async () => {
+    if (!filePath) {
+      return;
+    }
+
+    try {
+      const content = await api.readFile(filePath);
+      setCurrentContent(content);
+      setOriginalContent(content);
+      setHasUnsavedChanges(false);
+      setExternallyModified(false);
+      setExternallyDeleted(false);
+      setShowExternalChangeWarning(false);
+    } catch (error) {
+      console.error("Failed to reload file:", error);
+    }
+  }, [filePath]);
+
+  // Handler to dismiss warning and keep local changes
+  const handleDismissWarning = useCallback(() => {
+    setShowExternalChangeWarning(false);
+  }, []);
+
+  // Handler to save and overwrite external changes
+  const handleSaveAnyway = useCallback(async () => {
+    if (!filePath || currentContent === undefined) {
+      return;
+    }
+
+    try {
+      await api.writeFile(filePath, currentContent);
+      setOriginalContent(currentContent);
+      setHasUnsavedChanges(false);
+      setExternallyModified(false);
+      setExternallyDeleted(false);
+      setShowExternalChangeWarning(false);
+      onSave?.();
+    } catch (error) {
+      console.error("Failed to save file:", error);
+    }
+  }, [filePath, currentContent, onSave]);
 
   // Find handler
   const handleFind = useCallback(() => {
@@ -485,6 +560,210 @@ export function EditorPane({
       cancelled = true;
     };
   }, [cwd, hasOpenFile, layoutMode]);
+
+  // File watcher subscription lifecycle
+  useEffect(() => {
+    if (!cwd) {
+      return;
+    }
+
+    // Subscribe to file watcher
+    console.log(
+      `[EditorPane] Subscribing to file watcher: paneId=${paneId}, cwd=${cwd}`,
+    );
+    api.subscribeFileWatcher(cwd, paneId).catch((error) => {
+      console.error("[EditorPane] Failed to subscribe to file watcher:", error);
+    });
+
+    // Set up event listeners
+    const removeFileChangedListener = api.onFileChanged((payload) => {
+      // Only handle events for this cwd
+      if (payload.cwd !== cwd) {
+        return;
+      }
+
+      // Check if this is the currently open file
+      if (filePath && payload.filePath === filePath) {
+        console.log(
+          `[EditorPane] File changed event: ${payload.relativePath}, type=${payload.eventType}`,
+        );
+
+        if (payload.eventType === "deleted") {
+          console.log(
+            `[EditorPane] File deleted externally: ${payload.relativePath}`,
+          );
+          // Clear any pending debounce timer
+          if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+          }
+          setExternallyDeleted(true);
+          setShowExternalChangeWarning(true);
+        } else if (payload.eventType === "changed") {
+          console.log(
+            `[EditorPane] File modified externally: ${payload.relativePath}`,
+          );
+          setExternallyModified(true);
+
+          // Debounce rapid changes (100ms)
+          if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+          }
+
+          debounceTimerRef.current = setTimeout(() => {
+            debounceTimerRef.current = null;
+
+            // Check if file still exists before reading
+            api
+              .fileExists(filePath)
+              .then((exists) => {
+                if (!exists) {
+                  // File was deleted during debounce
+                  setExternallyDeleted(true);
+                  setExternallyModified(false);
+                  setShowExternalChangeWarning(true);
+                  return;
+                }
+
+                // If editor has no unsaved changes, auto-reload
+                if (!hasUnsavedChanges) {
+                  console.log(
+                    `[EditorPane] Auto-reloading file (clean editor): ${filePath}`,
+                  );
+                  api
+                    .readFile(filePath)
+                    .then((content) => {
+                      console.log(
+                        `[EditorPane] File reloaded successfully: ${filePath}`,
+                      );
+                      setCurrentContent(content);
+                      setOriginalContent(content);
+                      setExternallyModified(false);
+                      // If file was previously deleted but now exists, clear deletion flag
+                      setExternallyDeleted(false);
+                    })
+                    .catch((error) => {
+                      console.error(
+                        "[EditorPane] Failed to reload file:",
+                        error,
+                      );
+                      // If read fails, file might have been deleted
+                      api.fileExists(filePath).then((stillExists) => {
+                        if (!stillExists) {
+                          setExternallyDeleted(true);
+                          setShowExternalChangeWarning(true);
+                        }
+                      });
+                    });
+                } else {
+                  // Editor has unsaved changes, show warning
+                  console.log(
+                    `[EditorPane] Showing warning (dirty editor): ${filePath}`,
+                  );
+                  setShowExternalChangeWarning(true);
+                }
+              })
+              .catch((error) => {
+                console.error("Failed to check file existence:", error);
+              });
+          }, 100);
+        }
+      }
+    });
+
+    const removeFileRenamedListener = api.onFileRenamed((payload) => {
+      // Only handle events for this cwd
+      if (payload.cwd !== cwd) {
+        return;
+      }
+
+      // Check if the currently open file was renamed
+      if (filePath && payload.oldPath === filePath) {
+        console.log(
+          `[EditorPane] File renamed: ${payload.oldRelativePath} → ${payload.newRelativePath}`,
+        );
+
+        // Update the file path without losing content or state
+        onFileChange?.({
+          filePath: payload.newPath,
+          language: inferLanguageFromFilePath(payload.newPath),
+          content: currentContent, // Keep existing content
+        });
+
+        // Clear any external modification warnings
+        setExternallyModified(false);
+        setExternallyDeleted(false);
+        setShowExternalChangeWarning(false);
+
+        console.log(
+          `[EditorPane] Editor updated to track renamed file: ${payload.newPath}`,
+        );
+      }
+    });
+
+    const removeTreeChangedListener = api.onTreeChanged((payload) => {
+      // Only handle events for this cwd
+      if (payload.cwd !== cwd) {
+        return;
+      }
+
+      console.log(`[EditorPane] Tree changed event received for cwd=${cwd}`);
+
+      // Refresh the file tree
+      api
+        .listDirectory(cwd)
+        .then((tree) => {
+          console.log(
+            `[EditorPane] File tree refreshed successfully for cwd=${cwd}`,
+          );
+          setFileTree(tree);
+          fileTreeCache.set(cwd, tree);
+        })
+        .catch((error) => {
+          console.error("[EditorPane] Failed to refresh file tree:", error);
+        });
+    });
+
+    // Cleanup on unmount or cwd change
+    return () => {
+      console.log(
+        `[EditorPane] Cleaning up file watcher subscription: paneId=${paneId}, cwd=${cwd}`,
+      );
+
+      // Clear debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+
+      // Unsubscribe from file watcher
+      api.unsubscribeFileWatcher(cwd, paneId).catch((error) => {
+        console.error(
+          "[EditorPane] Failed to unsubscribe from file watcher:",
+          error,
+        );
+      });
+
+      // Remove event listeners
+      removeFileChangedListener();
+      removeFileRenamedListener();
+      removeTreeChangedListener();
+    };
+  }, [cwd, paneId, filePath, hasUnsavedChanges]);
+
+  // Clear external modification flags when switching files
+  useEffect(() => {
+    // Clear flags when filePath changes (user opened a different file)
+    setExternallyModified(false);
+    setExternallyDeleted(false);
+    setShowExternalChangeWarning(false);
+
+    // Clear any pending debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+  }, [filePath]);
 
   const handleFileSelect = useCallback(
     async (node: FileTreeNode) => {
@@ -830,6 +1109,52 @@ export function EditorPane({
             </div>
           </div>
 
+          {/* Warning banner for external modifications */}
+          {showExternalChangeWarning && hasOpenFile && (
+            <div className="bg-[var(--color-warning-bg)] border-b border-[var(--color-warning-border)] px-3 py-2">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-[var(--color-warning-text)] pr-1">
+                  {externallyDeleted ? (
+                    <span>
+                      This file was deleted externally. Your unsaved changes
+                      will be lost unless you save to recreate the file.
+                    </span>
+                  ) : (
+                    <span>
+                      This file was modified externally and you have unsaved
+                      changes. Choose an action below.
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {!externallyDeleted && (
+                    <button
+                      type="button"
+                      onClick={handleReloadFromDisk}
+                      className="px-3 py-1 text-xs rounded bg-[var(--color-warning-button)] hover:bg-[var(--color-warning-button-hover)] text-white transition-colors"
+                    >
+                      Reload from disk
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveAnyway}
+                    className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                  >
+                    {externallyDeleted ? "Save anyway" : "Keep my changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDismissWarning}
+                    className="px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20 text-[var(--color-foreground)] transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Content row */}
           <div className="flex flex-1 min-h-0 min-w-0">
             {/* Tree section */}
@@ -1018,6 +1343,53 @@ export function EditorPane({
               )}
             </div>
           </div>
+
+          {/* Warning banner for external modifications */}
+          {showExternalChangeWarning && hasOpenFile && (
+            <div className="bg-[var(--color-warning-bg)] border-b border-[var(--color-warning-border)] px-3 py-2">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-[var(--color-warning-text)] pr-1">
+                  {externallyDeleted ? (
+                    <span>
+                      This file was deleted externally. Your unsaved changes
+                      will be lost unless you save to recreate the file.
+                    </span>
+                  ) : (
+                    <span>
+                      This file was modified externally and you have unsaved
+                      changes. Choose an action below.
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {!externallyDeleted && (
+                    <button
+                      type="button"
+                      onClick={handleReloadFromDisk}
+                      className="px-3 py-1 text-xs rounded bg-[var(--color-warning-button)] hover:bg-[var(--color-warning-button-hover)] text-white transition-colors"
+                    >
+                      Reload from disk
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveAnyway}
+                    className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                  >
+                    {externallyDeleted ? "Save anyway" : "Keep my changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDismissWarning}
+                    className="px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20 text-[var(--color-foreground)] transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-1 min-h-0 min-w-0 relative overflow-hidden">
             {/* Tree view */}
             <div

@@ -69,6 +69,11 @@
   --color-secondary-end: #06b6d4;
   --color-focus-ring: rgba(63, 140, 255, 0.6);
   --color-blueprint: rgba(59, 130, 246, 1);
+  --color-warning-bg: rgba(234, 179, 8, 0.2);
+  --color-warning-border: rgba(234, 179, 8, 0.5);
+  --color-warning-text: #fde047;
+  --color-warning-button: #ca8a04;
+  --color-warning-button-hover: #a16207;
 }
 
 :root {
@@ -131,6 +136,11 @@
   --color-secondary-end: #06b6d4;
   --color-focus-ring: rgba(59, 130, 246, 0.5);
   --color-blueprint: rgba(59, 130, 246, 1);
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-warning-border: rgba(245, 158, 11, 0.4);
+  --color-warning-text: #d97706;
+  --color-warning-button: #f59e0b;
+  --color-warning-button-hover: #d97706;
 
   --background: 0 0% 98%;
   --foreground: 0 0% 9%;
