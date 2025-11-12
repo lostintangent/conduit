@@ -1,19 +1,20 @@
 import { ipcMain } from "electron";
 import type {
-    CreateVMPayload,
-    DeleteVMPayload,
-    ForkVMPayload,
-    ListVMsPayload,
+  CreateVMPayload,
+  DeleteVMPayload,
+  ForkVMPayload,
+  ListVMsPayload,
 } from "../../shared/types";
 import {
-    applyDiffToVM,
-    createVM as createVMClient,
-    deleteVM as deleteVMClient,
-    executeInVM,
-    forkVM as forkVMClient,
-    getVM as getVMClient,
-    listVMs as listVMsClient,
-    reloadConfig,
+  applyDiffToVM,
+  configureVMForGitPush,
+  createVM as createVMClient,
+  deleteVM as deleteVMClient,
+  executeInVM,
+  forkVM as forkVMClient,
+  getVM as getVMClient,
+  listVMs as listVMsClient,
+  reloadConfig,
 } from "./client";
 
 /**
@@ -64,9 +65,23 @@ export function initializeVMHandlers() {
         command,
         args,
         timeoutSeconds,
-      }: { vmId: string; command: string; args?: string[]; timeoutSeconds?: number },
+      }: {
+        vmId: string;
+        command: string;
+        args?: string[];
+        timeoutSeconds?: number;
+      },
     ) => {
       return await executeInVM(vmId, command, args, timeoutSeconds);
+    },
+  );
+
+  // Apply commit bundle to VM
+  // Configure VM to accept git pushes
+  ipcMain.handle(
+    "vm:configure-git-push",
+    async (_, { vmId, repoPath }: { vmId: string; repoPath: string }) => {
+      return await configureVMForGitPush(vmId, repoPath);
     },
   );
 

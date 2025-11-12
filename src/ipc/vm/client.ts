@@ -303,25 +303,73 @@ export async function executeInVM(
   command: string,
   args?: string[],
   timeoutSeconds = 30,
-): Promise<{ exit_code: number; stdout: string; stderr: string; error?: string }> {
+): Promise<{
+  exit_code: number;
+  stdout: string;
+  stderr: string;
+  error?: string;
+}> {
   const payload = {
     command,
     args: args || [],
     timeout_seconds: timeoutSeconds,
   };
 
-  return apiCall<{ exit_code: number; stdout: string; stderr: string; error?: string }>(
-    `/vms/${vmId}/exec`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
+  return apiCall<{
+    exit_code: number;
+    stdout: string;
+    stderr: string;
+    error?: string;
+  }>(`/vms/${vmId}/exec`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Configure git repository on VM to accept pushes to checked-out branch
+ * This allows direct git push via SSH instead of using bundles
+ *
+ * @param vmId - VM identifier
+ * @param repoPath - Path to the repository in the VM (default: /workspace)
+ * @returns Result indicating success/failure
+ */
+export async function configureVMForGitPush(
+  vmId: string,
+  repoPath = "/workspace",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log(`[VM] Configuring ${repoPath} to accept git pushes...`);
+
+    // Set receive.denyCurrentBranch to updateInstead
+    // This allows pushing to the currently checked-out branch and updates the working directory
+    const configCommand = `cd ${repoPath} && git config receive.denyCurrentBranch updateInstead`;
+
+    const result = await executeInVM(vmId, "bash", ["-c", configCommand], 30);
+
+    if (result.exit_code !== 0) {
+      console.error(`[VM] Failed to configure git:`, result.stderr);
+      return {
+        success: false,
+        error: result.stderr || result.error || "Unknown error configuring git",
+      };
+    }
+
+    console.log(`[VM] Git repository configured to accept pushes`);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[VM] Error configuring git for push:`, errorMessage);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
 }
 
 /**
  * Transfer a diff patch to a VM and apply it to the repository
- * 
+ *
  * @param vmId - VM identifier
  * @param diffPatch - The git diff patch as Buffer
  * @param repoPath - Path to the repository in the VM (usually ~/repo_name)
@@ -340,40 +388,47 @@ export async function applyDiffToVM(
 
     // IMPORTANT: When passed through IPC, Buffer becomes Uint8Array
     // We need to convert it back to a proper Buffer
-    const patchBuffer = Buffer.isBuffer(diffPatch) 
-      ? diffPatch 
+    const patchBuffer = Buffer.isBuffer(diffPatch)
+      ? diffPatch
       : Buffer.from(diffPatch);
 
     // Step 1: Write the patch file using the files/write API endpoint
     // Write to /tmp with world-readable permissions
     const patchPath = "/tmp/conduit.patch";
-    
+
     // Convert Buffer to base64 string - MUST ensure it's a string, not Buffer!
     const patchBase64 = patchBuffer.toString("base64");
     console.log(`[VM] Base64 type: ${typeof patchBase64}`);
     console.log(`[VM] Base64 encoded size: ${patchBase64.length} characters`);
-    console.log(`[VM] Base64 sample (first 50 chars): ${patchBase64.slice(0, 50)}`);
-    
+    console.log(
+      `[VM] Base64 sample (first 50 chars): ${patchBase64.slice(0, 50)}`,
+    );
+
     const requestBody = {
       path: patchPath,
       content: patchBase64,
-      mode: 0o666,  // Make file readable/writable by everyone
+      mode: 0o666, // Make file readable/writable by everyone
       create_dirs: false,
     };
-    
-    console.log(`[VM] Content in requestBody type: ${typeof requestBody.content}`);
-    
+
+    console.log(
+      `[VM] Content in requestBody type: ${typeof requestBody.content}`,
+    );
+
     const jsonBody = JSON.stringify(requestBody);
     console.log(`[VM] Request body size: ${jsonBody.length} bytes`);
-    console.log(`[VM] Request body sample (first 200 chars): ${jsonBody.slice(0, 200)}`);
-    
-    const writeResponse = await apiCall<{ success: boolean; error?: string; message: string }>(
-      `/vms/${vmId}/files/write`,
-      {
-        method: "POST",
-        body: jsonBody,
-      }
+    console.log(
+      `[VM] Request body sample (first 200 chars): ${jsonBody.slice(0, 200)}`,
     );
+
+    const writeResponse = await apiCall<{
+      success: boolean;
+      error?: string;
+      message: string;
+    }>(`/vms/${vmId}/files/write`, {
+      method: "POST",
+      body: jsonBody,
+    });
 
     if (!writeResponse.success) {
       console.error(`[VM] Failed to write patch file:`, writeResponse.error);

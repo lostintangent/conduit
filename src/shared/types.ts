@@ -89,11 +89,19 @@ export interface CloudTerminalOptions {
     owner: string;
     name: string;
     branch?: string;
+    branchExistsOnRemote?: boolean; // If false, VM will clone default branch first
+    defaultBranch?: string; // Fallback branch if current branch doesn't exist on remote
   };
 
   /**
-   * Git diff patch to apply to the repository after cloning
-   * This allows syncing local changes to the VM without pushing to remote
+   * Local repository working directory path
+   * Used to push commits via SSH after VM is created
+   */
+  localRepoCwd?: string;
+
+  /**
+   * Git diff patch for working tree changes (staged/unstaged/untracked)
+   * Applied after commits are pushed to sync uncommitted changes to VM
    */
   diffPatch?: Buffer;
 }

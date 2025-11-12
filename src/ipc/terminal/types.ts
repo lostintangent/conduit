@@ -39,9 +39,11 @@ export type CloudEnvironment = {
   detectedPorts: Set<number>;
   forwardedPorts: Map<number, string>; // port -> connection_url
 
-  // Diff patch to apply after repo clone (if githubRepo was provided)
-  diffPatch?: Buffer;
+  localRepoCwd?: string; // Local repo path for SSH push
+  diffPatch?: Buffer; // Working tree changes (staged/unstaged/untracked)
   repoName?: string; // Repository name for determining clone path
+  localBranch?: string; // Local branch name (may not exist on remote)
+  branchExistsOnRemote?: boolean; // Whether local branch exists on remote
 };
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;

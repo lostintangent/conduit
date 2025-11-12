@@ -79,7 +79,11 @@ export async function createTerminal(
             ? {
                 owner: options.githubRepo.owner,
                 name: options.githubRepo.name,
-                branch_or_hash: options.githubRepo.branch,
+                // If local branch doesn't exist on remote, clone default branch instead
+                // We'll create the local branch and apply commits after cloning
+                branch_or_hash: options.githubRepo.branchExistsOnRemote
+                  ? options.githubRepo.branch
+                  : options.githubRepo.defaultBranch,
               }
             : undefined,
         });
@@ -150,8 +154,11 @@ export async function createTerminal(
           useSSHKey,
           detectedPorts: new Set(),
           forwardedPorts: new Map(),
+          localRepoCwd: options.localRepoCwd,
           diffPatch: options.diffPatch,
           repoName: options.githubRepo?.name,
+          localBranch: options.githubRepo?.branch,
+          branchExistsOnRemote: options.githubRepo?.branchExistsOnRemote,
         },
       };
 
@@ -368,32 +375,52 @@ export function markTerminalReady(
 
     terminal.pty.write(sshCommand);
 
-    // If there's a diff patch to apply, schedule it after repo clone
-    if (terminal.cloudEnvironment.diffPatch && terminal.cloudEnvironment.repoName) {
-      console.log(`[VM] Will apply diff patch after repo clone completes`);
-      
+    // If there's git state to apply (working tree changes), schedule it after repo clone
+    const hasDiffPatch = terminal.cloudEnvironment.diffPatch;
+    const hasLocalRepoCwd = terminal.cloudEnvironment.localRepoCwd;
+    const hasGitSync =
+      (hasDiffPatch || hasLocalRepoCwd) && terminal.cloudEnvironment.repoName;
+
+    if (hasGitSync) {
+      console.log(`[VM] Will apply git state after repo clone completes`);
+      if (hasLocalRepoCwd) {
+        console.log(
+          `[VM] - Will push commits via SSH from: ${hasLocalRepoCwd}`,
+        );
+      }
+      if (hasDiffPatch) {
+        console.log(
+          `[VM] - Working tree patch: ${terminal.cloudEnvironment.diffPatch!.length} bytes`,
+        );
+      }
+
       // Poll for repo clone completion instead of using fixed delay
       const waitForRepo = async () => {
         const maxAttempts = 6; // 6 attempts * 5 seconds each = 30 seconds max
-        
+
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
           try {
             const { executeInVM } = await import("../../vm/client");
-            
+
             // Use a bash loop that checks every second for 5 seconds
             // Check that git repo exists AND git status works (meaning clone is complete)
             const startTime = Date.now();
             const checkResult = await executeInVM(
               terminal.cloudEnvironment!.vmId,
               "bash",
-              ["-c", `cd /workspace || exit 1; for i in {1..5}; do if git status > /dev/null 2>&1; then echo "ready"; exit 0; fi; sleep 1; done; echo "not-ready"; exit 1`],
-              7  // 5 seconds loop + 2 seconds buffer
+              [
+                "-c",
+                `cd /workspace || exit 1; for i in {1..5}; do if git status > /dev/null 2>&1; then echo "ready"; exit 0; fi; sleep 1; done; echo "not-ready"; exit 1`,
+              ],
+              7, // 5 seconds loop + 2 seconds buffer
             );
             const elapsed = Date.now() - startTime;
-            
+
             const status = checkResult.stdout?.trim() || "unknown";
-            console.log(`[VM] Repo check attempt ${attempt}: status="${status}", exit=${checkResult.exit_code}, elapsed=${elapsed}ms`);
-            
+            console.log(
+              `[VM] Repo check attempt ${attempt}: status="${status}", exit=${checkResult.exit_code}, elapsed=${elapsed}ms`,
+            );
+
             if (checkResult.exit_code === 0 && status === "ready") {
               console.log(`[VM] Repository ready after attempt ${attempt}`);
               return true;
@@ -402,15 +429,17 @@ export function markTerminalReady(
             console.log(`[VM] Repo check attempt ${attempt} failed:`, error);
           }
         }
-        
-        console.warn(`[VM] Timeout waiting for repo clone after ${maxAttempts} attempts`);
+
+        console.warn(
+          `[VM] Timeout waiting for repo clone after ${maxAttempts} attempts`,
+        );
         return false;
       };
-      
-      // Wait for repo, then apply patch
+
+      // Wait for repo, then apply bundle and patches
       (async () => {
         const repoReady = await waitForRepo();
-        
+
         if (!repoReady) {
           console.error(`[VM] Repo clone did not complete in time`);
           sendToRenderer("notification:show", {
@@ -420,38 +449,135 @@ export function markTerminalReady(
           });
           return;
         }
-        
-        try {
-          const { applyDiffToVM } = await import("../../vm/client");
-          const repoPath = `/workspace`;
-          
-          console.log(`[VM] Applying diff patch to ${repoPath} in VM ${terminal.cloudEnvironment!.vmId}`);
-          
-          const result = await applyDiffToVM(
-            terminal.cloudEnvironment!.vmId,
-            terminal.cloudEnvironment!.diffPatch!,
-            repoPath
-          );
 
-          if (result.success) {
-            console.log(`[VM] Successfully applied local changes to VM`);
-            // Show success notification as toast
-            sendToRenderer("notification:show", {
-              type: "success",
-              message: "Local changes synced to VM",
-              timeout: 3000,
-            });
-          } else {
-            console.error(`[VM] Failed to apply diff patch:`, result.error);
-            // Show error notification as toast
-            sendToRenderer("notification:show", {
-              type: "error",
-              message: `Failed to sync local changes: ${result.error}`,
-              timeout: 5000,
-            });
+        const repoPath = `/workspace`;
+        const { executeInVM } = await import("../../vm/client");
+
+        try {
+          // Step 0: If local branch doesn't exist on remote, create it on VM first
+          if (
+            !terminal.cloudEnvironment!.branchExistsOnRemote &&
+            terminal.cloudEnvironment!.localBranch
+          ) {
+            console.log(
+              `[VM] Local branch "${terminal.cloudEnvironment!.localBranch}" doesn't exist on remote, creating it on VM`,
+            );
+
+            // Create and checkout the new branch on VM
+            const createBranchResult = await executeInVM(
+              terminal.cloudEnvironment!.vmId,
+              "bash",
+              [
+                "-c",
+                `cd ${repoPath} && git checkout -b ${terminal.cloudEnvironment!.localBranch}`,
+              ],
+              10,
+            );
+
+            if (createBranchResult.exit_code !== 0) {
+              console.error(
+                `[VM] Failed to create branch:`,
+                createBranchResult.stderr,
+              );
+              sendToRenderer("notification:show", {
+                type: "error",
+                message: `Failed to create branch: ${createBranchResult.stderr}`,
+                timeout: 5000,
+              });
+              return;
+            }
+
+            console.log(
+              `[VM] Created branch "${terminal.cloudEnvironment!.localBranch}" on VM`,
+            );
           }
+
+          // Step 1: Configure VM to accept git pushes, then push commits via SSH
+          if (hasLocalRepoCwd && terminal.cloudEnvironment!.useSSHKey) {
+            const { configureVMForGitPush } = await import("../../vm/client");
+            console.log(`[VM] Configuring git to accept pushes`);
+
+            const configResult = await configureVMForGitPush(
+              terminal.cloudEnvironment!.vmId,
+              repoPath,
+            );
+
+            if (!configResult.success) {
+              console.error(
+                `[VM] Failed to configure git:`,
+                configResult.error,
+              );
+              sendToRenderer("notification:show", {
+                type: "error",
+                message: `Failed to configure git: ${configResult.error}`,
+                timeout: 5000,
+              });
+              return;
+            }
+
+            console.log(`[VM] Pushing commits via SSH from ${hasLocalRepoCwd}`);
+
+            // Import pushCommitsViaSSH from agent
+            const { pushCommitsViaSSH } = await import("../../agent/git");
+            const { getPrivateKeyPath } = await import("../../vm/ssh-keys");
+
+            const sshKeyPath = getPrivateKeyPath();
+            const pushSuccess = await pushCommitsViaSSH(
+              hasLocalRepoCwd,
+              terminal.cloudEnvironment!.vmHost,
+              terminal.cloudEnvironment!.sshPort,
+              sshKeyPath,
+              repoPath,
+            );
+
+            if (!pushSuccess) {
+              console.error(`[VM] Failed to push commits via SSH`);
+              sendToRenderer("notification:show", {
+                type: "error",
+                message: `Failed to push commits to VM`,
+                timeout: 5000,
+              });
+              return;
+            }
+
+            console.log(`[VM] Successfully pushed commits via SSH`);
+          }
+
+          // Step 2: Apply working tree patches (staged/unstaged/untracked)
+          if (hasDiffPatch) {
+            const { applyDiffToVM } = await import("../../vm/client");
+            console.log(`[VM] Applying working tree patch to ${repoPath}`);
+
+            const patchResult = await applyDiffToVM(
+              terminal.cloudEnvironment!.vmId,
+              terminal.cloudEnvironment!.diffPatch!,
+              repoPath,
+            );
+
+            if (!patchResult.success) {
+              console.error(
+                `[VM] Failed to apply working tree patch:`,
+                patchResult.error,
+              );
+              sendToRenderer("notification:show", {
+                type: "error",
+                message: `Failed to sync working tree: ${patchResult.error}`,
+                timeout: 5000,
+              });
+              return;
+            }
+
+            console.log(`[VM] Successfully applied working tree patch`);
+          }
+
+          // Success - all git state synced
+          sendToRenderer("notification:show", {
+            type: "success",
+            message: "Local changes synced to VM",
+            timeout: 3000,
+          });
         } catch (error) {
-          console.error(`[VM] Error applying diff patch:`, error);
+          console.error(`[VM] Error syncing git state:`, error);
           sendToRenderer("notification:show", {
             type: "error",
             message: "Error syncing local changes",

@@ -214,11 +214,14 @@ export function parseGitHubRepo(
 
 /**
  * Get GitHub repository info (owner, repo, branch) from current directory
+ * Also checks if the current branch exists on remote
  */
 export async function getGitHubRepoInfo(cwd: string): Promise<{
   owner: string;
   name: string;
   branch: string;
+  branchExistsOnRemote: boolean;
+  defaultBranch: string;
 } | null> {
   try {
     const [remoteUrl, branch] = await Promise.all([
@@ -235,10 +238,42 @@ export async function getGitHubRepoInfo(cwd: string): Promise<{
       return null;
     }
 
+    const repoRoot = await findRepoRoot(cwd);
+    if (!repoRoot) {
+      return null;
+    }
+
+    // Check if current branch exists on remote
+    const branchExists = await branchExistsOnRemote(cwd, branch);
+
+    // Get the actual default branch from remote
+    let defaultBranch = "main"; // fallback
+    try {
+      const { stdout } = await runGit(repoRoot, [
+        "ls-remote",
+        "--symref",
+        "origin",
+        "HEAD",
+      ]);
+      // Output is like "ref: refs/heads/main	HEAD"
+      const match = stdout.match(/ref: refs\/heads\/(\S+)/);
+      if (match) {
+        defaultBranch = match[1];
+      }
+    } catch {
+      // Fallback: assume main, or master if main doesn't exist
+      const mainExists = await branchExistsOnRemote(cwd, "main");
+      if (!mainExists) {
+        defaultBranch = "master";
+      }
+    }
+
     return {
       owner: repoInfo.owner,
       name: repoInfo.name,
       branch,
+      branchExistsOnRemote: branchExists,
+      defaultBranch,
     };
   } catch {
     return null;
@@ -256,6 +291,36 @@ export async function hasUncommittedChanges(cwd: string): Promise<boolean> {
     }
 
     const { stdout } = await runGit(repoRoot, ["status", "--porcelain"]);
+    return stdout.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a branch exists on the remote origin
+ * @param cwd - Current working directory
+ * @param branch - Branch name to check
+ * @returns true if branch exists on remote, false otherwise
+ */
+export async function branchExistsOnRemote(
+  cwd: string,
+  branch: string,
+): Promise<boolean> {
+  try {
+    const repoRoot = await findRepoRoot(cwd);
+    if (!repoRoot) {
+      return false;
+    }
+
+    // Check if origin/branch exists
+    const { stdout } = await runGit(repoRoot, [
+      "ls-remote",
+      "--heads",
+      "origin",
+      branch,
+    ]);
+
     return stdout.trim().length > 0;
   } catch {
     return false;
@@ -302,11 +367,94 @@ export async function hasUnpushedCommits(cwd: string): Promise<boolean> {
 }
 
 /**
- * Create a binary diff patch that includes both staged/unstaged changes and unpushed commits
- * This creates a patch that can be applied with `git apply` in the VM
- * 
+ * Push commits to a remote VM via SSH
+ * This uses git push directly over SSH instead of creating bundles
+ *
  * @param cwd - Current working directory
- * @returns Binary diff as Buffer, or null if no changes
+ * @param sshHost - SSH host (IP or hostname)
+ * @param sshPort - SSH port
+ * @param sshKeyPath - Path to SSH private key
+ * @param remotePath - Path to git repository on remote VM (e.g., /workspace)
+ * @returns true if successful, false otherwise
+ */
+export async function pushCommitsViaSSH(
+  cwd: string,
+  sshHost: string,
+  sshPort: number,
+  sshKeyPath: string,
+  remotePath = "/workspace",
+): Promise<boolean> {
+  try {
+    const repoRoot = await findRepoRoot(cwd);
+    if (!repoRoot) {
+      console.error("[Git] No git repository found");
+      return false;
+    }
+
+    const branch = await getCurrentBranch(repoRoot);
+    if (!branch) {
+      console.error("[Git] No current branch");
+      return false;
+    }
+
+    // Check if there are unpushed commits
+    const hasUnpushed = await hasUnpushedCommits(repoRoot);
+    if (!hasUnpushed) {
+      console.log("[Git] No unpushed commits to transfer");
+      return true; // Not an error
+    }
+
+    // Create temporary remote name
+    const remoteName = `conduit-vm-${Date.now()}`;
+    const remoteUrl = `ssh://ace@${sshHost}:${sshPort}${remotePath}`;
+
+    console.log(`[Git] Adding temporary remote: ${remoteName} -> ${remoteUrl}`);
+
+    try {
+      // Add temporary remote
+      await runGit(repoRoot, ["remote", "add", remoteName, remoteUrl]);
+
+      // Configure SSH to use our key and skip host verification
+      const sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${sshKeyPath}" -p ${sshPort}`;
+
+      // Push to the VM using the temporary remote
+      // Use --force to handle cases where we're creating a new branch or rebasing
+      console.log(`[Git] Pushing ${branch} to VM...`);
+      await runGit(repoRoot, [
+        "-c",
+        `core.sshCommand=${sshCommand}`,
+        "push",
+        "--force",
+        remoteName,
+        `${branch}:${branch}`,
+      ]);
+
+      console.log(`[Git] Successfully pushed commits to VM`);
+      return true;
+    } finally {
+      // Always remove the temporary remote, even if push failed
+      try {
+        await runGit(repoRoot, ["remote", "remove", remoteName]);
+        console.log(`[Git] Removed temporary remote ${remoteName}`);
+      } catch (error) {
+        console.warn(`[Git] Failed to remove temporary remote:`, error);
+      }
+    }
+  } catch (error) {
+    console.error("[Git] Failed to push commits via SSH:", error);
+    return false;
+  }
+}
+
+/**
+ * Create a binary diff patch that includes ONLY working tree changes
+ * (staged/unstaged/untracked files), NOT unpushed commits.
+ * Unpushed commits are transferred via pushCommitsViaSSH() to preserve history.
+ *
+ * This creates a patch that can be applied with `git apply` in the VM
+ *
+ * @param cwd - Current working directory
+ * @returns Binary diff as Buffer, or null if no working tree changes
  */
 export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
   try {
@@ -315,45 +463,33 @@ export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
       return null;
     }
 
-    // Check if there are any changes at all
-    const [hasUncommitted, hasUnpushed] = await Promise.all([
-      hasUncommittedChanges(repoRoot),
-      hasUnpushedCommits(repoRoot),
-    ]);
-
-    if (!hasUncommitted && !hasUnpushed) {
-      return null;
-    }
-
-    // Create a comprehensive diff from origin/branch to current working state
-    // This ensures the patch will apply cleanly to the VM's fresh clone of origin/branch
-    
-    const branch = await getCurrentBranch(repoRoot);
-    if (!branch) {
+    // Check if there are any uncommitted changes
+    const hasUncommitted = await hasUncommittedChanges(repoRoot);
+    if (!hasUncommitted) {
       return null;
     }
 
     let diffOutput = "";
-    
-    // Get diff from origin/branch to current working directory state
-    // This creates a single unified diff that includes everything:
-    // - unpushed commits (origin/branch..HEAD)
-    // - staged changes
-    // - unstaged changes
-    // By not specifying a second ref, git diff uses the working tree
+
+    // Part 1: Get diff from HEAD to working tree
+    // This includes staged and unstaged changes, but NOT unpushed commits
+    // By diffing HEAD (not origin/branch), we only get working tree changes
     try {
-      // Diff from origin/branch to current working tree (includes all changes)
-      const { stdout } = await runGitDiff(repoRoot, ["diff", `origin/${branch}`, "--binary"]);
+      const { stdout } = await runGitDiff(repoRoot, [
+        "diff",
+        "HEAD",
+        "--binary",
+      ]);
       diffOutput += stdout;
-    } catch {
-      // If origin/branch doesn't exist (maybe new branch), fall back to diff from HEAD
-      const { stdout } = await runGitDiff(repoRoot, ["diff", "HEAD", "--binary"]);
-      diffOutput += stdout;
+    } catch (error) {
+      console.warn("[Git] Failed to create diff from HEAD:", error);
     }
 
     // Part 2: Handle untracked files by creating patches for them
-    // Get list of untracked files
-    const { stdout: statusOutput } = await runGit(repoRoot, ["status", "--porcelain"]);
+    const { stdout: statusOutput } = await runGit(repoRoot, [
+      "status",
+      "--porcelain",
+    ]);
     const untrackedFiles = statusOutput
       .split("\n")
       .filter((line) => line.startsWith("??"))
@@ -361,12 +497,13 @@ export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
       .filter((file) => file.length > 0);
 
     if (untrackedFiles.length > 0) {
-      console.log(`[Git] Found ${untrackedFiles.length} untracked files, adding to patch`);
-      
+      console.log(
+        `[Git] Found ${untrackedFiles.length} untracked files, adding to patch`,
+      );
+
       for (const file of untrackedFiles) {
         try {
           // Create a patch for adding this new file
-          // We use git diff with --no-index to create a patch from /dev/null to the file
           const { stdout: fileDiff } = await runGitDiff(repoRoot, [
             "diff",
             "--no-index",
@@ -374,24 +511,27 @@ export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
             "/dev/null",
             file,
           ]);
-          
-          // The diff will have /dev/null and the absolute path, we need to adjust it
-          // to use a/file and b/file format for proper application
+
+          // Adjust diff headers to use a/file and b/file format
           const adjustedDiff = fileDiff
             .replace(/^--- \/dev\/null/m, "--- /dev/null")
             .replace(/^\+\+\+ .*$/m, `+++ b/${file}`);
-          
+
           diffOutput += "\n" + adjustedDiff;
         } catch (error) {
-          console.warn(`[Git] Failed to create patch for untracked file ${file}:`, error);
+          console.warn(
+            `[Git] Failed to create patch for untracked file ${file}:`,
+            error,
+          );
         }
       }
     }
-    
+
     if (!diffOutput || diffOutput.trim().length === 0) {
       return null;
     }
 
+    console.log(`[Git] Created working tree patch: ${diffOutput.length} bytes`);
     return Buffer.from(diffOutput, "utf-8");
   } catch (error) {
     console.error("Failed to create diff patch:", error);
@@ -401,7 +541,7 @@ export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
 
 /**
  * Apply a diff patch to the working directory
- * 
+ *
  * @param cwd - Current working directory
  * @param patchData - The patch data as Buffer
  * @returns true if successful, false otherwise
@@ -420,7 +560,7 @@ export async function applyDiffPatch(
     // --binary flag handles binary files
     // --index applies to both index and working tree
     const { spawn } = await import("node:child_process");
-    
+
     return new Promise((resolve) => {
       const gitApply = spawn("git", ["apply", "--binary", "--index"], {
         cwd: repoRoot,
@@ -434,7 +574,7 @@ export async function applyDiffPatch(
       gitApply.stdin.end();
 
       let stderr = "";
-      
+
       gitApply.stderr.on("data", (data) => {
         stderr += data.toString();
       });

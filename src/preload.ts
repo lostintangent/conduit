@@ -122,8 +122,13 @@ const conduitAPI = {
     createEventListener<boolean>("ui:set-always-show-tabs", listener),
 
   // Notify when showing a notification/toast message
-  onShowNotification: (listener: (payload: { type: "success" | "error" | "info"; message: string; timeout?: number }) => void) =>
-    createEventListener("notification:show", listener),
+  onShowNotification: (
+    listener: (payload: {
+      type: "success" | "error" | "info";
+      message: string;
+      timeout?: number;
+    }) => void,
+  ) => createEventListener("notification:show", listener),
 
   onShowTerminalRulerChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-show-terminal-ruler", listener),
@@ -258,19 +263,47 @@ const conduitAPI = {
       owner: string;
       name: string;
       branch: string;
+      branchExistsOnRemote: boolean;
+      defaultBranch: string;
     } | null>,
 
   hasUncommittedChanges: (cwd: string) =>
-    ipcRenderer.invoke("agent:has-uncommitted-changes", cwd) as Promise<boolean>,
+    ipcRenderer.invoke(
+      "agent:has-uncommitted-changes",
+      cwd,
+    ) as Promise<boolean>,
 
   hasUnpushedCommits: (cwd: string) =>
     ipcRenderer.invoke("agent:has-unpushed-commits", cwd) as Promise<boolean>,
 
+  pushCommitsViaSSH: (
+    cwd: string,
+    sshHost: string,
+    sshPort: number,
+    sshKeyPath: string,
+    remotePath?: string,
+  ) =>
+    ipcRenderer.invoke(
+      "agent:push-commits-via-ssh",
+      cwd,
+      sshHost,
+      sshPort,
+      sshKeyPath,
+      remotePath,
+    ) as Promise<boolean>,
+
   createDiffPatch: (cwd: string) =>
-    ipcRenderer.invoke("agent:create-diff-patch", cwd) as Promise<Buffer | null>,
+    ipcRenderer.invoke(
+      "agent:create-diff-patch",
+      cwd,
+    ) as Promise<Buffer | null>,
 
   applyDiffPatch: (cwd: string, patchData: Buffer) =>
-    ipcRenderer.invoke("agent:apply-diff-patch", cwd, patchData) as Promise<boolean>,
+    ipcRenderer.invoke(
+      "agent:apply-diff-patch",
+      cwd,
+      patchData,
+    ) as Promise<boolean>,
 
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
@@ -339,13 +372,29 @@ const conduitAPI = {
   forkVM: (vmId: string, payload?: Omit<ForkVMPayload, "vmId">) =>
     ipcRenderer.invoke("vm:fork", { vmId, ...payload }) as Promise<VMInfo>,
 
-  executeInVM: (vmId: string, command: string, args?: string[], timeoutSeconds?: number) =>
+  executeInVM: (
+    vmId: string,
+    command: string,
+    args?: string[],
+    timeoutSeconds?: number,
+  ) =>
     ipcRenderer.invoke("vm:execute", {
       vmId,
       command,
       args,
       timeoutSeconds,
-    }) as Promise<{ exit_code: number; stdout: string; stderr: string; error?: string }>,
+    }) as Promise<{
+      exit_code: number;
+      stdout: string;
+      stderr: string;
+      error?: string;
+    }>,
+
+  configureVMForGitPush: (vmId: string, repoPath: string) =>
+    ipcRenderer.invoke("vm:configure-git-push", {
+      vmId,
+      repoPath,
+    }) as Promise<{ success: boolean; error?: string }>,
 
   applyDiffToVM: (vmId: string, diffPatch: Buffer, repoPath: string) =>
     ipcRenderer.invoke("vm:apply-diff", {
