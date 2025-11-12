@@ -23,6 +23,9 @@ import "monaco-editor/esm/vs/basic-languages/shell/shell.contribution";
 import "monaco-editor/esm/vs/basic-languages/xml/xml.contribution";
 import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
+import "monaco-editor/esm/vs/editor/contrib/find/browser/findController";
+import "monaco-editor/esm/vs/editor/contrib/find/browser/findWidget.css";
 import "monaco-editor/esm/vs/language/css/monaco.contribution";
 import "monaco-editor/esm/vs/language/html/monaco.contribution";
 import "monaco-editor/esm/vs/language/json/monaco.contribution";
@@ -246,6 +249,19 @@ export function EditorPane({
     }
   }, [filePath, currentContent, hasUnsavedChanges, onSave]);
 
+  // Find handler
+  const handleFind = useCallback(() => {
+    if (!editorRef.current) {
+      return;
+    }
+
+    editorRef.current.focus();
+    const action = editorRef.current.getAction("actions.find");
+    if (action) {
+      action.run();
+    }
+  }, []);
+
   // Keyboard handlers for save and find
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -448,15 +464,6 @@ export function EditorPane({
     return parentDir !== cwd && parentDir !== ".";
   }, [cwd]);
 
-  const handleFind = useCallback(() => {
-    if (!editorRef.current) {
-      return;
-    }
-
-    editorRef.current.focus();
-    editorRef.current.trigger("keyboard", "actions.find", null);
-  }, []);
-
   const displayPath = useMemo(() => {
     const pathToDisplay = filePath || cwd;
     if (!homeDirectory) {
@@ -534,14 +541,17 @@ export function EditorPane({
                 <Search size={14} className="text-white/60" />
               </button>
               {!isLocked && (
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                  title="Refresh file"
-                >
-                  <RefreshCw size={14} className="text-white/60" />
-                </button>
+                <>
+                  <div className="h-4 w-px bg-white/10 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                    title="Refresh file"
+                  >
+                    <RefreshCw size={14} className="text-white/60" />
+                  </button>
+                </>
               )}
             </>
           ) : (
