@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type {
   AgentSessionCleanupRequest,
@@ -105,10 +106,16 @@ export async function spawnAgentSession(
   const shortId = sessionId.slice(0, 8);
   const branchName = `agent/${timestampSlug}-${branchBase}-${shortId}`;
   const worktreeSlug = `${timestampSlug}-${shortId}`;
+
+  // Create a unique identifier for this repo based on its path
+  const repoIdentifier = path.basename(repoRoot);
+
+  // Use ~/.conduit/worktrees/<repo>/<worktreeSlug> instead of repo/.conduit/worktrees/<worktreeSlug>
   const worktreePath = path.join(
-    repoRoot,
+    os.homedir(),
     ".conduit",
     "worktrees",
+    repoIdentifier,
     worktreeSlug,
   );
 
