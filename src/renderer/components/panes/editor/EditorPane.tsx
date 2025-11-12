@@ -12,6 +12,7 @@ import {
   Redo,
   RefreshCw,
   Save,
+  Search,
   Undo,
 } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
@@ -245,18 +246,28 @@ export function EditorPane({
     }
   }, [filePath, currentContent, hasUnsavedChanges, onSave]);
 
-  // Ctrl+S keyboard handler
+  // Keyboard handlers for save and find
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         handleSave();
+        return;
+      }
+
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "f" &&
+        hasOpenFile
+      ) {
+        event.preventDefault();
+        handleFind();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
+  }, [handleFind, handleSave, hasOpenFile]);
 
   // Cleanup disposable on unmount
   useEffect(() => {
@@ -437,6 +448,15 @@ export function EditorPane({
     return parentDir !== cwd && parentDir !== ".";
   }, [cwd]);
 
+  const handleFind = useCallback(() => {
+    if (!editorRef.current) {
+      return;
+    }
+
+    editorRef.current.focus();
+    editorRef.current.trigger("keyboard", "actions.find", null);
+  }, []);
+
   const displayPath = useMemo(() => {
     const pathToDisplay = filePath || cwd;
     if (!homeDirectory) {
@@ -504,6 +524,14 @@ export function EditorPane({
                 title="Save"
               >
                 <Save size={14} className="text-white/60" />
+              </button>
+              <button
+                type="button"
+                onClick={handleFind}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                title="Find in file (Ctrl+F)"
+              >
+                <Search size={14} className="text-white/60" />
               </button>
               {!isLocked && (
                 <button
