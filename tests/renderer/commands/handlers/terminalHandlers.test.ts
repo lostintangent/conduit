@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import {
   handleCreateVM,
   handleOpenInVSCode,
 } from "@/commands/handlers/terminalHandlers";
 import * as notifications from "@/store/actions/notifications";
 import * as tabActions from "@/store/actions/tab";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit
 const mockApi = {
@@ -49,10 +49,10 @@ describe("terminalHandlers", () => {
 
       await handleCreateVM();
 
-      // Should show "Creating VM..." notification
+      // Should show "Preparing cloud workspace..." notification
       expect(notifications.enqueueNotification).toHaveBeenCalledWith({
         kind: "info",
-        message: "Creating VM...",
+        message: "Preparing cloud workspace...",
         persistent: true,
       });
 
@@ -64,7 +64,7 @@ describe("terminalHandlers", () => {
       // Should update notification to success
       expect(notifications.updateNotification).toHaveBeenCalledWith("notif-1", {
         kind: "success",
-        message: "VM created successfully",
+        message: "Cloud workspace ready",
         autoCloseMs: 2500,
       });
 
