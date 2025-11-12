@@ -12,6 +12,7 @@ import {
   Redo,
   RefreshCw,
   Save,
+  Search,
   Undo,
 } from "lucide-react";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
@@ -22,6 +23,9 @@ import "monaco-editor/esm/vs/basic-languages/shell/shell.contribution";
 import "monaco-editor/esm/vs/basic-languages/xml/xml.contribution";
 import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
+import "monaco-editor/esm/vs/editor/contrib/find/browser/findController";
+import "monaco-editor/esm/vs/editor/contrib/find/browser/findWidget.css";
 import "monaco-editor/esm/vs/language/css/monaco.contribution";
 import "monaco-editor/esm/vs/language/html/monaco.contribution";
 import "monaco-editor/esm/vs/language/json/monaco.contribution";
@@ -245,18 +249,41 @@ export function EditorPane({
     }
   }, [filePath, currentContent, hasUnsavedChanges, onSave]);
 
-  // Ctrl+S keyboard handler
+  // Find handler
+  const handleFind = useCallback(() => {
+    if (!editorRef.current) {
+      return;
+    }
+
+    editorRef.current.focus();
+    const action = editorRef.current.getAction("actions.find");
+    if (action) {
+      action.run();
+    }
+  }, []);
+
+  // Keyboard handlers for save and find
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         handleSave();
+        return;
+      }
+
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "f" &&
+        hasOpenFile
+      ) {
+        event.preventDefault();
+        handleFind();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
+  }, [handleFind, handleSave, hasOpenFile]);
 
   // Cleanup disposable on unmount
   useEffect(() => {
@@ -505,15 +532,26 @@ export function EditorPane({
               >
                 <Save size={14} className="text-white/60" />
               </button>
+              <button
+                type="button"
+                onClick={handleFind}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                title="Find in file (Ctrl+F)"
+              >
+                <Search size={14} className="text-white/60" />
+              </button>
               {!isLocked && (
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                  title="Refresh file"
-                >
-                  <RefreshCw size={14} className="text-white/60" />
-                </button>
+                <>
+                  <div className="h-4 w-px bg-white/10 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                    title="Refresh file"
+                  >
+                    <RefreshCw size={14} className="text-white/60" />
+                  </button>
+                </>
               )}
             </>
           ) : (
