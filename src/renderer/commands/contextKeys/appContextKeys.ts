@@ -33,6 +33,12 @@ export const hasLastWorkspace = new ContextKey<boolean>(
 export const tabCount = new ContextKey<number>("tabCount", 1);
 
 /**
+ * Whether the targeted tab is locked
+ * Used by: commands that should be disabled when a tab is locked
+ */
+export const tabIsLocked = new ContextKey<boolean>("tabIsLocked", false);
+
+/**
  * Whether the active tab has an active pane
  * Used by: pane.openWebPage, terminal.createCloud
  */

@@ -92,10 +92,15 @@ export function TabsOverview() {
               </button>
               <button
                 type="button"
-                onClick={() => closeTab(tab.id)}
-                className="inline-flex items-center justify-center text-white/70 transition hover:text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
+                onClick={() => {
+                  if (!tab.locked) {
+                    closeTab(tab.id);
+                  }
+                }}
+                disabled={tab.locked}
+                className={`inline-flex items-center justify-center text-white/70 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60 ${tab.locked ? "opacity-40 cursor-not-allowed" : "hover:text-red-500"}`}
                 aria-label="Close tab"
-                title={`Close tab`}
+                title={tab.locked ? "Unlock tab to close" : "Close tab"}
               >
                 <Trash2 size={16} />
               </button>
