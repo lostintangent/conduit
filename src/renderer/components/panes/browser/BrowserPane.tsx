@@ -56,7 +56,7 @@ export function BrowserPane({
     urlHistory,
     addUrlToHistory,
     removeUrlFromHistory,
-    starredPages,
+    starredPages = [],
     addStarredPage,
     removeStarredPage,
     updateStarredPage,
@@ -82,9 +82,15 @@ export function BrowserPane({
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [showStarredList, setShowStarredList] = useState<boolean>(false);
 
-  const isCurrentUrlStarred = starredPages?.some(
+  const hasStarredPages = starredPages.length > 0;
+  const isCurrentUrlStarred = starredPages.some(
     (page) => page.url === currentUrl,
   );
+
+  const closeDropdowns = useCallback(() => {
+    setShowHistory(false);
+    setShowStarredList(false);
+  }, []);
 
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
@@ -366,6 +372,12 @@ export function BrowserPane({
   }, [currentUrl]);
 
   useEffect(() => {
+    if (!hasStarredPages) {
+      setShowStarredList(false);
+    }
+  }, [hasStarredPages]);
+
+  useEffect(() => {
     if (!currentUrl) return;
 
     const trimmedTitle = pageTitle.trim();
@@ -373,7 +385,7 @@ export function BrowserPane({
       return;
     }
 
-    const starredPage = starredPages?.find((page) => page.url === currentUrl);
+    const starredPage = starredPages.find((page) => page.url === currentUrl);
     if (starredPage && starredPage.title !== trimmedTitle) {
       void updateStarredPage({ url: currentUrl, title: trimmedTitle });
     }
@@ -397,11 +409,10 @@ export function BrowserPane({
     }
 
     addUrlToHistory(targetUrl);
-    setShowHistory(false);
-    setShowStarredList(false);
+    closeDropdowns();
 
     webviewRef.current?.loadURL(targetUrl);
-  }, [inputUrl, addUrlToHistory]);
+  }, [inputUrl, addUrlToHistory, closeDropdowns]);
 
   const handleUrlInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -419,9 +430,8 @@ export function BrowserPane({
   const handleUrlInputBlur = useCallback(() => {
     // Reset the input URL to the current URL after a short delay
     setInputUrl(currentUrl);
-    setShowHistory(false);
-    setShowStarredList(false);
-  }, [currentUrl]);
+    closeDropdowns();
+  }, [currentUrl, closeDropdowns]);
 
   const handleUrlInputFocus = useCallback(() => {
     if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
@@ -436,10 +446,9 @@ export function BrowserPane({
       webviewRef.current?.loadURL(historyUrl);
 
       addUrlToHistory(historyUrl);
-      setShowHistory(false);
-      setShowStarredList(false);
+      closeDropdowns();
     },
-    [addUrlToHistory],
+    [addUrlToHistory, closeDropdowns],
   );
 
   const handleHistoryItemRemove = useCallback(
@@ -464,25 +473,24 @@ export function BrowserPane({
       });
     }
 
-    setShowStarredList(false);
-    setShowHistory(false);
+    closeDropdowns();
   }, [
     currentUrl,
     isCurrentUrlStarred,
     pageTitle,
     addStarredPage,
     removeStarredPage,
+    closeDropdowns,
   ]);
 
   const handleStarredDropdownToggle = useCallback(() => {
-    if (!starredPages || starredPages.length === 0) {
-      setShowStarredList(false);
+    if (!hasStarredPages) {
       return;
     }
 
     setShowStarredList((value) => !value);
     setShowHistory(false);
-  }, [starredPages]);
+  }, [hasStarredPages]);
 
   const handleStarredNavigation = useCallback(
     (pageUrl: string) => {
@@ -490,10 +498,9 @@ export function BrowserPane({
       webviewRef.current?.loadURL(pageUrl);
 
       addUrlToHistory(pageUrl);
-      setShowStarredList(false);
-      setShowHistory(false);
+      closeDropdowns();
     },
-    [addUrlToHistory],
+    [addUrlToHistory, closeDropdowns],
   );
 
   const handleStarredRemove = useCallback(
@@ -580,14 +587,14 @@ export function BrowserPane({
               onMouseDown={(event) => event.preventDefault()}
               onClick={handleStarredDropdownToggle}
               className={`pointer-events-auto p-1 rounded transition-colors ${
-                !starredPages || starredPages.length === 0
+                !hasStarredPages
                   ? "text-white/40 cursor-not-allowed"
                   : "text-white/70 hover:text-white"
               }`}
               title="Show starred pages"
               aria-haspopup="listbox"
               aria-expanded={showStarredList}
-              disabled={!starredPages || starredPages.length === 0}
+              disabled={!hasStarredPages}
             >
               <ChevronDown className="w-4 h-4" />
             </button>
@@ -623,7 +630,7 @@ export function BrowserPane({
               ))}
             </div>
           )}
-          {showStarredList && starredPages && starredPages.length > 0 && (
+          {showStarredList && hasStarredPages && (
             <div
               ref={starredDropdownRef}
               className="absolute top-full right-0 mt-1 w-72 bg-surface border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
