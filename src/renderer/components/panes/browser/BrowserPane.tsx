@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
+  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -423,12 +424,13 @@ export function BrowserPane({
               {urlHistory.map((historyUrl) => (
                 <div
                   key={historyUrl}
-                  className="group flex items-center border-b border-white/5 last:border-b-0"
+                  className="group flex items-center border-b border-white/5 last:border-b-0 hover:bg-white/10 transition"
                 >
                   <button
                     type="button"
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleHistoryItemClick(historyUrl)}
-                    className="flex-1 px-3 py-2 text-sm text-left text-white hover:bg-white/10 transition overflow-hidden text-ellipsis whitespace-nowrap"
+                    className="flex-1 px-3 py-2 text-sm text-left text-white transition overflow-hidden text-ellipsis whitespace-nowrap"
                   >
                     {historyUrl}
                   </button>
@@ -439,10 +441,10 @@ export function BrowserPane({
                       event.stopPropagation();
                       handleHistoryItemRemove(historyUrl);
                     }}
-                    className="px-2 py-2 text-white/50 hover:text-white hover:bg-white/10 transition"
+                    className="px-2 py-2 text-white/50 hover:text-red-500 transition"
                     aria-label="Remove from history"
                   >
-                    <X className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
