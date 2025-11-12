@@ -196,11 +196,6 @@ const conduitAPI = {
   removeStarredPage: (url: string) =>
     ipcRenderer.invoke("ui:remove-starred-page", url) as Promise<StarredPage[]>,
 
-  updateStarredPage: (page: StarredPage) =>
-    ipcRenderer.invoke("ui:update-starred-page", page) as Promise<
-      StarredPage[]
-    >,
-
   runBackgroundCommand: (options: BackgroundCommandRequest) =>
     ipcRenderer.invoke("ui:run-background-command", options) as Promise<void>,
 

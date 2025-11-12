@@ -34,7 +34,6 @@ function createMockConduit(
     addUrlToHistory: vi.fn(),
     addStarredPage: vi.fn(),
     removeStarredPage: vi.fn(),
-    updateStarredPage: vi.fn(),
     runBackgroundCommand: vi.fn(),
     openExternal: vi.fn(),
     hasSessions: vi.fn(),
