@@ -62,7 +62,7 @@ export function SandboxIndicator({
     <div className="pointer-events-none absolute bottom-3 right-3 flex flex-col items-end gap-2 text-white z-[1000]">
       {showVmIndicator && (
         <div
-          className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90"
+          className="pointer-events-auto group flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90 transition-all duration-200"
           style={overlayStyle}
           title={vmTitle}
         >
@@ -72,7 +72,7 @@ export function SandboxIndicator({
               type="button"
               onClick={onForkVM}
               title="Fork VM (split pane with clone)"
-              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+              className="w-0 opacity-0 group-hover:w-[26px] group-hover:opacity-100 overflow-hidden transition-all duration-200 rounded-full bg-white/10 p-1.5 text-white/80 hover:bg-white/20 hover:text-white"
             >
               <GitFork size={14} />
             </button>

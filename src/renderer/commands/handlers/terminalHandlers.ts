@@ -14,13 +14,16 @@ import { openTabFromExistingSession } from "@/store/actions/tab";
  * Create a new VM terminal
  */
 export async function handleCreateVM(): Promise<void> {
+  console.log("[handleCreateVM] User initiated cloud terminal creation");
+
   const notificationId = enqueueNotification({
     kind: "info",
-    message: "Creating VM...",
+    message: "Preparing cloud workspace...",
     persistent: true,
   });
 
   try {
+    console.log("[handleCreateVM] Calling createTerminal API...");
     const result = await window.conduit.createTerminal({
       isRemoteVM: true,
     });
@@ -29,9 +32,11 @@ export async function handleCreateVM(): Promise<void> {
       throw new Error("Failed to create VM terminal");
     }
 
+    console.log("[handleCreateVM] Terminal created, opening pane");
+
     updateNotification(notificationId, {
       kind: "success",
-      message: "VM created successfully",
+      message: "Cloud workspace ready",
       autoCloseMs: 2500,
     });
 
@@ -41,6 +46,8 @@ export async function handleCreateVM(): Promise<void> {
       title: result.title,
       vmMetadata: result.vmMetadata ?? undefined,
     });
+
+    console.log("[handleCreateVM] Pane opened successfully");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     updateNotification(notificationId, {
