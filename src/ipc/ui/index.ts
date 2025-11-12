@@ -101,6 +101,22 @@ export function initializeUIHandlers(window: BrowserWindow) {
     return requireUserSettings().urlHistory;
   });
 
+  ipcMain.handle("ui:remove-url-from-history", async (_, url: string) => {
+    const currentSettings = requireUserSettings();
+    const trimmedUrl = url.trim();
+
+    userSettings = {
+      ...currentSettings,
+      urlHistory: currentSettings.urlHistory.filter(
+        (entry) => entry !== trimmedUrl,
+      ),
+    };
+
+    await saveSettings(userSettings);
+
+    return requireUserSettings().urlHistory;
+  });
+
   ipcMain.handle(
     "ui:remove-command-history-entry",
     async (_, command: string) => {

@@ -61,6 +61,11 @@ export function useUserSettings() {
     updateSetting("urlHistory", urlHistory);
   }
 
+  async function removeUrlFromHistory(url: string) {
+    const urlHistory = await api.removeUrlFromHistory(url);
+    updateSetting("urlHistory", urlHistory);
+  }
+
   async function updateSettings(updates: Partial<typeof userSettings>) {
     const newSettings = await api.updateSettings(updates);
     setUserSettings(newSettings);
@@ -78,5 +83,7 @@ export function useUserSettings() {
       updateCommandHistory(command, "remove"),
 
     addUrlToHistory: (url: string) => updateUrlHistory(url),
+
+    removeUrlFromHistory: (url: string) => removeUrlFromHistory(url),
   };
 }
