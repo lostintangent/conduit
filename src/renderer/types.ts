@@ -62,6 +62,7 @@ export type Tab = {
   activePaneId: string;
 
   title?: string;
+  locked: boolean;
 } & Identifiable;
 
 /* Command palette types */

@@ -127,6 +127,7 @@ const serializeTabs = async (
         id: tab.id,
         title: tab.title,
         activePaneId: tab.activePaneId,
+        locked: tab.locked,
         panes,
         layout: tab.layout,
       };

@@ -305,6 +305,10 @@ export function movePane(
         return tab;
       }
 
+      if (tab.locked) {
+        return tab;
+      }
+
       if (!tab.panes[paneId]) {
         return tab;
       }
@@ -433,6 +437,10 @@ export function detachPane(
     return null;
   }
 
+  if (targetTab.locked) {
+    return null;
+  }
+
   const targetPane = targetTab.panes[paneId];
   if (!targetPane) {
     return null;
@@ -540,6 +548,10 @@ export async function splitPane(
     return;
   }
 
+  if (tab.locked) {
+    return;
+  }
+
   const sourcePane = tab.panes[paneId];
   if (!sourcePane) {
     return;
@@ -635,6 +647,10 @@ export async function splitPaneWithAgentSession(
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
+    return;
+  }
+
+  if (tab.locked) {
     return;
   }
 
@@ -804,6 +820,10 @@ export function removePane(
         return tab;
       }
 
+      if (tab.locked) {
+        return tab;
+      }
+
       const pane = tab.panes[paneId];
       if (!pane) {
         return tab;
@@ -927,6 +947,10 @@ export function closePane(tabId: string, paneId: string) {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
+    return;
+  }
+
+  if (tab.locked) {
     return;
   }
 

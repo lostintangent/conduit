@@ -228,6 +228,7 @@ export function useCommandSystem(
       !!(activeTab && activeTab.activePaneId),
     );
     contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
+    contextKeyService.setGlobal("tabIsLocked", Boolean(activeTab?.locked));
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {

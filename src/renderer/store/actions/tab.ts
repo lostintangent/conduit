@@ -112,6 +112,7 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
+      locked: false,
     },
   ]);
   focusTab(tabId);
@@ -145,6 +146,7 @@ function createTabWithPane(paneState: Pane): { tabId: string; paneId: string } {
       panes: { [paneState.id]: paneState },
       layout,
       activePaneId: paneState.id,
+      locked: false,
     },
   ]);
   focusTab(tabId);
@@ -264,7 +266,25 @@ export function focusTab(tabId: string) {
   store.set(activeTabIdAtom, tabId);
 }
 
-export function closeTab(tabId: string) {
+export function lockTab(tabId: string) {
+  updateTabProperty(tabId, { locked: true });
+}
+
+export function unlockTab(tabId: string) {
+  updateTabProperty(tabId, { locked: false });
+}
+
+type CloseTabOptions = {
+  force?: boolean;
+};
+
+export function closeTab(tabId: string, options: CloseTabOptions = {}) {
+  const { force = false } = options;
+  const targetTab = store.get(tabsAtom).find((tab) => tab.id === tabId);
+  if (!targetTab || (targetTab.locked && !force)) {
+    return;
+  }
+
   const sessionsToClose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
@@ -354,7 +374,7 @@ export function movePaneToTab(
 ): { tabId: string; paneId: string } | null {
   const tabs = store.get(tabsAtom);
   const sourceTab = tabs.find((tab) => tab.id === tabId);
-  if (!sourceTab) {
+  if (!sourceTab || sourceTab.locked) {
     return null;
   }
 
@@ -383,6 +403,7 @@ export function movePaneToTab(
     },
     layout,
     activePaneId: paneState.id,
+    locked: false,
   };
 
   store.set(tabsAtom, (current) => [...current, newTab]);
@@ -580,6 +601,7 @@ export async function duplicateTab(
     layout: newLayout,
     activePaneId: newActivePaneId || Object.keys(newPanes)[0],
     title: newTitle,
+    locked: sourceTab.locked,
   };
 
   // Insert the new tab immediately after the source tab
@@ -675,7 +697,7 @@ export function registerTabEventHandlers() {
       if (targetPane) {
         const paneCount = Object.keys(tab.panes).length;
         if (paneCount <= 1) {
-          closeTab(tab.id);
+          closeTab(tab.id, { force: true });
         } else {
           removePane(tab.id, targetPane.id, { skipTerminalClose: true });
         }

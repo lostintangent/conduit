@@ -315,6 +315,7 @@ export function TabLayout({
         return null;
       }
 
+      const isLocked = tab.locked;
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
       const isInFocusMode = applicationMode === "focus";
       const isHiddenInFocusMode = isInFocusMode && !isActivePane;
@@ -351,8 +352,16 @@ export function TabLayout({
         handleContextMenu(syntheticEvent, tab.id, pane.id);
       };
 
-      const dragHandlers = createDragHandlers(pane.id, tab.id);
-      const dropHandlers = createDropHandlers(pane.id, tab.id);
+      const dragHandlers = isLocked
+        ? { onDragStart: () => {}, onDragEnd: () => {} }
+        : createDragHandlers(pane.id, tab.id);
+      const dropHandlers = isLocked
+        ? {
+            onDragOver: () => {},
+            onDragLeave: () => {},
+            onDrop: () => {},
+          }
+        : createDropHandlers(pane.id, tab.id);
 
       // While in design mode, show the pane controls if the current pane meets any of:
       // 1. It's currently being dragged
@@ -360,6 +369,7 @@ export function TabLayout({
       // 3. It's the active pane (not during a drag operation)
       const shouldRenderControls =
         isInDesignMode &&
+        !isLocked &&
         (draggedPaneId === pane.id ||
           (!draggedPaneId && hoveredPaneId === pane.id) ||
           (!draggedPaneId && !hoveredPaneId && isActivePane));
@@ -535,6 +545,7 @@ export function TabLayout({
       hasUnifiedSandbox: boolean,
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
+      const isLocked = tab.locked;
 
       // Generate the grid template for this split
       const gridTemplate = buildGridTemplateStyles(
@@ -603,7 +614,8 @@ export function TabLayout({
               ? "bg-blue-500/60"
               : "bg-transparent hover:bg-blue-500/40";
 
-            const shouldRenderHandles = primaryAxis !== null && !isInFocusMode;
+            const shouldRenderHandles =
+              primaryAxis !== null && !isInFocusMode && !isLocked;
 
             const intersectionHandles =
               shouldRenderHandles && primaryAxis

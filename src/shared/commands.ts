@@ -20,6 +20,8 @@ export const ApplicationCommands = {
   TAB_DUPLICATE_WITH_CWD: "tab.duplicateWithCwd",
   TAB_DUPLICATE_INTO_WORKTREE: "tab.duplicateIntoWorktree",
   TAB_CHANGE_TITLE: "tab.changeTitle",
+  TAB_LOCK: "tab.lock",
+  TAB_UNLOCK: "tab.unlock",
 
   // Workspace commands
   WORKSPACE_SAVE: "workspace.save",

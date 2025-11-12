@@ -8,6 +8,7 @@ export type TabLabelDescriptor = {
   tooltip: string;
   isActive: boolean;
   title?: string;
+  locked: boolean;
 };
 
 const resolveActivePane = (tab: Tab): Pane | undefined => {
@@ -100,6 +101,7 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
       tooltip,
       isActive: tab.id === activeTabId,
       title: trimmedTitle || undefined,
+      locked: tab.locked,
     };
   });
 });

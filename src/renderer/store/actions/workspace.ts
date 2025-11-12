@@ -62,6 +62,7 @@ export async function openWorkspace(workspace: Workspace) {
       const tab: Tab = {
         ...workspaceTab,
         panes,
+        locked: workspaceTab.locked ?? false,
       };
 
       workspaceTabs.push(tab);
@@ -77,5 +78,5 @@ export async function openWorkspace(workspace: Workspace) {
 
 export async function closeWorkspace() {
   store.set(workspaceNameAtom, null);
-  store.get(tabsAtom).forEach((tab) => closeTab(tab.id));
+  store.get(tabsAtom).forEach((tab) => closeTab(tab.id, { force: true }));
 }

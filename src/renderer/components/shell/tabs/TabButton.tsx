@@ -1,5 +1,5 @@
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
-import { Command, X } from "lucide-react";
+import { Command, Lock, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const cx = (...classes: Array<string | false>) =>
@@ -38,6 +38,7 @@ type TabButtonProps = {
   index: number;
   isActive: boolean;
   disableClick: boolean;
+  isLocked: boolean;
   onContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onDragStart: (
     event: React.DragEvent<HTMLButtonElement>,
@@ -64,6 +65,7 @@ export const TabButton = ({
   index,
   isActive,
   disableClick,
+  isLocked,
   onContextMenu,
   onDragStart,
   onDragOver,
@@ -76,7 +78,7 @@ export const TabButton = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const showCloseButton = isHovered && !disableClick;
+  const showCloseButton = isHovered && !disableClick && !isLocked;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -86,7 +88,7 @@ export const TabButton = ({
   }, [isEditing]);
 
   const handleDoubleClick = (event: React.MouseEvent) => {
-    if (disableClick || isEditing) {
+    if (disableClick || isEditing || isLocked) {
       return;
     }
     event.preventDefault();
@@ -194,9 +196,13 @@ export const TabButton = ({
             className="cursor-pointer transition-all duration-150 flex-none opacity-60 hover:opacity-100 hover:text-red-500"
             onClick={(event) => {
               event.stopPropagation();
-              closeTab(tabId);
+              if (!isLocked) {
+                closeTab(tabId);
+              }
             }}
           />
+        ) : isLocked ? (
+          <Lock size={14} className="flex-none opacity-60" />
         ) : (
           <Command size={14} className="flex-none opacity-60" />
         )}

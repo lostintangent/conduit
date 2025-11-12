@@ -115,6 +115,10 @@ export function usePaneDragDrop({
             return tab;
           }
 
+          if (tab.locked) {
+            return tab;
+          }
+
           // Function to insert new pane into layout
           const insertPaneIntoLayout = (
             node: LayoutNode,
