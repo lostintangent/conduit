@@ -1,24 +1,39 @@
 import { closePane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
-import { getDefaultStore } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { getDefaultStore, useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const api = window.conduit;
 const store = getDefaultStore();
 
 type CloudTerminalOverlayProps = {
-  vmId: string | null;
   terminalId: string;
   paneId: string;
-  currentTab: { id: string } | undefined;
 };
 
 export const CloudTerminalOverlay = ({
-  vmId,
   terminalId,
   paneId,
-  currentTab,
 }: CloudTerminalOverlayProps) => {
+  const tabs = useAtomValue(tabsAtom);
+
+  // Memoize the current pane and tab lookup
+  const { currentPane, currentTab } = useMemo(() => {
+    for (const tab of tabs) {
+      const pane = tab.panes[paneId];
+      if (pane) {
+        return { currentPane: pane, currentTab: tab };
+      }
+    }
+    return {};
+  }, [tabs, paneId]);
+
+  // This component is specifically for terminal panes
+  const terminalPane =
+    currentPane?.type === "terminal" ? currentPane : undefined;
+
+  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
+
   const [sshConnectionState, setSSHConnectionState] = useState<
     "connecting" | "connected" | "disconnected" | null
   >(null);

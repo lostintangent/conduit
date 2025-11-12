@@ -240,26 +240,6 @@ function setupTerminalListeners(
             sessionId: id,
             state: "connected",
           });
-
-          // Display welcome banner
-          const welcomeBanner =
-            "\r\n" +
-            "╔═══════════════════════════════════════════════╗\r\n" +
-            "║                                               ║\r\n" +
-            "║       Welcome to GitHub Cloud Sandbox         ║\r\n" +
-            "║                                               ║\r\n" +
-            "╚═══════════════════════════════════════════════╝\r\n" +
-            "\r\n";
-
-          if (terminal.isRendererReady) {
-            sendToRenderer("terminal:data", {
-              sessionId: id,
-              data: welcomeBanner,
-            });
-          } else {
-            terminal.bufferedOutput.push(welcomeBanner);
-          }
-
           // Now that we're connected, send this data (the prompt) to the terminal
           if (terminal.isRendererReady) {
             sendToRenderer("terminal:data", { sessionId: id, data });
