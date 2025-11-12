@@ -8,7 +8,7 @@ import { closeTab, focusTab, openTab } from "@/store/actions/tab";
 import { applicationModeAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Minimize2, Plus, Trash2 } from "lucide-react";
+import { Lock, Minimize2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
 
@@ -90,20 +90,25 @@ export function TabsOverview() {
               >
                 {tab.label}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!tab.locked) {
-                    closeTab(tab.id);
-                  }
-                }}
-                disabled={tab.locked}
-                className={`inline-flex items-center justify-center text-white/70 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60 ${tab.locked ? "opacity-40 cursor-not-allowed" : "hover:text-red-500"}`}
-                aria-label="Close tab"
-                title={tab.locked ? "Unlock tab to close" : "Close tab"}
-              >
-                <Trash2 size={16} />
-              </button>
+              {tab.locked ? (
+                <span
+                  className="inline-flex items-center justify-center text-white/60"
+                  title="Tab is locked"
+                  aria-label="Tab is locked"
+                >
+                  <Lock size={16} />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => closeTab(tab.id)}
+                  className="inline-flex items-center justify-center text-white/70 transition hover:text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
+                  aria-label="Close tab"
+                  title="Close tab"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
           </div>
         ))}

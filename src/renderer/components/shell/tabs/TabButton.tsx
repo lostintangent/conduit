@@ -1,5 +1,5 @@
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
-import { Command, X } from "lucide-react";
+import { Command, Lock, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const cx = (...classes: Array<string | false>) =>
@@ -88,7 +88,7 @@ export const TabButton = ({
   }, [isEditing]);
 
   const handleDoubleClick = (event: React.MouseEvent) => {
-    if (disableClick || isEditing) {
+    if (disableClick || isEditing || isLocked) {
       return;
     }
     event.preventDefault();
@@ -201,6 +201,8 @@ export const TabButton = ({
               }
             }}
           />
+        ) : isLocked ? (
+          <Lock size={14} className="flex-none opacity-60" />
         ) : (
           <Command size={14} className="flex-none opacity-60" />
         )}

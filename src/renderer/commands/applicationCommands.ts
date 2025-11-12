@@ -385,6 +385,7 @@ export function registerApplicationCommands(
     title: "Change Tab Title",
     description: "Change the title of the current tab",
     category: "Tab",
+    when: tabIsLocked.isFalse(),
     menu: [
       {
         id: MenuId.TabContext,
@@ -412,6 +413,7 @@ export function registerApplicationCommands(
       id: MenuId.TabContext,
       group: "1_tab",
       order: 2,
+      when: tabIsLocked.isFalse(),
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -432,6 +434,7 @@ export function registerApplicationCommands(
       id: MenuId.TabContext,
       group: "1_tab",
       order: 3,
+      when: tabIsLocked.isTrue(),
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -796,7 +799,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Alt+T",
     },
-    when: hasActivePane.isTrue(),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "5_tab_move",
