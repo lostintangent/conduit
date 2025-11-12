@@ -48,6 +48,12 @@ export const useGlobalKeyHandlers = (): UseGlobalKeyHandlersResult => {
           setApplicationMode("normal");
           return;
         }
+
+        if (applicationMode === "design") {
+          event.preventDefault();
+          setApplicationMode("normal");
+          return;
+        }
       }
 
       const key = event.key.toLowerCase();
