@@ -172,13 +172,13 @@
 /* Gradient canvas technique - sliding horizontal gradient for synchronized borders */
 @keyframes slideGradient {
   0% {
-    background-position: 0% 0;
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    background-position: 400% 0;
+    transform: translate3d(-75%, 0, 0);
   }
   100% {
-    background-position: 0% 0;
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -189,6 +189,18 @@
   right: 0;
   bottom: 0;
   z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.gradient-canvas::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 400%;
+  height: 100%;
   background: linear-gradient(
     90deg,
     #4ade80 0%,
@@ -200,17 +212,16 @@
     #fbbf24 85.68%,
     #4ade80 100%
   );
-  background-size: 400% 100%;
+  background-size: 100% 100%;
   animation: slideGradient 240s linear infinite;
-  pointer-events: none;
-  border-radius: inherit;
+  will-change: transform;
 }
 
 /* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .gradient-canvas {
+  .gradient-canvas::before {
     animation: none;
-    background-position: 0% 0;
+    transform: translate3d(0, 0, 0);
   }
 }
 
