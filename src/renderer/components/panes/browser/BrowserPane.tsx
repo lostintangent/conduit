@@ -15,9 +15,11 @@ import { useAtomValue } from "jotai";
 import {
   ArrowLeft,
   ArrowRight,
+  ChevronDown,
   ExternalLink,
   Loader2,
   RefreshCw,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -50,12 +52,22 @@ export function BrowserPane({
   disableInteraction = false,
   isInPreview = false,
 }: BrowserPaneProps) {
-  const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
-    useUserSettings();
+  const {
+    urlHistory,
+    addUrlToHistory,
+    removeUrlFromHistory,
+    starredPages,
+    addStarredPage,
+    removeStarredPage,
+    updateStarredPage,
+  } = useUserSettings();
   const applicationMode = useAtomValue(applicationModeAtom);
 
   const webviewRef = useRef<WebviewTag | null>(null);
   const webviewAnchorRef = useRef<HTMLDivElement | null>(null);
+  const starButtonRef = useRef<HTMLButtonElement | null>(null);
+  const starMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const starredDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const previewOverlayRef = useRef<HTMLDivElement | null>(null);
   const isPreviewHoveredRef = useRef(false);
@@ -63,10 +75,16 @@ export function BrowserPane({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [inputUrl, setInputUrl] = useState<string>(url);
+  const [pageTitle, setPageTitle] = useState<string>("");
 
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
   const [showHistory, setShowHistory] = useState<boolean>(false);
+  const [showStarredList, setShowStarredList] = useState<boolean>(false);
+
+  const isCurrentUrlStarred = starredPages.some(
+    (page) => page.url === currentUrl,
+  );
 
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
@@ -95,6 +113,9 @@ export function BrowserPane({
     webviewRef.current = webview;
     setCurrentUrl(url);
     setInputUrl(url);
+    const initialTitle =
+      typeof webview?.getTitle === "function" ? webview.getTitle() : "";
+    setPageTitle(typeof initialTitle === "string" ? initialTitle.trim() : "");
 
     // Because the webview is absolutely positioned and scaled
     // while in preview mode, we unfortunately need to implement
@@ -221,6 +242,9 @@ export function BrowserPane({
     }: DidNavigateEvent | DidNavigateInPageEvent) => {
       setCurrentUrl(url);
       setInputUrl(url);
+      const updatedTitle =
+        typeof webview.getTitle === "function" ? webview.getTitle() : "";
+      setPageTitle(typeof updatedTitle === "string" ? updatedTitle.trim() : "");
 
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
@@ -228,8 +252,11 @@ export function BrowserPane({
       onUrlChange(url);
     };
 
-    const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) =>
+    const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) => {
+      const normalizedTitle = typeof title === "string" ? title.trim() : "";
+      setPageTitle(normalizedTitle);
       onTitleChange(title);
+    };
 
     const handleWebViewContextMenu = (
       event: Event & { params?: ContextMenuParams },
@@ -304,6 +331,54 @@ export function BrowserPane({
     );
   }, [applicationMode]);
 
+  useEffect(() => {
+    if (!showStarredList) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        starButtonRef.current?.contains(target) ||
+        starMenuButtonRef.current?.contains(target) ||
+        starredDropdownRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setShowStarredList(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showStarredList]);
+
+  useEffect(() => {
+    if (showHistory) {
+      setShowStarredList(false);
+    }
+  }, [showHistory]);
+
+  useEffect(() => {
+    setShowStarredList(false);
+  }, [currentUrl]);
+
+  useEffect(() => {
+    if (!currentUrl) return;
+
+    const trimmedTitle = pageTitle.trim();
+    if (trimmedTitle.length === 0) {
+      return;
+    }
+
+    const starredPage = starredPages.find((page) => page.url === currentUrl);
+    if (starredPage && starredPage.title !== trimmedTitle) {
+      void updateStarredPage({ url: currentUrl, title: trimmedTitle });
+    }
+  }, [currentUrl, pageTitle, starredPages, updateStarredPage]);
+
   /* URL bar handlers */
 
   const handleUrlSubmit = useCallback(() => {
@@ -323,6 +398,7 @@ export function BrowserPane({
 
     addUrlToHistory(targetUrl);
     setShowHistory(false);
+    setShowStarredList(false);
 
     webviewRef.current?.loadURL(targetUrl);
   }, [inputUrl, addUrlToHistory]);
@@ -335,21 +411,24 @@ export function BrowserPane({
       // If the user cleared the input bar, then
       // show the MRU history dropdown (if we have any).
       setShowHistory(value.trim().length === 0 && urlHistory.length > 0);
+      setShowStarredList(false);
     },
-    [],
+    [urlHistory.length],
   );
 
   const handleUrlInputBlur = useCallback(() => {
     // Reset the input URL to the current URL after a short delay
     setInputUrl(currentUrl);
     setShowHistory(false);
+    setShowStarredList(false);
   }, [currentUrl]);
 
   const handleUrlInputFocus = useCallback(() => {
     if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
       setShowHistory(true);
     }
-  }, [inputUrl, urlHistory]);
+    setShowStarredList(false);
+  }, [inputUrl, urlHistory.length]);
 
   const handleHistoryItemClick = useCallback(
     (historyUrl: string) => {
@@ -358,6 +437,7 @@ export function BrowserPane({
 
       addUrlToHistory(historyUrl);
       setShowHistory(false);
+      setShowStarredList(false);
     },
     [addUrlToHistory],
   );
@@ -367,6 +447,60 @@ export function BrowserPane({
       void removeUrlFromHistory(historyUrl);
     },
     [removeUrlFromHistory],
+  );
+
+  const handleToggleStar = useCallback(() => {
+    if (!currentUrl) {
+      return;
+    }
+
+    if (isCurrentUrlStarred) {
+      void removeStarredPage(currentUrl);
+    } else {
+      const trimmedTitle = pageTitle.trim();
+      void addStarredPage({
+        url: currentUrl,
+        title: trimmedTitle.length > 0 ? trimmedTitle : currentUrl,
+      });
+    }
+
+    setShowStarredList(false);
+    setShowHistory(false);
+  }, [
+    currentUrl,
+    isCurrentUrlStarred,
+    pageTitle,
+    addStarredPage,
+    removeStarredPage,
+  ]);
+
+  const handleStarredDropdownToggle = useCallback(() => {
+    if (starredPages.length === 0) {
+      setShowStarredList(false);
+      return;
+    }
+
+    setShowStarredList((value) => !value);
+    setShowHistory(false);
+  }, [starredPages.length]);
+
+  const handleStarredNavigation = useCallback(
+    (pageUrl: string) => {
+      setInputUrl(pageUrl);
+      webviewRef.current?.loadURL(pageUrl);
+
+      addUrlToHistory(pageUrl);
+      setShowStarredList(false);
+      setShowHistory(false);
+    },
+    [addUrlToHistory],
+  );
+
+  const handleStarredRemove = useCallback(
+    (pageUrl: string) => {
+      void removeStarredPage(pageUrl);
+    },
+    [removeStarredPage],
   );
 
   return (
@@ -415,10 +549,49 @@ export function BrowserPane({
               onChange={handleUrlInputChange}
               onBlur={handleUrlInputBlur}
               onFocus={handleUrlInputFocus}
-              className="flex-1 px-3 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
+              className="flex-1 px-3 pr-20 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
               placeholder="Enter URL..."
             />
           </form>
+          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1">
+            <button
+              ref={starButtonRef}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={handleToggleStar}
+              className={`pointer-events-auto p-1 rounded transition-colors ${
+                isCurrentUrlStarred
+                  ? "text-yellow-400 hover:text-yellow-300"
+                  : "text-white/70 hover:text-white"
+              }`}
+              aria-pressed={isCurrentUrlStarred}
+              title={
+                isCurrentUrlStarred ? "Unstar this page" : "Star this page"
+              }
+            >
+              <Star
+                className="w-4 h-4"
+                fill={isCurrentUrlStarred ? "currentColor" : "none"}
+              />
+            </button>
+            <button
+              ref={starMenuButtonRef}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={handleStarredDropdownToggle}
+              className={`pointer-events-auto p-1 rounded transition-colors ${
+                starredPages.length === 0
+                  ? "text-white/40 cursor-not-allowed"
+                  : "text-white/70 hover:text-white"
+              }`}
+              title="Show starred pages"
+              aria-haspopup="listbox"
+              aria-expanded={showStarredList}
+              disabled={starredPages.length === 0}
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
           {showHistory && urlHistory.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
               {urlHistory.map((historyUrl) => (
@@ -448,6 +621,52 @@ export function BrowserPane({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {showStarredList && starredPages.length > 0 && (
+            <div
+              ref={starredDropdownRef}
+              className="absolute top-full right-0 mt-1 w-72 bg-surface border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
+              role="listbox"
+            >
+              {starredPages.map((page) => {
+                const displayTitle = page.title?.trim().length
+                  ? page.title
+                  : page.url;
+                return (
+                  <div
+                    key={page.url}
+                    className="group flex items-center border-b border-white/5 last:border-b-0 hover:bg-white/10 transition"
+                  >
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => handleStarredNavigation(page.url)}
+                      className="flex-1 px-3 py-2 text-left text-white transition overflow-hidden"
+                      role="option"
+                    >
+                      <span className="block text-sm truncate">
+                        {displayTitle}
+                      </span>
+                      <span className="block text-xs text-white/50 truncate">
+                        {page.url}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleStarredRemove(page.url);
+                      }}
+                      className="px-2 py-2 text-yellow-400 hover:text-yellow-300 transition"
+                      aria-label="Unstar this page"
+                    >
+                      <Star className="w-4 h-4" fill="currentColor" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

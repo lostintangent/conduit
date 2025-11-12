@@ -14,6 +14,7 @@ export const userSettingsAtom = atom<UserSettings>({
   theme: "dark",
   commandHistory: [],
   urlHistory: [],
+  starredPages: [],
   homeDirectory: null,
 });
 

@@ -2,6 +2,7 @@ import { BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
 import type {
   BackgroundCommandRequest,
+  StarredPage,
   UserSettings,
 } from "../../shared/types";
 import { updateApplicationMenu } from "./applicationMenu";
@@ -115,6 +116,63 @@ export function initializeUIHandlers(window: BrowserWindow) {
     await saveSettings(userSettings);
 
     return requireUserSettings().urlHistory;
+  });
+
+  ipcMain.handle("ui:add-starred-page", async (_, page: StarredPage) => {
+    const currentSettings = requireUserSettings();
+    const trimmedUrl = page.url.trim();
+    const title = page.title.trim() || trimmedUrl;
+
+    const updatedPages = [
+      { url: trimmedUrl, title },
+      ...currentSettings.starredPages.filter(
+        (entry) => entry.url !== trimmedUrl,
+      ),
+    ];
+
+    userSettings = {
+      ...currentSettings,
+      starredPages: updatedPages,
+    };
+
+    await saveSettings(userSettings);
+
+    return requireUserSettings().starredPages;
+  });
+
+  ipcMain.handle("ui:remove-starred-page", async (_, url: string) => {
+    const currentSettings = requireUserSettings();
+    const trimmedUrl = url.trim();
+
+    userSettings = {
+      ...currentSettings,
+      starredPages: currentSettings.starredPages.filter(
+        (entry) => entry.url !== trimmedUrl,
+      ),
+    };
+
+    await saveSettings(userSettings);
+
+    return requireUserSettings().starredPages;
+  });
+
+  ipcMain.handle("ui:update-starred-page", async (_, page: StarredPage) => {
+    const currentSettings = requireUserSettings();
+    const trimmedUrl = page.url.trim();
+    const title = page.title.trim() || trimmedUrl;
+
+    const updatedPages = currentSettings.starredPages.map((entry) =>
+      entry.url === trimmedUrl ? { ...entry, title } : entry,
+    );
+
+    userSettings = {
+      ...currentSettings,
+      starredPages: updatedPages,
+    };
+
+    await saveSettings(userSettings);
+
+    return requireUserSettings().starredPages;
   });
 
   ipcMain.handle(

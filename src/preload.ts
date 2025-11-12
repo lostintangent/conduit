@@ -22,6 +22,7 @@ import type {
   TerminalDataPayload,
   TerminalExitPayload,
   TerminalTitlePayload,
+  StarredPage,
   UpdateState,
   UserSettings,
   VMInfo,
@@ -188,6 +189,17 @@ const conduitAPI = {
 
   removeUrlFromHistory: (url: string) =>
     ipcRenderer.invoke("ui:remove-url-from-history", url) as Promise<string[]>,
+
+  addStarredPage: (page: StarredPage) =>
+    ipcRenderer.invoke("ui:add-starred-page", page) as Promise<StarredPage[]>,
+
+  removeStarredPage: (url: string) =>
+    ipcRenderer.invoke("ui:remove-starred-page", url) as Promise<StarredPage[]>,
+
+  updateStarredPage: (page: StarredPage) =>
+    ipcRenderer.invoke("ui:update-starred-page", page) as Promise<
+      StarredPage[]
+    >,
 
   runBackgroundCommand: (options: BackgroundCommandRequest) =>
     ipcRenderer.invoke("ui:run-background-command", options) as Promise<void>,

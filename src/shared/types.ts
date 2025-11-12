@@ -15,6 +15,11 @@ export type ThemeOverrides = {
   accent?: string;
 };
 
+export type StarredPage = {
+  url: string;
+  title: string;
+};
+
 export type UserSettings = {
   tabPosition: "top" | "bottom";
   alwaysShowTabs: boolean;
@@ -26,6 +31,7 @@ export type UserSettings = {
   themeOverrides?: ThemeOverrides;
   commandHistory: string[];
   urlHistory: string[];
+  starredPages: StarredPage[];
   homeDirectory: string | null;
 };
 
