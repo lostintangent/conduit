@@ -23,7 +23,12 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { focusTab, moveTab, openTab } from "@/store/actions/tab";
+import {
+  focusTab,
+  moveTab,
+  openTab,
+  getActiveTabCwd,
+} from "@/store/actions/tab";
 import {
   activeTabAtom,
   activeTabIdAtom,
@@ -43,6 +48,7 @@ import {
   SquareDashedMousePointer,
   SquareTerminal,
   Terminal,
+  FolderTree,
 } from "lucide-react";
 import React, {
   useCallback,
@@ -482,22 +488,24 @@ export const TabStrip = ({
 
   const handleOpenQuickTerminal = useCallback(async () => {
     const api = window.conduit;
-    const result = await api.createTerminal(
-      homeDirectory ? { cwd: homeDirectory } : undefined,
-    );
-    if (!result || !onOpenQuickPane) {
-      return;
-    }
+    const cwd = getActiveTabCwd(activeTab, homeDirectory);
+    const result = await api.createTerminal({ cwd });
+    if (!result) return;
     onOpenQuickPane({
       type: "terminal",
       sessionId: result.sessionId,
       cwd: result.cwd ?? null,
     });
-  }, [homeDirectory, onOpenQuickPane]);
+  }, [activeTab, homeDirectory, onOpenQuickPane]);
 
   const handleOpenQuickCloudTerminal = useCallback(() => {
     setIsRepoDialogOpen(true);
   }, []);
+
+  const handleOpenQuickFileExplorer = useCallback(() => {
+    const cwd = getActiveTabCwd(activeTab, homeDirectory);
+    onOpenQuickPane({ type: "editor", cwd });
+  }, [activeTab, homeDirectory, onOpenQuickPane]);
 
   const handleRepoSubmit = useCallback(
     async (repo?: { owner: string; name: string }) => {
@@ -675,6 +683,10 @@ export const TabStrip = ({
                 <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
                   <Cloud size={16} className="mr-3" />
                   Terminal (Cloud)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
+                  <FolderTree size={16} className="mr-3" />
+                  File explorer
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
