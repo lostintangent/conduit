@@ -315,7 +315,7 @@ export function TabLayout({
         return null;
       }
 
-      const isLocked = tab.locked ?? false;
+      const isLocked = tab.locked;
       const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
       const isInFocusMode = applicationMode === "focus";
       const isHiddenInFocusMode = isInFocusMode && !isActivePane;
@@ -545,7 +545,7 @@ export function TabLayout({
       hasUnifiedSandbox: boolean,
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
-      const isLocked = tab.locked ?? false;
+      const isLocked = tab.locked;
 
       // Generate the grid template for this split
       const gridTemplate = buildGridTemplateStyles(

@@ -441,6 +441,11 @@ export function registerApplicationCommands(
     },
   });
 
+  const paneActionsEnabled = When.and(
+    hasActivePane.isTrue(),
+    tabIsLocked.isFalse(),
+  );
+
   // Pane: Toggle Focus
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_FOCUS,
@@ -468,7 +473,7 @@ export function registerApplicationCommands(
     title: "Close Pane",
     description: "Close the current pane",
     category: "Pane",
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "9_close",
@@ -492,7 +497,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Left",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "2_split",
@@ -516,7 +521,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Right",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "2_split",
@@ -540,7 +545,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Up",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "2_split",
@@ -564,7 +569,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Down",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "2_split",
@@ -589,7 +594,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Ctrl+Left",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "3_split_agent",
@@ -615,7 +620,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Ctrl+Right",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "3_split_agent",
@@ -640,7 +645,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Ctrl+Up",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "3_split_agent",
@@ -670,7 +675,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Shift+Ctrl+Down",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "3_split_agent",
@@ -695,7 +700,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Alt+Left",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "4_move",
@@ -719,7 +724,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Alt+Right",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "4_move",
@@ -743,7 +748,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Alt+Up",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "4_move",
@@ -767,7 +772,7 @@ export function registerApplicationCommands(
     keybinding: {
       key: "Cmd+Alt+Down",
     },
-    when: When.and(hasActivePane.isTrue(), tabIsLocked.isFalse()),
+    when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
       group: "4_move",
@@ -906,7 +911,7 @@ const tabContextBuilder: MenuContextBuilder = async (
   }
 
   contextKeyService.setGlobal(hasGitRepo.key, hasGitRepoValue);
-  contextKeyService.setGlobal(tabIsLocked.key, !!tab.locked);
+  contextKeyService.setGlobal(tabIsLocked.key, tab.locked);
 };
 
 /**
@@ -929,7 +934,7 @@ const paneContextBuilder: MenuContextBuilder = async (
 
   contextKeyService.setGlobal(hasGitRepo.key, hasGitRepoValue);
   if (tab) {
-    contextKeyService.setGlobal(tabIsLocked.key, !!tab.locked);
+    contextKeyService.setGlobal(tabIsLocked.key, tab.locked);
   }
 };
 

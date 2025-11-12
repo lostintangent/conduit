@@ -267,15 +267,11 @@ export function focusTab(tabId: string) {
 }
 
 export function lockTab(tabId: string) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => (tab.id === tabId ? { ...tab, locked: true } : tab)),
-  );
+  updateTabProperty(tabId, { locked: true });
 }
 
 export function unlockTab(tabId: string) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => (tab.id === tabId ? { ...tab, locked: false } : tab)),
-  );
+  updateTabProperty(tabId, { locked: false });
 }
 
 type CloseTabOptions = {
@@ -605,7 +601,7 @@ export async function duplicateTab(
     layout: newLayout,
     activePaneId: newActivePaneId || Object.keys(newPanes)[0],
     title: newTitle,
-    locked: sourceTab.locked ?? false,
+    locked: sourceTab.locked,
   };
 
   // Insert the new tab immediately after the source tab

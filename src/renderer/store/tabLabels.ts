@@ -101,7 +101,7 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
       tooltip,
       isActive: tab.id === activeTabId,
       title: trimmedTitle || undefined,
-      locked: tab.locked ?? false,
+      locked: tab.locked,
     };
   });
 });
