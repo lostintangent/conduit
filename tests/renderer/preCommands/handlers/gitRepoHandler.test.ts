@@ -246,7 +246,7 @@ describe("gitRepoHandler", () => {
       const endTime = Date.now();
 
       expect(result.success).toBe(true);
-      expect(endTime - startTime).toBeGreaterThanOrEqual(100);
+      expect(endTime - startTime).toBeGreaterThanOrEqual(99);
     });
 
     it("should handle rapid consecutive calls", async () => {

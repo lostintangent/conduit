@@ -255,6 +255,14 @@ export function App() {
       });
     });
 
+    const unsubscribeNotification = api.onShowNotification((payload) => {
+      enqueueNotification({
+        kind: payload.type,
+        message: payload.message,
+        autoCloseMs: payload.timeout,
+      });
+    });
+
     const unsubscribeBeforeClose = api.onBeforeClose(() => {
       // Save the current workspace state as "last workspace"
       if (tabs.length > 0) {
@@ -264,6 +272,7 @@ export function App() {
 
     return () => {
       unsubscribeExit();
+      unsubscribeNotification();
       unsubscribeBeforeClose();
     };
   }, [tabs, activeTab]);

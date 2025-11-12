@@ -11,13 +11,18 @@ import type {
   AgentSessionSpawnRequest,
 } from "../../shared/types";
 import {
+  applyDiffPatch,
+  createDiffPatch,
   fileExists,
   findRepoRoot,
   getCurrentBranch,
   getGitHubRepoInfo,
   getRemoteOriginUrl,
   hasGitRepository,
+  hasUncommittedChanges,
+  hasUnpushedCommits,
   parseGitHubRepo,
+  pushCommitsViaSSH,
   runGit,
   safeGitCommand,
 } from "./git";
@@ -320,6 +325,48 @@ export function initializeAgentHandlers() {
   ipcMain.handle("agent:get-github-repo-info", async (_event, cwd: string) => {
     return await getGitHubRepoInfo(cwd);
   });
+
+  ipcMain.handle(
+    "agent:has-uncommitted-changes",
+    async (_event, cwd: string) => {
+      return await hasUncommittedChanges(cwd);
+    },
+  );
+
+  ipcMain.handle("agent:has-unpushed-commits", async (_event, cwd: string) => {
+    return await hasUnpushedCommits(cwd);
+  });
+
+  ipcMain.handle(
+    "agent:push-commits-via-ssh",
+    async (
+      _event,
+      cwd: string,
+      sshHost: string,
+      sshPort: number,
+      sshKeyPath: string,
+      remotePath?: string,
+    ) => {
+      return await pushCommitsViaSSH(
+        cwd,
+        sshHost,
+        sshPort,
+        sshKeyPath,
+        remotePath,
+      );
+    },
+  );
+
+  ipcMain.handle("agent:create-diff-patch", async (_event, cwd: string) => {
+    return await createDiffPatch(cwd);
+  });
+
+  ipcMain.handle(
+    "agent:apply-diff-patch",
+    async (_event, cwd: string, patchData: Buffer) => {
+      return await applyDiffPatch(cwd, patchData);
+    },
+  );
 }
 
 export {

@@ -6,8 +6,11 @@ import type {
   ListVMsPayload,
 } from "../../shared/types";
 import {
+  applyDiffToVM,
+  configureVMForGitPush,
   createVM as createVMClient,
   deleteVM as deleteVMClient,
+  executeInVM,
   forkVM as forkVMClient,
   getVM as getVMClient,
   listVMs as listVMsClient,
@@ -51,6 +54,51 @@ export function initializeVMHandlers() {
     reloadConfig();
     return { success: true };
   });
+
+  // Execute command in VM
+  ipcMain.handle(
+    "vm:execute",
+    async (
+      _,
+      {
+        vmId,
+        command,
+        args,
+        timeoutSeconds,
+      }: {
+        vmId: string;
+        command: string;
+        args?: string[];
+        timeoutSeconds?: number;
+      },
+    ) => {
+      return await executeInVM(vmId, command, args, timeoutSeconds);
+    },
+  );
+
+  // Apply commit bundle to VM
+  // Configure VM to accept git pushes
+  ipcMain.handle(
+    "vm:configure-git-push",
+    async (_, { vmId, repoPath }: { vmId: string; repoPath: string }) => {
+      return await configureVMForGitPush(vmId, repoPath);
+    },
+  );
+
+  // Apply diff patch to VM
+  ipcMain.handle(
+    "vm:apply-diff",
+    async (
+      _,
+      {
+        vmId,
+        diffPatch,
+        repoPath,
+      }: { vmId: string; diffPatch: Buffer; repoPath: string },
+    ) => {
+      return await applyDiffToVM(vmId, diffPatch, repoPath);
+    },
+  );
 
   // Forward a port from a VM
   ipcMain.handle(
