@@ -1,5 +1,5 @@
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
-import { Command, Lock, X } from "lucide-react";
+import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const cx = (...classes: Array<string | false>) =>
@@ -191,7 +191,7 @@ export const TabButton = ({
       <span className="text-white/40">|</span>
       <span className="flex items-center gap-1 text-xs">
         {showCloseButton ? (
-          <X
+          <Trash2
             size={14}
             className="cursor-pointer transition-all duration-150 flex-none opacity-60 hover:opacity-100 hover:text-red-500"
             onClick={(event) => {
