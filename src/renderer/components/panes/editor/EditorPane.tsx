@@ -11,7 +11,6 @@ import {
   FolderUp,
   Loader2,
   Redo,
-  RefreshCw,
   Save,
   Search,
   Undo,
@@ -809,35 +808,6 @@ export function EditorPane({
     }
   }, [cwd, onCwdChange]);
 
-  const handleRefresh = useCallback(async () => {
-    if (hasOpenFile && filePath) {
-      // Refresh file content
-      try {
-        const content = await api.readFile(filePath);
-        const language = inferLanguageFromFilePath(filePath);
-        setCurrentContent(content);
-        setOriginalContent(content);
-        setCurrentLanguage(language);
-        setHasUnsavedChanges(false);
-      } catch (error) {
-        console.error("Failed to refresh file:", error);
-      }
-    } else {
-      // Refresh directory tree
-      setIsLoadingTree(true);
-      try {
-        const tree = await api.listDirectory(cwd);
-        setFileTree(tree);
-        fileTreeCache.set(cwd, tree);
-        setIsLoadingTree(false);
-      } catch (error) {
-        console.error("Failed to refresh directory:", error);
-        setFileTree([]);
-        setIsLoadingTree(false);
-      }
-    }
-  }, [hasOpenFile, filePath, cwd]);
-
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
       // Clean up previous disposable if it exists
@@ -1003,16 +973,6 @@ export function EditorPane({
                         <FolderUp size={14} className="text-white/60" />
                       </button>
                     )}
-                    {!isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="p-1 rounded hover:bg-white/10 transition-colors"
-                        title="Refresh directory"
-                      >
-                        <RefreshCw size={14} className="text-white/60" />
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -1090,19 +1050,6 @@ export function EditorPane({
                     >
                       <Search size={14} className="text-white/60" />
                     </button>
-                    {!isLocked && (
-                      <>
-                        <div className="h-4 w-px bg-white/10 shrink-0" />
-                        <button
-                          type="button"
-                          onClick={handleRefresh}
-                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                          title="Refresh file"
-                        >
-                          <RefreshCw size={14} className="text-white/60" />
-                        </button>
-                      </>
-                    )}
                   </>
                 )}
               </div>
@@ -1300,19 +1247,6 @@ export function EditorPane({
                   >
                     <Search size={14} className="text-white/60" />
                   </button>
-                  {!isLocked && (
-                    <>
-                      <div className="h-4 w-px bg-white/10 shrink-0" />
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Refresh file"
-                      >
-                        <RefreshCw size={14} className="text-white/60" />
-                      </button>
-                    </>
-                  )}
                 </>
               ) : (
                 <>
@@ -1326,16 +1260,6 @@ export function EditorPane({
                         title="Go up one directory"
                       >
                         <FolderUp size={14} className="text-white/60" />
-                      </button>
-                    )}
-                    {!isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Refresh directory"
-                      >
-                        <RefreshCw size={14} className="text-white/60" />
                       </button>
                     )}
                   </div>
