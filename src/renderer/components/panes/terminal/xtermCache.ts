@@ -74,9 +74,24 @@ export function getOrCreate(
     terminal.loadAddon(webLinksAddon);
     terminal.loadAddon(serializer);
 
-    const unsubData = api.onData(sessionId, (data: string) =>
-      terminal.write(data),
-    );
+    // Batch writes with a small delay to prevent cursor flicker in TUIs
+    let writeBuffer: string[] = [];
+    let flushTimer: NodeJS.Timeout | null = null;
+
+    const flushWrites = () => {
+      flushTimer = null;
+      if (writeBuffer.length > 0) {
+        terminal.write(writeBuffer.join(""));
+        writeBuffer = [];
+      }
+    };
+
+    const unsubData = api.onData(sessionId, (data: string) => {
+      writeBuffer.push(data);
+      if (flushTimer === null) {
+        flushTimer = setTimeout(flushWrites, 20);
+      }
+    });
 
     const onKeyDispose = terminal.onData((input) =>
       api.sendKeypress(sessionId, input),
@@ -103,6 +118,11 @@ export function getOrCreate(
         api.resize(sessionId, cols, rows);
       },
       dispose: () => {
+        if (flushTimer !== null) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+        writeBuffer = [];
         unsubData();
         onKeyDispose?.dispose();
         terminal.dispose();
