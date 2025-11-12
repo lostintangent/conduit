@@ -100,10 +100,14 @@ export interface CloudTerminalOptions {
   localRepoCwd?: string;
 
   /**
-   * Git diff patch for working tree changes (staged/unstaged/untracked)
-   * Applied after commits are pushed to sync uncommitted changes to VM
+   * Git diff patches for working tree changes
+   * Preserves staging state when applied to VM
    */
-  diffPatch?: Buffer;
+  diffPatches?: {
+    staged: Buffer | null;
+    unstaged: Buffer | null;
+    untracked: Buffer | null;
+  };
 }
 
 export type TerminalCreateOptions = {

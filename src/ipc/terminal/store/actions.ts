@@ -155,7 +155,7 @@ export async function createTerminal(
           detectedPorts: new Set(),
           forwardedPorts: new Map(),
           localRepoCwd: options.localRepoCwd,
-          diffPatch: options.diffPatch,
+          diffPatches: options.diffPatches,
           repoName: options.githubRepo?.name,
           localBranch: options.githubRepo?.branch,
           branchExistsOnRemote: options.githubRepo?.branchExistsOnRemote,
@@ -376,7 +376,7 @@ export function markTerminalReady(
     terminal.pty.write(sshCommand);
 
     // If there's git state to apply (working tree changes), schedule it after repo clone
-    const hasDiffPatch = terminal.cloudEnvironment.diffPatch;
+    const hasDiffPatch = terminal.cloudEnvironment.diffPatches;
     const hasLocalRepoCwd = terminal.cloudEnvironment.localRepoCwd;
     const hasGitSync =
       (hasDiffPatch || hasLocalRepoCwd) && terminal.cloudEnvironment.repoName;
@@ -389,9 +389,20 @@ export function markTerminalReady(
         );
       }
       if (hasDiffPatch) {
-        console.log(
-          `[VM] - Working tree patch: ${terminal.cloudEnvironment.diffPatch!.length} bytes`,
-        );
+        const patches = [];
+        if (terminal.cloudEnvironment.diffPatches!.staged)
+          patches.push(
+            `staged: ${terminal.cloudEnvironment.diffPatches!.staged.length}b`,
+          );
+        if (terminal.cloudEnvironment.diffPatches!.unstaged)
+          patches.push(
+            `unstaged: ${terminal.cloudEnvironment.diffPatches!.unstaged.length}b`,
+          );
+        if (terminal.cloudEnvironment.diffPatches!.untracked)
+          patches.push(
+            `untracked: ${terminal.cloudEnvironment.diffPatches!.untracked.length}b`,
+          );
+        console.log(`[VM] - Working tree patches: ${patches.join(", ")}`);
       }
 
       // Poll for repo clone completion instead of using fixed delay
@@ -546,11 +557,26 @@ export function markTerminalReady(
           // Step 2: Apply working tree patches (staged/unstaged/untracked)
           if (hasDiffPatch) {
             const { applyDiffToVM } = await import("../../vm/client");
-            console.log(`[VM] Applying working tree patch to ${repoPath}`);
+            const patches = [];
+            if (terminal.cloudEnvironment!.diffPatches!.staged)
+              patches.push(
+                `staged: ${terminal.cloudEnvironment!.diffPatches!.staged.length}b`,
+              );
+            if (terminal.cloudEnvironment!.diffPatches!.unstaged)
+              patches.push(
+                `unstaged: ${terminal.cloudEnvironment!.diffPatches!.unstaged.length}b`,
+              );
+            if (terminal.cloudEnvironment!.diffPatches!.untracked)
+              patches.push(
+                `untracked: ${terminal.cloudEnvironment!.diffPatches!.untracked.length}b`,
+              );
+            console.log(
+              `[VM] Applying working tree patches: ${patches.join(", ")}`,
+            );
 
             const patchResult = await applyDiffToVM(
               terminal.cloudEnvironment!.vmId,
-              terminal.cloudEnvironment!.diffPatch!,
+              terminal.cloudEnvironment!.diffPatches!,
               repoPath,
             );
 

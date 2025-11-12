@@ -39,8 +39,13 @@ export type CloudEnvironment = {
   detectedPorts: Set<number>;
   forwardedPorts: Map<number, string>; // port -> connection_url
 
+  // Git sync state - applied after repo clone to preserve history
   localRepoCwd?: string; // Local repo path for SSH push
-  diffPatch?: Buffer; // Working tree changes (staged/unstaged/untracked)
+  diffPatches?: {
+    staged: Buffer | null;
+    unstaged: Buffer | null;
+    untracked: Buffer | null;
+  }; // Working tree changes preserving staging state
   repoName?: string; // Repository name for determining clone path
   localBranch?: string; // Local branch name (may not exist on remote)
   branchExistsOnRemote?: boolean; // Whether local branch exists on remote

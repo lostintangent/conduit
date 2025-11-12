@@ -293,10 +293,11 @@ const conduitAPI = {
     ) as Promise<boolean>,
 
   createDiffPatch: (cwd: string) =>
-    ipcRenderer.invoke(
-      "agent:create-diff-patch",
-      cwd,
-    ) as Promise<Buffer | null>,
+    ipcRenderer.invoke("agent:create-diff-patch", cwd) as Promise<{
+      stagedPatch: Buffer | null;
+      unstagedPatch: Buffer | null;
+      untrackedPatch: Buffer | null;
+    } | null>,
 
   applyDiffPatch: (cwd: string, patchData: Buffer) =>
     ipcRenderer.invoke(

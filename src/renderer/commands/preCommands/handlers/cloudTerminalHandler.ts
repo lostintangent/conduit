@@ -20,7 +20,11 @@ export interface CloudTerminalHandlerResult {
     defaultBranch: string;
   };
   localRepoCwd?: string;
-  diffPatch?: Buffer;
+  diffPatches?: {
+    staged: Buffer | null;
+    unstaged: Buffer | null;
+    untracked: Buffer | null;
+  };
   error?: string;
 }
 
@@ -77,7 +81,13 @@ export async function detectGitHubRepoHandler(
     ]);
 
     let localRepoCwd: string | undefined;
-    let diffPatch: Buffer | undefined;
+    let diffPatches:
+      | {
+          staged: Buffer | null;
+          unstaged: Buffer | null;
+          untracked: Buffer | null;
+        }
+      | undefined;
 
     // Store local repo path for SSH push if there are unpushed commits
     if (hasUnpushed) {
@@ -87,22 +97,31 @@ export async function detectGitHubRepoHandler(
       localRepoCwd = cwd;
     }
 
-    // Create diff patch for working tree changes (staged/unstaged/untracked)
+    // Create diff patches for working tree changes (preserving staging state)
     if (hasUncommitted) {
       console.log(
-        "[CloudTerminal] Uncommitted changes detected, creating working tree patch...",
+        "[CloudTerminal] Uncommitted changes detected, creating patches...",
       );
 
-      const patch = await api.createDiffPatch(cwd);
+      const patches = await api.createDiffPatch(cwd);
 
-      if (patch) {
-        diffPatch = patch;
-        console.log(
-          `[CloudTerminal] Created working tree patch (${patch.length} bytes)`,
-        );
+      if (patches) {
+        diffPatches = {
+          staged: patches.stagedPatch,
+          unstaged: patches.unstagedPatch,
+          untracked: patches.untrackedPatch,
+        };
+        const parts = [];
+        if (patches.stagedPatch)
+          parts.push(`staged: ${patches.stagedPatch.length}b`);
+        if (patches.unstagedPatch)
+          parts.push(`unstaged: ${patches.unstagedPatch.length}b`);
+        if (patches.untrackedPatch)
+          parts.push(`untracked: ${patches.untrackedPatch.length}b`);
+        console.log(`[CloudTerminal] Created patches: ${parts.join(", ")}`);
       } else {
         console.warn(
-          "[CloudTerminal] Failed to create working tree patch despite detected changes",
+          "[CloudTerminal] Failed to create patches despite detected changes",
         );
       }
     }
@@ -115,7 +134,7 @@ export async function detectGitHubRepoHandler(
       success: true,
       githubRepo: repoInfo,
       localRepoCwd,
-      diffPatch,
+      diffPatches,
     };
   } catch (error) {
     // If anything goes wrong, just treat as no repo found
@@ -165,15 +184,22 @@ export function buildCloudTerminalResult(
     );
   }
 
-  // Add working tree patch if there are uncommitted changes
-  if (handlerResult.diffPatch) {
-    terminalOptions.diffPatch = handlerResult.diffPatch;
+  // Add working tree patches if there are uncommitted changes
+  if (handlerResult.diffPatches) {
+    terminalOptions.diffPatches = handlerResult.diffPatches;
+    const parts = [];
+    if (handlerResult.diffPatches.staged)
+      parts.push(`staged: ${handlerResult.diffPatches.staged.length}b`);
+    if (handlerResult.diffPatches.unstaged)
+      parts.push(`unstaged: ${handlerResult.diffPatches.unstaged.length}b`);
+    if (handlerResult.diffPatches.untracked)
+      parts.push(`untracked: ${handlerResult.diffPatches.untracked.length}b`);
     console.log(
-      `[CloudTerminal] Including working tree patch: ${handlerResult.diffPatch.length} bytes`,
+      `[CloudTerminal] Including working tree patches: ${parts.join(", ")}`,
     );
   }
 
-  if (!handlerResult.localRepoCwd && !handlerResult.diffPatch) {
+  if (!handlerResult.localRepoCwd && !handlerResult.diffPatches) {
     console.log(`[CloudTerminal] No local changes to sync`);
   }
 

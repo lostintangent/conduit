@@ -451,12 +451,16 @@ export async function pushCommitsViaSSH(
  * (staged/unstaged/untracked files), NOT unpushed commits.
  * Unpushed commits are transferred via pushCommitsViaSSH() to preserve history.
  *
- * This creates a patch that can be applied with `git apply` in the VM
+ * This creates patches that preserve staging state when applied with `git apply`
  *
  * @param cwd - Current working directory
- * @returns Binary diff as Buffer, or null if no working tree changes
+ * @returns Object with staged and unstaged patches, or null if no working tree changes
  */
-export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
+export async function createDiffPatch(cwd: string): Promise<{
+  stagedPatch: Buffer | null;
+  unstagedPatch: Buffer | null;
+  untrackedPatch: Buffer | null;
+} | null> {
   try {
     const repoRoot = await findRepoRoot(cwd);
     if (!repoRoot) {
@@ -469,23 +473,31 @@ export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
       return null;
     }
 
-    let diffOutput = "";
+    let stagedDiff = "";
+    let unstagedDiff = "";
+    let untrackedDiff = "";
 
-    // Part 1: Get diff from HEAD to working tree
-    // This includes staged and unstaged changes, but NOT unpushed commits
-    // By diffing HEAD (not origin/branch), we only get working tree changes
+    // Part 1: Get diff for staged changes (index vs HEAD)
     try {
       const { stdout } = await runGitDiff(repoRoot, [
         "diff",
-        "HEAD",
+        "--cached",
         "--binary",
       ]);
-      diffOutput += stdout;
+      stagedDiff = stdout;
     } catch (error) {
-      console.warn("[Git] Failed to create diff from HEAD:", error);
+      console.warn("[Git] Failed to create staged diff:", error);
     }
 
-    // Part 2: Handle untracked files by creating patches for them
+    // Part 2: Get diff for unstaged changes (working tree vs index)
+    try {
+      const { stdout } = await runGitDiff(repoRoot, ["diff", "--binary"]);
+      unstagedDiff = stdout;
+    } catch (error) {
+      console.warn("[Git] Failed to create unstaged diff:", error);
+    }
+
+    // Part 3: Handle untracked files by creating patches for them
     const { stdout: statusOutput } = await runGit(repoRoot, [
       "status",
       "--porcelain",
@@ -517,7 +529,7 @@ export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
             .replace(/^--- \/dev\/null/m, "--- /dev/null")
             .replace(/^\+\+\+ .*$/m, `+++ b/${file}`);
 
-          diffOutput += "\n" + adjustedDiff;
+          untrackedDiff += (untrackedDiff ? "\n" : "") + adjustedDiff;
         } catch (error) {
           console.warn(
             `[Git] Failed to create patch for untracked file ${file}:`,
@@ -527,19 +539,38 @@ export async function createDiffPatch(cwd: string): Promise<Buffer | null> {
       }
     }
 
-    if (!diffOutput || diffOutput.trim().length === 0) {
+    // Return null if no changes at all
+    if (!stagedDiff.trim() && !unstagedDiff.trim() && !untrackedDiff.trim()) {
       return null;
     }
 
-    console.log(`[Git] Created working tree patch: ${diffOutput.length} bytes`);
-    return Buffer.from(diffOutput, "utf-8");
+    const result = {
+      stagedPatch: stagedDiff.trim() ? Buffer.from(stagedDiff, "utf-8") : null,
+      unstagedPatch: unstagedDiff.trim()
+        ? Buffer.from(unstagedDiff, "utf-8")
+        : null,
+      untrackedPatch: untrackedDiff.trim()
+        ? Buffer.from(untrackedDiff, "utf-8")
+        : null,
+    };
+
+    console.log(`[Git] Created patches:`);
+    if (result.stagedPatch) {
+      console.log(`  - Staged: ${result.stagedPatch.length} bytes`);
+    }
+    if (result.unstagedPatch) {
+      console.log(`  - Unstaged: ${result.unstagedPatch.length} bytes`);
+    }
+    if (result.untrackedPatch) {
+      console.log(`  - Untracked: ${result.untrackedPatch.length} bytes`);
+    }
+
+    return result;
   } catch (error) {
     console.error("Failed to create diff patch:", error);
     return null;
   }
-}
-
-/**
+} /**
  * Apply a diff patch to the working directory
  *
  * @param cwd - Current working directory

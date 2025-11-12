@@ -368,98 +368,176 @@ export async function configureVMForGitPush(
 }
 
 /**
- * Transfer a diff patch to a VM and apply it to the repository
- *
+ * Apply diff patches to a repository in a VM, preserving staging state
  * @param vmId - VM identifier
- * @param diffPatch - The git diff patch as Buffer
+ * @param diffPatches - Object containing staged, unstaged, and untracked patches
  * @param repoPath - Path to the repository in the VM (usually ~/repo_name)
  * @returns true if successful, false otherwise
  */
 export async function applyDiffToVM(
   vmId: string,
-  diffPatch: Buffer,
+  diffPatches: {
+    staged: Buffer | null;
+    unstaged: Buffer | null;
+    untracked: Buffer | null;
+  },
   repoPath: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log(`[VM] Applying diff patch to ${repoPath} in VM ${vmId}`);
-    console.log(`[VM] Patch size: ${diffPatch.length} bytes`);
-    console.log(`[VM] Patch type: ${diffPatch.constructor.name}`);
-    console.log(`[VM] Is Buffer: ${Buffer.isBuffer(diffPatch)}`);
+    console.log(`[VM] Applying diff patches to ${repoPath} in VM ${vmId}`);
 
-    // IMPORTANT: When passed through IPC, Buffer becomes Uint8Array
-    // We need to convert it back to a proper Buffer
-    const patchBuffer = Buffer.isBuffer(diffPatch)
-      ? diffPatch
-      : Buffer.from(diffPatch);
+    const patches = [];
+    if (diffPatches.staged)
+      patches.push(`staged: ${diffPatches.staged.length}b`);
+    if (diffPatches.unstaged)
+      patches.push(`unstaged: ${diffPatches.unstaged.length}b`);
+    if (diffPatches.untracked)
+      patches.push(`untracked: ${diffPatches.untracked.length}b`);
+    console.log(`[VM] Patches to apply: ${patches.join(", ")}`);
 
-    // Step 1: Write the patch file using the files/write API endpoint
-    // Write to /tmp with world-readable permissions
-    const patchPath = "/tmp/conduit.patch";
+    const commands: string[] = [];
 
-    // Convert Buffer to base64 string - MUST ensure it's a string, not Buffer!
-    const patchBase64 = patchBuffer.toString("base64");
-    console.log(`[VM] Base64 type: ${typeof patchBase64}`);
-    console.log(`[VM] Base64 encoded size: ${patchBase64.length} characters`);
-    console.log(
-      `[VM] Base64 sample (first 50 chars): ${patchBase64.slice(0, 50)}`,
-    );
+    // Apply staged changes first (if any)
+    // Strategy: apply to working tree, extract affected files, then stage them
+    if (diffPatches.staged) {
+      const stagedPatchPath = "/tmp/conduit-staged.patch";
+      const stagedBuffer = Buffer.isBuffer(diffPatches.staged)
+        ? diffPatches.staged
+        : Buffer.from(diffPatches.staged);
+      const stagedBase64 = stagedBuffer.toString("base64");
 
-    const requestBody = {
-      path: patchPath,
-      content: patchBase64,
-      mode: 0o666, // Make file readable/writable by everyone
-      create_dirs: false,
-    };
+      const writeResponse = await apiCall<{
+        success: boolean;
+        error?: string;
+        message: string;
+      }>(`/vms/${vmId}/files/write`, {
+        method: "POST",
+        body: JSON.stringify({
+          path: stagedPatchPath,
+          content: stagedBase64,
+          mode: 0o666,
+          create_dirs: false,
+        }),
+      });
 
-    console.log(
-      `[VM] Content in requestBody type: ${typeof requestBody.content}`,
-    );
+      if (!writeResponse.success) {
+        console.error(
+          `[VM] Failed to write staged patch:`,
+          writeResponse.error,
+        );
+        return {
+          success: false,
+          error: `Failed to write staged patch: ${writeResponse.error}`,
+        };
+      }
 
-    const jsonBody = JSON.stringify(requestBody);
-    console.log(`[VM] Request body size: ${jsonBody.length} bytes`);
-    console.log(
-      `[VM] Request body sample (first 200 chars): ${jsonBody.slice(0, 200)}`,
-    );
-
-    const writeResponse = await apiCall<{
-      success: boolean;
-      error?: string;
-      message: string;
-    }>(`/vms/${vmId}/files/write`, {
-      method: "POST",
-      body: jsonBody,
-    });
-
-    if (!writeResponse.success) {
-      console.error(`[VM] Failed to write patch file:`, writeResponse.error);
-      return {
-        success: false,
-        error: `Failed to write patch: ${writeResponse.error}`,
-      };
+      // Apply patch to working tree and stage the affected files
+      // Use git apply --numstat to get list of files, then stage them
+      commands.push(
+        `cd ${repoPath} && git apply ${stagedPatchPath} && git apply --numstat ${stagedPatchPath} | awk '{print $3}' | xargs git add && rm ${stagedPatchPath}`,
+      );
+      console.log(`[VM] Staged patch written to ${stagedPatchPath}`);
     }
 
-    console.log(`[VM] Patch file written to ${patchPath}`);
+    // Apply unstaged changes (if any)
+    if (diffPatches.unstaged) {
+      const unstagedPatchPath = "/tmp/conduit-unstaged.patch";
+      const unstagedBuffer = Buffer.isBuffer(diffPatches.unstaged)
+        ? diffPatches.unstaged
+        : Buffer.from(diffPatches.unstaged);
+      const unstagedBase64 = unstagedBuffer.toString("base64");
 
-    // Step 2: Apply the patch using git apply with --3way for better handling of differences
-    // --3way: attempt 3-way merge if patch doesn't apply cleanly
-    // We don't use --index since we're applying to a clean working tree
-    const applyCommand = `cd ${repoPath} && git apply --3way /tmp/conduit.patch && rm /tmp/conduit.patch`;
+      const writeResponse = await apiCall<{
+        success: boolean;
+        error?: string;
+        message: string;
+      }>(`/vms/${vmId}/files/write`, {
+        method: "POST",
+        body: JSON.stringify({
+          path: unstagedPatchPath,
+          content: unstagedBase64,
+          mode: 0o666,
+          create_dirs: false,
+        }),
+      });
 
-    const result = await executeInVM(vmId, "bash", ["-c", applyCommand], 60);
+      if (!writeResponse.success) {
+        console.error(
+          `[VM] Failed to write unstaged patch:`,
+          writeResponse.error,
+        );
+        return {
+          success: false,
+          error: `Failed to write unstaged patch: ${writeResponse.error}`,
+        };
+      }
 
-    if (result.exit_code !== 0) {
-      console.error(`[VM] Failed to apply diff patch:`, result.stderr);
-      return {
-        success: false,
-        error: result.stderr || result.error || "Unknown error applying patch",
-      };
+      // Apply without --cached to keep in working directory
+      commands.push(
+        `cd ${repoPath} && git apply ${unstagedPatchPath} && rm ${unstagedPatchPath}`,
+      );
+      console.log(`[VM] Unstaged patch written to ${unstagedPatchPath}`);
     }
 
-    console.log(`[VM] Successfully applied diff patch`);
-    if (result.stdout) {
-      console.log(`[VM] Output:`, result.stdout);
+    // Apply untracked files (if any)
+    if (diffPatches.untracked) {
+      const untrackedPatchPath = "/tmp/conduit-untracked.patch";
+      const untrackedBuffer = Buffer.isBuffer(diffPatches.untracked)
+        ? diffPatches.untracked
+        : Buffer.from(diffPatches.untracked);
+      const untrackedBase64 = untrackedBuffer.toString("base64");
+
+      const writeResponse = await apiCall<{
+        success: boolean;
+        error?: string;
+        message: string;
+      }>(`/vms/${vmId}/files/write`, {
+        method: "POST",
+        body: JSON.stringify({
+          path: untrackedPatchPath,
+          content: untrackedBase64,
+          mode: 0o666,
+          create_dirs: false,
+        }),
+      });
+
+      if (!writeResponse.success) {
+        console.error(
+          `[VM] Failed to write untracked patch:`,
+          writeResponse.error,
+        );
+        return {
+          success: false,
+          error: `Failed to write untracked patch: ${writeResponse.error}`,
+        };
+      }
+
+      // Apply untracked files (they'll stay untracked)
+      commands.push(
+        `cd ${repoPath} && git apply ${untrackedPatchPath} && rm ${untrackedPatchPath}`,
+      );
+      console.log(`[VM] Untracked patch written to ${untrackedPatchPath}`);
     }
 
+    // Execute all patch applications in sequence
+    for (const command of commands) {
+      const result = await executeInVM(vmId, "bash", ["-c", command], 60);
+
+      if (result.exit_code !== 0) {
+        console.error(`[VM] Failed to apply patch:`, result.stderr);
+        return {
+          success: false,
+          error:
+            result.stderr || result.error || "Unknown error applying patch",
+        };
+      }
+
+      if (result.stdout) {
+        console.log(`[VM] Patch output:`, result.stdout);
+      }
+    }
+
+    console.log(`[VM] Successfully applied all diff patches`);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
