@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
 import type {
   BackgroundCommandRequest,
-  StarredPage,
+  BrowserPage,
   UserSettings,
 } from "../../shared/types";
 import { updateApplicationMenu } from "./applicationMenu";
@@ -118,7 +118,7 @@ export function initializeUIHandlers(window: BrowserWindow) {
     return requireUserSettings().urlHistory;
   });
 
-  ipcMain.handle("ui:add-starred-page", async (_, page: StarredPage) => {
+  ipcMain.handle("ui:add-starred-page", async (_, page: BrowserPage) => {
     const currentSettings = requireUserSettings();
     const trimmedUrl = page.url.trim();
     const title = page.title.trim() || trimmedUrl;

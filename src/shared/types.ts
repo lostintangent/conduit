@@ -15,7 +15,7 @@ export type ThemeOverrides = {
   accent?: string;
 };
 
-export type StarredPage = {
+export type BrowserPage = {
   url: string;
   title: string;
 };
@@ -31,7 +31,7 @@ export type UserSettings = {
   themeOverrides?: ThemeOverrides;
   commandHistory: string[];
   urlHistory: string[];
-  starredPages: StarredPage[];
+  starredPages: BrowserPage[];
   homeDirectory: string | null;
 };
 

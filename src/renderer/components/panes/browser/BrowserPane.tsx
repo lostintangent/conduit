@@ -1,4 +1,3 @@
-import { useUserSettings } from "@/hooks/useUserSettings";
 import { applicationModeAtom } from "@/store/atoms";
 import {
   applyWebviewScaling,
@@ -12,17 +11,9 @@ import type {
   WebviewTag,
 } from "electron";
 import { useAtomValue } from "jotai";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ExternalLink,
-  Loader2,
-  RefreshCw,
-  Trash2,
-  X,
-} from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { StarredPagesMenu } from "./StarredPagesMenu";
+import { Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BrowserToolbar } from "./toolbar/BrowserToolbar";
 
 const api = window.conduit;
 
@@ -51,8 +42,6 @@ export function BrowserPane({
   disableInteraction = false,
   isInPreview = false,
 }: BrowserPaneProps) {
-  const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
-    useUserSettings();
   const applicationMode = useAtomValue(applicationModeAtom);
 
   const webviewRef = useRef<WebviewTag | null>(null);
@@ -63,16 +52,10 @@ export function BrowserPane({
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
-  const [inputUrl, setInputUrl] = useState<string>(url);
   const [pageTitle, setPageTitle] = useState<string>("");
 
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
-  const [showHistory, setShowHistory] = useState<boolean>(false);
-
-  const closeDropdowns = useCallback(() => {
-    setShowHistory(false);
-  }, []);
 
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
@@ -103,7 +86,6 @@ export function BrowserPane({
 
     webviewRef.current = webview;
     setCurrentUrl(url);
-    setInputUrl(url);
 
     // Because the webview is absolutely positioned and scaled
     // while in preview mode, we unfortunately need to implement
@@ -229,7 +211,6 @@ export function BrowserPane({
       url,
     }: DidNavigateEvent | DidNavigateInPageEvent) => {
       setCurrentUrl(url);
-      setInputUrl(url);
       const updatedTitle =
         typeof webview.getTitle === "function" ? webview.getTitle() : "";
       setPageTitle(typeof updatedTitle === "string" ? updatedTitle.trim() : "");
@@ -319,184 +300,19 @@ export function BrowserPane({
     );
   }, [applicationMode]);
 
-  /* URL bar handlers */
-
-  const handleUrlSubmit = useCallback(() => {
-    let targetUrl = inputUrl.trim();
-    if (targetUrl.length === 0) return;
-
-    // Add protocol if missing
-    if (!targetUrl.match(/^http(s)?:\/\//i)) {
-      const lowerTarget = targetUrl.toLowerCase();
-      const host = lowerTarget.split("/")[0];
-
-      const isLocalhost = host === "localhost" || host.startsWith("localhost:");
-
-      const protocol = isLocalhost ? "http" : "https";
-      targetUrl = `${protocol}://${targetUrl}`;
-    }
-
-    addUrlToHistory(targetUrl);
-    closeDropdowns();
-
-    webviewRef.current?.loadURL(targetUrl);
-  }, [inputUrl, addUrlToHistory, closeDropdowns]);
-
-  const handleUrlInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setInputUrl(value);
-
-      // If the user cleared the input bar, then
-      // show the MRU history dropdown (if we have any).
-      setShowHistory(value.trim().length === 0 && urlHistory.length > 0);
-    },
-    [urlHistory.length],
-  );
-
-  const handleUrlInputBlur = useCallback(() => {
-    // Reset the input URL to the current URL after a short delay
-    setInputUrl(currentUrl);
-    closeDropdowns();
-  }, [currentUrl, closeDropdowns]);
-
-  const handleUrlInputFocus = useCallback(() => {
-    if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
-      setShowHistory(true);
-    }
-  }, [inputUrl, urlHistory.length]);
-
-  const handleHistoryItemClick = useCallback(
-    (historyUrl: string) => {
-      setInputUrl(historyUrl);
-      webviewRef.current?.loadURL(historyUrl);
-
-      addUrlToHistory(historyUrl);
-      closeDropdowns();
-    },
-    [addUrlToHistory, closeDropdowns],
-  );
-
-  const handleHistoryItemRemove = useCallback(
-    (historyUrl: string) => {
-      void removeUrlFromHistory(historyUrl);
-    },
-    [removeUrlFromHistory],
-  );
-
-  const handleStarredNavigation = useCallback(
-    (pageUrl: string) => {
-      setInputUrl(pageUrl);
-      webviewRef.current?.loadURL(pageUrl);
-
-      addUrlToHistory(pageUrl);
-      closeDropdowns();
-    },
-    [addUrlToHistory, closeDropdowns],
-  );
-
-  const handleStarredCloseRequest = useCallback(() => {
-    setShowHistory(false);
-  }, []);
-
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-surface">
-      {/* URL Bar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
-        <button
-          type="button"
-          onClick={() => webviewRef.current?.goBack()}
-          disabled={!canGoBack}
-          className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          title="Back"
-        >
-          <ArrowLeft className="w-4 h-4 text-white" />
-        </button>
-        <button
-          type="button"
-          onClick={() => webviewRef.current?.goForward()}
-          disabled={!canGoForward}
-          className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          title="Forward"
-        >
-          <ArrowRight className="w-4 h-4 text-white" />
-        </button>
-        <button
-          type="button"
-          onClick={
-            isLoading
-              ? () => webviewRef.current?.stop()
-              : () => webviewRef.current?.reload()
-          }
-          className="p-1.5 rounded hover:bg-white/10 transition"
-          title={isLoading ? "Stop" : "Refresh"}
-        >
-          {isLoading ? (
-            <X className="w-4 h-4 text-white" />
-          ) : (
-            <RefreshCw className="w-4 h-4 text-white" />
-          )}
-        </button>
-        <div className="relative flex-1 flex min-w-0">
-          <form onSubmit={handleUrlSubmit} className="flex-1 flex min-w-0">
-            <input
-              type="text"
-              value={inputUrl}
-              onChange={handleUrlInputChange}
-              onBlur={handleUrlInputBlur}
-              onFocus={handleUrlInputFocus}
-              className="flex-1 px-3 pr-20 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
-              placeholder="Enter URL..."
-            />
-          </form>
-          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0">
-            <StarredPagesMenu
-              currentPage={{ url: currentUrl, title: pageTitle }}
-              onPageSelected={handleStarredNavigation}
-              onMenuOpened={handleStarredCloseRequest}
-            />
-          </div>
-          {showHistory && urlHistory.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
-              {urlHistory.map((historyUrl) => (
-                <div
-                  key={historyUrl}
-                  className="group flex items-center border-b border-white/5 last:border-b-0 hover:bg-white/10 transition"
-                >
-                  <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => handleHistoryItemClick(historyUrl)}
-                    className="flex-1 px-3 py-2 text-sm text-left text-white transition overflow-hidden text-ellipsis whitespace-nowrap"
-                  >
-                    {historyUrl}
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleHistoryItemRemove(historyUrl);
-                    }}
-                    className="px-2 py-2 text-white/50 hover:text-red-500 transition"
-                    aria-label="Remove from history"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => api.openExternal(currentUrl)}
-          className="p-1.5 rounded hover:bg-white/10 transition"
-          title="Open in external browser"
-        >
-          <ExternalLink className="w-4 h-4 text-white" />
-        </button>
-      </div>
+      <BrowserToolbar
+        currentPage={{ url: currentUrl, title: pageTitle }}
+        isLoading={isLoading}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onNavigate={(url) => webviewRef.current?.loadURL(url)}
+        onGoBack={() => webviewRef.current?.goBack()}
+        onGoForward={() => webviewRef.current?.goForward()}
+        onRefresh={() => webviewRef.current?.reload()}
+        onStop={() => webviewRef.current?.stop()}
+      />
 
       {/* WebView */}
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">
