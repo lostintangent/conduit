@@ -92,7 +92,7 @@ export function TabsOverview() {
               </button>
               {tab.locked ? (
                 <span
-                  className="inline-flex items-center justify-center text-white/60"
+                  className="inline-flex items-center justify-center"
                   title="Tab is locked"
                   aria-label="Tab is locked"
                 >
@@ -102,7 +102,7 @@ export function TabsOverview() {
                 <button
                   type="button"
                   onClick={() => closeTab(tab.id)}
-                  className="inline-flex items-center justify-center text-white/70 transition hover:text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
+                  className="transition hover:text-destructive focus:outline-none"
                   aria-label="Close tab"
                   title="Close tab"
                 >
