@@ -53,6 +53,7 @@
 
 @custom-variant dark (&:is([data-theme="dark"] *));
 
+/* Dark theme color variables */
 :root {
   --background: oklch(23.5% 0 0);
   --foreground: oklch(86.99% 0 0);
@@ -84,16 +85,11 @@
   --input: oklch(26.86% 0 0);
   --ring: oklch(86.97% 0 0);
 
-  --chart-1: oklch(52.92% 0.1931 262.13);
-  --chart-2: oklch(69.83% 0.1337 165.46);
-  --chart-3: oklch(72.32% 0.15 60.63);
-  --chart-4: oklch(61.92% 0.2037 312.73);
-  --chart-5: oklch(61.23% 0.2093 6.39);
-
   --pane-divider-gradient: oklch(0% 0 0 / 0.4);
   --pane-divider: oklch(35.62% 0 0);
 }
 
+/* Light theme color variables */
 :root[data-theme="light"] {
   --accent: oklch(62.31% 0.188 259.81);
   --accent-foreground: oklch(98.48% 0 0);
@@ -143,6 +139,7 @@
   --pane-divider-solid: oklch(96.42% 0 0);
 }
 
+/* Theme tokens exposed to Tailwind CSS */
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -174,25 +171,28 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --chart-1: oklch(52.92% 0.1931 262.13);
-  --chart-2: oklch(69.83% 0.1337 165.46);
-  --chart-3: oklch(72.32% 0.15 60.63);
-  --chart-4: oklch(61.92% 0.2037 312.73);
-  --chart-5: oklch(61.23% 0.2093 6.39);
+  --color-pane-divider-gradient: var(--pane-divider-gradient);
+  --color-pane-divider: var(--pane-divider);
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 
   /* TODO: Cleanup */
-  --color-surface: oklch(23.5% 0 0);
-  --color-surface-elevated: oklch(23.93% 0 0);
-  --color-popover: var(--color-surface-elevated);
-  --color-text-popover: var(--color-foreground);
+  --color-surface: oklch(23.5% 0 0); /* background? */
+  --color-surface-elevated: oklch(23.93% 0 0); /* popover? */
   --color-surface-muted: oklch(19.13% 0 0);
   --color-input: oklch(18.22% 0 0);
   --color-border: oklch(28.91% 0 0);
   --color-border-muted: oklch(32.11% 0 0);
 
   --color-foreground-inverse: oklch(23.93% 0 0);
+
   --color-accent-start: oklch(65.11% 0.1872 258.55);
   --color-accent-end: oklch(61.44% 0.2346 294.74);
+
   --color-secondary-start: oklch(69.59% 0.1491 162.48);
   --color-secondary-end: oklch(71.48% 0.1257 215.22);
   --color-focus-ring: oklch(65.11% 0.1872 258.55 / 0.6);
@@ -202,15 +202,6 @@
   --color-warning-text: oklch(90.52% 0.1657 98.11);
   --color-warning-button: oklch(68.06% 0.1423 75.83);
   --color-warning-button-hover: oklch(55.38% 0.1207 66.44);
-
-  --color-pane-divider-gradient: var(--pane-divider-gradient);
-  --color-pane-divider: var(--pane-divider);
-
-  --radius: 0.5rem;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
 }
 
 /* Pane highlight */
@@ -226,7 +217,8 @@
   }
 }
 
-/* Gradient canvas technique - sliding horizontal gradient for synchronized borders */
+/* Gradient border*/
+
 @keyframes slideGradient {
   0% {
     transform: translate3d(0, 0, 0);
@@ -281,7 +273,8 @@
   }
 }
 
-/* Fan-out menu animation */
+/* Design mode radial button fan-out */
+
 @keyframes fan-in {
   0% {
     opacity: 0;
