@@ -13,7 +13,7 @@ import path from "node:path";
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: "**/node_modules/node-pty/**/*",
+      unpack: "**/node_modules/{node-pty,@parcel/watcher}/**/*",
     },
     icon: "./build/assets/icon",
     appBundleId: "dev.conduit",
@@ -21,12 +21,12 @@ const config: ForgeConfig = {
     osxSign: {},
   },
   rebuildConfig: {
-    onlyModules: ["node-pty"],
+    onlyModules: ["node-pty", "@parcel/watcher"],
     force: true,
   },
   hooks: {
     packageAfterCopy: async (_config, buildPath) => {
-      execSync("npm install --omit=dev node-pty", {
+      execSync("npm install --omit=dev node-pty @parcel/watcher", {
         cwd: buildPath,
         stdio: "inherit",
       });
