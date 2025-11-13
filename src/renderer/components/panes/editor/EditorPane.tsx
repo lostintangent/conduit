@@ -1,18 +1,20 @@
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
-import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { useGitStatus } from "@/components/panes/editor/useGitStatus";
+import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
-  ChevronLeft,
   ChevronRight,
   FolderUp,
   GitBranch,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Redo,
   Save,
   Search,
@@ -993,7 +995,7 @@ export function EditorPane({
         // Split Mode Layout
         <>
           {/* Headers row */}
-          <div className="flex items-stretch border-b border-white/10">
+          <div className="flex items-stretch border-b border-elevated-border">
             {/* Tree header */}
             {!isTreeCollapsed && (
               <>
@@ -1008,7 +1010,7 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                       title="Collapse tree"
                     >
-                      <ChevronLeft size={14} className="text-white/60" />
+                      <PanelLeftClose size={14} />
                     </button>
                     <span className="truncate" title={cwd}>
                       {displayPath}
@@ -1019,10 +1021,10 @@ export function EditorPane({
                       <button
                         type="button"
                         onClick={handleNavigateUp}
-                        className="p-1 rounded hover:bg-white/10 transition-colors"
+                        className="p-1 rounded hover:bg-foreground/10 transition-colors"
                         title="Go up one directory"
                       >
-                        <FolderUp size={14} className="text-white/60" />
+                        <FolderUp size={14} />
                       </button>
                     )}
                     {isInGitRepo && branches.length > 0 && (
@@ -1031,8 +1033,8 @@ export function EditorPane({
                         onClick={() => setIsBranchSelectorOpen(true)}
                         className={`p-1 rounded transition-colors ${
                           baseBranch
-                            ? "bg-white/20 hover:bg-white/25"
-                            : "hover:bg-white/10"
+                            ? "bg-foreground/20 hover:bg-foreground/25"
+                            : "hover:bg-foreground/10"
                         }`}
                         title={
                           baseBranch
@@ -1040,18 +1042,15 @@ export function EditorPane({
                             : "Comparing to: HEAD (uncommitted changes)"
                         }
                       >
-                        <GitBranch size={14} className="text-white/60" />
+                        <GitBranch size={14} />
                       </button>
                     )}
                   </div>
                 </div>
 
                 {/* Vertical divider - matches content divider width */}
-                <div
-                  style={{ width: "4px" }}
-                  className="flex items-center justify-center"
-                >
-                  <div className="w-px h-full bg-white/10" />
+                <div className="flex items-center justify-center w-px bg-elevated-border">
+                  <div className="w-px h-full bg-elevated-border" />
                 </div>
               </>
             )}
@@ -1067,7 +1066,7 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                       title="Expand tree"
                     >
-                      <ChevronRight size={14} className="text-white/60" />
+                      <PanelLeftOpen size={14} />
                     </button>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
                   </>
@@ -1083,7 +1082,10 @@ export function EditorPane({
                 </span>
                 {hasOpenFile && (
                   <>
-                    <div className="h-4 w-px bg-white/10 shrink-0" />
+                    <Separator
+                      orientation="vertical"
+                      className="h-4 mx-1 bg-elevated-border"
+                    />
                     <button
                       type="button"
                       onClick={handleUndo}
@@ -1091,7 +1093,7 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Undo"
                     >
-                      <Undo size={14} className="text-white/60" />
+                      <Undo size={14} />
                     </button>
                     <button
                       type="button"
@@ -1100,9 +1102,14 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Redo"
                     >
-                      <Redo size={14} className="text-white/60" />
+                      <Redo size={14} />
                     </button>
-                    <div className="h-4 w-px bg-white/10 shrink-0" />
+
+                    <Separator
+                      orientation="vertical"
+                      className="h-4 mx-1 bg-elevated-border"
+                    />
+
                     <button
                       type="button"
                       onClick={handleSave}
@@ -1110,7 +1117,7 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Save"
                     >
-                      <Save size={14} className="text-white/60" />
+                      <Save size={14} />
                     </button>
                     <button
                       type="button"
@@ -1118,7 +1125,7 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                       title="Find in file (Ctrl+F)"
                     >
-                      <Search size={14} className="text-white/60" />
+                      <Search size={14} />
                     </button>
                   </>
                 )}
@@ -1200,15 +1207,12 @@ export function EditorPane({
                 </div>
 
                 {/* Resize handle - matches pane divider behavior */}
-                <div
-                  className="relative flex items-center justify-center"
-                  style={{ width: "4px" }}
-                >
+                <div className="relative flex items-center justify-center w-px">
                   {/* Always-visible thin border */}
-                  <div className="absolute w-px h-full bg-white/10" />
+                  <div className="absolute w-px h-full bg-elevated-border" />
                   {/* Wider interactive handle that highlights on hover */}
                   <div
-                    className={`w-1 h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
+                    className={`w-3 h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
                     onMouseDown={handleResizeStart}
                   />
                 </div>
@@ -1259,7 +1263,7 @@ export function EditorPane({
                     className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                     title="Show tree"
                   >
-                    <ChevronRight size={14} className="text-white/60" />
+                    <ChevronRight size={14} />
                   </button>
                   <div className="h-4 w-px bg-white/10 shrink-0" />
                 </>
@@ -1326,10 +1330,10 @@ export function EditorPane({
                       <button
                         type="button"
                         onClick={handleNavigateUp}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
                         title="Go up one directory"
                       >
-                        <FolderUp size={14} className="text-white/60" />
+                        <FolderUp size={14} />
                       </button>
                     )}
                     {isInGitRepo && branches.length > 0 && (
@@ -1338,8 +1342,8 @@ export function EditorPane({
                         onClick={() => setIsBranchSelectorOpen(true)}
                         className={`p-1 rounded transition-colors ${
                           baseBranch
-                            ? "bg-white/20 hover:bg-white/25"
-                            : "hover:bg-white/10"
+                            ? "bg-foreground/20 hover:bg-foreground/25"
+                            : "hover:bg-foreground/10"
                         }`}
                         title={
                           baseBranch
@@ -1347,7 +1351,7 @@ export function EditorPane({
                             : "Comparing to: HEAD (uncommitted changes)"
                         }
                       >
-                        <GitBranch size={14} className="text-white/60" />
+                        <GitBranch size={14} />
                       </button>
                     )}
                   </div>
@@ -1463,6 +1467,7 @@ export function EditorPane({
           </div>
         </>
       )}
+
       {!hideIndividualSandboxIndicator && (
         <SandboxIndicator
           agentSessionId={agentSessionId ?? null}
@@ -1470,6 +1475,7 @@ export function EditorPane({
           onDeleteAgentSession={handleDeleteAgentSession}
         />
       )}
+
       <BranchSelector
         open={isBranchSelectorOpen}
         branches={branches}

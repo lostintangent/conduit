@@ -27,17 +27,17 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
   const config = gitStatus ? getStatusConfig(gitStatus) : null;
   const colorClass = config
     ? config.colorClass.replace("bg-", "text-")
-    : "text-white/80";
+    : "text-foreground";
   const iconColorClass = config
     ? config.colorClass.replace("bg-", "text-")
-    : "text-white/60";
+    : "text-foreground";
 
   return (
     <li>
       <button
         type="button"
         onClick={handleClick}
-        className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+        className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-foreground/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       >
         <FileText className={`shrink-0 ${iconColorClass}`} size={12} />
         <span
@@ -50,10 +50,10 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
           <button
             type="button"
             onClick={handleOpen}
-            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+            className="opacity-0 group-hover:opacity-100 group-hover:text-foreground group-focus-within:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
             title="Open in quick pane"
           >
-            <ExternalLink className="text-white/60" size={12} />
+            <ExternalLink size={12} />
           </button>
           {gitStatus && (
             <div

@@ -1,3 +1,4 @@
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -189,13 +190,12 @@ export function BrowserToolbar({
           }}
           className="flex-1 flex min-w-0"
         >
-          <input
-            type="text"
+          <Input
             value={inputUrl}
             onChange={handleUrlInputChange}
             onBlur={handleUrlInputBlur}
             onFocus={handleUrlInputFocus}
-            className="flex-1 px-3 pr-20 py-1 text-sm bg-background rounded border border-white/10  focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
+            className="flex-1 pr-20 h-8 text-sm overflow-hidden text-ellipsis focus-visible:ring-1 focus-visible:ring-offset-0"
             placeholder="Enter URL..."
           />
         </form>

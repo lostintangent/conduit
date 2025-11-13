@@ -7,8 +7,8 @@ import {
   FolderOpen,
   Loader2,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { FileTreeItem } from "./FileTreeItem";
 import { aggregateFolderStatus } from "./gitFolderAggregation";
 
@@ -46,10 +46,10 @@ export function DirectoryItem({
   // Get text and icon color classes from folder status
   const colorClass = folderStatus
     ? folderStatus.colorClass.replace("bg-", "text-")
-    : "text-white/80";
+    : "text-foreground";
   const iconColorClass = folderStatus
     ? folderStatus.colorClass.replace("bg-", "text-")
-    : "text-white/60";
+    : "text-foreground";
 
   const toggleOpen = useCallback(async () => {
     if (!isOpen && children === undefined) {
@@ -97,19 +97,12 @@ export function DirectoryItem({
         onClick={toggleOpen}
         onKeyDown={handleRowKeyDown}
         aria-expanded={isOpen}
-        className="group flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+        className="group flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-foreground/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       >
         {isLoading ? (
-          <Loader2 className="animate-spin text-white/60" size={12} />
+          <Loader2 className="animate-spin" size={12} />
         ) : (
-          <ArrowIcon
-            className={
-              hasChildren || children === undefined
-                ? "text-white/60"
-                : "text-white/25"
-            }
-            size={12}
-          />
+          <ArrowIcon className="text-foreground" size={12} />
         )}
         <FolderIcon className={`shrink-0 ${iconColorClass}`} size={12} />
         <span
@@ -122,10 +115,10 @@ export function DirectoryItem({
           <button
             type="button"
             onClick={handleChangeCwd}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+            className="opacity-0 group-hover:opacity-100 p-1 group-hover:text-foreground rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
             title="Change to this directory"
           >
-            <FolderInput className="text-white/60" size={12} />
+            <FolderInput size={12} />
           </button>
           {folderStatus && (
             <div
@@ -141,9 +134,9 @@ export function DirectoryItem({
         </div>
       </div>
       {isOpen && (
-        <ul className="mt-0.5 border-l border-white/5 pl-2">
+        <ul className="mt-0.5 border-l border-border pl-2">
           {isLoading ? (
-            <li className="pl-4 text-xs text-white/50">Loading...</li>
+            <li className="pl-4 text-xs text-foreground/50">Loading...</li>
           ) : hasChildren ? (
             children!.map((child) => (
               <FileTreeItem
@@ -157,7 +150,7 @@ export function DirectoryItem({
               />
             ))
           ) : (
-            <li className="pl-4 text-xs text-white/50">Empty directory</li>
+            <li className="pl-4 text-xs text-foreground/50">Empty directory</li>
           )}
         </ul>
       )}
