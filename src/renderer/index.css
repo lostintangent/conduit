@@ -74,6 +74,12 @@
   --destructive: oklch(63.7% 0.237 25.331);
   --destructive-foreground: oklch(98.48% 0 0);
 
+  --warning: oklch(79.52% 0.1617 86.05 / 0.2);
+  --warning-foreground: oklch(90.52% 0.1657 98.11);
+  --warning-border: oklch(79.52% 0.1617 86.05 / 0.5);
+  --warning-button: oklch(68.06% 0.1423 75.83);
+  --warning-button-hover: oklch(55.38% 0.1207 66.44);
+
   --card: oklch(23.54% 0 0);
   --card-foreground: oklch(86.97% 0 0);
 
@@ -81,12 +87,6 @@
   --popover-foreground: oklch(86.97% 0 0);
 
   --selection: oklch(41.84% 0.0829 250.44);
-
-  --warning: oklch(79.52% 0.1617 86.05 / 0.2);
-  --warning-foreground: oklch(90.52% 0.1657 98.11);
-  --warning-border: oklch(79.52% 0.1617 86.05 / 0.5);
-  --warning-button: oklch(68.06% 0.1423 75.83);
-  --warning-button-hover: oklch(55.38% 0.1207 66.44);
 
   --border: oklch(26.86% 0 0);
   --input: oklch(26.86% 0 0);
@@ -165,6 +165,12 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
 
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-border: var(--warning-border);
+  --color-warning-button: var(--warning-button);
+  --color-warning-button-hover: var(--warning-button-hover);
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
 
@@ -179,12 +185,6 @@
 
   --color-pane-divider-gradient: var(--pane-divider-gradient);
   --color-pane-divider: var(--pane-divider);
-
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-warning-border: var(--warning-border);
-  --color-warning-button: var(--warning-button);
-  --color-warning-button-hover: var(--warning-button-hover);
 
   --radius: 0.5rem;
   --radius-sm: calc(var(--radius) - 4px);
