@@ -1,14 +1,6 @@
 import { useAtomValue } from "jotai";
 import type { LucideIcon } from "lucide-react";
-import {
-  ChevronRight,
-  Keyboard,
-  Monitor,
-  Moon,
-  Palette,
-  Settings,
-  Sun,
-} from "lucide-react";
+import { Keyboard, Monitor, Moon, Palette, Settings, Sun } from "lucide-react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import {
@@ -69,7 +61,7 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
-              className="p-1 rounded text-white hover:bg-white/10 transition-colors"
+              className="p-1 rounded hover:bg-white/10 transition-colors"
               aria-label="Settings"
             >
               <Settings className="w-4 h-4" />
@@ -82,9 +74,9 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
       <DropdownMenuContent align="end">
         {/* Theme selection submenu */}
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
-            <span>Color theme</span>
-            <span className="flex items-center gap-2 text-xs text-white/70">
+          <DropdownMenuSubTrigger className="flex items-center justify-between gap-5 group">
+            <span>Theme</span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground group-hover:text-foreground">
               <CurrentThemeIcon className="w-4 h-4" />
               {capitalize(theme)}
             </span>
@@ -110,10 +102,7 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
 
         {/* Advanced settings submenu (TODO: Make this list dynamic) */}
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
-            <span>Advanced settings</span>
-            <ChevronRight className="w-4 h-4 opacity-70" />
-          </DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger>Advanced settings</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuCheckboxItem
               checked={alwaysShowTabs}

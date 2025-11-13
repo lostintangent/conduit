@@ -670,13 +670,13 @@ export const TabStrip = ({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className=" text-white/70 w-4 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  className=" w-4 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
                   aria-label="More quick terminal options"
                 >
                   <ChevronDown size={14} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-w-40">
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleOpenQuickTerminal}>
                   <Terminal size={16} className="mr-3" />
                   Terminal (Local)

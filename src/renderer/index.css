@@ -43,7 +43,7 @@
 
   --selection: oklch(41.84% 0.0829 250.44);
 
-  --border: oklch(28.91% 0 0);
+  --border: var(--muted);
   --input: oklch(18.22% 0 0);
   --ring: oklch(86.97% 0 0);
 
@@ -212,14 +212,6 @@
   ::selection {
     background-color: var(--selection);
     color: var(--foreground);
-  }
-
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
   }
 
   button:not(:disabled),
