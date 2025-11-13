@@ -3,7 +3,7 @@ import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
-import type { FileTreeNode } from "@shared/types";
+import type { FileTreeNode, GitStatusMap } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
   ChevronLeft,
@@ -194,7 +194,7 @@ export function EditorPane({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Git status state
-  const [gitStatus, setGitStatus] = useState<Map<string, unknown> | null>(null);
+  const [gitStatus, setGitStatus] = useState<GitStatusMap | null>(null);
   const [_baseBranch, setBaseBranch] = useState<string | null>(null);
   const [showOnlyChangedFiles] = useState(false);
 

@@ -36,7 +36,6 @@ const mockHolder: {
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
   return {
-    default: actual.default || actual,
     ...actual,
     statSync: (path: any) => {
       // Delegate to the mock holder
@@ -58,7 +57,7 @@ describe("FileWatcherService", () => {
   let service: FileWatcherService;
   let mockWatcher: Partial<FSWatcher>;
   let mockWindow: any;
-  let mockStatSync: ReturnType<typeof vi.fn>;
+  let mockStatSync: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -814,7 +813,7 @@ describe("FileWatcherService", () => {
       mockWindow.webContents.send.mockClear();
 
       // Setup default mock behavior for statSync (using the holder reference)
-      mockHolder.statSync.mockReturnValue({
+      (mockHolder.statSync as any).mockReturnValue({
         size: 1024,
         mtimeMs: Date.now(),
       });
@@ -979,7 +978,7 @@ describe("FileWatcherService", () => {
         expect(chokidar.watch).toHaveBeenCalledTimes(2);
       });
 
-      getGitStatus.mockClear();
+      (getGitStatus as any).mockClear();
 
       // Get the git watcher's change handler
       const gitWatcherCalls = (chokidar.watch as any).mock.calls;
@@ -1018,7 +1017,7 @@ describe("FileWatcherService", () => {
       await service.subscribe("/test/path", "pane-1", 1);
       await vi.runAllTimersAsync();
 
-      getGitStatus.mockClear();
+      (getGitStatus as any).mockClear();
 
       await service.setBaseBranch("/test/path", "main");
 
@@ -1045,7 +1044,7 @@ describe("FileWatcherService", () => {
       await service.subscribe("/test/path", "pane-1", 1);
       await vi.runAllTimersAsync();
 
-      getGitStatus.mockClear();
+      (getGitStatus as any).mockClear();
 
       await service.refreshGitStatus("/test/path");
 
