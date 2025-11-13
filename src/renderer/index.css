@@ -111,13 +111,19 @@
   --chart-5: 340 75% 55%;
   --radius: 0.5rem;
 
-  /* Git status colors */
-  --git-added: #22c55e;
-  --git-modified: #ffd700;
-  --git-modified-staged: #ffa500;
-  --git-deleted: #ef4444;
-  --git-renamed: #3b82f6;
-  --git-untracked: #6b7280;
+  /* Git status colors - VS Code dark theme */
+  --git-added: #81b88b;
+  --git-modified: #e2c08d;
+  --git-modified-staged: #e2c08d;
+  --git-deleted: #c74e39;
+  --git-deleted-staged: #c74e39;
+  --git-renamed: #73c991;
+  --git-copied: #73c991;
+  --git-untracked: #73c991;
+  --git-ignored: #8c8c8c;
+  --git-conflict: #e4676b;
+  --git-type-changed: #e2c08d;
+  --git-submodule: #8db9e2;
 }
 
 /* Light theme */
@@ -170,13 +176,19 @@
   --input: 0 0% 89.8%;
   --ring: 0 0% 10%;
 
-  /* Git status colors - same for light theme */
-  --git-added: #16a34a;
-  --git-modified: #eab308;
-  --git-modified-staged: #f97316;
-  --git-deleted: #dc2626;
-  --git-renamed: #2563eb;
-  --git-untracked: #6b7280;
+  /* Git status colors - VS Code light theme */
+  --git-added: #587c0c;
+  --git-modified: #895503;
+  --git-modified-staged: #895503;
+  --git-deleted: #ad0707;
+  --git-deleted-staged: #ad0707;
+  --git-renamed: #007100;
+  --git-copied: #007100;
+  --git-untracked: #007100;
+  --git-ignored: #8e8e90;
+  --git-conflict: #ad0707;
+  --git-type-changed: #895503;
+  --git-submodule: #1258a7;
 }
 
 /* Pane highlight fade out over 2 seconds - duration matches HIGHLIGHT_DURATION_MS in usePaneHighlight.ts */

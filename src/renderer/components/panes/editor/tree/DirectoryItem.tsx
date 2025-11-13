@@ -10,6 +10,7 @@ import {
 import { useCallback, useMemo, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { FileTreeItem } from "./FileTreeItem";
+import { aggregateFolderStatus } from "./gitFolderAggregation";
 
 const api = window.conduit;
 
@@ -36,21 +37,11 @@ export function DirectoryItem({
     node.children,
   );
 
-  // Compute if directory has changes
-  const hasChanges = useMemo(() => {
-    if (!gitStatus || gitStatus.size === 0) return false;
-
-    // Check if any file in git status is under this directory
-    for (const [relativePath] of gitStatus) {
-      if (
-        relativePath.startsWith(node.relativePath + "/") ||
-        relativePath === node.relativePath
-      ) {
-        return true;
-      }
-    }
-    return false;
-  }, [gitStatus, node.relativePath]);
+  // Aggregate git status for this folder using VS Code's weight-based priority system
+  const folderStatus = useMemo(
+    () => aggregateFolderStatus(gitStatus, node.relativePath),
+    [gitStatus, node.relativePath],
+  );
 
   const toggleOpen = useCallback(async () => {
     if (!isOpen && children === undefined) {
@@ -116,26 +107,27 @@ export function DirectoryItem({
         <span className="min-w-0 flex-1 truncate" title={node.relativePath}>
           {node.name}
         </span>
-        <div
-          className="shrink-0 flex items-center justify-center"
-          style={{ width: "28px", height: "28px" }}
-        >
-          {hasChanges && (
-            <div className="group-hover:hidden">
-              <div
-                className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500"
-                title="Contains changes"
-              />
-            </div>
-          )}
+        <div className="shrink-0 flex items-center gap-1">
           <button
             type="button"
             onClick={handleChangeCwd}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 absolute"
+            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
             title="Change to this directory"
           >
             <FolderInput className="text-white/60" size={14} />
           </button>
+          {folderStatus && (
+            <div
+              className="flex items-center justify-center"
+              style={{ width: "20px", height: "20px" }}
+            >
+              <div
+                className="flex-shrink-0 w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: folderStatus.color }}
+                title={folderStatus.label}
+              />
+            </div>
+          )}
         </div>
       </div>
       {isOpen && (

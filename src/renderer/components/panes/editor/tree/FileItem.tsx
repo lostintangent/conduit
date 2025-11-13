@@ -34,23 +34,23 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
         <span className="truncate min-w-0 flex-1" title={node.relativePath}>
           {node.name}
         </span>
-        <div
-          className="shrink-0 flex items-center justify-center"
-          style={{ width: "28px", height: "28px" }}
-        >
-          {gitStatus && (
-            <div className="group-hover:hidden">
-              <GitStatusBadge status={gitStatus} />
-            </div>
-          )}
+        <div className="shrink-0 flex items-center gap-1">
           <button
             type="button"
             onClick={handleOpen}
-            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 absolute"
+            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
             title="Open in quick pane"
           >
             <ExternalLink className="text-white/60" size={14} />
           </button>
+          {gitStatus && (
+            <div
+              className="flex items-center justify-center"
+              style={{ width: "20px", height: "20px" }}
+            >
+              <GitStatusBadge status={gitStatus} />
+            </div>
+          )}
         </div>
       </button>
     </li>

@@ -218,7 +218,10 @@ export type GitFileStatus = {
     | "renamed"
     | "copied"
     | "untracked"
-    | "unmodified";
+    | "unmodified"
+    | "conflict"
+    | "type-changed"
+    | "ignored";
   staged: boolean;
   relativePath: string;
 };
