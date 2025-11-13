@@ -5,6 +5,7 @@ import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { resolveTheme } from "@/utils/theme";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
@@ -154,8 +155,9 @@ export function EditorPane({
   onSave,
   hideIndividualSandboxIndicator = false,
 }: EditorPaneProps) {
-  const { homeDirectory } = useAtomValue(userSettingsAtom);
+  const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const editorTheme = resolveTheme(theme) === "light" ? "vs-light" : "vs-dark";
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
@@ -243,8 +245,8 @@ export function EditorPane({
 
   // Resize handle highlight class (matches pane resize behavior)
   const resizeHandleClass = isResizing
-    ? "bg-blue-500/60"
-    : "bg-transparent hover:bg-blue-500/40";
+    ? "bg-accent"
+    : "bg-transparent hover:bg-accent";
 
   // In single mode, auto-switch to editor when file is opened or changed
   useEffect(() => {
@@ -995,7 +997,7 @@ export function EditorPane({
         // Split Mode Layout
         <>
           {/* Headers row */}
-          <div className="flex items-stretch border-b border-elevated-border">
+          <div className="flex items-stretch border-b border-border">
             {/* Tree header */}
             {!isTreeCollapsed && (
               <>
@@ -1049,9 +1051,7 @@ export function EditorPane({
                 </div>
 
                 {/* Vertical divider - matches content divider width */}
-                <div className="flex items-center justify-center w-px bg-elevated-border">
-                  <div className="w-px h-full bg-elevated-border" />
-                </div>
+                <div className="w-px h-full bg-border" />
               </>
             )}
 
@@ -1209,10 +1209,10 @@ export function EditorPane({
                 {/* Resize handle - matches pane divider behavior */}
                 <div className="relative flex items-center justify-center w-px">
                   {/* Always-visible thin border */}
-                  <div className="absolute w-px h-full bg-elevated-border" />
+                  <div className="absolute w-px h-full bg-border" />
                   {/* Wider interactive handle that highlights on hover */}
                   <div
-                    className={`w-3 h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
+                    className={`w-1 absolute h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
                     onMouseDown={handleResizeStart}
                   />
                 </div>
@@ -1228,7 +1228,7 @@ export function EditorPane({
                   onChange={handleEditorChange}
                   onMount={handleEditorMount}
                   language={currentLanguage}
-                  theme="vs-dark"
+                  theme={editorTheme}
                   options={{
                     minimap: { enabled: false },
                     smoothScrolling: true,
@@ -1446,7 +1446,7 @@ export function EditorPane({
                   onChange={handleEditorChange}
                   onMount={handleEditorMount}
                   language={currentLanguage}
-                  theme="vs-dark"
+                  theme={editorTheme}
                   options={{
                     minimap: { enabled: false },
                     smoothScrolling: true,
@@ -1457,7 +1457,7 @@ export function EditorPane({
                     fontSize: 13,
                   }}
                   loading={
-                    <div className="flex h-full w-full items-center justify-center text-white/70">
+                    <div className="flex h-full w-full items-center justify-center">
                       Loading file...
                     </div>
                   }
