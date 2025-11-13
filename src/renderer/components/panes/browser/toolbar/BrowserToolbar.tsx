@@ -1,10 +1,10 @@
-import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { BrowserPage } from "@/shared/types";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { BrowserPage } from "@shared/types";
 import {
   ArrowLeft,
   ArrowRight,

@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
 import { useAtomValue } from "jotai";
 import { createRoot } from "react-dom/client";
+import { cn } from "./utils";
 
 import "./index.css";
 
@@ -11,12 +12,6 @@ const root = createRoot(rootElement);
 
 function AppWrapper() {
   const { useGradientBorders } = useAtomValue(userSettingsAtom);
-
-  // When gradient borders are enabled: transparent overlay shows dimmed gradient
-  // When disabled: solid overlay creates uniform border color
-  const overlayColor = useGradientBorders
-    ? "var(--color-border-fill-gradient)"
-    : "var(--color-border-fill-solid)";
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -27,8 +22,10 @@ function AppWrapper() {
 
         {/* Muting overlay - dims gradient or provides solid color for inner borders */}
         <div
-          className="absolute inset-[3px] rounded-xl pointer-events-none"
-          style={{ backgroundColor: overlayColor }}
+          className={cn(
+            "absolute inset-[3px] rounded-xl pointer-events-none",
+            useGradientBorders ? "bg-pane-divider-gradient" : "bg-pane-divider",
+          )}
         />
 
         {/* Content layer - inset creates the outer border effect */}

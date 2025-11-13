@@ -1,12 +1,12 @@
-import { useUserSettings } from "@/hooks/useUserSettings";
-import { BrowserPage } from "@/shared/types";
-import { ChevronDown, Star } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { BrowserPage } from "@shared/types";
+import { ChevronDown, Star } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type StarredPagesMenuProps = {
   currentPage: BrowserPage;
