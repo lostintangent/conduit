@@ -191,7 +191,7 @@ export const TabButton = ({
         {showCloseButton ? (
           <Trash2
             size={14}
-            className="cursor-pointer transition-all duration-150 flex-none opacity-60 hover:opacity-100 hover:text-red-500"
+            className="cursor-pointer transition-all duration-150 flex-none opacity-60 hover:opacity-100 hover:text-destructive"
             onClick={(event) => {
               event.stopPropagation();
               if (!isLocked) {

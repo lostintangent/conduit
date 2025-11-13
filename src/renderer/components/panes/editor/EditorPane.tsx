@@ -1058,9 +1058,9 @@ export function EditorPane({
 
           {/* Warning banner for external modifications */}
           {showExternalChangeWarning && hasOpenFile && (
-            <div className="bg-[var(--color-warning-bg)] border-b border-[var(--color-warning-border)] px-3 py-2">
+            <div className="bg-warning border-b border-warning-border px-3 py-2">
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-[var(--color-warning-text)] pr-1">
+                <div className="flex items-center gap-2 text-warning-foreground pr-1">
                   {externallyDeleted ? (
                     <span>
                       This file was deleted externally. Your unsaved changes
@@ -1078,7 +1078,7 @@ export function EditorPane({
                     <button
                       type="button"
                       onClick={handleReloadFromDisk}
-                      className="px-3 py-1 text-xs rounded bg-[var(--color-warning-button)] hover:bg-[var(--color-warning-button-hover)] text-white transition-colors"
+                      className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
                     >
                       Reload from disk
                     </button>
@@ -1270,9 +1270,9 @@ export function EditorPane({
 
           {/* Warning banner for external modifications */}
           {showExternalChangeWarning && hasOpenFile && (
-            <div className="bg-[var(--color-warning-bg)] border-b border-[var(--color-warning-border)] px-3 py-2">
+            <div className="bg-warning-bg border-b border-warning-border px-3 py-2">
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-[var(--color-warning-text)] pr-1">
+                <div className="flex items-center gap-2 text-warning-foreground pr-1">
                   {externallyDeleted ? (
                     <span>
                       This file was deleted externally. Your unsaved changes
@@ -1290,7 +1290,7 @@ export function EditorPane({
                     <button
                       type="button"
                       onClick={handleReloadFromDisk}
-                      className="px-3 py-1 text-xs rounded bg-[var(--color-warning-button)] hover:bg-[var(--color-warning-button-hover)] text-white transition-colors"
+                      className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
                     >
                       Reload from disk
                     </button>

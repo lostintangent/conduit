@@ -71,7 +71,7 @@
   --muted: oklch(26.86% 0 0);
   --muted-foreground: oklch(71.53% 0 0);
 
-  --destructive: oklch(39.59% 0.1331 25.72);
+  --destructive: oklch(63.7% 0.237 25.331);
   --destructive-foreground: oklch(98.48% 0 0);
 
   --card: oklch(23.54% 0 0);
@@ -81,6 +81,12 @@
   --popover-foreground: oklch(86.97% 0 0);
 
   --selection: oklch(41.84% 0.0829 250.44);
+
+  --warning: oklch(79.52% 0.1617 86.05 / 0.2);
+  --warning-foreground: oklch(90.52% 0.1657 98.11);
+  --warning-border: oklch(79.52% 0.1617 86.05 / 0.5);
+  --warning-button: oklch(68.06% 0.1423 75.83);
+  --warning-button-hover: oklch(55.38% 0.1207 66.44);
 
   --border: oklch(26.86% 0 0);
   --input: oklch(26.86% 0 0);
@@ -93,6 +99,12 @@
 /* Light theme color variables */
 :root[data-theme="light"] {
   --selection: oklch(85.94% 0.0662 253.44);
+
+  --warning: oklch(76.86% 0.1647 70.08 / 0.15);
+  --warning-foreground: oklch(66.58% 0.1574 58.32);
+  --warning-border: oklch(76.86% 0.1647 70.08 / 0.4);
+  --warning-button: oklch(76.86% 0.1647 70.08);
+  --warning-button-hover: oklch(66.58% 0.1574 58.32);
 
   --color-surface: oklch(98.51% 0 0);
   --color-surface-elevated: oklch(100% 0 0);
@@ -109,11 +121,6 @@
   --color-secondary-start: oklch(69.59% 0.1491 162.48);
   --color-secondary-end: oklch(71.48% 0.1257 215.22);
   --color-focus-ring: oklch(62.31% 0.188 259.81 / 0.5);
-  --color-warning-bg: oklch(76.86% 0.1647 70.08 / 0.15);
-  --color-warning-border: oklch(76.86% 0.1647 70.08 / 0.4);
-  --color-warning-text: oklch(66.58% 0.1574 58.32);
-  --color-warning-button: oklch(76.86% 0.1647 70.08);
-  --color-warning-button-hover: oklch(66.58% 0.1574 58.32);
 
   --card: oklch(100% 0 0);
   --card-foreground: oklch(20.44% 0 0);
@@ -173,6 +180,12 @@
   --color-pane-divider-gradient: var(--pane-divider-gradient);
   --color-pane-divider: var(--pane-divider);
 
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-border: var(--warning-border);
+  --color-warning-button: var(--warning-button);
+  --color-warning-button-hover: var(--warning-button-hover);
+
   --radius: 0.5rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -192,12 +205,6 @@
   --color-secondary-start: oklch(69.59% 0.1491 162.48);
   --color-secondary-end: oklch(71.48% 0.1257 215.22);
   --color-focus-ring: oklch(65.11% 0.1872 258.55 / 0.6);
-
-  --color-warning-bg: oklch(79.52% 0.1617 86.05 / 0.2);
-  --color-warning-border: oklch(79.52% 0.1617 86.05 / 0.5);
-  --color-warning-text: oklch(90.52% 0.1657 98.11);
-  --color-warning-button: oklch(68.06% 0.1423 75.83);
-  --color-warning-button-hover: oklch(55.38% 0.1207 66.44);
 }
 
 /* Pane highlight */
