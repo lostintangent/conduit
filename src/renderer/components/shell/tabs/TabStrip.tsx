@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -594,8 +595,10 @@ export const TabStrip = ({
         >
           {tabsWithPlaceholders}
 
-          {/* Vertical divider */}
-          <div className="h-6 my-1 w-px bg-white/20 ml-2 mr-0.5" />
+          <Separator
+            orientation="vertical"
+            className="h-6 bg-elevated-border ml-2 mr-0.5 my-1"
+          />
 
           {/* New tab button - after divider */}
           <Tooltip>
@@ -693,8 +696,10 @@ export const TabStrip = ({
             </DropdownMenu>
           </div>
 
-          {/* Vertical divider */}
-          <div className="h-6 my-1 w-px bg-white/20 mx-0.5" />
+          <Separator
+            orientation="vertical"
+            className="h-6 bg-elevated-border ml-1 mr-0.5 my-1"
+          />
 
           {/* Focus mode button */}
           <Tooltip>

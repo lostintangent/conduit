@@ -4,6 +4,7 @@ import { Cable } from "lucide-react";
 import { workspaceNameAtom } from "@/store/atoms";
 import type { UserSettings } from "@shared/types";
 
+import { Separator } from "@/components/ui/separator";
 import { SettingsMenu } from "./SettingsMenu";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 
@@ -23,7 +24,7 @@ export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
       {/* Left area (Drag area) */}
       <div className="flex-1" />
 
-      {/* Center () */}
+      {/* Center (Title and workspace name) */}
       <div className="flex gap-2 items-center">
         <Cable size={14} />
         Conduit
@@ -31,13 +32,13 @@ export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
       </div>
 
       {/* Right area (Workspace/Settings menu) */}
-      <div className="flex-1 flex justify-end gap-2">
+      <div className="flex-1 flex justify-end">
         <div className="flex gap-2 [app-region:no-drag]">
           <WorkspaceMenu />
-
-          {/* Vertical divider */}
-          <div className="h-4.5 w-px bg-gray-700 mt-[3px]" />
-
+          <Separator
+            orientation="vertical"
+            className="h-4.5 mt-[3px] bg-elevated-border"
+          />
           <SettingsMenu onUpdateSettings={onUpdateSettings} />
         </div>
       </div>

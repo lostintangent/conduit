@@ -9,7 +9,8 @@
   --background: oklch(23.5% 0 0);
   --foreground: oklch(86.99% 0 0);
 
-  --elevated: oklch(19.13% 0 0);
+  --elevated: oklch(19% 0 0);
+  --elevated-border: oklch(45% 0 0);
 
   --primary: oklch(98.48% 0 0);
   --primary-foreground: oklch(20.44% 0 0);
@@ -56,6 +57,7 @@
   --foreground: oklch(20.46% 0 0);
 
   --elevated: oklch(97.02% 0 0);
+  --elevated-border: oklch(80.59% 0 0);
 
   --primary: oklch(20.44% 0 0);
   --primary-foreground: oklch(98.48% 0 0);
@@ -98,6 +100,7 @@
   --color-foreground: var(--foreground);
 
   --color-elevated: var(--elevated);
+  --color-elevated-border: var(--elevated-border);
 
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
