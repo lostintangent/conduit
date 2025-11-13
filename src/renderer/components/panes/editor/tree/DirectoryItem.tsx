@@ -97,10 +97,10 @@ export function DirectoryItem({
         onClick={toggleOpen}
         onKeyDown={handleRowKeyDown}
         aria-expanded={isOpen}
-        className="group flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+        className="group flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       >
         {isLoading ? (
-          <Loader2 className="animate-spin text-white/60" size={14} />
+          <Loader2 className="animate-spin text-white/60" size={12} />
         ) : (
           <ArrowIcon
             className={
@@ -108,10 +108,10 @@ export function DirectoryItem({
                 ? "text-white/60"
                 : "text-white/25"
             }
-            size={14}
+            size={12}
           />
         )}
-        <FolderIcon className={`shrink-0 ${iconColorClass}`} size={14} />
+        <FolderIcon className={`shrink-0 ${iconColorClass}`} size={12} />
         <span
           className={`min-w-0 flex-1 truncate ${colorClass}`}
           title={node.relativePath}
@@ -125,12 +125,12 @@ export function DirectoryItem({
             className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
             title="Change to this directory"
           >
-            <FolderInput className="text-white/60" size={14} />
+            <FolderInput className="text-white/60" size={12} />
           </button>
           {folderStatus && (
             <div
               className="flex items-center justify-center"
-              style={{ width: "20px", height: "20px" }}
+              style={{ width: "16px", height: "16px" }}
             >
               <div
                 className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${folderStatus.colorClass}`}
@@ -141,7 +141,7 @@ export function DirectoryItem({
         </div>
       </div>
       {isOpen && (
-        <ul className="mt-1 border-l border-white/5 pl-3">
+        <ul className="mt-0.5 border-l border-white/5 pl-2">
           {isLoading ? (
             <li className="pl-4 text-xs text-white/50">Loading...</li>
           ) : hasChildren ? (

@@ -1232,6 +1232,7 @@ export function EditorPane({
                     lineNumbers: "on",
                     automaticLayout: true,
                     wordWrap: "on",
+                    fontSize: 13,
                   }}
                   loading={
                     <div className="flex h-full w-full items-center justify-center">
@@ -1449,6 +1450,7 @@ export function EditorPane({
                     lineNumbers: "on",
                     automaticLayout: true,
                     wordWrap: "on",
+                    fontSize: 13,
                   }}
                   loading={
                     <div className="flex h-full w-full items-center justify-center text-white/70">
