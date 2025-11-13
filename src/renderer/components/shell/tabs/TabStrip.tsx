@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -594,8 +595,10 @@ export const TabStrip = ({
         >
           {tabsWithPlaceholders}
 
-          {/* Vertical divider */}
-          <div className="h-6 my-1 w-px bg-white/20 ml-2 mr-0.5" />
+          <Separator
+            orientation="vertical"
+            className="h-6 bg-elevated-border ml-2 mr-0.5 my-1"
+          />
 
           {/* New tab button - after divider */}
           <Tooltip>
@@ -620,7 +623,7 @@ export const TabStrip = ({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10"
                   aria-label="View all tabs"
                   onClick={() => setApplicationMode("overview")}
                 >
@@ -638,7 +641,7 @@ export const TabStrip = ({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10"
                 aria-label="Show command palette"
                 onClick={onOpenCommandPalette}
               >
@@ -651,12 +654,12 @@ export const TabStrip = ({
           </Tooltip>
 
           {/* Quick pane split button */}
-          <div className="group flex items-stretch transition-colors duration-150 hover:bg-white/15 focus-within:bg-white/15 rounded-lg overflow-hidden">
+          <div className="group flex items-stretch transition-colors duration-150 hover:bg-foreground/15 focus-within:bg-foreground/15 rounded-lg overflow-hidden">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="bg-transparent text-white/70 w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  className="w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10"
                   aria-label="Open local quick terminal"
                   onClick={handleOpenQuickTerminal}
                 >
@@ -670,7 +673,7 @@ export const TabStrip = ({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className=" w-4 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-white/10 hover:text-white"
+                  className="w-4 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10"
                   aria-label="More quick terminal options"
                 >
                   <ChevronDown size={14} />
@@ -693,15 +696,17 @@ export const TabStrip = ({
             </DropdownMenu>
           </div>
 
-          {/* Vertical divider */}
-          <div className="h-6 my-1 w-px bg-white/20 mx-0.5" />
+          <Separator
+            orientation="vertical"
+            className="h-6 bg-elevated-border ml-1 mr-0.5 my-1"
+          />
 
           {/* Focus mode button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="border-0 bg-transparent text-white/70 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={toggleFocusModeCmd.title}
                 onClick={toggleFocusModeCmd.execute}
                 disabled={!activeTab}
@@ -727,10 +732,10 @@ export const TabStrip = ({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className={`border-0 rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
+                className={`rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 ${
                   isDesignMode
                     ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-                    : "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
+                    : " hover:bg-foreground/10"
                 }`}
                 aria-label={toggleDesignModeCmd.title}
                 onClick={toggleDesignModeCmd.execute}

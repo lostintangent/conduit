@@ -53,7 +53,8 @@ export function TabPreviewItem({
 
   const borderClass = isHovered
     ? "border-accent shadow-lg"
-    : "border-white/[0.08]";
+    : "border-muted-foreground/60";
+
   const interactivityClass = onClick
     ? "cursor-pointer hover:border-accent transition-colors pointer-events-auto"
     : "pointer-events-none";

@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
 import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -130,7 +131,7 @@ export const TabButton = ({
       draggable={true}
       className={cx(
         "group flex items-center gap-2 py-1.5 px-3 border-0 rounded-lg cursor-pointer text-[0.85rem] leading-none transition-colors duration-150 flex-none whitespace-nowrap select-none",
-        isActive ? "magic" : "bg-white/5 text-inherit hover:bg-white/10",
+        isActive ? "magic" : "bg-secondary hover:bg-secondary-hover",
       )}
       onClick={(event) => {
         if (disableClick) {
@@ -172,7 +173,7 @@ export const TabButton = ({
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSaveEdit}
-            className="bg-white/20 text-white border-0 outline-none rounded px-1"
+            className="bg-white/20 border-0 outline-none rounded px-1"
             style={{
               minWidth: "50px",
               maxWidth: "150px",
@@ -186,7 +187,12 @@ export const TabButton = ({
           label
         )}
       </span>
-      <span className="text-white/40">|</span>
+
+      <Separator
+        orientation="vertical"
+        className="h-4.5 ml-1 mr-0.5 bg-foreground/60"
+      />
+
       <span className="flex items-center gap-1 text-xs">
         {showCloseButton ? (
           <Trash2

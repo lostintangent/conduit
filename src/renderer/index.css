@@ -6,10 +6,17 @@
 /* Color token variables */
 
 :root {
+  /* Default surface colors */
   --background: oklch(23.5% 0 0);
   --foreground: oklch(86.99% 0 0);
 
-  --elevated: oklch(19.13% 0 0);
+  /* Elevated surfaces: toolbars, overlay indicators */
+  --elevated: oklch(19% 0 0);
+  --elevated-border: oklch(45% 0 0);
+
+  /* Popover surfaces: dropdowns, modals, tooltips */
+  --popover: oklch(23.54% 0 0);
+  --popover-foreground: oklch(86.97% 0 0);
 
   --primary: oklch(98.48% 0 0);
   --primary-foreground: oklch(20.44% 0 0);
@@ -37,9 +44,6 @@
 
   --card: oklch(23.54% 0 0);
   --card-foreground: oklch(86.97% 0 0);
-
-  --popover: oklch(23.54% 0 0);
-  --popover-foreground: oklch(86.97% 0 0);
 
   --selection: oklch(41.84% 0.0829 250.44);
 
@@ -69,7 +73,11 @@
   --background: oklch(98.51% 0 0);
   --foreground: oklch(20.46% 0 0);
 
-  --elevated: oklch(97.02% 0 0);
+  --elevated: oklch(94% 0 0);
+  --elevated-border: oklch(79% 0 0);
+
+  --popover: oklch(80% 0 0);
+  --popover-foreground: oklch(20.44% 0 0);
 
   --primary: oklch(20.44% 0 0);
   --primary-foreground: oklch(98.48% 0 0);
@@ -93,9 +101,6 @@
 
   --card: oklch(100% 0 0);
   --card-foreground: oklch(20.44% 0 0);
-
-  --popover: oklch(100% 0 0);
-  --popover-foreground: oklch(20.44% 0 0);
 
   --selection: oklch(85.94% 0.0662 253.44);
 
@@ -126,6 +131,10 @@
   --color-foreground: var(--foreground);
 
   --color-elevated: var(--elevated);
+  --color-elevated-border: var(--elevated-border);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
 
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
@@ -153,9 +162,6 @@
 
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
 
   --color-selection: var(--selection);
 

@@ -243,7 +243,7 @@ export const TerminalPane = ({
 
       {showDimensions && dimensions && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
-          <div className="bg-black/80 text-white px-6 py-3 rounded-lg text-lg font-semibold border border-white/20 shadow-lg">
+          <div className="bg-elevated px-6 py-3 rounded-lg text-lg font-semibold border border-elevated-border shadow-lg">
             {dimensions.width} × {dimensions.height}
           </div>
         </div>
