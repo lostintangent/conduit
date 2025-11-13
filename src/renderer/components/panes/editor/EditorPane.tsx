@@ -1013,7 +1013,7 @@ export function EditorPane({
     >
       {/* Shared FileTree - always mounted, positioned based on layout mode */}
       <div
-        className="absolute flex flex-col"
+        className="absolute flex flex-col min-w-0"
         style={{
           // Split mode positioning or single mode positioning
           ...(layoutMode === "split"
@@ -1043,7 +1043,7 @@ export function EditorPane({
         }}
       >
         {/* Inner wrapper with scrolling */}
-        <div className="flex flex-1 h-full overflow-auto p-2">
+        <div className="flex flex-1 flex-col w-full min-w-0 h-full overflow-auto p-2">
           {isLoadingTree ? (
             <div className="flex items-center justify-center w-full text-white/70">
               <Loader2 className="w-6 h-6 animate-spin" />
