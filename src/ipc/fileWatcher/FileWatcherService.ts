@@ -951,7 +951,7 @@ export class FileWatcherService {
       baseBranch: entry.baseBranch,
     };
 
-    this.broadcast(cwd, "git-status-changed", event);
+    this.broadcast(cwd, "git:status-changed", event);
   }
 
   /**

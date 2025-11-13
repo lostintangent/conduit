@@ -43,6 +43,14 @@ export function DirectoryItem({
     [gitStatus, node.relativePath],
   );
 
+  // Get text and icon color classes from folder status
+  const colorClass = folderStatus
+    ? folderStatus.colorClass.replace("bg-", "text-")
+    : "text-white/80";
+  const iconColorClass = folderStatus
+    ? folderStatus.colorClass.replace("bg-", "text-")
+    : "text-white/60";
+
   const toggleOpen = useCallback(async () => {
     if (!isOpen && children === undefined) {
       setIsLoading(true);
@@ -89,7 +97,7 @@ export function DirectoryItem({
         onClick={toggleOpen}
         onKeyDown={handleRowKeyDown}
         aria-expanded={isOpen}
-        className="group flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+        className="group flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       >
         {isLoading ? (
           <Loader2 className="animate-spin text-white/60" size={14} />
@@ -103,8 +111,11 @@ export function DirectoryItem({
             size={14}
           />
         )}
-        <FolderIcon className="shrink-0 text-white/60" size={14} />
-        <span className="min-w-0 flex-1 truncate" title={node.relativePath}>
+        <FolderIcon className={`shrink-0 ${iconColorClass}`} size={14} />
+        <span
+          className={`min-w-0 flex-1 truncate ${colorClass}`}
+          title={node.relativePath}
+        >
           {node.name}
         </span>
         <div className="shrink-0 flex items-center gap-1">
@@ -122,8 +133,7 @@ export function DirectoryItem({
               style={{ width: "20px", height: "20px" }}
             >
               <div
-                className="flex-shrink-0 w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: folderStatus.color }}
+                className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${folderStatus.colorClass}`}
                 title={folderStatus.label}
               />
             </div>

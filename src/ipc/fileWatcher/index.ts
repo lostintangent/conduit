@@ -68,10 +68,10 @@ export function initializeFileWatcherHandlers(): void {
   );
 
   /**
-   * Handler: git-status:get
+   * Handler: git:get-status
    * Gets the current git status for a directory.
    */
-  ipcMain.handle("git-status:get", async (_, cwd: string) => {
+  ipcMain.handle("git:get-status", async (_, cwd: string) => {
     try {
       const gitStatus = service.getGitStatus(cwd);
       // Convert Map to plain object for IPC serialization
@@ -89,11 +89,11 @@ export function initializeFileWatcherHandlers(): void {
   });
 
   /**
-   * Handler: git-status:set-base-branch
+   * Handler: git:set-base-branch
    * Sets the base branch for git comparison.
    */
   ipcMain.handle(
-    "git-status:set-base-branch",
+    "git:set-base-branch",
     async (_, cwd: string, baseBranch: string | null) => {
       try {
         await service.setBaseBranch(cwd, baseBranch);
@@ -109,10 +109,10 @@ export function initializeFileWatcherHandlers(): void {
   );
 
   /**
-   * Handler: git-status:get-branches
+   * Handler: git:get-branches
    * Gets the list of branches for a directory.
    */
-  ipcMain.handle("git-status:get-branches", async (_, cwd: string) => {
+  ipcMain.handle("git:get-branches", async (_, cwd: string) => {
     try {
       // Find git root directly rather than relying on watcher entry
       const gitRoot = await findRepoRoot(cwd);
@@ -134,10 +134,10 @@ export function initializeFileWatcherHandlers(): void {
   });
 
   /**
-   * Handler: git-status:refresh
+   * Handler: git:refresh-status
    * Manually refreshes git status for a directory.
    */
-  ipcMain.handle("git-status:refresh", async (_, cwd: string) => {
+  ipcMain.handle("git:refresh-status", async (_, cwd: string) => {
     try {
       await service.refreshGitStatus(cwd);
       return { success: true };

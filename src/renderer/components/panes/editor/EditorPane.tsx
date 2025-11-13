@@ -1,7 +1,7 @@
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
-import { useGitStatus } from "@/hooks/useGitStatus";
+import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
@@ -1468,14 +1468,13 @@ export function EditorPane({
           onDeleteAgentSession={handleDeleteAgentSession}
         />
       )}
-      {isBranchSelectorOpen && (
-        <BranchSelector
-          branches={branches}
-          currentBaseBranch={baseBranch}
-          onSelectBranch={handleBranchSelect}
-          onClose={() => setIsBranchSelectorOpen(false)}
-        />
-      )}
+      <BranchSelector
+        open={isBranchSelectorOpen}
+        branches={branches}
+        currentBaseBranch={baseBranch}
+        onSelectBranch={handleBranchSelect}
+        onOpenChange={setIsBranchSelectorOpen}
+      />
     </div>
   );
 }

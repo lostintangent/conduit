@@ -25,7 +25,7 @@ const mockApi = vi.hoisted(() => {
 });
 
 // Now import the hook after window.conduit is mocked
-import { useGitStatus } from "@/hooks/useGitStatus";
+import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 
 describe("useGitStatus", () => {
   beforeEach(() => {

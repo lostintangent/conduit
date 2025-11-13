@@ -7,7 +7,7 @@ type GitStatusBadgeProps = {
 
 type StatusConfig = {
   letter: string;
-  color: string;
+  colorClass: string;
   label: string;
   weight: number;
 };
@@ -23,63 +23,63 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
     case "modified":
       return {
         letter: "M",
-        color: "var(--git-modified)",
+        colorClass: "bg-git-modified",
         label: staged ? "Modified (staged)" : "Modified",
         weight: 2, // VS Code weight for modified files
       };
     case "added":
       return {
         letter: "A",
-        color: "var(--git-added)",
+        colorClass: "bg-git-added",
         label: staged ? "Added (staged)" : "Added",
         weight: 3, // VS Code weight for added files
       };
     case "deleted":
       return {
         letter: "D",
-        color: staged ? "var(--git-deleted-staged)" : "var(--git-deleted)",
+        colorClass: staged ? "bg-git-deleted-staged" : "bg-git-deleted",
         label: staged ? "Deleted (staged)" : "Deleted",
         weight: 3, // VS Code weight for deleted files
       };
     case "renamed":
       return {
         letter: "R",
-        color: "var(--git-renamed)",
+        colorClass: "bg-git-renamed",
         label: "Renamed",
         weight: 2, // VS Code weight for renamed files
       };
     case "copied":
       return {
         letter: "C",
-        color: "var(--git-copied)",
+        colorClass: "bg-git-copied",
         label: "Copied",
         weight: 2, // VS Code weight for copied files
       };
     case "untracked":
       return {
         letter: "U",
-        color: "var(--git-untracked)",
+        colorClass: "bg-git-untracked",
         label: "Untracked",
         weight: 1, // VS Code weight for untracked files
       };
     case "conflict":
       return {
         letter: "!",
-        color: "var(--git-conflict)",
+        colorClass: "bg-git-conflict",
         label: "Conflict",
         weight: 4, // VS Code weight for conflicts (highest priority)
       };
     case "type-changed":
       return {
         letter: "T",
-        color: "var(--git-type-changed)",
+        colorClass: "bg-git-type-changed",
         label: "Type Changed",
         weight: 2, // VS Code weight for type changed files
       };
     case "ignored":
       return {
         letter: "I",
-        color: "var(--git-ignored)",
+        colorClass: "bg-git-ignored",
         label: "Ignored",
         weight: 0, // VS Code weight for ignored files
       };
@@ -106,8 +106,7 @@ export function GitStatusBadge({
   if (isFolder) {
     return (
       <div
-        className="flex-shrink-0 w-1.5 h-1.5 rounded-full"
-        style={{ backgroundColor: config.color }}
+        className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${config.colorClass}`}
         title={config.label}
       />
     );
@@ -116,11 +115,7 @@ export function GitStatusBadge({
   // Files show a letter badge
   return (
     <div
-      className="flex-shrink-0 flex items-center justify-center text-[10px] font-semibold leading-none min-w-[14px] h-[14px] px-0.5 rounded"
-      style={{
-        backgroundColor: config.color,
-        color: "#ffffff", // White text on colored background (works for both light and dark themes)
-      }}
+      className={`flex-shrink-0 flex items-center justify-center text-[10px] font-semibold leading-none w-[14px] h-[14px] rounded-sm text-background ${config.colorClass}`}
       title={config.label}
     >
       {config.letter}

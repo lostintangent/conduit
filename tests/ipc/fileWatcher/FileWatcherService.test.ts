@@ -1090,7 +1090,7 @@ describe("FileWatcherService", () => {
 
       // Should broadcast git status change
       expect(mockWindow.webContents.send).toHaveBeenCalledWith(
-        "git-status-changed",
+        "git:status-changed",
         expect.objectContaining({
           cwd: "/test/path",
         }),

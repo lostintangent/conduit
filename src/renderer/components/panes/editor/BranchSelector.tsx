@@ -1,20 +1,28 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Branch } from "@shared/types";
 import { formatDistanceToNow } from "date-fns";
-import { GitBranch, X } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type BranchSelectorProps = {
+  open: boolean;
   branches: Branch[];
   currentBaseBranch: string | null;
   onSelectBranch: (branchName: string | null) => void;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 };
 
 export function BranchSelector({
+  open,
   branches,
   currentBaseBranch,
   onSelectBranch,
-  onClose,
+  onOpenChange,
 }: BranchSelectorProps) {
   const [filter, setFilter] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -37,18 +45,21 @@ export function BranchSelector({
   // Total options = 1 (HEAD) + filtered branches
   const totalOptions = 1 + filteredBranches.length;
 
-  // Focus input on mount
+  // Focus input when dialog opens
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (open) {
+      // Small delay to ensure dialog is fully rendered
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      } else if (e.key === "ArrowDown") {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) => (prev + 1) % totalOptions);
       } else if (e.key === "ArrowUp") {
@@ -68,7 +79,7 @@ export function BranchSelector({
         }
       }
     },
-    [onClose, onSelectBranch, selectedIndex, totalOptions, filteredBranches],
+    [onSelectBranch, selectedIndex, totalOptions, filteredBranches],
   );
 
   // Scroll selected item into view
@@ -97,29 +108,18 @@ export function BranchSelector({
   );
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-surface border border-border rounded-lg shadow-xl max-w-2xl w-full max-h-[600px] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-w-2xl w-full max-h-[600px] p-0 flex flex-col gap-0"
         onKeyDown={handleKeyDown}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2">
+        <DialogHeader className="px-4 py-3 border-b border-border space-y-0">
+          <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
             <GitBranch className="h-4 w-4 text-foreground/60" />
-            <h2 className="text-sm font-semibold">Select Base Branch</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-foreground/60 hover:text-foreground transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+            Select Base Branch
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Filter input */}
         <div className="px-4 py-3 border-b border-border">
@@ -132,7 +132,7 @@ export function BranchSelector({
               setFilter(e.target.value);
               setSelectedIndex(0); // Reset selection when filter changes
             }}
-            className="w-full px-3 py-2 bg-surface-elevated border border-border rounded text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50"
+            className="w-full px-3 py-2 bg-elevated border border-border rounded text-sm text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-accent/50"
           />
         </div>
 
@@ -144,8 +144,8 @@ export function BranchSelector({
             currentBaseBranch === null
               ? "bg-accent/20 text-accent"
               : selectedIndex === 0
-                ? "bg-surface-elevated"
-                : "hover:bg-surface-elevated"
+                ? "bg-elevated"
+                : "hover:bg-elevated"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -183,8 +183,8 @@ export function BranchSelector({
                     isCurrent
                       ? "bg-accent/20 text-accent"
                       : isSelected
-                        ? "bg-surface-elevated"
-                        : "hover:bg-surface-elevated"
+                        ? "bg-elevated"
+                        : "hover:bg-elevated"
                   }`}
                 >
                   <div className="flex flex-col gap-1">
@@ -223,14 +223,7 @@ export function BranchSelector({
             </div>
           )}
         </div>
-
-        {/* Footer hint */}
-        <div className="px-4 py-2 border-t border-border bg-surface-elevated/50">
-          <div className="text-xs text-foreground/40">
-            Use ↑↓ to navigate, Enter to select, Esc to close
-          </div>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

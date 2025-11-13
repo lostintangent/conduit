@@ -398,31 +398,27 @@ const conduitAPI = {
   /* Git status methods (UI->main) */
 
   getGitStatus: (cwd: string) =>
-    ipcRenderer.invoke("git-status:get", cwd) as Promise<{
+    ipcRenderer.invoke("git:get-status", cwd) as Promise<{
       success: boolean;
       gitStatus: Record<string, GitFileStatus> | null;
       error?: string;
     }>,
 
   setBaseBranch: (cwd: string, baseBranch: string | null) =>
-    ipcRenderer.invoke(
-      "git-status:set-base-branch",
-      cwd,
-      baseBranch,
-    ) as Promise<{
+    ipcRenderer.invoke("git:set-base-branch", cwd, baseBranch) as Promise<{
       success: boolean;
       error?: string;
     }>,
 
   getBranches: (cwd: string) =>
-    ipcRenderer.invoke("git-status:get-branches", cwd) as Promise<{
+    ipcRenderer.invoke("git:get-branches", cwd) as Promise<{
       success: boolean;
       branches: Branch[];
       error?: string;
     }>,
 
   refreshGitStatus: (cwd: string) =>
-    ipcRenderer.invoke("git-status:refresh", cwd) as Promise<{
+    ipcRenderer.invoke("git:refresh-status", cwd) as Promise<{
       success: boolean;
       error?: string;
     }>,
@@ -433,7 +429,7 @@ const conduitAPI = {
       gitStatus: Record<string, GitFileStatus> | null;
       baseBranch: string | null;
     }) => void,
-  ) => createEventListener("git-status-changed", listener),
+  ) => createEventListener("git:status-changed", listener),
 
   /* Legacy file watcher (deprecated - use file watcher methods above) */
 

@@ -1,7 +1,7 @@
 import type { FileTreeNode, GitFileStatus } from "@shared/types";
 import { ExternalLink, FileText } from "lucide-react";
 import { useCallback } from "react";
-import { GitStatusBadge } from "./GitStatusBadge";
+import { GitStatusBadge, getStatusConfig } from "./GitStatusBadge";
 
 type FileItemProps = {
   node: FileTreeNode;
@@ -23,15 +23,27 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
     [node, onOpen],
   );
 
+  // Get git status color for text and icon
+  const config = gitStatus ? getStatusConfig(gitStatus) : null;
+  const colorClass = config
+    ? config.colorClass.replace("bg-", "text-")
+    : "text-white/80";
+  const iconColorClass = config
+    ? config.colorClass.replace("bg-", "text-")
+    : "text-white/60";
+
   return (
     <li>
       <button
         type="button"
         onClick={handleClick}
-        className="group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+        className="group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       >
-        <FileText className="shrink-0 text-white/60" size={14} />
-        <span className="truncate min-w-0 flex-1" title={node.relativePath}>
+        <FileText className={`shrink-0 ${iconColorClass}`} size={14} />
+        <span
+          className={`truncate min-w-0 flex-1 ${colorClass}`}
+          title={node.relativePath}
+        >
           {node.name}
         </span>
         <div className="shrink-0 flex items-center gap-1">
