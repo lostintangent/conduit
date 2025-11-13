@@ -188,7 +188,10 @@ export const TabButton = ({
         )}
       </span>
 
-      <Separator orientation="vertical" className="h-4.5 ml-1 mr-0.5" />
+      <Separator
+        orientation="vertical"
+        className="h-4.5 ml-1 mr-0.5 bg-foreground/60"
+      />
 
       <span className="flex items-center gap-1 text-xs">
         {showCloseButton ? (
