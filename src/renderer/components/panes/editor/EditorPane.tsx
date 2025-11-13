@@ -201,6 +201,11 @@ export function EditorPane({
     useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Refs to track current values for file watcher event handlers
+  // This allows handlers to access current values without causing re-subscription
+  const filePathRef = useRef(filePath);
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+
   // Git status integration
   const {
     gitStatus,
@@ -581,6 +586,12 @@ export function EditorPane({
     };
   }, [cwd, hasOpenFile, layoutMode]);
 
+  // Keep refs in sync with current values
+  useEffect(() => {
+    filePathRef.current = filePath;
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [filePath, hasUnsavedChanges]);
+
   // File watcher subscription lifecycle
   useEffect(() => {
     if (!cwd) {
@@ -603,7 +614,7 @@ export function EditorPane({
       }
 
       // Check if this is the currently open file
-      if (filePath && payload.filePath === filePath) {
+      if (filePathRef.current && payload.filePath === filePathRef.current) {
         console.log(
           `[EditorPane] File changed event: ${payload.relativePath}, type=${payload.eventType}`,
         );
@@ -634,8 +645,11 @@ export function EditorPane({
             debounceTimerRef.current = null;
 
             // Check if file still exists before reading
+            const currentFilePath = filePathRef.current;
+            if (!currentFilePath) return;
+
             api
-              .fileExists(filePath)
+              .fileExists(currentFilePath)
               .then((exists) => {
                 if (!exists) {
                   // File was deleted during debounce
@@ -646,15 +660,15 @@ export function EditorPane({
                 }
 
                 // If editor has no unsaved changes, auto-reload
-                if (!hasUnsavedChanges) {
+                if (!hasUnsavedChangesRef.current) {
                   console.log(
-                    `[EditorPane] Auto-reloading file (clean editor): ${filePath}`,
+                    `[EditorPane] Auto-reloading file (clean editor): ${currentFilePath}`,
                   );
                   api
-                    .readFile(filePath)
+                    .readFile(currentFilePath)
                     .then((content) => {
                       console.log(
-                        `[EditorPane] File reloaded successfully: ${filePath}`,
+                        `[EditorPane] File reloaded successfully: ${currentFilePath}`,
                       );
                       setCurrentContent(content);
                       setOriginalContent(content);
@@ -668,7 +682,7 @@ export function EditorPane({
                         error,
                       );
                       // If read fails, file might have been deleted
-                      api.fileExists(filePath).then((stillExists) => {
+                      api.fileExists(currentFilePath).then((stillExists) => {
                         if (!stillExists) {
                           setExternallyDeleted(true);
                           setShowExternalChangeWarning(true);
@@ -678,7 +692,7 @@ export function EditorPane({
                 } else {
                   // Editor has unsaved changes, show warning
                   console.log(
-                    `[EditorPane] Showing warning (dirty editor): ${filePath}`,
+                    `[EditorPane] Showing warning (dirty editor): ${currentFilePath}`,
                   );
                   setShowExternalChangeWarning(true);
                 }
@@ -698,12 +712,14 @@ export function EditorPane({
       }
 
       // Check if the currently open file was renamed
-      if (filePath && payload.oldPath === filePath) {
+      const currentFilePath = filePathRef.current;
+      if (currentFilePath && payload.oldPath === currentFilePath) {
         console.log(
           `[EditorPane] File renamed: ${payload.oldRelativePath} → ${payload.newRelativePath}`,
         );
 
         // Update the file path without losing content or state
+        // currentContent is captured from the enclosing scope
         onFileChange?.({
           filePath: payload.newPath,
           language: inferLanguageFromFilePath(payload.newPath),
@@ -769,7 +785,9 @@ export function EditorPane({
       removeFileRenamedListener();
       removeTreeChangedListener();
     };
-  }, [cwd, paneId, filePath, hasUnsavedChanges]);
+    // Only re-run when cwd or paneId changes
+    // filePath and hasUnsavedChanges are accessed via refs to avoid re-subscription
+  }, [cwd, paneId]);
 
   // Clear external modification flags when switching files
   useEffect(() => {
@@ -991,8 +1009,62 @@ export function EditorPane({
   return (
     <div
       ref={containerRef}
-      className="flex flex-1 min-h-0 min-w-0 flex-col bg-background"
+      className="flex flex-1 min-h-0 min-w-0 flex-col bg-background relative"
     >
+      {/* Shared FileTree - always mounted, positioned based on layout mode */}
+      <div
+        className="absolute flex flex-col min-w-0"
+        style={{
+          // Split mode positioning or single mode positioning
+          ...(layoutMode === "split"
+            ? {
+                display: isTreeCollapsed ? "none" : "flex",
+                left: 0,
+                width: `${treeWidth}px`,
+                top: "40px", // After header
+                bottom: 0,
+                zIndex: 10,
+                transform: "none",
+              }
+            : {
+                left: 0,
+                right: 0,
+                // Calculate top based on header (~40px) + warning banner if shown (~56px)
+                top: `${40 + (showExternalChangeWarning && hasOpenFile ? 56 : 0)}px`,
+                bottom: 0,
+                zIndex: activeView === "tree" ? 20 : 0,
+                transform:
+                  activeView === "tree" ? "translateX(0)" : "translateX(-100%)",
+                transition: prefersReducedMotion
+                  ? "none"
+                  : "transform 0.2s ease-in-out",
+                pointerEvents: activeView === "tree" ? "auto" : "none",
+              }),
+        }}
+      >
+        {/* Inner wrapper with scrolling */}
+        <div className="flex flex-1 flex-col w-full min-w-0 h-full overflow-auto p-2">
+          {isLoadingTree ? (
+            <div className="flex items-center justify-center w-full text-white/70">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : displayedFileTree.length > 0 ? (
+            <FileTree
+              items={displayedFileTree}
+              gitStatus={gitStatus}
+              onFileSelect={handleFileSelect}
+              onDirectoryChange={handleDirectoryChange}
+              onFileOpen={onFileOpen}
+              rootPath={cwd}
+            />
+          ) : (
+            <div className="flex items-center justify-center w-full text-white/50">
+              No files found
+            </div>
+          )}
+        </div>
+      </div>
+
       {layoutMode === "split" ? (
         // Split Mode Layout
         <>
@@ -1179,32 +1251,13 @@ export function EditorPane({
 
           {/* Content row */}
           <div className="flex flex-1 min-h-0 min-w-0">
-            {/* Tree section */}
+            {/* Tree placeholder - maintains layout space */}
             {!isTreeCollapsed && (
               <>
                 <div
-                  className={`flex flex-col overflow-auto p-2 ${transitionClass}`}
+                  className={transitionClass}
                   style={{ width: `${treeWidth}px` }}
-                >
-                  {isLoadingTree ? (
-                    <div className="flex items-center justify-center w-full text-white/70">
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    </div>
-                  ) : displayedFileTree.length > 0 ? (
-                    <FileTree
-                      items={displayedFileTree}
-                      gitStatus={gitStatus}
-                      onFileSelect={handleFileSelect}
-                      onDirectoryChange={handleDirectoryChange}
-                      onFileOpen={onFileOpen}
-                      rootPath={cwd}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center w-full text-white/50">
-                      No files found
-                    </div>
-                  )}
-                </div>
+                />
 
                 {/* Resize handle - matches pane divider behavior */}
                 <div className="relative flex items-center justify-center w-px">
@@ -1405,33 +1458,7 @@ export function EditorPane({
           )}
 
           <div className="flex flex-1 min-h-0 min-w-0 relative overflow-hidden">
-            {/* Tree view */}
-            <div
-              className={`absolute inset-0 ${transitionTransformClass} ${
-                activeView === "tree" ? "translate-x-0" : "-translate-x-full"
-              }`}
-            >
-              <div className="flex flex-1 h-full overflow-auto p-2">
-                {isLoadingTree ? (
-                  <div className="flex items-center justify-center w-full text-white/70">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                ) : displayedFileTree.length > 0 ? (
-                  <FileTree
-                    items={displayedFileTree}
-                    gitStatus={gitStatus}
-                    onFileSelect={handleFileSelect}
-                    onDirectoryChange={handleDirectoryChange}
-                    onFileOpen={onFileOpen}
-                    rootPath={cwd}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center w-full text-white/50">
-                    No files found
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Tree view is now rendered by shared FileTree at top level */}
 
             {/* Editor view */}
             {hasOpenFile && (
