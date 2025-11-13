@@ -19,6 +19,18 @@ import {
 import type { GitStatusMap } from "@shared/types";
 
 /**
+ * Configuration options for FileWatcherService
+ */
+export interface FileWatcherConfig {
+  /** Disable git watcher setup (useful for testing file watching in isolation) */
+  disableGitWatcher?: boolean;
+  /** Override default git status batch window (default: 100ms) */
+  gitStatusBatchWindowMs?: number;
+  /** Override default git status batch threshold (default: 5 files) */
+  gitStatusBatchThreshold?: number;
+}
+
+/**
  * Centralized file watching service that manages file system watchers
  * and notifies subscribers of changes.
  *
@@ -34,8 +46,9 @@ export class FileWatcherService {
    * When multiple files change within the batch window, we decide whether to
    * run a full git status or individual per-file git status based on the count.
    */
-  private static readonly GIT_STATUS_BATCH_WINDOW_MS = 100; // Time window to collect file changes
-  private static readonly GIT_STATUS_BATCH_THRESHOLD = 5; // Above this count, use full git status
+  private readonly GIT_STATUS_BATCH_WINDOW_MS: number;
+  private readonly GIT_STATUS_BATCH_THRESHOLD: number;
+  private readonly disableGitWatcher: boolean;
 
   /**
    * Map of directory paths (cwd) to their corresponding watcher entries.
@@ -59,19 +72,31 @@ export class FileWatcherService {
   /**
    * Private constructor to enforce singleton pattern.
    */
-  private constructor() {
-    // Singleton instance
+  private constructor(config: FileWatcherConfig = {}) {
+    this.disableGitWatcher = config.disableGitWatcher ?? false;
+    this.GIT_STATUS_BATCH_WINDOW_MS = config.gitStatusBatchWindowMs ?? 100;
+    this.GIT_STATUS_BATCH_THRESHOLD = config.gitStatusBatchThreshold ?? 5;
   }
 
   /**
    * Gets the singleton instance of the FileWatcherService.
    * Creates the instance if it doesn't exist yet.
+   *
+   * @param config - Optional configuration for the service
    */
-  public static getInstance(): FileWatcherService {
+  public static getInstance(config?: FileWatcherConfig): FileWatcherService {
     if (!FileWatcherService.instance) {
-      FileWatcherService.instance = new FileWatcherService();
+      FileWatcherService.instance = new FileWatcherService(config);
     }
     return FileWatcherService.instance;
+  }
+
+  /**
+   * Reset the singleton instance (useful for testing).
+   * @internal
+   */
+  public static resetInstance(): void {
+    FileWatcherService.instance = null;
   }
 
   /**
@@ -256,7 +281,9 @@ export class FileWatcherService {
         console.log(`[FileWatcher] Loaded ${entry.branches.length} branches`);
 
         // Setup git watcher to watch .git directory for changes
-        this.setupGitWatcher(cwd, entry.gitRoot);
+        if (!this.disableGitWatcher) {
+          this.setupGitWatcher(cwd, entry.gitRoot);
+        }
       }
 
       // Create chokidar watcher with conservative file descriptor usage
@@ -854,7 +881,7 @@ export class FileWatcherService {
     // Set new batch timer
     entry.gitStatusBatchTimer = setTimeout(async () => {
       await this.processBatchedGitStatusUpdates(cwd);
-    }, FileWatcherService.GIT_STATUS_BATCH_WINDOW_MS);
+    }, this.GIT_STATUS_BATCH_WINDOW_MS);
   }
 
   /**
@@ -883,10 +910,10 @@ export class FileWatcherService {
     );
 
     // Decide strategy based on threshold
-    if (pendingFiles.length > FileWatcherService.GIT_STATUS_BATCH_THRESHOLD) {
+    if (pendingFiles.length > this.GIT_STATUS_BATCH_THRESHOLD) {
       // Many files changed - use full git status
       console.log(
-        `[FileWatcher] Using full git status (threshold exceeded: ${pendingFiles.length} > ${FileWatcherService.GIT_STATUS_BATCH_THRESHOLD})`,
+        `[FileWatcher] Using full git status (threshold exceeded: ${pendingFiles.length} > ${this.GIT_STATUS_BATCH_THRESHOLD})`,
       );
       await this.computeGitStatusFull(cwd);
     } else {
