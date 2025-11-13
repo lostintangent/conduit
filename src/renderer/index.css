@@ -47,9 +47,9 @@
 
   --selection: oklch(41.84% 0.0829 250.44);
 
-  --border: oklch(28.91% 0 0);
-  --input: oklch(18.22% 0 0);
-  --ring: oklch(86.97% 0 0);
+  --border: var(--muted);
+  --input: var(--border);
+  --ring: var(--accent);
 
   --pane-divider: oklch(35.62% 0 0);
   --pane-divider-gradient: oklch(0% 0 0 / 0.4);
