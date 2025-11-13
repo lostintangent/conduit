@@ -7,6 +7,8 @@
  */
 
 import { ipcMain } from "electron";
+import { findRepoRoot } from "../agent/git";
+import { listBranches } from "../git/gitStatus";
 import { FileWatcherService } from "./FileWatcherService";
 
 export { FileWatcherService } from "./FileWatcherService";
@@ -112,12 +114,20 @@ export function initializeFileWatcherHandlers(): void {
    */
   ipcMain.handle("git-status:get-branches", async (_, cwd: string) => {
     try {
-      const branches = await service.getBranches(cwd);
+      // Find git root directly rather than relying on watcher entry
+      const gitRoot = await findRepoRoot(cwd);
+
+      if (!gitRoot) {
+        return { success: true, branches: [] };
+      }
+
+      const branches = await listBranches(gitRoot);
       return { success: true, branches };
     } catch (error) {
       console.error("Failed to get branches:", error);
       return {
         success: false,
+        branches: [],
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }

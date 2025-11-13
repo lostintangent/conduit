@@ -253,7 +253,7 @@ export async function getGitStatusRelativeToBranch(
  * @returns Array of branch information
  */
 export async function listBranches(gitRoot: string): Promise<Branch[]> {
-  const branches: Branch[] = [];
+  const branchMap = new Map<string, Branch>();
 
   try {
     const { stdout } = await runGit(gitRoot, [
@@ -284,21 +284,32 @@ export async function listBranches(gitRoot: string): Promise<Branch[]> {
       const isRemote = name.startsWith("origin/");
       const isCurrent = isCurrentMarker === "*";
 
-      branches.push({
+      const branch: Branch = {
         name: cleanName,
         isRemote,
         isCurrent,
         lastCommitDate: new Date(dateStr),
         lastCommitHash: hash,
         lastCommitMessage: message,
-      });
+      };
+
+      // Deduplicate: prefer local branches over remote branches
+      const existing = branchMap.get(cleanName);
+      if (
+        !existing ||
+        (!existing.isCurrent && branch.isCurrent) ||
+        (existing.isRemote && !branch.isRemote)
+      ) {
+        branchMap.set(cleanName, branch);
+      }
     }
   } catch (error) {
     console.error("[gitStatus] Failed to list branches:", error);
     // Return empty array on error
   }
 
-  return branches;
+  // Convert map to array, maintaining sort order
+  return Array.from(branchMap.values());
 }
 
 /**

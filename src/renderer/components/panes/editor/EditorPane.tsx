@@ -1,14 +1,17 @@
+import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { useGitStatus } from "@/hooks/useGitStatus";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
-import type { FileTreeNode, GitStatusMap } from "@shared/types";
+import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
   ChevronLeft,
   ChevronRight,
   FolderUp,
+  GitBranch,
   Loader2,
   Redo,
   Save,
@@ -193,9 +196,17 @@ export function EditorPane({
     useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Git status state
-  const [gitStatus, setGitStatus] = useState<GitStatusMap | null>(null);
-  const [_baseBranch, setBaseBranch] = useState<string | null>(null);
+  // Git status integration
+  const {
+    gitStatus,
+    baseBranch,
+    branches,
+    isBranchSelectorOpen,
+    isInGitRepo,
+    setIsBranchSelectorOpen,
+    handleBranchSelect,
+  } = useGitStatus(cwd);
+
   const [showOnlyChangedFiles] = useState(false);
 
   // Compute layout mode based on container width
@@ -728,30 +739,6 @@ export function EditorPane({
         });
     });
 
-    let removeGitStatusListener: (() => void) | undefined;
-
-    if (api.onGitStatusChanged) {
-      console.log("[EditorPane] Setting up git status change listener");
-      removeGitStatusListener = api.onGitStatusChanged((payload) => {
-        // Only handle events for this cwd
-        if (payload.cwd !== cwd) {
-          return;
-        }
-
-        console.log(`[EditorPane] Git status changed for cwd=${cwd}`, payload);
-
-        // Convert plain object back to Map if needed
-        const statusMap = payload.gitStatus
-          ? new Map(Object.entries(payload.gitStatus))
-          : null;
-
-        setGitStatus(statusMap);
-        setBaseBranch(payload.baseBranch);
-      });
-    } else {
-      console.warn("[EditorPane] api.onGitStatusChanged is not defined");
-    }
-
     // Cleanup on unmount or cwd change
     return () => {
       console.log(
@@ -776,7 +763,6 @@ export function EditorPane({
       removeFileChangedListener();
       removeFileRenamedListener();
       removeTreeChangedListener();
-      removeGitStatusListener?.();
     };
   }, [cwd, paneId, filePath, hasUnsavedChanges]);
 
@@ -1036,6 +1022,24 @@ export function EditorPane({
                         title="Go up one directory"
                       >
                         <FolderUp size={14} className="text-white/60" />
+                      </button>
+                    )}
+                    {isInGitRepo && branches.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsBranchSelectorOpen(true)}
+                        className={`p-1 rounded transition-colors ${
+                          baseBranch
+                            ? "bg-white/20 hover:bg-white/25"
+                            : "hover:bg-white/10"
+                        }`}
+                        title={
+                          baseBranch
+                            ? `Comparing to: ${baseBranch}`
+                            : "Comparing to: HEAD (uncommitted changes)"
+                        }
+                      >
+                        <GitBranch size={14} className="text-white/60" />
                       </button>
                     )}
                   </div>
@@ -1328,6 +1332,24 @@ export function EditorPane({
                         <FolderUp size={14} className="text-white/60" />
                       </button>
                     )}
+                    {isInGitRepo && branches.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsBranchSelectorOpen(true)}
+                        className={`p-1 rounded transition-colors ${
+                          baseBranch
+                            ? "bg-white/20 hover:bg-white/25"
+                            : "hover:bg-white/10"
+                        }`}
+                        title={
+                          baseBranch
+                            ? `Comparing to: ${baseBranch}`
+                            : "Comparing to: HEAD (uncommitted changes)"
+                        }
+                      >
+                        <GitBranch size={14} className="text-white/60" />
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -1447,6 +1469,14 @@ export function EditorPane({
           agentSessionId={agentSessionId ?? null}
           onCompleteAgentSession={handleCompleteAgentSession}
           onDeleteAgentSession={handleDeleteAgentSession}
+        />
+      )}
+      {isBranchSelectorOpen && (
+        <BranchSelector
+          branches={branches}
+          currentBaseBranch={baseBranch}
+          onSelectBranch={handleBranchSelect}
+          onClose={() => setIsBranchSelectorOpen(false)}
         />
       )}
     </div>

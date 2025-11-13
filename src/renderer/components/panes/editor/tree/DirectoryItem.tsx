@@ -112,21 +112,26 @@ export function DirectoryItem({
             size={14}
           />
         )}
-        {hasChanges && (
-          <div
-            className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500"
-            title="Contains changes"
-          />
-        )}
         <FolderIcon className="shrink-0 text-white/60" size={14} />
-        <div className="min-w-0 flex items-center gap-1">
-          <span className="min-w-0 truncate" title={node.relativePath}>
-            {node.name}
-          </span>
+        <span className="min-w-0 flex-1 truncate" title={node.relativePath}>
+          {node.name}
+        </span>
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{ width: "28px", height: "28px" }}
+        >
+          {hasChanges && (
+            <div className="group-hover:hidden">
+              <div
+                className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500"
+                title="Contains changes"
+              />
+            </div>
+          )}
           <button
             type="button"
             onClick={handleChangeCwd}
-            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 shrink-0"
+            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 absolute"
             title="Change to this directory"
           >
             <FolderInput className="text-white/60" size={14} />

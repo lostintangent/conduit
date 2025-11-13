@@ -30,19 +30,28 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
         onClick={handleClick}
         className="group flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       >
-        {gitStatus && <GitStatusBadge status={gitStatus} />}
         <FileText className="shrink-0 text-white/60" size={14} />
         <span className="truncate min-w-0 flex-1" title={node.relativePath}>
           {node.name}
         </span>
-        <button
-          type="button"
-          onClick={handleOpen}
-          className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 shrink-0"
-          title="Open in quick pane"
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{ width: "28px", height: "28px" }}
         >
-          <ExternalLink className="text-white/60" size={14} />
-        </button>
+          {gitStatus && (
+            <div className="group-hover:hidden">
+              <GitStatusBadge status={gitStatus} />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleOpen}
+            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded hover:bg-white/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 absolute"
+            title="Open in quick pane"
+          >
+            <ExternalLink className="text-white/60" size={14} />
+          </button>
+        </div>
       </button>
     </li>
   );
