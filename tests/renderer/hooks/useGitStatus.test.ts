@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @vitest-environment jsdom
  */
@@ -97,13 +98,10 @@ describe("useGitStatus", () => {
         } as GitFileStatus,
       };
 
-      mockApi.getGitStatus.mockResolvedValue(
-        {
-          success: true,
-          gitStatus: mockStatus,
-        },
-        { container: document.body },
-      );
+      mockApi.getGitStatus.mockResolvedValue({
+        success: true,
+        gitStatus: mockStatus,
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -120,20 +118,14 @@ describe("useGitStatus", () => {
     });
 
     it("should set isInGitRepo to true when git status loads successfully", async () => {
-      mockApi.getGitStatus.mockResolvedValue(
-        {
-          success: true,
-          gitStatus: {},
-        },
-        { container: document.body },
-      );
-      mockApi.getBranches.mockResolvedValue(
-        {
-          success: true,
-          branches: [],
-        },
-        { container: document.body },
-      );
+      mockApi.getGitStatus.mockResolvedValue({
+        success: true,
+        gitStatus: {},
+      });
+      mockApi.getBranches.mockResolvedValue({
+        success: true,
+        branches: [],
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -146,20 +138,14 @@ describe("useGitStatus", () => {
     });
 
     it("should set isInGitRepo to false when git status returns error", async () => {
-      mockApi.getGitStatus.mockResolvedValue(
-        {
-          success: false,
-          error: "Not a git repository",
-        },
-        { container: document.body },
-      );
-      mockApi.getBranches.mockResolvedValue(
-        {
-          success: false,
-          error: "Not a git repository",
-        },
-        { container: document.body },
-      );
+      mockApi.getGitStatus.mockResolvedValue({
+        success: false,
+        error: "Not a git repository",
+      });
+      mockApi.getBranches.mockResolvedValue({
+        success: false,
+        error: "Not a git repository",
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -173,13 +159,10 @@ describe("useGitStatus", () => {
 
     it("should handle git status API errors gracefully", async () => {
       mockApi.getGitStatus.mockRejectedValue(new Error("Network error"));
-      mockApi.getBranches.mockResolvedValue(
-        {
-          success: false,
-          branches: [],
-        },
-        { container: document.body },
-      );
+      mockApi.getBranches.mockResolvedValue({
+        success: false,
+        branches: [],
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -201,22 +184,19 @@ describe("useGitStatus", () => {
 
   describe("Data Loading - Branches", () => {
     it("should load branches on mount", async () => {
-      mockApi.getBranches.mockResolvedValue(
-        {
-          success: true,
-          branches: [
-            {
-              name: "main",
-              isRemote: false,
-              isCurrent: true,
-              lastCommitDate: new Date(),
-              lastCommitHash: "abc123",
-              lastCommitMessage: "Initial commit",
-            } as Branch,
-          ],
-        },
-        { container: document.body },
-      );
+      mockApi.getBranches.mockResolvedValue({
+        success: true,
+        branches: [
+          {
+            name: "main",
+            isRemote: false,
+            isCurrent: true,
+            lastCommitDate: new Date(),
+            lastCommitHash: "abc123",
+            lastCommitMessage: "Initial commit",
+          } as Branch,
+        ],
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -250,13 +230,10 @@ describe("useGitStatus", () => {
         },
       ];
 
-      mockApi.getBranches.mockResolvedValue(
-        {
-          success: true,
-          branches: mockBranches,
-        },
-        { container: document.body },
-      );
+      mockApi.getBranches.mockResolvedValue({
+        success: true,
+        branches: mockBranches,
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -270,29 +247,23 @@ describe("useGitStatus", () => {
     });
 
     it("should set isInGitRepo to true when branches load successfully", async () => {
-      mockApi.getGitStatus.mockResolvedValue(
-        {
-          success: true,
-          gitStatus: {},
-        },
-        { container: document.body },
-      );
-      mockApi.getBranches.mockResolvedValue(
-        {
-          success: true,
-          branches: [
-            {
-              name: "main",
-              isRemote: false,
-              isCurrent: true,
-              lastCommitDate: new Date(),
-              lastCommitHash: "abc123",
-              lastCommitMessage: "Initial commit",
-            } as Branch,
-          ],
-        },
-        { container: document.body },
-      );
+      mockApi.getGitStatus.mockResolvedValue({
+        success: true,
+        gitStatus: {},
+      });
+      mockApi.getBranches.mockResolvedValue({
+        success: true,
+        branches: [
+          {
+            name: "main",
+            isRemote: false,
+            isCurrent: true,
+            lastCommitDate: new Date(),
+            lastCommitHash: "abc123",
+            lastCommitMessage: "Initial commit",
+          } as Branch,
+        ],
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -305,13 +276,10 @@ describe("useGitStatus", () => {
     });
 
     it("should handle branches API errors gracefully", async () => {
-      mockApi.getGitStatus.mockResolvedValue(
-        {
-          success: false,
-          gitStatus: null,
-        },
-        { container: document.body },
-      );
+      mockApi.getGitStatus.mockResolvedValue({
+        success: false,
+        gitStatus: null,
+      });
       mockApi.getBranches.mockRejectedValue(
         new Error("Failed to fetch branches"),
       );
@@ -335,13 +303,10 @@ describe("useGitStatus", () => {
 
   describe("CWD Changes", () => {
     it("should re-fetch git status when cwd changes", async () => {
-      mockApi.getGitStatus.mockResolvedValue(
-        {
-          success: true,
-          gitStatus: {},
-        },
-        { container: document.body },
-      );
+      mockApi.getGitStatus.mockResolvedValue({
+        success: true,
+        gitStatus: {},
+      });
 
       const { rerender, result } = renderHook(({ cwd }) => useGitStatus(cwd), {
         initialProps: { cwd: "/path1" },
@@ -369,13 +334,10 @@ describe("useGitStatus", () => {
     });
 
     it("should re-fetch branches when cwd changes", async () => {
-      mockApi.getBranches.mockResolvedValue(
-        {
-          success: true,
-          branches: [],
-        },
-        { container: document.body },
-      );
+      mockApi.getBranches.mockResolvedValue({
+        success: true,
+        branches: [],
+      });
 
       const { rerender, result } = renderHook(({ cwd }) => useGitStatus(cwd), {
         initialProps: { cwd: "/path1" },
@@ -414,13 +376,10 @@ describe("useGitStatus", () => {
 
     it("should handle git status change events for matching cwd", () => {
       let changeHandler: any;
-      mockApi.onGitStatusChanged.mockImplementation(
-        (handler) => {
-          changeHandler = handler;
-          return () => {};
-        },
-        { container: document.body },
-      );
+      mockApi.onGitStatusChanged.mockImplementation((handler) => {
+        changeHandler = handler;
+        return () => {};
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -432,19 +391,13 @@ describe("useGitStatus", () => {
         } as GitFileStatus,
       };
 
-      act(
-        () => {
-          changeHandler(
-            {
-              cwd: "/test/path",
-              gitStatus: mockGitStatus,
-              baseBranch: "main",
-            },
-            { container: document.body },
-          );
-        },
-        { container: document.body },
-      );
+      act(() => {
+        changeHandler({
+          cwd: "/test/path",
+          gitStatus: mockGitStatus,
+          baseBranch: "main",
+        });
+      });
 
       expect(result.current.gitStatus).toBeInstanceOf(Map);
       expect(result.current.gitStatus?.size).toBe(1);
@@ -453,32 +406,23 @@ describe("useGitStatus", () => {
 
     it("should convert event payload object to Map", () => {
       let changeHandler: any;
-      mockApi.onGitStatusChanged.mockImplementation(
-        (handler) => {
-          changeHandler = handler;
-          return () => {};
-        },
-        { container: document.body },
-      );
+      mockApi.onGitStatusChanged.mockImplementation((handler) => {
+        changeHandler = handler;
+        return () => {};
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
-      act(
-        () => {
-          changeHandler(
-            {
-              cwd: "/test/path",
-              gitStatus: {
-                "file1.txt": { status: "modified" } as GitFileStatus,
-                "file2.js": { status: "added" } as GitFileStatus,
-              },
-              baseBranch: null,
-            },
-            { container: document.body },
-          );
-        },
-        { container: document.body },
-      );
+      act(() => {
+        changeHandler({
+          cwd: "/test/path",
+          gitStatus: {
+            "file1.txt": { status: "modified" } as GitFileStatus,
+            "file2.js": { status: "added" } as GitFileStatus,
+          },
+          baseBranch: null,
+        });
+      });
 
       expect(result.current.gitStatus).toBeInstanceOf(Map);
       expect(result.current.gitStatus?.has("file1.txt")).toBe(true);
@@ -487,60 +431,42 @@ describe("useGitStatus", () => {
 
     it("should handle null git status in events", () => {
       let changeHandler: any;
-      mockApi.onGitStatusChanged.mockImplementation(
-        (handler) => {
-          changeHandler = handler;
-          return () => {};
-        },
-        { container: document.body },
-      );
+      mockApi.onGitStatusChanged.mockImplementation((handler) => {
+        changeHandler = handler;
+        return () => {};
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
-      act(
-        () => {
-          changeHandler(
-            {
-              cwd: "/test/path",
-              gitStatus: null,
-              baseBranch: null,
-            },
-            { container: document.body },
-          );
-        },
-        { container: document.body },
-      );
+      act(() => {
+        changeHandler({
+          cwd: "/test/path",
+          gitStatus: null,
+          baseBranch: null,
+        });
+      });
 
       expect(result.current.gitStatus).toBeNull();
     });
 
     it("should ignore events for different cwd", async () => {
       let changeHandler: any;
-      mockApi.onGitStatusChanged.mockImplementation(
-        (handler) => {
-          changeHandler = handler;
-          return () => {};
-        },
-        { container: document.body },
-      );
+      mockApi.onGitStatusChanged.mockImplementation((handler) => {
+        changeHandler = handler;
+        return () => {};
+      });
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
       const initialStatus = result.current.gitStatus;
       const initialBranch = result.current.baseBranch;
 
-      act(
-        () => {
-          changeHandler(
-            {
-              cwd: "/different/path",
-              gitStatus: { "file.txt": { status: "modified" } },
-              baseBranch: "feature",
-            },
-            { container: document.body },
-          );
-        },
-        { container: document.body },
-      );
+      act(() => {
+        changeHandler({
+          cwd: "/different/path",
+          gitStatus: { "file.txt": { status: "modified" } },
+          baseBranch: "feature",
+        });
+      });
 
       // Should not update state
       expect(result.current.gitStatus).toBe(initialStatus);
@@ -585,12 +511,9 @@ describe("useGitStatus", () => {
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
-      await act(
-        async () => {
-          await result.current.handleBranchSelect("feature");
-        },
-        { container: document.body },
-      );
+      await act(async () => {
+        await result.current.handleBranchSelect("feature");
+      });
 
       expect(mockApi.setBaseBranch).toHaveBeenCalledWith(
         "/test/path",
@@ -603,12 +526,9 @@ describe("useGitStatus", () => {
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
-      await act(
-        async () => {
-          await result.current.handleBranchSelect("main");
-        },
-        { container: document.body },
-      );
+      await act(async () => {
+        await result.current.handleBranchSelect("main");
+      });
 
       expect(result.current.baseBranch).toBe("main");
     });
@@ -619,22 +539,16 @@ describe("useGitStatus", () => {
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
       // Open the selector first
-      act(
-        () => {
-          result.current.setIsBranchSelectorOpen(true);
-        },
-        { container: document.body },
-      );
+      act(() => {
+        result.current.setIsBranchSelectorOpen(true);
+      });
 
       expect(result.current.isBranchSelectorOpen).toBe(true);
 
       // Select a branch
-      await act(
-        async () => {
-          await result.current.handleBranchSelect("main");
-        },
-        { container: document.body },
-      );
+      await act(async () => {
+        await result.current.handleBranchSelect("main");
+      });
 
       expect(result.current.isBranchSelectorOpen).toBe(false);
     });
@@ -644,12 +558,9 @@ describe("useGitStatus", () => {
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
-      await act(
-        async () => {
-          await result.current.handleBranchSelect(null);
-        },
-        { container: document.body },
-      );
+      await act(async () => {
+        await result.current.handleBranchSelect(null);
+      });
 
       expect(mockApi.setBaseBranch).toHaveBeenCalledWith("/test/path", null);
       expect(result.current.baseBranch).toBe(null);
@@ -663,12 +574,9 @@ describe("useGitStatus", () => {
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
       // Should not throw error
-      await act(
-        async () => {
-          await result.current.handleBranchSelect("main");
-        },
-        { container: document.body },
-      );
+      await act(async () => {
+        await result.current.handleBranchSelect("main");
+      });
 
       // Branch selector should still be in its initial state
       expect(result.current.isBranchSelectorOpen).toBe(false);
@@ -681,12 +589,9 @@ describe("useGitStatus", () => {
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
       // Should not throw error
-      await act(
-        async () => {
-          await result.current.handleBranchSelect("main");
-        },
-        { container: document.body },
-      );
+      await act(async () => {
+        await result.current.handleBranchSelect("main");
+      });
 
       // Restore mock
       (global.window as any).conduit = mockApi;
@@ -699,21 +604,15 @@ describe("useGitStatus", () => {
 
       expect(result.current.isBranchSelectorOpen).toBe(false);
 
-      act(
-        () => {
-          result.current.setIsBranchSelectorOpen(true);
-        },
-        { container: document.body },
-      );
+      act(() => {
+        result.current.setIsBranchSelectorOpen(true);
+      });
 
       expect(result.current.isBranchSelectorOpen).toBe(true);
 
-      act(
-        () => {
-          result.current.setIsBranchSelectorOpen(false);
-        },
-        { container: document.body },
-      );
+      act(() => {
+        result.current.setIsBranchSelectorOpen(false);
+      });
 
       expect(result.current.isBranchSelectorOpen).toBe(false);
     });
