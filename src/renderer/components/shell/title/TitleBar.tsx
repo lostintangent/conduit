@@ -28,7 +28,9 @@ export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
       <div className="flex gap-2 items-center">
         <Cable size={14} />
         Conduit
-        {workspaceName && ` (${workspaceName})`}
+        <span className="text-muted-foreground/70">
+          {workspaceName && ` (${workspaceName})`}
+        </span>
       </div>
 
       {/* Right area (Workspace/Settings menu) */}

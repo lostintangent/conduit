@@ -777,14 +777,17 @@ export function TabLayout({
   return (
     <div className="flex-1 flex relative min-h-0 overflow-hidden">
       {tabs.map(renderTab)}
+
+      {isFocusModeActive && <FocusModeIndicator />}
+
+      {/* Centered "Preparing..." message when there are no tabs */}
       {tabs.length === 0 && (
-        <div className="flex-1 flex min-h-0 min-w-0" aria-live="polite">
-          <div className="flex-1 flex items-center justify-center text-[0.95rem] text-white/60 bg-white/[0.03] border border-dashed border-white/[0.08] rounded-lg m-2">
-            <span>Preparing terminal…</span>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center justify-center bg-elevated p-4 rounded-md border border-elevated-border text-sm">
+            Preparing terminal...
           </div>
         </div>
       )}
-      {isFocusModeActive && <FocusModeIndicator />}
     </div>
   );
 }
