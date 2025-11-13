@@ -99,9 +99,9 @@ export function PaneControlButtons({
   };
 
   const groupBaseClass =
-    "bg-black/60 border border-blueprint border-dashed rounded-lg backdrop-blur-sm overflow-hidden pointer-events-auto";
+    "bg-black/60 border border-accent border-dashed rounded-lg backdrop-blur-sm overflow-hidden pointer-events-auto";
 
-  const dividerColorClass = "divide-blueprint";
+  const dividerColorClass = "divide-accent";
 
   const groupClasses = {
     center: `${groupBaseClass} flex divide-x ${dividerColorClass} divide-dashed`,

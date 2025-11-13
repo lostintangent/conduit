@@ -103,7 +103,7 @@ export function BrowserPane({
       if (!previewOverlayRef.current) {
         const overlay = document.createElement("div");
         overlay.className =
-          "pointer-events-none bg-blueprint/30 backdrop-blur-[0.5px]";
+          "pointer-events-none bg-accent/30 backdrop-blur-[0.5px]";
         overlay.style.position = "absolute";
         overlay.style.zIndex = "10005";
         overlay.style.pointerEvents = "none";

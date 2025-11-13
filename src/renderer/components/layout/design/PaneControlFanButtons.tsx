@@ -410,7 +410,7 @@ export function PaneControlFanButtons({
           return (
             <button
               key={`action-${index}-${action.name}`}
-              className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
+              className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-accent border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
               style={{
                 ...pos,
                 animationDelay: `${index * 30}ms`,
