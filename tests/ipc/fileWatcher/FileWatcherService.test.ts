@@ -160,6 +160,8 @@ describe("FileWatcherService", () => {
             stabilityThreshold: 100,
             pollInterval: 50,
           },
+          usePolling: process.platform === "darwin",
+          interval: 1000,
         }),
       );
 

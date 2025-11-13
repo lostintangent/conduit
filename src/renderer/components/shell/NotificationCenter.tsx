@@ -12,7 +12,7 @@ function notificationStyles(kind: Notification["kind"]) {
     case "error":
       return "border-l-4 border-l-red-500 bg-red-500/15 text-red-100";
     default:
-      return "border-l-4 border-l-sky-400 bg-surface-elevated bg-opacity-90 text-white";
+      return "border-l-4 border-l-sky-400 bg-popover bg-opacity-90 text-white";
   }
 }
 

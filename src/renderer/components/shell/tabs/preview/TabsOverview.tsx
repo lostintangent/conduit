@@ -58,7 +58,7 @@ export function TabsOverview() {
   }, []);
 
   return (
-    <div className="relative flex flex-1 overflow-auto bg-surface min-h-0">
+    <div className="relative flex flex-1 overflow-auto bg-background min-h-0">
       <div className="mx-auto flex w-full max-w-[90vw] flex-wrap gap-4 self-start px-6 py-8 justify-center">
         {tabLabels.map((tab) => (
           <div

@@ -44,7 +44,7 @@ export function TabPreviewOverlay({
   return createPortal(
     <div
       ref={outerContainerRef}
-      className="pointer-events-auto fixed z-[9999] bg-surface shadow-xl backdrop-blur-sm  hover:border-blueprint/50 hover:shadow-2xl cursor-pointer"
+      className="pointer-events-auto fixed z-[9999] bg-background shadow-xl backdrop-blur-sm hover:border-accent/50 hover:shadow-2xl cursor-pointer"
       style={{
         left: preview.left,
         top: preview.top,

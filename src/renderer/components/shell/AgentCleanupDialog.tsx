@@ -57,7 +57,7 @@ export function AgentCleanupDialog({
       onClick={onClose}
     >
       <div
-        className="w-[520px] max-w-[94vw] rounded-xl border border-white/10 bg-surface-elevated p-5 text-white shadow-2xl"
+        className="w-[520px] max-w-[94vw] rounded-xl border border-white/10 bg-popover p-5 text-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="text-lg font-semibold">Manage agent sessions</h2>

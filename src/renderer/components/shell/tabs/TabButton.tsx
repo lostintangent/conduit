@@ -130,9 +130,7 @@ export const TabButton = ({
       draggable={true}
       className={cx(
         "group flex items-center gap-2 py-1.5 px-3 border-0 rounded-lg cursor-pointer text-[0.85rem] leading-none transition-colors duration-150 flex-none whitespace-nowrap select-none",
-        isActive
-          ? "bg-gradient-to-br from-accent-start to-accent-end text-white"
-          : "bg-white/5 text-inherit hover:bg-white/10",
+        isActive ? "magic" : "bg-white/5 text-inherit hover:bg-white/10",
       )}
       onClick={(event) => {
         if (disableClick) {
@@ -193,7 +191,7 @@ export const TabButton = ({
         {showCloseButton ? (
           <Trash2
             size={14}
-            className="cursor-pointer transition-all duration-150 flex-none opacity-60 hover:opacity-100 hover:text-red-500"
+            className="cursor-pointer transition-all duration-150 flex-none opacity-60 hover:opacity-100 hover:text-destructive"
             onClick={(event) => {
               event.stopPropagation();
               if (!isLocked) {

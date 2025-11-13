@@ -17,10 +17,7 @@ const DropZoneOverlay = ({
   style?: React.CSSProperties;
 }): React.ReactElement => (
   <div
-    className={cn(
-      "pointer-events-none absolute z-30 bg-blueprint/40",
-      className,
-    )}
+    className={cn("pointer-events-none absolute z-30 bg-accent/40", className)}
     style={style}
   />
 );

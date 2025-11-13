@@ -1,10 +1,10 @@
-import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { BrowserPage } from "@/shared/types";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { BrowserPage } from "@shared/types";
 import {
   ArrowLeft,
   ArrowRight,
@@ -135,7 +135,7 @@ export function BrowserToolbar({
   }, [currentPage.url]);
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
+    <div className="flex items-center gap-1 px-2 py-1.5 bg-elevated border-b border-white/10">
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -195,7 +195,7 @@ export function BrowserToolbar({
             onChange={handleUrlInputChange}
             onBlur={handleUrlInputBlur}
             onFocus={handleUrlInputFocus}
-            className="flex-1 px-3 pr-20 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
+            className="flex-1 px-3 pr-20 py-1 text-sm bg-background rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
             placeholder="Enter URL..."
           />
         </form>
@@ -207,7 +207,7 @@ export function BrowserToolbar({
           />
         </div>
         {showHistory && urlHistory.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
             {urlHistory.map((historyUrl) => (
               <div
                 key={historyUrl}

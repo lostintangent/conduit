@@ -226,7 +226,7 @@ export const TerminalPane = ({
 
   return (
     <div
-      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-surface"
+      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-background"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
     >

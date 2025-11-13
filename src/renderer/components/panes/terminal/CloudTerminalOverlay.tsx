@@ -122,7 +122,7 @@ export const CloudTerminalOverlay = ({
     <>
       {/* Disconnected overlay - shown when SSH connection ends */}
       {sshConnectionState === "disconnected" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-surface/95 z-[2000]">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/95 z-[2000]">
           <div className="flex flex-col items-center gap-6 max-w-md px-8">
             <div className="text-center">
               <div className="text-foreground text-xl font-semibold mb-2">

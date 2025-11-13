@@ -1,10 +1,7 @@
 import { PaneControlButtons } from "@/components/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/layout/focus/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/layout/normal/IntersectionHandles";
-import {
-  PaneHighlight,
-  shouldShowPaneBorder,
-} from "@/components/layout/normal/PaneHighlight";
+import { PaneHighlight } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
@@ -17,15 +14,15 @@ import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
 } from "@/hooks/useLayoutResizing";
-import { enterFocusMode } from "@/store/actions/focusMode";
-import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { hasNeighborPane } from "@/store/actions/paneNavigation";
-import { focusTab } from "@/store/actions/tab";
 import {
   handleCompleteAgentSessionAction,
   handleDeleteAgentSessionAction,
   handleForkVMAction,
 } from "@/hooks/useSandboxHandlers";
+import { enterFocusMode } from "@/store/actions/focusMode";
+import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import { hasNeighborPane } from "@/store/actions/paneNavigation";
+import { focusTab } from "@/store/actions/tab";
 import {
   activePaneIdAtom,
   activeTabAtom,
@@ -42,13 +39,7 @@ import type {
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
@@ -476,7 +467,7 @@ export function TabLayout({
           </div>
 
           {isInDesignMode && (
-            <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-none absolute inset-0 z-10 bg-accent/20 backdrop-blur-[0.5px]" />
           )}
 
           {/* Pane highlight overlay */}
@@ -484,7 +475,7 @@ export function TabLayout({
 
           {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
           {isInPreview && hoveredPreviewPaneId === pane.id && (
-            <div className="pointer-events-none absolute inset-0 z-20 bg-blueprint/30 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-none absolute inset-0 z-20 bg-accent/30 backdrop-blur-[0.5px]" />
           )}
 
           {/* Drop zone overlay */}
@@ -555,13 +546,11 @@ export function TabLayout({
         isInFocusMode,
       );
 
-      const tabShowsBorder = shouldShowPaneBorder(tab, applicationMode);
-
       // Use grid gap to create spaces that reveal the overlay underneath
       // Hide gaps only in focus mode where we want a seamless view
       // Use larger gaps in overview mode to compensate for scaling
       const gridGapClass =
-        applicationMode === "focus"
+        applicationMode === "focus" || applicationMode === "design"
           ? "gap-0"
           : applicationMode === "overview"
             ? "gap-[3px]"
@@ -586,7 +575,7 @@ export function TabLayout({
             // In design mode, add dashed borders as visual indicators (overlaid on content)
             // Grid gap handles the spacing that reveals the overlay underneath
             const designModeBorderClass = isInDesignMode
-              ? `${node.direction === "row" ? "border-l" : "border-t"} border-blueprint border-dashed`
+              ? `${node.direction === "row" ? "border-l" : "border-t"} border-accent border-dashed`
               : "";
             const splitBorderClass =
               index !== 0 && isInDesignMode ? designModeBorderClass : "";
@@ -611,8 +600,8 @@ export function TabLayout({
                 hoveredAxisKeys.includes(primaryAxisKey));
 
             const highlightDividerClass = isAxisHighlighted
-              ? "bg-blue-500/60"
-              : "bg-transparent hover:bg-blue-500/40";
+              ? "bg-accent/80"
+              : "bg-transparent hover:bg-accent/80";
 
             const shouldRenderHandles =
               primaryAxis !== null && !isInFocusMode && !isLocked;
@@ -653,6 +642,7 @@ export function TabLayout({
                       }}
                       onMouseLeave={clearHover}
                     />
+
                     <IntersectionHandles
                       direction={node.direction}
                       handles={intersectionHandles}
@@ -672,6 +662,7 @@ export function TabLayout({
                     />
                   </>
                 )}
+
                 {renderChild(child, tab, hasUnifiedSandbox)}
               </div>
             );

@@ -107,7 +107,7 @@ export function RepositoryDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] bg-surface-elevated border-border">
+      <DialogContent className="sm:max-w-[500px] bg-popover border-border">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground pt-2">
@@ -119,7 +119,7 @@ export function RepositoryDialog({
           <div className="space-y-2">
             <input
               autoFocus
-              className="w-full py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-focus-ring focus:outline-offset-2"
+              className="w-full py-2.5 px-3 rounded-lg border border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-ring focus:outline-offset-2"
               value={value}
               onChange={(e) => {
                 setValue(e.target.value);
@@ -137,13 +137,13 @@ export function RepositoryDialog({
             <button
               type="button"
               onClick={handleSkip}
-              className="border border-border-muted bg-transparent rounded-lg py-1.5 px-3.5 text-inherit font-[inherit] text-[0.9rem] cursor-pointer transition-colors duration-150 hover:bg-white/5"
+              className="border border-muted bg-transparent rounded-lg py-1.5 px-3.5 text-inherit font-[inherit] text-[0.9rem] cursor-pointer transition-colors duration-150 hover:bg-white/5"
             >
               Skip
             </button>
             <button
               type="submit"
-              className="bg-linear-to-br from-accent-start to-accent-end border-transparent rounded-lg py-1.5 px-3.5 text-white font-[inherit] text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105"
+              className="magic border-transparent rounded-lg py-1.5 px-3.5 font-[inherit] text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105"
             >
               Create VM
             </button>

@@ -52,10 +52,10 @@ export function TabPreviewItem({
     calculatePreviewDimensions(scale);
 
   const borderClass = isHovered
-    ? "border-blueprint shadow-lg"
+    ? "border-accent shadow-lg"
     : "border-white/[0.08]";
   const interactivityClass = onClick
-    ? "cursor-pointer hover:border-blueprint transition-colors pointer-events-auto"
+    ? "cursor-pointer hover:border-accent transition-colors pointer-events-auto"
     : "pointer-events-none";
 
   return (
@@ -64,7 +64,6 @@ export function TabPreviewItem({
       style={{
         width: displayWidth,
         height: displayHeight,
-        backgroundColor: "var(--color-border-fill-solid)",
       }}
       onClick={handleClick}
     >
