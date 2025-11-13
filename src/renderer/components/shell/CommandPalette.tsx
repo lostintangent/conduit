@@ -1,4 +1,5 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import type { Command } from "@/types";
 import {
   useCallback,
@@ -161,7 +162,7 @@ export function CommandPalette({
     return (
       <>
         {before}
-        <span className="text-sky-400">{match}</span>
+        <span className="text-accent">{match}</span>
         {after}
       </>
     );
@@ -288,13 +289,12 @@ export function CommandPalette({
         className="w-[480px] max-w-[90vw] p-4 gap-0 bg-popover border-white/10"
         showClose={false}
       >
-        <input
+        <Input
           autoFocus
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
           onKeyDown={handleInputKeyDown}
           placeholder="Search commands or type ! to run a shell command..."
-          className="w-full rounded-md border border-white/10 bg-input px-3 py-2 text-sm focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
         />
 
         {isShellMode ? (
@@ -383,8 +383,8 @@ export function CommandPalette({
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition cursor-pointer ${
                       isActive
-                        ? "border-white/30 bg-white/10"
-                        : "border-transparent hover:border-white/20 hover:bg-white/5"
+                        ? "border-white/30 bg-white/10 text-white"
+                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
                     }`}
                     aria-selected={isActive}
                   >
