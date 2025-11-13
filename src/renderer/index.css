@@ -68,7 +68,7 @@
   --accent-2: oklch(61.44% 0.2346 294.74);
   --accent-2-foreground: oklch(98.48% 0 0);
 
-  --muted: oklch(26.86% 0 0);
+  --muted: oklch(36% 0 0);
   --muted-foreground: oklch(71.53% 0 0);
 
   --destructive: oklch(63.7% 0.237 25.331);
@@ -97,7 +97,6 @@
 }
 
 /* Light theme color variables */
-/* TODO: Clean this up */
 :root[data-theme="light"] {
   --background: oklch(98.51% 0 0);
   --foreground: oklch(20.46% 0 0);
@@ -105,7 +104,16 @@
   --primary: oklch(20.44% 0 0);
   --primary-foreground: oklch(98.48% 0 0);
 
-  --selection: oklch(85.94% 0.0662 253.44);
+  --secondary: oklch(97.03% 0 0);
+  --secondary-foreground: oklch(20.44% 0 0);
+
+  /* Light theme shares the same accent colors as dark theme */
+
+  --muted: oklch(97.03% 0 0);
+  --muted-foreground: oklch(55.55% 0 0);
+
+  --destructive: oklch(63.68% 0.2078 25.33);
+  --destructive-foreground: oklch(98.48% 0 0);
 
   --warning: oklch(76.86% 0.1647 70.08 / 0.15);
   --warning-foreground: oklch(66.58% 0.1574 58.32);
@@ -113,30 +121,19 @@
   --warning-button: oklch(76.86% 0.1647 70.08);
   --warning-button-hover: oklch(66.58% 0.1574 58.32);
 
-  --color-text-popover: var(--color-foreground);
-  --color-surface-muted: oklch(97.02% 0 0);
-  --color-border-muted: oklch(86.99% 0 0);
-
-  --color-foreground: oklch(20.46% 0 0);
-  --color-foreground-inverse: oklch(98.51% 0 0);
-
-  --color-secondary-start: oklch(69.59% 0.1491 162.48);
-  --color-secondary-end: oklch(71.48% 0.1257 215.22);
-
   --card: oklch(100% 0 0);
   --card-foreground: oklch(20.44% 0 0);
+
   --popover: oklch(100% 0 0);
   --popover-foreground: oklch(20.44% 0 0);
 
-  --secondary: oklch(97.03% 0 0);
-  --secondary-foreground: oklch(20.44% 0 0);
-  --muted: oklch(97.03% 0 0);
-  --muted-foreground: oklch(55.55% 0 0);
-  --destructive: oklch(63.68% 0.2078 25.33);
-  --destructive-foreground: oklch(98.48% 0 0);
+  --selection: oklch(85.94% 0.0662 253.44);
+
   --border: oklch(92.19% 0 0);
   --input: oklch(92.19% 0 0);
   --ring: oklch(21.56% 0 0);
+
+  --color-surface-muted: oklch(97.02% 0 0);
 
   --pane-divider-gradient: oklch(100% 0 0 / 0.6);
   --pane-divider-solid: oklch(96.42% 0 0);
@@ -194,8 +191,7 @@
 
   /* TODO: Cleanup */
   --color-surface-muted: oklch(19.13% 0 0);
-  --color-border-muted: oklch(32.11% 0 0);
-  --color-foreground-inverse: oklch(23.93% 0 0);
+
   --color-secondary-start: oklch(69.59% 0.1491 162.48);
   --color-secondary-end: oklch(71.48% 0.1257 215.22);
 }

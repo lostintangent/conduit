@@ -9,20 +9,13 @@ export function resolveColor(variable: string): string {
 }
 
 /**
- * Detect system theme preference
- */
-export function getSystemTheme(): "light" | "dark" {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-/**
- * Resolve effective theme based on mode setting
+ * Resolve effective theme based on user mode setting
  */
 export function resolveTheme(mode: ThemeMode): "light" | "dark" {
   if (mode === "system") {
-    return getSystemTheme();
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
   }
   return mode;
 }
@@ -32,11 +25,7 @@ export function resolveTheme(mode: ThemeMode): "light" | "dark" {
  */
 export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
   const theme = resolveTheme(mode);
-
-  // Set data-theme attribute for CSS to use
   document.documentElement.setAttribute("data-theme", theme);
-
-  // Update color-scheme for native elements
   document.documentElement.style.colorScheme = theme;
 
   // Apply overrides if provided
@@ -48,15 +37,8 @@ export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
       root.style.setProperty("--color-input", overrides.input);
     if (overrides.border)
       root.style.setProperty("--color-border", overrides.border);
-    if (overrides.borderMuted)
-      root.style.setProperty("--color-border-muted", overrides.borderMuted);
     if (overrides.foreground)
       root.style.setProperty("--color-foreground", overrides.foreground);
-    if (overrides.foregroundInverse)
-      root.style.setProperty(
-        "--color-foreground-inverse",
-        overrides.foregroundInverse,
-      );
     if (overrides.selection)
       root.style.setProperty("--color-selection", overrides.selection);
     if (overrides.accent)

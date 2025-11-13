@@ -40,7 +40,7 @@ export function InputDialog({
         <form onSubmit={() => onSave(value)}>
           <input
             autoFocus
-            className="w-full py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-ring focus:outline-offset-2"
+            className="w-full py-2.5 px-3 rounded-lg border border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-ring focus:outline-offset-2"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={placeholder}

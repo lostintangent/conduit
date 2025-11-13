@@ -316,7 +316,7 @@ export function CommandPalette({
                       onMouseEnter={() => setSelectedIndex(index)}
                       className={`flex w-full items-center rounded-md border transition ${
                         isActive
-                          ? "border-yellow-500/60 bg-yellow-500/40 text-foreground-inverse"
+                          ? "border-yellow-500/60 bg-yellow-500/40 text-background"
                           : "border-transparent text-white/80 hover:border-yellow-500/40 hover:bg-yellow-500/15"
                       }`}
                     >
@@ -356,7 +356,7 @@ export function CommandPalette({
               })}
             </ul>
           ) : (
-            <div className="mt-3 rounded-md border border-dashed border-yellow-500/40 bg-yellow-500/40 px-3 py-2 text-sm text-foreground-inverse">
+            <div className="mt-3 rounded-md border border-dashed border-yellow-500/40 bg-yellow-500/40 px-3 py-2 text-sm text-background">
               {shellHistory.length === 0
                 ? "No recent shell commands yet."
                 : "No matching recent commands."}

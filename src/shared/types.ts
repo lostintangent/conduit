@@ -6,9 +6,7 @@ export type ThemeOverrides = {
   surfaceMuted?: string;
   input?: string;
   border?: string;
-  borderMuted?: string;
   foreground?: string;
-  foregroundInverse?: string;
   selection?: string;
   accent?: string;
 };
