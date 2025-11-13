@@ -78,6 +78,7 @@ export function useGitStatus(cwd: string) {
     if (!cwd) return;
 
     let removeGitStatusListener: (() => void) | undefined;
+    let isInitialLoad = true;
 
     if (api.onGitStatusChanged) {
       console.log("[useGitStatus] Setting up git status change listener");
@@ -98,7 +99,13 @@ export function useGitStatus(cwd: string) {
 
         // Update git status
         setGitStatus(statusMap);
-        setBaseBranch(payload.baseBranch);
+
+        // Only update base branch on initial load, not on subsequent updates
+        // User's branch selection should persist across git status updates
+        if (isInitialLoad && payload.baseBranch !== undefined) {
+          setBaseBranch(payload.baseBranch);
+          isInitialLoad = false;
+        }
       });
     } else {
       console.warn("[useGitStatus] api.onGitStatusChanged is not defined");
