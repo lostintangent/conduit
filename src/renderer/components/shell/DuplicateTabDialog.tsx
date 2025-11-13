@@ -67,7 +67,7 @@ export function DuplicateTabDialog({
                 <input
                   id="cwd-input"
                   autoFocus
-                  className="flex-1 py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-[var(--color-focus-ring)] focus:outline-offset-2"
+                  className="flex-1 py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-ring focus:outline-offset-2"
                   value={cwd}
                   onChange={(e) => setCwd(e.target.value)}
                   placeholder="Enter working directory path..."
@@ -93,7 +93,7 @@ export function DuplicateTabDialog({
               </label>
               <input
                 id="title-input"
-                className="w-full py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-[var(--color-focus-ring)] focus:outline-offset-2"
+                className="w-full py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-ring focus:outline-offset-2"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={initialTitle}

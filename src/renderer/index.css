@@ -88,8 +88,8 @@
 
   --selection: oklch(41.84% 0.0829 250.44);
 
-  --border: oklch(26.86% 0 0);
-  --input: oklch(26.86% 0 0);
+  --border: oklch(28.91% 0 0);
+  --input: oklch(18.22% 0 0);
   --ring: oklch(86.97% 0 0);
 
   --pane-divider-gradient: oklch(0% 0 0 / 0.4);
@@ -121,7 +121,6 @@
 
   --color-secondary-start: oklch(69.59% 0.1491 162.48);
   --color-secondary-end: oklch(71.48% 0.1257 215.22);
-  --color-focus-ring: oklch(62.31% 0.188 259.81 / 0.5);
 
   --card: oklch(100% 0 0);
   --card-foreground: oklch(20.44% 0 0);
@@ -197,15 +196,10 @@
   --color-surface: oklch(23.5% 0 0); /* background? */
   --color-surface-elevated: oklch(23.93% 0 0); /* popover? */
   --color-surface-muted: oklch(19.13% 0 0);
-  --color-input: oklch(18.22% 0 0);
-  --color-border: oklch(28.91% 0 0);
   --color-border-muted: oklch(32.11% 0 0);
-
   --color-foreground-inverse: oklch(23.93% 0 0);
-
   --color-secondary-start: oklch(69.59% 0.1491 162.48);
   --color-secondary-end: oklch(71.48% 0.1257 215.22);
-  --color-focus-ring: oklch(65.11% 0.1872 258.55 / 0.6);
 }
 
 /* Pane highlight */
