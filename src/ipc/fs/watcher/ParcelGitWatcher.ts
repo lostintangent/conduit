@@ -1,7 +1,7 @@
 import watcher, { AsyncSubscription } from "@parcel/watcher";
 import path from "node:path";
 import type { IGitWatcher } from "./IGitWatcher";
-import type { GitStatusMap } from "@shared/types";
+import type { GitStatusMap, GitFileStatus } from "@shared/types";
 import { getGitStatus, getGitStatusForFile } from "../../git/gitStatus";
 
 export class ParcelGitWatcher implements IGitWatcher {
@@ -107,7 +107,7 @@ export class ParcelGitWatcher implements IGitWatcher {
 
   async computeGitStatusForFile(
     filePath: string,
-  ): Promise<{ status: string } | null> {
+  ): Promise<GitFileStatus | null> {
     try {
       return await getGitStatusForFile(this.gitRoot, filePath);
     } catch (error) {

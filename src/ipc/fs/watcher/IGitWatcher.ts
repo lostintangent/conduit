@@ -1,4 +1,4 @@
-import type { GitStatusMap } from "@shared/types";
+import type { GitStatusMap, GitFileStatus } from "@shared/types";
 
 export interface IGitWatcher {
   /**
@@ -29,5 +29,5 @@ export interface IGitWatcher {
   /**
    * Compute git status for single file
    */
-  computeGitStatusForFile(filePath: string): Promise<{ status: string } | null>;
+  computeGitStatusForFile(filePath: string): Promise<GitFileStatus | null>;
 }
