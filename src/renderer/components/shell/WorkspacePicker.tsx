@@ -146,7 +146,7 @@ export function WorkspacePicker({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="w-[480px] max-w-[90vw] border-white/10 bg-surface-elevated"
+        className="w-[480px] max-w-[90vw] border-white/10 bg-popover"
         onKeyDown={handleKeyDown}
         showClose={false}
       >

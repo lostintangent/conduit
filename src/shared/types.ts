@@ -3,8 +3,6 @@ import { Tab } from "@/types";
 export type ThemeMode = "light" | "dark" | "system";
 
 export type ThemeOverrides = {
-  surface?: string;
-  surfaceElevated?: string;
   surfaceMuted?: string;
   input?: string;
   border?: string;

@@ -107,7 +107,7 @@ export function RepositoryDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] bg-surface-elevated border-border">
+      <DialogContent className="sm:max-w-[500px] bg-popover border-border">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground pt-2">

@@ -49,7 +49,7 @@ export function DuplicateTabDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] bg-surface-elevated border-border">
+      <DialogContent className="sm:max-w-[500px] bg-popover border-border">
         <DialogHeader>
           <DialogTitle>Duplicate tab with custom directory</DialogTitle>
         </DialogHeader>

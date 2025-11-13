@@ -100,6 +100,11 @@
 /* TODO: Clean this up */
 :root[data-theme="light"] {
   --background: oklch(98.51% 0 0);
+  --foreground: oklch(20.46% 0 0);
+
+  --primary: oklch(20.44% 0 0);
+  --primary-foreground: oklch(98.48% 0 0);
+
   --selection: oklch(85.94% 0.0662 253.44);
 
   --warning: oklch(76.86% 0.1647 70.08 / 0.15);
@@ -108,12 +113,8 @@
   --warning-button: oklch(76.86% 0.1647 70.08);
   --warning-button-hover: oklch(66.58% 0.1574 58.32);
 
-  --color-surface-elevated: oklch(100% 0 0);
-  --color-popover: var(--color-surface-elevated);
   --color-text-popover: var(--color-foreground);
   --color-surface-muted: oklch(97.02% 0 0);
-  --color-input: oklch(100% 0 0);
-  --color-border: oklch(92.19% 0 0);
   --color-border-muted: oklch(86.99% 0 0);
 
   --color-foreground: oklch(20.46% 0 0);
@@ -126,8 +127,7 @@
   --card-foreground: oklch(20.44% 0 0);
   --popover: oklch(100% 0 0);
   --popover-foreground: oklch(20.44% 0 0);
-  --primary: oklch(20.44% 0 0);
-  --primary-foreground: oklch(98.48% 0 0);
+
   --secondary: oklch(97.03% 0 0);
   --secondary-foreground: oklch(20.44% 0 0);
   --muted: oklch(97.03% 0 0);
@@ -193,7 +193,6 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   /* TODO: Cleanup */
-  --color-surface-elevated: oklch(23.93% 0 0); /* popover? */
   --color-surface-muted: oklch(19.13% 0 0);
   --color-border-muted: oklch(32.11% 0 0);
   --color-foreground-inverse: oklch(23.93% 0 0);
