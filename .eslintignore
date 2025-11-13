@@ -6,3 +6,4 @@ out/
 coverage/
 .git/
 *.log
+foo
