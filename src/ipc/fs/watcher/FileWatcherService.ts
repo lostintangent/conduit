@@ -1,13 +1,13 @@
+import type { GitStatusMap } from "@shared/types";
 import { BrowserWindow } from "electron";
 import path from "node:path";
-import { ParcelFileSystemWatcher } from "./ParcelFileSystemWatcher";
-import { ParcelGitWatcher } from "./ParcelGitWatcher";
 import { findRepoRoot } from "../../agent/git";
 import { listBranches } from "../../git/gitStatus";
 import type { IFileSystemWatcher } from "./IFileSystemWatcher";
 import type { IGitWatcher } from "./IGitWatcher";
+import { ParcelFileSystemWatcher } from "./ParcelFileSystemWatcher";
+import { ParcelGitWatcher } from "./ParcelGitWatcher";
 import type { FileWatcherSubscription, GitStatusChangedEvent } from "./types";
-import type { GitStatusMap } from "@shared/types";
 
 /**
  * Simplified watcher entry using new abstractions
@@ -215,6 +215,7 @@ export class FileWatcherService {
 
       fsWatcher.onTreeChanged((event) => {
         this.broadcast(cwd, "file-watcher:tree-changed", event);
+        if (gitRoot) this.scheduleGitStatusUpdateFull(cwd, 200);
       });
 
       await fsWatcher.watch();
