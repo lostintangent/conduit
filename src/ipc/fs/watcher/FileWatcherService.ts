@@ -10,12 +10,12 @@ import type {
   UnlinkMetadata,
   GitStatusChangedEvent,
 } from "./types";
-import { findRepoRoot } from "../agent/git";
+import { findRepoRoot } from "../../agent/git";
 import {
   getGitStatus,
   getGitStatusForFile,
   listBranches,
-} from "../git/gitStatus";
+} from "../../git/gitStatus";
 import type { GitStatusMap } from "@shared/types";
 
 /**

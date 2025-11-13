@@ -1,7 +1,7 @@
 import { BrowserWindow } from "electron";
 import { initializeAgentHandlers } from "./agent";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
-import { initializeFileWatcherHandlers } from "./fileWatcher";
+import { initializeFileWatcherHandlers } from "./fs/watcher";
 import { initializeFsHandlers } from "./fs";
 import {
   cleanupTerminalSessions,

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import type { FSWatcher } from "chokidar";
-import { FileWatcherService } from "../../../src/ipc/fileWatcher/FileWatcherService";
+import { FileWatcherService } from "../../../../src/ipc/fs/watcher/FileWatcherService";
 
 // Mock dependencies
 vi.mock("chokidar", () => ({
@@ -15,11 +15,11 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../../../src/ipc/agent/git", () => ({
+vi.mock("../../../../src/ipc/agent/git", () => ({
   findRepoRoot: vi.fn(),
 }));
 
-vi.mock("../../../src/ipc/git/gitStatus", () => ({
+vi.mock("../../../../src/ipc/git/gitStatus", () => ({
   getGitStatus: vi.fn(),
   getGitStatusForFile: vi.fn(),
   listBranches: vi.fn(),
@@ -46,12 +46,12 @@ vi.mock("node:fs", async (importOriginal) => {
 
 import chokidar from "chokidar";
 import { BrowserWindow } from "electron";
-import { findRepoRoot } from "../../../src/ipc/agent/git";
+import { findRepoRoot } from "../../../../src/ipc/agent/git";
 import {
   getGitStatus,
   getGitStatusForFile,
   listBranches,
-} from "../../../src/ipc/git/gitStatus";
+} from "../../../../src/ipc/git/gitStatus";
 
 describe("FileWatcherService", () => {
   let service: FileWatcherService;

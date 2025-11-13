@@ -7,8 +7,8 @@
  */
 
 import { ipcMain } from "electron";
-import { findRepoRoot } from "../agent/git";
-import { listBranches } from "../git/gitStatus";
+import { findRepoRoot } from "../../agent/git";
+import { listBranches } from "../../git/gitStatus";
 import { FileWatcherService } from "./FileWatcherService";
 
 export { FileWatcherService } from "./FileWatcherService";

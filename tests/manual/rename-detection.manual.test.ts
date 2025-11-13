@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { FileWatcherService } from "../../src/ipc/fileWatcher/FileWatcherService";
+import { FileWatcherService } from "../../src/ipc/fs/watcher/FileWatcherService";
 
 // Mock electron
 vi.mock("electron", () => ({
