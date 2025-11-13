@@ -1,4 +1,3 @@
-import type { FSWatcher } from "chokidar";
 import type { GitStatusMap } from "@shared/types";
 
 /**
@@ -7,24 +6,6 @@ import type { GitStatusMap } from "@shared/types";
 export type FileWatcherSubscription = {
   paneId: string;
   windowId: number;
-};
-
-/**
- * Internal entry tracking a watcher and its subscribers for a specific directory.
- */
-export type WatcherEntry = {
-  fsWatcher: FSWatcher | null;
-  gitWatcher: FSWatcher | null;
-  subscribers: Set<FileWatcherSubscription>;
-  gitRoot: string | null;
-  gitStatus: GitStatusMap | null;
-  baseBranch: string | null;
-  branches: any[] | null; // Cached branch list
-  gitStatusFullDebounceTimer: NodeJS.Timeout | null;
-  gitStatusFileDebounceTimers: Map<string, NodeJS.Timeout>;
-  setupInProgress: boolean; // Track if watcher setup is currently running
-  pendingGitStatusFiles: Set<string>; // Buffer for batching git status updates
-  gitStatusBatchTimer: NodeJS.Timeout | null; // Timer for batch window
 };
 
 /**
