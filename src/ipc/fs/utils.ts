@@ -140,10 +140,40 @@ async function readDirectory(
   return nodes;
 }
 
-export async function listDirectory(cwd: string): Promise<FileTreeNode[]> {
-  const rootPath = path.resolve(cwd);
-  const shouldIgnore = await createIgnorePredicate(rootPath);
-  return readDirectory(rootPath, rootPath, shouldIgnore);
+/**
+ * Lists the contents of a directory and returns file tree nodes.
+ *
+ * @param directoryPath - The absolute path of the directory to list (the target directory whose contents to read)
+ * @param rootPath - Optional. The absolute path of the root directory, used as the base for computing
+ *                   relative paths in FileTreeNode.relativePath. If not provided, directoryPath is used as the root.
+ *
+ * @returns Array of FileTreeNode objects representing the directory contents
+ *
+ * @example
+ * // List root directory - relativePath will be computed from /Users/foo/project
+ * await listDirectory('/Users/foo/project')
+ * // Returns: [{ name: 'src', path: '/Users/foo/project/src', relativePath: 'src', ... }]
+ *
+ * @example
+ * // List nested directory - relativePath still computed from editor root
+ * await listDirectory('/Users/foo/project/src/components', '/Users/foo/project')
+ * // Returns: [{ name: 'Button.tsx', path: '/Users/foo/project/src/components/Button.tsx',
+ * //            relativePath: 'src/components/Button.tsx', ... }]
+ *
+ * @remarks
+ * The rootPath parameter is critical for git status integration. Git status keys are paths
+ * relative to the repository root (e.g., "src/components/Button.tsx"). When directories are lazily
+ * loaded (expanded), we must compute relativePath from the same root to ensure paths match git status keys.
+ * Without this, nested files won't show git status indicators.
+ */
+export async function listDirectory(
+  directoryPath: string,
+  rootPath?: string,
+): Promise<FileTreeNode[]> {
+  const targetPath = path.resolve(directoryPath);
+  const resolvedRootPath = rootPath ? path.resolve(rootPath) : targetPath;
+  const shouldIgnore = await createIgnorePredicate(resolvedRootPath);
+  return readDirectory(resolvedRootPath, targetPath, shouldIgnore);
 }
 
 export async function readFile(filePath: string): Promise<string> {

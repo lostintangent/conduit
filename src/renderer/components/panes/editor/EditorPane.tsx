@@ -1,5 +1,7 @@
+import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import Editor, { loader } from "@monaco-editor/react";
@@ -9,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderUp,
+  GitBranch,
   Loader2,
   Redo,
   Save,
@@ -142,7 +145,7 @@ export function EditorPane({
   paneId,
   agentSessionId,
   onFileChange,
-  onClearFile,
+  onClearFile: _onClearFile,
   onCwdChange,
   onFileOpen,
   isLocked = false,
@@ -193,6 +196,19 @@ export function EditorPane({
   const [showExternalChangeWarning, setShowExternalChangeWarning] =
     useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Git status integration
+  const {
+    gitStatus,
+    baseBranch,
+    branches,
+    isBranchSelectorOpen,
+    isInGitRepo,
+    setIsBranchSelectorOpen,
+    handleBranchSelect,
+  } = useGitStatus(cwd);
+
+  const [showOnlyChangedFiles] = useState(false);
 
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
@@ -809,6 +825,41 @@ export function EditorPane({
     }
   }, [cwd, onCwdChange]);
 
+  // Filter file tree by git status
+  const filterTreeByGitStatus = useCallback(
+    (
+      nodes: FileTreeNode[],
+      statusMap: Map<string, unknown>,
+    ): FileTreeNode[] => {
+      return nodes
+        .map((node) => {
+          if (node.type === "file") {
+            return statusMap.has(node.relativePath) ? node : null;
+          } else {
+            // Recursively filter children
+            const filteredChildren = node.children
+              ? filterTreeByGitStatus(node.children, statusMap)
+              : [];
+
+            if (filteredChildren.length > 0) {
+              return { ...node, children: filteredChildren };
+            }
+            return null;
+          }
+        })
+        .filter((node): node is FileTreeNode => node !== null);
+    },
+    [],
+  );
+
+  // Apply git status filtering to file tree
+  const displayedFileTree = useMemo(() => {
+    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+      return fileTree;
+    }
+    return filterTreeByGitStatus(fileTree, gitStatus);
+  }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
+
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
       // Clean up previous disposable if it exists
@@ -974,6 +1025,24 @@ export function EditorPane({
                         <FolderUp size={14} className="text-white/60" />
                       </button>
                     )}
+                    {isInGitRepo && branches.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsBranchSelectorOpen(true)}
+                        className={`p-1 rounded transition-colors ${
+                          baseBranch
+                            ? "bg-white/20 hover:bg-white/25"
+                            : "hover:bg-white/10"
+                        }`}
+                        title={
+                          baseBranch
+                            ? `Comparing to: ${baseBranch}`
+                            : "Comparing to: HEAD (uncommitted changes)"
+                        }
+                      >
+                        <GitBranch size={14} className="text-white/60" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1114,9 +1183,10 @@ export function EditorPane({
                     <div className="flex items-center justify-center w-full text-white/70">
                       <Loader2 className="w-6 h-6 animate-spin" />
                     </div>
-                  ) : fileTree.length > 0 ? (
+                  ) : displayedFileTree.length > 0 ? (
                     <FileTree
-                      items={fileTree}
+                      items={displayedFileTree}
+                      gitStatus={gitStatus}
                       onFileSelect={handleFileSelect}
                       onDirectoryChange={handleDirectoryChange}
                       onFileOpen={onFileOpen}
@@ -1162,6 +1232,7 @@ export function EditorPane({
                     lineNumbers: "on",
                     automaticLayout: true,
                     wordWrap: "on",
+                    fontSize: 13,
                   }}
                   loading={
                     <div className="flex h-full w-full items-center justify-center">
@@ -1261,6 +1332,24 @@ export function EditorPane({
                         <FolderUp size={14} className="text-white/60" />
                       </button>
                     )}
+                    {isInGitRepo && branches.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsBranchSelectorOpen(true)}
+                        className={`p-1 rounded transition-colors ${
+                          baseBranch
+                            ? "bg-white/20 hover:bg-white/25"
+                            : "hover:bg-white/10"
+                        }`}
+                        title={
+                          baseBranch
+                            ? `Comparing to: ${baseBranch}`
+                            : "Comparing to: HEAD (uncommitted changes)"
+                        }
+                      >
+                        <GitBranch size={14} className="text-white/60" />
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -1323,9 +1412,10 @@ export function EditorPane({
                   <div className="flex items-center justify-center w-full text-white/70">
                     <Loader2 className="w-6 h-6 animate-spin" />
                   </div>
-                ) : fileTree.length > 0 ? (
+                ) : displayedFileTree.length > 0 ? (
                   <FileTree
-                    items={fileTree}
+                    items={displayedFileTree}
+                    gitStatus={gitStatus}
                     onFileSelect={handleFileSelect}
                     onDirectoryChange={handleDirectoryChange}
                     onFileOpen={onFileOpen}
@@ -1360,6 +1450,7 @@ export function EditorPane({
                     lineNumbers: "on",
                     automaticLayout: true,
                     wordWrap: "on",
+                    fontSize: 13,
                   }}
                   loading={
                     <div className="flex h-full w-full items-center justify-center text-white/70">
@@ -1379,6 +1470,13 @@ export function EditorPane({
           onDeleteAgentSession={handleDeleteAgentSession}
         />
       )}
+      <BranchSelector
+        open={isBranchSelectorOpen}
+        branches={branches}
+        currentBaseBranch={baseBranch}
+        onSelectBranch={handleBranchSelect}
+        onOpenChange={setIsBranchSelectorOpen}
+      />
     </div>
   );
 }

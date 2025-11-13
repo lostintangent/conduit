@@ -1,0 +1,337 @@
+import path from "node:path";
+import type { Branch, GitFileStatus, GitStatusMap } from "@shared/types";
+import { findRepoRoot, runGit } from "../agent/git";
+
+/**
+ * Parse a single line from git status --porcelain=v2 output
+ */
+function parseGitStatusLine(
+  line: string,
+  _gitRoot: string,
+): GitFileStatus | null {
+  if (!line || line.startsWith("#")) {
+    return null;
+  }
+
+  // Format: <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>
+  // or: 1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>
+  // or: 2 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <X><score> <path><sep><origPath>
+  // or: u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>
+  // or: ? <path>
+
+  const parts = line.split(" ");
+
+  // Untracked file
+  if (parts[0] === "?") {
+    const relativePath = parts.slice(1).join(" ");
+    return {
+      status: "untracked",
+      staged: false,
+      relativePath,
+    };
+  }
+
+  // Ignored file (we don't care about these)
+  if (parts[0] === "!") {
+    return null;
+  }
+
+  // Changed entry (1 = ordinary changed, 2 = renamed/copied, u = unmerged)
+  if (parts[0] === "1" || parts[0] === "2" || parts[0] === "u") {
+    const xy = parts[1]; // Status codes
+    const filePath =
+      parts[0] === "2" ? parts.slice(9).join(" ") : parts.slice(8).join(" ");
+
+    // Parse the path (might have rename info)
+    let relativePath = filePath;
+    if (parts[0] === "2") {
+      // Renamed/copied file - format is "<path><tab><origPath>"
+      const pathParts = filePath.split("\t");
+      relativePath = pathParts[0] || filePath;
+    }
+
+    // XY codes:
+    // X = index status (staged)
+    // Y = working tree status
+    const indexStatus = xy[0];
+    const wtStatus = xy[1];
+
+    let status: GitFileStatus["status"] = "modified";
+    let staged = false;
+
+    // Determine status based on codes
+    if (indexStatus === "A" || wtStatus === "A") {
+      status = "added";
+      staged = indexStatus === "A";
+    } else if (indexStatus === "D" || wtStatus === "D") {
+      status = "deleted";
+      staged = indexStatus === "D";
+    } else if (indexStatus === "R") {
+      status = "renamed";
+      staged = true;
+    } else if (indexStatus === "C") {
+      status = "copied";
+      staged = true;
+    } else if (indexStatus === "M" || wtStatus === "M") {
+      status = "modified";
+      staged = indexStatus === "M";
+    }
+
+    // If both index and working tree are modified, prioritize staged
+    if (indexStatus !== "." && indexStatus !== " ") {
+      staged = true;
+    }
+
+    return {
+      status,
+      staged,
+      relativePath,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Get git status for all files in the repository relative to HEAD
+ *
+ * @param gitRoot - Path to the git repository root
+ * @returns Map of relative file paths to their git status
+ */
+export async function getGitStatusForHead(
+  gitRoot: string,
+): Promise<GitStatusMap> {
+  const statusMap = new Map<string, GitFileStatus>();
+
+  try {
+    const { stdout } = await runGit(gitRoot, [
+      "status",
+      "--porcelain=v2",
+      "--untracked-files=all",
+    ]);
+
+    const lines = stdout.split("\n");
+    for (const line of lines) {
+      const status = parseGitStatusLine(line.trim(), gitRoot);
+      if (status) {
+        statusMap.set(status.relativePath, status);
+      }
+    }
+  } catch (error) {
+    console.error("[gitStatus] Failed to get git status for HEAD:", error);
+    // Return empty map on error (repo might not be initialized yet)
+  }
+
+  return statusMap;
+}
+
+/**
+ * Get git status for a single file
+ *
+ * @param gitRoot - Path to the git repository root
+ * @param filePath - Absolute path to the file
+ * @returns Git status for the file, or null if unmodified
+ */
+export async function getGitStatusForFile(
+  gitRoot: string,
+  filePath: string,
+): Promise<GitFileStatus | null> {
+  try {
+    // Compute relative path from git root
+    const relativePath = path.relative(gitRoot, filePath);
+    if (relativePath.startsWith("..")) {
+      // File is outside git repo
+      return null;
+    }
+
+    // Convert to forward slashes for git
+    const gitPath = relativePath.split(path.sep).join("/");
+
+    const { stdout } = await runGit(gitRoot, [
+      "status",
+      "--porcelain=v2",
+      "--",
+      gitPath,
+    ]);
+
+    const lines = stdout.split("\n");
+    for (const line of lines) {
+      const status = parseGitStatusLine(line.trim(), gitRoot);
+      if (status) {
+        return status;
+      }
+    }
+
+    // No output means file is unmodified or untracked
+    return null;
+  } catch (error) {
+    console.error(
+      `[gitStatus] Failed to get git status for file ${filePath}:`,
+      error,
+    );
+    return null;
+  }
+}
+
+/**
+ * Get git status relative to a base branch
+ * Includes all files that differ between the base branch and current HEAD,
+ * plus any uncommitted changes
+ *
+ * @param gitRoot - Path to the git repository root
+ * @param baseBranch - Name of the base branch to compare against
+ * @returns Map of relative file paths to their git status
+ */
+export async function getGitStatusRelativeToBranch(
+  gitRoot: string,
+  baseBranch: string,
+): Promise<GitStatusMap> {
+  const statusMap = new Map<string, GitFileStatus>();
+
+  try {
+    // First, get files changed between base branch and HEAD
+    const { stdout: diffOutput } = await runGit(gitRoot, [
+      "diff",
+      "--name-status",
+      `${baseBranch}...HEAD`,
+    ]);
+
+    const diffLines = diffOutput.split("\n");
+    for (const line of diffLines) {
+      if (!line.trim()) continue;
+
+      const parts = line.split("\t");
+      if (parts.length < 2) continue;
+
+      const statusCode = parts[0]?.trim();
+      const filePath = parts[1]?.trim();
+
+      if (!statusCode || !filePath) continue;
+
+      let status: GitFileStatus["status"] = "modified";
+
+      if (statusCode.startsWith("A")) {
+        status = "added";
+      } else if (statusCode.startsWith("D")) {
+        status = "deleted";
+      } else if (statusCode.startsWith("M")) {
+        status = "modified";
+      } else if (statusCode.startsWith("R")) {
+        status = "renamed";
+      } else if (statusCode.startsWith("C")) {
+        status = "copied";
+      }
+
+      statusMap.set(filePath, {
+        status,
+        staged: true, // Changes in commits are considered "staged"
+        relativePath: filePath,
+      });
+    }
+
+    // Then, overlay working tree changes (uncommitted)
+    const workingTreeStatus = await getGitStatusForHead(gitRoot);
+    for (const [relativePath, status] of workingTreeStatus) {
+      // Working tree changes override committed changes
+      statusMap.set(relativePath, status);
+    }
+  } catch (error) {
+    console.error(
+      `[gitStatus] Failed to get git status relative to branch ${baseBranch}:`,
+      error,
+    );
+    // Return empty map on error
+  }
+
+  return statusMap;
+}
+
+/**
+ * Get list of branches sorted by most recent commit
+ *
+ * @param gitRoot - Path to the git repository root
+ * @returns Array of branch information
+ */
+export async function listBranches(gitRoot: string): Promise<Branch[]> {
+  const branchMap = new Map<string, Branch>();
+
+  try {
+    const { stdout } = await runGit(gitRoot, [
+      "for-each-ref",
+      "--sort=-committerdate",
+      "--format=%(refname:short)|%(committerdate:iso8601)|%(objectname:short)|%(subject)|%(HEAD)",
+      "refs/heads/",
+      "refs/remotes/",
+    ]);
+
+    const lines = stdout.split("\n");
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      const parts = line.split("|");
+      if (parts.length < 4) continue;
+
+      const name = parts[0]?.trim() || "";
+      const dateStr = parts[1]?.trim() || "";
+      const hash = parts[2]?.trim() || "";
+      const message = parts[3]?.trim() || "";
+      const isCurrentMarker = parts[4]?.trim() || "";
+
+      if (!name) continue;
+
+      // Remove "origin/" prefix for remote branches
+      const cleanName = name.replace(/^origin\//, "");
+      const isRemote = name.startsWith("origin/");
+      const isCurrent = isCurrentMarker === "*";
+
+      const branch: Branch = {
+        name: cleanName,
+        isRemote,
+        isCurrent,
+        lastCommitDate: new Date(dateStr),
+        lastCommitHash: hash,
+        lastCommitMessage: message,
+      };
+
+      // Deduplicate: prefer local branches over remote branches
+      const existing = branchMap.get(cleanName);
+      if (
+        !existing ||
+        (!existing.isCurrent && branch.isCurrent) ||
+        (existing.isRemote && !branch.isRemote)
+      ) {
+        branchMap.set(cleanName, branch);
+      }
+    }
+  } catch (error) {
+    console.error("[gitStatus] Failed to list branches:", error);
+    // Return empty array on error
+  }
+
+  // Convert map to array, maintaining sort order
+  return Array.from(branchMap.values());
+}
+
+/**
+ * Get git status for a directory (convenience wrapper)
+ * Automatically finds git root and returns status
+ *
+ * @param cwd - Current working directory
+ * @param baseBranch - Optional base branch to compare against
+ * @returns Map of relative file paths to their git status, or null if not in git repo
+ */
+export async function getGitStatus(
+  cwd: string,
+  baseBranch?: string | null,
+): Promise<GitStatusMap | null> {
+  const gitRoot = await findRepoRoot(cwd);
+  if (!gitRoot) {
+    return null;
+  }
+
+  if (baseBranch) {
+    return getGitStatusRelativeToBranch(gitRoot, baseBranch);
+  }
+
+  return getGitStatusForHead(gitRoot);
+}

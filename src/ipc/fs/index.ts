@@ -7,14 +7,17 @@ const path = require("node:path");
 const fileWatchers = new Map<string, FSWatcher>();
 
 export function initializeFsHandlers() {
-  ipcMain.handle("fs:list-directory", async (_, cwd: string) => {
-    try {
-      return await listDirectory(cwd);
-    } catch (error) {
-      console.error("Failed to list directory for", cwd, error);
-      return [];
-    }
-  });
+  ipcMain.handle(
+    "fs:list-directory",
+    async (_, directoryPath: string, rootPath?: string) => {
+      try {
+        return await listDirectory(directoryPath, rootPath);
+      } catch (error) {
+        console.error("Failed to list directory for", directoryPath, error);
+        return [];
+      }
+    },
+  );
 
   ipcMain.handle("fs:read-file", async (_, filePath: string) => {
     try {

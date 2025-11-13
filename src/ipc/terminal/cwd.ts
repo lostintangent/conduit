@@ -50,22 +50,39 @@ const resolveProcessCwd = async (pid: number): Promise<string | null> => {
 
   if (process.platform === "darwin") {
     return new Promise((resolve) => {
-      execFile(
-        "lsof",
-        ["-a", "-p", String(pid), "-d", "cwd", "-Fn"],
-        (error, stdout) => {
-          if (error || !stdout) {
-            resolve(null);
-            return;
-          }
+      try {
+        const proc = execFile(
+          "lsof",
+          ["-a", "-p", String(pid), "-d", "cwd", "-Fn"],
+          (error, stdout) => {
+            if (error || !stdout) {
+              resolve(null);
+              return;
+            }
 
-          const entry = stdout
-            .split("\n")
-            .map((line) => line.trim())
-            .find((line) => line.startsWith("n"));
-          resolve(entry ? entry.slice(1) : null);
-        },
-      );
+            const entry = stdout
+              .split("\n")
+              .map((line) => line.trim())
+              .find((line) => line.startsWith("n"));
+            resolve(entry ? entry.slice(1) : null);
+          },
+        );
+
+        // Handle spawn errors (e.g., EBADF when file descriptors are exhausted)
+        proc.on("error", (error) => {
+          console.warn(
+            `[Terminal CWD] Failed to spawn lsof for pid ${pid}:`,
+            error.message,
+          );
+          resolve(null);
+        });
+      } catch (error) {
+        console.warn(
+          `[Terminal CWD] Error setting up lsof for pid ${pid}:`,
+          error instanceof Error ? error.message : String(error),
+        );
+        resolve(null);
+      }
     });
   }
 
@@ -83,6 +100,19 @@ export const consumeOscSequences = (
       session.oscBuffer = session.oscBuffer.slice(-2048);
     }
     return;
+  }
+
+  // If we receive OSC sequences, the shell is responsive - resume polling if backed off
+  if (session.cwdPollBackedOff) {
+    console.log(
+      `[Terminal CWD] Resuming polling for session ${session.id} after receiving OSC sequence`,
+    );
+    session.cwdPollBackedOff = false;
+    session.cwdPollFailures = 0;
+    // Restart polling
+    if (!session.cwdPoller) {
+      startCwdPolling(session, sendToRenderer);
+    }
   }
 
   session.oscBuffer += chunk;
@@ -114,8 +144,11 @@ export const startCwdPolling = (
   session: TerminalInstance,
   sendToRenderer: SendToRendererFn,
 ) => {
+  const MAX_CONSECUTIVE_FAILURES = 5;
+
   const poll = async () => {
-    if (session.isPollingCwd) {
+    // Skip polling if we've backed off due to repeated failures
+    if (session.cwdPollBackedOff || session.isPollingCwd) {
       return;
     }
 
@@ -129,6 +162,25 @@ export const startCwdPolling = (
           sessionId: session.id,
           cwd: session.cwd,
         });
+      }
+      // Success - reset failure counter
+      session.cwdPollFailures = 0;
+    } catch (error) {
+      // Increment failure counter
+      session.cwdPollFailures++;
+
+      // Back off if we've had too many consecutive failures
+      if (session.cwdPollFailures >= MAX_CONSECUTIVE_FAILURES) {
+        session.cwdPollBackedOff = true;
+        console.warn(
+          `[Terminal CWD] Stopped polling for session ${session.id} after ${session.cwdPollFailures} consecutive failures. Will resume on OSC sequence.`,
+        );
+
+        // Stop the interval poller
+        if (session.cwdPoller) {
+          clearInterval(session.cwdPoller);
+          session.cwdPoller = undefined;
+        }
       }
     } finally {
       session.isPollingCwd = false;

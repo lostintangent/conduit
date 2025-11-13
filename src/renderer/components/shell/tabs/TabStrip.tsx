@@ -679,7 +679,7 @@ export const TabStrip = ({
                   <ChevronDown size={14} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-w-40">
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleOpenQuickTerminal}>
                   <Terminal size={16} className="mr-3" />
                   Terminal (Local)
