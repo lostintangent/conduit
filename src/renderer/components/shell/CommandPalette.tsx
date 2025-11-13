@@ -343,7 +343,7 @@ export function CommandPalette({
                             }
                             return current;
                           });
-                          void onRemoveShellHistoryEntry(historyCommand);
+                          onRemoveShellHistoryEntry(historyCommand);
                         }}
                         aria-label="Remove command from history"
                         className="mr-2 rounded-md p-1 text-sm leading-none text-current transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
@@ -383,13 +383,13 @@ export function CommandPalette({
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition cursor-pointer ${
                       isActive
-                        ? "border-white/30 bg-white/10 text-white"
-                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
+                        ? "border-border bg-muted/30"
+                        : "border-transparent hover:border-foreground/20 hover:bg-white/5"
                     }`}
                     aria-selected={isActive}
                   >
                     <div className="flex-1 flex flex-col gap-1 min-w-0">
-                      <span className="text-sm font-medium">
+                      <span className="text-sm tfont-medium">
                         {renderHighlightedLabel(command.label, commandQuery)}
                       </span>
                       {command.description && (
