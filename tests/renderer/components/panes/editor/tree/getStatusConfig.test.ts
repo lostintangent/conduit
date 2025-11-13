@@ -14,7 +14,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "M",
-        color: "var(--git-modified)",
+        colorClass: "bg-git-modified",
         label: "Modified",
         weight: 2,
       });
@@ -30,7 +30,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "M",
-        color: "var(--git-modified)",
+        colorClass: "bg-git-modified",
         label: "Modified (staged)",
         weight: 2,
       });
@@ -48,7 +48,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "A",
-        color: "var(--git-added)",
+        colorClass: "bg-git-added",
         label: "Added",
         weight: 3,
       });
@@ -64,7 +64,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "A",
-        color: "var(--git-added)",
+        colorClass: "bg-git-added",
         label: "Added (staged)",
         weight: 3,
       });
@@ -82,7 +82,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "D",
-        color: "var(--git-deleted)",
+        colorClass: "bg-git-deleted",
         label: "Deleted",
         weight: 3,
       });
@@ -98,7 +98,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "D",
-        color: "var(--git-deleted-staged)",
+        colorClass: "bg-git-deleted-staged",
         label: "Deleted (staged)",
         weight: 3,
       });
@@ -116,7 +116,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "R",
-        color: "var(--git-renamed)",
+        colorClass: "bg-git-renamed",
         label: "Renamed",
         weight: 2,
       });
@@ -134,7 +134,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "C",
-        color: "var(--git-copied)",
+        colorClass: "bg-git-copied",
         label: "Copied",
         weight: 2,
       });
@@ -152,7 +152,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "U",
-        color: "var(--git-untracked)",
+        colorClass: "bg-git-untracked",
         label: "Untracked",
         weight: 1,
       });
@@ -170,7 +170,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "!",
-        color: "var(--git-conflict)",
+        colorClass: "bg-git-conflict",
         label: "Conflict",
         weight: 4,
       });
@@ -188,7 +188,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "T",
-        color: "var(--git-type-changed)",
+        colorClass: "bg-git-type-changed",
         label: "Type Changed",
         weight: 2,
       });
@@ -206,7 +206,7 @@ describe("getStatusConfig", () => {
 
       expect(config).toEqual({
         letter: "I",
-        color: "var(--git-ignored)",
+        colorClass: "bg-git-ignored",
         label: "Ignored",
         weight: 0,
       });
@@ -266,35 +266,35 @@ describe("getStatusConfig", () => {
     });
   });
 
-  describe("Color CSS variables", () => {
-    it("should use correct CSS variable for each status", () => {
+  describe("Color CSS classes", () => {
+    it("should use correct Tailwind class for each status", () => {
       const testCases: Array<{
         status: GitFileStatus["status"];
-        expectedColor: string;
+        expectedColorClass: string;
       }> = [
-        { status: "modified", expectedColor: "var(--git-modified)" },
-        { status: "added", expectedColor: "var(--git-added)" },
-        { status: "deleted", expectedColor: "var(--git-deleted)" },
-        { status: "renamed", expectedColor: "var(--git-renamed)" },
-        { status: "copied", expectedColor: "var(--git-copied)" },
-        { status: "untracked", expectedColor: "var(--git-untracked)" },
-        { status: "conflict", expectedColor: "var(--git-conflict)" },
-        { status: "type-changed", expectedColor: "var(--git-type-changed)" },
-        { status: "ignored", expectedColor: "var(--git-ignored)" },
+        { status: "modified", expectedColorClass: "bg-git-modified" },
+        { status: "added", expectedColorClass: "bg-git-added" },
+        { status: "deleted", expectedColorClass: "bg-git-deleted" },
+        { status: "renamed", expectedColorClass: "bg-git-renamed" },
+        { status: "copied", expectedColorClass: "bg-git-copied" },
+        { status: "untracked", expectedColorClass: "bg-git-untracked" },
+        { status: "conflict", expectedColorClass: "bg-git-conflict" },
+        { status: "type-changed", expectedColorClass: "bg-git-type-changed" },
+        { status: "ignored", expectedColorClass: "bg-git-ignored" },
       ];
 
-      testCases.forEach(({ status, expectedColor }) => {
+      testCases.forEach(({ status, expectedColorClass }) => {
         const fileStatus: GitFileStatus = {
           status,
           staged: false,
           relativePath: "file.txt",
         };
         const config = getStatusConfig(fileStatus);
-        expect(config?.color).toBe(expectedColor);
+        expect(config?.colorClass).toBe(expectedColorClass);
       });
     });
 
-    it("should use different color for staged deleted files", () => {
+    it("should use different color class for staged deleted files", () => {
       const staged: GitFileStatus = {
         status: "deleted",
         staged: true,
@@ -309,8 +309,8 @@ describe("getStatusConfig", () => {
       const stagedConfig = getStatusConfig(staged);
       const unstagedConfig = getStatusConfig(unstaged);
 
-      expect(stagedConfig?.color).toBe("var(--git-deleted-staged)");
-      expect(unstagedConfig?.color).toBe("var(--git-deleted)");
+      expect(stagedConfig?.colorClass).toBe("bg-git-deleted-staged");
+      expect(unstagedConfig?.colorClass).toBe("bg-git-deleted");
     });
   });
 

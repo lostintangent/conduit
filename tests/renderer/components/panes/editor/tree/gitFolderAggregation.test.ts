@@ -43,7 +43,7 @@ describe("aggregateFolderStatus", () => {
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result).not.toBeNull();
       expect(result?.letter).toBe("M");
-      expect(result?.color).toBe("var(--git-modified)");
+      expect(result?.colorClass).toBe("bg-git-modified");
     });
 
     it("should detect files in nested subdirectories", () => {
@@ -158,7 +158,7 @@ describe("aggregateFolderStatus", () => {
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("!");
       expect(result?.weight).toBe(4);
-      expect(result?.color).toBe("var(--git-conflict)");
+      expect(result?.colorClass).toBe("bg-git-conflict");
     });
 
     it("should prioritize added/deleted (weight 3) over modified/renamed (weight 2)", () => {
@@ -240,7 +240,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("M");
-      expect(result?.color).toBe("var(--git-modified)");
+      expect(result?.colorClass).toBe("bg-git-modified");
       expect(result?.weight).toBe(2);
     });
 
@@ -253,7 +253,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("A");
-      expect(result?.color).toBe("var(--git-added)");
+      expect(result?.colorClass).toBe("bg-git-added");
       expect(result?.weight).toBe(3);
     });
 
@@ -266,7 +266,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("R");
-      expect(result?.color).toBe("var(--git-renamed)");
+      expect(result?.colorClass).toBe("bg-git-renamed");
       expect(result?.weight).toBe(2);
     });
 
@@ -279,7 +279,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("C");
-      expect(result?.color).toBe("var(--git-copied)");
+      expect(result?.colorClass).toBe("bg-git-copied");
       expect(result?.weight).toBe(2);
     });
 
@@ -292,7 +292,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("U");
-      expect(result?.color).toBe("var(--git-untracked)");
+      expect(result?.colorClass).toBe("bg-git-untracked");
       expect(result?.weight).toBe(1);
     });
 
@@ -305,7 +305,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("!");
-      expect(result?.color).toBe("var(--git-conflict)");
+      expect(result?.colorClass).toBe("bg-git-conflict");
       expect(result?.weight).toBe(4);
     });
 
@@ -322,7 +322,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("T");
-      expect(result?.color).toBe("var(--git-type-changed)");
+      expect(result?.colorClass).toBe("bg-git-type-changed");
       expect(result?.weight).toBe(2);
     });
 
@@ -335,7 +335,7 @@ describe("aggregateFolderStatus", () => {
       ]);
       const result = aggregateFolderStatus(gitStatus, "src");
       expect(result?.letter).toBe("I");
-      expect(result?.color).toBe("var(--git-ignored)");
+      expect(result?.colorClass).toBe("bg-git-ignored");
       expect(result?.weight).toBe(0);
     });
 
