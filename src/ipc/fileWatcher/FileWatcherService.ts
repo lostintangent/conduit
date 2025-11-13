@@ -208,6 +208,10 @@ export class FileWatcherService {
           stabilityThreshold: 100,
           pollInterval: 50,
         },
+        // Use polling on macOS to avoid EMFILE errors in large repos
+        // Polling is more reliable than fs.watch() which can hit file descriptor limits
+        usePolling: process.platform === "darwin",
+        interval: 1000, // Poll every second
       });
 
       // Attach event handlers
