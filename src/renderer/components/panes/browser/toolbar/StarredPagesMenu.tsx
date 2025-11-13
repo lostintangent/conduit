@@ -177,7 +177,7 @@ export function StarredPagesMenu({
       {showStarredList && hasStarredPages && (
         <div
           ref={starredDropdownRef}
-          className="pointer-events-auto absolute top-full right-0 mt-1 w-72 bg-surface border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
+          className="pointer-events-auto absolute top-full right-0 mt-1 w-72 bg-background border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
           role="listbox"
         >
           {starredPages.map((page) => {

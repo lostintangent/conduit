@@ -301,7 +301,7 @@ export function BrowserPane({
   }, [applicationMode]);
 
   return (
-    <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-surface">
+    <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background">
       <BrowserToolbar
         currentPage={{ url: currentUrl, title: pageTitle }}
         isLoading={isLoading}

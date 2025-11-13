@@ -99,6 +99,7 @@
 /* Light theme color variables */
 /* TODO: Clean this up */
 :root[data-theme="light"] {
+  --background: oklch(98.51% 0 0);
   --selection: oklch(85.94% 0.0662 253.44);
 
   --warning: oklch(76.86% 0.1647 70.08 / 0.15);
@@ -107,7 +108,6 @@
   --warning-button: oklch(76.86% 0.1647 70.08);
   --warning-button-hover: oklch(66.58% 0.1574 58.32);
 
-  --color-surface: oklch(98.51% 0 0);
   --color-surface-elevated: oklch(100% 0 0);
   --color-popover: var(--color-surface-elevated);
   --color-text-popover: var(--color-foreground);
@@ -193,7 +193,6 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   /* TODO: Cleanup */
-  --color-surface: oklch(23.5% 0 0); /* background? */
   --color-surface-elevated: oklch(23.93% 0 0); /* popover? */
   --color-surface-muted: oklch(19.13% 0 0);
   --color-border-muted: oklch(32.11% 0 0);

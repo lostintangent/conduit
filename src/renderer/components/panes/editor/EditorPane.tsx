@@ -936,7 +936,7 @@ export function EditorPane({
   return (
     <div
       ref={containerRef}
-      className="flex flex-1 min-h-0 min-w-0 flex-col bg-surface"
+      className="flex flex-1 min-h-0 min-w-0 flex-col bg-background"
     >
       {layoutMode === "split" ? (
         // Split Mode Layout
@@ -1170,7 +1170,7 @@ export function EditorPane({
                   }
                 />
               ) : (
-                <div className="flex flex-1 bg-surface" />
+                <div className="flex flex-1 bg-background" />
               )}
             </div>
           </div>
