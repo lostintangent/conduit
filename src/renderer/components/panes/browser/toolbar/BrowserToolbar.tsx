@@ -135,7 +135,7 @@ export function BrowserToolbar({
   }, [currentPage.url]);
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
+    <div className="flex items-center gap-1 px-2 py-1.5 bg-elevated border-b border-white/10">
       <Tooltip>
         <TooltipTrigger asChild>
           <button

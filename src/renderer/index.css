@@ -9,6 +9,8 @@
   --background: oklch(23.5% 0 0);
   --foreground: oklch(86.99% 0 0);
 
+  --elevated: oklch(19.13% 0 0);
+
   --primary: oklch(98.48% 0 0);
   --primary-foreground: oklch(20.44% 0 0);
 
@@ -45,13 +47,15 @@
   --input: oklch(18.22% 0 0);
   --ring: oklch(86.97% 0 0);
 
-  --pane-divider-gradient: oklch(0% 0 0 / 0.4);
   --pane-divider: oklch(35.62% 0 0);
+  --pane-divider-gradient: oklch(0% 0 0 / 0.4);
 }
 
 :root[data-theme="light"] {
   --background: oklch(98.51% 0 0);
   --foreground: oklch(20.46% 0 0);
+
+  --elevated: oklch(97.02% 0 0);
 
   --primary: oklch(20.44% 0 0);
   --primary-foreground: oklch(98.48% 0 0);
@@ -85,15 +89,15 @@
   --input: oklch(92.19% 0 0);
   --ring: oklch(21.56% 0 0);
 
-  --color-surface-muted: oklch(97.02% 0 0);
-
+  --pane-divider: oklch(96.42% 0 0);
   --pane-divider-gradient: oklch(100% 0 0 / 0.6);
-  --pane-divider-solid: oklch(96.42% 0 0);
 }
 
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-elevated: var(--elevated);
 
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
@@ -131,8 +135,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --color-pane-divider-gradient: var(--pane-divider-gradient);
   --color-pane-divider: var(--pane-divider);
+  --color-pane-divider-gradient: var(--pane-divider-gradient);
 
   --radius: 0.5rem;
   --radius-sm: calc(var(--radius) - 4px);
@@ -141,10 +145,71 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   /* TODO: Cleanup */
-  --color-surface-muted: oklch(19.13% 0 0);
 
   --color-secondary-start: oklch(69.59% 0.1491 162.48);
   --color-secondary-end: oklch(71.48% 0.1257 215.22);
+}
+
+@custom-variant light (&:is([data-theme="light"] *));
+
+/* Base styles */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    @apply border-border;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    font-family: "Fira Code", Menlo, monospace;
+    background-color: inherit;
+    color: inherit;
+  }
+
+  body {
+    display: flex;
+    min-height: 100%;
+    @apply bg-background text-foreground;
+  }
+
+  #root {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  ::selection {
+    background-color: var(--selection);
+    color: var(--foreground);
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  dialog {
+    margin: auto;
+  }
+}
+
+/* Custom utility classes */
+
+@layer utilities {
+  .magic {
+    @apply bg-gradient-to-br from-accent to-accent-2 text-accent-foreground hover:from-accent-2 hover:to-accent;
+  }
 }
 
 /* Animations */
@@ -159,8 +224,6 @@
     outline-offset: -3px;
   }
 }
-
-/* Gradient border*/
 
 @keyframes slideGradient {
   0% {
@@ -232,61 +295,3 @@
 .animate-fan-in {
   animation: fan-in 0.2s ease-out;
 }
-
-@layer base {
-  * {
-    box-sizing: border-box;
-    @apply border-border text-foreground;
-  }
-
-  html,
-  body {
-    height: 100%;
-    margin: 0;
-    font-family: "Fira Code", Menlo, monospace;
-    background-color: inherit;
-    color: inherit;
-  }
-
-  body {
-    display: flex;
-    min-height: 100%;
-    @apply bg-background;
-  }
-
-  #root {
-    flex: 1;
-    display: flex;
-    min-height: 0;
-  }
-
-  ::selection {
-    background-color: var(--selection);
-    color: var(--foreground);
-  }
-
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
-  }
-
-  button:not(:disabled),
-  [role="button"]:not(:disabled) {
-    cursor: pointer;
-  }
-
-  dialog {
-    margin: auto;
-  }
-}
-
-@layer utilities {
-  .magic {
-    @apply bg-gradient-to-br from-accent to-accent-2 text-accent-foreground hover:from-accent-2 hover:to-accent;
-  }
-}
-
-@custom-variant light (&:is(.light *));

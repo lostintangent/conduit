@@ -947,7 +947,7 @@ export function EditorPane({
             {!isTreeCollapsed && (
               <>
                 <div
-                  className={`flex items-center justify-between px-3 py-1.5 bg-surface-muted text-[13px] text-white/70 ${transitionClass}`}
+                  className={`flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] ${transitionClass}`}
                   style={{ width: `${treeWidth}px` }}
                 >
                   <div className="flex items-center gap-2 truncate">
@@ -988,7 +988,7 @@ export function EditorPane({
             )}
 
             {/* Editor header */}
-            <div className="flex flex-1 items-center justify-between px-3 py-1.5 bg-surface-muted text-[13px] text-white/70">
+            <div className="flex flex-1 items-center justify-between px-3 py-1.5 bg-elevated text-[13px]">
               <div className="flex items-center gap-2 truncate">
                 {isTreeCollapsed && (
                   <>
@@ -1164,7 +1164,7 @@ export function EditorPane({
                     wordWrap: "on",
                   }}
                   loading={
-                    <div className="flex h-full w-full items-center justify-center text-white/70">
+                    <div className="flex h-full w-full items-center justify-center">
                       Loading file...
                     </div>
                   }
@@ -1178,7 +1178,7 @@ export function EditorPane({
       ) : (
         // Single Mode Layout
         <>
-          <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted text-[13px] text-white/70 border-b border-white/10">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-white/10">
             <div className="flex items-center gap-2 truncate">
               {activeView === "editor" && hasOpenFile && (
                 <>

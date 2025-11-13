@@ -19,7 +19,7 @@ export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
   const workspaceName = useAtomValue(workspaceNameAtom);
 
   return (
-    <div className="h-[30px] flex items-center justify-between px-3 text-[0.8rem] font-medium rounded-tl-xl rounded-tr-xl bg-surface-muted mb-[1px] [app-region:drag]">
+    <div className="h-[30px] flex items-center justify-between px-3 text-[0.8rem] font-medium rounded-tl-xl rounded-tr-xl bg-elevated mb-[1px] [app-region:drag]">
       {/* Left area (Drag area) */}
       <div className="flex-1" />
 

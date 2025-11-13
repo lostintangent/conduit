@@ -25,9 +25,9 @@ import {
 } from "@/store/actions/notifications";
 import {
   focusTab,
+  getActiveTabCwd,
   moveTab,
   openTab,
-  getActiveTabCwd,
 } from "@/store/actions/tab";
 import {
   activeTabAtom,
@@ -41,6 +41,7 @@ import { useAtom, useAtomValue } from "jotai";
 import {
   ChevronDown,
   Cloud,
+  FolderTree,
   Fullscreen,
   LayoutGrid,
   MoreHorizontal,
@@ -48,7 +49,6 @@ import {
   SquareDashedMousePointer,
   SquareTerminal,
   Terminal,
-  FolderTree,
 } from "lucide-react";
 import React, {
   useCallback,
@@ -559,7 +559,7 @@ export const TabStrip = ({
   return (
     <>
       <div
-        className={`flex items-center gap-2 px-2 bg-surface-muted ${marginClass} w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
+        className={`flex items-center gap-2 px-2 bg-elevated ${marginClass} w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
         style={tabStripTransitionStyle}
       >
         {/* Tab buttons */}
