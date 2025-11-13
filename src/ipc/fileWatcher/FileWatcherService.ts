@@ -1,15 +1,15 @@
 import chokidar from "chokidar";
-import path from "node:path";
 import { BrowserWindow } from "electron";
-import type {
-  WatcherEntry,
-  FileWatcherSubscription,
-  FileChangedEvent,
-  TreeChangedEvent,
-  FileRenamedEvent,
-  UnlinkMetadata,
-} from "./types";
+import path from "node:path";
 import { findRepoRoot } from "../agent/git";
+import type {
+  FileChangedEvent,
+  FileRenamedEvent,
+  FileWatcherSubscription,
+  TreeChangedEvent,
+  UnlinkMetadata,
+  WatcherEntry,
+} from "./types";
 
 /**
  * Centralized file watching service that manages file system watchers
@@ -200,6 +200,8 @@ export class FileWatcherService {
         ignored: [
           /(^|[/\\])\../, // Hidden files/directories
           "**/node_modules/**",
+          "**/dist/**",
+          "**/out/**",
           "**/.git/**",
         ],
         ignoreInitial: true,

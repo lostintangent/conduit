@@ -97,6 +97,7 @@
 }
 
 /* Light theme color variables */
+/* TODO: Clean this up */
 :root[data-theme="light"] {
   --selection: oklch(85.94% 0.0662 253.44);
 
@@ -211,7 +212,7 @@
 
 @keyframes pane-highlight {
   0% {
-    outline: 3px solid var(--color-accent);
+    outline: 3px solid var(--accent);
     outline-offset: -3px;
   }
   100% {

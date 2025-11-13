@@ -14,6 +14,7 @@ import {
   Save,
   Search,
   Undo,
+  X,
 } from "lucide-react";
 import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
@@ -1058,22 +1059,27 @@ export function EditorPane({
 
           {/* Warning banner for external modifications */}
           {showExternalChangeWarning && hasOpenFile && (
-            <div className="bg-warning border-b border-warning-border px-3 py-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-warning-foreground pr-1">
+            <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
+              <button
+                type="button"
+                onClick={handleDismissWarning}
+                className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
+                title="Dismiss"
+              >
+                <X size={16} />
+              </button>
+              <div className="flex items-center gap-2 text-sm pr-8">
+                <div className="flex items-center gap-2 text-warning-foreground">
                   {externallyDeleted ? (
                     <span>
                       This file was deleted externally. Your unsaved changes
                       will be lost unless you save to recreate the file.
                     </span>
                   ) : (
-                    <span>
-                      This file was modified externally and you have unsaved
-                      changes. Choose an action below.
-                    </span>
+                    <span>This file was modified externally.</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
                   {!externallyDeleted && (
                     <button
                       type="button"
@@ -1089,13 +1095,6 @@ export function EditorPane({
                     className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                   >
                     {externallyDeleted ? "Save anyway" : "Keep my changes"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDismissWarning}
-                    className="px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20 text-[var(--color-foreground)] transition-colors"
-                  >
-                    Dismiss
                   </button>
                 </div>
               </div>
@@ -1270,22 +1269,27 @@ export function EditorPane({
 
           {/* Warning banner for external modifications */}
           {showExternalChangeWarning && hasOpenFile && (
-            <div className="bg-warning-bg border-b border-warning-border px-3 py-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-warning-foreground pr-1">
+            <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
+              <button
+                type="button"
+                onClick={handleDismissWarning}
+                className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
+                title="Dismiss"
+              >
+                <X size={16} />
+              </button>
+              <div className="flex items-center gap-2 text-sm pr-8">
+                <div className="flex items-center gap-2 text-warning-foreground">
                   {externallyDeleted ? (
                     <span>
                       This file was deleted externally. Your unsaved changes
                       will be lost unless you save to recreate the file.
                     </span>
                   ) : (
-                    <span>
-                      This file was modified externally and you have unsaved
-                      changes. Choose an action below.
-                    </span>
+                    <span>This file was modified externally.</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
                   {!externallyDeleted && (
                     <button
                       type="button"
@@ -1301,13 +1305,6 @@ export function EditorPane({
                     className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                   >
                     {externallyDeleted ? "Save anyway" : "Keep my changes"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDismissWarning}
-                    className="px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20 text-[var(--color-foreground)] transition-colors"
-                  >
-                    Dismiss
                   </button>
                 </div>
               </div>
