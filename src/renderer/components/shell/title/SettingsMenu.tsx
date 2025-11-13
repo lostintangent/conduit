@@ -96,8 +96,7 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
                 onClick={() => onUpdateSettings({ theme: value })}
                 className={cn(
                   "flex items-center justify-between gap-2",
-                  value === theme &&
-                    "bg-gradient-to-br from-accent-start to-accent-end text-white",
+                  value === theme && "magic",
                 )}
               >
                 <span className="flex items-center gap-2">

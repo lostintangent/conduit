@@ -48,7 +48,7 @@ export function InputDialog({
           <DialogFooter className="mt-4">
             <button
               type="submit"
-              className="bg-gradient-to-br from-accent-start to-accent-end border-transparent rounded-lg py-1.5 px-3.5 text-white font-[inherit] text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105"
+              className="magic border-transparent rounded-lg py-1.5 px-3.5 text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105"
             >
               Save
             </button>

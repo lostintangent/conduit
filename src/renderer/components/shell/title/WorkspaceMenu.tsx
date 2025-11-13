@@ -100,8 +100,7 @@ export const WorkspaceMenu = () => {
                   onClick={() => handleOpenWorkspace(workspace)}
                   className={cn(
                     "flex items-center justify-between",
-                    isCurrentWorkspace &&
-                      "bg-gradient-to-br from-accent-start to-accent-end text-white",
+                    isCurrentWorkspace && "magic",
                   )}
                 >
                   <span>{workspace.name}</span>
