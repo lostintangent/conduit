@@ -99,7 +99,7 @@ export function PaneControlButtons({
   };
 
   const groupBaseClass =
-    "bg-black/60 border border-accent border-dashed rounded-lg backdrop-blur-sm overflow-hidden pointer-events-auto";
+    "bg-elevated border border-accent border-dashed rounded-lg backdrop-blur-sm overflow-hidden pointer-events-auto";
 
   const dividerColorClass = "divide-accent";
 
@@ -112,9 +112,9 @@ export function PaneControlButtons({
   } as const;
 
   const buttonClass =
-    "flex items-center justify-center w-8 h-8 rounded-none text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
+    "flex items-center justify-center w-8 h-8 rounded-none hover:bg-accent hover:text-background transition-colors";
 
-  const iconClass = "w-4 h-4 text-white pointer-events-none";
+  const iconClass = "w-4 h-4 pointer-events-none";
 
   // Show move to new tab button if there are multiple panes in the tab
   const showMoveToNewTab = !isOnlyPane;
