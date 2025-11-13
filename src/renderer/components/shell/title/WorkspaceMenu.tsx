@@ -75,12 +75,12 @@ export const WorkspaceMenu = () => {
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
-              className="relative p-1 rounded text-white hover:bg-white/10 transition-colors"
+              className="relative p-1 rounded hover:bg-foreground/10 transition-colors"
               aria-label="Workspaces"
             >
               <LayoutDashboard className="w-4 h-4" />
               {hasWorkspaceChanges && !autoSaveWorkspaces && (
-                <span className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="absolute top-0 right-0 w-2 h-2 bg-accent rounded-full" />
               )}
             </button>
           </DropdownMenuTrigger>

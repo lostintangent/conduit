@@ -25,7 +25,7 @@ export function resolveTheme(mode: ThemeMode): "light" | "dark" {
  */
 export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
   const theme = resolveTheme(mode);
-  document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
 
   // Apply overrides if provided
