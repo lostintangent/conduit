@@ -1,4 +1,4 @@
-import type { FileTreeNode } from "@shared/types";
+import type { FileTreeNode, GitStatusMap } from "@shared/types";
 import {
   ChevronDown,
   ChevronRight,
@@ -7,7 +7,7 @@ import {
   FolderOpen,
   Loader2,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { FileTreeItem } from "./FileTreeItem";
 
@@ -15,6 +15,7 @@ const api = window.conduit;
 
 type DirectoryItemProps = {
   node: FileTreeNode;
+  gitStatus?: GitStatusMap | null;
   onFileSelect?: (node: FileTreeNode) => void;
   onDirectoryChange?: (path: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
@@ -23,6 +24,7 @@ type DirectoryItemProps = {
 
 export function DirectoryItem({
   node,
+  gitStatus,
   onFileSelect,
   onDirectoryChange,
   onFileOpen,
@@ -34,11 +36,27 @@ export function DirectoryItem({
     node.children,
   );
 
+  // Compute if directory has changes
+  const hasChanges = useMemo(() => {
+    if (!gitStatus || gitStatus.size === 0) return false;
+
+    // Check if any file in git status is under this directory
+    for (const [relativePath] of gitStatus) {
+      if (
+        relativePath.startsWith(node.relativePath + "/") ||
+        relativePath === node.relativePath
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }, [gitStatus, node.relativePath]);
+
   const toggleOpen = useCallback(async () => {
     if (!isOpen && children === undefined) {
       setIsLoading(true);
       try {
-        const loadedChildren = await api.listDirectory(node.path);
+        const loadedChildren = await api.listDirectory(node.path, rootPath);
         setChildren(loadedChildren);
       } catch (error) {
         console.error("Failed to load directory contents:", error);
@@ -48,7 +66,7 @@ export function DirectoryItem({
       }
     }
     setIsOpen((current) => !current);
-  }, [isOpen, children, node.path]);
+  }, [isOpen, children, node.path, rootPath]);
 
   const handleChangeCwd = useCallback(
     (e: React.MouseEvent) => {
@@ -94,6 +112,12 @@ export function DirectoryItem({
             size={14}
           />
         )}
+        {hasChanges && (
+          <div
+            className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500"
+            title="Contains changes"
+          />
+        )}
         <FolderIcon className="shrink-0 text-white/60" size={14} />
         <div className="min-w-0 flex items-center gap-1">
           <span className="min-w-0 truncate" title={node.relativePath}>
@@ -118,6 +142,7 @@ export function DirectoryItem({
               <FileTreeItem
                 key={child.relativePath || child.path}
                 node={child}
+                gitStatus={gitStatus}
                 onFileSelect={onFileSelect}
                 onDirectoryChange={onDirectoryChange}
                 onFileOpen={onFileOpen}

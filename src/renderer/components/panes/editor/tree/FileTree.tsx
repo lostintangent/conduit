@@ -1,8 +1,9 @@
-import type { FileTreeNode } from "@shared/types";
+import type { FileTreeNode, GitStatusMap } from "@shared/types";
 import { FileTreeItem } from "./FileTreeItem";
 
 type FileTreeProps = {
   items: FileTreeNode[];
+  gitStatus?: GitStatusMap | null;
   onFileSelect?: (node: FileTreeNode) => void;
   onDirectoryChange?: (path: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
@@ -11,6 +12,7 @@ type FileTreeProps = {
 
 export function FileTree({
   items,
+  gitStatus,
   onFileSelect,
   onDirectoryChange,
   onFileOpen,
@@ -23,6 +25,7 @@ export function FileTree({
           <FileTreeItem
             key={item.relativePath || item.path}
             node={item}
+            gitStatus={gitStatus}
             onFileSelect={onFileSelect}
             onDirectoryChange={onDirectoryChange}
             onFileOpen={onFileOpen}

@@ -110,6 +110,14 @@
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
   --radius: 0.5rem;
+
+  /* Git status colors */
+  --git-added: #22c55e;
+  --git-modified: #ffd700;
+  --git-modified-staged: #ffa500;
+  --git-deleted: #ef4444;
+  --git-renamed: #3b82f6;
+  --git-untracked: #6b7280;
 }
 
 /* Light theme */
@@ -161,6 +169,14 @@
   --border: 0 0% 89.8%;
   --input: 0 0% 89.8%;
   --ring: 0 0% 10%;
+
+  /* Git status colors - same for light theme */
+  --git-added: #16a34a;
+  --git-modified: #eab308;
+  --git-modified-staged: #f97316;
+  --git-deleted: #dc2626;
+  --git-renamed: #2563eb;
+  --git-untracked: #6b7280;
 }
 
 /* Pane highlight fade out over 2 seconds - duration matches HIGHLIGHT_DURATION_MS in usePaneHighlight.ts */

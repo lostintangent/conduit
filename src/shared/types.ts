@@ -207,6 +207,39 @@ export type FileTreeNode = {
   children?: FileTreeNode[];
 };
 
+/**
+ * Git file status for a single file
+ */
+export type GitFileStatus = {
+  status:
+    | "modified"
+    | "added"
+    | "deleted"
+    | "renamed"
+    | "copied"
+    | "untracked"
+    | "unmodified";
+  staged: boolean;
+  relativePath: string;
+};
+
+/**
+ * Map of relative file paths to their git status
+ */
+export type GitStatusMap = Map<string, GitFileStatus>;
+
+/**
+ * Information about a git branch
+ */
+export type Branch = {
+  name: string;
+  isRemote: boolean;
+  isCurrent: boolean;
+  lastCommitDate: Date;
+  lastCommitHash: string;
+  lastCommitMessage: string;
+};
+
 /* File watcher event payloads */
 
 export type FileChangedEvent = {

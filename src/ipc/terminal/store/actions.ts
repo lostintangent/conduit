@@ -150,6 +150,8 @@ export async function createTerminal(
         isPollingCwd: false,
         pendingCwdPoll: undefined,
         scheduleCwdPoll: undefined,
+        cwdPollFailures: 0,
+        cwdPollBackedOff: false,
         isRendererReady: false,
         bufferedOutput: [],
         cloudEnvironment: {
@@ -198,6 +200,8 @@ export async function createTerminal(
 
     oscBuffer: "",
     isPollingCwd: false,
+    cwdPollFailures: 0,
+    cwdPollBackedOff: false,
 
     isRendererReady: false,
     bufferedOutput: [],

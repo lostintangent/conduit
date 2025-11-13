@@ -141,7 +141,7 @@ export function EditorPane({
   paneId,
   agentSessionId,
   onFileChange,
-  onClearFile,
+  onClearFile: _onClearFile,
   onCwdChange,
   onFileOpen,
   isLocked = false,
@@ -192,6 +192,11 @@ export function EditorPane({
   const [showExternalChangeWarning, setShowExternalChangeWarning] =
     useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Git status state
+  const [gitStatus, setGitStatus] = useState<Map<string, unknown> | null>(null);
+  const [_baseBranch, setBaseBranch] = useState<string | null>(null);
+  const [showOnlyChangedFiles] = useState(false);
 
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
@@ -723,6 +728,30 @@ export function EditorPane({
         });
     });
 
+    let removeGitStatusListener: (() => void) | undefined;
+
+    if (api.onGitStatusChanged) {
+      console.log("[EditorPane] Setting up git status change listener");
+      removeGitStatusListener = api.onGitStatusChanged((payload) => {
+        // Only handle events for this cwd
+        if (payload.cwd !== cwd) {
+          return;
+        }
+
+        console.log(`[EditorPane] Git status changed for cwd=${cwd}`, payload);
+
+        // Convert plain object back to Map if needed
+        const statusMap = payload.gitStatus
+          ? new Map(Object.entries(payload.gitStatus))
+          : null;
+
+        setGitStatus(statusMap);
+        setBaseBranch(payload.baseBranch);
+      });
+    } else {
+      console.warn("[EditorPane] api.onGitStatusChanged is not defined");
+    }
+
     // Cleanup on unmount or cwd change
     return () => {
       console.log(
@@ -747,6 +776,7 @@ export function EditorPane({
       removeFileChangedListener();
       removeFileRenamedListener();
       removeTreeChangedListener();
+      removeGitStatusListener?.();
     };
   }, [cwd, paneId, filePath, hasUnsavedChanges]);
 
@@ -807,6 +837,41 @@ export function EditorPane({
       onCwdChange?.(parentDir);
     }
   }, [cwd, onCwdChange]);
+
+  // Filter file tree by git status
+  const filterTreeByGitStatus = useCallback(
+    (
+      nodes: FileTreeNode[],
+      statusMap: Map<string, unknown>,
+    ): FileTreeNode[] => {
+      return nodes
+        .map((node) => {
+          if (node.type === "file") {
+            return statusMap.has(node.relativePath) ? node : null;
+          } else {
+            // Recursively filter children
+            const filteredChildren = node.children
+              ? filterTreeByGitStatus(node.children, statusMap)
+              : [];
+
+            if (filteredChildren.length > 0) {
+              return { ...node, children: filteredChildren };
+            }
+            return null;
+          }
+        })
+        .filter((node): node is FileTreeNode => node !== null);
+    },
+    [],
+  );
+
+  // Apply git status filtering to file tree
+  const displayedFileTree = useMemo(() => {
+    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+      return fileTree;
+    }
+    return filterTreeByGitStatus(fileTree, gitStatus);
+  }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
 
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
@@ -1115,9 +1180,10 @@ export function EditorPane({
                     <div className="flex items-center justify-center w-full text-white/70">
                       <Loader2 className="w-6 h-6 animate-spin" />
                     </div>
-                  ) : fileTree.length > 0 ? (
+                  ) : displayedFileTree.length > 0 ? (
                     <FileTree
-                      items={fileTree}
+                      items={displayedFileTree}
+                      gitStatus={gitStatus}
                       onFileSelect={handleFileSelect}
                       onDirectoryChange={handleDirectoryChange}
                       onFileOpen={onFileOpen}
@@ -1326,9 +1392,10 @@ export function EditorPane({
                   <div className="flex items-center justify-center w-full text-white/70">
                     <Loader2 className="w-6 h-6 animate-spin" />
                   </div>
-                ) : fileTree.length > 0 ? (
+                ) : displayedFileTree.length > 0 ? (
                   <FileTree
-                    items={fileTree}
+                    items={displayedFileTree}
+                    gitStatus={gitStatus}
                     onFileSelect={handleFileSelect}
                     onDirectoryChange={handleDirectoryChange}
                     onFileOpen={onFileOpen}

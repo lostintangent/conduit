@@ -64,4 +64,79 @@ export function initializeFileWatcherHandlers(): void {
       }
     },
   );
+
+  /**
+   * Handler: git-status:get
+   * Gets the current git status for a directory.
+   */
+  ipcMain.handle("git-status:get", async (_, cwd: string) => {
+    try {
+      const gitStatus = service.getGitStatus(cwd);
+      // Convert Map to plain object for IPC serialization
+      const statusObj = gitStatus
+        ? Object.fromEntries(gitStatus.entries())
+        : null;
+      return { success: true, gitStatus: statusObj };
+    } catch (error) {
+      console.error("Failed to get git status:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  /**
+   * Handler: git-status:set-base-branch
+   * Sets the base branch for git comparison.
+   */
+  ipcMain.handle(
+    "git-status:set-base-branch",
+    async (_, cwd: string, baseBranch: string | null) => {
+      try {
+        await service.setBaseBranch(cwd, baseBranch);
+        return { success: true };
+      } catch (error) {
+        console.error("Failed to set base branch:", error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    },
+  );
+
+  /**
+   * Handler: git-status:get-branches
+   * Gets the list of branches for a directory.
+   */
+  ipcMain.handle("git-status:get-branches", async (_, cwd: string) => {
+    try {
+      const branches = await service.getBranches(cwd);
+      return { success: true, branches };
+    } catch (error) {
+      console.error("Failed to get branches:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  /**
+   * Handler: git-status:refresh
+   * Manually refreshes git status for a directory.
+   */
+  ipcMain.handle("git-status:refresh", async (_, cwd: string) => {
+    try {
+      await service.refreshGitStatus(cwd);
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to refresh git status:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
 }

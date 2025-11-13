@@ -1,9 +1,10 @@
-import type { FileTreeNode } from "@shared/types";
+import type { FileTreeNode, GitStatusMap } from "@shared/types";
 import { DirectoryItem } from "./DirectoryItem";
 import { FileItem } from "./FileItem";
 
 type FileTreeItemProps = {
   node: FileTreeNode;
+  gitStatus?: GitStatusMap | null;
   onFileSelect?: (node: FileTreeNode) => void;
   onDirectoryChange?: (path: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
@@ -12,6 +13,7 @@ type FileTreeItemProps = {
 
 export function FileTreeItem({
   node,
+  gitStatus,
   onFileSelect,
   onDirectoryChange,
   onFileOpen,
@@ -22,6 +24,7 @@ export function FileTreeItem({
     return (
       <DirectoryItem
         node={node}
+        gitStatus={gitStatus}
         onFileSelect={onFileSelect}
         onDirectoryChange={onDirectoryChange}
         onFileOpen={onFileOpen}
@@ -29,5 +32,16 @@ export function FileTreeItem({
       />
     );
   }
-  return <FileItem node={node} onSelect={onFileSelect} onOpen={onFileOpen} />;
+
+  // Extract specific file status from map
+  const fileStatus = gitStatus?.get(node.relativePath);
+
+  return (
+    <FileItem
+      node={node}
+      gitStatus={fileStatus}
+      onSelect={onFileSelect}
+      onOpen={onFileOpen}
+    />
+  );
 }
