@@ -1009,8 +1009,62 @@ export function EditorPane({
   return (
     <div
       ref={containerRef}
-      className="flex flex-1 min-h-0 min-w-0 flex-col bg-background"
+      className="flex flex-1 min-h-0 min-w-0 flex-col bg-background relative"
     >
+      {/* Shared FileTree - always mounted, positioned based on layout mode */}
+      <div
+        className="absolute flex flex-col"
+        style={{
+          // Split mode positioning or single mode positioning
+          ...(layoutMode === "split"
+            ? {
+                display: isTreeCollapsed ? "none" : "flex",
+                left: 0,
+                width: `${treeWidth}px`,
+                top: "40px", // After header
+                bottom: 0,
+                zIndex: 10,
+                transform: "none",
+              }
+            : {
+                left: 0,
+                right: 0,
+                // Calculate top based on header (~40px) + warning banner if shown (~56px)
+                top: `${40 + (showExternalChangeWarning && hasOpenFile ? 56 : 0)}px`,
+                bottom: 0,
+                zIndex: activeView === "tree" ? 20 : 0,
+                transform:
+                  activeView === "tree" ? "translateX(0)" : "translateX(-100%)",
+                transition: prefersReducedMotion
+                  ? "none"
+                  : "transform 0.2s ease-in-out",
+                pointerEvents: activeView === "tree" ? "auto" : "none",
+              }),
+        }}
+      >
+        {/* Inner wrapper with scrolling */}
+        <div className="flex flex-1 h-full overflow-auto p-2">
+          {isLoadingTree ? (
+            <div className="flex items-center justify-center w-full text-white/70">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : displayedFileTree.length > 0 ? (
+            <FileTree
+              items={displayedFileTree}
+              gitStatus={gitStatus}
+              onFileSelect={handleFileSelect}
+              onDirectoryChange={handleDirectoryChange}
+              onFileOpen={onFileOpen}
+              rootPath={cwd}
+            />
+          ) : (
+            <div className="flex items-center justify-center w-full text-white/50">
+              No files found
+            </div>
+          )}
+        </div>
+      </div>
+
       {layoutMode === "split" ? (
         // Split Mode Layout
         <>
@@ -1197,32 +1251,13 @@ export function EditorPane({
 
           {/* Content row */}
           <div className="flex flex-1 min-h-0 min-w-0">
-            {/* Tree section */}
+            {/* Tree placeholder - maintains layout space */}
             {!isTreeCollapsed && (
               <>
                 <div
-                  className={`flex flex-col overflow-auto p-2 ${transitionClass}`}
+                  className={transitionClass}
                   style={{ width: `${treeWidth}px` }}
-                >
-                  {isLoadingTree ? (
-                    <div className="flex items-center justify-center w-full text-white/70">
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    </div>
-                  ) : displayedFileTree.length > 0 ? (
-                    <FileTree
-                      items={displayedFileTree}
-                      gitStatus={gitStatus}
-                      onFileSelect={handleFileSelect}
-                      onDirectoryChange={handleDirectoryChange}
-                      onFileOpen={onFileOpen}
-                      rootPath={cwd}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center w-full text-white/50">
-                      No files found
-                    </div>
-                  )}
-                </div>
+                />
 
                 {/* Resize handle - matches pane divider behavior */}
                 <div className="relative flex items-center justify-center w-px">
@@ -1423,33 +1458,7 @@ export function EditorPane({
           )}
 
           <div className="flex flex-1 min-h-0 min-w-0 relative overflow-hidden">
-            {/* Tree view */}
-            <div
-              className={`absolute inset-0 ${transitionTransformClass} ${
-                activeView === "tree" ? "translate-x-0" : "-translate-x-full"
-              }`}
-            >
-              <div className="flex flex-1 h-full overflow-auto p-2">
-                {isLoadingTree ? (
-                  <div className="flex items-center justify-center w-full text-white/70">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                ) : displayedFileTree.length > 0 ? (
-                  <FileTree
-                    items={displayedFileTree}
-                    gitStatus={gitStatus}
-                    onFileSelect={handleFileSelect}
-                    onDirectoryChange={handleDirectoryChange}
-                    onFileOpen={onFileOpen}
-                    rootPath={cwd}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center w-full text-white/50">
-                    No files found
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Tree view is now rendered by shared FileTree at top level */}
 
             {/* Editor view */}
             {hasOpenFile && (
