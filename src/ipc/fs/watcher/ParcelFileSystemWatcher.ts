@@ -3,6 +3,7 @@ import watcher, {
   Event as ParcelEvent,
 } from "@parcel/watcher";
 import path from "node:path";
+import fs from "node:fs";
 import { BaseWatcher } from "./BaseWatcher";
 import { RenameDetector } from "./RenameDetector";
 import type { IFileSystemWatcher } from "./IFileSystemWatcher";
@@ -18,6 +19,7 @@ export class ParcelFileSystemWatcher
 {
   private subscription: AsyncSubscription | null = null;
   private watching = false;
+  private realCwd: string;
 
   private fileChangedCallbacks: Array<(event: FileChangedEvent) => void> = [];
   private fileRenamedCallbacks: Array<(event: FileRenamedEvent) => void> = [];
@@ -32,6 +34,13 @@ export class ParcelFileSystemWatcher
     } = {},
   ) {
     super();
+    // Resolve symlinks to get the real path for consistent path matching
+    // This handles macOS /var -> /private/var symlink
+    try {
+      this.realCwd = fs.realpathSync(cwd);
+    } catch {
+      this.realCwd = path.resolve(cwd);
+    }
   }
 
   async watch(): Promise<void> {
@@ -123,7 +132,8 @@ export class ParcelFileSystemWatcher
 
   private handleEvent(event: ParcelEvent): void {
     const { type, path: filePath } = event;
-    const relativePath = path.relative(this.cwd, filePath);
+    // Use realCwd for consistent path matching (handles symlinks like /var -> /private/var)
+    const relativePath = path.relative(this.realCwd, filePath);
 
     console.log(`[ParcelFS] ${type.toUpperCase()}: ${relativePath}`);
 
@@ -146,7 +156,7 @@ export class ParcelFileSystemWatcher
 
     if (renamedFrom) {
       // It's a rename!
-      const oldRelativePath = path.relative(this.cwd, renamedFrom);
+      const oldRelativePath = path.relative(this.realCwd, renamedFrom);
 
       console.log(
         `[ParcelFS] Detected rename: ${oldRelativePath} → ${relativePath}`,
