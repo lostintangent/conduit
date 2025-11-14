@@ -379,7 +379,7 @@ origin/main|2024-01-01 10:00:00 +0000|abc123|Initial commit|`,
 
       const result = await listBranches("/test/repo");
 
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(3);
 
       expect(result[0]).toMatchObject({
         name: "main",
