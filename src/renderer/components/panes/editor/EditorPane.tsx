@@ -205,6 +205,7 @@ export function EditorPane({
   // This allows handlers to access current values without causing re-subscription
   const filePathRef = useRef(filePath);
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  const previousFilePathRef = useRef(filePath);
 
   // Git status integration
   const {
@@ -253,11 +254,17 @@ export function EditorPane({
     ? "bg-accent"
     : "bg-transparent hover:bg-accent";
 
-  // In single mode, auto-switch to editor when file is opened or changed
+  // In single mode, auto-switch to editor when a NEW file is opened or changed
+  // but NOT when just transitioning from split to single mode
   useEffect(() => {
-    if (layoutMode === "single" && hasOpenFile) {
+    const filePathChanged = filePath !== previousFilePathRef.current;
+
+    if (layoutMode === "single" && hasOpenFile && filePathChanged) {
       setActiveView("editor");
     }
+
+    // Update the ref for next comparison
+    previousFilePathRef.current = filePath;
   }, [layoutMode, hasOpenFile, filePath]);
 
   // Find the current tab for agent session operations
@@ -1011,153 +1018,227 @@ export function EditorPane({
       ref={containerRef}
       className="flex flex-1 min-h-0 min-w-0 flex-col bg-background relative"
     >
-      {/* Shared FileTree - always mounted, positioned based on layout mode */}
-      <div
-        className="absolute flex flex-col min-w-0"
-        style={{
-          // Split mode positioning or single mode positioning
-          ...(layoutMode === "split"
-            ? {
-                display: isTreeCollapsed ? "none" : "flex",
-                left: 0,
-                width: `${treeWidth}px`,
-                top: "40px", // After header
-                bottom: 0,
-                zIndex: 10,
-                transform: "none",
-              }
-            : {
-                left: 0,
-                right: 0,
-                // Calculate top based on header (~40px) + warning banner if shown (~56px)
-                top: `${40 + (showExternalChangeWarning && hasOpenFile ? 56 : 0)}px`,
-                bottom: 0,
-                zIndex: activeView === "tree" ? 20 : 0,
-                transform:
-                  activeView === "tree" ? "translateX(0)" : "translateX(-100%)",
-                transition: prefersReducedMotion
-                  ? "none"
-                  : "transform 0.2s ease-in-out",
-                pointerEvents: activeView === "tree" ? "auto" : "none",
-              }),
-        }}
-      >
-        {/* Inner wrapper with scrolling */}
-        <div className="flex flex-1 flex-col w-full min-w-0 h-full overflow-auto p-2">
-          {isLoadingTree ? (
-            <div className="flex items-center justify-center w-full text-white/70">
-              <Loader2 className="w-6 h-6 animate-spin" />
-            </div>
-          ) : displayedFileTree.length > 0 ? (
-            <FileTree
-              items={displayedFileTree}
-              gitStatus={gitStatus}
-              onFileSelect={handleFileSelect}
-              onDirectoryChange={handleDirectoryChange}
-              onFileOpen={onFileOpen}
-              rootPath={cwd}
-            />
-          ) : (
-            <div className="flex items-center justify-center w-full text-white/50">
-              No files found
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Wrapper that contains both split and single mode layouts */}
+      <div className="flex flex-1 min-h-0 min-w-0 flex-col">
+        {layoutMode === "split" ? (
+          // Split Mode Layout
+          <>
+            {/* Headers row */}
+            <div className="flex items-stretch border-b border-border">
+              {/* Tree header */}
+              {!isTreeCollapsed && (
+                <>
+                  <div
+                    className={`flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] ${transitionClass}`}
+                    style={{ width: `${treeWidth}px` }}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <button
+                        type="button"
+                        onClick={handleToggleTreeCollapse}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        title="Collapse tree"
+                      >
+                        <PanelLeftClose size={14} />
+                      </button>
+                      <span className="truncate" title={cwd}>
+                        {displayPath}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {canNavigateUp && !isLocked && (
+                        <button
+                          type="button"
+                          onClick={handleNavigateUp}
+                          className="p-1 rounded hover:bg-foreground/10 transition-colors"
+                          title="Go up one directory"
+                        >
+                          <FolderUp size={14} />
+                        </button>
+                      )}
+                      {isInGitRepo && branches.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsBranchSelectorOpen(true)}
+                          className={`p-1 rounded transition-colors ${
+                            baseBranch
+                              ? "bg-foreground/20 hover:bg-foreground/25"
+                              : "hover:bg-foreground/10"
+                          }`}
+                          title={
+                            baseBranch
+                              ? `Comparing to: ${baseBranch}`
+                              : "Comparing to: HEAD (uncommitted changes)"
+                          }
+                        >
+                          <GitBranch size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-      {layoutMode === "split" ? (
-        // Split Mode Layout
-        <>
-          {/* Headers row */}
-          <div className="flex items-stretch border-b border-border">
-            {/* Tree header */}
-            {!isTreeCollapsed && (
-              <>
-                <div
-                  className={`flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] ${transitionClass}`}
-                  style={{ width: `${treeWidth}px` }}
+                  {/* Vertical divider - matches content divider width */}
+                  <div className="w-px h-full bg-border" />
+                </>
+              )}
+
+              {/* Editor header */}
+              <div className="flex flex-1 items-center justify-between px-3 py-1.5 bg-elevated text-[13px]">
+                <div className="flex items-center gap-2 truncate">
+                  {isTreeCollapsed && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleToggleTreeCollapse}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        title="Expand tree"
+                      >
+                        <PanelLeftOpen size={14} />
+                      </button>
+                      <div className="h-4 w-px bg-white/10 shrink-0" />
+                    </>
+                  )}
+                  {hasUnsavedChanges && (
+                    <div
+                      className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
+                      title="Unsaved changes"
+                    />
+                  )}
+                  <span className="truncate" title={filePath || ""}>
+                    {filePath ? displayPath : ""}
+                  </span>
+                  {hasOpenFile && (
+                    <>
+                      <Separator
+                        orientation="vertical"
+                        className="h-4 mx-1 bg-elevated-border"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUndo}
+                        disabled={!canUndo}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Undo"
+                      >
+                        <Undo size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRedo}
+                        disabled={!canRedo}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Redo"
+                      >
+                        <Redo size={14} />
+                      </button>
+
+                      <Separator
+                        orientation="vertical"
+                        className="h-4 mx-1 bg-elevated-border"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={!hasUnsavedChanges}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Save"
+                      >
+                        <Save size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFind}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        title="Find in file (Ctrl+F)"
+                      >
+                        <Search size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Warning banner for external modifications */}
+            {showExternalChangeWarning && hasOpenFile && (
+              <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
+                <button
+                  type="button"
+                  onClick={handleDismissWarning}
+                  className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
+                  title="Dismiss"
                 >
-                  <div className="flex items-center gap-2 truncate">
+                  <X size={16} />
+                </button>
+                <div className="flex items-center gap-2 text-sm pr-8">
+                  <div className="flex items-center gap-2 text-warning-foreground">
+                    {externallyDeleted ? (
+                      <span>
+                        This file was deleted externally. Your unsaved changes
+                        will be lost unless you save to recreate the file.
+                      </span>
+                    ) : (
+                      <span>This file was modified externally.</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    {!externallyDeleted && (
+                      <button
+                        type="button"
+                        onClick={handleReloadFromDisk}
+                        className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
+                      >
+                        Reload from disk
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={handleToggleTreeCollapse}
-                      className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                      title="Collapse tree"
+                      onClick={handleSaveAnyway}
+                      className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
-                      <PanelLeftClose size={14} />
+                      {externallyDeleted ? "Save anyway" : "Keep my changes"}
                     </button>
-                    <span className="truncate" title={cwd}>
-                      {displayPath}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {canNavigateUp && !isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleNavigateUp}
-                        className="p-1 rounded hover:bg-foreground/10 transition-colors"
-                        title="Go up one directory"
-                      >
-                        <FolderUp size={14} />
-                      </button>
-                    )}
-                    {isInGitRepo && branches.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setIsBranchSelectorOpen(true)}
-                        className={`p-1 rounded transition-colors ${
-                          baseBranch
-                            ? "bg-foreground/20 hover:bg-foreground/25"
-                            : "hover:bg-foreground/10"
-                        }`}
-                        title={
-                          baseBranch
-                            ? `Comparing to: ${baseBranch}`
-                            : "Comparing to: HEAD (uncommitted changes)"
-                        }
-                      >
-                        <GitBranch size={14} />
-                      </button>
-                    )}
                   </div>
                 </div>
-
-                {/* Vertical divider - matches content divider width */}
-                <div className="w-px h-full bg-border" />
-              </>
+              </div>
             )}
-
-            {/* Editor header */}
-            <div className="flex flex-1 items-center justify-between px-3 py-1.5 bg-elevated text-[13px]">
+          </>
+        ) : (
+          // Single Mode Layout
+          <>
+            <div className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-white/10">
               <div className="flex items-center gap-2 truncate">
-                {isTreeCollapsed && (
+                {activeView === "editor" && hasOpenFile && (
                   <>
                     <button
                       type="button"
-                      onClick={handleToggleTreeCollapse}
+                      onClick={() => setActiveView("tree")}
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                      title="Expand tree"
+                      title="Show tree"
                     >
-                      <PanelLeftOpen size={14} />
+                      <ChevronRight size={14} />
                     </button>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
                   </>
                 )}
-                {hasUnsavedChanges && (
+                {hasUnsavedChanges && activeView === "editor" && (
                   <div
                     className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
                     title="Unsaved changes"
                   />
                 )}
-                <span className="truncate" title={filePath || ""}>
-                  {filePath ? displayPath : ""}
+                <span
+                  className="truncate"
+                  title={activeView === "editor" ? filePath || "" : cwd}
+                >
+                  {activeView === "editor" && filePath
+                    ? displayPath
+                    : displayPath}
                 </span>
-                {hasOpenFile && (
+                {activeView === "editor" && hasOpenFile ? (
                   <>
-                    <Separator
-                      orientation="vertical"
-                      className="h-4 mx-1 bg-elevated-border"
-                    />
+                    <div className="h-4 w-px bg-white/10 shrink-0" />
                     <button
                       type="button"
                       onClick={handleUndo}
@@ -1165,7 +1246,7 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Undo"
                     >
-                      <Undo size={14} />
+                      <Undo size={14} className="text-white/60" />
                     </button>
                     <button
                       type="button"
@@ -1174,14 +1255,9 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Redo"
                     >
-                      <Redo size={14} />
+                      <Redo size={14} className="text-white/60" />
                     </button>
-
-                    <Separator
-                      orientation="vertical"
-                      className="h-4 mx-1 bg-elevated-border"
-                    />
-
+                    <div className="h-4 w-px bg-white/10 shrink-0" />
                     <button
                       type="button"
                       onClick={handleSave}
@@ -1189,7 +1265,7 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Save"
                     >
-                      <Save size={14} />
+                      <Save size={14} className="text-white/60" />
                     </button>
                     <button
                       type="button"
@@ -1197,303 +1273,186 @@ export function EditorPane({
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                       title="Find in file (Ctrl+F)"
                     >
-                      <Search size={14} />
+                      <Search size={14} className="text-white/60" />
                     </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-4 w-px bg-white/10 shrink-0" />
+                    <div className="flex items-center gap-1 shrink-0">
+                      {canNavigateUp && !isLocked && (
+                        <button
+                          type="button"
+                          onClick={handleNavigateUp}
+                          className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
+                          title="Go up one directory"
+                        >
+                          <FolderUp size={14} />
+                        </button>
+                      )}
+                      {isInGitRepo && branches.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsBranchSelectorOpen(true)}
+                          className={`p-1 rounded transition-colors ${
+                            baseBranch
+                              ? "bg-foreground/20 hover:bg-foreground/25"
+                              : "hover:bg-foreground/10"
+                          }`}
+                          title={
+                            baseBranch
+                              ? `Comparing to: ${baseBranch}`
+                              : "Comparing to: HEAD (uncommitted changes)"
+                          }
+                        >
+                          <GitBranch size={14} />
+                        </button>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Warning banner for external modifications */}
-          {showExternalChangeWarning && hasOpenFile && (
-            <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
-              <button
-                type="button"
-                onClick={handleDismissWarning}
-                className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
-                title="Dismiss"
-              >
-                <X size={16} />
-              </button>
-              <div className="flex items-center gap-2 text-sm pr-8">
-                <div className="flex items-center gap-2 text-warning-foreground">
-                  {externallyDeleted ? (
-                    <span>
-                      This file was deleted externally. Your unsaved changes
-                      will be lost unless you save to recreate the file.
-                    </span>
-                  ) : (
-                    <span>This file was modified externally.</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-auto">
-                  {!externallyDeleted && (
-                    <button
-                      type="button"
-                      onClick={handleReloadFromDisk}
-                      className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
-                    >
-                      Reload from disk
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleSaveAnyway}
-                    className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                  >
-                    {externallyDeleted ? "Save anyway" : "Keep my changes"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Content row */}
-          <div className="flex flex-1 min-h-0 min-w-0">
-            {/* Tree placeholder - maintains layout space */}
-            {!isTreeCollapsed && (
-              <>
-                <div
-                  className={transitionClass}
-                  style={{ width: `${treeWidth}px` }}
-                />
-
-                {/* Resize handle - matches pane divider behavior */}
-                <div className="relative flex items-center justify-center w-px">
-                  {/* Always-visible thin border */}
-                  <div className="absolute w-px h-full bg-border" />
-                  {/* Wider interactive handle that highlights on hover */}
-                  <div
-                    className={`w-1 absolute h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
-                    onMouseDown={handleResizeStart}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Editor section */}
-            <div className="flex flex-1 min-h-0 min-w-0">
-              {hasOpenFile ? (
-                <Editor
-                  key={`${paneId}-${filePath}`}
-                  value={currentContent}
-                  onChange={handleEditorChange}
-                  onMount={handleEditorMount}
-                  language={currentLanguage}
-                  theme={editorTheme}
-                  options={{
-                    minimap: { enabled: false },
-                    smoothScrolling: true,
-                    scrollBeyondLastLine: false,
-                    lineNumbers: "on",
-                    automaticLayout: true,
-                    wordWrap: "on",
-                    fontSize: 13,
-                  }}
-                  loading={
-                    <div className="flex h-full w-full items-center justify-center">
-                      Loading file...
-                    </div>
-                  }
-                />
-              ) : (
-                <div className="flex flex-1 bg-background" />
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        // Single Mode Layout
-        <>
-          <div className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-white/10">
-            <div className="flex items-center gap-2 truncate">
-              {activeView === "editor" && hasOpenFile && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setActiveView("tree")}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                    title="Show tree"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                </>
-              )}
-              {hasUnsavedChanges && activeView === "editor" && (
-                <div
-                  className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
-                  title="Unsaved changes"
-                />
-              )}
-              <span
-                className="truncate"
-                title={activeView === "editor" ? filePath || "" : cwd}
-              >
-                {activeView === "editor" && filePath
-                  ? displayPath
-                  : displayPath}
-              </span>
-              {activeView === "editor" && hasOpenFile ? (
-                <>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                  <button
-                    type="button"
-                    onClick={handleUndo}
-                    disabled={!canUndo}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Undo"
-                  >
-                    <Undo size={14} className="text-white/60" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRedo}
-                    disabled={!canRedo}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Redo"
-                  >
-                    <Redo size={14} className="text-white/60" />
-                  </button>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={!hasUnsavedChanges}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Save"
-                  >
-                    <Save size={14} className="text-white/60" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleFind}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                    title="Find in file (Ctrl+F)"
-                  >
-                    <Search size={14} className="text-white/60" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                  <div className="flex items-center gap-1 shrink-0">
-                    {canNavigateUp && !isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleNavigateUp}
-                        className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
-                        title="Go up one directory"
-                      >
-                        <FolderUp size={14} />
-                      </button>
-                    )}
-                    {isInGitRepo && branches.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setIsBranchSelectorOpen(true)}
-                        className={`p-1 rounded transition-colors ${
-                          baseBranch
-                            ? "bg-foreground/20 hover:bg-foreground/25"
-                            : "hover:bg-foreground/10"
-                        }`}
-                        title={
-                          baseBranch
-                            ? `Comparing to: ${baseBranch}`
-                            : "Comparing to: HEAD (uncommitted changes)"
-                        }
-                      >
-                        <GitBranch size={14} />
-                      </button>
+            {/* Warning banner for external modifications */}
+            {showExternalChangeWarning && hasOpenFile && (
+              <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
+                <button
+                  type="button"
+                  onClick={handleDismissWarning}
+                  className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
+                  title="Dismiss"
+                >
+                  <X size={16} />
+                </button>
+                <div className="flex items-center gap-2 text-sm pr-8">
+                  <div className="flex items-center gap-2 text-warning-foreground">
+                    {externallyDeleted ? (
+                      <span>
+                        This file was deleted externally. Your unsaved changes
+                        will be lost unless you save to recreate the file.
+                      </span>
+                    ) : (
+                      <span>This file was modified externally.</span>
                     )}
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Warning banner for external modifications */}
-          {showExternalChangeWarning && hasOpenFile && (
-            <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
-              <button
-                type="button"
-                onClick={handleDismissWarning}
-                className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
-                title="Dismiss"
-              >
-                <X size={16} />
-              </button>
-              <div className="flex items-center gap-2 text-sm pr-8">
-                <div className="flex items-center gap-2 text-warning-foreground">
-                  {externallyDeleted ? (
-                    <span>
-                      This file was deleted externally. Your unsaved changes
-                      will be lost unless you save to recreate the file.
-                    </span>
-                  ) : (
-                    <span>This file was modified externally.</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-auto">
-                  {!externallyDeleted && (
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    {!externallyDeleted && (
+                      <button
+                        type="button"
+                        onClick={handleReloadFromDisk}
+                        className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
+                      >
+                        Reload from disk
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={handleReloadFromDisk}
-                      className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
+                      onClick={handleSaveAnyway}
+                      className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
-                      Reload from disk
+                      {externallyDeleted ? "Save anyway" : "Keep my changes"}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleSaveAnyway}
-                    className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                  >
-                    {externallyDeleted ? "Save anyway" : "Keep my changes"}
-                  </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </>
+        )}
 
-          <div className="flex flex-1 min-h-0 min-w-0 relative overflow-hidden">
-            {/* Tree view is now rendered by shared FileTree at top level */}
-
-            {/* Editor view */}
-            {hasOpenFile && (
-              <div
-                className={`absolute inset-0 ${transitionTransformClass} ${
-                  activeView === "editor" ? "translate-x-0" : "translate-x-full"
-                }`}
-              >
-                <Editor
-                  key={`${paneId}-${filePath}`}
-                  value={currentContent}
-                  onChange={handleEditorChange}
-                  onMount={handleEditorMount}
-                  language={currentLanguage}
-                  theme={editorTheme}
-                  options={{
-                    minimap: { enabled: false },
-                    smoothScrolling: true,
-                    scrollBeyondLastLine: false,
-                    lineNumbers: "on",
-                    automaticLayout: true,
-                    wordWrap: "on",
-                    fontSize: 13,
-                  }}
-                  loading={
-                    <div className="flex h-full w-full items-center justify-center">
-                      Loading file...
-                    </div>
+        {/* Content row - shared between split and single modes */}
+        <div className="flex flex-1 min-h-0 min-w-0">
+          {/* Tree section - single instance */}
+          <div
+            className={`flex flex-col overflow-auto p-2 ${layoutMode === "split" ? transitionClass : ""}`}
+            style={{
+              // Split mode: fixed width or collapsed
+              // Single mode: full width or hidden based on activeView
+              ...(layoutMode === "split"
+                ? {
+                    width: isTreeCollapsed ? "0px" : `${treeWidth}px`,
+                    display: isTreeCollapsed ? "none" : "flex",
                   }
-                />
+                : {
+                    width: "100%",
+                    display: activeView === "tree" ? "flex" : "none",
+                  }),
+            }}
+          >
+            {isLoadingTree ? (
+              <div className="flex items-center justify-center w-full text-white/70">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : displayedFileTree.length > 0 ? (
+              <FileTree
+                items={displayedFileTree}
+                gitStatus={gitStatus}
+                onFileSelect={handleFileSelect}
+                onDirectoryChange={handleDirectoryChange}
+                onFileOpen={onFileOpen}
+                rootPath={cwd}
+              />
+            ) : (
+              <div className="flex items-center justify-center w-full text-white/50">
+                No files found
               </div>
             )}
           </div>
-        </>
-      )}
+
+          {/* Resize handle - only in split mode */}
+          {layoutMode === "split" && !isTreeCollapsed && (
+            <div className="relative flex items-center justify-center w-px">
+              {/* Always-visible thin border */}
+              <div className="absolute w-px h-full bg-border" />
+              {/* Wider interactive handle that highlights on hover */}
+              <div
+                className={`w-1 absolute h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
+                onMouseDown={handleResizeStart}
+              />
+            </div>
+          )}
+
+          {/* Editor section - visible in split mode always, visible in single mode when activeView is editor */}
+          <div
+            className="flex flex-1 min-h-0 min-w-0"
+            style={{
+              display:
+                layoutMode === "split"
+                  ? "flex"
+                  : activeView === "editor"
+                    ? "flex"
+                    : "none",
+            }}
+          >
+            {hasOpenFile ? (
+              <Editor
+                key={`${paneId}-${filePath}`}
+                value={currentContent}
+                onChange={handleEditorChange}
+                onMount={handleEditorMount}
+                language={currentLanguage}
+                theme={editorTheme}
+                options={{
+                  minimap: { enabled: false },
+                  smoothScrolling: true,
+                  scrollBeyondLastLine: false,
+                  lineNumbers: "on",
+                  automaticLayout: true,
+                  wordWrap: "on",
+                  fontSize: 13,
+                }}
+                loading={
+                  <div className="flex h-full w-full items-center justify-center">
+                    Loading file...
+                  </div>
+                }
+              />
+            ) : (
+              <div className="flex flex-1 bg-background" />
+            )}
+          </div>
+        </div>
+      </div>
 
       {!hideIndividualSandboxIndicator && (
         <SandboxIndicator
