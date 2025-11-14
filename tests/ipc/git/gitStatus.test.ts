@@ -379,7 +379,8 @@ origin/main|2024-01-01 10:00:00 +0000|abc123|Initial commit|`,
 
       const result = await listBranches("/test/repo");
 
-      expect(result).toHaveLength(3);
+      // Should deduplicate main and origin/main, keeping local current branch
+      expect(result).toHaveLength(2);
 
       expect(result[0]).toMatchObject({
         name: "main",
