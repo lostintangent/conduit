@@ -1,13 +1,15 @@
 import { exitFocusMode } from "@/store/actions/focusMode";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
+import { constructPrompt } from "@/utils/terminalPrompt";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
+import { PromptModeOverlay } from "./PromptModeOverlay";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
-import { attach, getOrCreate } from "./xtermCache";
+import { attach, getOrCreate, getTerminalBuffer } from "./xtermCache";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -18,12 +20,14 @@ const registerTerminalKeyHandler = ({
   entry,
   terminalId,
   showSearchWidget,
+  togglePromptMode,
   getApplicationMode,
   setNormalMode,
 }: {
   entry: TerminalInstance;
   terminalId: string;
   showSearchWidget: () => void;
+  togglePromptMode: () => void;
   getApplicationMode: () => ApplicationMode;
   setNormalMode: () => void;
 }): (() => void) => {
@@ -61,6 +65,17 @@ const registerTerminalKeyHandler = ({
       event.key.toLowerCase() === "f"
     ) {
       showSearchWidget();
+      return false;
+    }
+
+    if (
+      isCtrlOrMeta &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.key.toLowerCase() === "p"
+    ) {
+      event.preventDefault();
+      togglePromptMode();
       return false;
     }
 
@@ -107,6 +122,7 @@ type TerminalPaneProps = {
   terminalId: string;
   isActive: boolean;
   paneId: string;
+  cwd?: string | null;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
   onLinkClick?: (url: string) => void;
@@ -118,13 +134,15 @@ export const TerminalPane = ({
   terminalId,
   isActive,
   paneId,
+  cwd,
   onContextMenu,
   onActivate,
   onLinkClick,
   showDimensions = true,
   hideIndividualSandboxIndicator = false,
 }: TerminalPaneProps) => {
-  const { showTerminalRuler } = useAtomValue(userSettingsAtom);
+  const settings = useAtomValue(userSettingsAtom);
+  const { showTerminalRuler } = settings;
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
 
@@ -144,6 +162,16 @@ export const TerminalPane = ({
     height: number;
   } | null>(null);
 
+  const [promptMode, setPromptMode] = useState<{
+    isOpen: boolean;
+    isProcessing: boolean;
+    response?: string;
+    error?: string;
+  }>({
+    isOpen: false,
+    isProcessing: false,
+  });
+
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
 
   const focusTerminal = useCallback(
@@ -157,6 +185,64 @@ export const TerminalPane = ({
       ? terminal.getSelection().replace(/\s+/g, " ").trim()
       : "";
     searchWidgetRef.current?.show(selection ?? "");
+  }, []);
+
+  const handleTogglePromptMode = useCallback(() => {
+    setPromptMode((prev) => ({
+      ...prev,
+      isOpen: !prev.isOpen,
+      response: undefined,
+      error: undefined,
+    }));
+  }, []);
+
+  const handlePromptSubmit = useCallback(
+    async (prompt: string) => {
+      const agentCommand = settings.terminalPromptAgent;
+
+      if (!agentCommand) {
+        setPromptMode((prev) => ({
+          ...prev,
+          error:
+            "No agent command configured. Please configure 'terminalPromptAgent' in settings.",
+        }));
+        return;
+      }
+
+      setPromptMode((prev) => ({
+        ...prev,
+        isProcessing: true,
+        error: undefined,
+      }));
+
+      // Get terminal buffer
+      const buffer = getTerminalBuffer(
+        terminalId,
+        settings.terminalPromptBufferLines || 100,
+      );
+
+      // Construct full prompt
+      const fullPrompt = constructPrompt(prompt, buffer || "", cwd || null);
+
+      // Call IPC handler
+      const response = await api.promptTerminal({
+        sessionId: terminalId,
+        prompt: fullPrompt,
+        agentCommand,
+      });
+
+      setPromptMode((prev) => ({
+        ...prev,
+        isProcessing: false,
+        response: response.success ? response.response : undefined,
+        error: response.success ? undefined : response.error,
+      }));
+    },
+    [terminalId, cwd, settings],
+  );
+
+  const handleClosePromptMode = useCallback(() => {
+    setPromptMode((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
   useEffect(() => {
@@ -177,6 +263,7 @@ export const TerminalPane = ({
       entry: terminal,
       terminalId,
       showSearchWidget,
+      togglePromptMode: handleTogglePromptMode,
       getApplicationMode: () => applicationModeRef.current,
       setNormalMode: () => setApplicationModeRef.current("normal"),
     });
@@ -189,7 +276,7 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, []);
+  }, [handleTogglePromptMode, showSearchWidget]);
 
   // Focus the terminal when the pane becomes active
   useEffect(() => {
@@ -273,6 +360,16 @@ export const TerminalPane = ({
 
       {/* Cloud terminal SSH connection state overlays */}
       <CloudTerminalOverlay terminalId={terminalId} paneId={paneId} />
+
+      {/* Terminal Prompt Mode overlay */}
+      <PromptModeOverlay
+        isOpen={promptMode.isOpen}
+        onClose={handleClosePromptMode}
+        onSubmit={handlePromptSubmit}
+        isProcessing={promptMode.isProcessing}
+        response={promptMode.response}
+        error={promptMode.error}
+      />
     </div>
   );
 };

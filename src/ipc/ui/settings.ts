@@ -16,6 +16,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   useGradientBorders: true,
   useConduitAsEditor: true,
   theme: "dark",
+  terminalPromptBufferLines: 100,
 };
 
 export async function loadSettings(): Promise<UserSettings> {
@@ -55,7 +56,7 @@ export async function saveSettings(settings: UserSettings) {
       continue;
     }
 
-    // @ts-ignore-next-line
+    // @ts-expect-error - Dynamic key assignment
     payload[key] = value;
   }
 
