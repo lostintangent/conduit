@@ -201,19 +201,27 @@ export const TerminalPane = ({
       const agentCommand = settings.terminalPromptAgent;
 
       if (!agentCommand) {
-        setPromptMode((prev) => ({
-          ...prev,
-          error:
-            "No agent command configured. Please configure 'terminalPromptAgent' in settings.",
-        }));
+        // Write error to terminal
+        const terminal = terminalRef.current?.terminal;
+        if (terminal) {
+          terminal.writeln(
+            "\r\n\x1b[31mError: No agent command configured. Please configure 'terminalPromptAgent' in settings.\x1b[0m\r",
+          );
+        }
+        setPromptMode((prev) => ({ ...prev, isOpen: false }));
         return;
       }
 
       setPromptMode((prev) => ({
         ...prev,
         isProcessing: true,
-        error: undefined,
       }));
+
+      // Write the prompt to terminal
+      const terminal = terminalRef.current?.terminal;
+      if (terminal) {
+        terminal.writeln(`\r\n\x1b[36m❯ ${prompt}\x1b[0m\r`);
+      }
 
       // Get terminal buffer
       const buffer = getTerminalBuffer(
@@ -231,12 +239,22 @@ export const TerminalPane = ({
         agentCommand,
       });
 
-      setPromptMode((prev) => ({
-        ...prev,
+      // Write response to terminal
+      if (terminal) {
+        if (response.success && response.response) {
+          // Convert \n to \r\n for proper terminal line breaks
+          const formattedResponse = response.response.replace(/\n/g, "\r\n");
+          terminal.write(`\x1b[32m${formattedResponse}\x1b[0m\r\n`);
+        } else if (response.error) {
+          terminal.writeln(`\x1b[31mError: ${response.error}\x1b[0m\r`);
+        }
+      }
+
+      // Close prompt mode
+      setPromptMode({
+        isOpen: false,
         isProcessing: false,
-        response: response.success ? response.response : undefined,
-        error: response.success ? undefined : response.error,
-      }));
+      });
     },
     [terminalId, cwd, settings],
   );

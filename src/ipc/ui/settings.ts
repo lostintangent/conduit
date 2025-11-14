@@ -16,6 +16,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   useGradientBorders: true,
   useConduitAsEditor: true,
   theme: "dark",
+  terminalPromptAgent: "copilot -p {arg}",
   terminalPromptBufferLines: 100,
 };
 
