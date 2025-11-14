@@ -71,9 +71,9 @@ describe("FileWatcherService Rename Detection (Manual Integration Test)", () => 
     eventsReceived = [];
   });
 
-  afterEach(() => {
-    // Cleanup
-    service.unsubscribe(testDir, "test-pane");
+  afterEach(async () => {
+    // Cleanup - await unsubscribe to ensure watcher is fully stopped
+    await service.unsubscribe(testDir, "test-pane");
 
     // Remove test directory and contents
     try {

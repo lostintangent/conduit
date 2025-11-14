@@ -141,7 +141,7 @@ export class FileWatcherService {
    * @param cwd - The directory path being watched
    * @param paneId - Unique identifier for the pane
    */
-  public unsubscribe(cwd: string, paneId: string): void {
+  public async unsubscribe(cwd: string, paneId: string): Promise<void> {
     const normalizedCwd = path.resolve(cwd);
     const entry = this.watchers.get(normalizedCwd);
 
@@ -152,7 +152,7 @@ export class FileWatcherService {
     );
 
     if (entry.subscribers.size === 0) {
-      this.cleanupWatcher(normalizedCwd);
+      await this.cleanupWatcher(normalizedCwd);
       this.watchers.delete(normalizedCwd);
     }
   }

@@ -14,7 +14,6 @@ import { FileWatcherService } from "./FileWatcherService";
 export { FileWatcherService } from "./FileWatcherService";
 export type {
   FileWatcherSubscription,
-  WatcherEntry,
   FileChangedEvent,
   TreeChangedEvent,
 } from "./types";
@@ -55,7 +54,7 @@ export function initializeFileWatcherHandlers(): void {
     "file-watcher:unsubscribe",
     async (_, cwd: string, paneId: string) => {
       try {
-        service.unsubscribe(cwd, paneId);
+        await service.unsubscribe(cwd, paneId);
         return { success: true };
       } catch (error) {
         console.error("Failed to unsubscribe from file watcher:", error);
