@@ -239,14 +239,8 @@ export function EditorPane({
 
         if (result.success && result.diff) {
           setDiffData(result.diff);
-
-          // Update parent with the modified content
-          const detectedLanguage = inferLanguageFromFilePath(filePath);
-          onFileChange?.({
-            filePath,
-            language: detectedLanguage,
-            content: result.diff.modifiedContent,
-          });
+          // Don't call onFileChange here - it would cause render loops
+          // The diff data update is sufficient for the UI to re-render
         }
       } catch (error) {
         console.error("Failed to refetch diff:", error);
@@ -254,7 +248,7 @@ export function EditorPane({
     };
 
     refetchDiff();
-  }, [baseBranch, isDiffMode, filePath, cwd, onFileChange]);
+  }, [baseBranch, isDiffMode, filePath, cwd]);
 
   // Track which paths were manually expanded by the user
   const [manuallyExpandedPaths, setManuallyExpandedPaths] = useState<
