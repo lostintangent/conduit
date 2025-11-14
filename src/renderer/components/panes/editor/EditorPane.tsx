@@ -209,6 +209,7 @@ export function EditorPane({
   // This allows handlers to access current values without causing re-subscription
   const filePathRef = useRef(filePath);
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  const currentContentRef = useRef(currentContent);
   const previousFilePathRef = useRef(filePath);
 
   // Git status integration
@@ -224,21 +225,23 @@ export function EditorPane({
 
   const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(false);
 
-  // Diff viewer state
-  const [isDiffMode, setIsDiffMode] = useState(false);
-  const [showRawFile, setShowRawFile] = useState(false);
-  const [diffData, setDiffData] = useState<FileDiffResult | null>(null);
+  // Diff viewer state - using discriminated union to prevent invalid states
+  type ViewMode =
+    | { type: "editor" }
+    | { type: "diff"; data: FileDiffResult; showRaw: boolean };
+
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
 
   // Re-fetch diff when baseBranch changes while in diff mode
   useEffect(() => {
-    if (!isDiffMode || !filePath || !cwd) return;
+    if (viewMode.type !== "diff" || !filePath || !cwd) return;
 
     const refetchDiff = async () => {
       try {
         const result = await api.getFileDiff(filePath, cwd, baseBranch);
 
         if (result.success && result.diff) {
-          setDiffData(result.diff);
+          setViewMode({ type: "diff", data: result.diff, showRaw: false });
           // Don't call onFileChange here - it would cause render loops
           // The diff data update is sufficient for the UI to re-render
         }
@@ -248,7 +251,7 @@ export function EditorPane({
     };
 
     refetchDiff();
-  }, [baseBranch, isDiffMode, filePath, cwd]);
+  }, [baseBranch, viewMode.type, filePath, cwd]);
 
   // Track which paths were manually expanded by the user
   const [manuallyExpandedPaths, setManuallyExpandedPaths] = useState<
@@ -635,7 +638,8 @@ export function EditorPane({
   useEffect(() => {
     filePathRef.current = filePath;
     hasUnsavedChangesRef.current = hasUnsavedChanges;
-  }, [filePath, hasUnsavedChanges]);
+    currentContentRef.current = currentContent;
+  }, [filePath, hasUnsavedChanges, currentContent]);
 
   // File watcher subscription lifecycle
   useEffect(() => {
@@ -764,11 +768,11 @@ export function EditorPane({
         );
 
         // Update the file path without losing content or state
-        // currentContent is captured from the enclosing scope
+        // Use currentContentRef to avoid stale closure
         onFileChange?.({
           filePath: payload.newPath,
           language: inferLanguageFromFilePath(payload.newPath),
-          content: currentContent, // Keep existing content
+          content: currentContentRef.current || "", // Keep existing content
         });
 
         // Clear any external modification warnings
@@ -866,9 +870,7 @@ export function EditorPane({
           const result = await api.getFileDiff(node.path, cwd, baseBranch);
 
           if (result.success && result.diff) {
-            setDiffData(result.diff);
-            setIsDiffMode(true);
-            setShowRawFile(false);
+            setViewMode({ type: "diff", data: result.diff, showRaw: false });
 
             // Update parent with the modified content (for display purposes)
             onFileChange?.({
@@ -879,8 +881,7 @@ export function EditorPane({
           } else {
             // Fallback to regular file view if diff fetch fails
             const fileContent = await api.readFile(node.path);
-            setIsDiffMode(false);
-            setDiffData(null);
+            setViewMode({ type: "editor" });
 
             onFileChange?.({
               filePath: node.path,
@@ -891,8 +892,7 @@ export function EditorPane({
         } else {
           // Regular file view
           const fileContent = await api.readFile(node.path);
-          setIsDiffMode(false);
-          setDiffData(null);
+          setViewMode({ type: "editor" });
 
           onFileChange?.({
             filePath: node.path,
@@ -1108,11 +1108,13 @@ export function EditorPane({
 
   // Diff viewer handlers
   const handleToggleRawView = useCallback(() => {
-    setShowRawFile((prev) => !prev);
-  }, []);
+    if (viewMode.type === "diff") {
+      setViewMode({ ...viewMode, showRaw: !viewMode.showRaw });
+    }
+  }, [viewMode]);
 
   const handleRevertFile = useCallback(async () => {
-    if (!filePath) return;
+    if (!filePath || viewMode.type !== "diff") return;
 
     const confirmed = confirm(
       `Are you sure you want to revert all changes to ${path.basename(filePath)}?`,
@@ -1120,10 +1122,9 @@ export function EditorPane({
     if (!confirmed) return;
 
     try {
-      // For now, we'll just show the original content
-      // In a full implementation, you'd call git checkout to revert the file
-      if (diffData?.originalContent !== undefined) {
-        await api.writeFile(filePath, diffData.originalContent);
+      // Write the original content back to the file
+      if (viewMode.data.originalContent !== undefined) {
+        await api.writeFile(filePath, viewMode.data.originalContent);
         // Reload the file to show the reverted content
         const fileContent = await api.readFile(filePath);
         onFileChange?.({
@@ -1131,13 +1132,12 @@ export function EditorPane({
           language: currentLanguage || "plaintext",
           content: fileContent,
         });
-        setIsDiffMode(false);
-        setDiffData(null);
+        setViewMode({ type: "editor" });
       }
     } catch (error) {
       console.error("Failed to revert file:", error);
     }
-  }, [filePath, diffData, currentLanguage, onFileChange]);
+  }, [filePath, viewMode, currentLanguage, onFileChange]);
 
   // Resize handlers
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
@@ -1368,26 +1368,28 @@ export function EditorPane({
                         orientation="vertical"
                         className="h-4 mx-1 bg-elevated-border"
                       />
-                      {isDiffMode && diffData ? (
+                      {viewMode.type === "diff" ? (
                         <>
                           {/* Diff mode buttons */}
-                          {diffData.status !== "deleted" && (
+                          {viewMode.data.status !== "deleted" && (
                             <button
                               type="button"
                               onClick={handleToggleRawView}
                               className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                               title={
-                                showRawFile ? "Show diff view" : "View raw file"
+                                viewMode.showRaw
+                                  ? "Show diff view"
+                                  : "View raw file"
                               }
                             >
-                              {showRawFile ? (
+                              {viewMode.showRaw ? (
                                 <Eye size={14} />
                               ) : (
                                 <FileText size={14} />
                               )}
                             </button>
                           )}
-                          {diffData.status !== "binary" && (
+                          {viewMode.data.status !== "binary" && (
                             <button
                               type="button"
                               onClick={handleRevertFile}
@@ -1527,26 +1529,28 @@ export function EditorPane({
                 {activeView === "editor" && hasOpenFile ? (
                   <>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
-                    {isDiffMode && diffData ? (
+                    {viewMode.type === "diff" ? (
                       <>
                         {/* Diff mode buttons */}
-                        {diffData.status !== "deleted" && (
+                        {viewMode.data.status !== "deleted" && (
                           <button
                             type="button"
                             onClick={handleToggleRawView}
                             className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                             title={
-                              showRawFile ? "Show diff view" : "View raw file"
+                              viewMode.showRaw
+                                ? "Show diff view"
+                                : "View raw file"
                             }
                           >
-                            {showRawFile ? (
+                            {viewMode.showRaw ? (
                               <Eye size={14} className="text-white/60" />
                             ) : (
                               <FileText size={14} className="text-white/60" />
                             )}
                           </button>
                         )}
-                        {diffData.status !== "binary" && (
+                        {viewMode.data.status !== "binary" && (
                           <button
                             type="button"
                             onClick={handleRevertFile}
@@ -1772,9 +1776,9 @@ export function EditorPane({
           >
             {hasOpenFile ? (
               <>
-                {isDiffMode && !showRawFile && diffData ? (
+                {viewMode.type === "diff" && !viewMode.showRaw ? (
                   // Show diff editor when in diff mode
-                  diffData.isBinary ? (
+                  viewMode.data.isBinary ? (
                     // Binary file indicator
                     <div className="flex flex-1 items-center justify-center bg-background text-muted-foreground">
                       <div className="text-center">
@@ -1784,11 +1788,11 @@ export function EditorPane({
                         </div>
                       </div>
                     </div>
-                  ) : diffData.status === "deleted" ? (
+                  ) : viewMode.data.status === "deleted" ? (
                     // Show deleted file content
                     <Editor
                       key={`${paneId}-${filePath}-deleted`}
-                      value={diffData.originalContent}
+                      value={viewMode.data.originalContent}
                       language={currentLanguage}
                       theme={editorTheme}
                       options={{
@@ -1811,8 +1815,8 @@ export function EditorPane({
                     // Show diff editor for modified/added files
                     <DiffEditor
                       key={`${paneId}-${filePath}-diff`}
-                      original={diffData.originalContent}
-                      modified={diffData.modifiedContent}
+                      original={viewMode.data.originalContent}
+                      modified={viewMode.data.modifiedContent}
                       language={currentLanguage}
                       theme={editorTheme}
                       options={{

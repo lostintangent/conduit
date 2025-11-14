@@ -60,7 +60,10 @@ export function BranchSelector({
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onOpenChange(false);
+      } else if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) => (prev + 1) % totalOptions);
       } else if (e.key === "ArrowUp") {
@@ -80,7 +83,13 @@ export function BranchSelector({
         }
       }
     },
-    [onSelectBranch, selectedIndex, totalOptions, filteredBranches],
+    [
+      onSelectBranch,
+      onOpenChange,
+      selectedIndex,
+      totalOptions,
+      filteredBranches,
+    ],
   );
 
   // Scroll selected item into view
