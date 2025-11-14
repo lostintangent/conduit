@@ -1,10 +1,7 @@
 import { PaneControlButtons } from "@/components/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/layout/focus/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/layout/normal/IntersectionHandles";
-import {
-  PaneHighlight,
-  shouldShowPaneBorder,
-} from "@/components/layout/normal/PaneHighlight";
+import { PaneHighlight } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
@@ -17,15 +14,15 @@ import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
 } from "@/hooks/useLayoutResizing";
-import { enterFocusMode } from "@/store/actions/focusMode";
-import { activatePane, openWebViewPane } from "@/store/actions/pane";
-import { hasNeighborPane } from "@/store/actions/paneNavigation";
-import { focusTab } from "@/store/actions/tab";
 import {
   handleCompleteAgentSessionAction,
   handleDeleteAgentSessionAction,
   handleForkVMAction,
 } from "@/hooks/useSandboxHandlers";
+import { enterFocusMode } from "@/store/actions/focusMode";
+import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import { hasNeighborPane } from "@/store/actions/paneNavigation";
+import { focusTab } from "@/store/actions/tab";
 import {
   activePaneIdAtom,
   activeTabAtom,
@@ -467,7 +464,7 @@ export function TabLayout({
           </div>
 
           {isInDesignMode && (
-            <div className="pointer-events-none absolute inset-0 z-10 bg-blueprint/20 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-none absolute inset-0 z-10 bg-accent/20 backdrop-blur-[0.5px]" />
           )}
 
           {/* Pane highlight overlay */}
@@ -475,7 +472,7 @@ export function TabLayout({
 
           {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
           {isInPreview && hoveredPreviewPaneId === pane.id && (
-            <div className="pointer-events-none absolute inset-0 z-20 bg-blueprint/30 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-none absolute inset-0 z-20 bg-accent/30 backdrop-blur-[0.5px]" />
           )}
 
           {/* Drop zone overlay */}
@@ -550,7 +547,7 @@ export function TabLayout({
       // Hide gaps only in focus mode where we want a seamless view
       // Use larger gaps in overview mode to compensate for scaling
       const gridGapClass =
-        applicationMode === "focus"
+        applicationMode === "focus" || applicationMode === "design"
           ? "gap-0"
           : applicationMode === "overview"
             ? "gap-[3px]"
@@ -575,7 +572,7 @@ export function TabLayout({
             // In design mode, add dashed borders as visual indicators (overlaid on content)
             // Grid gap handles the spacing that reveals the overlay underneath
             const designModeBorderClass = isInDesignMode
-              ? `${node.direction === "row" ? "border-l" : "border-t"} border-blueprint border-dashed`
+              ? `${node.direction === "row" ? "border-l" : "border-t"} border-accent border-dashed`
               : "";
             const splitBorderClass =
               index !== 0 && isInDesignMode ? designModeBorderClass : "";
@@ -600,8 +597,8 @@ export function TabLayout({
                 hoveredAxisKeys.includes(primaryAxisKey));
 
             const highlightDividerClass = isAxisHighlighted
-              ? "bg-blue-500/60"
-              : "bg-transparent hover:bg-blue-500/40";
+              ? "bg-accent/80"
+              : "bg-transparent hover:bg-accent/80";
 
             const shouldRenderHandles =
               primaryAxis !== null && !isInFocusMode && !isLocked;
@@ -642,6 +639,7 @@ export function TabLayout({
                       }}
                       onMouseLeave={clearHover}
                     />
+
                     <IntersectionHandles
                       direction={node.direction}
                       handles={intersectionHandles}
@@ -661,6 +659,7 @@ export function TabLayout({
                     />
                   </>
                 )}
+
                 {renderChild(child, tab, hasUnifiedSandbox)}
               </div>
             );
@@ -775,14 +774,17 @@ export function TabLayout({
   return (
     <div className="flex-1 flex relative min-h-0 overflow-hidden">
       {tabs.map(renderTab)}
+
+      {isFocusModeActive && <FocusModeIndicator />}
+
+      {/* Centered "Preparing..." message when there are no tabs */}
       {tabs.length === 0 && (
-        <div className="flex-1 flex min-h-0 min-w-0" aria-live="polite">
-          <div className="flex-1 flex items-center justify-center text-[0.95rem] text-white/60 bg-white/[0.03] border border-dashed border-white/[0.08] rounded-lg m-2">
-            <span>Preparing terminal…</span>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center justify-center bg-elevated p-4 rounded-md border border-elevated-border text-sm">
+            Preparing terminal...
           </div>
         </div>
       )}
-      {isFocusModeActive && <FocusModeIndicator />}
     </div>
   );
 }

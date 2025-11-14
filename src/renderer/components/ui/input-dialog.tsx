@@ -32,7 +32,7 @@ export function InputDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-surface-elevated border-border">
+      <DialogContent className="sm:max-w-[425px] bg-popover border-border">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -40,7 +40,7 @@ export function InputDialog({
         <form onSubmit={() => onSave(value)}>
           <input
             autoFocus
-            className="w-full py-2.5 px-3 rounded-lg border border-border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-[var(--color-focus-ring)] focus:outline-offset-2"
+            className="w-full py-2.5 px-3 rounded-lg border border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-ring focus:outline-offset-2"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={placeholder}
@@ -48,7 +48,7 @@ export function InputDialog({
           <DialogFooter className="mt-4">
             <button
               type="submit"
-              className="bg-gradient-to-br from-accent-start to-accent-end border-transparent rounded-lg py-1.5 px-3.5 text-white font-[inherit] text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105"
+              className="magic border-transparent rounded-lg py-1.5 px-3.5 text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105"
             >
               Save
             </button>

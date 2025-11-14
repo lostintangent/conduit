@@ -1,10 +1,210 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+
 @import "@xterm/xterm/css/xterm.css";
+
+/* Color token variables */
+
+:root {
+  /* Default surface colors */
+  --background: oklch(23.5% 0 0);
+  --foreground: oklch(86.99% 0 0);
+
+  /* Elevated surfaces: toolbars, overlay indicators */
+  --elevated: oklch(19% 0 0);
+  --elevated-border: oklch(45% 0 0);
+
+  /* Popover surfaces: dropdowns, modals, tooltips */
+  --popover: oklch(23.54% 0 0);
+  --popover-foreground: oklch(86.97% 0 0);
+
+  --primary: oklch(98.48% 0 0);
+  --primary-foreground: oklch(20.44% 0 0);
+
+  --secondary: oklch(26.86% 0 0);
+  --secondary-foreground: oklch(98.48% 0 0);
+
+  --accent: oklch(62.31% 0.188 259.81);
+  --accent-foreground: oklch(98.48% 0 0);
+
+  --accent-2: oklch(61.44% 0.2346 294.74);
+  --accent-2-foreground: oklch(98.48% 0 0);
+
+  --muted: oklch(36% 0 0);
+  --muted-foreground: oklch(71.53% 0 0);
+
+  --destructive: oklch(63.7% 0.237 25.331);
+  --destructive-foreground: oklch(98.48% 0 0);
+
+  --warning: oklch(79.52% 0.1617 86.05 / 0.2);
+  --warning-foreground: oklch(90.52% 0.1657 98.11);
+  --warning-border: oklch(79.52% 0.1617 86.05 / 0.5);
+  --warning-button: oklch(68.06% 0.1423 75.83);
+  --warning-button-hover: oklch(55.38% 0.1207 66.44);
+
+  --card: oklch(23.54% 0 0);
+  --card-foreground: oklch(86.97% 0 0);
+
+  --selection: oklch(41.84% 0.0829 250.44);
+
+  --border: var(--muted);
+  --input: var(--border);
+  --ring: var(--accent);
+
+  --pane-divider: oklch(35.62% 0 0);
+  --pane-divider-gradient: oklch(0% 0 0 / 0.4);
+
+  /* Git status colors - VS Code dark theme */
+  --git-added: oklch(72.52% 0.0948 155.41);
+  --git-modified: oklch(82.83% 0.0932 82.23);
+  --git-modified-staged: oklch(82.83% 0.0932 82.23);
+  --git-deleted: oklch(58.83% 0.1575 29.69);
+  --git-deleted-staged: oklch(58.83% 0.1575 29.69);
+  --git-renamed: oklch(75.58% 0.1066 161.62);
+  --git-copied: oklch(75.58% 0.1066 161.62);
+  --git-untracked: oklch(75.58% 0.1066 161.62);
+  --git-ignored: oklch(61.23% 0 0);
+  --git-conflict: oklch(63.36% 0.1629 17.04);
+  --git-type-changed: oklch(82.83% 0.0932 82.23);
+  --git-submodule: oklch(74.53% 0.0959 241.87);
+}
+
+:root[data-theme="light"] {
+  --background: oklch(98.51% 0 0);
+  --foreground: oklch(20.46% 0 0);
+
+  --elevated: oklch(94% 0 0);
+  --elevated-border: oklch(79% 0 0);
+
+  --popover: oklch(80% 0 0);
+  --popover-foreground: oklch(20.44% 0 0);
+
+  --primary: oklch(20.44% 0 0);
+  --primary-foreground: oklch(98.48% 0 0);
+
+  --secondary: oklch(97.03% 0 0);
+  --secondary-foreground: oklch(20.44% 0 0);
+
+  /* Light theme shares the same accent colors as dark theme */
+
+  --muted: oklch(97.03% 0 0);
+  --muted-foreground: oklch(55.55% 0 0);
+
+  --destructive: oklch(63.68% 0.2078 25.33);
+  --destructive-foreground: oklch(98.48% 0 0);
+
+  --warning: oklch(76.86% 0.1647 70.08 / 0.15);
+  --warning-foreground: oklch(66.58% 0.1574 58.32);
+  --warning-border: oklch(76.86% 0.1647 70.08 / 0.4);
+  --warning-button: oklch(76.86% 0.1647 70.08);
+  --warning-button-hover: oklch(66.58% 0.1574 58.32);
+
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(20.44% 0 0);
+
+  --selection: oklch(85.94% 0.0662 253.44);
+
+  --border: oklch(92.19% 0 0);
+  --input: oklch(92.19% 0 0);
+  --ring: oklch(21.56% 0 0);
+
+  --pane-divider: oklch(96.42% 0 0);
+  --pane-divider-gradient: oklch(100% 0 0 / 0.6);
+
+  /* Git status colors - VS Code light theme */
+  --git-added: oklch(48.31% 0.1349 130.42);
+  --git-modified: oklch(44.64% 0.1234 56.08);
+  --git-modified-staged: oklch(44.64% 0.1234 56.08);
+  --git-deleted: oklch(44.05% 0.1837 27.24);
+  --git-deleted-staged: oklch(44.05% 0.1837 27.24);
+  --git-renamed: oklch(40.84% 0.1561 145.57);
+  --git-copied: oklch(40.84% 0.1561 145.57);
+  --git-untracked: oklch(40.84% 0.1561 145.57);
+  --git-ignored: oklch(61.43% 0.0019 266.29);
+  --git-conflict: oklch(44.05% 0.1837 27.24);
+  --git-type-changed: oklch(44.64% 0.1234 56.08);
+  --git-submodule: oklch(42.57% 0.1487 264.04);
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-elevated: var(--elevated);
+  --color-elevated-border: var(--elevated-border);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-foreground: var(--accent-2-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-border: var(--warning-border);
+  --color-warning-button: var(--warning-button);
+  --color-warning-button-hover: var(--warning-button-hover);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-selection: var(--selection);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-pane-divider: var(--pane-divider);
+  --color-pane-divider-gradient: var(--pane-divider-gradient);
+
+  --color-git-added: var(--git-added);
+  --color-git-modified: var(--git-modified);
+  --color-git-modified-staged: var(--git-modified-staged);
+  --color-git-deleted: var(--git-deleted);
+  --color-git-deleted-staged: var(--git-deleted-staged);
+  --color-git-renamed: var(--git-renamed);
+  --color-git-copied: var(--git-copied);
+  --color-git-untracked: var(--git-untracked);
+  --color-git-ignored: var(--git-ignored);
+  --color-git-conflict: var(--git-conflict);
+  --color-git-type-changed: var(--git-type-changed);
+  --color-git-submodule: var(--git-submodule);
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* TODO: Cleanup */
+
+  --color-secondary-start: oklch(69.59% 0.1491 162.48);
+  --color-secondary-end: oklch(71.48% 0.1257 215.22);
+}
+
+@custom-variant light (&:is([data-theme="light"] *));
+
+/* Base styles */
 
 @layer base {
   * {
     box-sizing: border-box;
+    @apply border-border;
   }
 
   html,
@@ -19,6 +219,7 @@
   body {
     display: flex;
     min-height: 100%;
+    @apply bg-background text-foreground;
   }
 
   #root {
@@ -28,16 +229,8 @@
   }
 
   ::selection {
-    background-color: var(--color-selection);
-    color: var(--color-foreground);
-  }
-
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+    background-color: var(--selection);
+    color: var(--foreground);
   }
 
   button:not(:disabled),
@@ -50,113 +243,19 @@
   }
 }
 
-@theme {
-  --color-surface: #1e1e1e;
-  --color-surface-elevated: #1f1f1f;
-  --color-popover: var(--color-surface-elevated);
-  --color-text-popover: var(--color-foreground);
-  --color-surface-muted: #141414;
-  --color-input: #121212;
-  --color-border: #2b2b2b;
-  --color-border-muted: #333333;
-  --color-foreground: #d4d4d4;
-  --color-foreground-inverse: #1f1f1f;
-  --color-selection: #264f78;
-  --color-accent: #3b82f6;
-  --color-accent-start: #3f8cff;
-  --color-accent-end: #9358ff;
-  --color-secondary-start: #10b981;
-  --color-secondary-end: #06b6d4;
-  --color-focus-ring: rgba(63, 140, 255, 0.6);
-  --color-blueprint: rgba(59, 130, 246, 1);
+/* Custom utility classes */
+
+@layer utilities {
+  .magic {
+    @apply bg-gradient-to-br from-accent to-accent-2 text-accent-foreground hover:from-accent-2 hover:to-accent;
+  }
 }
 
-:root {
-  color-scheme: dark;
-  background-color: var(--color-surface);
-  color: var(--color-foreground);
-  accent-color: var(--color-accent);
+/* Animations */
 
-  --color-border-fill-gradient: rgba(0, 0, 0, 0.6);
-  --color-border-fill-solid: #3c3c3c;
-
-  --background: 0 0% 11.8%;
-  --foreground: 0 0% 83.1%;
-  --card: 0 0% 11.8%;
-  --card-foreground: 0 0% 83.1%;
-  --popover: 0 0% 11.8%;
-  --popover-foreground: 0 0% 83.1%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 0 0% 9%;
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --muted-foreground: 0 0% 63.9%;
-  --accent: 0 0% 14.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14.9%;
-  --input: 0 0% 14.9%;
-  --ring: 0 0% 83.1%;
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
-  --radius: 0.5rem;
-}
-
-/* Light theme */
-:root[data-theme="light"] {
-  color-scheme: light;
-
-  --color-surface: #fafafa;
-  --color-surface-elevated: #ffffff;
-  --color-popover: var(--color-surface-elevated);
-  --color-text-popover: var(--color-foreground);
-  --color-surface-muted: #f5f5f5;
-  --color-input: #ffffff;
-  --color-border: #e5e5e5;
-  --color-border-muted: #d4d4d4;
-  --color-border-fill-gradient: rgba(255, 255, 255, 0.6);
-  --color-border-fill-solid: #f3f3f3;
-  --color-foreground: #171717;
-  --color-foreground-inverse: #fafafa;
-  --color-selection: #b3d4fc;
-  --color-accent: #3b82f6;
-  --color-accent-start: #4f46e5;
-  --color-accent-end: #6366f1;
-  --color-secondary-start: #10b981;
-  --color-secondary-end: #06b6d4;
-  --color-focus-ring: rgba(59, 130, 246, 0.5);
-  --color-blueprint: rgba(59, 130, 246, 1);
-
-  --background: 0 0% 98%;
-  --foreground: 0 0% 9%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-  --primary: 0 0% 9%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 96.1%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 45.1%;
-  --accent: 0 0% 96.1%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 89.8%;
-  --input: 0 0% 89.8%;
-  --ring: 0 0% 10%;
-}
-
-/* Pane highlight fade out over 2 seconds - duration matches HIGHLIGHT_DURATION_MS in usePaneHighlight.ts */
 @keyframes pane-highlight {
   0% {
-    outline: 3px solid var(--color-blueprint);
+    outline: 3px solid var(--accent);
     outline-offset: -3px;
   }
   100% {
@@ -165,11 +264,6 @@
   }
 }
 
-.pane-highlight {
-  animation: pane-highlight 2s ease-out forwards;
-}
-
-/* Gradient canvas technique - sliding horizontal gradient for synchronized borders */
 @keyframes slideGradient {
   0% {
     transform: translate3d(0, 0, 0);
@@ -217,7 +311,6 @@
   will-change: transform;
 }
 
-/* Respect user's motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .gradient-canvas::before {
     animation: none;
@@ -225,7 +318,8 @@
   }
 }
 
-/* Fan-out menu animation */
+/* Design mode radial button fan-out */
+
 @keyframes fan-in {
   0% {
     opacity: 0;
@@ -239,194 +333,4 @@
 
 .animate-fan-in {
   animation: fan-in 0.2s ease-out;
-}
-
-/* Theme-aware utility overrides for light mode */
-:root[data-theme="light"] {
-  /* ========== TEXT COLORS ========== */
-
-  /* Standard text colors - convert white to dark */
-  .text-white {
-    color: var(--color-foreground);
-  }
-
-  .text-white\/90 {
-    color: rgb(23 23 23 / 0.9);
-  }
-
-  .text-white\/80 {
-    color: rgb(23 23 23 / 0.8);
-  }
-
-  .text-white\/70 {
-    color: rgb(23 23 23 / 0.7);
-  }
-
-  .text-white\/60 {
-    color: rgb(23 23 23 / 0.6);
-  }
-
-  .text-white\/50 {
-    color: rgb(23 23 23 / 0.5);
-  }
-
-  .text-white\/40 {
-    color: rgb(23 23 23 / 0.4);
-  }
-
-  /* Gray text colors */
-  .text-gray-300 {
-    color: #525252;
-  }
-
-  .text-gray-400 {
-    color: #737373;
-  }
-
-  .text-gray-500 {
-    color: #a3a3a3;
-  }
-
-  .text-gray-600 {
-    color: #d4d4d4;
-  }
-
-  /* Placeholder colors */
-  .placeholder-white\/40::placeholder {
-    color: rgb(23 23 23 / 0.4);
-  }
-
-  .placeholder-gray-500::placeholder {
-    color: #a3a3a3;
-  }
-
-  /* ========== BACKGROUND COLORS ========== */
-
-  /* White opacity backgrounds */
-  .bg-white\/5 {
-    background-color: rgb(0 0 0 / 0.04);
-  }
-
-  .bg-white\/10 {
-    background-color: rgb(0 0 0 / 0.08);
-  }
-
-  .bg-white\/20 {
-    background-color: rgb(0 0 0 / 0.15);
-  }
-
-  /* Gray backgrounds */
-  .bg-gray-700 {
-    background-color: #f3f3f3;
-  }
-
-  .bg-gray-800 {
-    background-color: #e8e8e8;
-  }
-
-  .bg-gray-800\/30 {
-    background-color: rgb(232 232 232 / 0.3);
-  }
-
-  .bg-gray-800\/50 {
-    background-color: rgb(232 232 232 / 0.5);
-  }
-
-  .bg-gray-900 {
-    background-color: #fafafa;
-  }
-
-  /* Notification backgrounds - darker for better visibility */
-  .bg-emerald-500\/20 {
-    background-color: rgb(16 185 129 / 0.4);
-  }
-
-  .bg-red-500\/15 {
-    background-color: rgb(239 68 68 / 0.3);
-  }
-
-  /* ========== BORDER COLORS ========== */
-
-  .border-white\/10 {
-    border-color: rgb(0 0 0 / 0.1);
-  }
-
-  .border-white\/20 {
-    border-color: rgb(0 0 0 / 0.15);
-  }
-
-  .border-white\/30 {
-    border-color: rgb(0 0 0 / 0.2);
-  }
-
-  .border-white\/40 {
-    border-color: rgb(0 0 0 / 0.25);
-  }
-
-  .border-gray-700 {
-    border-color: #e5e5e5;
-  }
-
-  .border-gray-800 {
-    border-color: #d4d4d4;
-  }
-
-  /* ========== HOVER STATES ========== */
-
-  .hover\:bg-white\/10:hover {
-    background-color: rgb(0 0 0 / 0.08);
-  }
-
-  .hover\:bg-white\/20:hover {
-    background-color: rgb(0 0 0 / 0.15);
-  }
-
-  .hover\:text-white:hover {
-    color: var(--color-foreground);
-  }
-
-  .hover\:bg-gray-700:hover {
-    background-color: #f3f3f3;
-  }
-
-  .hover\:bg-gray-800\/50:hover {
-    background-color: rgb(232 232 232 / 0.5);
-  }
-
-  .hover\:bg-accent\/10:hover {
-    background-color: rgb(59 130 246 / 0.1);
-  }
-
-  /* ========== COMPONENT-SPECIFIC OVERRIDES ========== */
-
-  /* Dropdown menu items */
-  [role="menuitem"],
-  [role="menuitemcheckbox"],
-  [role="menuitemradio"] {
-    color: var(--color-foreground) !important;
-  }
-
-  /* Gradient backgrounds - keep text white for readability */
-  .bg-gradient-to-br .text-white,
-  .bg-gradient-to-br .text-white\/90,
-  .bg-gradient-to-br .text-white\/80,
-  .bg-gradient-to-br .text-white\/70,
-  .bg-gradient-to-br .text-white\/60,
-  .bg-gradient-to-br .text-white\/50,
-  .bg-gradient-to-br .text-white\/40,
-  [class*="bg-gradient"] .text-white,
-  [class*="bg-gradient"] .text-white\/90,
-  [class*="bg-gradient"] .text-white\/80,
-  [class*="bg-gradient"] .text-white\/70,
-  [class*="bg-gradient"] .text-white\/60,
-  [class*="bg-gradient"] .text-white\/50,
-  [class*="bg-gradient"] .text-white\/40 {
-    color: white !important;
-  }
-
-  /* Tab buttons and gradient elements - ensure white text */
-  button[class*="bg-gradient"] *,
-  [role="tab"][class*="bg-gradient"] * {
-    color: white !important;
-  }
 }

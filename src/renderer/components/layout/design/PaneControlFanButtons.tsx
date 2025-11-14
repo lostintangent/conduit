@@ -239,8 +239,8 @@ export function PaneControlFanButtons({
   const offset = hasMoveButton ? "calc(50% - 16px)" : "50%";
 
   const buttonClass =
-    "flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-blue-500/80 transition-colors cursor-pointer";
-  const iconClass = "w-4 h-4 text-white";
+    "flex items-center justify-center w-8 h-8 rounded-full hover:bg-accent hover:text-background transition-colors cursor-pointer";
+  const iconClass = "w-4 h-4";
 
   // Get the starting angle for the 180° arc based on position
   const getStartAngle = () => {
@@ -390,7 +390,7 @@ export function PaneControlFanButtons({
             return (
               <button
                 key={`placeholder-${index}`}
-                className={`${buttonClass} absolute pointer-events-auto bg-black/40 border border-gray-600 border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
+                className={`${buttonClass} absolute pointer-events-auto bg-elevated border border-gray-600 border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
                 style={{
                   ...pos,
                   animationDelay: `${index * 30}ms`,
@@ -410,7 +410,7 @@ export function PaneControlFanButtons({
           return (
             <button
               key={`action-${index}-${action.name}`}
-              className={`${buttonClass} absolute pointer-events-auto bg-black/60 border border-blueprint border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
+              className={`${buttonClass} absolute pointer-events-auto bg-elevated border border-accent border-dashed rounded-full backdrop-blur-sm -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out opacity-0 animate-fan-in`}
               style={{
                 ...pos,
                 animationDelay: `${index * 30}ms`,

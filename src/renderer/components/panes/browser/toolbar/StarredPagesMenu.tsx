@@ -1,12 +1,12 @@
-import { useUserSettings } from "@/hooks/useUserSettings";
-import { BrowserPage } from "@/shared/types";
-import { ChevronDown, Star } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { BrowserPage } from "@shared/types";
+import { ChevronDown, Star } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type StarredPagesMenuProps = {
   currentPage: BrowserPage;
@@ -162,8 +162,8 @@ export function StarredPagesMenu({
         onClick={handleStarredDropdownToggle}
         className={`pointer-events-auto p-1 rounded transition-colors ${
           !hasStarredPages
-            ? "text-white/40 cursor-not-allowed"
-            : "text-white/70 hover:text-white"
+            ? "text-foreground/40 cursor-not-allowed"
+            : "text-foreground/70 hover:text-foreground"
         }`}
         title="Show starred pages"
         aria-haspopup="listbox"
@@ -177,27 +177,28 @@ export function StarredPagesMenu({
       {showStarredList && hasStarredPages && (
         <div
           ref={starredDropdownRef}
-          className="pointer-events-auto absolute top-full right-0 mt-1 w-72 bg-surface border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
+          className="pointer-events-auto absolute top-full right-0 mt-1 w-72 bg-popover border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
           role="listbox"
         >
           {starredPages.map((page) => {
             const displayTitle = page.title?.trim().length
               ? page.title
               : page.url;
+
             return (
               <div
                 key={page.url}
-                className="flex items-center border-b border-white/5 last:border-b-0 hover:bg-white/10 transition"
+                className="flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition"
               >
                 <button
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleStarredNavigation(page.url)}
-                  className="flex-1 px-3 py-2 text-left text-white transition overflow-hidden cursor-pointer"
+                  className="flex-1 px-3 py-2 text-left transition overflow-hidden"
                   role="option"
                 >
                   <span className="block text-sm truncate">{displayTitle}</span>
-                  <span className="block text-xs text-white/50 truncate">
+                  <span className="block text-xs text-foreground/50 truncate">
                     {page.url}
                   </span>
                 </button>
@@ -208,7 +209,7 @@ export function StarredPagesMenu({
                     event.stopPropagation();
                     handleStarredRemove(page.url);
                   }}
-                  className="group px-2 py-2 text-yellow-400 transition cursor-pointer"
+                  className="group px-2 py-2 text-yellow-400 transition"
                   aria-label="Unstar this page"
                 >
                   <Star className="w-4 h-4 fill-current group-hover:fill-none" />

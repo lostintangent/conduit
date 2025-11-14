@@ -9,11 +9,16 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
   BackgroundCommandRequest,
+  Branch,
+  BrowserPage,
   CreateVMPayload,
   DeleteVMPayload,
+  FileChangedEvent,
+  FileRenamedEvent,
   FileTreeNode,
   ForkVMPayload,
   ForwardPortResponse,
+  GitFileStatus,
   ListVMsPayload,
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
@@ -25,7 +30,7 @@ import type {
   TerminalPromptResponse,
   TerminalSSHStatePayload,
   TerminalTitlePayload,
-  BrowserPage,
+  TreeChangedEvent,
   UpdateState,
   UserSettings,
   VMInfo,
@@ -343,8 +348,16 @@ const conduitAPI = {
 
   /* File system methods (UI->main) */
 
-  listDirectory: (cwd: string) =>
-    ipcRenderer.invoke("fs:list-directory", cwd) as Promise<FileTreeNode[]>,
+  /**
+   * Lists the contents of a directory.
+   *
+   * @param directoryPath - The directory to list
+   * @param rootPath - Optional root path for computing relative paths (used for git status matching)
+   */
+  listDirectory: (directoryPath: string, rootPath?: string) =>
+    ipcRenderer.invoke("fs:list-directory", directoryPath, rootPath) as Promise<
+      FileTreeNode[]
+    >,
 
   readFile: (filePath: string) =>
     ipcRenderer.invoke("fs:read-file", filePath) as Promise<string>,
@@ -354,6 +367,79 @@ const conduitAPI = {
 
   deleteFile: (filePath: string) =>
     ipcRenderer.invoke("fs:delete-file", filePath) as Promise<void>,
+
+  fileExists: (filePath: string) =>
+    ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,
+
+  /* File watcher methods (UI->main) */
+
+  subscribeFileWatcher: (cwd: string, paneId: string) =>
+    ipcRenderer.invoke("file-watcher:subscribe", cwd, paneId) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
+
+  unsubscribeFileWatcher: (cwd: string, paneId: string) =>
+    ipcRenderer.invoke("file-watcher:unsubscribe", cwd, paneId) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
+
+  onFileChanged: (listener: (payload: FileChangedEvent) => void) =>
+    createEventListener<FileChangedEvent>(
+      "file-watcher:file-changed",
+      listener,
+    ),
+
+  onFileRenamed: (listener: (payload: FileRenamedEvent) => void) =>
+    createEventListener<FileRenamedEvent>(
+      "file-watcher:file-renamed",
+      listener,
+    ),
+
+  onTreeChanged: (listener: (payload: TreeChangedEvent) => void) =>
+    createEventListener<TreeChangedEvent>(
+      "file-watcher:tree-changed",
+      listener,
+    ),
+
+  /* Git status methods (UI->main) */
+
+  getGitStatus: (cwd: string) =>
+    ipcRenderer.invoke("git:get-status", cwd) as Promise<{
+      success: boolean;
+      gitStatus: Record<string, GitFileStatus> | null;
+      error?: string;
+    }>,
+
+  setBaseBranch: (cwd: string, baseBranch: string | null) =>
+    ipcRenderer.invoke("git:set-base-branch", cwd, baseBranch) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
+
+  getBranches: (cwd: string) =>
+    ipcRenderer.invoke("git:get-branches", cwd) as Promise<{
+      success: boolean;
+      branches: Branch[];
+      error?: string;
+    }>,
+
+  refreshGitStatus: (cwd: string) =>
+    ipcRenderer.invoke("git:refresh-status", cwd) as Promise<{
+      success: boolean;
+      error?: string;
+    }>,
+
+  onGitStatusChanged: (
+    listener: (payload: {
+      cwd: string;
+      gitStatus: Record<string, GitFileStatus> | null;
+      baseBranch: string | null;
+    }) => void,
+  ) => createEventListener("git:status-changed", listener),
+
+  /* Legacy file watcher (deprecated - use file watcher methods above) */
 
   watchFile: (filePath: string, onChange: () => void) => {
     const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;

@@ -1,6 +1,7 @@
 import { BrowserWindow } from "electron";
 import { initializeAgentHandlers } from "./agent";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
+import { initializeFileWatcherHandlers } from "./fs/watcher";
 import { initializeFsHandlers } from "./fs";
 import {
   cleanupTerminalSessions,
@@ -26,6 +27,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeUIHandlers(window);
   initializeFsHandlers();
   await initializeAgentHandlers();
+  initializeFileWatcherHandlers();
   initializeVMHandlers();
 
   const updateController = initializeUpdateHandlers(

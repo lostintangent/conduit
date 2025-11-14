@@ -126,7 +126,7 @@ export function QuickDialog({
     >
       <DialogContent
         showClose={false}
-        className="flex max-w-[min(95vw,1000px)] h-[720px] min-h-[320px] max-h-[90vh] overflow-hidden p-0 bg-surface border-white/10"
+        className="flex max-w-[min(95vw,1000px)] h-[720px] min-h-[320px] max-h-[90vh] overflow-hidden p-0 bg-background border-white/10"
       >
         <div className="flex flex-1 w-full h-full min-h-0 min-w-0 overflow-hidden">
           {currentDescriptor.type === "terminal" && (

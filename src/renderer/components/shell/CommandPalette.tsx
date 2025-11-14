@@ -1,4 +1,5 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import type { Command } from "@/types";
 import {
   useCallback,
@@ -161,7 +162,7 @@ export function CommandPalette({
     return (
       <>
         {before}
-        <span className="text-sky-400">{match}</span>
+        <span className="text-accent">{match}</span>
         {after}
       </>
     );
@@ -285,16 +286,15 @@ export function CommandPalette({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="w-[480px] max-w-[90vw] p-4 gap-0 bg-surface-elevated border-white/10"
+        className="w-[480px] max-w-[90vw] p-4 gap-0 bg-popover border-white/10"
         showClose={false}
       >
-        <input
+        <Input
           autoFocus
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
           onKeyDown={handleInputKeyDown}
           placeholder="Search commands or type ! to run a shell command..."
-          className="w-full rounded-md border border-white/10 bg-input px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
         />
 
         {isShellMode ? (
@@ -316,7 +316,7 @@ export function CommandPalette({
                       onMouseEnter={() => setSelectedIndex(index)}
                       className={`flex w-full items-center rounded-md border transition ${
                         isActive
-                          ? "border-yellow-500/60 bg-yellow-500/40 text-foreground-inverse"
+                          ? "border-yellow-500/60 bg-yellow-500/40 text-background"
                           : "border-transparent text-white/80 hover:border-yellow-500/40 hover:bg-yellow-500/15"
                       }`}
                     >
@@ -343,7 +343,7 @@ export function CommandPalette({
                             }
                             return current;
                           });
-                          void onRemoveShellHistoryEntry(historyCommand);
+                          onRemoveShellHistoryEntry(historyCommand);
                         }}
                         aria-label="Remove command from history"
                         className="mr-2 rounded-md p-1 text-sm leading-none text-current transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
@@ -356,7 +356,7 @@ export function CommandPalette({
               })}
             </ul>
           ) : (
-            <div className="mt-3 rounded-md border border-dashed border-yellow-500/40 bg-yellow-500/40 px-3 py-2 text-sm text-foreground-inverse">
+            <div className="mt-3 rounded-md border border-dashed border-yellow-500/40 bg-yellow-500/40 px-3 py-2 text-sm text-background">
               {shellHistory.length === 0
                 ? "No recent shell commands yet."
                 : "No matching recent commands."}
@@ -383,23 +383,23 @@ export function CommandPalette({
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition cursor-pointer ${
                       isActive
-                        ? "border-white/30 bg-white/10 text-white"
-                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
+                        ? "border-border bg-muted/30"
+                        : "border-transparent hover:border-foreground/20 hover:bg-white/5"
                     }`}
                     aria-selected={isActive}
                   >
                     <div className="flex-1 flex flex-col gap-1 min-w-0">
-                      <span className="text-sm font-medium">
+                      <span className="text-sm tfont-medium">
                         {renderHighlightedLabel(command.label, commandQuery)}
                       </span>
                       {command.description && (
-                        <span className="text-xs text-white/50">
+                        <span className="text-xs text-muted-foreground">
                           {command.description}
                         </span>
                       )}
                     </div>
                     {command.keybinding && (
-                      <kbd className="ml-3 px-2 py-1 bg-white/10 rounded border border-white/10 font-sans text-xs text-white/60 tracking-wider whitespace-nowrap flex-shrink-0">
+                      <kbd className="ml-3 px-2 py-1 bg-muted rounded font-sans text-xs tracking-wider whitespace-nowrap flex-shrink-0">
                         {command.keybinding}
                       </kbd>
                     )}

@@ -3,14 +3,9 @@ import { Tab } from "@/types";
 export type ThemeMode = "light" | "dark" | "system";
 
 export type ThemeOverrides = {
-  surface?: string;
-  surfaceElevated?: string;
-  surfaceMuted?: string;
   input?: string;
   border?: string;
-  borderMuted?: string;
   foreground?: string;
-  foregroundInverse?: string;
   selection?: string;
   accent?: string;
 };
@@ -207,6 +202,63 @@ export type FileTreeNode = {
   relativePath: string;
   type: "file" | "directory";
   children?: FileTreeNode[];
+};
+
+/**
+ * Git file status for a single file
+ */
+export type GitFileStatus = {
+  status:
+    | "modified"
+    | "added"
+    | "deleted"
+    | "renamed"
+    | "copied"
+    | "untracked"
+    | "unmodified"
+    | "conflict"
+    | "type-changed"
+    | "ignored";
+  staged: boolean;
+  relativePath: string;
+};
+
+/**
+ * Map of relative file paths to their git status
+ */
+export type GitStatusMap = Map<string, GitFileStatus>;
+
+/**
+ * Information about a git branch
+ */
+export type Branch = {
+  name: string;
+  isRemote: boolean;
+  isCurrent: boolean;
+  lastCommitDate: Date;
+  lastCommitHash: string;
+  lastCommitMessage: string;
+};
+
+/* File watcher event payloads */
+
+export type FileChangedEvent = {
+  cwd: string;
+  filePath: string;
+  relativePath: string;
+  eventType: "changed" | "deleted";
+};
+
+export type TreeChangedEvent = {
+  cwd: string;
+};
+
+export type FileRenamedEvent = {
+  cwd: string;
+  oldPath: string;
+  newPath: string;
+  oldRelativePath: string;
+  newRelativePath: string;
 };
 
 /* VM IPC payloads */

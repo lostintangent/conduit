@@ -37,7 +37,7 @@ export function getOrCreate(
   let instance = store.get(sessionId);
   if (!instance) {
     const terminalTheme = {
-      background: resolveColor("surface"),
+      background: resolveColor("background"),
       foreground: resolveColor("foreground"),
       cursor: resolveColor("foreground"),
       selectionBackground: resolveColor("selection"),
@@ -190,7 +190,7 @@ export function inputToSession(sessionId: string, input: string): boolean {
  */
 export function updateTerminalThemes() {
   const terminalTheme = {
-    background: resolveColor("surface"),
+    background: resolveColor("background"),
     foreground: resolveColor("foreground"),
     cursor: resolveColor("foreground"),
     selectionBackground: resolveColor("selection"),

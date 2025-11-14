@@ -20,6 +20,8 @@ export type TerminalInstance = {
   isPollingCwd: boolean;
   pendingCwdPoll?: NodeJS.Timeout;
   scheduleCwdPoll?: (delay?: number) => void;
+  cwdPollFailures: number; // Consecutive polling failures
+  cwdPollBackedOff: boolean; // Whether we've stopped polling due to errors
 };
 
 export type CreateTerminalOptions = {

@@ -1,10 +1,11 @@
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { BrowserPage } from "@/shared/types";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { BrowserPage } from "@shared/types";
 import {
   ArrowLeft,
   ArrowRight,
@@ -135,7 +136,7 @@ export function BrowserToolbar({
   }, [currentPage.url]);
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-surface-muted border-b border-white/10">
+    <div className="flex items-center gap-1 px-2 py-1.5 bg-elevated border-b">
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -145,7 +146,7 @@ export function BrowserToolbar({
             className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
             aria-label="Back"
           >
-            <ArrowLeft className="w-4 h-4 text-white" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
         </TooltipTrigger>
         <TooltipContent>Back</TooltipContent>
@@ -159,7 +160,7 @@ export function BrowserToolbar({
             className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
             aria-label="Forward"
           >
-            <ArrowRight className="w-4 h-4 text-white" />
+            <ArrowRight className="w-4 h-4" />
           </button>
         </TooltipTrigger>
         <TooltipContent>Forward</TooltipContent>
@@ -173,9 +174,9 @@ export function BrowserToolbar({
             aria-label={isLoading ? "Stop" : "Refresh"}
           >
             {isLoading ? (
-              <X className="w-4 h-4 text-white" />
+              <X className="w-4 h-4" />
             ) : (
-              <RefreshCw className="w-4 h-4 text-white" />
+              <RefreshCw className="w-4 h-4" />
             )}
           </button>
         </TooltipTrigger>
@@ -189,13 +190,12 @@ export function BrowserToolbar({
           }}
           className="flex-1 flex min-w-0"
         >
-          <input
-            type="text"
+          <Input
             value={inputUrl}
             onChange={handleUrlInputChange}
             onBlur={handleUrlInputBlur}
             onFocus={handleUrlInputFocus}
-            className="flex-1 px-3 pr-20 py-1 text-sm bg-surface rounded border border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30 overflow-hidden text-ellipsis"
+            className="flex-1 pr-20 h-8 text-sm overflow-hidden text-ellipsis focus-visible:ring-1 focus-visible:ring-offset-0"
             placeholder="Enter URL..."
           />
         </form>
@@ -206,18 +206,19 @@ export function BrowserToolbar({
             onMenuOpened={handleStarredCloseRequest}
           />
         </div>
+
         {showHistory && urlHistory.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-white/10 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded shadow-lg z-10 max-h-48 overflow-y-auto">
             {urlHistory.map((historyUrl) => (
               <div
                 key={historyUrl}
-                className="group flex items-center border-b border-white/5 last:border-b-0 hover:bg-white/10 transition"
+                className="group flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition"
               >
                 <button
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleHistoryItemClick(historyUrl)}
-                  className="flex-1 px-3 py-2 text-sm text-left text-white transition overflow-hidden text-ellipsis whitespace-nowrap"
+                  className="flex-1 px-3 py-2 text-sm text-left transition overflow-hidden text-ellipsis whitespace-nowrap"
                 >
                   {historyUrl}
                 </button>
@@ -228,7 +229,7 @@ export function BrowserToolbar({
                     event.stopPropagation();
                     handleHistoryItemRemove(historyUrl);
                   }}
-                  className="px-2 py-2 text-white/50 hover:text-red-500 transition"
+                  className="px-2 py-2 text-foreground/50 hover:text-destructive transition"
                   aria-label="Remove from history"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -246,7 +247,7 @@ export function BrowserToolbar({
             className="p-1.5 rounded hover:bg-white/10 transition"
             aria-label="Open in external browser"
           >
-            <ExternalLink className="w-4 h-4 text-white" />
+            <ExternalLink className="w-4 h-4" />
           </button>
         </TooltipTrigger>
         <TooltipContent>Open in external browser</TooltipContent>

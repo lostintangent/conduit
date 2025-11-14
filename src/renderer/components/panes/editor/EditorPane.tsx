@@ -1,20 +1,26 @@
+import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
+import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { resolveTheme } from "@/utils/theme";
 import Editor, { loader } from "@monaco-editor/react";
 import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
-  ChevronLeft,
   ChevronRight,
   FolderUp,
+  GitBranch,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Redo,
-  RefreshCw,
   Save,
   Search,
   Undo,
+  X,
 } from "lucide-react";
 import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
@@ -142,15 +148,16 @@ export function EditorPane({
   paneId,
   agentSessionId,
   onFileChange,
-  onClearFile,
+  onClearFile: _onClearFile,
   onCwdChange,
   onFileOpen,
   isLocked = false,
   onSave,
   hideIndividualSandboxIndicator = false,
 }: EditorPaneProps) {
-  const { homeDirectory } = useAtomValue(userSettingsAtom);
+  const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const editorTheme = resolveTheme(theme) === "light" ? "vs-light" : "vs-dark";
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
@@ -187,6 +194,32 @@ export function EditorPane({
   const [activeView, setActiveView] = useState<"tree" | "editor">("tree");
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
+  // File watcher state
+  const [externallyModified, setExternallyModified] = useState(false);
+  const [externallyDeleted, setExternallyDeleted] = useState(false);
+  const [showExternalChangeWarning, setShowExternalChangeWarning] =
+    useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Refs to track current values for file watcher event handlers
+  // This allows handlers to access current values without causing re-subscription
+  const filePathRef = useRef(filePath);
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  const previousFilePathRef = useRef(filePath);
+
+  // Git status integration
+  const {
+    gitStatus,
+    baseBranch,
+    branches,
+    isBranchSelectorOpen,
+    isInGitRepo,
+    setIsBranchSelectorOpen,
+    handleBranchSelect,
+  } = useGitStatus(cwd);
+
+  const [showOnlyChangedFiles] = useState(false);
+
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
 
@@ -218,14 +251,20 @@ export function EditorPane({
 
   // Resize handle highlight class (matches pane resize behavior)
   const resizeHandleClass = isResizing
-    ? "bg-blue-500/60"
-    : "bg-transparent hover:bg-blue-500/40";
+    ? "bg-accent"
+    : "bg-transparent hover:bg-accent";
 
-  // In single mode, auto-switch to editor when file is opened or changed
+  // In single mode, auto-switch to editor when a NEW file is opened or changed
+  // but NOT when just transitioning from split to single mode
   useEffect(() => {
-    if (layoutMode === "single" && hasOpenFile) {
+    const filePathChanged = filePath !== previousFilePathRef.current;
+
+    if (layoutMode === "single" && hasOpenFile && filePathChanged) {
       setActiveView("editor");
     }
+
+    // Update the ref for next comparison
+    previousFilePathRef.current = filePath;
   }, [layoutMode, hasOpenFile, filePath]);
 
   // Find the current tab for agent session operations
@@ -305,15 +344,83 @@ export function EditorPane({
       return;
     }
 
+    // Check if file was externally modified before saving
+    if (externallyModified && !externallyDeleted) {
+      try {
+        const diskContent = await api.readFile(filePath);
+        // If disk content differs from what we last read, show warning
+        if (diskContent !== originalContent) {
+          setShowExternalChangeWarning(true);
+          return; // Don't save yet
+        }
+      } catch (error) {
+        console.error("Failed to check file before save:", error);
+      }
+    }
+
     try {
       await api.writeFile(filePath, currentContent);
       setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
+      setExternallyModified(false);
+      setExternallyDeleted(false);
+      setShowExternalChangeWarning(false);
       onSave?.();
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, currentContent, hasUnsavedChanges, onSave]);
+  }, [
+    filePath,
+    currentContent,
+    hasUnsavedChanges,
+    externallyModified,
+    externallyDeleted,
+    originalContent,
+    onSave,
+  ]);
+
+  // Handler to reload file from disk (discard local changes)
+  const handleReloadFromDisk = useCallback(async () => {
+    if (!filePath) {
+      return;
+    }
+
+    try {
+      const content = await api.readFile(filePath);
+      setCurrentContent(content);
+      setOriginalContent(content);
+      setHasUnsavedChanges(false);
+      setExternallyModified(false);
+      setExternallyDeleted(false);
+      setShowExternalChangeWarning(false);
+    } catch (error) {
+      console.error("Failed to reload file:", error);
+    }
+  }, [filePath]);
+
+  // Handler to dismiss warning and keep local changes
+  const handleDismissWarning = useCallback(() => {
+    setShowExternalChangeWarning(false);
+  }, []);
+
+  // Handler to save and overwrite external changes
+  const handleSaveAnyway = useCallback(async () => {
+    if (!filePath || currentContent === undefined) {
+      return;
+    }
+
+    try {
+      await api.writeFile(filePath, currentContent);
+      setOriginalContent(currentContent);
+      setHasUnsavedChanges(false);
+      setExternallyModified(false);
+      setExternallyDeleted(false);
+      setShowExternalChangeWarning(false);
+      onSave?.();
+    } catch (error) {
+      console.error("Failed to save file:", error);
+    }
+  }, [filePath, currentContent, onSave]);
 
   // Find handler
   const handleFind = useCallback(() => {
@@ -486,6 +593,223 @@ export function EditorPane({
     };
   }, [cwd, hasOpenFile, layoutMode]);
 
+  // Keep refs in sync with current values
+  useEffect(() => {
+    filePathRef.current = filePath;
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [filePath, hasUnsavedChanges]);
+
+  // File watcher subscription lifecycle
+  useEffect(() => {
+    if (!cwd) {
+      return;
+    }
+
+    // Subscribe to file watcher
+    console.log(
+      `[EditorPane] Subscribing to file watcher: paneId=${paneId}, cwd=${cwd}`,
+    );
+    api.subscribeFileWatcher(cwd, paneId).catch((error) => {
+      console.error("[EditorPane] Failed to subscribe to file watcher:", error);
+    });
+
+    // Set up event listeners
+    const removeFileChangedListener = api.onFileChanged((payload) => {
+      // Only handle events for this cwd
+      if (payload.cwd !== cwd) {
+        return;
+      }
+
+      // Check if this is the currently open file
+      if (filePathRef.current && payload.filePath === filePathRef.current) {
+        console.log(
+          `[EditorPane] File changed event: ${payload.relativePath}, type=${payload.eventType}`,
+        );
+
+        if (payload.eventType === "deleted") {
+          console.log(
+            `[EditorPane] File deleted externally: ${payload.relativePath}`,
+          );
+          // Clear any pending debounce timer
+          if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+          }
+          setExternallyDeleted(true);
+          setShowExternalChangeWarning(true);
+        } else if (payload.eventType === "changed") {
+          console.log(
+            `[EditorPane] File modified externally: ${payload.relativePath}`,
+          );
+          setExternallyModified(true);
+
+          // Debounce rapid changes (100ms)
+          if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+          }
+
+          debounceTimerRef.current = setTimeout(() => {
+            debounceTimerRef.current = null;
+
+            // Check if file still exists before reading
+            const currentFilePath = filePathRef.current;
+            if (!currentFilePath) return;
+
+            api
+              .fileExists(currentFilePath)
+              .then((exists) => {
+                if (!exists) {
+                  // File was deleted during debounce
+                  setExternallyDeleted(true);
+                  setExternallyModified(false);
+                  setShowExternalChangeWarning(true);
+                  return;
+                }
+
+                // If editor has no unsaved changes, auto-reload
+                if (!hasUnsavedChangesRef.current) {
+                  console.log(
+                    `[EditorPane] Auto-reloading file (clean editor): ${currentFilePath}`,
+                  );
+                  api
+                    .readFile(currentFilePath)
+                    .then((content) => {
+                      console.log(
+                        `[EditorPane] File reloaded successfully: ${currentFilePath}`,
+                      );
+                      setCurrentContent(content);
+                      setOriginalContent(content);
+                      setExternallyModified(false);
+                      // If file was previously deleted but now exists, clear deletion flag
+                      setExternallyDeleted(false);
+                    })
+                    .catch((error) => {
+                      console.error(
+                        "[EditorPane] Failed to reload file:",
+                        error,
+                      );
+                      // If read fails, file might have been deleted
+                      api.fileExists(currentFilePath).then((stillExists) => {
+                        if (!stillExists) {
+                          setExternallyDeleted(true);
+                          setShowExternalChangeWarning(true);
+                        }
+                      });
+                    });
+                } else {
+                  // Editor has unsaved changes, show warning
+                  console.log(
+                    `[EditorPane] Showing warning (dirty editor): ${currentFilePath}`,
+                  );
+                  setShowExternalChangeWarning(true);
+                }
+              })
+              .catch((error) => {
+                console.error("Failed to check file existence:", error);
+              });
+          }, 100);
+        }
+      }
+    });
+
+    const removeFileRenamedListener = api.onFileRenamed((payload) => {
+      // Only handle events for this cwd
+      if (payload.cwd !== cwd) {
+        return;
+      }
+
+      // Check if the currently open file was renamed
+      const currentFilePath = filePathRef.current;
+      if (currentFilePath && payload.oldPath === currentFilePath) {
+        console.log(
+          `[EditorPane] File renamed: ${payload.oldRelativePath} → ${payload.newRelativePath}`,
+        );
+
+        // Update the file path without losing content or state
+        // currentContent is captured from the enclosing scope
+        onFileChange?.({
+          filePath: payload.newPath,
+          language: inferLanguageFromFilePath(payload.newPath),
+          content: currentContent, // Keep existing content
+        });
+
+        // Clear any external modification warnings
+        setExternallyModified(false);
+        setExternallyDeleted(false);
+        setShowExternalChangeWarning(false);
+
+        console.log(
+          `[EditorPane] Editor updated to track renamed file: ${payload.newPath}`,
+        );
+      }
+    });
+
+    const removeTreeChangedListener = api.onTreeChanged((payload) => {
+      // Only handle events for this cwd
+      if (payload.cwd !== cwd) {
+        return;
+      }
+
+      console.log(`[EditorPane] Tree changed event received for cwd=${cwd}`);
+
+      // Refresh the file tree
+      api
+        .listDirectory(cwd)
+        .then((tree) => {
+          console.log(
+            `[EditorPane] File tree refreshed successfully for cwd=${cwd}`,
+          );
+          setFileTree(tree);
+          fileTreeCache.set(cwd, tree);
+        })
+        .catch((error) => {
+          console.error("[EditorPane] Failed to refresh file tree:", error);
+        });
+    });
+
+    // Cleanup on unmount or cwd change
+    return () => {
+      console.log(
+        `[EditorPane] Cleaning up file watcher subscription: paneId=${paneId}, cwd=${cwd}`,
+      );
+
+      // Clear debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+
+      // Unsubscribe from file watcher
+      api.unsubscribeFileWatcher(cwd, paneId).catch((error) => {
+        console.error(
+          "[EditorPane] Failed to unsubscribe from file watcher:",
+          error,
+        );
+      });
+
+      // Remove event listeners
+      removeFileChangedListener();
+      removeFileRenamedListener();
+      removeTreeChangedListener();
+    };
+    // Only re-run when cwd or paneId changes
+    // filePath and hasUnsavedChanges are accessed via refs to avoid re-subscription
+  }, [cwd, paneId]);
+
+  // Clear external modification flags when switching files
+  useEffect(() => {
+    // Clear flags when filePath changes (user opened a different file)
+    setExternallyModified(false);
+    setExternallyDeleted(false);
+    setShowExternalChangeWarning(false);
+
+    // Clear any pending debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+  }, [filePath]);
+
   const handleFileSelect = useCallback(
     async (node: FileTreeNode) => {
       if (node.type !== "file") {
@@ -530,34 +854,40 @@ export function EditorPane({
     }
   }, [cwd, onCwdChange]);
 
-  const handleRefresh = useCallback(async () => {
-    if (hasOpenFile && filePath) {
-      // Refresh file content
-      try {
-        const content = await api.readFile(filePath);
-        const language = inferLanguageFromFilePath(filePath);
-        setCurrentContent(content);
-        setOriginalContent(content);
-        setCurrentLanguage(language);
-        setHasUnsavedChanges(false);
-      } catch (error) {
-        console.error("Failed to refresh file:", error);
-      }
-    } else {
-      // Refresh directory tree
-      setIsLoadingTree(true);
-      try {
-        const tree = await api.listDirectory(cwd);
-        setFileTree(tree);
-        fileTreeCache.set(cwd, tree);
-        setIsLoadingTree(false);
-      } catch (error) {
-        console.error("Failed to refresh directory:", error);
-        setFileTree([]);
-        setIsLoadingTree(false);
-      }
+  // Filter file tree by git status
+  const filterTreeByGitStatus = useCallback(
+    (
+      nodes: FileTreeNode[],
+      statusMap: Map<string, unknown>,
+    ): FileTreeNode[] => {
+      return nodes
+        .map((node) => {
+          if (node.type === "file") {
+            return statusMap.has(node.relativePath) ? node : null;
+          } else {
+            // Recursively filter children
+            const filteredChildren = node.children
+              ? filterTreeByGitStatus(node.children, statusMap)
+              : [];
+
+            if (filteredChildren.length > 0) {
+              return { ...node, children: filteredChildren };
+            }
+            return null;
+          }
+        })
+        .filter((node): node is FileTreeNode => node !== null);
+    },
+    [],
+  );
+
+  // Apply git status filtering to file tree
+  const displayedFileTree = useMemo(() => {
+    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+      return fileTree;
     }
-  }, [hasOpenFile, filePath, cwd]);
+    return filterTreeByGitStatus(fileTree, gitStatus);
+  }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
 
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
@@ -686,93 +1016,227 @@ export function EditorPane({
   return (
     <div
       ref={containerRef}
-      className="flex flex-1 min-h-0 min-w-0 flex-col bg-surface"
+      className="flex flex-1 min-h-0 min-w-0 flex-col bg-background relative"
     >
-      {layoutMode === "split" ? (
-        // Split Mode Layout
-        <>
-          {/* Headers row */}
-          <div className="flex items-stretch border-b border-white/10">
-            {/* Tree header */}
-            {!isTreeCollapsed && (
-              <>
-                <div
-                  className={`flex items-center justify-between px-3 py-1.5 bg-surface-muted text-[13px] text-white/70 ${transitionClass}`}
-                  style={{ width: `${treeWidth}px` }}
+      {/* Wrapper that contains both split and single mode layouts */}
+      <div className="flex flex-1 min-h-0 min-w-0 flex-col">
+        {layoutMode === "split" ? (
+          // Split Mode Layout
+          <>
+            {/* Headers row */}
+            <div className="flex items-stretch border-b border-border">
+              {/* Tree header */}
+              {!isTreeCollapsed && (
+                <>
+                  <div
+                    className={`flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] ${transitionClass}`}
+                    style={{ width: `${treeWidth}px` }}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <button
+                        type="button"
+                        onClick={handleToggleTreeCollapse}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        title="Collapse tree"
+                      >
+                        <PanelLeftClose size={14} />
+                      </button>
+                      <span className="truncate" title={cwd}>
+                        {displayPath}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {canNavigateUp && !isLocked && (
+                        <button
+                          type="button"
+                          onClick={handleNavigateUp}
+                          className="p-1 rounded hover:bg-foreground/10 transition-colors"
+                          title="Go up one directory"
+                        >
+                          <FolderUp size={14} />
+                        </button>
+                      )}
+                      {isInGitRepo && branches.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsBranchSelectorOpen(true)}
+                          className={`p-1 rounded transition-colors ${
+                            baseBranch
+                              ? "bg-foreground/20 hover:bg-foreground/25"
+                              : "hover:bg-foreground/10"
+                          }`}
+                          title={
+                            baseBranch
+                              ? `Comparing to: ${baseBranch}`
+                              : "Comparing to: HEAD (uncommitted changes)"
+                          }
+                        >
+                          <GitBranch size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Vertical divider - matches content divider width */}
+                  <div className="w-px h-full bg-border" />
+                </>
+              )}
+
+              {/* Editor header */}
+              <div className="flex flex-1 items-center justify-between px-3 py-1.5 bg-elevated text-[13px]">
+                <div className="flex items-center gap-2 truncate">
+                  {isTreeCollapsed && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleToggleTreeCollapse}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        title="Expand tree"
+                      >
+                        <PanelLeftOpen size={14} />
+                      </button>
+                      <div className="h-4 w-px bg-white/10 shrink-0" />
+                    </>
+                  )}
+                  {hasUnsavedChanges && (
+                    <div
+                      className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
+                      title="Unsaved changes"
+                    />
+                  )}
+                  <span className="truncate" title={filePath || ""}>
+                    {filePath ? displayPath : ""}
+                  </span>
+                  {hasOpenFile && (
+                    <>
+                      <Separator
+                        orientation="vertical"
+                        className="h-4 mx-1 bg-elevated-border"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUndo}
+                        disabled={!canUndo}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Undo"
+                      >
+                        <Undo size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRedo}
+                        disabled={!canRedo}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Redo"
+                      >
+                        <Redo size={14} />
+                      </button>
+
+                      <Separator
+                        orientation="vertical"
+                        className="h-4 mx-1 bg-elevated-border"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={!hasUnsavedChanges}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Save"
+                      >
+                        <Save size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFind}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        title="Find in file (Ctrl+F)"
+                      >
+                        <Search size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Warning banner for external modifications */}
+            {showExternalChangeWarning && hasOpenFile && (
+              <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
+                <button
+                  type="button"
+                  onClick={handleDismissWarning}
+                  className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
+                  title="Dismiss"
                 >
-                  <div className="flex items-center gap-2 truncate">
+                  <X size={16} />
+                </button>
+                <div className="flex items-center gap-2 text-sm pr-8">
+                  <div className="flex items-center gap-2 text-warning-foreground">
+                    {externallyDeleted ? (
+                      <span>
+                        This file was deleted externally. Your unsaved changes
+                        will be lost unless you save to recreate the file.
+                      </span>
+                    ) : (
+                      <span>This file was modified externally.</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    {!externallyDeleted && (
+                      <button
+                        type="button"
+                        onClick={handleReloadFromDisk}
+                        className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
+                      >
+                        Reload from disk
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={handleToggleTreeCollapse}
-                      className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                      title="Collapse tree"
+                      onClick={handleSaveAnyway}
+                      className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
-                      <ChevronLeft size={14} className="text-white/60" />
+                      {externallyDeleted ? "Save anyway" : "Keep my changes"}
                     </button>
-                    <span className="truncate" title={cwd}>
-                      {displayPath}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {canNavigateUp && !isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleNavigateUp}
-                        className="p-1 rounded hover:bg-white/10 transition-colors"
-                        title="Go up one directory"
-                      >
-                        <FolderUp size={14} className="text-white/60" />
-                      </button>
-                    )}
-                    {!isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="p-1 rounded hover:bg-white/10 transition-colors"
-                        title="Refresh directory"
-                      >
-                        <RefreshCw size={14} className="text-white/60" />
-                      </button>
-                    )}
                   </div>
                 </div>
-
-                {/* Vertical divider - matches content divider width */}
-                <div
-                  style={{ width: "4px" }}
-                  className="flex items-center justify-center"
-                >
-                  <div className="w-px h-full bg-white/10" />
-                </div>
-              </>
+              </div>
             )}
-
-            {/* Editor header */}
-            <div className="flex flex-1 items-center justify-between px-3 py-1.5 bg-surface-muted text-[13px] text-white/70">
+          </>
+        ) : (
+          // Single Mode Layout
+          <>
+            <div className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-white/10">
               <div className="flex items-center gap-2 truncate">
-                {isTreeCollapsed && (
+                {activeView === "editor" && hasOpenFile && (
                   <>
                     <button
                       type="button"
-                      onClick={handleToggleTreeCollapse}
+                      onClick={() => setActiveView("tree")}
                       className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                      title="Expand tree"
+                      title="Show tree"
                     >
-                      <ChevronRight size={14} className="text-white/60" />
+                      <ChevronRight size={14} />
                     </button>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
                   </>
                 )}
-                {hasUnsavedChanges && (
+                {hasUnsavedChanges && activeView === "editor" && (
                   <div
                     className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
                     title="Unsaved changes"
                   />
                 )}
-                <span className="truncate" title={filePath || ""}>
-                  {filePath ? displayPath : ""}
+                <span
+                  className="truncate"
+                  title={activeView === "editor" ? filePath || "" : cwd}
+                >
+                  {activeView === "editor" && filePath
+                    ? displayPath
+                    : displayPath}
                 </span>
-                {hasOpenFile && (
+                {activeView === "editor" && hasOpenFile ? (
                   <>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
                     <button
@@ -811,274 +1275,185 @@ export function EditorPane({
                     >
                       <Search size={14} className="text-white/60" />
                     </button>
-                    {!isLocked && (
-                      <>
-                        <div className="h-4 w-px bg-white/10 shrink-0" />
+                  </>
+                ) : (
+                  <>
+                    <div className="h-4 w-px bg-white/10 shrink-0" />
+                    <div className="flex items-center gap-1 shrink-0">
+                      {canNavigateUp && !isLocked && (
                         <button
                           type="button"
-                          onClick={handleRefresh}
-                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                          title="Refresh file"
+                          onClick={handleNavigateUp}
+                          className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
+                          title="Go up one directory"
                         >
-                          <RefreshCw size={14} className="text-white/60" />
+                          <FolderUp size={14} />
                         </button>
-                      </>
-                    )}
+                      )}
+                      {isInGitRepo && branches.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsBranchSelectorOpen(true)}
+                          className={`p-1 rounded transition-colors ${
+                            baseBranch
+                              ? "bg-foreground/20 hover:bg-foreground/25"
+                              : "hover:bg-foreground/10"
+                          }`}
+                          title={
+                            baseBranch
+                              ? `Comparing to: ${baseBranch}`
+                              : "Comparing to: HEAD (uncommitted changes)"
+                          }
+                        >
+                          <GitBranch size={14} />
+                        </button>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Content row */}
-          <div className="flex flex-1 min-h-0 min-w-0">
-            {/* Tree section */}
-            {!isTreeCollapsed && (
-              <>
-                <div
-                  className={`flex flex-col overflow-auto p-2 ${transitionClass}`}
-                  style={{ width: `${treeWidth}px` }}
+            {/* Warning banner for external modifications */}
+            {showExternalChangeWarning && hasOpenFile && (
+              <div className="bg-warning border-b border-warning-border px-3 py-2 relative">
+                <button
+                  type="button"
+                  onClick={handleDismissWarning}
+                  className="absolute top-2 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
+                  title="Dismiss"
                 >
-                  {isLoadingTree ? (
-                    <div className="flex items-center justify-center w-full text-white/70">
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    </div>
-                  ) : fileTree.length > 0 ? (
-                    <FileTree
-                      items={fileTree}
-                      onFileSelect={handleFileSelect}
-                      onDirectoryChange={handleDirectoryChange}
-                      onFileOpen={onFileOpen}
-                      rootPath={cwd}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center w-full text-white/50">
-                      No files found
-                    </div>
-                  )}
-                </div>
-
-                {/* Resize handle - matches pane divider behavior */}
-                <div
-                  className="relative flex items-center justify-center"
-                  style={{ width: "4px" }}
-                >
-                  {/* Always-visible thin border */}
-                  <div className="absolute w-px h-full bg-white/10" />
-                  {/* Wider interactive handle that highlights on hover */}
-                  <div
-                    className={`w-1 h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
-                    onMouseDown={handleResizeStart}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Editor section */}
-            <div className="flex flex-1 min-h-0 min-w-0">
-              {hasOpenFile ? (
-                <Editor
-                  key={`${paneId}-${filePath}`}
-                  value={currentContent}
-                  onChange={handleEditorChange}
-                  onMount={handleEditorMount}
-                  language={currentLanguage}
-                  theme="vs-dark"
-                  options={{
-                    minimap: { enabled: false },
-                    smoothScrolling: true,
-                    scrollBeyondLastLine: false,
-                    lineNumbers: "on",
-                    automaticLayout: true,
-                    wordWrap: "on",
-                  }}
-                  loading={
-                    <div className="flex h-full w-full items-center justify-center text-white/70">
-                      Loading file...
-                    </div>
-                  }
-                />
-              ) : (
-                <div className="flex flex-1 bg-surface" />
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        // Single Mode Layout
-        <>
-          <div className="flex items-center justify-between px-3 py-1.5 bg-surface-muted text-[13px] text-white/70 border-b border-white/10">
-            <div className="flex items-center gap-2 truncate">
-              {activeView === "editor" && hasOpenFile && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setActiveView("tree")}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                    title="Show tree"
-                  >
-                    <ChevronRight size={14} className="text-white/60" />
-                  </button>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                </>
-              )}
-              {hasUnsavedChanges && activeView === "editor" && (
-                <div
-                  className="w-2 h-2 rounded-full bg-blue-500 shrink-0"
-                  title="Unsaved changes"
-                />
-              )}
-              <span
-                className="truncate"
-                title={activeView === "editor" ? filePath || "" : cwd}
-              >
-                {activeView === "editor" && filePath
-                  ? displayPath
-                  : displayPath}
-              </span>
-              {activeView === "editor" && hasOpenFile ? (
-                <>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                  <button
-                    type="button"
-                    onClick={handleUndo}
-                    disabled={!canUndo}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Undo"
-                  >
-                    <Undo size={14} className="text-white/60" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRedo}
-                    disabled={!canRedo}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Redo"
-                  >
-                    <Redo size={14} className="text-white/60" />
-                  </button>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={!hasUnsavedChanges}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Save"
-                  >
-                    <Save size={14} className="text-white/60" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleFind}
-                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                    title="Find in file (Ctrl+F)"
-                  >
-                    <Search size={14} className="text-white/60" />
-                  </button>
-                  {!isLocked && (
-                    <>
-                      <div className="h-4 w-px bg-white/10 shrink-0" />
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Refresh file"
-                      >
-                        <RefreshCw size={14} className="text-white/60" />
-                      </button>
-                    </>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="h-4 w-px bg-white/10 shrink-0" />
-                  <div className="flex items-center gap-1 shrink-0">
-                    {canNavigateUp && !isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleNavigateUp}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Go up one directory"
-                      >
-                        <FolderUp size={14} className="text-white/60" />
-                      </button>
-                    )}
-                    {!isLocked && (
-                      <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Refresh directory"
-                      >
-                        <RefreshCw size={14} className="text-white/60" />
-                      </button>
+                  <X size={16} />
+                </button>
+                <div className="flex items-center gap-2 text-sm pr-8">
+                  <div className="flex items-center gap-2 text-warning-foreground">
+                    {externallyDeleted ? (
+                      <span>
+                        This file was deleted externally. Your unsaved changes
+                        will be lost unless you save to recreate the file.
+                      </span>
+                    ) : (
+                      <span>This file was modified externally.</span>
                     )}
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-1 min-h-0 min-w-0 relative overflow-hidden">
-            {/* Tree view */}
-            <div
-              className={`absolute inset-0 ${transitionTransformClass} ${
-                activeView === "tree" ? "translate-x-0" : "-translate-x-full"
-              }`}
-            >
-              <div className="flex flex-1 h-full overflow-auto p-2">
-                {isLoadingTree ? (
-                  <div className="flex items-center justify-center w-full text-white/70">
-                    <Loader2 className="w-6 h-6 animate-spin" />
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    {!externallyDeleted && (
+                      <button
+                        type="button"
+                        onClick={handleReloadFromDisk}
+                        className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
+                      >
+                        Reload from disk
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveAnyway}
+                      className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    >
+                      {externallyDeleted ? "Save anyway" : "Keep my changes"}
+                    </button>
                   </div>
-                ) : fileTree.length > 0 ? (
-                  <FileTree
-                    items={fileTree}
-                    onFileSelect={handleFileSelect}
-                    onDirectoryChange={handleDirectoryChange}
-                    onFileOpen={onFileOpen}
-                    rootPath={cwd}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center w-full text-white/50">
-                    No files found
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
+          </>
+        )}
 
-            {/* Editor view */}
-            {hasOpenFile && (
+        {/* Content row - shared between split and single modes */}
+        <div className="flex flex-1 min-h-0 min-w-0">
+          {/* Tree section - single instance */}
+          <div
+            className={`flex flex-col overflow-auto p-2 ${layoutMode === "split" ? transitionClass : ""}`}
+            style={{
+              // Split mode: fixed width or collapsed
+              // Single mode: full width or hidden based on activeView
+              ...(layoutMode === "split"
+                ? {
+                    width: isTreeCollapsed ? "0px" : `${treeWidth}px`,
+                    display: isTreeCollapsed ? "none" : "flex",
+                  }
+                : {
+                    width: "100%",
+                    display: activeView === "tree" ? "flex" : "none",
+                  }),
+            }}
+          >
+            {isLoadingTree ? (
+              <div className="flex items-center justify-center w-full text-white/70">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : displayedFileTree.length > 0 ? (
+              <FileTree
+                items={displayedFileTree}
+                gitStatus={gitStatus}
+                onFileSelect={handleFileSelect}
+                onDirectoryChange={handleDirectoryChange}
+                onFileOpen={onFileOpen}
+                rootPath={cwd}
+              />
+            ) : (
+              <div className="flex items-center justify-center w-full text-white/50">
+                No files found
+              </div>
+            )}
+          </div>
+
+          {/* Resize handle - only in split mode */}
+          {layoutMode === "split" && !isTreeCollapsed && (
+            <div className="relative flex items-center justify-center w-px">
+              {/* Always-visible thin border */}
+              <div className="absolute w-px h-full bg-border" />
+              {/* Wider interactive handle that highlights on hover */}
               <div
-                className={`absolute inset-0 ${transitionTransformClass} ${
-                  activeView === "editor" ? "translate-x-0" : "translate-x-full"
-                }`}
-              >
-                <Editor
-                  key={`${paneId}-${filePath}`}
-                  value={currentContent}
-                  onChange={handleEditorChange}
-                  onMount={handleEditorMount}
-                  language={currentLanguage}
-                  theme="vs-dark"
-                  options={{
-                    minimap: { enabled: false },
-                    smoothScrolling: true,
-                    scrollBeyondLastLine: false,
-                    lineNumbers: "on",
-                    automaticLayout: true,
-                    wordWrap: "on",
-                  }}
-                  loading={
-                    <div className="flex h-full w-full items-center justify-center text-white/70">
-                      Loading file...
-                    </div>
-                  }
-                />
-              </div>
+                className={`w-1 absolute h-full cursor-col-resize transition-colors z-10 ${resizeHandleClass}`}
+                onMouseDown={handleResizeStart}
+              />
+            </div>
+          )}
+
+          {/* Editor section - visible in split mode always, visible in single mode when activeView is editor */}
+          <div
+            className="flex flex-1 min-h-0 min-w-0"
+            style={{
+              display:
+                layoutMode === "split"
+                  ? "flex"
+                  : activeView === "editor"
+                    ? "flex"
+                    : "none",
+            }}
+          >
+            {hasOpenFile ? (
+              <Editor
+                key={`${paneId}-${filePath}`}
+                value={currentContent}
+                onChange={handleEditorChange}
+                onMount={handleEditorMount}
+                language={currentLanguage}
+                theme={editorTheme}
+                options={{
+                  minimap: { enabled: false },
+                  smoothScrolling: true,
+                  scrollBeyondLastLine: false,
+                  lineNumbers: "on",
+                  automaticLayout: true,
+                  wordWrap: "on",
+                  fontSize: 13,
+                }}
+                loading={
+                  <div className="flex h-full w-full items-center justify-center">
+                    Loading file...
+                  </div>
+                }
+              />
+            ) : (
+              <div className="flex flex-1 bg-background" />
             )}
           </div>
-        </>
-      )}
+        </div>
+      </div>
+
       {!hideIndividualSandboxIndicator && (
         <SandboxIndicator
           agentSessionId={agentSessionId ?? null}
@@ -1086,6 +1461,14 @@ export function EditorPane({
           onDeleteAgentSession={handleDeleteAgentSession}
         />
       )}
+
+      <BranchSelector
+        open={isBranchSelectorOpen}
+        branches={branches}
+        currentBaseBranch={baseBranch}
+        onSelectBranch={handleBranchSelect}
+        onOpenChange={setIsBranchSelectorOpen}
+      />
     </div>
   );
 }
