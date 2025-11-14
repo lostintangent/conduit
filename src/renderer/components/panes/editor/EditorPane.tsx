@@ -11,6 +11,7 @@ import type { FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
   ChevronRight,
+  Filter,
   FolderUp,
   GitBranch,
   Loader2,
@@ -218,7 +219,15 @@ export function EditorPane({
     handleBranchSelect,
   } = useGitStatus(cwd);
 
-  const [showOnlyChangedFiles] = useState(false);
+  const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(false);
+
+  // Track which paths were manually expanded by the user
+  const [manuallyExpandedPaths, setManuallyExpandedPaths] = useState<
+    Set<string>
+  >(() => {
+    const saved = localStorage.getItem(`tree-manual-expanded-${paneId}`);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
@@ -847,6 +856,27 @@ export function EditorPane({
     [onCwdChange],
   );
 
+  // Handle manual expansion/collapse of directories
+  const handleManualExpansionToggle = useCallback(
+    (path: string, isExpanded: boolean) => {
+      setManuallyExpandedPaths((prev) => {
+        const next = new Set(prev);
+        if (isExpanded) {
+          next.add(path);
+        } else {
+          next.delete(path);
+        }
+        // Persist to localStorage
+        localStorage.setItem(
+          `tree-manual-expanded-${paneId}`,
+          JSON.stringify([...next]),
+        );
+        return next;
+      });
+    },
+    [paneId],
+  );
+
   const handleNavigateUp = useCallback(() => {
     const parentDir = path.dirname(cwd);
     if (parentDir && parentDir !== cwd) {
@@ -854,7 +884,7 @@ export function EditorPane({
     }
   }, [cwd, onCwdChange]);
 
-  // Filter file tree by git status
+  // Filter file tree by git status - only show items with git status
   const filterTreeByGitStatus = useCallback(
     (
       nodes: FileTreeNode[],
@@ -863,20 +893,100 @@ export function EditorPane({
       return nodes
         .map((node) => {
           if (node.type === "file") {
+            // Simple: Only show files that have git status
             return statusMap.has(node.relativePath) ? node : null;
           } else {
-            // Recursively filter children
-            const filteredChildren = node.children
-              ? filterTreeByGitStatus(node.children, statusMap)
-              : [];
+            // Directory: recursively filter children if loaded
+            if (node.children) {
+              const filteredChildren = filterTreeByGitStatus(
+                node.children,
+                statusMap,
+              );
 
-            if (filteredChildren.length > 0) {
-              return { ...node, children: filteredChildren };
+              // Only show directory if it has changed children after filtering
+              if (filteredChildren.length > 0) {
+                return { ...node, children: filteredChildren };
+              }
+
+              // No changed children, don't show this directory
+              return null;
             }
+
+            // Children not loaded - check if any changed files exist under this path
+            const dirPath = node.relativePath;
+            for (const [filePath] of statusMap) {
+              if (
+                filePath.startsWith(dirPath + "/") ||
+                filePath.startsWith(dirPath + "\\")
+              ) {
+                // Has changed files underneath, show directory (children will load later)
+                return node;
+              }
+            }
+
+            // No changes under this directory
             return null;
           }
         })
         .filter((node): node is FileTreeNode => node !== null);
+    },
+    [],
+  );
+
+  // Helper to determine which folders should be expanded when filtering
+  const getExpandedPaths = useCallback(
+    (nodes: FileTreeNode[], statusMap: Map<string, unknown>): Set<string> => {
+      const expandedPaths = new Set<string>();
+
+      const checkNode = (node: FileTreeNode): boolean => {
+        if (node.type === "file") {
+          return statusMap.has(node.relativePath);
+        }
+
+        // For directories, check if any file under this path has changes
+        const dirPath = node.relativePath;
+        let hasChangedDescendants = false;
+
+        // Check if any file in the statusMap starts with this directory's path
+        // Handle both nested paths (with /) and root directories
+        for (const [filePath] of statusMap) {
+          // Check if this directory itself is tracked (e.g., untracked directory)
+          if (filePath === dirPath || filePath === dirPath + "/") {
+            hasChangedDescendants = true;
+            expandedPaths.add(node.relativePath);
+            break;
+          }
+
+          // For root directories, check if file path starts with dir name followed by separator
+          // For nested directories, check if path starts with full dir path followed by separator
+          const isUnderThisDir =
+            dirPath === ""
+              ? true // Empty path means root, include all
+              : filePath.startsWith(dirPath + "/") || // Unix-style separator
+                filePath.startsWith(dirPath + "\\"); // Windows-style separator
+
+          if (isUnderThisDir) {
+            hasChangedDescendants = true;
+            expandedPaths.add(node.relativePath);
+            break;
+          }
+        }
+
+        // Also recursively check loaded children
+        if (node.children) {
+          for (const child of node.children) {
+            if (checkNode(child)) {
+              hasChangedDescendants = true;
+              expandedPaths.add(node.relativePath);
+            }
+          }
+        }
+
+        return hasChangedDescendants;
+      };
+
+      nodes.forEach((node) => checkNode(node));
+      return expandedPaths;
     },
     [],
   );
@@ -888,6 +998,24 @@ export function EditorPane({
     }
     return filterTreeByGitStatus(fileTree, gitStatus);
   }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
+
+  // Compute paths that should be auto-expanded when filtering
+  const autoExpandedPaths = useMemo(() => {
+    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+      return new Set<string>();
+    }
+    return getExpandedPaths(fileTree, gitStatus);
+  }, [fileTree, showOnlyChangedFiles, gitStatus, getExpandedPaths]);
+
+  // Combine manual and auto expanded paths
+  const expandedPaths = useMemo(() => {
+    if (showOnlyChangedFiles) {
+      // When filtering, show both manually and auto-expanded paths
+      return new Set([...manuallyExpandedPaths, ...autoExpandedPaths]);
+    }
+    // When not filtering, only show manually expanded paths
+    return manuallyExpandedPaths;
+  }, [showOnlyChangedFiles, manuallyExpandedPaths, autoExpandedPaths]);
 
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
@@ -1054,6 +1182,26 @@ export function EditorPane({
                           title="Go up one directory"
                         >
                           <FolderUp size={14} />
+                        </button>
+                      )}
+                      {isInGitRepo && gitStatus && gitStatus.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowOnlyChangedFiles(!showOnlyChangedFiles)
+                          }
+                          className={`p-1 rounded transition-colors ${
+                            showOnlyChangedFiles
+                              ? "bg-foreground/20 hover:bg-foreground/25"
+                              : "hover:bg-foreground/10"
+                          }`}
+                          title={
+                            showOnlyChangedFiles
+                              ? "Show all files"
+                              : "Show only files with changes"
+                          }
+                        >
+                          <Filter size={14} />
                         </button>
                       )}
                       {isInGitRepo && branches.length > 0 && (
@@ -1290,6 +1438,26 @@ export function EditorPane({
                           <FolderUp size={14} />
                         </button>
                       )}
+                      {isInGitRepo && gitStatus && gitStatus.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowOnlyChangedFiles(!showOnlyChangedFiles)
+                          }
+                          className={`p-1 rounded transition-colors ${
+                            showOnlyChangedFiles
+                              ? "bg-foreground/20 hover:bg-foreground/25"
+                              : "hover:bg-foreground/10"
+                          }`}
+                          title={
+                            showOnlyChangedFiles
+                              ? "Show all files"
+                              : "Show only files with changes"
+                          }
+                        >
+                          <Filter size={14} />
+                        </button>
+                      )}
                       {isInGitRepo && branches.length > 0 && (
                         <button
                           type="button"
@@ -1391,6 +1559,9 @@ export function EditorPane({
                 onDirectoryChange={handleDirectoryChange}
                 onFileOpen={onFileOpen}
                 rootPath={cwd}
+                expandedPaths={expandedPaths}
+                onManualExpansionToggle={handleManualExpansionToggle}
+                isFiltering={showOnlyChangedFiles}
               />
             ) : (
               <div className="flex items-center justify-center w-full text-white/50">

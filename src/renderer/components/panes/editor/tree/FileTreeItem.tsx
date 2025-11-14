@@ -9,6 +9,9 @@ type FileTreeItemProps = {
   onDirectoryChange?: (path: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
   rootPath: string;
+  expandedPaths?: Set<string> | null;
+  onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
+  isFiltering?: boolean;
 };
 
 export function FileTreeItem({
@@ -18,6 +21,9 @@ export function FileTreeItem({
   onDirectoryChange,
   onFileOpen,
   rootPath,
+  expandedPaths,
+  onManualExpansionToggle,
+  isFiltering,
 }: FileTreeItemProps) {
   const isDirectory = node.type === "directory";
   if (isDirectory) {
@@ -29,6 +35,10 @@ export function FileTreeItem({
         onDirectoryChange={onDirectoryChange}
         onFileOpen={onFileOpen}
         rootPath={rootPath}
+        isExpanded={expandedPaths?.has(node.relativePath) || false}
+        expandedPaths={expandedPaths}
+        onManualExpansionToggle={onManualExpansionToggle}
+        isFiltering={isFiltering}
       />
     );
   }

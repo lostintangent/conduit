@@ -8,7 +8,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type { KeyboardEvent } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileTreeItem } from "./FileTreeItem";
 import { aggregateFolderStatus } from "./gitFolderAggregation";
 
@@ -21,6 +21,10 @@ type DirectoryItemProps = {
   onDirectoryChange?: (path: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
   rootPath: string;
+  isExpanded: boolean;
+  expandedPaths?: Set<string> | null;
+  onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
+  isFiltering?: boolean;
 };
 
 export function DirectoryItem({
@@ -30,12 +34,65 @@ export function DirectoryItem({
   onDirectoryChange,
   onFileOpen,
   rootPath,
+  isExpanded,
+  expandedPaths,
+  onManualExpansionToggle,
+  isFiltering,
 }: DirectoryItemProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [children, setChildren] = useState<FileTreeNode[] | undefined>(
     node.children,
   );
+
+  // Helper to filter children based on git status
+  const filterChildren = useCallback(
+    (loadedChildren: FileTreeNode[]): FileTreeNode[] => {
+      if (!isFiltering || !gitStatus) {
+        return loadedChildren;
+      }
+
+      // Filter children to only show those with git status or directories containing changes
+      return loadedChildren.filter((child) => {
+        if (child.type === "file") {
+          // Only show files with git status
+          return gitStatus.has(child.relativePath);
+        } else {
+          // For directories, check if any file under it has changes
+          const dirPath = child.relativePath;
+          for (const [filePath] of gitStatus) {
+            if (
+              filePath.startsWith(dirPath + "/") ||
+              filePath.startsWith(dirPath + "\\")
+            ) {
+              return true;
+            }
+          }
+          return false;
+        }
+      });
+    },
+    [isFiltering, gitStatus],
+  );
+
+  // Load children when expanded
+  useEffect(() => {
+    if (isExpanded && children === undefined) {
+      setIsLoading(true);
+      api
+        .listDirectory(node.path, rootPath)
+        .then((loadedChildren) => {
+          // Filter children if we're in filter mode
+          const filteredChildren = filterChildren(loadedChildren);
+          setChildren(filteredChildren);
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          console.error("Failed to load directory contents:", error);
+          setChildren([]);
+          setIsLoading(false);
+        });
+    }
+  }, [isExpanded, children, node.path, rootPath, filterChildren]);
 
   // Aggregate git status for this folder using VS Code's weight-based priority system
   const folderStatus = useMemo(
@@ -52,11 +109,17 @@ export function DirectoryItem({
     : "text-foreground";
 
   const toggleOpen = useCallback(async () => {
-    if (!isOpen && children === undefined) {
+    // Toggle the expansion state through the parent
+    onManualExpansionToggle?.(node.relativePath, !isExpanded);
+
+    // Load children if expanding and not already loaded
+    if (!isExpanded && children === undefined) {
       setIsLoading(true);
       try {
         const loadedChildren = await api.listDirectory(node.path, rootPath);
-        setChildren(loadedChildren);
+        // Filter children if we're in filter mode
+        const filteredChildren = filterChildren(loadedChildren);
+        setChildren(filteredChildren);
       } catch (error) {
         console.error("Failed to load directory contents:", error);
         setChildren([]);
@@ -64,8 +127,15 @@ export function DirectoryItem({
         setIsLoading(false);
       }
     }
-    setIsOpen((current) => !current);
-  }, [isOpen, children, node.path, rootPath]);
+  }, [
+    isExpanded,
+    children,
+    node.path,
+    rootPath,
+    node.relativePath,
+    onManualExpansionToggle,
+    filterChildren,
+  ]);
 
   const handleChangeCwd = useCallback(
     (e: React.MouseEvent) => {
@@ -86,8 +156,8 @@ export function DirectoryItem({
   );
 
   const hasChildren = Array.isArray(children) && children.length > 0;
-  const ArrowIcon = isOpen ? ChevronDown : ChevronRight;
-  const FolderIcon = isOpen ? FolderOpen : Folder;
+  const ArrowIcon = isExpanded ? ChevronDown : ChevronRight;
+  const FolderIcon = isExpanded ? FolderOpen : Folder;
 
   return (
     <li>
@@ -96,7 +166,7 @@ export function DirectoryItem({
         tabIndex={0}
         onClick={toggleOpen}
         onKeyDown={handleRowKeyDown}
-        aria-expanded={isOpen}
+        aria-expanded={isExpanded}
         className="group flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-foreground/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       >
         {isLoading ? (
@@ -133,7 +203,7 @@ export function DirectoryItem({
           )}
         </div>
       </div>
-      {isOpen && (
+      {isExpanded && (
         <ul className="mt-0.5 border-l border-border pl-2">
           {isLoading ? (
             <li className="pl-4 text-xs text-foreground/50">Loading...</li>
@@ -147,6 +217,9 @@ export function DirectoryItem({
                 onDirectoryChange={onDirectoryChange}
                 onFileOpen={onFileOpen}
                 rootPath={rootPath}
+                expandedPaths={expandedPaths}
+                onManualExpansionToggle={onManualExpansionToggle}
+                isFiltering={isFiltering}
               />
             ))
           ) : (
