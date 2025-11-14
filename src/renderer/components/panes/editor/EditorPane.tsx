@@ -1001,57 +1001,30 @@ export function EditorPane({
 
   // Helper to determine which folders should be expanded when filtering
   const getExpandedPaths = useCallback(
-    (nodes: FileTreeNode[], statusMap: Map<string, unknown>): Set<string> => {
+    (statusMap: Map<string, unknown>): Set<string> => {
       const expandedPaths = new Set<string>();
 
-      const checkNode = (node: FileTreeNode): boolean => {
-        if (node.type === "file") {
-          return statusMap.has(node.relativePath);
-        }
+      // Derive all parent directory paths from the gitStatus map
+      // This ensures we expand ALL directories containing changes, not just loaded ones
+      for (const [filePath] of statusMap) {
+        // For each changed file, add all its parent directories to expandedPaths
+        const parts = filePath.split(/[/\\]/);
 
-        // For directories, check if any file under this path has changes
-        const dirPath = node.relativePath;
-        let hasChangedDescendants = false;
-
-        // Check if any file in the statusMap starts with this directory's path
-        // Handle both nested paths (with /) and root directories
-        for (const [filePath] of statusMap) {
-          // Check if this directory itself is tracked (e.g., untracked directory)
-          if (filePath === dirPath || filePath === dirPath + "/") {
-            hasChangedDescendants = true;
-            expandedPaths.add(node.relativePath);
-            break;
+        // Build up the path progressively
+        let currentPath = "";
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (currentPath) {
+            currentPath += "/" + parts[i];
+          } else {
+            currentPath = parts[i];
           }
 
-          // For root directories, check if file path starts with dir name followed by separator
-          // For nested directories, check if path starts with full dir path followed by separator
-          const isUnderThisDir =
-            dirPath === ""
-              ? true // Empty path means root, include all
-              : filePath.startsWith(dirPath + "/") || // Unix-style separator
-                filePath.startsWith(dirPath + "\\"); // Windows-style separator
-
-          if (isUnderThisDir) {
-            hasChangedDescendants = true;
-            expandedPaths.add(node.relativePath);
-            break;
+          if (currentPath) {
+            expandedPaths.add(currentPath);
           }
         }
+      }
 
-        // Also recursively check loaded children
-        if (node.children) {
-          for (const child of node.children) {
-            if (checkNode(child)) {
-              hasChangedDescendants = true;
-              expandedPaths.add(node.relativePath);
-            }
-          }
-        }
-
-        return hasChangedDescendants;
-      };
-
-      nodes.forEach((node) => checkNode(node));
       return expandedPaths;
     },
     [],
@@ -1070,8 +1043,8 @@ export function EditorPane({
     if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
       return new Set<string>();
     }
-    return getExpandedPaths(fileTree, gitStatus);
-  }, [fileTree, showOnlyChangedFiles, gitStatus, getExpandedPaths]);
+    return getExpandedPaths(gitStatus);
+  }, [showOnlyChangedFiles, gitStatus, getExpandedPaths]);
 
   // Combine manual and auto expanded paths
   const expandedPaths = useMemo(() => {
