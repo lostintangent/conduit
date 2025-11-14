@@ -6,11 +6,13 @@ import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { resolveTheme } from "@/utils/theme";
-import Editor, { loader } from "@monaco-editor/react";
-import type { FileTreeNode } from "@shared/types";
+import Editor, { DiffEditor, loader } from "@monaco-editor/react";
+import type { FileDiffResult, FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
   ChevronRight,
+  Eye,
+  FileText,
   Filter,
   FolderUp,
   GitBranch,
@@ -18,6 +20,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Redo,
+  RotateCcw,
   Save,
   Search,
   Undo,
@@ -206,6 +209,7 @@ export function EditorPane({
   // This allows handlers to access current values without causing re-subscription
   const filePathRef = useRef(filePath);
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  const currentContentRef = useRef(currentContent);
   const previousFilePathRef = useRef(filePath);
 
   // Git status integration
@@ -220,6 +224,34 @@ export function EditorPane({
   } = useGitStatus(cwd);
 
   const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(false);
+
+  // Diff viewer state - using discriminated union to prevent invalid states
+  type ViewMode =
+    | { type: "editor" }
+    | { type: "diff"; data: FileDiffResult; showRaw: boolean };
+
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
+
+  // Re-fetch diff when baseBranch changes while in diff mode
+  useEffect(() => {
+    if (viewMode.type !== "diff" || !filePath || !cwd) return;
+
+    const refetchDiff = async () => {
+      try {
+        const result = await api.getFileDiff(filePath, cwd, baseBranch);
+
+        if (result.success && result.diff) {
+          setViewMode({ type: "diff", data: result.diff, showRaw: false });
+          // Don't call onFileChange here - it would cause render loops
+          // The diff data update is sufficient for the UI to re-render
+        }
+      } catch (error) {
+        console.error("Failed to refetch diff:", error);
+      }
+    };
+
+    refetchDiff();
+  }, [baseBranch, viewMode.type, filePath, cwd]);
 
   // Track which paths were manually expanded by the user
   const [manuallyExpandedPaths, setManuallyExpandedPaths] = useState<
@@ -606,7 +638,8 @@ export function EditorPane({
   useEffect(() => {
     filePathRef.current = filePath;
     hasUnsavedChangesRef.current = hasUnsavedChanges;
-  }, [filePath, hasUnsavedChanges]);
+    currentContentRef.current = currentContent;
+  }, [filePath, hasUnsavedChanges, currentContent]);
 
   // File watcher subscription lifecycle
   useEffect(() => {
@@ -735,11 +768,11 @@ export function EditorPane({
         );
 
         // Update the file path without losing content or state
-        // currentContent is captured from the enclosing scope
+        // Use currentContentRef to avoid stale closure
         onFileChange?.({
           filePath: payload.newPath,
           language: inferLanguageFromFilePath(payload.newPath),
-          content: currentContent, // Keep existing content
+          content: currentContentRef.current || "", // Keep existing content
         });
 
         // Clear any external modification warnings
@@ -826,19 +859,52 @@ export function EditorPane({
       }
 
       try {
-        const fileContent = await api.readFile(node.path);
         const detectedLanguage = inferLanguageFromFilePath(node.path);
 
-        onFileChange?.({
-          filePath: node.path,
-          language: detectedLanguage,
-          content: fileContent,
-        });
+        // Check if we should show diff view
+        const shouldShowDiff =
+          showOnlyChangedFiles && gitStatus && gitStatus.has(node.relativePath);
+
+        if (shouldShowDiff) {
+          // Fetch diff data
+          const result = await api.getFileDiff(node.path, cwd, baseBranch);
+
+          if (result.success && result.diff) {
+            setViewMode({ type: "diff", data: result.diff, showRaw: false });
+
+            // Update parent with the modified content (for display purposes)
+            onFileChange?.({
+              filePath: node.path,
+              language: detectedLanguage,
+              content: result.diff.modifiedContent,
+            });
+          } else {
+            // Fallback to regular file view if diff fetch fails
+            const fileContent = await api.readFile(node.path);
+            setViewMode({ type: "editor" });
+
+            onFileChange?.({
+              filePath: node.path,
+              language: detectedLanguage,
+              content: fileContent,
+            });
+          }
+        } else {
+          // Regular file view
+          const fileContent = await api.readFile(node.path);
+          setViewMode({ type: "editor" });
+
+          onFileChange?.({
+            filePath: node.path,
+            language: detectedLanguage,
+            content: fileContent,
+          });
+        }
       } catch (error) {
         console.error("Failed to open file:", error);
       }
     },
-    [onFileChange],
+    [onFileChange, showOnlyChangedFiles, gitStatus, cwd, baseBranch],
   );
 
   const handleEditorChange = useCallback(
@@ -935,57 +1001,30 @@ export function EditorPane({
 
   // Helper to determine which folders should be expanded when filtering
   const getExpandedPaths = useCallback(
-    (nodes: FileTreeNode[], statusMap: Map<string, unknown>): Set<string> => {
+    (statusMap: Map<string, unknown>): Set<string> => {
       const expandedPaths = new Set<string>();
 
-      const checkNode = (node: FileTreeNode): boolean => {
-        if (node.type === "file") {
-          return statusMap.has(node.relativePath);
-        }
+      // Derive all parent directory paths from the gitStatus map
+      // This ensures we expand ALL directories containing changes, not just loaded ones
+      for (const [filePath] of statusMap) {
+        // For each changed file, add all its parent directories to expandedPaths
+        const parts = filePath.split(/[/\\]/);
 
-        // For directories, check if any file under this path has changes
-        const dirPath = node.relativePath;
-        let hasChangedDescendants = false;
-
-        // Check if any file in the statusMap starts with this directory's path
-        // Handle both nested paths (with /) and root directories
-        for (const [filePath] of statusMap) {
-          // Check if this directory itself is tracked (e.g., untracked directory)
-          if (filePath === dirPath || filePath === dirPath + "/") {
-            hasChangedDescendants = true;
-            expandedPaths.add(node.relativePath);
-            break;
+        // Build up the path progressively
+        let currentPath = "";
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (currentPath) {
+            currentPath += "/" + parts[i];
+          } else {
+            currentPath = parts[i];
           }
 
-          // For root directories, check if file path starts with dir name followed by separator
-          // For nested directories, check if path starts with full dir path followed by separator
-          const isUnderThisDir =
-            dirPath === ""
-              ? true // Empty path means root, include all
-              : filePath.startsWith(dirPath + "/") || // Unix-style separator
-                filePath.startsWith(dirPath + "\\"); // Windows-style separator
-
-          if (isUnderThisDir) {
-            hasChangedDescendants = true;
-            expandedPaths.add(node.relativePath);
-            break;
+          if (currentPath) {
+            expandedPaths.add(currentPath);
           }
         }
+      }
 
-        // Also recursively check loaded children
-        if (node.children) {
-          for (const child of node.children) {
-            if (checkNode(child)) {
-              hasChangedDescendants = true;
-              expandedPaths.add(node.relativePath);
-            }
-          }
-        }
-
-        return hasChangedDescendants;
-      };
-
-      nodes.forEach((node) => checkNode(node));
       return expandedPaths;
     },
     [],
@@ -1004,8 +1043,8 @@ export function EditorPane({
     if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
       return new Set<string>();
     }
-    return getExpandedPaths(fileTree, gitStatus);
-  }, [fileTree, showOnlyChangedFiles, gitStatus, getExpandedPaths]);
+    return getExpandedPaths(gitStatus);
+  }, [showOnlyChangedFiles, gitStatus, getExpandedPaths]);
 
   // Combine manual and auto expanded paths
   const expandedPaths = useMemo(() => {
@@ -1066,6 +1105,39 @@ export function EditorPane({
       editorRef.current.trigger("keyboard", "redo", null);
     }
   }, []);
+
+  // Diff viewer handlers
+  const handleToggleRawView = useCallback(() => {
+    if (viewMode.type === "diff") {
+      setViewMode({ ...viewMode, showRaw: !viewMode.showRaw });
+    }
+  }, [viewMode]);
+
+  const handleRevertFile = useCallback(async () => {
+    if (!filePath || viewMode.type !== "diff") return;
+
+    const confirmed = confirm(
+      `Are you sure you want to revert all changes to ${path.basename(filePath)}?`,
+    );
+    if (!confirmed) return;
+
+    try {
+      // Write the original content back to the file
+      if (viewMode.data.originalContent !== undefined) {
+        await api.writeFile(filePath, viewMode.data.originalContent);
+        // Reload the file to show the reverted content
+        const fileContent = await api.readFile(filePath);
+        onFileChange?.({
+          filePath,
+          language: currentLanguage || "plaintext",
+          content: fileContent,
+        });
+        setViewMode({ type: "editor" });
+      }
+    } catch (error) {
+      console.error("Failed to revert file:", error);
+    }
+  }, [filePath, viewMode, currentLanguage, onFileChange]);
 
   // Resize handlers
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
@@ -1296,47 +1368,84 @@ export function EditorPane({
                         orientation="vertical"
                         className="h-4 mx-1 bg-elevated-border"
                       />
-                      <button
-                        type="button"
-                        onClick={handleUndo}
-                        disabled={!canUndo}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Undo"
-                      >
-                        <Undo size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRedo}
-                        disabled={!canRedo}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Redo"
-                      >
-                        <Redo size={14} />
-                      </button>
+                      {viewMode.type === "diff" ? (
+                        <>
+                          {/* Diff mode buttons */}
+                          {viewMode.data.status !== "deleted" && (
+                            <button
+                              type="button"
+                              onClick={handleToggleRawView}
+                              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                              title={
+                                viewMode.showRaw
+                                  ? "Show diff view"
+                                  : "View raw file"
+                              }
+                            >
+                              {viewMode.showRaw ? (
+                                <Eye size={14} />
+                              ) : (
+                                <FileText size={14} />
+                              )}
+                            </button>
+                          )}
+                          {viewMode.data.status !== "binary" && (
+                            <button
+                              type="button"
+                              onClick={handleRevertFile}
+                              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                              title="Revert changes"
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {/* Regular editor buttons */}
+                          <button
+                            type="button"
+                            onClick={handleUndo}
+                            disabled={!canUndo}
+                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Undo"
+                          >
+                            <Undo size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRedo}
+                            disabled={!canRedo}
+                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Redo"
+                          >
+                            <Redo size={14} />
+                          </button>
 
-                      <Separator
-                        orientation="vertical"
-                        className="h-4 mx-1 bg-elevated-border"
-                      />
+                          <Separator
+                            orientation="vertical"
+                            className="h-4 mx-1 bg-elevated-border"
+                          />
 
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={!hasUnsavedChanges}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Save"
-                      >
-                        <Save size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleFind}
-                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                        title="Find in file (Ctrl+F)"
-                      >
-                        <Search size={14} />
-                      </button>
+                          <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={!hasUnsavedChanges}
+                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Save"
+                          >
+                            <Save size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleFind}
+                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                            title="Find in file (Ctrl+F)"
+                          >
+                            <Search size={14} />
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -1420,42 +1529,79 @@ export function EditorPane({
                 {activeView === "editor" && hasOpenFile ? (
                   <>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
-                    <button
-                      type="button"
-                      onClick={handleUndo}
-                      disabled={!canUndo}
-                      className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Undo"
-                    >
-                      <Undo size={14} className="text-white/60" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRedo}
-                      disabled={!canRedo}
-                      className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Redo"
-                    >
-                      <Redo size={14} className="text-white/60" />
-                    </button>
-                    <div className="h-4 w-px bg-white/10 shrink-0" />
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={!hasUnsavedChanges}
-                      className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Save"
-                    >
-                      <Save size={14} className="text-white/60" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleFind}
-                      className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                      title="Find in file (Ctrl+F)"
-                    >
-                      <Search size={14} className="text-white/60" />
-                    </button>
+                    {viewMode.type === "diff" ? (
+                      <>
+                        {/* Diff mode buttons */}
+                        {viewMode.data.status !== "deleted" && (
+                          <button
+                            type="button"
+                            onClick={handleToggleRawView}
+                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                            title={
+                              viewMode.showRaw
+                                ? "Show diff view"
+                                : "View raw file"
+                            }
+                          >
+                            {viewMode.showRaw ? (
+                              <Eye size={14} className="text-white/60" />
+                            ) : (
+                              <FileText size={14} className="text-white/60" />
+                            )}
+                          </button>
+                        )}
+                        {viewMode.data.status !== "binary" && (
+                          <button
+                            type="button"
+                            onClick={handleRevertFile}
+                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                            title="Revert changes"
+                          >
+                            <RotateCcw size={14} className="text-white/60" />
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Regular editor buttons */}
+                        <button
+                          type="button"
+                          onClick={handleUndo}
+                          disabled={!canUndo}
+                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Undo"
+                        >
+                          <Undo size={14} className="text-white/60" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRedo}
+                          disabled={!canRedo}
+                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Redo"
+                        >
+                          <Redo size={14} className="text-white/60" />
+                        </button>
+                        <div className="h-4 w-px bg-white/10 shrink-0" />
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={!hasUnsavedChanges}
+                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Save"
+                        >
+                          <Save size={14} className="text-white/60" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleFind}
+                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                          title="Find in file (Ctrl+F)"
+                        >
+                          <Search size={14} className="text-white/60" />
+                        </button>
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
@@ -1629,28 +1775,94 @@ export function EditorPane({
             }}
           >
             {hasOpenFile ? (
-              <Editor
-                key={`${paneId}-${filePath}`}
-                value={currentContent}
-                onChange={handleEditorChange}
-                onMount={handleEditorMount}
-                language={currentLanguage}
-                theme={editorTheme}
-                options={{
-                  minimap: { enabled: false },
-                  smoothScrolling: true,
-                  scrollBeyondLastLine: false,
-                  lineNumbers: "on",
-                  automaticLayout: true,
-                  wordWrap: "on",
-                  fontSize: 13,
-                }}
-                loading={
-                  <div className="flex h-full w-full items-center justify-center">
-                    Loading file...
-                  </div>
-                }
-              />
+              <>
+                {viewMode.type === "diff" && !viewMode.showRaw ? (
+                  // Show diff editor when in diff mode
+                  viewMode.data.isBinary ? (
+                    // Binary file indicator
+                    <div className="flex flex-1 items-center justify-center bg-background text-muted-foreground">
+                      <div className="text-center">
+                        <div className="text-lg mb-2">Binary file</div>
+                        <div className="text-sm">
+                          Cannot display diff for binary files
+                        </div>
+                      </div>
+                    </div>
+                  ) : viewMode.data.status === "deleted" ? (
+                    // Show deleted file content
+                    <Editor
+                      key={`${paneId}-${filePath}-deleted`}
+                      value={viewMode.data.originalContent}
+                      language={currentLanguage}
+                      theme={editorTheme}
+                      options={{
+                        minimap: { enabled: false },
+                        smoothScrolling: true,
+                        scrollBeyondLastLine: false,
+                        lineNumbers: "on",
+                        automaticLayout: true,
+                        wordWrap: "on",
+                        fontSize: 13,
+                        readOnly: true,
+                      }}
+                      loading={
+                        <div className="flex h-full w-full items-center justify-center">
+                          Loading diff...
+                        </div>
+                      }
+                    />
+                  ) : (
+                    // Show diff editor for modified/added files
+                    <DiffEditor
+                      key={`${paneId}-${filePath}-diff`}
+                      original={viewMode.data.originalContent}
+                      modified={viewMode.data.modifiedContent}
+                      language={currentLanguage}
+                      theme={editorTheme}
+                      options={{
+                        minimap: { enabled: false },
+                        smoothScrolling: true,
+                        scrollBeyondLastLine: false,
+                        lineNumbers: "on",
+                        automaticLayout: true,
+                        wordWrap: "on",
+                        fontSize: 13,
+                        readOnly: true,
+                        renderSideBySide: true,
+                      }}
+                      loading={
+                        <div className="flex h-full w-full items-center justify-center">
+                          Loading diff...
+                        </div>
+                      }
+                    />
+                  )
+                ) : (
+                  // Regular editor
+                  <Editor
+                    key={`${paneId}-${filePath}`}
+                    value={currentContent}
+                    onChange={handleEditorChange}
+                    onMount={handleEditorMount}
+                    language={currentLanguage}
+                    theme={editorTheme}
+                    options={{
+                      minimap: { enabled: false },
+                      smoothScrolling: true,
+                      scrollBeyondLastLine: false,
+                      lineNumbers: "on",
+                      automaticLayout: true,
+                      wordWrap: "on",
+                      fontSize: 13,
+                    }}
+                    loading={
+                      <div className="flex h-full w-full items-center justify-center">
+                        Loading file...
+                      </div>
+                    }
+                  />
+                )}
+              </>
             ) : (
               <div className="flex flex-1 bg-background" />
             )}

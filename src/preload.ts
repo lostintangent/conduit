@@ -13,6 +13,7 @@ import type {
   BrowserPage,
   CreateVMPayload,
   DeleteVMPayload,
+  FileDiffResult,
   FileChangedEvent,
   FileRenamedEvent,
   FileTreeNode,
@@ -433,6 +434,18 @@ const conduitAPI = {
   refreshGitStatus: (cwd: string) =>
     ipcRenderer.invoke("git:refresh-status", cwd) as Promise<{
       success: boolean;
+      error?: string;
+    }>,
+
+  getFileDiff: (filePath: string, cwd: string, baseBranch?: string | null) =>
+    ipcRenderer.invoke(
+      "git:get-file-diff",
+      filePath,
+      cwd,
+      baseBranch,
+    ) as Promise<{
+      success: boolean;
+      diff: FileDiffResult | null;
       error?: string;
     }>,
 

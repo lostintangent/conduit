@@ -43,14 +43,22 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
           {node.name}
         </span>
         <div className="shrink-0 flex items-center gap-1">
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={handleOpen}
-            className="opacity-0 group-hover:opacity-100 group-hover:text-foreground group-focus-within:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleOpen(e as any);
+              }
+            }}
+            className="opacity-0 group-hover:opacity-100 group-hover:text-foreground group-focus-within:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
             title="Open in quick pane"
+            aria-label="Open in quick pane"
           >
             <ExternalLink size={12} />
-          </button>
+          </div>
           {gitStatus && (
             <div
               className="flex items-center justify-center"

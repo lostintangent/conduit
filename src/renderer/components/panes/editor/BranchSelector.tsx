@@ -1,6 +1,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -59,7 +60,10 @@ export function BranchSelector({
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onOpenChange(false);
+      } else if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) => (prev + 1) % totalOptions);
       } else if (e.key === "ArrowUp") {
@@ -79,7 +83,13 @@ export function BranchSelector({
         }
       }
     },
-    [onSelectBranch, selectedIndex, totalOptions, filteredBranches],
+    [
+      onSelectBranch,
+      onOpenChange,
+      selectedIndex,
+      totalOptions,
+      filteredBranches,
+    ],
   );
 
   // Scroll selected item into view
@@ -119,6 +129,9 @@ export function BranchSelector({
             <GitBranch className="h-4 w-4 text-foreground/60" />
             Select Base Branch
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Choose a branch to compare your working tree against
+          </DialogDescription>
         </DialogHeader>
 
         {/* Filter input */}

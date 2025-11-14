@@ -279,9 +279,10 @@ export async function listBranches(gitRoot: string): Promise<Branch[]> {
 
       if (!name) continue;
 
-      // Remove "origin/" prefix for remote branches
-      const cleanName = name.replace(/^origin\//, "");
-      const isRemote = name.startsWith("origin/");
+      // Remove remote prefix for remote branches (e.g., "origin/", "upstream/")
+      // Handle any remote, not just "origin"
+      const isRemote = name.includes("/");
+      const cleanName = isRemote ? name.split("/").slice(1).join("/") : name;
       const isCurrent = isCurrentMarker === "*";
 
       const branch: Branch = {
@@ -293,13 +294,26 @@ export async function listBranches(gitRoot: string): Promise<Branch[]> {
         lastCommitMessage: message,
       };
 
-      // Use a composite key: name + remote status to keep local and remote branches separate
-      const key = `${cleanName}:${isRemote ? "remote" : "local"}`;
+      // Deduplicate branches by name only
+      // Priority: current > local > remote
+      const existing = branchMap.get(cleanName);
+      if (!existing) {
+        branchMap.set(cleanName, branch);
+      } else {
+        // Calculate priority for comparison
+        const getPriority = (b: Branch) => {
+          if (b.isCurrent) return 3; // Current branch has highest priority
+          if (!b.isRemote) return 2; // Local branch has medium priority
+          return 1; // Remote branch has lowest priority
+        };
 
-      // Deduplicate: prefer current branch over non-current for the same key
-      const existing = branchMap.get(key);
-      if (!existing || (!existing.isCurrent && branch.isCurrent)) {
-        branchMap.set(key, branch);
+        const existingPriority = getPriority(existing);
+        const branchPriority = getPriority(branch);
+
+        // Replace if new branch has higher priority
+        if (branchPriority > existingPriority) {
+          branchMap.set(cleanName, branch);
+        }
       }
     }
   } catch (error) {
