@@ -229,6 +229,33 @@ export function EditorPane({
   const [showRawFile, setShowRawFile] = useState(false);
   const [diffData, setDiffData] = useState<FileDiffResult | null>(null);
 
+  // Re-fetch diff when baseBranch changes while in diff mode
+  useEffect(() => {
+    if (!isDiffMode || !filePath || !cwd) return;
+
+    const refetchDiff = async () => {
+      try {
+        const result = await api.getFileDiff(filePath, cwd, baseBranch);
+
+        if (result.success && result.diff) {
+          setDiffData(result.diff);
+
+          // Update parent with the modified content
+          const detectedLanguage = inferLanguageFromFilePath(filePath);
+          onFileChange?.({
+            filePath,
+            language: detectedLanguage,
+            content: result.diff.modifiedContent,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to refetch diff:", error);
+      }
+    };
+
+    refetchDiff();
+  }, [baseBranch, isDiffMode, filePath, cwd, onFileChange]);
+
   // Track which paths were manually expanded by the user
   const [manuallyExpandedPaths, setManuallyExpandedPaths] = useState<
     Set<string>
