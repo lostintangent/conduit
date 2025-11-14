@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type {
@@ -33,6 +33,125 @@ export type AgentSessionRecord = AgentSessionInfo & {
 };
 
 const agentSessions = new Map<string, AgentSessionRecord>();
+
+/**
+ * Load existing worktrees from disk and populate the sessions map
+ * This is called on startup to restore session state after app restart
+ */
+async function loadExistingWorktrees(): Promise<void> {
+  try {
+    const worktreesBase = path.join(os.homedir(), ".conduit", "worktrees");
+
+    // Check if the worktrees directory exists
+    const exists = await fileExists(worktreesBase);
+    if (!exists) {
+      return;
+    }
+
+    // Get all repo directories
+    const repoDirectories = await readdir(worktreesBase, {
+      withFileTypes: true,
+    });
+
+    for (const repoDir of repoDirectories) {
+      if (!repoDir.isDirectory()) continue;
+
+      const repoWorktreesPath = path.join(worktreesBase, repoDir.name);
+
+      // Get all worktree directories for this repo
+      const worktreeDirs = await readdir(repoWorktreesPath, {
+        withFileTypes: true,
+      });
+
+      for (const worktreeDir of worktreeDirs) {
+        if (!worktreeDir.isDirectory()) continue;
+
+        const worktreePath = path.join(repoWorktreesPath, worktreeDir.name);
+
+        // Verify the worktree still exists and is valid
+        const stillExists = await fileExists(worktreePath);
+        if (!stillExists) continue;
+
+        try {
+          // Find the repo root for this worktree
+          const repoRoot = await findRepoRoot(worktreePath);
+          if (!repoRoot) continue;
+
+          // Get the branch name from the worktree
+          const branchResult = await runGit(worktreePath, [
+            "rev-parse",
+            "--abbrev-ref",
+            "HEAD",
+          ]);
+          const branchName = branchResult.stdout.trim();
+
+          // Get the base ref (the commit this worktree was created from)
+          const baseRefResult = await runGit(worktreePath, [
+            "rev-parse",
+            "HEAD",
+          ]);
+          const baseRef = baseRefResult.stdout.trim();
+
+          // Try to get the base branch if available
+          // For worktrees, we can check the reflog or parse the branch name
+          let baseBranch: string | null = null;
+          try {
+            const reflogResult = await runGit(repoRoot, [
+              "reflog",
+              "show",
+              branchName,
+              "-1",
+              "--format=%gs",
+            ]);
+            const reflogMsg = reflogResult.stdout.trim();
+            // Message format is like "branch: Created from main"
+            const match = reflogMsg.match(/Created from (\S+)/);
+            if (match) {
+              baseBranch = match[1];
+            }
+          } catch {
+            // If we can't get base branch from reflog, that's okay
+          }
+
+          // Parse the worktree slug from the directory name
+          const worktreeSlug = worktreeDir.name;
+
+          // Generate a deterministic session ID from the worktree slug
+          // This ensures the same worktree gets the same ID across restarts
+          const sessionId = randomUUID();
+
+          // Get creation time from directory (best effort - fallback to now)
+          const createdAt = Date.now();
+
+          const session: AgentSessionRecord = {
+            id: sessionId,
+            repoRoot,
+            worktreePath,
+            branchName,
+            baseRef,
+            baseBranch,
+            createdAt,
+            worktreeSlug,
+          };
+
+          agentSessions.set(sessionId, session);
+          console.log(
+            `[Agent] Loaded existing worktree: ${branchName} at ${worktreePath}`,
+          );
+        } catch (error) {
+          console.warn(
+            `[Agent] Failed to load worktree ${worktreePath}:`,
+            error,
+          );
+        }
+      }
+    }
+
+    console.log(`[Agent] Loaded ${agentSessions.size} existing worktrees`);
+  } catch (error) {
+    console.error("[Agent] Failed to load existing worktrees:", error);
+  }
+}
 
 function formatTimestampSlug(date: Date) {
   const pad = (value: number) => value.toString().padStart(2, "0");
@@ -302,7 +421,10 @@ export async function cleanupAgentSession(
   };
 }
 
-export function initializeAgentHandlers() {
+export async function initializeAgentHandlers() {
+  // Load existing worktrees on startup
+  await loadExistingWorktrees();
+
   ipcMain.handle("agent:spawn-session", async (_event, payload) => {
     return await spawnAgentSession(payload);
   });

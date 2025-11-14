@@ -44,10 +44,6 @@ import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
-const GRID_TEMPLATE_TRANSITION_STYLE: React.CSSProperties = {
-  transition: "grid-template-columns 160ms ease, grid-template-rows 160ms ease",
-};
-
 type BoundaryInfo = {
   leadingId: string;
   trailingId: string;
@@ -394,6 +390,7 @@ export function TabLayout({
                 key={pane.sessionId}
                 terminalId={pane.sessionId}
                 paneId={pane.id}
+                cwd={pane.cwd}
                 isActive={isActivePane}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}

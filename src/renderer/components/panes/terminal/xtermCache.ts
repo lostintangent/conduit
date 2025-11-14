@@ -200,3 +200,27 @@ export function updateTerminalThemes() {
     instance.terminal.options.theme = terminalTheme;
   });
 }
+
+/**
+ * Get the last N lines of terminal buffer for a session
+ * Used for terminal prompt mode to provide context to the LLM
+ */
+export function getTerminalBuffer(
+  sessionId: string,
+  lines = 100,
+): string | null {
+  const instance = store.get(sessionId);
+  if (!instance) {
+    return null;
+  }
+
+  try {
+    const fullBuffer = instance.serializer.serialize();
+    const bufferLines = fullBuffer.split("\n");
+    const lastNLines = bufferLines.slice(-lines);
+    return lastNLines.join("\n");
+  } catch (error) {
+    console.error("Failed to capture terminal buffer", error);
+    return null;
+  }
+}

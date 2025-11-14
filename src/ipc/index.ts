@@ -26,8 +26,8 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeWorkspaceHandlers(refreshMenu);
   initializeUIHandlers(window);
   initializeFsHandlers();
+  await initializeAgentHandlers();
   initializeFileWatcherHandlers();
-  initializeAgentHandlers();
   initializeVMHandlers();
 
   const updateController = initializeUpdateHandlers(

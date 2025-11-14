@@ -26,6 +26,8 @@ import type {
   TerminalCwdPayload,
   TerminalDataPayload,
   TerminalExitPayload,
+  TerminalPromptRequest,
+  TerminalPromptResponse,
   TerminalSSHStatePayload,
   TerminalTitlePayload,
   TreeChangedEvent,
@@ -77,6 +79,12 @@ const conduitAPI = {
     ipcRenderer.invoke("terminal:capture-command", {
       sessionId,
     }) as Promise<TerminalCaptureCommandResponse>,
+
+  promptTerminal: (request: TerminalPromptRequest) =>
+    ipcRenderer.invoke(
+      "terminal:prompt",
+      request,
+    ) as Promise<TerminalPromptResponse>,
 
   /* UI event listeners (main->UI) */
 

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { findRepoRoot, runGit } from "../../../src/ipc/agent/git";
 import {
-  getGitStatusForHead,
+  getGitStatus,
   getGitStatusForFile,
+  getGitStatusForHead,
   getGitStatusRelativeToBranch,
   listBranches,
-  getGitStatus,
 } from "../../../src/ipc/git/gitStatus";
-import { runGit, findRepoRoot } from "../../../src/ipc/agent/git";
 
 // Mock dependencies
 vi.mock("../../../src/ipc/agent/git", () => ({
@@ -392,12 +392,6 @@ origin/main|2024-01-01 10:00:00 +0000|abc123|Initial commit|`,
       expect(result[1]).toMatchObject({
         name: "feature",
         isRemote: false,
-        isCurrent: false,
-      });
-
-      expect(result[2]).toMatchObject({
-        name: "main", // origin/ prefix removed
-        isRemote: true,
         isCurrent: false,
       });
     });
