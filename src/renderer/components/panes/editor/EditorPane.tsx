@@ -989,13 +989,13 @@ export function EditorPane({
     return parentDir !== cwd && parentDir !== ".";
   }, [cwd]);
 
-  const displayPath = useMemo(() => {
-    const pathToDisplay = filePath || cwd;
+  // Display path for the cwd (file tree header)
+  const displayCwd = useMemo(() => {
     if (!homeDirectory) {
-      return pathToDisplay;
+      return cwd;
     }
 
-    const normalizedPath = pathToDisplay.replace(/\\/g, "/");
+    const normalizedPath = cwd.replace(/\\/g, "/");
     const normalizedHome = homeDirectory.replace(/\\/g, "/");
 
     if (normalizedPath === normalizedHome) {
@@ -1010,7 +1010,42 @@ export function EditorPane({
       return suffix ? `~/${suffix}` : "~";
     }
 
-    return pathToDisplay;
+    return cwd;
+  }, [cwd, homeDirectory]);
+
+  // Display path for the file (editor header) - relative to cwd
+  const displayFilePath = useMemo(() => {
+    if (!filePath) {
+      return "";
+    }
+
+    const normalizedFilePath = filePath.replace(/\\/g, "/");
+    const normalizedCwd = cwd.replace(/\\/g, "/");
+
+    const cwdWithSlash = normalizedCwd.endsWith("/")
+      ? normalizedCwd
+      : `${normalizedCwd}/`;
+
+    if (normalizedFilePath.startsWith(cwdWithSlash)) {
+      return normalizedFilePath.slice(cwdWithSlash.length);
+    }
+
+    // If file is not under cwd, show full path with ~ substitution
+    if (!homeDirectory) {
+      return filePath;
+    }
+
+    const normalizedHome = homeDirectory.replace(/\\/g, "/");
+    const homeWithSlash = normalizedHome.endsWith("/")
+      ? normalizedHome
+      : `${normalizedHome}/`;
+
+    if (normalizedFilePath.startsWith(homeWithSlash)) {
+      const suffix = normalizedFilePath.slice(homeWithSlash.length);
+      return suffix ? `~/${suffix}` : "~";
+    }
+
+    return filePath;
   }, [filePath, cwd, homeDirectory]);
 
   return (
@@ -1042,7 +1077,7 @@ export function EditorPane({
                         <PanelLeftClose size={14} />
                       </button>
                       <span className="truncate" title={cwd}>
-                        {displayPath}
+                        {displayCwd}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -1105,7 +1140,7 @@ export function EditorPane({
                     />
                   )}
                   <span className="truncate" title={filePath || ""}>
-                    {filePath ? displayPath : ""}
+                    {displayFilePath}
                   </span>
                   {hasOpenFile && (
                     <>
@@ -1232,9 +1267,7 @@ export function EditorPane({
                   className="truncate"
                   title={activeView === "editor" ? filePath || "" : cwd}
                 >
-                  {activeView === "editor" && filePath
-                    ? displayPath
-                    : displayPath}
+                  {activeView === "editor" ? displayFilePath : displayCwd}
                 </span>
                 {activeView === "editor" && hasOpenFile ? (
                   <>
