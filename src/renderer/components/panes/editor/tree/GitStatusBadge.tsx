@@ -8,6 +8,7 @@ type GitStatusBadgeProps = {
 type StatusConfig = {
   letter: string;
   colorClass: string;
+  textColorClass: string;
   label: string;
   weight: number;
 };
@@ -24,6 +25,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "M",
         colorClass: "bg-git-modified",
+        textColorClass: "text-git-modified",
         label: staged ? "Modified (staged)" : "Modified",
         weight: 2, // VS Code weight for modified files
       };
@@ -31,6 +33,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "A",
         colorClass: "bg-git-added",
+        textColorClass: "text-git-added",
         label: staged ? "Added (staged)" : "Added",
         weight: 3, // VS Code weight for added files
       };
@@ -38,6 +41,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "D",
         colorClass: staged ? "bg-git-deleted-staged" : "bg-git-deleted",
+        textColorClass: staged ? "text-git-deleted-staged" : "text-git-deleted",
         label: staged ? "Deleted (staged)" : "Deleted",
         weight: 3, // VS Code weight for deleted files
       };
@@ -45,6 +49,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "R",
         colorClass: "bg-git-renamed",
+        textColorClass: "text-git-renamed",
         label: "Renamed",
         weight: 2, // VS Code weight for renamed files
       };
@@ -52,6 +57,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "C",
         colorClass: "bg-git-copied",
+        textColorClass: "text-git-copied",
         label: "Copied",
         weight: 2, // VS Code weight for copied files
       };
@@ -59,6 +65,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "U",
         colorClass: "bg-git-untracked",
+        textColorClass: "text-git-untracked",
         label: "Untracked",
         weight: 1, // VS Code weight for untracked files
       };
@@ -66,6 +73,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "!",
         colorClass: "bg-git-conflict",
+        textColorClass: "text-git-conflict",
         label: "Conflict",
         weight: 4, // VS Code weight for conflicts (highest priority)
       };
@@ -73,6 +81,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "T",
         colorClass: "bg-git-type-changed",
+        textColorClass: "text-git-type-changed",
         label: "Type Changed",
         weight: 2, // VS Code weight for type changed files
       };
@@ -80,6 +89,7 @@ function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return {
         letter: "I",
         colorClass: "bg-git-ignored",
+        textColorClass: "text-git-ignored",
         label: "Ignored",
         weight: 0, // VS Code weight for ignored files
       };

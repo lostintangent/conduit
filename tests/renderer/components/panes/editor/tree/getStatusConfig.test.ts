@@ -15,6 +15,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "M",
         colorClass: "bg-git-modified",
+        textColorClass: "text-git-modified",
         label: "Modified",
         weight: 2,
       });
@@ -31,6 +32,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "M",
         colorClass: "bg-git-modified",
+        textColorClass: "text-git-modified",
         label: "Modified (staged)",
         weight: 2,
       });
@@ -49,6 +51,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "A",
         colorClass: "bg-git-added",
+        textColorClass: "text-git-added",
         label: "Added",
         weight: 3,
       });
@@ -65,6 +68,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "A",
         colorClass: "bg-git-added",
+        textColorClass: "text-git-added",
         label: "Added (staged)",
         weight: 3,
       });
@@ -83,6 +87,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "D",
         colorClass: "bg-git-deleted",
+        textColorClass: "text-git-deleted",
         label: "Deleted",
         weight: 3,
       });
@@ -99,6 +104,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "D",
         colorClass: "bg-git-deleted-staged",
+        textColorClass: "text-git-deleted-staged",
         label: "Deleted (staged)",
         weight: 3,
       });
@@ -117,6 +123,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "R",
         colorClass: "bg-git-renamed",
+        textColorClass: "text-git-renamed",
         label: "Renamed",
         weight: 2,
       });
@@ -135,6 +142,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "C",
         colorClass: "bg-git-copied",
+        textColorClass: "text-git-copied",
         label: "Copied",
         weight: 2,
       });
@@ -153,6 +161,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "U",
         colorClass: "bg-git-untracked",
+        textColorClass: "text-git-untracked",
         label: "Untracked",
         weight: 1,
       });
@@ -171,6 +180,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "!",
         colorClass: "bg-git-conflict",
+        textColorClass: "text-git-conflict",
         label: "Conflict",
         weight: 4,
       });
@@ -189,6 +199,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "T",
         colorClass: "bg-git-type-changed",
+        textColorClass: "text-git-type-changed",
         label: "Type Changed",
         weight: 2,
       });
@@ -207,6 +218,7 @@ describe("getStatusConfig", () => {
       expect(config).toEqual({
         letter: "I",
         colorClass: "bg-git-ignored",
+        textColorClass: "text-git-ignored",
         label: "Ignored",
         weight: 0,
       });

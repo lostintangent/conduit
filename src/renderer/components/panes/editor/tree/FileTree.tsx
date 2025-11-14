@@ -8,6 +8,9 @@ type FileTreeProps = {
   onDirectoryChange?: (path: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
   rootPath: string;
+  expandedPaths?: Set<string> | null;
+  onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
+  isFiltering?: boolean;
 };
 
 export function FileTree({
@@ -17,6 +20,9 @@ export function FileTree({
   onDirectoryChange,
   onFileOpen,
   rootPath,
+  expandedPaths,
+  onManualExpansionToggle,
+  isFiltering,
 }: FileTreeProps) {
   return (
     <nav className="text-sm text-white/80">
@@ -30,6 +36,9 @@ export function FileTree({
             onDirectoryChange={onDirectoryChange}
             onFileOpen={onFileOpen}
             rootPath={rootPath}
+            expandedPaths={expandedPaths}
+            onManualExpansionToggle={onManualExpansionToggle}
+            isFiltering={isFiltering}
           />
         ))}
       </ul>
