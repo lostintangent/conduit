@@ -3,21 +3,25 @@ import { clipboard, ipcMain, webContents } from "electron";
 export function initializeBrowserHandlers() {
   ipcMain.handle(
     "browser:capture-screenshot",
-    async (_event, webContentsId: number) => {
-      try {
-        const contents = webContents.fromId(webContentsId);
-        if (!contents) {
-          throw new Error(`WebContents with ID ${webContentsId} not found`);
-        }
+    async (_, webContentsId: number) => {
+      const contents = webContents.fromId(webContentsId);
+      const image = await contents.capturePage();
+      clipboard.writeImage(image);
+    },
+  );
 
-        const image = await contents.capturePage();
-        clipboard.writeImage(image);
+  ipcMain.handle(
+    "browser:show-devtools",
+    (_, sourceWebContentsId: number, devToolsWebContentsId: number) => {
+      const sourceContents = webContents.fromId(sourceWebContentsId);
+      const devToolsContents = webContents.fromId(devToolsWebContentsId);
 
-        return { success: true };
-      } catch (error) {
-        console.error("Failed to capture screenshot:", error);
-        throw error;
-      }
+      sourceContents.setDevToolsWebContents(devToolsContents);
+      sourceContents.openDevTools();
+
+      // This is a needed workaround to ensure the DevTools reloads
+      // properly when opened in a separate window. Unfortunately it's required :/
+      devToolsContents.executeJavaScript("window.location.reload()");
     },
   );
 }

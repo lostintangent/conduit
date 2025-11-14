@@ -705,12 +705,14 @@ export function openWebViewPane(
   url: string,
   direction: SplitDirection = "row",
   insertBefore = false,
+  devTools = false,
 ) {
   const newPaneId = generateId();
   const newPaneState: Pane = {
     id: newPaneId,
     type: "webview",
     url,
+    ...(devTools && { devToolsForPane: paneId }),
   };
 
   const newLayoutNode: LayoutNode = {
@@ -958,6 +960,16 @@ export function closePane(tabId: string, paneId: string) {
   const paneElement = document.getElementById(paneId);
   if (paneElement) {
     paneElement.remove();
+
+    // See whether this pane has an associated dev tools pane,
+    // and if so, let's close it as well
+    const devToolsPanes = Object.values(tab.panes).filter(
+      (pane) => pane.type === "webview" && pane.devToolsForPane === paneId,
+    );
+
+    for (const devToolsPane of devToolsPanes) {
+      closePane(tabId, devToolsPane.id);
+    }
   }
 
   // If this is the only pane in the tab, close the entire tab

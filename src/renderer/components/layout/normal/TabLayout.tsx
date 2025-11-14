@@ -458,6 +458,17 @@ export function TabLayout({
                       setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
                   }}
+                  devToolsForPane={pane.devToolsForPane}
+                  onOpenDevTools={() =>
+                    openWebViewPane(
+                      tab.id,
+                      pane.id,
+                      "about:blank",
+                      "column",
+                      false,
+                      true,
+                    )
+                  }
                 />
               </div>
             )}

@@ -221,15 +221,24 @@ const conduitAPI = {
   openExternal: (url: string) =>
     ipcRenderer.invoke("ui:open-url", url) as Promise<void>,
 
+  showFolderPicker: (defaultPath?: string) =>
+    ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<
+      string | null
+    >,
+
+  /* Browser methods (UI->main) */
+
   captureScreenshot: (webContentsId: number) =>
     ipcRenderer.invoke("browser:capture-screenshot", webContentsId) as Promise<{
       success: boolean;
     }>,
 
-  showFolderPicker: (defaultPath?: string) =>
-    ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<
-      string | null
-    >,
+  showDevTools: (sourceWebContentsId: number, devToolsWebContentsId?: number) =>
+    ipcRenderer.invoke(
+      "browser:show-devtools",
+      sourceWebContentsId,
+      devToolsWebContentsId,
+    ) as Promise<void>,
 
   /* Session management methods */
 

@@ -30,6 +30,8 @@ type BrowserPaneProps = {
 
   disableInteraction: boolean;
   isInPreview: boolean;
+  devToolsForPane?: string;
+  onOpenDevTools?: () => void;
 };
 
 export function BrowserPane({
@@ -41,6 +43,8 @@ export function BrowserPane({
   onHover,
   disableInteraction = false,
   isInPreview = false,
+  devToolsForPane,
+  onOpenDevTools,
 }: BrowserPaneProps) {
   const applicationMode = useAtomValue(applicationModeAtom);
 
@@ -72,16 +76,15 @@ export function BrowserPane({
       webview.style.overflow = "hidden";
 
       document.body.appendChild(webview);
-
       setIsLoading(true);
     } else {
       // Attach to existing webview
       setIsLoading(webview.isLoading ? webview.isLoading() : false);
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
-      const initialTitle =
-        typeof webview?.getTitle === "function" ? webview.getTitle() : "";
-      setPageTitle(typeof initialTitle === "string" ? initialTitle.trim() : "");
+
+      const initialTitle = webview.getTitle() ?? "";
+      setPageTitle(initialTitle);
     }
 
     webviewRef.current = webview;
@@ -198,6 +201,22 @@ export function BrowserPane({
     const webview = webviewRef.current;
     if (!webview) return;
 
+    if (devToolsForPane) {
+      setTimeout(() => {
+        const sourceWebview = document.getElementById(
+          devToolsForPane,
+        ) as WebviewTag | null;
+        if (!sourceWebview) return;
+
+        const sourceWebContentsId = sourceWebview.getWebContentsId();
+        const devToolsWebContentsId = webview.getWebContentsId();
+
+        if (sourceWebContentsId && devToolsWebContentsId) {
+          api.showDevTools(sourceWebContentsId, devToolsWebContentsId);
+        }
+      }, 100);
+    }
+
     const handleStopLoading = () => {
       setIsLoading(false);
 
@@ -302,24 +321,24 @@ export function BrowserPane({
 
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background">
-      <BrowserToolbar
-        currentPage={{ url: currentUrl, title: pageTitle }}
-        isLoading={isLoading}
-        canGoBack={canGoBack}
-        canGoForward={canGoForward}
-        onNavigate={(url) => webviewRef.current?.loadURL(url)}
-        onGoBack={() => webviewRef.current?.goBack()}
-        onGoForward={() => webviewRef.current?.goForward()}
-        onRefresh={() => webviewRef.current?.reload()}
-        onStop={() => webviewRef.current?.stop()}
-        onOpenDevTools={() => webviewRef.current?.openDevTools()}
-        onCaptureScreenshot={() => {
-          const webContentsId = webviewRef.current?.getWebContentsId();
-          if (webContentsId) {
+      {!devToolsForPane && (
+        <BrowserToolbar
+          currentPage={{ url: currentUrl, title: pageTitle }}
+          isLoading={isLoading}
+          canGoBack={canGoBack}
+          canGoForward={canGoForward}
+          onNavigate={(url) => webviewRef.current?.loadURL(url)}
+          onGoBack={() => webviewRef.current?.goBack()}
+          onGoForward={() => webviewRef.current?.goForward()}
+          onRefresh={() => webviewRef.current?.reload()}
+          onStop={() => webviewRef.current?.stop()}
+          onOpenDevTools={onOpenDevTools}
+          onCaptureScreenshot={() => {
+            const webContentsId = webviewRef.current?.getWebContentsId();
             api.captureScreenshot(webContentsId);
-          }
-        }}
-      />
+          }}
+        />
+      )}
 
       {/* WebView */}
       <div className="relative flex flex-1 w-full h-full min-w-0 min-h-0">

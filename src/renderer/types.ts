@@ -28,7 +28,9 @@ export type TerminalPane = {
   sessionId: string;
   cwd: string | null;
   processTitle: string;
+
   vmMetadata?: VMMetadata;
+
   agentSessionId?: string;
   agentBranchName?: string;
   agentBaseBranch?: string | null;
@@ -40,6 +42,7 @@ export type WebViewPane = {
   type: "webview";
   url: string;
   title?: string;
+  devToolsForPane?: string;
 } & Identifiable;
 
 export type EditorPane = {

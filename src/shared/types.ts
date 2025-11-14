@@ -40,12 +40,17 @@ export type Workspace = {
       id: string;
       type: "terminal" | "webview" | "editor";
       cwd?: string | null;
-      url?: string;
-      webTitle?: string;
+
       // For terminal panes - the command that was running
       command?: string | null;
+
       // For editor panes
       filePath?: string;
+
+      // For webview panes - the pane ID this is showing devtools for
+      url?: string;
+      webTitle?: string;
+      devToolsForPane?: string;
     }[];
   })[];
   activeTabId?: string;

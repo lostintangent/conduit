@@ -107,6 +107,7 @@ const serializePane = async (
     type: "webview",
     url: pane.url,
     webTitle: pane.title,
+    ...(pane.devToolsForPane && { devToolsForPane: pane.devToolsForPane }),
   };
 };
 

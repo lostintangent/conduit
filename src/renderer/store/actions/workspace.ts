@@ -53,6 +53,9 @@ export async function openWorkspace(workspace: Workspace) {
           type: "webview",
           url: sessionPane.url || "about:blank",
           title: sessionPane.webTitle,
+          ...(sessionPane.devToolsForPane && {
+            devToolsForPane: sessionPane.devToolsForPane,
+          }),
         };
       }
     }
