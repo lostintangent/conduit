@@ -179,6 +179,35 @@ export function openTabFromExistingSession({
   return createTabWithPane(paneState);
 }
 
+export async function openTabFromExistingAgentSession(
+  session: AgentSessionInfo,
+): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
+  // Create a new terminal session in the worktree
+  const result = await api.createTerminal({ cwd: session.worktreePath });
+  if (!result) {
+    return null;
+  }
+
+  const paneId = generateId();
+
+  const paneState: Pane = {
+    id: paneId,
+    type: "terminal",
+    sessionId: result.sessionId,
+    cwd: result.cwd ?? session.worktreePath,
+    processTitle: result.title ?? session.branchName,
+    agentSessionId: session.id,
+    agentBranchName: session.branchName,
+    agentBaseBranch: session.baseBranch ?? undefined,
+    agentRepoRoot: session.repoRoot,
+    agentWorktreePath: session.worktreePath,
+  };
+
+  const { tabId } = createTabWithPane(paneState);
+
+  return { tabId, paneId, sessionId: result.sessionId };
+}
+
 export async function openTabFromPaneDescriptor(
   descriptor: PaneDescriptor,
 ): Promise<{ tabId: string; paneId: string } | null> {

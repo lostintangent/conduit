@@ -6,6 +6,7 @@ type AgentCleanupDialogProps = {
   sessions: AgentSessionInfo[];
   onClose: () => void;
   onRemove: (sessionIds: string[]) => void | Promise<void>;
+  onOpen?: (session: AgentSessionInfo) => void | Promise<void>;
 };
 
 export function AgentCleanupDialog({
@@ -13,6 +14,7 @@ export function AgentCleanupDialog({
   sessions,
   onClose,
   onRemove,
+  onOpen,
 }: AgentCleanupDialogProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -72,11 +74,11 @@ export function AgentCleanupDialog({
             return (
               <li
                 key={session.id}
-                className={`flex flex-col gap-1 px-3 py-3 transition hover:bg-white/5 ${
+                className={`flex items-center gap-3 px-3 py-3 transition hover:bg-white/5 ${
                   isSelected ? "bg-white/10" : ""
                 }`}
               >
-                <label className="flex cursor-pointer items-start gap-3">
+                <label className="flex flex-1 cursor-pointer items-start gap-3">
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -100,6 +102,18 @@ export function AgentCleanupDialog({
                     ) : null}
                   </span>
                 </label>
+                {onOpen && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpen(session);
+                      onClose();
+                    }}
+                    className="shrink-0 rounded-md border border-white/20 px-3 py-2 text-xs font-medium text-white transition hover:border-white/40 hover:bg-white/5"
+                  >
+                    Open
+                  </button>
+                )}
               </li>
             );
           })}

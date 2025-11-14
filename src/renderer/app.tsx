@@ -490,6 +490,16 @@ export function App() {
     [tabs],
   );
 
+  const handleAgentSessionOpen = useCallback(
+    async (session: AgentSessionInfo) => {
+      const { openTabFromExistingAgentSession } = await import(
+        "@/store/actions/tab"
+      );
+      await openTabFromExistingAgentSession(session);
+    },
+    [],
+  );
+
   const handleAgentSessionCleanup = useCallback(
     async (sessionIds: string[]) => {
       const api = window.conduit;
@@ -839,11 +849,11 @@ export function App() {
         }
         initialTitle={
           duplicateTabWithCwdDialogState
-            ? generateIncrementedTabTitle(
+            ? (generateIncrementedTabTitle(
                 tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId)
                   ?.title,
                 tabs,
-              ) ?? ""
+              ) ?? "")
             : ""
         }
         onClose={() => setDuplicateTabWithCwdDialogState(null)}
@@ -862,6 +872,7 @@ export function App() {
         sessions={cleanupDialogSessions ?? []}
         onClose={() => setCleanupDialogSessions(null)}
         onRemove={handleAgentSessionCleanup}
+        onOpen={handleAgentSessionOpen}
       />
 
       <RepositoryDialog
