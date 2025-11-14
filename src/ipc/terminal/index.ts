@@ -5,6 +5,7 @@ import type {
   TerminalResizePayload,
 } from "../../shared/types";
 import { captureTerminalCommand } from "./command";
+import { initializePromptHandlers } from "./prompt";
 import { getAllTerminals, getTerminal } from "./store";
 import {
   createTerminal,
@@ -15,6 +16,8 @@ import type { CreateTerminalOptions, SendToRendererFn } from "./types";
 
 const CHANNEL = "terminal";
 export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
+  initializePromptHandlers();
+
   ipcMain.handle(
     `${CHANNEL}:create`,
     async (_, payload: CreateTerminalOptions) => {

@@ -42,20 +42,10 @@ import type {
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
-
-const GRID_TEMPLATE_TRANSITION_STYLE: React.CSSProperties = {
-  transition: "grid-template-columns 160ms ease, grid-template-rows 160ms ease",
-};
 
 type BoundaryInfo = {
   leadingId: string;
@@ -403,6 +393,7 @@ export function TabLayout({
                 key={pane.sessionId}
                 terminalId={pane.sessionId}
                 paneId={pane.id}
+                cwd={pane.cwd}
                 isActive={isActivePane}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
@@ -554,8 +545,6 @@ export function TabLayout({
         tab.activePaneId,
         isInFocusMode,
       );
-
-      const tabShowsBorder = shouldShowPaneBorder(tab, applicationMode);
 
       // Use grid gap to create spaces that reveal the overlay underneath
       // Hide gaps only in focus mode where we want a seamless view

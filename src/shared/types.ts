@@ -33,6 +33,8 @@ export type UserSettings = {
   urlHistory: string[];
   starredPages: BrowserPage[];
   homeDirectory: string | null;
+  terminalPromptAgent?: string;
+  terminalPromptBufferLines?: number;
 };
 
 export type Workspace = {
@@ -278,4 +280,18 @@ export type UpdateState = {
   availableVersion?: string;
   releaseNotes?: string | null;
   releaseDate?: string | null;
+};
+
+/* Terminal Prompt Mode types */
+
+export type TerminalPromptRequest = {
+  sessionId: string;
+  prompt: string;
+  agentCommand: string;
+};
+
+export type TerminalPromptResponse = {
+  success: boolean;
+  response?: string;
+  error?: string;
 };
