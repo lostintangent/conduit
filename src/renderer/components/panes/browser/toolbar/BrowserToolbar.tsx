@@ -1,4 +1,9 @@
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Tooltip,
   TooltipContent,
@@ -6,15 +11,9 @@ import {
 } from "@/components/ui/tooltip";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { BrowserPage } from "@shared/types";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ExternalLink,
-  RefreshCw,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { BrowserMenu } from "./BrowserMenu";
 import { StarredPagesMenu } from "./StarredPagesMenu";
 
 const api = window.conduit;
@@ -29,6 +28,8 @@ type BrowserToolbarProps = {
   onGoForward: () => void;
   onRefresh: () => void;
   onStop: () => void;
+  onOpenDevTools: () => void;
+  onCaptureScreenshot: () => void;
 };
 
 export function BrowserToolbar({
@@ -41,6 +42,8 @@ export function BrowserToolbar({
   onGoForward,
   onRefresh,
   onStop,
+  onOpenDevTools,
+  onCaptureScreenshot,
 }: BrowserToolbarProps) {
   const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
     useUserSettings();
@@ -139,46 +142,42 @@ export function BrowserToolbar({
     <div className="flex items-center gap-1 px-2 py-1.5 bg-elevated border-b">
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onGoBack}
             disabled={!canGoBack}
-            className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
             aria-label="Back"
           >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
+            <ArrowLeft size={12} />
+          </Button>
         </TooltipTrigger>
         <TooltipContent>Back</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onGoForward}
             disabled={!canGoForward}
-            className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
             aria-label="Forward"
           >
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            <ArrowRight size={12} />
+          </Button>
         </TooltipTrigger>
         <TooltipContent>Forward</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={isLoading ? onStop : onRefresh}
-            className="p-1.5 rounded hover:bg-white/10 transition"
             aria-label={isLoading ? "Stop" : "Refresh"}
           >
-            {isLoading ? (
-              <X className="w-4 h-4" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-          </button>
+            {isLoading ? <X size={12} /> : <RefreshCw size={12} />}
+          </Button>
         </TooltipTrigger>
         <TooltipContent>{isLoading ? "Stop" : "Refresh"}</TooltipContent>
       </Tooltip>
@@ -190,22 +189,24 @@ export function BrowserToolbar({
           }}
           className="flex-1 flex min-w-0"
         >
-          <Input
-            value={inputUrl}
-            onChange={handleUrlInputChange}
-            onBlur={handleUrlInputBlur}
-            onFocus={handleUrlInputFocus}
-            className="flex-1 pr-20 h-8 text-sm overflow-hidden text-ellipsis focus-visible:ring-1 focus-visible:ring-offset-0"
-            placeholder="Enter URL..."
-          />
+          <InputGroup className="h-8">
+            <InputGroupInput
+              value={inputUrl}
+              onChange={handleUrlInputChange}
+              onBlur={handleUrlInputBlur}
+              onFocus={handleUrlInputFocus}
+              className="text-sm"
+              placeholder="Enter URL..."
+            />
+            <InputGroupAddon align="inline-end" className="gap-0">
+              <StarredPagesMenu
+                currentPage={currentPage}
+                onPageSelected={handleStarredNavigation}
+                onMenuOpened={handleStarredCloseRequest}
+              />
+            </InputGroupAddon>
+          </InputGroup>
         </form>
-        <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-0">
-          <StarredPagesMenu
-            currentPage={currentPage}
-            onPageSelected={handleStarredNavigation}
-            onMenuOpened={handleStarredCloseRequest}
-          />
-        </div>
 
         {showHistory && urlHistory.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded shadow-lg z-10 max-h-48 overflow-y-auto">
@@ -239,19 +240,11 @@ export function BrowserToolbar({
           </div>
         )}
       </div>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => api.openExternal(currentPage.url)}
-            className="p-1.5 rounded hover:bg-white/10 transition"
-            aria-label="Open in external browser"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>Open in external browser</TooltipContent>
-      </Tooltip>
+      <BrowserMenu
+        currentPage={currentPage}
+        onOpenDevTools={onOpenDevTools}
+        onCaptureScreenshot={onCaptureScreenshot}
+      />
     </div>
   );
 }

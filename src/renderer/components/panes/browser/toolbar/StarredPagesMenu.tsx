@@ -1,9 +1,11 @@
+import { InputGroupButton } from "@/components/ui/input-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { cn } from "@/utils/index";
 import { BrowserPage } from "@shared/types";
 import { ChevronDown, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -127,45 +129,49 @@ export function StarredPagesMenu({
     <>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <InputGroupButton
             ref={starButtonRef}
             type="button"
+            size="icon-xs"
             onMouseDown={(event) => event.preventDefault()}
             onClick={handleToggleStar}
-            className={`group pointer-events-auto p-1 rounded transition-colors ${
+            className={cn(
+              "group hover:!bg-transparent !mr-0 !pr-0",
               isCurrentUrlStarred
-                ? "text-yellow-400"
-                : "text-white/70 hover:text-yellow-400"
-            }`}
+                ? "text-yellow-400 hover:text-yellow-400"
+                : "text-foreground/70 hover:text-yellow-400",
+            )}
             aria-pressed={isCurrentUrlStarred}
             aria-label={
               isCurrentUrlStarred ? "Unstar this page" : "Star this page"
             }
           >
             <Star
-              className={`w-4 h-4 ${
+              className={cn(
+                "w-4 h-4 transition-all",
                 isCurrentUrlStarred
-                  ? "fill-current group-hover:fill-none"
-                  : "fill-none group-hover:fill-current"
-              }`}
+                  ? "fill-yellow-400 group-hover:fill-none"
+                  : "fill-none group-hover:fill-current",
+              )}
             />
-          </button>
+          </InputGroupButton>
         </TooltipTrigger>
         <TooltipContent>
           {isCurrentUrlStarred ? "Unstar page" : "Star page"}
         </TooltipContent>
       </Tooltip>
-      <button
+      <InputGroupButton
         ref={starMenuButtonRef}
         type="button"
+        size="icon-xs"
         onMouseDown={(event) => event.preventDefault()}
         onClick={handleStarredDropdownToggle}
-        className={`pointer-events-auto p-1 rounded transition-colors ${
+        className={cn(
+          "hover:!bg-transparent",
           !hasStarredPages
             ? "text-foreground/40 cursor-not-allowed"
-            : "text-foreground/70 hover:text-foreground"
-        }`}
-        title="Show starred pages"
+            : "text-foreground/70 hover:text-foreground",
+        )}
         aria-haspopup="listbox"
         aria-expanded={showStarredList}
         disabled={!hasStarredPages}
@@ -173,7 +179,7 @@ export function StarredPagesMenu({
         <ChevronDown
           className={`w-4 h-4 transition-transform ${showStarredList ? "rotate-180" : ""}`}
         />
-      </button>
+      </InputGroupButton>
       {showStarredList && hasStarredPages && (
         <div
           ref={starredDropdownRef}

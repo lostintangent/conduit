@@ -312,6 +312,13 @@ export function BrowserPane({
         onGoForward={() => webviewRef.current?.goForward()}
         onRefresh={() => webviewRef.current?.reload()}
         onStop={() => webviewRef.current?.stop()}
+        onOpenDevTools={() => webviewRef.current?.openDevTools()}
+        onCaptureScreenshot={() => {
+          const webContentsId = webviewRef.current?.getWebContentsId();
+          if (webContentsId) {
+            api.captureScreenshot(webContentsId);
+          }
+        }}
       />
 
       {/* WebView */}
