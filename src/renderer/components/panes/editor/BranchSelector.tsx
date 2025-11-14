@@ -1,6 +1,7 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -119,6 +120,9 @@ export function BranchSelector({
             <GitBranch className="h-4 w-4 text-foreground/60" />
             Select Base Branch
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Choose a branch to compare your working tree against
+          </DialogDescription>
         </DialogHeader>
 
         {/* Filter input */}
