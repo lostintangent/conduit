@@ -1046,8 +1046,13 @@ export function PaneActionsEditor({
                   type="text"
                   value={settings.terminalPromptAgent || ""}
                   onChange={(e) => {
+                    const newValue = e.target.value || undefined;
+                    setSettings({
+                      ...settings,
+                      terminalPromptAgent: newValue,
+                    });
                     api.updateSettings({
-                      terminalPromptAgent: e.target.value || undefined,
+                      terminalPromptAgent: newValue,
                     });
                   }}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
@@ -1077,6 +1082,10 @@ export function PaneActionsEditor({
                   onChange={(e) => {
                     const value = parseInt(e.target.value);
                     if (!isNaN(value)) {
+                      setSettings({
+                        ...settings,
+                        terminalPromptBufferLines: value,
+                      });
                       api.updateSettings({ terminalPromptBufferLines: value });
                     }
                   }}
