@@ -293,13 +293,21 @@ export async function listBranches(gitRoot: string): Promise<Branch[]> {
         lastCommitMessage: message,
       };
 
-      // Use a composite key: name + remote status to keep local and remote branches separate
-      const key = `${cleanName}:${isRemote ? "remote" : "local"}`;
-
-      // Deduplicate: prefer current branch over non-current for the same key
-      const existing = branchMap.get(key);
-      if (!existing || (!existing.isCurrent && branch.isCurrent)) {
-        branchMap.set(key, branch);
+      // Deduplicate branches by name only
+      // Prefer: current > local > remote
+      const existing = branchMap.get(cleanName);
+      if (!existing) {
+        branchMap.set(cleanName, branch);
+      } else {
+        // Replace if new branch is "better" than existing:
+        // 1. Current branch always wins
+        // 2. Otherwise, local branch wins over remote
+        const shouldReplace =
+          branch.isCurrent ||
+          (!existing.isCurrent && !branch.isRemote && existing.isRemote);
+        if (shouldReplace) {
+          branchMap.set(cleanName, branch);
+        }
       }
     }
   } catch (error) {
