@@ -240,6 +240,16 @@ export type Branch = {
   lastCommitMessage: string;
 };
 
+/**
+ * Result of getting a file diff
+ */
+export type FileDiffResult = {
+  originalContent: string;
+  modifiedContent: string;
+  status: "modified" | "added" | "deleted" | "binary";
+  isBinary: boolean;
+};
+
 /* File watcher event payloads */
 
 export type FileChangedEvent = {
