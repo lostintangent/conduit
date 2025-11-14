@@ -100,13 +100,9 @@ export function DirectoryItem({
     [gitStatus, node.relativePath],
   );
 
-  // Get text and icon color classes from folder status
-  const colorClass = folderStatus
-    ? folderStatus.colorClass.replace("bg-", "text-")
-    : "text-foreground";
-  const iconColorClass = folderStatus
-    ? folderStatus.colorClass.replace("bg-", "text-")
-    : "text-foreground";
+  // Folders use normal foreground color (no git status coloring)
+  const colorClass = "text-foreground";
+  const iconColorClass = "text-foreground";
 
   const toggleOpen = useCallback(async () => {
     // Toggle the expansion state through the parent

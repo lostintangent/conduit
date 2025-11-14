@@ -25,12 +25,8 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
 
   // Get git status color for text and icon
   const config = gitStatus ? getStatusConfig(gitStatus) : null;
-  const colorClass = config
-    ? config.colorClass.replace("bg-", "text-")
-    : "text-foreground";
-  const iconColorClass = config
-    ? config.colorClass.replace("bg-", "text-")
-    : "text-foreground";
+  const colorClass = config?.textColorClass || "text-foreground";
+  const iconColorClass = config?.textColorClass || "text-foreground";
 
   return (
     <li>
