@@ -8,6 +8,7 @@
 
 import { ipcMain } from "electron";
 import { findRepoRoot } from "../../agent/git";
+import { getFileDiff } from "../../git/gitDiff";
 import { listBranches } from "../../git/gitStatus";
 import { FileWatcherService } from "./FileWatcherService";
 
@@ -148,4 +149,24 @@ export function initializeFileWatcherHandlers(): void {
       };
     }
   });
+
+  /**
+   * Handler: git:get-file-diff
+   * Gets the diff for a specific file.
+   */
+  ipcMain.handle(
+    "git:get-file-diff",
+    async (_, filePath: string, cwd: string, baseBranch?: string | null) => {
+      try {
+        const diff = await getFileDiff(cwd, filePath, baseBranch);
+        return { success: true, diff };
+      } catch (error) {
+        console.error("Failed to get file diff:", error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    },
+  );
 }
