@@ -8,11 +8,10 @@ import {
   Loader2,
 } from "lucide-react";
 import type { KeyboardEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { FileTreeItem } from "./FileTreeItem";
 import { aggregateFolderStatus } from "./gitFolderAggregation";
-
-const api = window.conduit;
+import { useDirectoryCache } from "./useDirectoryCache";
 
 type DirectoryItemProps = {
   node: FileTreeNode;
@@ -25,6 +24,8 @@ type DirectoryItemProps = {
   expandedPaths?: Set<string> | null;
   onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
   isFiltering?: boolean;
+  treeVersion?: number;
+  prefetch?: boolean;
 };
 
 export function DirectoryItem({
@@ -38,61 +39,19 @@ export function DirectoryItem({
   expandedPaths,
   onManualExpansionToggle,
   isFiltering,
+  treeVersion,
+  prefetch = false,
 }: DirectoryItemProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  // Local state for loaded children
-  const [loadedChildren, setLoadedChildren] = useState<
-    FileTreeNode[] | undefined
-  >(undefined);
-
-  // Filter loaded children when in filter mode
-  const children = useMemo(() => {
-    if (!isFiltering || !loadedChildren || !gitStatus) {
-      return loadedChildren;
-    }
-
-    // Filter to only show files with git status and directories containing changes
-    return loadedChildren.filter((child) => {
-      if (child.type === "file") {
-        return gitStatus.has(child.relativePath);
-      } else {
-        // For directories, check if any file under it has changes
-        const dirPath = child.relativePath;
-        for (const [filePath] of gitStatus) {
-          if (
-            filePath.startsWith(dirPath + "/") ||
-            filePath.startsWith(dirPath + "\\")
-          ) {
-            return true;
-          }
-        }
-        return false;
-      }
-    });
-  }, [loadedChildren, isFiltering, gitStatus]);
-
-  // Load children when expanded
-  useEffect(() => {
-    if (isExpanded && loadedChildren === undefined) {
-      setIsLoading(true);
-      api
-        .listDirectory(node.path, rootPath)
-        .then((fetchedChildren) => {
-          setLoadedChildren(fetchedChildren);
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          console.error("Failed to load directory contents:", error);
-          setLoadedChildren([]);
-          setIsLoading(false);
-        });
-    }
-  }, [isExpanded, loadedChildren, node.path, rootPath]);
-
-  // Clear loaded children when node path changes (directory changed)
-  useEffect(() => {
-    setLoadedChildren(undefined);
-  }, [node.path]);
+  // Use custom hook for cache management
+  const { children, isLoading, loadChildren, isResolved } = useDirectoryCache({
+    node,
+    rootPath,
+    isExpanded,
+    prefetch,
+    treeVersion,
+    isFiltering,
+    gitStatus,
+  });
 
   // Aggregate git status for this folder using VS Code's weight-based priority system
   const folderStatus = useMemo(
@@ -108,26 +67,17 @@ export function DirectoryItem({
     // Toggle the expansion state through the parent
     onManualExpansionToggle?.(node.relativePath, !isExpanded);
 
-    // Load children if expanding and not already loaded
-    if (!isExpanded && loadedChildren === undefined) {
-      setIsLoading(true);
-      try {
-        const fetchedChildren = await api.listDirectory(node.path, rootPath);
-        setLoadedChildren(fetchedChildren);
-      } catch (error) {
-        console.error("Failed to load directory contents:", error);
-        setLoadedChildren([]);
-      } finally {
-        setIsLoading(false);
-      }
+    // Load children if expanding and not already resolved
+    // (This handles the click case; the useEffect in the hook handles prefetch)
+    if (!isExpanded && !isResolved) {
+      await loadChildren(true); // Show spinner for user-initiated expand
     }
   }, [
     isExpanded,
-    loadedChildren,
-    node.path,
-    rootPath,
+    isResolved,
     node.relativePath,
     onManualExpansionToggle,
+    loadChildren,
   ]);
 
   const handleChangeCwd = useCallback(
@@ -213,6 +163,8 @@ export function DirectoryItem({
                 expandedPaths={expandedPaths}
                 onManualExpansionToggle={onManualExpansionToggle}
                 isFiltering={isFiltering}
+                treeVersion={treeVersion}
+                prefetch={isExpanded && child.type === "directory"}
               />
             ))
           ) : (
