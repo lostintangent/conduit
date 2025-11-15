@@ -344,8 +344,8 @@ export type UpdateStatus =
 
 export type UpdateState = {
   status: UpdateStatus;
-  name?: string;
-  notes?: string | null;
+  releaseName?: string;
+  releaseNotes?: string;
 };
 
 /* Terminal Prompt Mode types */

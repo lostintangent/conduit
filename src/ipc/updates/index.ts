@@ -21,11 +21,8 @@ function determineSupport() {
   return app.isPackaged && SUPPORTED_PLATFORMS.has(process.platform);
 }
 
-function updateState(partial: Partial<UpdateState>) {
-  currentState = {
-    ...currentState,
-    ...partial,
-  };
+function updateState(state: UpdateState) {
+  currentState = state;
 
   // Notify renderer process of update state change
   sendToRenderer("updates:event", currentState);
@@ -53,9 +50,11 @@ function wireAutoUpdaterEvents() {
     }),
   );
 
-  autoUpdater.on("update-downloaded", () =>
+  autoUpdater.on("update-downloaded", (_, releaseNotes, releaseName) =>
     updateState({
       status: "downloaded",
+      releaseName,
+      releaseNotes,
     }),
   );
 
