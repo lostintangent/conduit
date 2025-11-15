@@ -878,16 +878,19 @@ export function EditorPane({
       try {
         const detectedLanguage = inferLanguageFromFilePath(node.path);
 
-        // Check if we should show diff view
-        const shouldShowDiff =
-          showOnlyChangedFiles && gitStatus && gitStatus.has(node.relativePath);
+        const hasDiff = gitStatus && gitStatus.has(node.relativePath);
 
-        if (shouldShowDiff) {
+        if (hasDiff) {
           // Fetch diff data
           const result = await api.getFileDiff(node.path, cwd, baseBranch);
-
           if (result.success && result.diff) {
-            setViewMode({ type: "diff", data: result.diff, showRaw: false });
+            // Only show the diff view if the file was actually modified,
+            // since aded/removed files don't benefit from the diff UI
+            if (result.diff.status === "modified") {
+              setViewMode({ type: "diff", data: result.diff, showRaw: false });
+            } else {
+              setViewMode({ type: "editor" });
+            }
 
             // Update parent with the modified content (for display purposes)
             onFileChange?.({
