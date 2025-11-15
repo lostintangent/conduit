@@ -16,6 +16,7 @@ jobs:
             artifact_name: Conduit-darwin-universal.zip
             artifact_path: |
               out/make/zip/darwin/**/*.zip
+              out/make/*.dmg
           - os: ubuntu-latest
             artifact_name: Conduit-linux
             artifact_path: |
@@ -108,7 +109,7 @@ jobs:
       - name: Debug - List build output
         run: |
           echo "Contents of out directory:"
-          find out -type f -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.exe" -o -name "*.nupkg" || true
+          find out -type f -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.exe" -o -name "*.nupkg" || true
           echo "Full directory structure:"
           ls -la out/ || true
           ls -la out/make/ || true
@@ -181,3 +182,25 @@ jobs:
             - Built from commit: ${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to conduit-release repo
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.tag_version }}
+          name: Release v${{ steps.version.outputs.tag_version }}
+          draft: false
+          prerelease: false
+          repository: lostintangent/conduit-release
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.dmg
+          body: |
+            ## Installation
+
+            ### macOS
+            Download and install the .dmg file.
+
+            ## Changes
+            - Built from commit: ${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}

@@ -88,7 +88,7 @@ export function initializeUpdateHandlers(
   if (updatesSupported) {
     const platform = `${process.platform}-${process.arch}`;
     const version = app.getVersion();
-    const url = `https://update.electronjs.org/lostintangent/conduit/${platform}/${version}`;
+    const url = `https://update.electronjs.org/lostintangent/conduit-release/${platform}/${version}`;
 
     autoUpdater.setFeedURL({ url });
     wireAutoUpdaterEvents();
