@@ -1,5 +1,6 @@
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
+import { GitBranchToolbar } from "@/components/panes/editor/tree/GitBranchToolbar";
 import {
   clearDirectoryCache,
   handleFileChanged,
@@ -19,9 +20,7 @@ import {
   ChevronRight,
   Eye,
   FileText,
-  Filter,
   FolderUp,
-  GitBranch,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
@@ -226,6 +225,7 @@ export function EditorPane({
     branches,
     isBranchSelectorOpen,
     isInGitRepo,
+    currentBranch,
     setIsBranchSelectorOpen,
     handleBranchSelect,
   } = useGitStatus(cwd);
@@ -1343,44 +1343,6 @@ export function EditorPane({
                           <FolderUp size={14} />
                         </button>
                       )}
-                      {isInGitRepo && gitStatus && gitStatus.size > 0 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowOnlyChangedFiles(!showOnlyChangedFiles)
-                          }
-                          className={`p-1 rounded transition-colors ${
-                            showOnlyChangedFiles
-                              ? "bg-foreground/20 hover:bg-foreground/25"
-                              : "hover:bg-foreground/10"
-                          }`}
-                          title={
-                            showOnlyChangedFiles
-                              ? "Show all files"
-                              : "Show only files with changes"
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      )}
-                      {isInGitRepo && branches.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setIsBranchSelectorOpen(true)}
-                          className={`p-1 rounded transition-colors ${
-                            baseBranch
-                              ? "bg-foreground/20 hover:bg-foreground/25"
-                              : "hover:bg-foreground/10"
-                          }`}
-                          title={
-                            baseBranch
-                              ? `Comparing to: ${baseBranch}`
-                              : "Comparing to: HEAD (uncommitted changes)"
-                          }
-                        >
-                          <GitBranch size={14} />
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -1669,44 +1631,6 @@ export function EditorPane({
                           <FolderUp size={14} />
                         </button>
                       )}
-                      {isInGitRepo && gitStatus && gitStatus.size > 0 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowOnlyChangedFiles(!showOnlyChangedFiles)
-                          }
-                          className={`p-1 rounded transition-colors ${
-                            showOnlyChangedFiles
-                              ? "bg-foreground/20 hover:bg-foreground/25"
-                              : "hover:bg-foreground/10"
-                          }`}
-                          title={
-                            showOnlyChangedFiles
-                              ? "Show all files"
-                              : "Show only files with changes"
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      )}
-                      {isInGitRepo && branches.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setIsBranchSelectorOpen(true)}
-                          className={`p-1 rounded transition-colors ${
-                            baseBranch
-                              ? "bg-foreground/20 hover:bg-foreground/25"
-                              : "hover:bg-foreground/10"
-                          }`}
-                          title={
-                            baseBranch
-                              ? `Comparing to: ${baseBranch}`
-                              : "Comparing to: HEAD (uncommitted changes)"
-                          }
-                        >
-                          <GitBranch size={14} />
-                        </button>
-                      )}
                     </div>
                   </>
                 )}
@@ -1763,7 +1687,7 @@ export function EditorPane({
         <div className="flex flex-1 min-h-0 min-w-0">
           {/* Tree section - single instance */}
           <div
-            className={`flex flex-col overflow-auto p-2 ${layoutMode === "split" ? transitionClass : ""}`}
+            className={`flex flex-col ${layoutMode === "split" ? transitionClass : ""}`}
             style={{
               // Split mode: fixed width or collapsed
               // Single mode: full width or hidden based on activeView
@@ -1778,26 +1702,44 @@ export function EditorPane({
                   }),
             }}
           >
-            {isLoadingTree ? (
-              <div className="flex items-center justify-center w-full text-white/70">
-                <Loader2 className="w-6 h-6 animate-spin" />
-              </div>
-            ) : displayedFileTree.length > 0 ? (
-              <FileTree
-                items={displayedFileTree}
-                gitStatus={gitStatus}
-                onFileSelect={handleFileSelect}
-                onDirectoryChange={handleDirectoryChange}
-                onFileOpen={onFileOpen}
-                rootPath={cwd}
-                expandedPaths={expandedPaths}
-                onManualExpansionToggle={handleManualExpansionToggle}
-                isFiltering={showOnlyChangedFiles}
+            <div className="flex-1 overflow-auto p-2">
+              {isLoadingTree ? (
+                <div className="flex items-center justify-center w-full text-white/70">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              ) : displayedFileTree.length > 0 ? (
+                <FileTree
+                  items={displayedFileTree}
+                  gitStatus={gitStatus}
+                  onFileSelect={handleFileSelect}
+                  onDirectoryChange={handleDirectoryChange}
+                  onFileOpen={onFileOpen}
+                  rootPath={cwd}
+                  expandedPaths={expandedPaths}
+                  onManualExpansionToggle={handleManualExpansionToggle}
+                  isFiltering={showOnlyChangedFiles}
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full text-white/50">
+                  No files found
+                </div>
+              )}
+            </div>
+            {isInGitRepo && (
+              <GitBranchToolbar
+                currentBranch={currentBranch}
+                baseBranch={baseBranch}
+                onClick={
+                  branches.length > 0
+                    ? () => setIsBranchSelectorOpen(true)
+                    : undefined
+                }
+                showOnlyChangedFiles={showOnlyChangedFiles}
+                onFilterToggle={() =>
+                  setShowOnlyChangedFiles(!showOnlyChangedFiles)
+                }
+                hasGitStatus={gitStatus !== null && gitStatus.size > 0}
               />
-            ) : (
-              <div className="flex items-center justify-center w-full text-white/50">
-                No files found
-              </div>
             )}
           </div>
 

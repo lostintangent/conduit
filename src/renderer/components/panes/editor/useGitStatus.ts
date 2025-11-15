@@ -9,6 +9,7 @@ export function useGitStatus(cwd: string) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isBranchSelectorOpen, setIsBranchSelectorOpen] = useState(false);
   const [isInGitRepo, setIsInGitRepo] = useState(false);
+  const [currentBranch, setCurrentBranch] = useState<string | null>(null);
 
   // Load initial git status and branches on mount/cwd change
   useEffect(() => {
@@ -69,6 +70,22 @@ export function useGitStatus(cwd: string) {
         })
         .catch((error) => {
           console.error("[useGitStatus] Failed to load branches:", error);
+        });
+    }
+
+    // Load current branch
+    if (api.getCurrentBranch) {
+      api
+        .getCurrentBranch(cwd)
+        .then((branch) => {
+          console.log("[useGitStatus] Current branch:", branch);
+          setCurrentBranch(branch);
+          if (branch) {
+            setIsInGitRepo(true);
+          }
+        })
+        .catch((error) => {
+          console.error("[useGitStatus] Failed to get current branch:", error);
         });
     }
   }, [cwd]);
@@ -142,6 +159,7 @@ export function useGitStatus(cwd: string) {
     branches,
     isBranchSelectorOpen,
     isInGitRepo,
+    currentBranch,
     setIsBranchSelectorOpen,
     handleBranchSelect,
   };
