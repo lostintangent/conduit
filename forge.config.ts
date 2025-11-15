@@ -53,6 +53,7 @@ const config: ForgeConfig = {
     new MakerZIP({}, ["darwin"]),
     new MakerDMG({
       icon: path.resolve(__dirname, "build/assets/icon.icns"),
+      name: "Conduit",
     }),
     new MakerSquirrel({}),
     new MakerRpm({}),
