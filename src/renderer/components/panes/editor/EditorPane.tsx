@@ -164,6 +164,8 @@ export function EditorPane({
   const editorTheme = resolveTheme(theme) === "light" ? "vs-light" : "vs-dark";
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
+  // Tree version increments whenever the tree is refreshed (for cache invalidation)
+  const [treeVersion, setTreeVersion] = useState(0);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
     undefined,
   );
@@ -816,6 +818,8 @@ export function EditorPane({
           );
           setFileTree(tree);
           fileTreeCache.set(cwd, tree);
+          // Increment tree version to invalidate directory caches
+          setTreeVersion((v) => v + 1);
         })
         .catch((error) => {
           console.error("[EditorPane] Failed to refresh file tree:", error);
@@ -1763,6 +1767,7 @@ export function EditorPane({
                 expandedPaths={expandedPaths}
                 onManualExpansionToggle={handleManualExpansionToggle}
                 isFiltering={showOnlyChangedFiles}
+                treeVersion={treeVersion}
               />
             ) : (
               <div className="flex items-center justify-center w-full text-white/50">
