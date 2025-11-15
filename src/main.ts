@@ -89,7 +89,7 @@ async function createWindow() {
     app.quit();
   });
 
-  const updateController = await initializeIpcHandlers(mainWindow);
+  await initializeIpcHandlers(mainWindow);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -97,10 +97,6 @@ async function createWindow() {
     await mainWindow.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
-  }
-
-  if (app.isPackaged) {
-    updateController.checkForUpdate();
   }
 }
 

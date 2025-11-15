@@ -15,7 +15,7 @@ let currentState: UpdateState = {
 
 let controllerInstance: UpdateController | null = null;
 let sendToRenderer: SendToRendererFn;
-let stateListener: (state: UpdateState) => Promise<void>;
+let stateListener: () => void;
 
 function determineSupport() {
   return app.isPackaged && SUPPORTED_PLATFORMS.has(process.platform);
@@ -31,27 +31,39 @@ function updateState(partial: Partial<UpdateState>) {
   sendToRenderer("updates:event", currentState);
 
   // Notify any registered state listener
-  stateListener(currentState);
+  stateListener();
 }
 
 function wireAutoUpdaterEvents() {
-  autoUpdater.on("checking-for-update", () => {
+  autoUpdater.on("checking-for-update", () =>
     updateState({
       status: "checking",
-    });
-  });
+    }),
+  );
 
-  autoUpdater.on("update-not-available", () => {
+  autoUpdater.on("update-not-available", () =>
     updateState({
-      status: "unavailable",
-    });
-  });
+      status: "idle",
+    }),
+  );
 
-  autoUpdater.on("update-downloaded", () => {
+  autoUpdater.on("update-available", () =>
+    updateState({
+      status: "downloading",
+    }),
+  );
+
+  autoUpdater.on("update-downloaded", () =>
     updateState({
       status: "downloaded",
-    });
-  });
+    }),
+  );
+
+  autoUpdater.on("error", () =>
+    updateState({
+      status: "idle",
+    }),
+  );
 }
 
 function checkForUpdate() {
@@ -79,8 +91,8 @@ function installUpdate() {
 
 export function initializeUpdateHandlers(
   sendToRendererFn: SendToRendererFn,
-  onStateChange: (state: UpdateState) => Promise<void>,
-): UpdateController {
+  onStateChange: () => void,
+) {
   sendToRenderer = sendToRendererFn;
   stateListener = onStateChange;
 
@@ -94,6 +106,8 @@ export function initializeUpdateHandlers(
     wireAutoUpdaterEvents();
 
     ipcMain.handle("updates:install", installUpdate);
+
+    checkForUpdate();
   }
 
   controllerInstance = {
@@ -101,8 +115,6 @@ export function initializeUpdateHandlers(
     installUpdate,
     getState: () => currentState,
   };
-
-  return controllerInstance;
 }
 
 export function getUpdateController() {

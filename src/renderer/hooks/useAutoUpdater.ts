@@ -11,7 +11,7 @@ export function useAutoUpdater() {
       if (state.status === "downloaded") {
         enqueueNotification({
           kind: "success",
-          message: "Update available!",
+          message: `Update available! (v${state.name})`,
           persistent: true,
           actions: [
             {
