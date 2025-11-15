@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileTreeNode, GitStatusMap } from "@shared/types";
-
-const api = window.conduit;
 
 type UseDirectoryCacheParams = {
   node: FileTreeNode;
@@ -36,6 +34,7 @@ export function useDirectoryCache({
   >(undefined);
   const [isResolved, setIsResolved] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const prevTreeVersion = useRef(treeVersion);
 
   // Consolidated loading function
   const loadChildren = useCallback(
@@ -45,7 +44,10 @@ export function useDirectoryCache({
       }
 
       try {
-        const fetchedChildren = await api.listDirectory(node.path, rootPath);
+        const fetchedChildren = await window.conduit.listDirectory(
+          node.path,
+          rootPath,
+        );
         setLoadedChildren(fetchedChildren);
         setIsResolved(true);
       } catch (error) {
@@ -76,8 +78,13 @@ export function useDirectoryCache({
 
   // Silent background refresh when tree version changes
   useEffect(() => {
-    // Only refresh if this directory has been loaded before
-    if (treeVersion !== undefined && isResolved) {
+    // Only refresh if treeVersion actually changed and directory was previously loaded
+    if (
+      treeVersion !== undefined &&
+      prevTreeVersion.current !== treeVersion &&
+      isResolved
+    ) {
+      prevTreeVersion.current = treeVersion;
       // Silently refetch in background without showing spinner
       loadChildren(false);
     }
