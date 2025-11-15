@@ -10,19 +10,18 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest]
         include:
           - os: macos-latest
-            artifact_name: Conduit-darwin-arm64.zip
-            artifact_path: out/make/zip/darwin/**/*.zip
-          - os: macos-latest
-            artifact_name: Conduit.dmg
-            artifact_path: out/make/**/*.dmg
-          - os: ubuntu-latest
-            artifact_name: Conduit-linux
+            artifact_name: Conduit-darwin-arm64
             artifact_path: |
-              out/make/deb/**/*.deb
-              out/make/rpm/**/*.rpm
+              out/make/zip/darwin/**/*.zip
+              out/make/**/*.dmg
+          # - os: ubuntu-latest
+          #   artifact_name: Conduit-linux
+          #   artifact_path: |
+          #     out/make/deb/**/*.deb
+          #     out/make/rpm/**/*.rpm
 
     steps:
       - name: Checkout code
@@ -193,8 +192,8 @@ jobs:
           prerelease: false
           repository: lostintangent/conduit-release
           files: |
-            artifacts/Conduit-darwin.zip/**/*.zip
-            artifacts/Conduit-darwin.dmg/**/*.dmg
+            artifacts/Conduit-darwin-arm64/**/*.zip
+            artifacts/Conduit-darwin-arm64/**/*.dmg
           body: |
             ## Installation
 
