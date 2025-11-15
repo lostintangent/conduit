@@ -58,6 +58,7 @@
     "vitest": "^4.0.4"
   },
   "dependencies": {
+    "@electron-forge/publisher-github": "^7.10.2",
     "@monaco-editor/react": "^4.7.0",
     "@parcel/watcher": "^2.5.1",
     "@radix-ui/react-dialog": "^1.1.15",

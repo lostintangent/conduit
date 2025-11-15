@@ -5,6 +5,7 @@ import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
+import { PublisherGithub } from "@electron-forge/publisher-github";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { execSync } from "node:child_process";
@@ -18,7 +19,23 @@ const config: ForgeConfig = {
     icon: "./build/assets/icon",
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",
-    osxSign: {},
+    osxSign: process.env.APPLE_ID_PASSWORD
+      ? {
+          identity: "Developer ID Application: Jonathan Carter (RHFNBL7EG4)",
+          optionsForFile: () => ({
+            hardenedRuntime: true,
+            entitlements: "./build/entitlements.plist",
+            entitlementsInherit: "./build/entitlements.plist",
+          }),
+        }
+      : undefined,
+    osxNotarize: process.env.APPLE_ID_PASSWORD
+      ? {
+          appleId: "joncart@outlook.com",
+          appleIdPassword: process.env.APPLE_ID_PASSWORD,
+          teamId: "RHFNBL7EG4",
+        }
+      : undefined,
   },
   rebuildConfig: {
     onlyModules: ["node-pty", "@parcel/watcher"],
@@ -40,6 +57,17 @@ const config: ForgeConfig = {
     new MakerSquirrel({}),
     new MakerRpm({}),
     new MakerDeb({}),
+  ],
+  publishers: [
+    new PublisherGithub({
+      repository: {
+        owner: "lostintangent",
+        name: "conduit-release",
+      },
+      prerelease: false,
+      draft: false,
+      generateReleaseNotes: false,
+    }),
   ],
   plugins: [
     new VitePlugin({

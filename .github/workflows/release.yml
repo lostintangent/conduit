@@ -46,6 +46,23 @@ jobs:
           # Ensure we have the latest Xcode command line tools
           xcode-select --install || true
 
+      ##- name: Setup code signing
+      ## if: matrix.os == 'macos-latest'
+      ## run: |
+      # Create keychain
+      ##   security create-keychain -p actions build.keychain
+      ##   security default-keychain -s build.keychain
+      ##   security unlock-keychain -p actions build.keychain
+      ##   security set-keychain-settings -t 3600 -u build.keychain
+
+      # Import certificate
+      ##   echo "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
+      ##   security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+      ##   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+
+      # Clean up
+      ##  rm certificate.p12
+
       - name: Install Ubuntu dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -178,25 +195,3 @@ jobs:
             - Built from commit: ${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to conduit-release repo
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Release v${{ steps.version.outputs.version }}
-          draft: false
-          prerelease: false
-          repository: lostintangent/conduit-release
-          files: |
-            artifacts/Conduit-darwin-arm64/**/*.zip
-            artifacts/Conduit-darwin-arm64/**/*.dmg
-          body: |
-            ## Installation
-
-            ### macOS
-            Download and install the .dmg file.
-
-            ## Changes
-            - Built from commit: ${{ github.sha }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
