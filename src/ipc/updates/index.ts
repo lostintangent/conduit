@@ -2,18 +2,11 @@ import type { UpdateState } from "@shared/types";
 import { app, autoUpdater, ipcMain } from "electron";
 import { SendToRendererFn } from "../terminal/types";
 
-export type UpdateController = {
-  checkForUpdate: () => void;
-  installUpdate: () => void;
-  getState: () => UpdateState;
-};
-
 const SUPPORTED_PLATFORMS = new Set(["darwin"]);
 let currentState: UpdateState = {
   status: determineSupport() ? "idle" : "disabled",
 };
 
-let controllerInstance: UpdateController | null = null;
 let sendToRenderer: SendToRendererFn;
 let stateListener: () => void;
 
@@ -58,34 +51,17 @@ function wireAutoUpdaterEvents() {
     }),
   );
 
+  autoUpdater.on("before-quit-for-update", () =>
+    updateState({
+      status: "installing",
+    }),
+  );
+
   autoUpdater.on("error", () =>
     updateState({
       status: "idle",
     }),
   );
-}
-
-function checkForUpdate() {
-  if (!determineSupport()) {
-    updateState({
-      status: "disabled",
-    });
-    return;
-  }
-
-  updateState({
-    status: "checking",
-  });
-
-  autoUpdater.checkForUpdates();
-}
-
-function installUpdate() {
-  updateState({
-    status: "installing",
-  });
-
-  autoUpdater.quitAndInstall();
 }
 
 export function initializeUpdateHandlers(
@@ -104,18 +80,12 @@ export function initializeUpdateHandlers(
     autoUpdater.setFeedURL({ url });
     wireAutoUpdaterEvents();
 
-    ipcMain.handle("updates:install", installUpdate);
+    ipcMain.handle("updates:install", () => autoUpdater.quitAndInstall());
 
-    checkForUpdate();
+    autoUpdater.checkForUpdates();
   }
-
-  controllerInstance = {
-    checkForUpdate,
-    installUpdate,
-    getState: () => currentState,
-  };
 }
 
-export function getUpdateController() {
-  return controllerInstance;
+export function getUpdateStatus() {
+  return currentState.status;
 }

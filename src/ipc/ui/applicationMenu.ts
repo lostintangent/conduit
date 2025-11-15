@@ -1,6 +1,6 @@
-import { BrowserWindow, Menu, app } from "electron";
+import { BrowserWindow, Menu, app, autoUpdater } from "electron";
 import type { UpdateStatus, UserSettings, Workspace } from "../../shared/types";
-import { getUpdateController } from "../updates";
+import { getUpdateStatus } from "../updates";
 import { loadSessions } from "../workspace";
 
 function getUpdateMenuLabel(status: UpdateStatus) {
@@ -17,8 +17,7 @@ function getUpdateMenuLabel(status: UpdateStatus) {
 }
 
 function buildCheckForUpdatesMenuItem(): Electron.MenuItemConstructorOptions {
-  const controller = getUpdateController();
-  const status = controller?.getState().status || "disabled";
+  const status = getUpdateStatus();
 
   // Set the menu item's label and enabled state based on update status
   const label = getUpdateMenuLabel(status);
@@ -28,11 +27,10 @@ function buildCheckForUpdatesMenuItem(): Electron.MenuItemConstructorOptions {
     label,
     enabled,
     click: () => {
-      const currentStatus = controller.getState().status;
-      if (currentStatus === "downloaded") {
-        controller.installUpdate();
-      } else if (currentStatus === "idle") {
-        controller.checkForUpdate();
+      if (status === "downloaded") {
+        autoUpdater.quitAndInstall();
+      } else if (status === "idle") {
+        autoUpdater.checkForUpdates();
       }
     },
   };
