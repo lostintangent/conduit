@@ -1,4 +1,4 @@
-import { app, ipcMain } from "electron";
+import { BrowserWindow, app, dialog, ipcMain } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Tab } from "../../renderer/types";
@@ -7,14 +7,17 @@ import { captureTerminalCommand } from "../terminal/command";
 import { getAllTerminals } from "../terminal/store";
 import type { TerminalInstance } from "../terminal/types";
 
-export type SessionsFile = {
-  sessions: Workspace[];
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+export type WorkspacesFile = {
+  workspaces: Workspace[];
   lastWorkspace?: Workspace;
 };
 
-export type { Workspace as SavedSession };
+export type { Workspace as SavedWorkspace };
 
-function getSessionPath(): string {
+function getWorkspaceStorePath(): string {
   const homeDir = app.getPath("home");
   const conduitDir = path.join(homeDir, ".conduit");
   return path.join(conduitDir, "session.json");
@@ -31,22 +34,55 @@ async function ensureConduitDirectory(): Promise<void> {
   }
 }
 
-async function loadSessionsFile(): Promise<SessionsFile> {
+async function loadWorkspacesFile(): Promise<WorkspacesFile> {
   try {
-    const sessionPath = getSessionPath();
+    const sessionPath = getWorkspaceStorePath();
     const data = await fs.readFile(sessionPath, "utf-8");
-    return JSON.parse(data) as SessionsFile;
+    const parsed = JSON.parse(data) as unknown;
+
+    if (isRecord(parsed)) {
+      const workspaces = parsed["workspaces"];
+      const lastWorkspace = parsed["lastWorkspace"];
+
+      if (Array.isArray(workspaces)) {
+        return {
+          workspaces: workspaces as Workspace[],
+          lastWorkspace: lastWorkspace as Workspace | undefined,
+        };
+      }
+
+      const legacySessions = parsed["sessions"];
+      if (Array.isArray(legacySessions)) {
+        return {
+          workspaces: legacySessions as Workspace[],
+          lastWorkspace: lastWorkspace as Workspace | undefined,
+        };
+      }
+    }
+
+    return { workspaces: [] };
   } catch (error) {
-    // File doesn't exist or is invalid, return empty sessions
-    return { sessions: [] };
+    // File doesn't exist or is invalid, return empty workspaces
+    return { workspaces: [] };
   }
 }
 
-async function saveSessionsFile(sessionsFile: SessionsFile): Promise<void> {
-  const sessionPath = getSessionPath();
+async function saveWorkspacesFile(
+  workspacesFile: WorkspacesFile,
+): Promise<void> {
+  const sessionPath = getWorkspaceStorePath();
   await fs.writeFile(
     sessionPath,
-    JSON.stringify(sessionsFile, null, 2),
+    JSON.stringify(
+      {
+        workspaces: workspacesFile.workspaces,
+        ...(workspacesFile.lastWorkspace && {
+          lastWorkspace: workspacesFile.lastWorkspace,
+        }),
+      },
+      null,
+      2,
+    ),
     "utf-8",
   );
 }
@@ -75,12 +111,12 @@ const serializePane = async (
     if (options.logTerminalActivity) {
       if (capturedCommand) {
         console.log(
-          `[Session Save] Terminal ${pane.sessionId}: captured command="${capturedCommand}"`,
+          `[Workspace Save] Terminal ${pane.sessionId}: captured command="${capturedCommand}"`,
         );
       } else {
         const lastProcess = terminalSession?.lastProcessName ?? "";
         console.log(
-          `[Session Save] Terminal ${pane.sessionId}: no active command detected (last process="${lastProcess}")`,
+          `[Workspace Save] Terminal ${pane.sessionId}: no active command detected (last process="${lastProcess}")`,
         );
       }
     }
@@ -136,7 +172,7 @@ const serializeTabs = async (
   );
 };
 
-export async function saveSession(
+export async function saveWorkspaceSnapshot(
   name: string,
   tabs: Tab[],
   activeTabId: string | undefined,
@@ -149,63 +185,65 @@ export async function saveSession(
       logTerminalActivity: true,
     });
 
-    const newSession: Workspace = {
+    const newWorkspace: Workspace = {
       name,
       timestamp: Date.now(),
       tabs: serializedTabs,
       activeTabId,
     };
 
-    const sessionsFile = await loadSessionsFile();
+    const workspacesFile = await loadWorkspacesFile();
 
     // Remove existing workspace with the same name if it exists
-    sessionsFile.sessions = sessionsFile.sessions.filter(
-      (s) => s.name !== name,
+    workspacesFile.workspaces = workspacesFile.workspaces.filter(
+      (workspace) => workspace.name !== name,
     );
 
-    // Add new/updated session to the beginning
-    sessionsFile.sessions.unshift(newSession);
+    // Add new/updated workspace to the beginning
+    workspacesFile.workspaces.unshift(newWorkspace);
 
-    // Keep only the most recent 10 sessions
-    sessionsFile.sessions = sessionsFile.sessions.slice(0, 10);
+    // Keep only the most recent 10 workspaces
+    workspacesFile.workspaces = workspacesFile.workspaces.slice(0, 10);
 
-    await saveSessionsFile(sessionsFile);
+    await saveWorkspacesFile(workspacesFile);
 
-    return sessionsFile.sessions;
+    return workspacesFile.workspaces;
   } catch (error) {
-    console.error("Failed to save session:", error);
+    console.error("Failed to save workspace:", error);
     throw error;
   }
 }
 
-export async function loadSessions(): Promise<Workspace[]> {
+export async function loadWorkspaces(): Promise<Workspace[]> {
   try {
-    const sessionsFile = await loadSessionsFile();
-    return sessionsFile.sessions;
+    const workspacesFile = await loadWorkspacesFile();
+    return workspacesFile.workspaces;
   } catch (error) {
-    console.error("Failed to load sessions:", error);
+    console.error("Failed to load workspaces:", error);
     return [];
   }
 }
 
-export async function hasSessions(): Promise<boolean> {
+export async function hasWorkspaces(): Promise<boolean> {
   try {
-    const sessions = await loadSessions();
-    return sessions.length > 0;
+    const workspaces = await loadWorkspaces();
+    return workspaces.length > 0;
   } catch {
     return false;
   }
 }
 
-export async function deleteSession(timestamp: number): Promise<void> {
+export async function deleteWorkspaceByTimestamp(
+  timestamp: number,
+): Promise<void> {
   try {
-    const sessionsFile = await loadSessionsFile();
-    sessionsFile.sessions = sessionsFile.sessions.filter(
-      (s) => s.timestamp !== timestamp,
+    const workspacesFile = await loadWorkspacesFile();
+    workspacesFile.workspaces = workspacesFile.workspaces.filter(
+      (workspace) => workspace.timestamp !== timestamp,
     );
-    await saveSessionsFile(sessionsFile);
+    await saveWorkspacesFile(workspacesFile);
   } catch (error) {
-    console.error("Failed to delete session:", error);
+    console.error("Failed to delete workspace:", error);
   }
 }
 
@@ -226,11 +264,11 @@ export async function saveLastWorkspace(
       activeTabId,
     };
 
-    const sessionsFile = await loadSessionsFile();
-    sessionsFile.lastWorkspace = lastWorkspace;
+    const workspacesFile = await loadWorkspacesFile();
+    workspacesFile.lastWorkspace = lastWorkspace;
 
-    await saveSessionsFile(sessionsFile);
-    console.log("[Session Save] Last workspace saved successfully");
+    await saveWorkspacesFile(workspacesFile);
+    console.log("[Workspace Save] Last workspace saved successfully");
   } catch (error) {
     console.error("Failed to save last workspace:", error);
   }
@@ -238,8 +276,8 @@ export async function saveLastWorkspace(
 
 export async function loadLastWorkspace(): Promise<Workspace | null> {
   try {
-    const sessionsFile = await loadSessionsFile();
-    return sessionsFile.lastWorkspace ?? null;
+    const workspacesFile = await loadWorkspacesFile();
+    return workspacesFile.lastWorkspace ?? null;
   } catch (error) {
     console.error("Failed to load last workspace:", error);
     return null;
@@ -265,16 +303,18 @@ export async function renameWorkspace(
       throw new Error("Cannot rename the last workspace");
     }
 
-    const sessionsFile = await loadSessionsFile();
-    const workspace = sessionsFile.sessions.find((s) => s.name === currentName);
+    const workspacesFile = await loadWorkspacesFile();
+    const workspace = workspacesFile.workspaces.find(
+      (entry) => entry.name === currentName,
+    );
 
     if (!workspace) {
       throw new Error(`Workspace "${currentName}" not found`);
     }
 
     // Check if new name already exists
-    const existingWithNewName = sessionsFile.sessions.find(
-      (s) => s.name === newName,
+    const existingWithNewName = workspacesFile.workspaces.find(
+      (entry) => entry.name === newName,
     );
     if (existingWithNewName) {
       throw new Error(`Workspace "${newName}" already exists`);
@@ -283,30 +323,126 @@ export async function renameWorkspace(
     // Update the workspace name
     workspace.name = newName;
 
-    await saveSessionsFile(sessionsFile);
-    return sessionsFile.sessions;
+    await saveWorkspacesFile(workspacesFile);
+    return workspacesFile.workspaces;
   } catch (error) {
     console.error("Failed to rename workspace:", error);
     throw error;
   }
 }
 
+function extractWorkspaceFromData(data: unknown): Workspace | null {
+  if (isRecord(data)) {
+    const workspaces = data["workspaces"];
+    if (Array.isArray(workspaces)) {
+      const candidate = workspaces[0];
+      if (candidate && isRecord(candidate)) {
+        return extractWorkspaceFromData(candidate);
+      }
+    }
+
+    const sessions = data["sessions"];
+    if (Array.isArray(sessions)) {
+      const candidate = sessions[0];
+      if (candidate && isRecord(candidate)) {
+        return extractWorkspaceFromData(candidate);
+      }
+    }
+
+    const workspaceRecord = data["workspace"];
+    if (isRecord(workspaceRecord)) {
+      return extractWorkspaceFromData(workspaceRecord);
+    }
+
+    const name = data["name"];
+    const tabs = data["tabs"];
+    const timestamp = data["timestamp"];
+    const activeTabId = data["activeTabId"];
+
+    if (typeof name === "string" && Array.isArray(tabs)) {
+      return {
+        name,
+        tabs: tabs as Workspace["tabs"],
+        timestamp: typeof timestamp === "number" ? timestamp : Date.now(),
+        activeTabId: typeof activeTabId === "string" ? activeTabId : undefined,
+      };
+    }
+  }
+
+  return null;
+}
+
+async function importWorkspaceFromFile(filePath: string): Promise<Workspace[]> {
+  try {
+    await ensureConduitDirectory();
+    const contents = await fs.readFile(filePath, "utf-8");
+    const parsed = JSON.parse(contents) as unknown;
+
+    const extracted = extractWorkspaceFromData(parsed);
+    if (!extracted) {
+      throw new Error("Selected file does not contain a valid workspace");
+    }
+
+    const workspace: Workspace = {
+      ...extracted,
+      timestamp: Date.now(),
+    };
+
+    const workspacesFile = await loadWorkspacesFile();
+    workspacesFile.workspaces = workspacesFile.workspaces.filter(
+      (existing) => existing.name !== workspace.name,
+    );
+    workspacesFile.workspaces.unshift(workspace);
+    workspacesFile.workspaces = workspacesFile.workspaces.slice(0, 10);
+
+    await saveWorkspacesFile(workspacesFile);
+    return workspacesFile.workspaces;
+  } catch (error) {
+    console.error("Failed to import workspace:", error);
+    throw error;
+  }
+}
+
+async function exportWorkspaceToFile(
+  filePath: string,
+  workspace: Workspace,
+): Promise<void> {
+  try {
+    await fs.writeFile(filePath, JSON.stringify(workspace, null, 2), "utf-8");
+  } catch (error) {
+    console.error("Failed to export workspace:", error);
+    throw error;
+  }
+}
+
 export function initializeWorkspaceHandlers(
   refreshApplicationMenu: () => Promise<void>,
+): never;
+export function initializeWorkspaceHandlers(
+  refreshApplicationMenu: () => Promise<void>,
+  window: BrowserWindow,
+): void;
+export function initializeWorkspaceHandlers(
+  refreshApplicationMenu: () => Promise<void>,
+  window?: BrowserWindow,
 ) {
-  ipcMain.handle("session:has-sessions", async () => {
-    return await hasSessions();
+  if (!window) {
+    throw new Error("BrowserWindow instance required");
+  }
+
+  ipcMain.handle("workspace:has-workspaces", async () => {
+    return await hasWorkspaces();
   });
 
-  ipcMain.handle("session:load-sessions", async () => {
-    return await loadSessions();
+  ipcMain.handle("workspace:load-workspaces", async () => {
+    return await loadWorkspaces();
   });
 
   ipcMain.handle(
-    "session:save-session",
+    "workspace:save-workspace",
     async (_event, name, tabs, activeTabId) => {
       const terminalSessions = getAllTerminals();
-      const result = await saveSession(
+      const result = await saveWorkspaceSnapshot(
         name,
         tabs,
         activeTabId,
@@ -318,13 +454,13 @@ export function initializeWorkspaceHandlers(
     },
   );
 
-  ipcMain.handle("session:delete-session", async (_event, timestamp) => {
-    await deleteSession(timestamp);
+  ipcMain.handle("workspace:delete-workspace", async (_event, timestamp) => {
+    await deleteWorkspaceByTimestamp(timestamp);
     await refreshApplicationMenu();
   });
 
   ipcMain.handle(
-    "session:rename-workspace",
+    "workspace:rename-workspace",
     async (_event, currentName, newName) => {
       const result = await renameWorkspace(currentName, newName);
       await refreshApplicationMenu();
@@ -333,19 +469,49 @@ export function initializeWorkspaceHandlers(
     },
   );
 
-  ipcMain.handle("session:has-last-workspace", async () => {
+  ipcMain.handle("workspace:has-last-workspace", async () => {
     return await hasLastWorkspace();
   });
 
-  ipcMain.handle("session:load-last-workspace", async () => {
+  ipcMain.handle("workspace:load-last-workspace", async () => {
     return await loadLastWorkspace();
   });
 
   ipcMain.handle(
-    "session:save-last-workspace",
+    "workspace:save-last-workspace",
     async (_event, tabs, activeTabId) => {
       const terminalSessions = getAllTerminals();
       await saveLastWorkspace(tabs, activeTabId, terminalSessions);
     },
   );
+
+  ipcMain.handle("workspace:import", async () => {
+    const result = await dialog.showOpenDialog(window, {
+      properties: ["openFile"],
+      filters: [{ name: "JSON Files", extensions: ["json"] }],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    const workspaces = await importWorkspaceFromFile(result.filePaths[0]);
+    await refreshApplicationMenu();
+
+    return workspaces;
+  });
+
+  ipcMain.handle("workspace:export", async (_event, workspace: Workspace) => {
+    const result = await dialog.showSaveDialog(window, {
+      defaultPath: `${workspace.name || "workspace"}.json`,
+      filters: [{ name: "JSON Files", extensions: ["json"] }],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+
+    await exportWorkspaceToFile(result.filePath, workspace);
+    return result.filePath;
+  });
 }

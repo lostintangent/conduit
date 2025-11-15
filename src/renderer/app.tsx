@@ -864,7 +864,7 @@ export function App() {
         isOpen={showWorkspacePicker}
         onClose={() => setShowWorkspacePicker(false)}
         workspaces={workspaces}
-        onSessionsUpdate={updateWorkspaces}
+        onWorkspacesUpdate={updateWorkspaces}
       />
 
       <AgentCleanupDialog

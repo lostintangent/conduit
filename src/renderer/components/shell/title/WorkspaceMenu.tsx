@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { Check, LayoutDashboard, Trash2 } from "lucide-react";
+import { Check, Download, LayoutDashboard, Trash2 } from "lucide-react";
 import { type MouseEvent, useCallback } from "react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
@@ -59,14 +59,45 @@ export const WorkspaceMenu = () => {
       e?.preventDefault();
       e?.stopPropagation();
 
-      await api.deleteSession(workspace.timestamp);
+      try {
+        await api.deleteWorkspace(workspace.timestamp);
 
-      setWorkspaces((current) =>
-        current.filter(({ name }) => name !== workspace.name),
-      );
+        setWorkspaces((current) =>
+          current.filter(({ name }) => name !== workspace.name),
+        );
+      } catch (error) {
+        console.error("Failed to delete workspace:", error);
+      }
     },
     [setWorkspaces],
   );
+
+  const handleExportWorkspace = useCallback(
+    async (workspace: Workspace, e?: MouseEvent<HTMLButtonElement>) => {
+      e?.preventDefault();
+      e?.stopPropagation();
+
+      try {
+        await api.exportWorkspace(workspace);
+      } catch (error) {
+        console.error("Failed to export workspace:", error);
+      }
+    },
+    [],
+  );
+
+  const handleImportWorkspace = useCallback(async () => {
+    try {
+      const importedWorkspaces = (await api.importWorkspace()) as
+        | Workspace[]
+        | null;
+      if (importedWorkspaces) {
+        setWorkspaces(importedWorkspaces);
+      }
+    } catch (error) {
+      console.error("Failed to import workspace:", error);
+    }
+  }, [setWorkspaces]);
 
   return (
     <DropdownMenu>
@@ -104,22 +135,36 @@ export const WorkspaceMenu = () => {
                   )}
                 >
                   <span>{workspace.name}</span>
-                  {isCurrentWorkspace ? (
-                    <Check className="w-4 h-4 mr-1" />
-                  ) : (
+                  <div className="flex items-center gap-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={(e) => handleDeleteWorkspace(workspace, e)}
+                          onClick={(e) => handleExportWorkspace(workspace, e)}
                           className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 group"
-                          aria-label="Delete workspace"
+                          aria-label="Export workspace"
                         >
-                          <Trash2 className="w-4 h-4 group-hover:text-red-500" />
+                          <Download className="w-4 h-4 group-hover:text-accent" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Delete workspace</TooltipContent>
+                      <TooltipContent>Export workspace</TooltipContent>
                     </Tooltip>
-                  )}
+                    {isCurrentWorkspace ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => handleDeleteWorkspace(workspace, e)}
+                            className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 group"
+                            aria-label="Delete workspace"
+                          >
+                            <Trash2 className="w-4 h-4 group-hover:text-red-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete workspace</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 </DropdownMenuItem>
               );
             })}
@@ -128,6 +173,10 @@ export const WorkspaceMenu = () => {
         )}
 
         {/* Workspace management actions */}
+
+        <DropdownMenuItem onClick={handleImportWorkspace}>
+          Import workspace…
+        </DropdownMenuItem>
 
         <DropdownMenuItem
           onClick={saveWorkspaceCmd.execute}

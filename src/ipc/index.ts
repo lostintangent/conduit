@@ -24,7 +24,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 
   await initializeCliHandlers(sendToRenderer);
   initializeTerminalHandlers(sendToRenderer);
-  initializeWorkspaceHandlers(refreshMenu);
+  initializeWorkspaceHandlers(refreshMenu, window);
   initializeUIHandlers(window);
   initializeFsHandlers();
   await initializeAgentHandlers();

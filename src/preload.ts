@@ -34,6 +34,7 @@ import type {
   UpdateState,
   UserSettings,
   VMInfo,
+  Workspace,
 } from "./shared/types";
 
 function createEventListener<T>(
@@ -207,39 +208,48 @@ const conduitAPI = {
       string | null
     >,
 
-  /* Session management methods */
+  /* Workspace management methods */
 
-  hasSessions: () =>
-    ipcRenderer.invoke("session:has-sessions") as Promise<boolean>,
+  hasWorkspaces: () =>
+    ipcRenderer.invoke("workspace:has-workspaces") as Promise<boolean>,
 
-  loadSessions: () =>
-    ipcRenderer.invoke("session:load-sessions") as Promise<unknown[]>,
+  loadWorkspaces: () =>
+    ipcRenderer.invoke("workspace:load-workspaces") as Promise<unknown[]>,
 
-  saveSession: (name: string, tabs: unknown, activeTabId: string) =>
+  saveWorkspace: (name: string, tabs: unknown, activeTabId: string) =>
     ipcRenderer.invoke(
-      "session:save-session",
+      "workspace:save-workspace",
       name,
       tabs,
       activeTabId,
     ) as Promise<unknown[]>,
 
-  deleteSession: (timestamp: number) =>
-    ipcRenderer.invoke("session:delete-session", timestamp) as Promise<void>,
+  deleteWorkspace: (timestamp: number) =>
+    ipcRenderer.invoke(
+      "workspace:delete-workspace",
+      timestamp,
+    ) as Promise<void>,
 
   renameWorkspace: (currentName: string, newName: string) =>
-    ipcRenderer.invoke("session:rename-workspace", currentName, newName),
+    ipcRenderer.invoke("workspace:rename-workspace", currentName, newName),
+
+  importWorkspace: () =>
+    ipcRenderer.invoke("workspace:import") as Promise<unknown[] | null>,
+
+  exportWorkspace: (workspace: Workspace) =>
+    ipcRenderer.invoke("workspace:export", workspace) as Promise<string | null>,
 
   hasLastWorkspace: () =>
-    ipcRenderer.invoke("session:has-last-workspace") as Promise<boolean>,
+    ipcRenderer.invoke("workspace:has-last-workspace") as Promise<boolean>,
 
   loadLastWorkspace: () =>
-    ipcRenderer.invoke("session:load-last-workspace") as Promise<
+    ipcRenderer.invoke("workspace:load-last-workspace") as Promise<
       unknown | null
     >,
 
   saveLastWorkspace: (tabs: unknown, activeTabId: string) =>
     ipcRenderer.invoke(
-      "session:save-last-workspace",
+      "workspace:save-last-workspace",
       tabs,
       activeTabId,
     ) as Promise<void>,

@@ -35,13 +35,13 @@ export async function handleSaveWorkspace(
   const workspaceName = store.get(workspaceNameAtom);
 
   if (workspaceName) {
-    const sessions = (await window.conduit.saveSession(
+    const updatedWorkspaces = (await window.conduit.saveWorkspace(
       workspaceName,
       tabs,
       activeTabId,
     )) as Workspace[];
 
-    store.set(workspacesAtom, sessions);
+    store.set(workspacesAtom, updatedWorkspaces);
 
     // Reset the has changes flag and update the reference snapshot after successful save
     const savedSnapshot = JSON.stringify(tabs);

@@ -62,9 +62,9 @@ export function useWorkspaces() {
         autoSaveTimerRef.current = setTimeout(() => {
           if (activeTabId) {
             api
-              .saveSession(workspaceName, tabs, activeTabId)
-              .then((sessions) => {
-                setWorkspaces(sessions as Workspace[]);
+              .saveWorkspace(workspaceName, tabs, activeTabId)
+              .then((workspacesResult) => {
+                setWorkspaces(workspacesResult as Workspace[]);
                 setPreviousTabsSnapshot(JSON.stringify(tabs));
                 setWorkspaceHasChanges(false);
               })
@@ -109,20 +109,20 @@ export function useWorkspaces() {
   }, []);
 
   useEffect(() => {
-    const checkSessions = async () => {
-      const hasSessions = await api.hasSessions();
-      setHasWorkspaces(hasSessions);
+    const checkWorkspaces = async () => {
+      const hasWorkspaceEntries = await api.hasWorkspaces();
+      setHasWorkspaces(hasWorkspaceEntries);
 
-      if (hasSessions) {
-        const sessions = (await api.loadSessions()) as Workspace[];
-        setWorkspaces(sessions);
+      if (hasWorkspaceEntries) {
+        const storedWorkspaces = (await api.loadWorkspaces()) as Workspace[];
+        setWorkspaces(storedWorkspaces);
       }
 
       const hasLast = await api.hasLastWorkspace();
       setHasLastWorkspace(hasLast);
     };
 
-    void checkSessions();
+    void checkWorkspaces();
   }, []);
 
   const saveWorkspace = useCallback(
@@ -139,13 +139,13 @@ export function useWorkspaces() {
         })}`;
       }
 
-      const sessions = (await api.saveSession(
+      const storedWorkspaces = (await api.saveWorkspace(
         name,
         tabs,
         activeTabId,
       )) as Workspace[];
 
-      setWorkspaces(sessions);
+      setWorkspaces(storedWorkspaces);
       setHasWorkspaces(true);
       setShowCreateWorkspaceDialog(false);
       setWorkspaceName(name);
@@ -162,12 +162,12 @@ export function useWorkspaces() {
       }
 
       try {
-        const sessions = (await api.renameWorkspace(
+        const storedWorkspaces = (await api.renameWorkspace(
           workspaceName,
           trimmedName,
         )) as Workspace[];
 
-        setWorkspaces(sessions);
+        setWorkspaces(storedWorkspaces);
         setWorkspaceName(trimmedName);
         setShowRenameWorkspaceDialog(false);
       } catch (error) {
@@ -177,20 +177,20 @@ export function useWorkspaces() {
     [workspaceName, setWorkspaceName],
   );
 
-  const updateWorkspaces = useCallback((sessions: Workspace[]) => {
-    setWorkspaces(sessions);
-    setHasWorkspaces(sessions.length > 0);
+  const updateWorkspaces = useCallback((workspaceEntries: Workspace[]) => {
+    setWorkspaces(workspaceEntries);
+    setHasWorkspaces(workspaceEntries.length > 0);
   }, []);
 
   const closeWorkspace = useCallback(
     async (tabs: any[], activeTabId?: string) => {
       if (workspaceName && tabs.length > 0 && activeTabId) {
-        const sessions = (await api.saveSession(
+        const workspaceEntries = (await api.saveWorkspace(
           workspaceName,
           tabs,
           activeTabId,
         )) as Workspace[];
-        updateWorkspaces(sessions);
+        updateWorkspaces(workspaceEntries);
       }
 
       const { closeWorkspace: closeWorkspaceAction } = await import(

@@ -1,7 +1,7 @@
 import { BrowserWindow, Menu, app, autoUpdater } from "electron";
 import type { UpdateStatus, UserSettings, Workspace } from "../../shared/types";
 import { getUpdateStatus } from "../updates";
-import { loadSessions } from "../workspace";
+import { loadWorkspaces } from "../workspace";
 
 function getUpdateMenuLabel(status: UpdateStatus) {
   switch (status) {
@@ -41,7 +41,7 @@ export async function updateApplicationMenu(
   settings: UserSettings,
   saveSettings: (settings: UserSettings) => Promise<void>,
 ) {
-  const workspaces = await loadSessions();
+  const workspaces = await loadWorkspaces();
   const updateMenuItem = buildCheckForUpdatesMenuItem();
 
   const template = [

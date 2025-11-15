@@ -8,14 +8,14 @@ type WorkspacePickerDialog = {
   isOpen: boolean;
   onClose: () => void;
   workspaces: Workspace[];
-  onSessionsUpdate: (sessions: Workspace[]) => void;
+  onWorkspacesUpdate: (workspaces: Workspace[]) => void;
 };
 
 export function WorkspacePicker({
   isOpen,
   onClose,
   workspaces,
-  onSessionsUpdate,
+  onWorkspacesUpdate,
 }: WorkspacePickerDialog) {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -31,10 +31,10 @@ export function WorkspacePicker({
 
       if (key === "enter") {
         event.preventDefault();
-        const session = workspaces[selectedIndex];
-        if (session) {
+        const workspaceEntry = workspaces[selectedIndex];
+        if (workspaceEntry) {
           void (async () => {
-            await openWorkspace(session);
+            await openWorkspace(workspaceEntry);
             onClose();
           })();
         }
@@ -58,33 +58,34 @@ export function WorkspacePicker({
 
       if (key === "delete" || key === "backspace") {
         event.preventDefault();
-        const session = workspaces[selectedIndex];
-        if (session) {
+        const workspaceEntry = workspaces[selectedIndex];
+        if (workspaceEntry) {
           void (async () => {
             const api = window.conduit;
             if (!api) {
               return;
             }
 
-            await api.deleteSession(session.timestamp);
-            const updatedSessions = (await api.loadSessions()) as Workspace[];
-            onSessionsUpdate(updatedSessions);
+            await api.deleteWorkspace(workspaceEntry.timestamp);
+            const updatedWorkspaces =
+              (await api.loadWorkspaces()) as Workspace[];
+            onWorkspacesUpdate(updatedWorkspaces);
 
-            if (updatedSessions.length === 0) {
+            if (updatedWorkspaces.length === 0) {
               onClose();
             } else {
               setSelectedIndex((current) =>
-                Math.min(current, updatedSessions.length - 1),
+                Math.min(current, updatedWorkspaces.length - 1),
               );
             }
           })();
         }
       }
     },
-    [onClose, selectedIndex, workspaces, onSessionsUpdate],
+    [onClose, selectedIndex, workspaces, onWorkspacesUpdate],
   );
 
-  const handleRestoreSession = useCallback(
+  const handleRestoreWorkspace = useCallback(
     (session: Workspace) => {
       void (async () => {
         await openWorkspace(session);
@@ -94,7 +95,7 @@ export function WorkspacePicker({
     [onClose],
   );
 
-  const handleDeleteSession = useCallback(
+  const handleDeleteWorkspace = useCallback(
     async (session: Workspace, event: React.MouseEvent) => {
       event.stopPropagation();
 
@@ -103,19 +104,19 @@ export function WorkspacePicker({
         return;
       }
 
-      await api.deleteSession(session.timestamp);
-      const updatedSessions = (await api.loadSessions()) as Workspace[];
-      onSessionsUpdate(updatedSessions);
+      await api.deleteWorkspace(session.timestamp);
+      const updatedWorkspaces = (await api.loadWorkspaces()) as Workspace[];
+      onWorkspacesUpdate(updatedWorkspaces);
 
-      if (updatedSessions.length === 0) {
+      if (updatedWorkspaces.length === 0) {
         onClose();
       } else {
         setSelectedIndex((current) =>
-          Math.min(current, updatedSessions.length - 1),
+          Math.min(current, updatedWorkspaces.length - 1),
         );
       }
     },
-    [onClose, onSessionsUpdate],
+    [onClose, onWorkspacesUpdate],
   );
 
   const formatTimestamp = (timestamp: number) => {
@@ -183,7 +184,7 @@ export function WorkspacePicker({
                   >
                     <button
                       type="button"
-                      onClick={() => handleRestoreSession(workspace)}
+                      onClick={() => handleRestoreWorkspace(workspace)}
                       className="flex flex-1 flex-col gap-1 px-3 py-2 text-left focus:outline-none"
                     >
                       <span className="text-sm font-medium">
@@ -196,8 +197,8 @@ export function WorkspacePicker({
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => handleDeleteSession(workspace, e)}
-                      aria-label="Delete session"
+                      onClick={(e) => handleDeleteWorkspace(workspace, e)}
+                      aria-label="Delete workspace"
                       className="mr-2 rounded-md p-1 text-sm leading-none text-current transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/30"
                     >
                       <X className="h-4 w-4" />
