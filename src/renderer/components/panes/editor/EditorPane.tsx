@@ -261,6 +261,19 @@ export function EditorPane({
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
 
+  // Track which paths were manually collapsed during filtering
+  // This overrides auto-expansion when user explicitly collapses a folder
+  const [manuallyCollapsedPaths, setManuallyCollapsedPaths] = useState<
+    Set<string>
+  >(new Set());
+
+  // Clear manually collapsed paths when filtering is turned off
+  useEffect(() => {
+    if (!showOnlyChangedFiles) {
+      setManuallyCollapsedPaths(new Set());
+    }
+  }, [showOnlyChangedFiles]);
+
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
 
@@ -939,8 +952,23 @@ export function EditorPane({
         );
         return next;
       });
+
+      // When filtering is on, track manual collapses to override auto-expansion
+      if (showOnlyChangedFiles) {
+        setManuallyCollapsedPaths((prev) => {
+          const next = new Set(prev);
+          if (isExpanded) {
+            // User expanded - remove from collapsed override
+            next.delete(path);
+          } else {
+            // User collapsed - add to collapsed override
+            next.add(path);
+          }
+          return next;
+        });
+      }
     },
-    [paneId],
+    [paneId, showOnlyChangedFiles],
   );
 
   const handleNavigateUp = useCallback(() => {
@@ -950,51 +978,32 @@ export function EditorPane({
     }
   }, [cwd, onCwdChange]);
 
-  // Filter file tree by git status - only show items with git status
+  // Filter file tree by git status - only show directories that contain changes
+  // Note: We only filter at the root level to decide which directories to show
+  // DirectoryItem handles filtering its own children when they're loaded
   const filterTreeByGitStatus = useCallback(
     (
       nodes: FileTreeNode[],
       statusMap: Map<string, unknown>,
     ): FileTreeNode[] => {
-      return nodes
-        .map((node) => {
-          if (node.type === "file") {
-            // Simple: Only show files that have git status
-            return statusMap.has(node.relativePath) ? node : null;
-          } else {
-            // Directory: recursively filter children if loaded
-            if (node.children) {
-              const filteredChildren = filterTreeByGitStatus(
-                node.children,
-                statusMap,
-              );
-
-              // Only show directory if it has changed children after filtering
-              if (filteredChildren.length > 0) {
-                return { ...node, children: filteredChildren };
-              }
-
-              // No changed children, don't show this directory
-              return null;
+      return nodes.filter((node) => {
+        if (node.type === "file") {
+          // Only show files that have git status
+          return statusMap.has(node.relativePath);
+        } else {
+          // For directories, check if any changed files exist under this path
+          const dirPath = node.relativePath;
+          for (const [filePath] of statusMap) {
+            if (
+              filePath.startsWith(dirPath + "/") ||
+              filePath.startsWith(dirPath + "\\")
+            ) {
+              return true;
             }
-
-            // Children not loaded - check if any changed files exist under this path
-            const dirPath = node.relativePath;
-            for (const [filePath] of statusMap) {
-              if (
-                filePath.startsWith(dirPath + "/") ||
-                filePath.startsWith(dirPath + "\\")
-              ) {
-                // Has changed files underneath, show directory (children will load later)
-                return node;
-              }
-            }
-
-            // No changes under this directory
-            return null;
           }
-        })
-        .filter((node): node is FileTreeNode => node !== null);
+          return false;
+        }
+      });
     },
     [],
   );
@@ -1049,12 +1058,25 @@ export function EditorPane({
   // Combine manual and auto expanded paths
   const expandedPaths = useMemo(() => {
     if (showOnlyChangedFiles) {
-      // When filtering, show both manually and auto-expanded paths
-      return new Set([...manuallyExpandedPaths, ...autoExpandedPaths]);
+      // When filtering, combine manually and auto-expanded paths,
+      // but exclude paths that were manually collapsed
+      const combined = new Set([
+        ...manuallyExpandedPaths,
+        ...autoExpandedPaths,
+      ]);
+      for (const path of manuallyCollapsedPaths) {
+        combined.delete(path);
+      }
+      return combined;
     }
     // When not filtering, only show manually expanded paths
     return manuallyExpandedPaths;
-  }, [showOnlyChangedFiles, manuallyExpandedPaths, autoExpandedPaths]);
+  }, [
+    showOnlyChangedFiles,
+    manuallyExpandedPaths,
+    autoExpandedPaths,
+    manuallyCollapsedPaths,
+  ]);
 
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {

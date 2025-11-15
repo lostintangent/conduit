@@ -40,59 +40,59 @@ export function DirectoryItem({
   isFiltering,
 }: DirectoryItemProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [children, setChildren] = useState<FileTreeNode[] | undefined>(
-    node.children,
-  );
+  // Local state for loaded children
+  const [loadedChildren, setLoadedChildren] = useState<
+    FileTreeNode[] | undefined
+  >(undefined);
 
-  // Helper to filter children based on git status
-  const filterChildren = useCallback(
-    (loadedChildren: FileTreeNode[]): FileTreeNode[] => {
-      if (!isFiltering || !gitStatus) {
-        return loadedChildren;
-      }
+  // Filter loaded children when in filter mode
+  const children = useMemo(() => {
+    if (!isFiltering || !loadedChildren || !gitStatus) {
+      return loadedChildren;
+    }
 
-      // Filter children to only show those with git status or directories containing changes
-      return loadedChildren.filter((child) => {
-        if (child.type === "file") {
-          // Only show files with git status
-          return gitStatus.has(child.relativePath);
-        } else {
-          // For directories, check if any file under it has changes
-          const dirPath = child.relativePath;
-          for (const [filePath] of gitStatus) {
-            if (
-              filePath.startsWith(dirPath + "/") ||
-              filePath.startsWith(dirPath + "\\")
-            ) {
-              return true;
-            }
+    // Filter to only show files with git status and directories containing changes
+    return loadedChildren.filter((child) => {
+      if (child.type === "file") {
+        return gitStatus.has(child.relativePath);
+      } else {
+        // For directories, check if any file under it has changes
+        const dirPath = child.relativePath;
+        for (const [filePath] of gitStatus) {
+          if (
+            filePath.startsWith(dirPath + "/") ||
+            filePath.startsWith(dirPath + "\\")
+          ) {
+            return true;
           }
-          return false;
         }
-      });
-    },
-    [isFiltering, gitStatus],
-  );
+        return false;
+      }
+    });
+  }, [loadedChildren, isFiltering, gitStatus]);
 
   // Load children when expanded
   useEffect(() => {
-    if (isExpanded && children === undefined) {
+    if (isExpanded && loadedChildren === undefined) {
       setIsLoading(true);
       api
         .listDirectory(node.path, rootPath)
-        .then((loadedChildren) => {
-          // Filter children if we're in filter mode
-          const filteredChildren = filterChildren(loadedChildren);
-          setChildren(filteredChildren);
+        .then((fetchedChildren) => {
+          setLoadedChildren(fetchedChildren);
           setIsLoading(false);
         })
         .catch((error) => {
           console.error("Failed to load directory contents:", error);
-          setChildren([]);
+          setLoadedChildren([]);
           setIsLoading(false);
         });
     }
-  }, [isExpanded, children, node.path, rootPath, filterChildren]);
+  }, [isExpanded, loadedChildren, node.path, rootPath]);
+
+  // Clear loaded children when node path changes (directory changed)
+  useEffect(() => {
+    setLoadedChildren(undefined);
+  }, [node.path]);
 
   // Aggregate git status for this folder using VS Code's weight-based priority system
   const folderStatus = useMemo(
@@ -109,28 +109,25 @@ export function DirectoryItem({
     onManualExpansionToggle?.(node.relativePath, !isExpanded);
 
     // Load children if expanding and not already loaded
-    if (!isExpanded && children === undefined) {
+    if (!isExpanded && loadedChildren === undefined) {
       setIsLoading(true);
       try {
-        const loadedChildren = await api.listDirectory(node.path, rootPath);
-        // Filter children if we're in filter mode
-        const filteredChildren = filterChildren(loadedChildren);
-        setChildren(filteredChildren);
+        const fetchedChildren = await api.listDirectory(node.path, rootPath);
+        setLoadedChildren(fetchedChildren);
       } catch (error) {
         console.error("Failed to load directory contents:", error);
-        setChildren([]);
+        setLoadedChildren([]);
       } finally {
         setIsLoading(false);
       }
     }
   }, [
     isExpanded,
-    children,
+    loadedChildren,
     node.path,
     rootPath,
     node.relativePath,
     onManualExpansionToggle,
-    filterChildren,
   ]);
 
   const handleChangeCwd = useCallback(
