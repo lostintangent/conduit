@@ -1,7 +1,11 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { FileTreeNode, GitStatusMap } from "@shared/types";
-import { useDirectoryCache } from "../../../../../../src/renderer/components/panes/editor/tree/useDirectoryCache";
+import {
+  useDirectoryCache,
+  clearDirectoryCache,
+  invalidateDirectory,
+} from "../../../../../../src/renderer/components/panes/editor/tree/useDirectoryCache";
 
 // Mock the conduit API
 const mockListDirectory = vi.fn();
@@ -42,6 +46,8 @@ describe("useDirectoryCache", () => {
     };
     vi.clearAllMocks();
     mockListDirectory.mockResolvedValue(createMockChildren());
+    // Clear module-level cache between tests
+    clearDirectoryCache();
   });
 
   afterEach(() => {
@@ -150,8 +156,8 @@ describe("useDirectoryCache", () => {
     });
   });
 
-  describe("Silent refresh on tree version change", () => {
-    it("should silently refresh when treeVersion changes", async () => {
+  describe("Silent refresh on cache invalidation", () => {
+    it("should silently refresh when directory is invalidated", async () => {
       const node = createMockNode("/repo/src", "src");
       const updatedChildren = [
         ...createMockChildren(),
@@ -163,16 +169,13 @@ describe("useDirectoryCache", () => {
         },
       ];
 
-      const { result, rerender } = renderHook(
-        ({ treeVersion }) =>
-          useDirectoryCache({
-            node,
-            rootPath: "/repo",
-            isExpanded: true,
-            prefetch: false,
-            treeVersion,
-          }),
-        { initialProps: { treeVersion: 0 } },
+      const { result } = renderHook(() =>
+        useDirectoryCache({
+          node,
+          rootPath: "/repo",
+          isExpanded: true,
+          prefetch: false,
+        }),
       );
 
       await waitFor(() => {
@@ -184,8 +187,9 @@ describe("useDirectoryCache", () => {
       // Update mock to return new children
       mockListDirectory.mockResolvedValueOnce(updatedChildren);
 
-      // Change tree version (simulating file watcher update)
-      rerender({ treeVersion: 1 });
+      // Invalidate directory (simulating file watcher update)
+      // Component is mounted so it has listeners - will do silent refresh
+      invalidateDirectory("/repo/src", "/repo");
 
       await waitFor(() => {
         expect(result.current.children).toHaveLength(4);
@@ -195,23 +199,20 @@ describe("useDirectoryCache", () => {
       expect(result.current.isResolved).toBe(true);
     });
 
-    it("should not refresh unresolved directories on tree version change", async () => {
+    it("should not refresh unresolved directories on invalidation", async () => {
       const node = createMockNode("/repo/src", "src");
 
-      const { rerender } = renderHook(
-        ({ treeVersion }) =>
-          useDirectoryCache({
-            node,
-            rootPath: "/repo",
-            isExpanded: false,
-            prefetch: false,
-            treeVersion,
-          }),
-        { initialProps: { treeVersion: 0 } },
+      renderHook(() =>
+        useDirectoryCache({
+          node,
+          rootPath: "/repo",
+          isExpanded: false,
+          prefetch: false,
+        }),
       );
 
-      // Change tree version
-      rerender({ treeVersion: 1 });
+      // Invalidate directory - component has no listeners, should do nothing
+      invalidateDirectory("/repo/src", "/repo");
 
       // Should not have called API since directory was never resolved
       expect(mockListDirectory).not.toHaveBeenCalled();

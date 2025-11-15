@@ -15,7 +15,7 @@ export type FileChangedEvent = {
   cwd: string;
   filePath: string;
   relativePath: string;
-  eventType: "changed" | "deleted";
+  eventType: "added" | "changed" | "deleted";
 };
 
 /**
@@ -27,6 +27,7 @@ export type FileRenamedEvent = {
   newPath: string;
   oldRelativePath: string;
   newRelativePath: string;
+  isDirectory: boolean;
 };
 
 /**

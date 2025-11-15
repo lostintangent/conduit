@@ -17,10 +17,14 @@ vi.mock("@parcel/watcher", () => ({
   },
 }));
 
-// Mock fs for realpath
+// Mock fs for realpath and stat
 vi.mock("node:fs", () => ({
   default: {
     realpathSync: vi.fn((path: string) => path),
+    statSync: vi.fn((path: string) => ({
+      isDirectory: () => false,
+      isFile: () => true,
+    })),
   },
 }));
 
@@ -294,6 +298,7 @@ describe("ParcelFileSystemWatcher", () => {
         newPath: "/test/path/new.txt",
         oldRelativePath: "old.txt",
         newRelativePath: "new.txt",
+        isDirectory: false,
       });
     });
 

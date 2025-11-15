@@ -162,17 +162,42 @@ export class ParcelFileSystemWatcher
         `[ParcelFS] Detected rename: ${oldRelativePath} → ${relativePath}`,
       );
 
+      // Check if the renamed item is a directory
+      let isDirectory = false;
+      try {
+        const stats = fs.statSync(filePath);
+        isDirectory = stats.isDirectory();
+      } catch (error) {
+        // If we can't stat the file, fall back to checking the path
+        console.error(`[ParcelFS] Failed to stat ${filePath}:`, error);
+      }
+
       const renameEvent: FileRenamedEvent = {
         cwd: this.cwd,
         oldPath: renamedFrom,
         newPath: filePath,
         oldRelativePath,
         newRelativePath: relativePath,
+        isDirectory,
       };
 
       for (const callback of this.fileRenamedCallbacks) {
         callback(renameEvent);
       }
+    } else {
+      // It's a true file addition (not a rename) - emit file-changed event
+      this.debounce(`file-addition:${filePath}`, 50, () => {
+        const event: FileChangedEvent = {
+          cwd: this.cwd,
+          filePath,
+          relativePath,
+          eventType: "added",
+        };
+
+        for (const callback of this.fileChangedCallbacks) {
+          callback(event);
+        }
+      });
     }
 
     // Always trigger tree change for additions

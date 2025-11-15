@@ -12,7 +12,6 @@ type FileTreeItemProps = {
   expandedPaths?: Set<string> | null;
   onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
   isFiltering?: boolean;
-  treeVersion?: number;
   prefetch?: boolean;
 };
 
@@ -26,7 +25,6 @@ export function FileTreeItem({
   expandedPaths,
   onManualExpansionToggle,
   isFiltering,
-  treeVersion,
   prefetch,
 }: FileTreeItemProps) {
   const isDirectory = node.type === "directory";
@@ -43,7 +41,6 @@ export function FileTreeItem({
         expandedPaths={expandedPaths}
         onManualExpansionToggle={onManualExpansionToggle}
         isFiltering={isFiltering}
-        treeVersion={treeVersion}
         prefetch={prefetch}
       />
     );

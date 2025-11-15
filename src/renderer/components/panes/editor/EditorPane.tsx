@@ -1,5 +1,11 @@
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
+import {
+  clearDirectoryCache,
+  handleFileChanged,
+  handleFileRenamed,
+  invalidateDirectory,
+} from "@/components/panes/editor/tree/useDirectoryCache";
 import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
@@ -164,8 +170,6 @@ export function EditorPane({
   const editorTheme = resolveTheme(theme) === "light" ? "vs-light" : "vs-dark";
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
-  // Tree version increments whenever the tree is refreshed (for cache invalidation)
-  const [treeVersion, setTreeVersion] = useState(0);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
     undefined,
   );
@@ -213,6 +217,7 @@ export function EditorPane({
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
   const currentContentRef = useRef(currentContent);
   const previousFilePathRef = useRef(filePath);
+  const previousCwdRef = useRef(cwd);
 
   // Git status integration
   const {
@@ -616,6 +621,12 @@ export function EditorPane({
       return;
     }
 
+    // Only clear directory cache when cwd actually changes (not when layoutMode changes)
+    if (previousCwdRef.current !== cwd) {
+      clearDirectoryCache();
+      previousCwdRef.current = cwd;
+    }
+
     // Check cache first
     const cachedTree = fileTreeCache.get(cwd);
     if (cachedTree) {
@@ -676,6 +687,9 @@ export function EditorPane({
       if (payload.cwd !== cwd) {
         return;
       }
+
+      // Invalidate the parent directory cache for this file
+      handleFileChanged(payload.filePath, cwd);
 
       // Check if this is the currently open file
       if (filePathRef.current && payload.filePath === filePathRef.current) {
@@ -775,6 +789,14 @@ export function EditorPane({
         return;
       }
 
+      // Invalidate parent directory caches for the rename
+      handleFileRenamed(
+        payload.oldPath,
+        payload.newPath,
+        payload.isDirectory,
+        cwd,
+      );
+
       // Check if the currently open file was renamed
       const currentFilePath = filePathRef.current;
       if (currentFilePath && payload.oldPath === currentFilePath) {
@@ -809,7 +831,10 @@ export function EditorPane({
 
       console.log(`[EditorPane] Tree changed event received for cwd=${cwd}`);
 
-      // Refresh the file tree
+      // Invalidate the root directory cache
+      invalidateDirectory(cwd, cwd);
+
+      // Refresh the root file tree
       api
         .listDirectory(cwd)
         .then((tree) => {
@@ -818,8 +843,6 @@ export function EditorPane({
           );
           setFileTree(tree);
           fileTreeCache.set(cwd, tree);
-          // Increment tree version to invalidate directory caches
-          setTreeVersion((v) => v + 1);
         })
         .catch((error) => {
           console.error("[EditorPane] Failed to refresh file tree:", error);
@@ -1770,7 +1793,6 @@ export function EditorPane({
                 expandedPaths={expandedPaths}
                 onManualExpansionToggle={handleManualExpansionToggle}
                 isFiltering={showOnlyChangedFiles}
-                treeVersion={treeVersion}
               />
             ) : (
               <div className="flex items-center justify-center w-full text-white/50">

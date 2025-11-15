@@ -24,7 +24,6 @@ type DirectoryItemProps = {
   expandedPaths?: Set<string> | null;
   onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
   isFiltering?: boolean;
-  treeVersion?: number;
   prefetch?: boolean;
 };
 
@@ -39,7 +38,6 @@ export function DirectoryItem({
   expandedPaths,
   onManualExpansionToggle,
   isFiltering,
-  treeVersion,
   prefetch = false,
 }: DirectoryItemProps) {
   // Use custom hook for cache management
@@ -48,7 +46,6 @@ export function DirectoryItem({
     rootPath,
     isExpanded,
     prefetch,
-    treeVersion,
     isFiltering,
     gitStatus,
   });
@@ -163,7 +160,6 @@ export function DirectoryItem({
                 expandedPaths={expandedPaths}
                 onManualExpansionToggle={onManualExpansionToggle}
                 isFiltering={isFiltering}
-                treeVersion={treeVersion}
                 prefetch={isExpanded && child.type === "directory"}
               />
             ))

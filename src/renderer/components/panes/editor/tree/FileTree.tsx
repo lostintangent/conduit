@@ -11,7 +11,6 @@ type FileTreeProps = {
   expandedPaths?: Set<string> | null;
   onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
   isFiltering?: boolean;
-  treeVersion?: number;
 };
 
 export function FileTree({
@@ -24,7 +23,6 @@ export function FileTree({
   expandedPaths,
   onManualExpansionToggle,
   isFiltering,
-  treeVersion,
 }: FileTreeProps) {
   return (
     <nav className="text-sm text-white/80">
@@ -41,7 +39,6 @@ export function FileTree({
             expandedPaths={expandedPaths}
             onManualExpansionToggle={onManualExpansionToggle}
             isFiltering={isFiltering}
-            treeVersion={treeVersion}
             prefetch={item.type === "directory"}
           />
         ))}
