@@ -1,6 +1,7 @@
 {
   "name": "conduit",
   "productName": "Conduit",
+  "description": "A terminal-centric IDE (DIY-DE), that's optimized for task parallelization with coding agents",
   "main": ".vite/build/main.js",
   "version": "0.1.0",
   "private": true,

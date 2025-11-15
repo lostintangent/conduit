@@ -13,10 +13,11 @@ jobs:
         os: [macos-latest, ubuntu-latest]
         include:
           - os: macos-latest
-            artifact_name: Conduit-darwin-universal.zip
-            artifact_path: |
-              out/make/zip/darwin/**/*.zip
-              out/make/*.dmg
+            artifact_name: Conduit-darwin-arm64.zip
+            artifact_path: out/make/zip/darwin/**/*.zip
+          - os: macos-latest
+            artifact_name: Conduit.dmg
+            artifact_path: out/make/**/*.dmg
           - os: ubuntu-latest
             artifact_name: Conduit-linux
             artifact_path: |
@@ -192,8 +193,8 @@ jobs:
           prerelease: false
           repository: lostintangent/conduit-release
           files: |
-            artifacts/**/*.zip
-            artifacts/**/*.dmg
+            artifacts/Conduit-darwin.zip/**/*.zip
+            artifacts/Conduit-darwin.dmg/**/*.dmg
           body: |
             ## Installation
 
