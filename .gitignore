@@ -7,13 +7,12 @@ icon.icns
 # Build artifacts
 .vite/
 out/
-dist/
 
 # Test results/coverage
 test-results/
 coverage/
 
-# Secrets.keys
+# Secrets/keys
 .env.local
 keys/
 build/scripts/publish.sh

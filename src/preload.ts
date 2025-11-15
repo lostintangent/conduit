@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from "electron";
-import packageJson from "../package.json";
 import type { CliRequest, CliResponse } from "./shared/cli/types";
 import type {
   AgentSessionCleanupRequest,
@@ -13,8 +12,8 @@ import type {
   BrowserPage,
   CreateVMPayload,
   DeleteVMPayload,
-  FileDiffResult,
   FileChangedEvent,
+  FileDiffResult,
   FileRenamedEvent,
   FileTreeNode,
   ForkVMPayload,
@@ -37,9 +36,6 @@ import type {
   VMInfo,
 } from "./shared/types";
 
-// Note: This file should never include any actual logic. It should simply be a
-// connection pass through to an IPC handler in the main process.
-
 function createEventListener<T>(
   channel: string,
   listener: (payload: T) => void,
@@ -51,9 +47,11 @@ function createEventListener<T>(
   return () => ipcRenderer.removeListener(channel, handler);
 }
 
+// Note: This file should never include any actual logic. It should simply be a
+// connection pass through to an IPC handler in the main process.
+
 const conduitAPI = {
   platform: process.platform,
-  version: packageJson.version,
 
   /* Terminal methods (UI->main) */
 
@@ -156,23 +154,6 @@ const conduitAPI = {
   onUseConduitAsEditorChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-use-conduit-editor", listener),
 
-  /* CLI integration */
-
-  onCliRequest: (listener: (payload: CliRequest) => void) =>
-    createEventListener("cli:request", listener),
-
-  respondToCliRequest: <T>(payload: CliResponse<T>) =>
-    ipcRenderer.invoke("cli:respond", payload) as Promise<void>,
-
-  completeCaptureBrowserRequest: (payload: {
-    requestId: string;
-    webContentsId: number;
-  }) =>
-    ipcRenderer.invoke(
-      "cli:complete-capture-browser",
-      payload,
-    ) as Promise<void>,
-
   /* UI-related methods (UI->main) */
 
   getSettings: () =>
@@ -225,20 +206,6 @@ const conduitAPI = {
     ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<
       string | null
     >,
-
-  /* Browser methods (UI->main) */
-
-  captureScreenshot: (webContentsId: number) =>
-    ipcRenderer.invoke("browser:capture-screenshot", webContentsId) as Promise<{
-      success: boolean;
-    }>,
-
-  showDevTools: (sourceWebContentsId: number, devToolsWebContentsId?: number) =>
-    ipcRenderer.invoke(
-      "browser:show-devtools",
-      sourceWebContentsId,
-      devToolsWebContentsId,
-    ) as Promise<void>,
 
   /* Session management methods */
 
@@ -550,12 +517,47 @@ const conduitAPI = {
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,
 
-  /* Auto update methods */
+  browser: {
+    captureScreenshot: (webContentsId: number) =>
+      ipcRenderer.invoke(
+        "browser:capture-screenshot",
+        webContentsId,
+      ) as Promise<void>,
 
-  onUpdateEvent: (listener: (state: UpdateState) => void) =>
-    createEventListener<UpdateState>("updates:event", listener),
+    showDevTools: (
+      sourceWebContentsId: number,
+      devToolsWebContentsId: number,
+    ) =>
+      ipcRenderer.invoke(
+        "browser:show-devtools",
+        sourceWebContentsId,
+        devToolsWebContentsId,
+      ) as Promise<void>,
+  },
 
-  installUpdate: () => ipcRenderer.invoke("updates:install"),
+  cli: {
+    onRequest: (listener: (request: CliRequest) => void) =>
+      createEventListener("cli:request", listener),
+
+    respondToRequest: <T>(payload: CliResponse<T>) =>
+      ipcRenderer.invoke("cli:respond", payload) as Promise<void>,
+
+    completeCaptureBrowserRequest: (payload: {
+      requestId: string;
+      webContentsId: number;
+    }) =>
+      ipcRenderer.invoke(
+        "cli:complete-capture-browser",
+        payload,
+      ) as Promise<void>,
+  },
+
+  updates: {
+    onStatusChanged: (listener: (state: UpdateState) => void) =>
+      createEventListener<UpdateState>("updates:event", listener),
+
+    installAndRestart: () => ipcRenderer.invoke("updates:install"),
+  },
 };
 
 export type ConduitAPI = typeof conduitAPI;

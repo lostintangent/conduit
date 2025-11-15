@@ -42,6 +42,7 @@ export type WebViewPane = {
   type: "webview";
   url: string;
   title?: string;
+
   devToolsForPane?: string;
 } & Identifiable;
 
@@ -49,6 +50,7 @@ export type EditorPane = {
   type: "editor";
   cwd: string;
   filePath?: string;
+
   agentSessionId?: string;
   agentBranchName?: string;
   agentBaseBranch?: string | null;
@@ -59,13 +61,13 @@ export type EditorPane = {
 export type Pane = TerminalPane | WebViewPane | EditorPane;
 
 export type Tab = {
+  title?: string;
+  locked: boolean;
+
   panes: Record<string, Pane>;
   layout: LayoutNode;
 
   activePaneId: string;
-
-  title?: string;
-  locked: boolean;
 } & Identifiable;
 
 /* Command palette types */

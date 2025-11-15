@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BrowserToolbar } from "./toolbar/BrowserToolbar";
 
-const api = window.conduit;
+const { browser } = window.conduit;
 
 type BrowserPaneProps = {
   url: string;
@@ -212,7 +212,7 @@ export function BrowserPane({
         const devToolsWebContentsId = webview.getWebContentsId();
 
         if (sourceWebContentsId && devToolsWebContentsId) {
-          api.showDevTools(sourceWebContentsId, devToolsWebContentsId);
+          browser.showDevTools(sourceWebContentsId, devToolsWebContentsId);
         }
       }, 100);
     }
@@ -335,7 +335,7 @@ export function BrowserPane({
           onOpenDevTools={onOpenDevTools}
           onCaptureScreenshot={() => {
             const webContentsId = webviewRef.current?.getWebContentsId();
-            api.captureScreenshot(webContentsId);
+            browser.captureScreenshot(webContentsId);
           }}
         />
       )}

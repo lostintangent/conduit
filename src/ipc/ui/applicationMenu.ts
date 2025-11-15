@@ -1,9 +1,9 @@
 import { BrowserWindow, Menu, app } from "electron";
-import type { UpdateState, UserSettings, Workspace } from "../../shared/types";
+import type { UpdateStatus, UserSettings, Workspace } from "../../shared/types";
 import { getUpdateController } from "../updates";
 import { loadSessions } from "../workspace";
 
-function getUpdateMenuLabel(status: UpdateState["status"]) {
+function getUpdateMenuLabel(status: UpdateStatus) {
   switch (status) {
     case "checking":
       return "Checking for update...";
@@ -12,7 +12,7 @@ function getUpdateMenuLabel(status: UpdateState["status"]) {
     case "downloaded":
       return "Restart to update...";
     default:
-      return "Check for updates...";
+      return "Check for update...";
   }
 }
 

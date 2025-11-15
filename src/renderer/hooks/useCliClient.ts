@@ -12,7 +12,7 @@ import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 
-const api = window.conduit;
+const { cli } = window.conduit;
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
 
 type UseCliClientOptions = {
@@ -66,7 +66,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       command: { name, args },
     }: CliRequest) => {
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) =>
-        api.respondToCliRequest<T>({
+        cli.respondToRequest<T>({
           requestId,
           ...response,
         });
@@ -155,7 +155,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             // delegating this back to the main process to handle. This feels like a
             // total hack, but it works for now. And we'll eventually move from using
             // <webviews> to WebContentsViews in the future anyways. So it seems OK for now.
-            await api.completeCaptureBrowserRequest({
+            await cli.completeCaptureBrowserRequest({
               requestId,
               webContentsId,
             });
@@ -226,7 +226,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       }
     };
 
-    const dispose = api.onCliRequest(handleCliRequest);
+    const dispose = cli.onRequest(handleCliRequest);
     return () => {
       dispose();
     };
