@@ -19,7 +19,7 @@ const config: ForgeConfig = {
     icon: "./build/assets/icon",
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",
-    osxSign: process.env.APPLE_ID_PASSWORD
+    osxSign: process.env.CONDUIT_APPLE_ID_PASSWORD
       ? {
           identity: "Developer ID Application: Jonathan Carter (RHFNBL7EG4)",
           optionsForFile: () => ({
@@ -29,10 +29,10 @@ const config: ForgeConfig = {
           }),
         }
       : undefined,
-    osxNotarize: process.env.APPLE_ID_PASSWORD
+    osxNotarize: process.env.CONDUIT_APPLE_ID_PASSWORD
       ? {
           appleId: "joncart@outlook.com",
-          appleIdPassword: process.env.APPLE_ID_PASSWORD,
+          appleIdPassword: process.env.CONDUIT_APPLE_ID_PASSWORD,
           teamId: "RHFNBL7EG4",
         }
       : undefined,
@@ -64,6 +64,7 @@ const config: ForgeConfig = {
         owner: "lostintangent",
         name: "conduit-release",
       },
+      authToken: process.env.CONDUIT_GITHUB_TOKEN,
       prerelease: false,
       draft: false,
       generateReleaseNotes: false,

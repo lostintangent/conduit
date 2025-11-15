@@ -16,3 +16,4 @@ coverage/
 # Secrets.keys
 .env.local
 keys/
+build/scripts/publish.sh
