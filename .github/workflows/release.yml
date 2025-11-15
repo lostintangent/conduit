@@ -70,14 +70,14 @@ jobs:
           npm_config_msvs_version: "2022"
           npm_config_target_arch: "x64"
 
-      - name: Update version with build number
+      - name: Increment patch version
         shell: bash
         run: |
           node -e "
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const baseVersion = pkg.version.split('+')[0];
-          const newVersion = baseVersion + '+build.${{ github.run_number }}';
+          const [major, minor, patch] = pkg.version.split('.').map(Number);
+          const newVersion = \`\${major}.\${minor}.\${patch + 1}\`;
           console.log('Updating version from', pkg.version, 'to', newVersion);
           pkg.version = newVersion;
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
@@ -141,12 +141,8 @@ jobs:
       - name: Get version
         id: version
         run: |
-          BASE_VERSION=$(node -p "require('./package.json').version.split('+')[0]")
-          FULL_VERSION="${BASE_VERSION}+build.${{ github.run_number }}"
-          TAG_VERSION="${BASE_VERSION}-build.${{ github.run_number }}"
-          echo "version=${FULL_VERSION}" >> $GITHUB_OUTPUT
-          echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "tag_version=${TAG_VERSION}" >> $GITHUB_OUTPUT
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -159,8 +155,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.tag_version }}
-          name: Release v${{ steps.version.outputs.tag_version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
           files: |
@@ -186,8 +182,8 @@ jobs:
       - name: Publish to conduit-release repo
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.tag_version }}
-          name: Release v${{ steps.version.outputs.tag_version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
           repository: lostintangent/conduit-release
