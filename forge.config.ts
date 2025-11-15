@@ -10,6 +10,7 @@ import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { execSync } from "node:child_process";
 import path from "node:path";
+import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -24,8 +25,8 @@ const config: ForgeConfig = {
           identity: "Developer ID Application: Jonathan Carter (RHFNBL7EG4)",
           optionsForFile: () => ({
             hardenedRuntime: true,
-            entitlements: "./build/entitlements.plist",
-            entitlementsInherit: "./build/entitlements.plist",
+            entitlements: "./build/assets/entitlements.plist",
+            entitlementsInherit: "./build/assets/entitlements.plist",
           }),
         }
       : undefined,
@@ -42,11 +43,14 @@ const config: ForgeConfig = {
     force: true,
   },
   hooks: {
-    packageAfterCopy: async (_config, buildPath) => {
+    packageAfterCopy: async (_, buildPath) => {
       execSync("npm install --omit=dev node-pty @parcel/watcher", {
         cwd: buildPath,
         stdio: "inherit",
       });
+    },
+    postPackage: async (_, options) => {
+      removeUnusedLocales(options.outputPaths[0], options.platform);
     },
   },
   makers: [

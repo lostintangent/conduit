@@ -14,7 +14,7 @@
     "lint:ci": "eslint --ext .ts,.tsx . --cache --cache-location node_modules/.cache/eslint --quiet",
     "format": "prettier --write .",
     "rebuild": "electron-rebuild",
-    "build:icon": "node build/scripts/generate-mac-icon.js",
+    "build:icon": "node build/scripts/macOS/generate-icon.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
