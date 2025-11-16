@@ -98,9 +98,24 @@ export function getOrCreate(
       }
     });
 
-    const onKeyDispose = terminal.onData((input) => {
+    const handleInput = (input: string) => {
       inputHandlerRef.current?.(input);
+    };
+
+    const onDataDispose = terminal.onData((input) => {
       api.sendKeypress(sessionId, input);
+    });
+
+    const onKeyDispose = terminal.onKey(({ key, domEvent }) => {
+      if (domEvent.isComposing) {
+        return;
+      }
+
+      handleInput(key);
+    });
+
+    const onPasteDispose = terminal.onPaste((data) => {
+      handleInput(data);
     });
 
     // TODO: Allow configuring this
@@ -133,7 +148,9 @@ export function getOrCreate(
         }
         writeBuffer = [];
         unsubData();
+        onDataDispose?.dispose();
         onKeyDispose?.dispose();
+        onPasteDispose?.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
         inputHandlerRef.current = null;
