@@ -1,30 +1,26 @@
-import { tabsAtom } from "@/store/atoms";
+import { activeTabAtom } from "@/store/atoms";
+import type { Pane, TerminalPane as TerminalPaneType } from "@/types";
 import { getDefaultStore } from "jotai";
 
 const store = getDefaultStore();
 const api = window.conduit;
 
-export function broadcastTerminalInput(
-  tabId: string | undefined,
-  sourceSessionId: string,
-  input: string,
-) {
-  if (!tabId) {
+function isTerminalPane(pane: Pane): pane is TerminalPaneType {
+  return pane.type === "terminal";
+}
+
+export function broadcastTerminalInput(sourcePaneId: string, input: string) {
+  const activeTab = store.get(activeTabAtom);
+  if (!activeTab || !activeTab.isSynchronized) {
     return;
   }
 
-  const tabs = store.get(tabsAtom);
-  const tab = tabs.find((currentTab) => currentTab.id === tabId);
-  if (!tab || !tab.isSynchronized) {
+  if (activeTab.activePaneId !== sourcePaneId) {
     return;
   }
 
-  Object.values(tab.panes).forEach((pane) => {
-    if (pane.type !== "terminal") {
-      return;
-    }
-
-    if (pane.sessionId === sourceSessionId) {
+  Object.values(activeTab.panes).forEach((pane) => {
+    if (!isTerminalPane(pane) || pane.id === sourcePaneId) {
       return;
     }
 

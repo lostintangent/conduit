@@ -124,7 +124,6 @@ type TerminalPaneProps = {
   terminalId: string;
   isActive: boolean;
   paneId: string;
-  tabId?: string;
   cwd?: string | null;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
@@ -138,7 +137,6 @@ export const TerminalPane = ({
   terminalId,
   isActive,
   paneId,
-  tabId,
   cwd,
   onContextMenu,
   onActivate,
@@ -179,19 +177,17 @@ export const TerminalPane = ({
   });
 
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
-  const syncInputHandlerRef = useRef<(input: string) => void>(() => {});
 
-  syncInputHandlerRef.current = (input: string) => {
-    if (!isTabSynchronized || !isActive) {
-      return;
-    }
+  const handleSynchronizedInput = useCallback(
+    (input: string) => {
+      if (!isActive) {
+        return;
+      }
 
-    broadcastTerminalInput(tabId, terminalId, input);
-  };
-
-  const emitSynchronizedInput = useCallback((input: string) => {
-    syncInputHandlerRef.current?.(input);
-  }, []);
+      broadcastTerminalInput(paneId, input);
+    },
+    [isActive, paneId],
+  );
 
   const focusTerminal = useCallback(
     () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
@@ -286,9 +282,7 @@ export const TerminalPane = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const terminal = getOrCreate(terminalId, {
-      onInput: emitSynchronizedInput,
-    });
+    const terminal = getOrCreate(terminalId);
     terminalRef.current = terminal;
     attach(terminalId, container);
 
@@ -315,12 +309,21 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, [
-    emitSynchronizedInput,
-    handleTogglePromptMode,
-    showSearchWidget,
-    terminalId,
-  ]);
+  }, [handleTogglePromptMode, showSearchWidget, terminalId]);
+
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) {
+      return;
+    }
+
+    terminal.setInputHandler(
+      isTabSynchronized ? handleSynchronizedInput : null,
+    );
+    return () => {
+      terminal.setInputHandler(null);
+    };
+  }, [handleSynchronizedInput, isTabSynchronized]);
 
   // Focus the terminal when the pane becomes active
   useEffect(() => {

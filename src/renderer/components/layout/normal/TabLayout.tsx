@@ -388,7 +388,6 @@ export function TabLayout({
                 key={pane.sessionId}
                 terminalId={pane.sessionId}
                 paneId={pane.id}
-                tabId={tab.id}
                 cwd={pane.cwd}
                 isActive={isActivePane}
                 onActivate={onPaneActivate}
