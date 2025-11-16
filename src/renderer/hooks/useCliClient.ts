@@ -4,15 +4,36 @@ import {
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
+import { openEditorPane, openWebViewPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
-import type { Tab } from "@/types";
-import type { CliRequest, CliResponse } from "@shared/cli/types";
+import type { SplitDirection, Tab, TerminalPane } from "@/types";
+import type {
+  CliRequest,
+  CliResponse,
+  PaneSplitTarget,
+} from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 
 const { cli } = window.conduit;
+const DEFAULT_BROWSER_URL = "https://github.com";
+
+function findCallingTerminalPane(tabs: Tab[], sessionId: string) {
+  for (const tab of tabs) {
+    const terminalPane = Object.values(tab.panes).find(
+      (pane): pane is TerminalPane =>
+        pane.type === "terminal" && pane.sessionId === sessionId,
+    );
+
+    if (terminalPane) {
+      return { tab, pane: terminalPane };
+    }
+  }
+
+  return null;
+}
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
 
 type UseCliClientOptions = {
@@ -54,6 +75,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     top: splitTopCommand,
     bottom: splitBottomCommand,
   } as const;
+
+  const splitDirectionMap: Record<
+    PaneSplitTarget,
+    { layoutDirection: SplitDirection; insertBefore: boolean }
+  > = {
+    left: { layoutDirection: "row", insertBefore: true },
+    right: { layoutDirection: "row", insertBefore: false },
+    top: { layoutDirection: "column", insertBefore: true },
+    bottom: { layoutDirection: "column", insertBefore: false },
+  };
 
   useEffect(() => {
     tabsRef.current = tabs;
@@ -183,6 +214,53 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "split-pane": {
+            const paneType = args.paneType ?? "terminal";
+            const directionConfig = splitDirectionMap[args.direction];
+
+            if (paneType === "browser" || paneType === "editor") {
+              const context = findCallingTerminalPane(
+                tabsRef.current,
+                sessionId,
+              );
+
+              if (!context) {
+                respondError("Unable to locate the calling terminal pane.");
+                break;
+              }
+
+              const sourceCwd = context.pane.cwd ?? undefined;
+
+              if (paneType === "browser") {
+                openWebViewPane(
+                  context.tab.id,
+                  context.pane.id,
+                  DEFAULT_BROWSER_URL,
+                  directionConfig.layoutDirection,
+                  directionConfig.insertBefore,
+                );
+
+                respondResult();
+                break;
+              }
+
+              let editorCwd = sourceCwd;
+              if (!editorCwd) {
+                const settings = await window.conduit.getSettings();
+                editorCwd = settings.homeDirectory ?? ".";
+              }
+
+              openEditorPane(
+                context.tab.id,
+                context.pane.id,
+                editorCwd,
+                directionConfig.layoutDirection,
+                directionConfig.insertBefore,
+              );
+
+              respondResult();
+              break;
+            }
+
             const targetCommand = splitCommandMap[args.direction];
             await targetCommand.execute();
 

@@ -34,13 +34,20 @@ program
   );
 
 program
-  .cliCommand("split-pane", (request, direction) => request({ direction }))
+  .cliCommand("split-pane", (request, direction, { type }) =>
+    request({ direction, paneType: type ?? "terminal" }),
+  )
   .alias("split")
   .description("Split the active pane in the requested direction.")
   .addArgument(
     new Argument("[direction]", "Direction to split the active pane")
       .choices(PANE_SPLIT_TARGETS)
       .default("right"),
+  )
+  .addOption(
+    new Option("-t, --type <paneType>", "Type of pane to open")
+      .choices(PANE_TYPES)
+      .default("terminal"),
   );
 
 program

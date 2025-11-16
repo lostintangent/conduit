@@ -38,7 +38,10 @@ export type CliCommand =
   // Pane commands
   | DefineCommand<"list-panes", { paneType: PaneType }, Pane[]>
   | DefineCommand<"move-pane", { direction: PaneMoveTarget }>
-  | DefineCommand<"split-pane", { direction: PaneSplitTarget }>
+  | DefineCommand<
+      "split-pane",
+      { direction: PaneSplitTarget; paneType: PaneType }
+    >
   | DefineCommand<"close-pane", { closeTab: boolean }>
   | DefineCommand<"focus-pane">
   // Tab commands
