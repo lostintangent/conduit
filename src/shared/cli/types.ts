@@ -22,6 +22,9 @@ export type DefineCommand<
 export const PANE_TYPES = ["editor", "browser", "terminal", "all"] as const;
 export type PaneType = (typeof PANE_TYPES)[number];
 
+export const PANE_SPLIT_TYPES = ["editor", "browser", "terminal"] as const;
+export type PaneSplitType = (typeof PANE_SPLIT_TYPES)[number];
+
 export const PANE_MOVE_TARGETS = [
   "left",
   "right",
@@ -38,7 +41,10 @@ export type CliCommand =
   // Pane commands
   | DefineCommand<"list-panes", { paneType: PaneType }, Pane[]>
   | DefineCommand<"move-pane", { direction: PaneMoveTarget }>
-  | DefineCommand<"split-pane", { direction: PaneSplitTarget }>
+  | DefineCommand<
+      "split-pane",
+      { direction: PaneSplitTarget; paneType: PaneSplitType }
+    >
   | DefineCommand<"close-pane", { closeTab: boolean }>
   | DefineCommand<"focus-pane">
   // Tab commands

@@ -6,6 +6,7 @@ import {
   CLI_COMMAND_NAME,
   PANE_MOVE_TARGETS,
   PANE_SPLIT_TARGETS,
+  PANE_SPLIT_TYPES,
   PANE_TYPES,
 } from "../shared/cli/types";
 
@@ -34,13 +35,20 @@ program
   );
 
 program
-  .cliCommand("split-pane", (request, direction) => request({ direction }))
+  .cliCommand("split-pane", (request, direction, { type }) =>
+    request({ direction, paneType: type ?? "terminal" }),
+  )
   .alias("split")
   .description("Split the active pane in the requested direction.")
   .addArgument(
     new Argument("[direction]", "Direction to split the active pane")
       .choices(PANE_SPLIT_TARGETS)
       .default("right"),
+  )
+  .addOption(
+    new Option("-t, --type <paneType>", "Type of pane to open")
+      .choices(PANE_SPLIT_TYPES)
+      .default("terminal"),
   );
 
 program
