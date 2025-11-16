@@ -24,7 +24,7 @@ import {
   userSettingsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-  workspacesAtom,
+  workspaceStateAtom,
 } from "@/store/atoms";
 import { cn } from "@/utils";
 import type { Workspace } from "@shared/types";
@@ -34,7 +34,7 @@ const api = window.conduit;
 export const WorkspaceMenu = () => {
   const { autoSaveWorkspaces } = useAtomValue(userSettingsAtom);
 
-  const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
+  const [workspaces, setWorkspaces] = useAtom(workspaceStateAtom);
   const workspaceName = useAtomValue(workspaceNameAtom);
   const hasWorkspaceChanges = useAtomValue(workspaceHasChangesAtom);
 
@@ -48,22 +48,25 @@ export const WorkspaceMenu = () => {
   const handleOpenWorkspace = useCallback(
     (workspace: Workspace) => {
       if (workspace.name === workspaceName) return;
-
       openWorkspace(workspace);
     },
     [workspaceName],
   );
 
   const handleDeleteWorkspace = useCallback(
-    async (workspace: Workspace, e?: MouseEvent<HTMLButtonElement>) => {
-      e?.preventDefault();
-      e?.stopPropagation();
+    async (workspace: Workspace, e: MouseEvent<HTMLButtonElement>) => {
+      // Prevent the click from bubbling up to the menu item
+      // which would result in the workspace being opened
+      e.stopPropagation();
 
-      await api.deleteSession(workspace.timestamp);
-
-      setWorkspaces((current) =>
-        current.filter(({ name }) => name !== workspace.name),
-      );
+      // Delete the workspace and then remove it from state
+      await api.workspace.deleteWorkspace(workspace.name);
+      setWorkspaces((current) => ({
+        ...current,
+        workspaces: current.workspaces.filter(
+          ({ name }) => name !== workspace.name,
+        ),
+      }));
     },
     [setWorkspaces],
   );
@@ -90,9 +93,9 @@ export const WorkspaceMenu = () => {
 
       {/* Workspaces list */}
       <DropdownMenuContent align="end">
-        {workspaces.length > 0 && (
+        {workspaces.workspaces.length > 0 && (
           <>
-            {workspaces.map((workspace) => {
+            {workspaces.workspaces.map((workspace) => {
               const isCurrentWorkspace = workspaceName === workspace.name;
 
               return (

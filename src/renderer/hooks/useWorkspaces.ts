@@ -1,30 +1,33 @@
+import { hasLastWorkspace } from "@/commands/contextKeys/appContextKeys";
+import { closeWorkspace as closeWorkspaceAction } from "@/store/actions/workspace";
 import {
   activeTabIdAtom,
+  previousTabsSnapshotAtom,
   tabsAtom,
   userSettingsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-  workspacesAtom,
-  previousTabsSnapshotAtom,
+  workspaceStateAtom,
 } from "@/store/atoms";
 import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const api = window.conduit;
+const { workspace } = window.conduit;
 
 export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
-  const [workspaces, setWorkspaces] = useAtom(workspacesAtom);
+  const [workspaces, setWorkspaces] = useAtom(workspaceStateAtom);
+
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const userSettings = useAtomValue(userSettingsAtom);
+
   const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
   const [previousTabsSnapshot, setPreviousTabsSnapshot] = useAtom(
     previousTabsSnapshotAtom,
   );
-  const [hasWorkspaces, setHasWorkspaces] = useState(false);
-  const [hasLastWorkspace, setHasLastWorkspace] = useState(false);
+
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =
     useState(false);
@@ -33,6 +36,21 @@ export function useWorkspaces() {
 
   // Track workspace changes - compare tabs deeply to detect changes
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load workspaces on mount
+  useEffect(() => {
+    const loadWorkspaces = async () => {
+      const workspaces = await workspace.getState();
+      setWorkspaces(workspaces);
+    };
+    loadWorkspaces();
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!workspaceName) {
@@ -61,10 +79,10 @@ export function useWorkspaces() {
         // Schedule auto-save after 2 seconds
         autoSaveTimerRef.current = setTimeout(() => {
           if (activeTabId) {
-            api
-              .saveSession(workspaceName, tabs, activeTabId)
-              .then((sessions) => {
-                setWorkspaces(sessions as Workspace[]);
+            workspace
+              .saveWorkspace(workspaceName, tabs, activeTabId)
+              .then((state) => {
+                setWorkspaces(state);
                 setPreviousTabsSnapshot(JSON.stringify(tabs));
                 setWorkspaceHasChanges(false);
               })
@@ -99,32 +117,6 @@ export function useWorkspaces() {
     }
   }, [workspaceName, setPreviousTabsSnapshot]);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const checkSessions = async () => {
-      const hasSessions = await api.hasSessions();
-      setHasWorkspaces(hasSessions);
-
-      if (hasSessions) {
-        const sessions = (await api.loadSessions()) as Workspace[];
-        setWorkspaces(sessions);
-      }
-
-      const hasLast = await api.hasLastWorkspace();
-      setHasLastWorkspace(hasLast);
-    };
-
-    void checkSessions();
-  }, []);
-
   const saveWorkspace = useCallback(
     async (customName: string, tabs: any[], activeTabId: string) => {
       let name = customName.trim();
@@ -139,18 +131,13 @@ export function useWorkspaces() {
         })}`;
       }
 
-      const sessions = (await api.saveSession(
-        name,
-        tabs,
-        activeTabId,
-      )) as Workspace[];
+      const state = await workspace.saveWorkspace(name, tabs, activeTabId);
 
-      setWorkspaces(sessions);
-      setHasWorkspaces(true);
+      setWorkspaces(state);
       setShowCreateWorkspaceDialog(false);
       setWorkspaceName(name);
     },
-    [setWorkspaceName],
+    [setWorkspaceName, setWorkspaces],
   );
 
   const renameWorkspace = useCallback(
@@ -162,40 +149,39 @@ export function useWorkspaces() {
       }
 
       try {
-        const sessions = (await api.renameWorkspace(
+        const state = await workspace.renameWorkspace(
           workspaceName,
           trimmedName,
-        )) as Workspace[];
+        );
 
-        setWorkspaces(sessions);
+        setWorkspaces(state);
         setWorkspaceName(trimmedName);
         setShowRenameWorkspaceDialog(false);
       } catch (error) {
         console.error("Failed to rename workspace:", error);
       }
     },
-    [workspaceName, setWorkspaceName],
+    [workspaceName, setWorkspaceName, setWorkspaces],
   );
 
-  const updateWorkspaces = useCallback((sessions: Workspace[]) => {
-    setWorkspaces(sessions);
-    setHasWorkspaces(sessions.length > 0);
-  }, []);
+  const updateWorkspaces = useCallback(
+    (workspaces: Workspace[]) => {
+      setWorkspaces((current) => ({ ...current, ...workspaces }));
+    },
+    [setWorkspaces],
+  );
 
   const closeWorkspace = useCallback(
     async (tabs: any[], activeTabId?: string) => {
       if (workspaceName && tabs.length > 0 && activeTabId) {
-        const sessions = (await api.saveSession(
+        const state = await workspace.saveWorkspace(
           workspaceName,
           tabs,
           activeTabId,
-        )) as Workspace[];
-        updateWorkspaces(sessions);
+        );
+        setWorkspaces(state);
       }
 
-      const { closeWorkspace: closeWorkspaceAction } = await import(
-        "@/store/actions/workspace"
-      );
       closeWorkspaceAction();
     },
     [workspaceName, updateWorkspaces],
@@ -203,15 +189,16 @@ export function useWorkspaces() {
 
   return {
     workspaceName,
-    hasWorkspaces,
     workspaces,
     hasLastWorkspace,
+
     showWorkspacePicker,
     setShowWorkspacePicker,
     showCreateWorkspaceDialog,
     setShowCreateWorkspaceDialog,
     showRenameWorkspaceDialog,
     setShowRenameWorkspaceDialog,
+
     saveWorkspace,
     renameWorkspace,
     updateWorkspaces,

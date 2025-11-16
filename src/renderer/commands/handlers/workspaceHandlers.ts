@@ -8,10 +8,9 @@ import {
   previousTabsSnapshotAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-  workspacesAtom,
+  workspaceStateAtom,
 } from "@/store/atoms";
 import type { Tab } from "@/types";
-import type { Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 
 const store = getDefaultStore();
@@ -35,13 +34,13 @@ export async function handleSaveWorkspace(
   const workspaceName = store.get(workspaceNameAtom);
 
   if (workspaceName) {
-    const sessions = (await window.conduit.saveSession(
+    const state = await window.conduit.workspace.saveWorkspace(
       workspaceName,
       tabs,
       activeTabId,
-    )) as Workspace[];
+    );
 
-    store.set(workspacesAtom, sessions);
+    store.set(workspaceStateAtom, state);
 
     // Reset the has changes flag and update the reference snapshot after successful save
     const savedSnapshot = JSON.stringify(tabs);
@@ -97,10 +96,9 @@ export function handleOpenWorkspace(
  * Open the last workspace
  */
 export async function handleOpenLastWorkspace(): Promise<void> {
-  const lastWorkspace =
-    (await window.conduit.loadLastWorkspace()) as Workspace | null;
-  if (lastWorkspace) {
+  const state = await window.conduit.workspace.getState();
+  if (state.lastWorkspace) {
     const { openWorkspace } = await import("@/store/actions/workspace");
-    await openWorkspace(lastWorkspace);
+    await openWorkspace(state.lastWorkspace);
   }
 }

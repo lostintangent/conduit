@@ -27,8 +27,11 @@ export function getCurrentUserSettings(): UserSettings {
  * Loads the user's settings and then initializes
  * the application menu from them.
  */
-export async function initializeUserSettings(window: BrowserWindow) {
-  userSettings = await loadSettings();
+export async function initializeUserSettings(
+  window: BrowserWindow,
+  conduitStateDirectory: string,
+) {
+  userSettings = await loadSettings(conduitStateDirectory);
 
   const refreshMenu = async () =>
     updateApplicationMenu(window, requireUserSettings(), saveSettings);

@@ -3,7 +3,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { UserSettings } from "../../shared/types";
 
-const settingsPath = path.join(app.getPath("userData"), "settings.json");
+const SETTINGS_FILE_NAME = "settings.json";
+let settingsPath: string;
 
 const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   tabPosition: "bottom",
@@ -20,7 +21,11 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   terminalPromptBufferLines: 100,
 };
 
-export async function loadSettings(): Promise<UserSettings> {
+export async function loadSettings(
+  conduitStateDirectory: string,
+): Promise<UserSettings> {
+  settingsPath = path.join(conduitStateDirectory, SETTINGS_FILE_NAME);
+
   const homeDirectory = app.getPath("home");
 
   const settings = {

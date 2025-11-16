@@ -124,7 +124,6 @@ export function App() {
 
   const {
     workspaceName,
-    hasWorkspaces,
     workspaces,
     hasLastWorkspace,
     showWorkspacePicker,
@@ -136,7 +135,6 @@ export function App() {
     saveWorkspace,
     renameWorkspace,
     updateWorkspaces,
-    closeWorkspace,
   } = useWorkspaces();
 
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
@@ -266,7 +264,7 @@ export function App() {
     const unsubscribeBeforeClose = api.onBeforeClose(() => {
       // Save the current workspace state as "last workspace"
       if (tabs.length > 0) {
-        void api.saveLastWorkspace(tabs, activeTab?.id);
+        void api.workspace.saveLastWorkspace(tabs, activeTab?.id);
       }
     });
 
@@ -863,7 +861,7 @@ export function App() {
       <WorkspacePicker
         isOpen={showWorkspacePicker}
         onClose={() => setShowWorkspacePicker(false)}
-        workspaces={workspaces}
+        workspaces={workspaces.workspaces}
         onSessionsUpdate={updateWorkspaces}
       />
 

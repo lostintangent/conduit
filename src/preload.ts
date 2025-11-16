@@ -1,3 +1,4 @@
+import { Tab } from "@/types";
 import { contextBridge, ipcRenderer } from "electron";
 import type { CliRequest, CliResponse } from "./shared/cli/types";
 import type {
@@ -34,6 +35,7 @@ import type {
   UpdateState,
   UserSettings,
   VMInfo,
+  WorkspaceState,
 } from "./shared/types";
 
 function createEventListener<T>(
@@ -206,43 +208,6 @@ const conduitAPI = {
     ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<
       string | null
     >,
-
-  /* Session management methods */
-
-  hasSessions: () =>
-    ipcRenderer.invoke("session:has-sessions") as Promise<boolean>,
-
-  loadSessions: () =>
-    ipcRenderer.invoke("session:load-sessions") as Promise<unknown[]>,
-
-  saveSession: (name: string, tabs: unknown, activeTabId: string) =>
-    ipcRenderer.invoke(
-      "session:save-session",
-      name,
-      tabs,
-      activeTabId,
-    ) as Promise<unknown[]>,
-
-  deleteSession: (timestamp: number) =>
-    ipcRenderer.invoke("session:delete-session", timestamp) as Promise<void>,
-
-  renameWorkspace: (currentName: string, newName: string) =>
-    ipcRenderer.invoke("session:rename-workspace", currentName, newName),
-
-  hasLastWorkspace: () =>
-    ipcRenderer.invoke("session:has-last-workspace") as Promise<boolean>,
-
-  loadLastWorkspace: () =>
-    ipcRenderer.invoke("session:load-last-workspace") as Promise<
-      unknown | null
-    >,
-
-  saveLastWorkspace: (tabs: unknown, activeTabId: string) =>
-    ipcRenderer.invoke(
-      "session:save-last-workspace",
-      tabs,
-      activeTabId,
-    ) as Promise<void>,
 
   /* Agent session management */
 
@@ -557,6 +522,36 @@ const conduitAPI = {
       createEventListener<UpdateState>("updates:event", listener),
 
     installAndRestart: () => ipcRenderer.invoke("updates:install"),
+  },
+
+  workspace: {
+    getState: () =>
+      ipcRenderer.invoke("workspace:get-state") as Promise<WorkspaceState>,
+
+    saveWorkspace: (name: string, tabs: Tab[], activeTabId: string) =>
+      ipcRenderer.invoke(
+        "workspace:save-workspace",
+        name,
+        tabs,
+        activeTabId,
+      ) as Promise<WorkspaceState>,
+
+    deleteWorkspace: (name: string) =>
+      ipcRenderer.invoke("workspace:delete-workspace", name) as Promise<void>,
+
+    renameWorkspace: (currentName: string, newName: string) =>
+      ipcRenderer.invoke(
+        "workspace:rename-workspace",
+        currentName,
+        newName,
+      ) as Promise<WorkspaceState>,
+
+    saveLastWorkspace: (tabs: Tab[], activeTabId: string) =>
+      ipcRenderer.invoke(
+        "workspace:save-last-workspace",
+        tabs,
+        activeTabId,
+      ) as Promise<WorkspaceState>,
   },
 };
 

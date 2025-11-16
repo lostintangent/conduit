@@ -1,7 +1,7 @@
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
-import type { UserSettings, Workspace } from "@shared/types";
+import type { UserSettings, WorkspaceState } from "@shared/types";
 import { atom } from "jotai";
 
 export const userSettingsAtom = atom<UserSettings>({
@@ -33,7 +33,7 @@ export const activePaneIdAtom = atom<string | null>((get) => {
 });
 
 export const workspaceNameAtom = atom<string>();
-export const workspacesAtom = atom<Workspace[]>([]);
+export const workspaceStateAtom = atom<WorkspaceState>({ workspaces: [] });
 export const workspaceHasChangesAtom = atom<boolean>(false);
 export const previousTabsSnapshotAtom = atom<string>("");
 

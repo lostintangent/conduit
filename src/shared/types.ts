@@ -34,7 +34,8 @@ export type UserSettings = {
 
 export type Workspace = {
   name: string;
-  timestamp: number;
+  lastModified: number;
+
   tabs: (Omit<Tab, "panes"> & {
     panes: {
       id: string;
@@ -53,7 +54,13 @@ export type Workspace = {
       devToolsForPane?: string;
     }[];
   })[];
-  activeTabId?: string;
+
+  activeTabId: string;
+};
+
+export type WorkspaceState = {
+  workspaces: Workspace[];
+  lastWorkspace?: Workspace;
 };
 
 /* IPC payloads/responses */
