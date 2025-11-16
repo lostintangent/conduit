@@ -1,9 +1,11 @@
 import { exitFocusMode } from "@/store/actions/focusMode";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
+import { broadcastTerminalInput } from "@/utils/terminalSync";
 import { constructPrompt } from "@/utils/terminalPrompt";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Share2 } from "lucide-react";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
@@ -122,24 +124,28 @@ type TerminalPaneProps = {
   terminalId: string;
   isActive: boolean;
   paneId: string;
+  tabId?: string;
   cwd?: string | null;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
   onLinkClick?: (url: string) => void;
   showDimensions?: boolean;
   hideIndividualSandboxIndicator?: boolean;
+  isTabSynchronized?: boolean;
 };
 
 export const TerminalPane = ({
   terminalId,
   isActive,
   paneId,
+  tabId,
   cwd,
   onContextMenu,
   onActivate,
   onLinkClick,
   showDimensions = true,
   hideIndividualSandboxIndicator = false,
+  isTabSynchronized = false,
 }: TerminalPaneProps) => {
   const settings = useAtomValue(userSettingsAtom);
   const { showTerminalRuler } = settings;
@@ -173,6 +179,19 @@ export const TerminalPane = ({
   });
 
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
+  const syncInputHandlerRef = useRef<(input: string) => void>(() => {});
+
+  syncInputHandlerRef.current = (input: string) => {
+    if (!isTabSynchronized || !isActive) {
+      return;
+    }
+
+    broadcastTerminalInput(tabId, terminalId, input);
+  };
+
+  const emitSynchronizedInput = useCallback((input: string) => {
+    syncInputHandlerRef.current?.(input);
+  }, []);
 
   const focusTerminal = useCallback(
     () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
@@ -267,7 +286,9 @@ export const TerminalPane = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const terminal = getOrCreate(terminalId);
+    const terminal = getOrCreate(terminalId, {
+      onInput: emitSynchronizedInput,
+    });
     terminalRef.current = terminal;
     attach(terminalId, container);
 
@@ -294,7 +315,12 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, [handleTogglePromptMode, showSearchWidget]);
+  }, [
+    emitSynchronizedInput,
+    handleTogglePromptMode,
+    showSearchWidget,
+    terminalId,
+  ]);
 
   // Focus the terminal when the pane becomes active
   useEffect(() => {
@@ -339,6 +365,15 @@ export const TerminalPane = ({
       <div className="w-full h-full pl-2 pt-2">
         <div className="w-full h-full" ref={containerRef} />
       </div>
+
+      {isTabSynchronized && (
+        <div className="absolute top-3 right-3 z-20 pointer-events-none">
+          <div className="flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider">
+            <Share2 size={12} aria-hidden="true" />
+            Sync
+          </div>
+        </div>
+      )}
 
       <SearchWidget
         ref={searchWidgetRef}

@@ -9,6 +9,7 @@ export type TabLabelDescriptor = {
   isActive: boolean;
   title?: string;
   locked: boolean;
+  isSynchronized: boolean;
 };
 
 const resolveActivePane = (tab: Tab): Pane | undefined => {
@@ -102,6 +103,7 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
       isActive: tab.id === activeTabId,
       title: trimmedTitle || undefined,
       locked: tab.locked,
+      isSynchronized: tab.isSynchronized,
     };
   });
 });

@@ -76,6 +76,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -139,6 +141,8 @@ describe("duplicateTab", () => {
           { id: "layout-3", type: "pane", paneId: "pane-2" },
         ],
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -186,6 +190,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -223,6 +229,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -265,6 +273,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -307,6 +317,8 @@ describe("duplicateTab", () => {
           },
         },
         layout: { id: "layout-1", type: "pane", paneId: "pane-1" },
+        locked: false,
+        isSynchronized: false,
       },
       {
         id: "tab-2",
@@ -322,6 +334,8 @@ describe("duplicateTab", () => {
           },
         },
         layout: { id: "layout-2", type: "pane", paneId: "pane-2" },
+        locked: false,
+        isSynchronized: false,
       },
     ];
 
@@ -360,6 +374,8 @@ describe("duplicateTab", () => {
           },
         },
         layout: { id: "layout-1", type: "pane", paneId: "pane-1" },
+        locked: false,
+        isSynchronized: false,
       },
       {
         id: "tab-2",
@@ -375,6 +391,8 @@ describe("duplicateTab", () => {
           },
         },
         layout: { id: "layout-2", type: "pane", paneId: "pane-2" },
+        locked: false,
+        isSynchronized: false,
       },
       {
         id: "tab-3",
@@ -390,6 +408,8 @@ describe("duplicateTab", () => {
           },
         },
         layout: { id: "layout-3", type: "pane", paneId: "pane-3" },
+        locked: false,
+        isSynchronized: false,
       },
     ];
 
@@ -442,6 +462,8 @@ describe("duplicateTab", () => {
           { id: "layout-3", type: "pane", paneId: "pane-2" },
         ],
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -517,6 +539,8 @@ describe("duplicateTab", () => {
           },
         ],
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -565,6 +589,8 @@ describe("duplicateTab", () => {
         },
       },
       layout: { id: "layout-1", type: "pane", paneId: "pane-1" },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -605,6 +631,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     const mockCommand = "npm run dev";
@@ -649,6 +677,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -688,6 +718,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);
@@ -722,6 +754,8 @@ describe("duplicateTab", () => {
         type: "pane",
         paneId: "pane-1",
       },
+      locked: false,
+      isSynchronized: false,
     };
 
     mockStoreGet.mockReturnValue([sourceTab]);

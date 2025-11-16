@@ -65,6 +65,7 @@ export type Pane = TerminalPane | WebViewPane | EditorPane;
 export type Tab = {
   title?: string;
   locked: boolean;
+  isSynchronized: boolean;
 
   panes: Record<string, Pane>;
   layout: LayoutNode;

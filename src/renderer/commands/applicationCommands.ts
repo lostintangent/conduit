@@ -60,6 +60,7 @@ import {
   lockTab,
   movePaneToTab,
   openTab,
+  updateTabProperty,
   unlockTab,
 } from "@/store/actions/tab";
 import { ApplicationCommands } from "@shared/commands";
@@ -443,6 +444,37 @@ export function registerApplicationCommands(
       if (targetTabId) {
         unlockTab(targetTabId);
       }
+    },
+  });
+
+  // Tab: Synchronize panes
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE,
+    title: "Synchronize Panes",
+    description:
+      "Mirror keystrokes from the active terminal to the rest of the tab",
+    category: "Tab",
+    menu: {
+      id: MenuId.TabContext,
+      group: "1_tab",
+      order: 4,
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (!targetTabId) {
+        return;
+      }
+
+      const targetTab =
+        context.allTabs.find((tab) => tab.id === targetTabId) ??
+        context.activeTab;
+      if (!targetTab) {
+        return;
+      }
+
+      updateTabProperty(targetTabId, {
+        isSynchronized: !targetTab.isSynchronized,
+      });
     },
   });
 
