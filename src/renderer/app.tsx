@@ -54,6 +54,7 @@ import {
   keybindingsAtom,
   tabsAtom,
 } from "@/store/atoms";
+import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -337,10 +338,7 @@ export function App() {
     (
       tabId: string,
       paneId: string,
-      updates: {
-        cwd?: string;
-        filePath?: string;
-      },
+      updates: Partial<EditorPane>,
     ) => {
       setTabs((current) =>
         current.map((tab) => {

@@ -46,10 +46,12 @@ export type WebViewPane = {
   devToolsForPane?: string;
 } & Identifiable;
 
+export type EditorTreeMode = "all" | "changes";
 export type EditorPane = {
   type: "editor";
   cwd: string;
   filePath?: string;
+  treeMode?: EditorTreeMode;
 
   agentSessionId?: string;
   agentBranchName?: string;

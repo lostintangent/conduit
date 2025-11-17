@@ -30,6 +30,7 @@ import {
   tabsAtom,
 } from "@/store/atoms";
 import type {
+  EditorPane as EditorPaneType,
   LayoutNode,
   LayoutPaneNode,
   LayoutSplitNode,
@@ -222,10 +223,7 @@ interface TabLayoutProps {
   handleEditorUpdate: (
     tabId: string,
     paneId: string,
-    updates: {
-      cwd?: string;
-      filePath?: string;
-    },
+    updates: Partial<EditorPaneType>,
   ) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   onOpenPaneActions?: () => void;
@@ -410,6 +408,7 @@ export function TabLayout({
                   cwd={pane.cwd}
                   filePath={pane.filePath}
                   agentSessionId={pane.agentSessionId}
+                  treeMode={pane.treeMode}
                   onFileChange={(fileData) =>
                     handleEditorUpdate(tab.id, pane.id, {
                       filePath: fileData.filePath,
@@ -422,6 +421,9 @@ export function TabLayout({
                   }
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
+                  }
+                  onTreeModeChange={(mode) =>
+                    handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
                   }
                   onFileOpen={(node) =>
                     onOpenQuickPane({

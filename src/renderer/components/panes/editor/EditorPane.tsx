@@ -12,6 +12,7 @@ import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import type { EditorTreeMode } from "@/types";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { DiffEditor, loader } from "@monaco-editor/react";
 import type { FileDiffResult, FileTreeNode } from "@shared/types";
@@ -218,6 +219,7 @@ type EditorPaneProps = {
   filePath?: string;
   paneId: string;
   agentSessionId?: string | null;
+  treeMode?: EditorTreeMode;
   onFileChange?: (fileData: {
     filePath: string;
     language: string;
@@ -226,6 +228,7 @@ type EditorPaneProps = {
   onClearFile?: () => void;
   onCwdChange?: (cwd: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
+  onTreeModeChange?: (mode: EditorTreeMode) => void;
   isLocked?: boolean;
   onSave?: () => void;
   hideIndividualSandboxIndicator?: boolean;
@@ -236,10 +239,12 @@ export function EditorPane({
   filePath,
   paneId,
   agentSessionId,
+  treeMode,
   onFileChange,
   onClearFile: _onClearFile,
   onCwdChange,
   onFileOpen,
+  onTreeModeChange,
   isLocked = false,
   onSave,
   hideIndividualSandboxIndicator = false,
@@ -321,7 +326,9 @@ export function EditorPane({
     handleBranchSelect,
   } = useGitStatus(cwd);
 
-  const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(false);
+  const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(
+    treeMode === "changes",
+  );
 
   // Diff viewer state - using discriminated union to prevent invalid states
   type ViewMode =
@@ -1836,7 +1843,13 @@ export function EditorPane({
                 />
               ) : (
                 <div className="flex items-center justify-center w-full text-white/50">
-                  No files found
+                  {showOnlyChangedFiles ? (
+                    <span className="italic">
+                      No changed files in this repository
+                    </span>
+                  ) : (
+                    "No files found"
+                  )}
                 </div>
               )}
             </div>
@@ -1844,16 +1857,19 @@ export function EditorPane({
               <GitBranchToolbar
                 currentBranch={currentBranch}
                 baseBranch={baseBranch}
-                onClick={
+                onOpenBranchPicker={
                   branches.length > 0
                     ? () => setIsBranchSelectorOpen(true)
                     : undefined
                 }
                 showOnlyChangedFiles={showOnlyChangedFiles}
-                onFilterToggle={() =>
-                  setShowOnlyChangedFiles(!showOnlyChangedFiles)
-                }
-                hasGitStatus={gitStatus !== null && gitStatus.size > 0}
+                onFilterToggle={() => {
+                  const newMode: EditorTreeMode = showOnlyChangedFiles
+                    ? "all"
+                    : "changes";
+                  setShowOnlyChangedFiles(!showOnlyChangedFiles);
+                  onTreeModeChange?.(newMode);
+                }}
               />
             )}
           </div>

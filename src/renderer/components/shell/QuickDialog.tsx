@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { applicationModeAtom } from "@/store/atoms";
-import type { Pane } from "@/types";
+import type { EditorPane as EditorPaneType, Pane } from "@/types";
 import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
 import { useSetAtom } from "jotai";
@@ -52,7 +52,7 @@ export function QuickDialog({
 
   // Handle updates from editor pane
   const handleEditorUpdate = useCallback(
-    (updates: { cwd?: string; filePath?: string }) => {
+    (updates: Partial<EditorPaneType>) => {
       if (currentDescriptor.type === "editor") {
         setCurrentDescriptor((prev) => ({
           ...prev,
@@ -141,10 +141,14 @@ export function QuickDialog({
               paneId={quickPaneId}
               cwd={currentDescriptor.cwd}
               filePath={currentDescriptor.filePath}
+              treeMode={currentDescriptor.treeMode}
               agentSessionId={undefined}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
               onFileChange={({ filePath }) => handleEditorUpdate({ filePath })}
               onClearFile={() => handleEditorUpdate({ filePath: undefined })}
+              onTreeModeChange={(mode) =>
+                handleEditorUpdate({ treeMode: mode })
+              }
               onFileOpen={handleFileOpen}
               isLocked={currentDescriptor.isLocked}
               onSave={() => {

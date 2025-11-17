@@ -1,92 +1,92 @@
+import { Separator } from "@/components/ui/separator";
+import { Toggle } from "@/components/ui/toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ArrowRight, Filter, GitBranch } from "lucide-react";
 
 type GitBranchToolbarProps = {
   currentBranch: string | null;
   baseBranch: string | null;
-  onClick?: () => void;
-  showOnlyChangedFiles?: boolean;
-  onFilterToggle?: () => void;
-  hasGitStatus?: boolean;
+  showOnlyChangedFiles: boolean;
+  onFilterToggle: () => void;
+  onOpenBranchPicker: () => void;
 };
 
 export function GitBranchToolbar({
   currentBranch,
   baseBranch,
-  onClick,
   showOnlyChangedFiles,
   onFilterToggle,
-  hasGitStatus,
+  onOpenBranchPicker,
 }: GitBranchToolbarProps) {
   if (!currentBranch) {
     return null;
   }
 
-  const branchText =
+  const branchLabel =
     baseBranch && baseBranch !== "HEAD" ? (
-      <div className="flex items-center gap-1.5 truncate">
-        <span className="text-white/60 truncate" title={baseBranch}>
-          {baseBranch}
-        </span>
-        <ArrowRight className="w-3 h-3 flex-shrink-0 text-white/50" />
-        <span
-          className="text-white/80 font-medium truncate"
-          title={currentBranch}
-        >
+      <div className="flex items-center gap-1.5 overflow-hidden">
+        <span title={baseBranch}>{baseBranch}</span>
+        <ArrowRight className="w-3 h-3 flex-shrink-0" />
+        <span className="truncate" title={currentBranch}>
           {currentBranch}
         </span>
       </div>
     ) : (
-      <span className="text-white/80 truncate" title={currentBranch}>
+      <span className="truncate" title={currentBranch}>
         {currentBranch}
       </span>
     );
 
+  const toggleButtonClass = "h-auto px-1.5 py-1 min-w-0 [&_svg]:size-3.5";
+
   return (
-    <div className="border-t border-border bg-background/50 px-3 py-2 text-xs text-white/70 flex items-center gap-2 mt-auto">
-      {/* Filter button - only show if there's git status */}
-      {hasGitStatus && onFilterToggle && (
-        <button
-          type="button"
-          onClick={onFilterToggle}
-          className={`p-1 rounded transition-colors ${
-            showOnlyChangedFiles
-              ? "bg-foreground/20 hover:bg-foreground/25"
-              : "hover:bg-foreground/10"
-          }`}
-          title={
-            showOnlyChangedFiles
-              ? "Show all files"
-              : "Show only files with changes"
-          }
-        >
-          <Filter size={14} />
-        </button>
-      )}
+    <div className="border-t bg-elevated px-3 py-2 text-xs flex items-center gap-2 mt-auto">
+      <Tooltip>
+        <TooltipTrigger>
+          <Toggle
+            pressed={showOnlyChangedFiles}
+            onPressedChange={() => onFilterToggle()}
+            size="sm"
+            className={toggleButtonClass}
+          >
+            <Filter />
+          </Toggle>
+        </TooltipTrigger>
+        <TooltipContent>
+          {showOnlyChangedFiles
+            ? "Show all files"
+            : "Show only files with changes"}
+        </TooltipContent>
+      </Tooltip>
 
-      {/* Branch icon button - clickable if onClick provided */}
-      {onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          className={`p-1 rounded transition-colors ${
-            baseBranch && baseBranch !== "HEAD"
-              ? "bg-foreground/20 hover:bg-foreground/25"
-              : "hover:bg-foreground/10"
-          }`}
-          title={
-            baseBranch && baseBranch !== "HEAD"
-              ? `Comparing ${baseBranch} → ${currentBranch}. Click to change comparison branch.`
-              : `Current branch: ${currentBranch}. Click to select comparison branch.`
-          }
-        >
-          <GitBranch className="w-3.5 h-3.5 flex-shrink-0" />
-        </button>
-      ) : (
-        <GitBranch className="w-3.5 h-3.5 flex-shrink-0" />
-      )}
+      <Tooltip>
+        <TooltipTrigger>
+          <Toggle
+            pressed={baseBranch !== null && baseBranch !== "HEAD"}
+            onPressedChange={() => onOpenBranchPicker()}
+            size="sm"
+            className={toggleButtonClass}
+          >
+            <GitBranch />
+          </Toggle>
+        </TooltipTrigger>
+        <TooltipContent>
+          {baseBranch && baseBranch !== "HEAD"
+            ? `Comparing ${baseBranch} → ${currentBranch}`
+            : `Current branch: ${currentBranch}`}
+        </TooltipContent>
+      </Tooltip>
 
-      {/* Branch text */}
-      {branchText}
+      <Separator
+        orientation="vertical"
+        className="bg-elevated-border mr-1 h-5"
+      />
+
+      {branchLabel}
     </div>
   );
 }
