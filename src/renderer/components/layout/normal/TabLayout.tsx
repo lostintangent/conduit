@@ -30,6 +30,7 @@ import {
   tabsAtom,
 } from "@/store/atoms";
 import type {
+  EditorPane as EditorPaneType,
   LayoutNode,
   LayoutPaneNode,
   LayoutSplitNode,
@@ -222,11 +223,7 @@ interface TabLayoutProps {
   handleEditorUpdate: (
     tabId: string,
     paneId: string,
-    updates: {
-      cwd?: string;
-      filePath?: string;
-      treeViewMode?: "all" | "changed";
-    },
+    updates: Partial<EditorPaneType>,
   ) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   onOpenPaneActions?: () => void;
