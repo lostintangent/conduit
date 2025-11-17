@@ -218,6 +218,7 @@ type EditorPaneProps = {
   filePath?: string;
   paneId: string;
   agentSessionId?: string | null;
+  treeViewMode?: "all" | "changed";
   onFileChange?: (fileData: {
     filePath: string;
     language: string;
@@ -226,6 +227,7 @@ type EditorPaneProps = {
   onClearFile?: () => void;
   onCwdChange?: (cwd: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
+  onTreeViewModeChange?: (mode: "all" | "changed") => void;
   isLocked?: boolean;
   onSave?: () => void;
   hideIndividualSandboxIndicator?: boolean;
@@ -236,10 +238,12 @@ export function EditorPane({
   filePath,
   paneId,
   agentSessionId,
+  treeViewMode,
   onFileChange,
   onClearFile: _onClearFile,
   onCwdChange,
   onFileOpen,
+  onTreeViewModeChange,
   isLocked = false,
   onSave,
   hideIndividualSandboxIndicator = false,
@@ -321,7 +325,9 @@ export function EditorPane({
     handleBranchSelect,
   } = useGitStatus(cwd);
 
-  const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(false);
+  const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(
+    treeViewMode === "changed",
+  );
 
   // Diff viewer state - using discriminated union to prevent invalid states
   type ViewMode =
@@ -1850,9 +1856,11 @@ export function EditorPane({
                     : undefined
                 }
                 showOnlyChangedFiles={showOnlyChangedFiles}
-                onFilterToggle={() =>
-                  setShowOnlyChangedFiles(!showOnlyChangedFiles)
-                }
+                onFilterToggle={() => {
+                  const newMode = showOnlyChangedFiles ? "all" : "changed";
+                  setShowOnlyChangedFiles(!showOnlyChangedFiles);
+                  onTreeViewModeChange?.(newMode);
+                }}
                 hasGitStatus={gitStatus !== null && gitStatus.size > 0}
               />
             )}

@@ -52,7 +52,11 @@ export function QuickDialog({
 
   // Handle updates from editor pane
   const handleEditorUpdate = useCallback(
-    (updates: { cwd?: string; filePath?: string }) => {
+    (updates: {
+      cwd?: string;
+      filePath?: string;
+      treeViewMode?: "all" | "changed";
+    }) => {
       if (currentDescriptor.type === "editor") {
         setCurrentDescriptor((prev) => ({
           ...prev,
@@ -141,10 +145,14 @@ export function QuickDialog({
               paneId={quickPaneId}
               cwd={currentDescriptor.cwd}
               filePath={currentDescriptor.filePath}
+              treeViewMode={currentDescriptor.treeViewMode}
               agentSessionId={undefined}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
               onFileChange={({ filePath }) => handleEditorUpdate({ filePath })}
               onClearFile={() => handleEditorUpdate({ filePath: undefined })}
+              onTreeViewModeChange={(mode) =>
+                handleEditorUpdate({ treeViewMode: mode })
+              }
               onFileOpen={handleFileOpen}
               isLocked={currentDescriptor.isLocked}
               onSave={() => {

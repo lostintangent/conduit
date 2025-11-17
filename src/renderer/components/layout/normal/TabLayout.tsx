@@ -225,6 +225,7 @@ interface TabLayoutProps {
     updates: {
       cwd?: string;
       filePath?: string;
+      treeViewMode?: "all" | "changed";
     },
   ) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
@@ -410,6 +411,7 @@ export function TabLayout({
                   cwd={pane.cwd}
                   filePath={pane.filePath}
                   agentSessionId={pane.agentSessionId}
+                  treeViewMode={pane.treeViewMode}
                   onFileChange={(fileData) =>
                     handleEditorUpdate(tab.id, pane.id, {
                       filePath: fileData.filePath,
@@ -422,6 +424,9 @@ export function TabLayout({
                   }
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
+                  }
+                  onTreeViewModeChange={(mode) =>
+                    handleEditorUpdate(tab.id, pane.id, { treeViewMode: mode })
                   }
                   onFileOpen={(node) =>
                     onOpenQuickPane({

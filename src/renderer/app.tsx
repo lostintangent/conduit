@@ -340,6 +340,7 @@ export function App() {
       updates: {
         cwd?: string;
         filePath?: string;
+        treeViewMode?: "all" | "changed";
       },
     ) => {
       setTabs((current) =>

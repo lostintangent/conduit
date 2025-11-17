@@ -50,6 +50,7 @@ export type EditorPane = {
   type: "editor";
   cwd: string;
   filePath?: string;
+  treeViewMode?: "all" | "changed";
 
   agentSessionId?: string;
   agentBranchName?: string;
