@@ -76,7 +76,8 @@ function ensureMonacoConfigured() {
   // Expose monaco globally for debugging
   (window as any).monaco = monaco;
 
-  // Note: MonacoEnvironment is configured in monaco-workers.ts
+  // Note: MonacoEnvironment is now configured in monaco-workers.ts
+  // which is imported before the contribution files
 
   loader.config({ monaco });
 
@@ -190,6 +191,7 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
 };
 
 function inferLanguageFromFilePath(filePath: string): string {
+  // Extract just the filename (not the full path)
   const fileName = filePath.split("/").pop()?.toLowerCase() ?? "";
 
   // Check exact filename matches first (for files like .gitignore, Dockerfile, etc.)
@@ -1210,7 +1212,7 @@ export function EditorPane({
 
       editorRef.current = editor;
 
-      // Ensure the model has the correct language set
+      // Ensure correct language is set for the file
       const model = editor.getModel();
       if (model && filePath) {
         const correctLanguage = inferLanguageFromFilePath(filePath);

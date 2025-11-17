@@ -23,9 +23,12 @@ import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker"
     if (label === "typescript" || label === "javascript") {
       return new tsWorker();
     }
+
     return new editorWorker();
   },
 };
+
+console.log("[Monaco Workers] MonacoEnvironment configured");
 
 // Import from 'monaco-editor' (full bundle) NOT 'monaco-editor/esm/vs/editor/editor.api'
 // The full bundle automatically includes all language contributions
@@ -43,6 +46,8 @@ import markdownGrammar from "./markdown-vscode.tmLanguage.json";
  * Returns Monaco-compatible compiler options
  */
 async function loadTsConfigOptions(): Promise<monaco.languages.typescript.CompilerOptions> {
+  console.log("[Monaco TypeScript] Loading tsconfig.json...");
+
   try {
     // Try to import tsconfig.json from project root (two levels up from src/renderer)
     // @ts-ignore - dynamic import of JSON
@@ -50,17 +55,22 @@ async function loadTsConfigOptions(): Promise<monaco.languages.typescript.Compil
     const opts: any =
       tsconfig.default?.compilerOptions || tsconfig.compilerOptions || {};
 
+    console.log("[Monaco TypeScript] Successfully loaded tsconfig.json:", opts);
+
     // Monaco accepts the options object mostly as-is from tsconfig.json
     // We just need to handle a few incompatibilities:
     // - "bundler" moduleResolution → "node" (Monaco doesn't support bundler)
+    // - Newer targets/modules → fallback to what Monaco supports
     const options: monaco.languages.typescript.CompilerOptions = {
       ...opts,
+      // Override moduleResolution if it's "bundler" (not supported by Monaco)
       moduleResolution:
         opts.moduleResolution === "bundler"
           ? monaco.languages.typescript.ModuleResolutionKind.NodeJs
           : opts.moduleResolution,
     };
 
+    console.log("[Monaco TypeScript] Configured compiler options:", options);
     return options;
   } catch (error) {
     console.warn(
@@ -95,12 +105,21 @@ async function loadTsConfigOptions(): Promise<monaco.languages.typescript.Compil
   // Enable eager model sync for better cross-file IntelliSense
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
   monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+
+  console.log("[Monaco TypeScript] Configuration complete");
 })();
+
+console.log(
+  "[Monaco Workers] Full monaco-editor bundle loaded with all languages",
+);
 
 // Initialize Shiki for VS Code-quality syntax highlighting
 async function initializeShiki() {
+  console.log("[Monaco Shiki] Initializing TextMate grammars...");
+
   try {
     // Create Shiki highlighter with themes and languages
+    // Only include languages that are confirmed to exist in Shiki's bundle
     const highlighter = await createHighlighter({
       themes: [
         // VS Code default themes (for compatibility)
@@ -121,13 +140,13 @@ async function initializeShiki() {
         "jsonc",
 
         // Use VS Code's official markdown grammar for proper bold/italic tokenization
-        // @ts-expect-error - Custom grammar object from JSON
         {
           name: "markdown",
           scopeName: "text.html.markdown",
+          // @ts-ignore - JSON import for grammar
           ...markdownGrammar,
           aliases: ["md"],
-        } as const,
+        },
 
         "yaml",
         "xml",
@@ -160,36 +179,68 @@ async function initializeShiki() {
     });
 
     // Wire Shiki to Monaco for rich syntax highlighting
+    // This automatically registers all loaded themes with Monaco
     shikiToMonaco(highlighter, monaco);
 
-    // Override Shiki's themes to add markdown font style rules
-    monaco.editor.defineTheme("dark-plus", {
+    console.log("[Monaco Shiki] TextMate grammars loaded successfully!");
+    console.log(
+      "[Monaco Shiki] Available themes:",
+      highlighter.getLoadedThemes(),
+    );
+    console.log(
+      "[Monaco Shiki] Available languages:",
+      highlighter.getLoadedLanguages(),
+    );
+
+    // Log which languages were successfully registered with Monaco
+    const monacoLanguages = monaco.languages.getLanguages().map((l) => l.id);
+    console.log(
+      "[Monaco] All registered language IDs:",
+      monacoLanguages.sort(),
+    );
+
+    // Enhance markdown themes with font style rules for bold/italic
+    // VS Code's grammar properly tokenizes emphasis with markup.bold/italic.markdown scopes
+    monaco.editor.defineTheme("dark-plus-enhanced", {
       base: "vs-dark",
       inherit: true,
       rules: [
+        // Markdown emphasis styling via VS Code grammar scopes
         { token: "markup.bold.markdown", fontStyle: "bold" },
         { token: "markup.italic.markdown", fontStyle: "italic" },
         {
           token: "markup.bold.markdown.markup.italic.markdown",
           fontStyle: "italic bold",
         },
+        { token: "emphasis.markdown", fontStyle: "italic" },
+        { token: "strong.markdown", fontStyle: "bold" },
       ],
       colors: {},
     });
 
-    monaco.editor.defineTheme("light-plus", {
+    monaco.editor.defineTheme("light-plus-enhanced", {
       base: "vs",
       inherit: true,
       rules: [
+        // Markdown emphasis styling via VS Code grammar scopes
         { token: "markup.bold.markdown", fontStyle: "bold" },
         { token: "markup.italic.markdown", fontStyle: "italic" },
         {
           token: "markup.bold.markdown.markup.italic.markdown",
           fontStyle: "italic bold",
         },
+        { token: "emphasis.markdown", fontStyle: "italic" },
+        { token: "strong.markdown", fontStyle: "bold" },
       ],
       colors: {},
     });
+
+    console.log(
+      "[Monaco Shiki] Enhanced themes defined for markdown formatting",
+    );
+
+    // Export highlighter for potential use elsewhere
+    (window as any).shikiHighlighter = highlighter;
   } catch (error) {
     console.error("[Monaco Shiki] Failed to initialize:", error);
     console.warn(
