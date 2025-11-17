@@ -3,10 +3,6 @@ import type { VMMetadata } from "@shared/types";
 type Identifiable = { id: string };
 type Resizable = { size?: number };
 
-/* Editor types */
-
-export type EditorTreeMode = "all" | "changed";
-
 /* Layout tree types */
 
 export type LayoutPaneNode = {
@@ -50,6 +46,7 @@ export type WebViewPane = {
   devToolsForPane?: string;
 } & Identifiable;
 
+export type EditorTreeMode = "all" | "changes";
 export type EditorPane = {
   type: "editor";
   cwd: string;

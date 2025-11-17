@@ -327,7 +327,7 @@ export function EditorPane({
   } = useGitStatus(cwd);
 
   const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(
-    treeMode === "changed",
+    treeMode === "changes",
   );
 
   // Diff viewer state - using discriminated union to prevent invalid states
@@ -1866,7 +1866,7 @@ export function EditorPane({
                 onFilterToggle={() => {
                   const newMode: EditorTreeMode = showOnlyChangedFiles
                     ? "all"
-                    : "changed";
+                    : "changes";
                   setShowOnlyChangedFiles(!showOnlyChangedFiles);
                   onTreeModeChange?.(newMode);
                 }}
