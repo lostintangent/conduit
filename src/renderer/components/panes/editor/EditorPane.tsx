@@ -12,6 +12,7 @@ import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import type { EditorTreeMode } from "@/types";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { DiffEditor, loader } from "@monaco-editor/react";
 import type { FileDiffResult, FileTreeNode } from "@shared/types";
@@ -218,7 +219,7 @@ type EditorPaneProps = {
   filePath?: string;
   paneId: string;
   agentSessionId?: string | null;
-  treeViewMode?: "all" | "changed";
+  treeMode?: EditorTreeMode;
   onFileChange?: (fileData: {
     filePath: string;
     language: string;
@@ -227,7 +228,7 @@ type EditorPaneProps = {
   onClearFile?: () => void;
   onCwdChange?: (cwd: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
-  onTreeViewModeChange?: (mode: "all" | "changed") => void;
+  onTreeModeChange?: (mode: EditorTreeMode) => void;
   isLocked?: boolean;
   onSave?: () => void;
   hideIndividualSandboxIndicator?: boolean;
@@ -238,12 +239,12 @@ export function EditorPane({
   filePath,
   paneId,
   agentSessionId,
-  treeViewMode,
+  treeMode,
   onFileChange,
   onClearFile: _onClearFile,
   onCwdChange,
   onFileOpen,
-  onTreeViewModeChange,
+  onTreeModeChange,
   isLocked = false,
   onSave,
   hideIndividualSandboxIndicator = false,
@@ -326,7 +327,7 @@ export function EditorPane({
   } = useGitStatus(cwd);
 
   const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(
-    treeViewMode === "changed",
+    treeMode === "changed",
   );
 
   // Diff viewer state - using discriminated union to prevent invalid states
@@ -1857,9 +1858,9 @@ export function EditorPane({
                 }
                 showOnlyChangedFiles={showOnlyChangedFiles}
                 onFilterToggle={() => {
-                  const newMode = showOnlyChangedFiles ? "all" : "changed";
+                  const newMode: EditorTreeMode = showOnlyChangedFiles ? "all" : "changed";
                   setShowOnlyChangedFiles(!showOnlyChangedFiles);
-                  onTreeViewModeChange?.(newMode);
+                  onTreeModeChange?.(newMode);
                 }}
                 hasGitStatus={gitStatus !== null && gitStatus.size > 0}
               />

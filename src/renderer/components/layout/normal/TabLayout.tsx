@@ -408,7 +408,7 @@ export function TabLayout({
                   cwd={pane.cwd}
                   filePath={pane.filePath}
                   agentSessionId={pane.agentSessionId}
-                  treeViewMode={pane.treeViewMode}
+                  treeMode={pane.treeMode}
                   onFileChange={(fileData) =>
                     handleEditorUpdate(tab.id, pane.id, {
                       filePath: fileData.filePath,
@@ -422,8 +422,8 @@ export function TabLayout({
                   onCwdChange={(cwd) =>
                     handleEditorUpdate(tab.id, pane.id, { cwd })
                   }
-                  onTreeViewModeChange={(mode) =>
-                    handleEditorUpdate(tab.id, pane.id, { treeViewMode: mode })
+                  onTreeModeChange={(mode) =>
+                    handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
                   }
                   onFileOpen={(node) =>
                     onOpenQuickPane({
