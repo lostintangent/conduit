@@ -1,7 +1,9 @@
 import { openWorkspace } from "@/store/actions/workspace";
+import { cn } from "@/utils";
 import type { Workspace } from "@shared/types";
-import { X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 type WorkspacePickerDialog = {
@@ -10,6 +12,8 @@ type WorkspacePickerDialog = {
   workspaces: Workspace[];
   onSessionsUpdate: (sessions: Workspace[]) => void;
 };
+
+const { workspace } = window.conduit;
 
 export function WorkspacePicker({
   isOpen,
@@ -58,23 +62,23 @@ export function WorkspacePicker({
 
       if (key === "delete" || key === "backspace") {
         event.preventDefault();
-        const session = workspaces[selectedIndex];
-        if (session) {
+        const selectedWorkspace = workspaces[selectedIndex];
+        if (selectedWorkspace) {
           void (async () => {
             const api = window.conduit;
             if (!api) {
               return;
             }
 
-            await api.deleteSession(session.timestamp);
-            const updatedSessions = (await api.loadSessions()) as Workspace[];
-            onSessionsUpdate(updatedSessions);
+            await workspace.deleteWorkspace(selectedWorkspace.name);
+            const updatedWorkspaces = await workspace.getState();
+            onSessionsUpdate(updatedWorkspaces.workspaces);
 
-            if (updatedSessions.length === 0) {
+            if (updatedWorkspaces.workspaces.length === 0) {
               onClose();
             } else {
               setSelectedIndex((current) =>
-                Math.min(current, updatedSessions.length - 1),
+                Math.min(current, updatedWorkspaces.workspaces.length - 1),
               );
             }
           })();
@@ -84,7 +88,7 @@ export function WorkspacePicker({
     [onClose, selectedIndex, workspaces, onSessionsUpdate],
   );
 
-  const handleRestoreSession = useCallback(
+  const handleOpenWorkspace = useCallback(
     (session: Workspace) => {
       void (async () => {
         await openWorkspace(session);
@@ -94,24 +98,19 @@ export function WorkspacePicker({
     [onClose],
   );
 
-  const handleDeleteSession = useCallback(
+  const handleDeleteWorkspace = useCallback(
     async (session: Workspace, event: React.MouseEvent) => {
       event.stopPropagation();
 
-      const api = window.conduit;
-      if (!api) {
-        return;
-      }
+      await workspace.deleteWorkspace(session.name);
+      const updatedWorkspaces = await workspace.getState();
+      onSessionsUpdate(updatedWorkspaces.workspaces);
 
-      await api.deleteSession(session.timestamp);
-      const updatedSessions = (await api.loadSessions()) as Workspace[];
-      onSessionsUpdate(updatedSessions);
-
-      if (updatedSessions.length === 0) {
+      if (updatedWorkspaces.workspaces.length === 0) {
         onClose();
       } else {
         setSelectedIndex((current) =>
-          Math.min(current, updatedSessions.length - 1),
+          Math.min(current, updatedWorkspaces.workspaces.length - 1),
         );
       }
     },
@@ -146,18 +145,16 @@ export function WorkspacePicker({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="w-[480px] max-w-[90vw] border-white/10 bg-popover"
+        className="w-[480px] max-w-[90vw]"
         onKeyDown={handleKeyDown}
         showClose={false}
       >
         <DialogHeader>
-          <DialogTitle className="text-white">
-            Restore Saved Workspace
-          </DialogTitle>
+          <DialogTitle>Open Workspace</DialogTitle>
         </DialogHeader>
 
         {workspaces.length === 0 ? (
-          <p className="rounded-md border border-dashed border-white/10 bg-white/5 px-3 py-2 text-sm text-white/50">
+          <p className="rounded-md border border-dashed border-white/10 bg-white/5 px-3 py-2 text-sm">
             No saved workspaces available.
           </p>
         ) : (
@@ -170,38 +167,42 @@ export function WorkspacePicker({
               const tabCount = workspace.tabs.length;
 
               return (
-                <li key={workspace.timestamp}>
+                <li key={workspace.name}>
                   <div
                     role="option"
                     aria-selected={isActive}
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={`flex w-full items-center rounded-md border transition ${
-                      isActive
-                        ? "border-white/30 bg-white/10 text-white"
-                        : "border-transparent text-white/80 hover:border-white/20 hover:bg-white/5"
+                      isActive ? "border-transparent magic" : ""
                     }`}
                   >
                     <button
                       type="button"
-                      onClick={() => handleRestoreSession(workspace)}
+                      onClick={() => handleOpenWorkspace(workspace)}
                       className="flex flex-1 flex-col gap-1 px-3 py-2 text-left focus:outline-none"
                     >
                       <span className="text-sm font-medium">
                         {workspace.name}
                       </span>
-                      <span className="text-xs text-white/50">
+                      <span
+                        className={cn(
+                          "text-xs",
+                          !isActive && "text-muted-foreground",
+                        )}
+                      >
                         {tabCount} tab{tabCount === 1 ? "" : "s"} •{" "}
-                        {formatTimestamp(workspace.timestamp)}
+                        {formatTimestamp(workspace.lastModified)}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteSession(workspace, e)}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => handleDeleteWorkspace(workspace, e)}
                       aria-label="Delete session"
-                      className="mr-2 rounded-md p-1 text-sm leading-none text-current transition hover:bg-black/20 focus:outline-none focus:ring-2 focus:ring-white/30"
+                      className="mr-2 hover:bg-transparent! hover:text-destructive"
                     >
-                      <X className="h-4 w-4" />
-                    </button>
+                      <Trash2 size={12} />
+                    </Button>
                   </div>
                 </li>
               );
