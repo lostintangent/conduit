@@ -1844,7 +1844,9 @@ export function EditorPane({
               ) : (
                 <div className="flex items-center justify-center w-full text-white/50">
                   {showOnlyChangedFiles ? (
-                    <span className="italic">No changed files in this repository</span>
+                    <span className="italic">
+                      No changed files in this repository
+                    </span>
                   ) : (
                     "No files found"
                   )}
@@ -1855,14 +1857,16 @@ export function EditorPane({
               <GitBranchToolbar
                 currentBranch={currentBranch}
                 baseBranch={baseBranch}
-                onClick={
+                onOpenBranchPicker={
                   branches.length > 0
                     ? () => setIsBranchSelectorOpen(true)
                     : undefined
                 }
                 showOnlyChangedFiles={showOnlyChangedFiles}
                 onFilterToggle={() => {
-                  const newMode: EditorTreeMode = showOnlyChangedFiles ? "all" : "changed";
+                  const newMode: EditorTreeMode = showOnlyChangedFiles
+                    ? "all"
+                    : "changed";
                   setShowOnlyChangedFiles(!showOnlyChangedFiles);
                   onTreeModeChange?.(newMode);
                 }}
