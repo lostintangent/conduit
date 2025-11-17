@@ -35,7 +35,7 @@ import {
 
 // CRITICAL: Import worker setup BEFORE any monaco contribution imports
 // This sets up MonacoEnvironment before languages try to register
-import "@/monaco-workers";
+import "./monaco/monaco-workers";
 
 import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";

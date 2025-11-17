@@ -140,10 +140,10 @@ async function initializeShiki() {
         "jsonc",
 
         // Use VS Code's official markdown grammar for proper bold/italic tokenization
+        // @ts-expect-error - Custom grammar object from VS Code's markdown.tmLanguage.json
         {
           name: "markdown",
           scopeName: "text.html.markdown",
-          // @ts-ignore - JSON import for grammar
           ...markdownGrammar,
           aliases: ["md"],
         },
