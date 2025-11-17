@@ -6,7 +6,6 @@ type GitBranchToolbarProps = {
   onClick?: () => void;
   showOnlyChangedFiles?: boolean;
   onFilterToggle?: () => void;
-  hasGitStatus?: boolean;
 };
 
 export function GitBranchToolbar({
@@ -15,7 +14,6 @@ export function GitBranchToolbar({
   onClick,
   showOnlyChangedFiles,
   onFilterToggle,
-  hasGitStatus,
 }: GitBranchToolbarProps) {
   if (!currentBranch) {
     return null;
@@ -43,8 +41,8 @@ export function GitBranchToolbar({
 
   return (
     <div className="border-t border-border bg-background/50 px-3 py-2 text-xs text-white/70 flex items-center gap-2 mt-auto">
-      {/* Filter button - only show if there's git status */}
-      {hasGitStatus && onFilterToggle && (
+      {/* Filter button - always show when onFilterToggle is provided */}
+      {onFilterToggle && (
         <button
           type="button"
           onClick={onFilterToggle}

@@ -1843,7 +1843,11 @@ export function EditorPane({
                 />
               ) : (
                 <div className="flex items-center justify-center w-full text-white/50">
-                  No files found
+                  {showOnlyChangedFiles ? (
+                    <span className="italic">No changed files in this repository</span>
+                  ) : (
+                    "No files found"
+                  )}
                 </div>
               )}
             </div>
@@ -1862,7 +1866,6 @@ export function EditorPane({
                   setShowOnlyChangedFiles(!showOnlyChangedFiles);
                   onTreeModeChange?.(newMode);
                 }}
-                hasGitStatus={gitStatus !== null && gitStatus.size > 0}
               />
             )}
           </div>
