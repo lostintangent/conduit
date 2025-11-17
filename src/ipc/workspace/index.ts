@@ -89,10 +89,10 @@ type TabPane = Tab["panes"][string];
 type SerializedTab = Workspace["tabs"][number];
 type SerializedPane = SerializedTab["panes"][number];
 
-const serializePane = async (
+async function serializePane(
   pane: TabPane,
   terminalSessions: Map<string, TerminalInstance>,
-): Promise<SerializedPane> => {
+): Promise<SerializedPane> {
   if (pane.type === "terminal") {
     const terminalSession = terminalSessions.get(pane.sessionId);
 
@@ -102,35 +102,18 @@ const serializePane = async (
     }
 
     return {
-      id: pane.id,
-      type: "terminal",
-      cwd: pane.cwd,
+      ...pane,
       command: capturedCommand,
     };
   }
 
-  if (pane.type === "editor") {
-    return {
-      id: pane.id,
-      type: "editor",
-      cwd: pane.cwd,
-      filePath: pane.filePath,
-    };
-  }
+  return pane;
+}
 
-  return {
-    id: pane.id,
-    type: "webview",
-    url: pane.url,
-    webTitle: pane.title,
-    ...(pane.devToolsForPane && { devToolsForPane: pane.devToolsForPane }),
-  };
-};
-
-const serializeTabs = async (
+async function serializeTabs(
   tabs: Tab[],
   terminalSessions: Map<string, TerminalInstance>,
-): Promise<Workspace["tabs"]> => {
+): Promise<Workspace["tabs"]> {
   return Promise.all(
     tabs.map(async (tab) => {
       const panes = await Promise.all(
@@ -140,16 +123,12 @@ const serializeTabs = async (
       );
 
       return {
-        id: tab.id,
-        title: tab.title,
-        activePaneId: tab.activePaneId,
-        locked: tab.locked,
+        ...tab,
         panes,
-        layout: tab.layout,
       };
     }),
   );
-};
+}
 
 export async function saveWorkspace(
   name: string,

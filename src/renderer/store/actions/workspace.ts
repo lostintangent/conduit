@@ -15,47 +15,28 @@ export async function openWorkspace(workspace: Workspace) {
   const workspaceTabs: Tab[] = [];
   for (const workspaceTab of workspace.tabs) {
     const panes: Record<string, Pane> = {};
-    for (const sessionPane of workspaceTab.panes) {
-      if (sessionPane.type === "terminal") {
-        // Create a new terminal session with the saved cwd
+    for (const pane of workspaceTab.panes) {
+      if (pane.type === "terminal") {
         const result = await api.createTerminal(
-          sessionPane.cwd ? { cwd: sessionPane.cwd } : undefined,
+          pane.cwd ? { cwd: pane.cwd } : undefined,
         );
 
-        if (result) {
-          panes[sessionPane.id] = {
-            id: sessionPane.id,
-            type: "terminal",
-            sessionId: result.sessionId,
-            cwd: result.cwd,
-            processTitle: result.title,
-            vmMetadata: result.vmMetadata ?? undefined,
-          };
-
-          // If a command was running, auto-run it
-          if (sessionPane.command && sessionPane.command.trim().length > 0) {
-            const commandWithNewline = sessionPane.command.endsWith("\n")
-              ? sessionPane.command
-              : `${sessionPane.command}\n`;
-            api.sendKeypress(result.sessionId, commandWithNewline);
-          }
-        }
-      } else if (sessionPane.type === "editor") {
-        panes[sessionPane.id] = {
-          id: sessionPane.id,
-          type: "editor",
-          cwd: sessionPane.cwd || "",
-          filePath: sessionPane.filePath,
+        panes[pane.id] = {
+          ...(pane as Pane),
+          ...result,
         };
-      } else if (sessionPane.type === "webview") {
-        panes[sessionPane.id] = {
-          id: sessionPane.id,
-          type: "webview",
-          url: sessionPane.url || "about:blank",
-          title: sessionPane.webTitle,
-          ...(sessionPane.devToolsForPane && {
-            devToolsForPane: sessionPane.devToolsForPane,
-          }),
+
+        // If a command was running, auto-run it
+        if (pane.command?.trim().length > 0) {
+          const commandWithNewline = pane.command.endsWith("\n")
+            ? pane.command
+            : `${pane.command}\n`;
+          api.sendKeypress(result.sessionId, commandWithNewline);
+        }
+      } else {
+        // For non-terminal panes, just restore as-is
+        panes[pane.id] = {
+          ...(pane as Pane),
         };
       }
     }
@@ -65,7 +46,6 @@ export async function openWorkspace(workspace: Workspace) {
       const tab: Tab = {
         ...workspaceTab,
         panes,
-        locked: workspaceTab.locked ?? false,
       };
 
       workspaceTabs.push(tab);
