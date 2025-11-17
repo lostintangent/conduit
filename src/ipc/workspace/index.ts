@@ -26,13 +26,7 @@ export default async function (
   ipcMain.handle(
     "workspace:save-workspace",
     async (_, name, tabs, activeTabId) => {
-      const terminalSessions = getAllTerminals();
-      const updatedState = await saveWorkspace(
-        name,
-        tabs,
-        activeTabId,
-        terminalSessions,
-      );
+      const updatedState = await saveWorkspace(name, tabs, activeTabId);
 
       await refreshApplicationMenu();
       return updatedState;
@@ -59,8 +53,7 @@ export default async function (
   ipcMain.handle(
     "workspace:save-last-workspace",
     async (_, tabs, activeTabId) => {
-      const terminalSessions = getAllTerminals();
-      return await saveLastWorkspace(tabs, activeTabId, terminalSessions);
+      return await saveLastWorkspace(tabs, activeTabId);
     },
   );
 }
@@ -110,10 +103,9 @@ async function serializePane(
   return pane;
 }
 
-async function serializeTabs(
-  tabs: Tab[],
-  terminalSessions: Map<string, TerminalInstance>,
-): Promise<Workspace["tabs"]> {
+async function serializeTabs(tabs: Tab[]): Promise<Workspace["tabs"]> {
+  const terminalSessions = getAllTerminals();
+
   return Promise.all(
     tabs.map(async (tab) => {
       const panes = await Promise.all(
@@ -134,10 +126,9 @@ export async function saveWorkspace(
   name: string,
   tabs: Tab[],
   activeTabId: string | undefined,
-  terminalSessions: Map<string, TerminalInstance>,
 ): Promise<WorkspaceState> {
   try {
-    const serializedTabs = await serializeTabs(tabs, terminalSessions);
+    const serializedTabs = await serializeTabs(tabs);
     const newWorkspace: Workspace = {
       name,
       lastModified: Date.now(),
@@ -152,24 +143,20 @@ export async function saveWorkspace(
 
     // Add new/updated workspace to the beginning
     workspaceState.workspaces.unshift(newWorkspace);
-
-    // Keep only the most recent 10 workspaces
-    workspaceState.workspaces = workspaceState.workspaces.slice(0, 10);
-
     await saveWorkspaceState();
 
     return workspaceState;
   } catch (error) {
     console.error("Failed to save workspace:", error);
-    throw error;
   }
 }
 
 async function deleteWorkspace(name: string): Promise<void> {
   try {
     workspaceState.workspaces = workspaceState.workspaces.filter(
-      (s) => s.name !== name,
+      (workspace) => workspace.name !== name,
     );
+
     await saveWorkspaceState();
   } catch (error) {
     console.error("Failed to delete workspace:", error);
@@ -179,10 +166,9 @@ async function deleteWorkspace(name: string): Promise<void> {
 async function saveLastWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
-  terminalSessions: Map<string, TerminalInstance>,
 ): Promise<WorkspaceState> {
   try {
-    const serializedTabs = await serializeTabs(tabs, terminalSessions);
+    const serializedTabs = await serializeTabs(tabs);
 
     const lastWorkspace: Workspace = {
       name: "__last_workspace__",
@@ -235,7 +221,6 @@ async function renameWorkspace(
     return workspaceState;
   } catch (error) {
     console.error("Failed to rename workspace:", error);
-    throw error;
   }
 }
 
