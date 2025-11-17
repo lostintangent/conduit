@@ -31,6 +31,12 @@ import {
   Undo,
   X,
 } from "lucide-react";
+
+// CRITICAL: Import worker setup BEFORE any monaco contribution imports
+// This sets up MonacoEnvironment before languages try to register
+import "./monaco/monaco-workers";
+import { configureTsConfig } from "./monaco/monaco-workers";
+
 import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution";
@@ -41,11 +47,10 @@ import "monaco-editor/esm/vs/basic-languages/xml/xml.contribution";
 import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution";
 import "monaco-editor/esm/vs/editor/contrib/find/browser/findController";
 import "monaco-editor/esm/vs/editor/contrib/find/browser/findWidget.css";
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-import "monaco-editor/esm/vs/language/css/monaco.contribution";
-import "monaco-editor/esm/vs/language/html/monaco.contribution";
-import "monaco-editor/esm/vs/language/json/monaco.contribution";
-import "monaco-editor/esm/vs/language/typescript/monaco.contribution";
+// Import from full monaco-editor bundle (same as monaco-workers.ts)
+// DO NOT import from 'monaco-editor/esm/vs/editor/editor.api' as it lacks language support
+import * as monaco from "monaco-editor";
+
 import path from "path-browserify";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -68,12 +73,65 @@ function ensureMonacoConfigured() {
     return;
   }
 
+  // Expose monaco globally for debugging
+  (window as any).monaco = monaco;
+
+  // Note: MonacoEnvironment is now configured in monaco-workers.ts
+  // which is imported before the contribution files
+
   loader.config({ monaco });
 
   isMonacoConfigured = true;
 }
 
 ensureMonacoConfigured();
+
+// Map exact filenames to languages (case-insensitive)
+const LANGUAGE_BY_FILENAME: Record<string, string> = {
+  // Dockerfiles
+  dockerfile: "dockerfile",
+  "dockerfile.dev": "dockerfile",
+  "dockerfile.prod": "dockerfile",
+  "dockerfile.test": "dockerfile",
+  // Makefiles
+  makefile: "makefile",
+  gnumakefile: "makefile",
+  // Git/ignore files (use shell/ini as fallback since 'ignore' language doesn't exist)
+  ".gitignore": "shell",
+  ".gitattributes": "ini",
+  ".gitmodules": "ini",
+  ".dockerignore": "shell",
+  ".prettierignore": "shell",
+  ".eslintignore": "shell",
+  ".npmignore": "shell",
+  // Env files (use ini as fallback since 'dotenv' language doesn't exist)
+  ".env": "ini",
+  ".env.local": "ini",
+  ".env.development": "ini",
+  ".env.production": "ini",
+  ".env.test": "ini",
+  ".env.example": "ini",
+  // NPM/Node
+  ".npmrc": "ini",
+  ".nvmrc": "plaintext",
+  ".yarnrc": "yaml",
+  ".node-version": "plaintext",
+  // Editor configs
+  ".editorconfig": "ini",
+  ".prettierrc": "json",
+  ".eslintrc": "json",
+  // Other common config files
+  ".browserslistrc": "plaintext",
+  cname: "plaintext",
+  license: "plaintext",
+  authors: "plaintext",
+  contributors: "plaintext",
+  // Docker Compose (use yaml since 'dockercompose' doesn't exist)
+  "docker-compose.yml": "yaml",
+  "docker-compose.yaml": "yaml",
+  "compose.yml": "yaml",
+  "compose.yaml": "yaml",
+};
 
 const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   ts: "typescript",
@@ -83,6 +141,7 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   mjs: "javascript",
   cjs: "javascript",
   json: "json",
+  jsonc: "jsonc",
   css: "css",
   scss: "scss",
   sass: "scss",
@@ -94,9 +153,10 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   yml: "yaml",
   yaml: "yaml",
   sh: "shell",
-  bash: "shell",
-  zsh: "shell",
-  fish: "shell",
+  bash: "bash",
+  zsh: "shell", // Fallback to shell (zsh grammar might not be in Shiki)
+  fish: "shell", // Fallback to shell (fish grammar might not be in Shiki)
+  ps1: "powershell",
   py: "python",
   rs: "rust",
   go: "go",
@@ -114,18 +174,38 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   php: "php",
   rb: "ruby",
   ini: "ini",
+  cfg: "ini",
+  conf: "ini",
+  config: "ini",
+  properties: "ini", // Fallback to ini (properties grammar might not be in Shiki)
+  env: "ini", // Fallback to ini (dotenv grammar might not be in Shiki)
   sql: "sql",
   xml: "xml",
   txt: "plaintext",
+  dockerfile: "dockerfile",
+  toml: "toml",
+  graphql: "graphql",
+  gql: "graphql",
+  diff: "diff",
+  patch: "diff",
 };
 
 function inferLanguageFromFilePath(filePath: string): string {
-  const segments = filePath.split(".");
+  // Extract just the filename (not the full path)
+  const fileName = filePath.split("/").pop()?.toLowerCase() ?? "";
+
+  // Check exact filename matches first (for files like .gitignore, Dockerfile, etc.)
+  if (LANGUAGE_BY_FILENAME[fileName]) {
+    return LANGUAGE_BY_FILENAME[fileName];
+  }
+
+  // Then check by extension
+  const segments = fileName.split(".");
   if (segments.length <= 1) {
     return "plaintext";
   }
 
-  const extension = segments[segments.length - 1]?.toLowerCase() ?? "";
+  const extension = segments[segments.length - 1] ?? "";
   if (!extension) {
     return "plaintext";
   }
@@ -166,7 +246,9 @@ export function EditorPane({
 }: EditorPaneProps) {
   const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
-  const editorTheme = resolveTheme(theme) === "light" ? "vs-light" : "vs-dark";
+  // Use Shiki's VS Code themes (markdown formatting handled by Shiki's grammar)
+  const editorTheme =
+    resolveTheme(theme) === "light" ? "light-plus" : "dark-plus";
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [currentContent, setCurrentContent] = useState<string | undefined>(
@@ -178,6 +260,15 @@ export function EditorPane({
   const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(
     undefined,
   );
+
+  // Compute language from filePath immediately to avoid plaintext default
+  const detectedLanguage = useMemo(() => {
+    if (filePath) {
+      return inferLanguageFromFilePath(filePath);
+    }
+    return currentLanguage || "plaintext";
+  }, [filePath, currentLanguage]);
+
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -238,6 +329,17 @@ export function EditorPane({
     | { type: "diff"; data: FileDiffResult; showRaw: boolean };
 
   const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
+
+  // Configure Monaco's TypeScript language service with project's tsconfig.json
+  // This implements TypeScript's upward search algorithm to find tsconfig.json
+  useEffect(() => {
+    if (!cwd) return;
+
+    // Configure tsconfig asynchronously
+    configureTsConfig(cwd, api).catch((error) => {
+      console.error("[Monaco TypeScript] Failed to configure tsconfig:", error);
+    });
+  }, [cwd]);
 
   // Re-fetch diff when baseBranch changes while in diff mode
   useEffect(() => {
@@ -1122,6 +1224,19 @@ export function EditorPane({
 
       editorRef.current = editor;
 
+      // Ensure correct language is set for the file
+      const model = editor.getModel();
+      if (model && filePath) {
+        const correctLanguage = inferLanguageFromFilePath(filePath);
+        if (model.getLanguageId() !== correctLanguage) {
+          try {
+            monaco.editor.setModelLanguage(model, correctLanguage);
+          } catch (error) {
+            console.error("[Monaco] Error setting language:", error);
+          }
+        }
+      }
+
       // Update undo/redo state when editor content changes
       const updateUndoRedoState = () => {
         const model = editor.getModel();
@@ -1143,7 +1258,7 @@ export function EditorPane({
         updateUndoRedoState();
       });
     },
-    [],
+    [filePath],
   );
 
   const handleUndo = useCallback(() => {
@@ -1787,7 +1902,7 @@ export function EditorPane({
                     <Editor
                       key={`${paneId}-${filePath}-deleted`}
                       value={viewMode.data.originalContent}
-                      language={currentLanguage}
+                      language={detectedLanguage}
                       theme={editorTheme}
                       options={{
                         minimap: { enabled: false },
@@ -1811,7 +1926,7 @@ export function EditorPane({
                       key={`${paneId}-${filePath}-diff`}
                       original={viewMode.data.originalContent}
                       modified={viewMode.data.modifiedContent}
-                      language={currentLanguage}
+                      language={detectedLanguage}
                       theme={editorTheme}
                       options={{
                         minimap: { enabled: false },
@@ -1838,16 +1953,27 @@ export function EditorPane({
                     value={currentContent}
                     onChange={handleEditorChange}
                     onMount={handleEditorMount}
-                    language={currentLanguage}
+                    language={detectedLanguage}
                     theme={editorTheme}
                     options={{
                       minimap: { enabled: false },
                       smoothScrolling: true,
                       scrollBeyondLastLine: false,
-                      lineNumbers: "on",
                       automaticLayout: true,
-                      wordWrap: "on",
                       fontSize: 13,
+                      // Default settings
+                      lineNumbers:
+                        detectedLanguage === "markdown" ? "off" : "on",
+                      wordWrap: "on",
+                      // Markdown-specific enhancements
+                      ...(detectedLanguage === "markdown" && {
+                        glyphMargin: false, // Hide glyph margin
+                        folding: true, // Enable section folding
+                        links: true, // Enable clickable links (Cmd+Click)
+                        colorDecorators: true, // Show color decorators
+                        renderWhitespace: "none", // Hide whitespace markers
+                        padding: { top: 16, bottom: 16 }, // Extra padding for readability
+                      }),
                     }}
                     loading={
                       <div className="flex h-full w-full items-center justify-center">
