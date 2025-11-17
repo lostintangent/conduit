@@ -81,11 +81,8 @@ export async function loadTsConfigOptions(
   api: FileSystemApi,
   monacoApi: MonacoTypeScriptApi,
 ): Promise<MonacoCompilerOptions> {
-  console.log("[Monaco TypeScript] Loading tsconfig.json from cwd:", cwd);
-
   // Check cache first
   if (tsconfigCache.has(cwd)) {
-    console.log("[Monaco TypeScript] Using cached tsconfig for:", cwd);
     return tsconfigCache.get(cwd)!;
   }
 
@@ -101,15 +98,12 @@ export async function loadTsConfigOptions(
     const content = await api.readFile(tsconfigPath);
     const opts: any = parseTsConfig(content);
 
-    console.log("[Monaco TypeScript] Successfully loaded tsconfig.json:", opts);
-
     // Convert to Monaco-compatible options
     const options = convertToMonacoOptions(opts, monacoApi);
 
     // Cache the result
     tsconfigCache.set(cwd, options);
 
-    console.log("[Monaco TypeScript] Configured compiler options:", options);
     return options;
   } catch (error) {
     console.warn(
@@ -135,10 +129,8 @@ export async function loadTsConfigOptions(
 export function clearTsConfigCache(cwd?: string): void {
   if (cwd) {
     tsconfigCache.delete(cwd);
-    console.log("[Monaco TypeScript] Cleared cache for:", cwd);
   } else {
     tsconfigCache.clear();
-    console.log("[Monaco TypeScript] Cleared entire cache");
   }
 }
 

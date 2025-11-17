@@ -70,8 +70,6 @@ export async function configureTsConfig(cwd: string, api: any): Promise<void> {
   // Enable eager model sync for better cross-file IntelliSense
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
   monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
-
-  console.log("[Monaco TypeScript] Configuration complete for cwd:", cwd);
 }
 
 console.log(
@@ -177,23 +175,6 @@ async function initializeShiki() {
     shikiToMonaco(highlighter, monaco);
 
     console.log("[Monaco Shiki] TextMate grammars loaded successfully!");
-    console.log(
-      "[Monaco Shiki] Available themes:",
-      highlighter.getLoadedThemes(),
-    );
-    console.log(
-      "[Monaco Shiki] Available languages:",
-      highlighter.getLoadedLanguages(),
-    );
-
-    // Log which languages were successfully registered with Monaco
-    const monacoLanguages = monaco.languages.getLanguages().map((l) => l.id);
-    console.log(
-      "[Monaco] All registered language IDs:",
-      monacoLanguages.sort(),
-    );
-
-    console.log("[Monaco Shiki] Shiki TextMate grammars now active");
 
     // Export highlighter for potential use elsewhere
     (window as any).shikiHighlighter = highlighter;

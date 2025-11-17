@@ -38,12 +38,6 @@ export async function findProjectRoot(
       try {
         const exists = await api.fileExists(indicatorPath);
         if (exists) {
-          console.log(
-            "[Monaco TypeScript] Found project root at:",
-            currentDir,
-            "(indicator:",
-            indicator + ")",
-          );
           return currentDir;
         }
       } catch (error) {
@@ -84,7 +78,6 @@ export async function findProjectRoot(
   }
 
   // If no project root found, use the start directory as the boundary
-  console.log("[Monaco TypeScript] No project root found, using:", startDir);
   return startDir;
 }
 
@@ -123,10 +116,6 @@ export async function findTsConfig(
     try {
       const exists = await api.fileExists(tsconfigPath);
       if (exists) {
-        console.log(
-          "[Monaco TypeScript] Found tsconfig.json at:",
-          tsconfigPath,
-        );
         return tsconfigPath;
       }
     } catch (error) {
@@ -178,12 +167,6 @@ export async function findTsConfig(
     }
   }
 
-  console.log(
-    "[Monaco TypeScript] No tsconfig.json found starting from:",
-    startDir,
-    "up to project root:",
-    projectRoot,
-  );
   return null;
 }
 
