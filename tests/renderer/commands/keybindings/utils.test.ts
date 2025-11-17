@@ -83,6 +83,34 @@ describe("normalizeKeybinding", () => {
     ];
     expect(normalizeKeybinding(chords)).toBe("Ctrl+Alt+Shift+Cmd+Z");
   });
+
+  it("should include required keys (Cmd+Shift+B+Left)", () => {
+    const chords: KeyChord[] = [
+      {
+        ctrl: false,
+        alt: false,
+        shift: true,
+        meta: true,
+        key: "left",
+        requiredKeys: ["b"],
+      },
+    ];
+    expect(normalizeKeybinding(chords)).toBe("Shift+Cmd+B+left");
+  });
+
+  it("should include multiple required keys", () => {
+    const chords: KeyChord[] = [
+      {
+        ctrl: false,
+        alt: false,
+        shift: false,
+        meta: true,
+        key: "c",
+        requiredKeys: ["a", "b"],
+      },
+    ];
+    expect(normalizeKeybinding(chords)).toBe("Cmd+A+B+C");
+  });
 });
 
 describe("formatKeybindingForDisplay", () => {
@@ -130,6 +158,41 @@ describe("formatKeybindingForDisplay", () => {
     expect(result).toMatch(/(Ctrl|⌃)/);
     expect(result).toMatch(/(Alt|⌥)/);
     expect(result).toMatch(/(Shift|⇧)/);
+  });
+
+  it("should include required keys (Cmd+Shift+B+Left)", () => {
+    const chords: KeyChord[] = [
+      {
+        ctrl: false,
+        alt: false,
+        shift: true,
+        meta: true,
+        key: "left",
+        requiredKeys: ["b"],
+      },
+    ];
+    const result = formatKeybindingForDisplay(chords);
+    // On Mac: "⇧⌘B←", on others: "Shift+Ctrl+B+←"
+    expect(result).toMatch(/B/); // Required key "B" should be present
+    expect(result).toMatch(/←/); // Arrow should be formatted as symbol
+  });
+
+  it("should include multiple required keys", () => {
+    const chords: KeyChord[] = [
+      {
+        ctrl: false,
+        alt: false,
+        shift: false,
+        meta: true,
+        key: "c",
+        requiredKeys: ["a", "b"],
+      },
+    ];
+    const result = formatKeybindingForDisplay(chords);
+    // Should contain both required keys A and B
+    expect(result).toMatch(/A/);
+    expect(result).toMatch(/B/);
+    expect(result).toMatch(/C/);
   });
 });
 

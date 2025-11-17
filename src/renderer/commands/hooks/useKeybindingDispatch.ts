@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import type { ICommandRegistry } from "../core/CommandRegistry";
 import type { KeybindingRegistry } from "./KeybindingRegistry";
+import {
+  clearPressedKeys,
+  trackKeyDown,
+  trackKeyUp,
+} from "../keybindings/parser";
 
 /**
  * Hook for dispatching keyboard events to commands
@@ -32,6 +37,9 @@ export function useKeybindingDispatch(
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Track pressed keys for multi-key chords (e.g., Cmd+Shift+B+Left)
+      trackKeyDown(event);
+
       // Fast path: Skip ALL processing for plain text in input elements
       // This handles the 99% case (typing in terminal) in <1 microsecond
       if (
@@ -70,6 +78,10 @@ export function useKeybindingDispatch(
           event.preventDefault();
           clearChordState();
 
+          // Clear pressed keys after command execution to prevent stale keys
+          // from interfering with subsequent commands
+          clearPressedKeys();
+
           // Execute asynchronously without blocking
           commandRegistry.executeCommand(commandId).catch((error) => {
             console.error(
@@ -84,11 +96,27 @@ export function useKeybindingDispatch(
       }
     };
 
+    const handleKeyUp = (event: KeyboardEvent) => {
+      // Track key releases for multi-key chords
+      trackKeyUp(event);
+    };
+
+    const handleBlur = () => {
+      // Clear all tracked keys when window loses focus
+      clearPressedKeys();
+      clearChordState();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
       clearChordState();
+      clearPressedKeys();
     };
   }, [commandRegistry, keybindingRegistry]); // Only re-run when registries change, not on every keystroke
 }

@@ -48,6 +48,8 @@ import { enqueueNotification } from "@/store/actions/notifications";
 import {
   closePane,
   movePane,
+  openEditorPane,
+  openWebViewPane,
   splitPane,
   splitPaneWithAgentSession,
 } from "@/store/actions/pane";
@@ -826,6 +828,198 @@ export function registerApplicationCommands(
     when: hasActivePane.isTrue(),
     run: (context) => {
       handleOpenWebPage(context.setIsUrlDialogOpen);
+    },
+  });
+
+  // Pane: Split Left with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_BROWSER,
+    title: "Split Browser Left",
+    description: "Create a new browser pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Left",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openWebViewPane(targetTabId, targetPaneId, "about:blank", "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_BROWSER,
+    title: "Split Browser Right",
+    description: "Create a new browser pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Right",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openWebViewPane(targetTabId, targetPaneId, "about:blank", "row", false);
+      }
+    },
+  });
+
+  // Pane: Split Top with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_BROWSER,
+    title: "Split Browser Top",
+    description: "Create a new browser pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Up",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openWebViewPane(
+          targetTabId,
+          targetPaneId,
+          "about:blank",
+          "column",
+          true,
+        );
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_BROWSER,
+    title: "Split Browser Bottom",
+    description: "Create a new browser pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Down",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openWebViewPane(
+          targetTabId,
+          targetPaneId,
+          "about:blank",
+          "column",
+          false,
+        );
+      }
+    },
+  });
+
+  // Pane: Split Left with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_EDITOR,
+    title: "Split Editor Left",
+    description: "Create a new editor pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Left",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", true);
+        }
+      }
+    },
+  });
+
+  // Pane: Split Right with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_EDITOR,
+    title: "Split Editor Right",
+    description: "Create a new editor pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Right",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", false);
+        }
+      }
+    },
+  });
+
+  // Pane: Split Top with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_EDITOR,
+    title: "Split Editor Top",
+    description: "Create a new editor pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Up",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", true);
+        }
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_EDITOR,
+    title: "Split Editor Bottom",
+    description: "Create a new editor pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Down",
+    },
+    when: paneActionsEnabled,
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", false);
+        }
+      }
     },
   });
 

@@ -37,6 +37,11 @@ export function normalizeKeybinding(chords: KeyChord[]): string {
       if (chord.shift) parts.push("Shift");
       if (chord.meta) parts.push("Cmd");
 
+      // Add required keys (e.g., "B" in "Cmd+Shift+B+Left")
+      if (chord.requiredKeys && chord.requiredKeys.length > 0) {
+        chord.requiredKeys.forEach((key) => parts.push(key.toUpperCase()));
+      }
+
       // Always uppercase single character keys for consistency
       parts.push(chord.key.length === 1 ? chord.key.toUpperCase() : chord.key);
 
@@ -126,6 +131,11 @@ export function formatKeybindingForDisplay(chords: KeyChord[]): string {
     if (chord.shift) parts.push(isMac ? "⇧" : "Shift");
     if (chord.meta) parts.push(isMac ? "⌘" : "Ctrl"); // Meta = Cmd on Mac, Ctrl elsewhere
 
+    // Add required keys (e.g., "B" in "Cmd+Shift+B+Left")
+    if (chord.requiredKeys && chord.requiredKeys.length > 0) {
+      chord.requiredKeys.forEach((key) => parts.push(key.toUpperCase()));
+    }
+
     // Add the key
     parts.push(formatKey(chord.key));
 
@@ -175,6 +185,13 @@ export function formatKeybindingForElectron(chords: KeyChord[]): string {
   if (chord.alt) parts.push("Alt");
   if (chord.shift) parts.push("Shift");
   if (chord.meta) parts.push(isMac ? "Cmd" : "Ctrl");
+
+  // Note: Electron accelerators don't support required keys (like B in Cmd+Shift+B+Left)
+  // These multi-key combinations should not be used as Electron menu accelerators
+  if (chord.requiredKeys && chord.requiredKeys.length > 0) {
+    console.warn("Electron accelerators do not support required keys:", chord);
+    return "";
+  }
 
   // Format the key for Electron
   const keyMap: Record<string, string> = {

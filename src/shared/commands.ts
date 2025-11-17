@@ -48,6 +48,14 @@ export const ApplicationCommands = {
   PANE_MOVE_UP: "pane.moveUp",
   PANE_MOVE_DOWN: "pane.moveDown",
   PANE_MOVE_TO_TAB: "pane.moveToTab",
+  PANE_SPLIT_LEFT_BROWSER: "pane.splitLeftBrowser",
+  PANE_SPLIT_RIGHT_BROWSER: "pane.splitRightBrowser",
+  PANE_SPLIT_TOP_BROWSER: "pane.splitTopBrowser",
+  PANE_SPLIT_BOTTOM_BROWSER: "pane.splitBottomBrowser",
+  PANE_SPLIT_LEFT_EDITOR: "pane.splitLeftEditor",
+  PANE_SPLIT_RIGHT_EDITOR: "pane.splitRightEditor",
+  PANE_SPLIT_TOP_EDITOR: "pane.splitTopEditor",
+  PANE_SPLIT_BOTTOM_EDITOR: "pane.splitBottomEditor",
 
   // Terminal commands
   TERMINAL_CREATE_CLOUD: "terminal.createCloud",

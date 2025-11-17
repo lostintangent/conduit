@@ -24,6 +24,8 @@ export interface KeyChord {
   alt: boolean;
   meta: boolean;
   key: string;
+  /** Additional keys that must be held down (e.g., "b" in "Cmd+Shift+B+Left") */
+  requiredKeys?: string[];
 }
 
 /**

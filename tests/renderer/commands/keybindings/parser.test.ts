@@ -119,6 +119,42 @@ describe("parseChord()", () => {
       key: "t",
     });
   });
+
+  it("should parse required keys (Cmd+Shift+B+Left)", () => {
+    const chord = parseChord("Cmd+Shift+B+Left");
+    expect(chord).toEqual({
+      ctrl: false,
+      shift: true,
+      alt: false,
+      meta: true,
+      key: "left",
+      requiredKeys: ["b"],
+    });
+  });
+
+  it("should parse required keys (Cmd+Shift+E+Right)", () => {
+    const chord = parseChord("Cmd+Shift+E+Right");
+    expect(chord).toEqual({
+      ctrl: false,
+      shift: true,
+      alt: false,
+      meta: true,
+      key: "right",
+      requiredKeys: ["e"],
+    });
+  });
+
+  it("should parse multiple required keys", () => {
+    const chord = parseChord("Cmd+A+B+C");
+    expect(chord).toEqual({
+      ctrl: false,
+      shift: false,
+      alt: false,
+      meta: true,
+      key: "c",
+      requiredKeys: ["a", "b"],
+    });
+  });
 });
 
 describe("parseKeybinding()", () => {
@@ -360,6 +396,76 @@ describe("formatChord()", () => {
       key: "p",
     };
     expect(formatChord(chord)).toBe("Shift+Cmd+P");
+  });
+
+  it("should format with required keys (Cmd+Shift+B+Left)", () => {
+    const chord = {
+      ctrl: false,
+      shift: true,
+      alt: false,
+      meta: true,
+      key: "left",
+      requiredKeys: ["b"],
+    };
+    expect(formatChord(chord)).toBe("Shift+Cmd+B+←");
+  });
+
+  it("should format with required keys (Cmd+Shift+E+Right)", () => {
+    const chord = {
+      ctrl: false,
+      shift: true,
+      alt: false,
+      meta: true,
+      key: "right",
+      requiredKeys: ["e"],
+    };
+    expect(formatChord(chord)).toBe("Shift+Cmd+E+→");
+  });
+
+  it("should format arrow keys with symbols", () => {
+    expect(
+      formatChord({
+        ctrl: false,
+        shift: false,
+        alt: false,
+        meta: true,
+        key: "arrowup",
+      }),
+    ).toBe("Cmd+↑");
+    expect(
+      formatChord({
+        ctrl: false,
+        shift: false,
+        alt: false,
+        meta: true,
+        key: "arrowdown",
+      }),
+    ).toBe("Cmd+↓");
+    expect(
+      formatChord({
+        ctrl: false,
+        shift: false,
+        alt: false,
+        meta: true,
+        key: "arrowleft",
+      }),
+    ).toBe("Cmd+←");
+    expect(
+      formatChord({
+        ctrl: false,
+        shift: false,
+        alt: false,
+        meta: true,
+        key: "arrowright",
+      }),
+    ).toBe("Cmd+→");
+  });
+
+  it("should round-trip parse and format", () => {
+    const input = "Cmd+Shift+B+Left";
+    const parsed = parseChord(input);
+    const formatted = formatChord(parsed);
+    expect(formatted).toBe("Shift+Cmd+B+←");
   });
 });
 
