@@ -63,7 +63,7 @@ export async function createCliServer(
     });
   });
 
-  async function cleanupSocket(socketPath: string) {
+  function cleanupSocket(socketPath: string) {
     if (process.platform === "win32") return;
 
     if (fs.existsSync(socketPath)) {
