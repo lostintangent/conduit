@@ -41,58 +41,23 @@ import { createHighlighter } from "shiki";
 // Import VS Code's official markdown grammar for proper bold/italic support
 import markdownGrammar from "./markdown-vscode.tmLanguage.json";
 
+// Import tsconfig loading logic
+import { loadTsConfigOptions } from "./tsconfigLoader";
+
 /**
- * Loads and parses tsconfig.json from the project root
- * Returns Monaco-compatible compiler options
+ * Configures Monaco's TypeScript language service with tsconfig from the user's project
+ * Should be called when opening a new project/cwd
  */
-async function loadTsConfigOptions(): Promise<monaco.languages.typescript.CompilerOptions> {
-  console.log("[Monaco TypeScript] Loading tsconfig.json...");
+export async function configureTsConfig(cwd: string, api: any): Promise<void> {
+  // Create Monaco TypeScript API object for the loader
+  const monacoApi = {
+    ScriptTarget: monaco.languages.typescript.ScriptTarget,
+    ModuleKind: monaco.languages.typescript.ModuleKind,
+    ModuleResolutionKind: monaco.languages.typescript.ModuleResolutionKind,
+    JsxEmit: monaco.languages.typescript.JsxEmit,
+  };
 
-  try {
-    // Try to import tsconfig.json from project root (two levels up from src/renderer)
-    // @ts-ignore - dynamic import of JSON
-    const tsconfig = await import("../../tsconfig.json");
-    const opts: any =
-      tsconfig.default?.compilerOptions || tsconfig.compilerOptions || {};
-
-    console.log("[Monaco TypeScript] Successfully loaded tsconfig.json:", opts);
-
-    // Monaco accepts the options object mostly as-is from tsconfig.json
-    // We just need to handle a few incompatibilities:
-    // - "bundler" moduleResolution → "node" (Monaco doesn't support bundler)
-    // - Newer targets/modules → fallback to what Monaco supports
-    const options: monaco.languages.typescript.CompilerOptions = {
-      ...opts,
-      // Override moduleResolution if it's "bundler" (not supported by Monaco)
-      moduleResolution:
-        opts.moduleResolution === "bundler"
-          ? monaco.languages.typescript.ModuleResolutionKind.NodeJs
-          : opts.moduleResolution,
-    };
-
-    console.log("[Monaco TypeScript] Configured compiler options:", options);
-    return options;
-  } catch (error) {
-    console.warn(
-      "[Monaco TypeScript] Could not load tsconfig.json, using defaults:",
-      error,
-    );
-
-    // Return sensible defaults if tsconfig.json is not found
-    return {
-      target: monaco.languages.typescript.ScriptTarget.ES2020,
-      lib: ["ES2020", "DOM", "DOM.Iterable"],
-      module: monaco.languages.typescript.ModuleKind.ESNext,
-      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-      jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
-      esModuleInterop: true,
-    };
-  }
-}
-
-// Load TypeScript configuration asynchronously
-(async () => {
-  const compilerOptions = await loadTsConfigOptions();
+  const compilerOptions = await loadTsConfigOptions(cwd, api, monacoApi);
 
   // Apply to both TypeScript and JavaScript
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions(
@@ -106,8 +71,8 @@ async function loadTsConfigOptions(): Promise<monaco.languages.typescript.Compil
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
   monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
 
-  console.log("[Monaco TypeScript] Configuration complete");
-})();
+  console.log("[Monaco TypeScript] Configuration complete for cwd:", cwd);
+}
 
 console.log(
   "[Monaco Workers] Full monaco-editor bundle loaded with all languages",

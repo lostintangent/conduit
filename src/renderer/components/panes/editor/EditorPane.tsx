@@ -36,6 +36,7 @@ import {
 // CRITICAL: Import worker setup BEFORE any monaco contribution imports
 // This sets up MonacoEnvironment before languages try to register
 import "./monaco/monaco-workers";
+import { configureTsConfig } from "./monaco/monaco-workers";
 
 import "monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css";
 import "monaco-editor/esm/vs/basic-languages/go/go.contribution";
@@ -328,6 +329,17 @@ export function EditorPane({
     | { type: "diff"; data: FileDiffResult; showRaw: boolean };
 
   const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
+
+  // Configure Monaco's TypeScript language service with project's tsconfig.json
+  // This implements TypeScript's upward search algorithm to find tsconfig.json
+  useEffect(() => {
+    if (!cwd) return;
+
+    // Configure tsconfig asynchronously
+    configureTsConfig(cwd, api).catch((error) => {
+      console.error("[Monaco TypeScript] Failed to configure tsconfig:", error);
+    });
+  }, [cwd]);
 
   // Re-fetch diff when baseBranch changes while in diff mode
   useEffect(() => {
