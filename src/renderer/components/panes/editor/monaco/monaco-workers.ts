@@ -78,6 +78,34 @@ console.log(
   "[Monaco Workers] Full monaco-editor bundle loaded with all languages",
 );
 
+// Configure markdown language to support wrapping selections with markdown syntax
+monaco.languages.setLanguageConfiguration("markdown", {
+  surroundingPairs: [
+    { open: "*", close: "*" }, // Italic: *text*
+    { open: "_", close: "_" }, // Italic: _text_
+    { open: "**", close: "**" }, // Bold: **text**
+    { open: "__", close: "__" }, // Bold: __text__
+    { open: "[", close: "]" }, // Link text: [text]
+    { open: "(", close: ")" }, // Link URL: (url)
+    { open: "`", close: "`" }, // Inline code: `code`
+    { open: "```", close: "```" }, // Code block: ```code```
+    { open: '"', close: '"' }, // Quotes
+    { open: "'", close: "'" }, // Single quotes
+  ],
+  autoClosingPairs: [
+    { open: "*", close: "*" },
+    { open: "_", close: "_" },
+    { open: "[", close: "]" },
+    { open: "(", close: ")" },
+    { open: "`", close: "`" },
+    { open: '"', close: '"' },
+    { open: "'", close: "'" },
+    { open: "```", close: "```" },
+  ],
+});
+
+console.log("[Monaco] Markdown language configuration enhanced");
+
 // Initialize Shiki for VS Code-quality syntax highlighting
 // Shiki will provide "dark-plus" and "light-plus" themes with proper markdown support
 async function initializeShiki() {
