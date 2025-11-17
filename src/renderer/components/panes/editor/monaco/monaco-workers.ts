@@ -79,6 +79,7 @@ console.log(
 );
 
 // Initialize Shiki for VS Code-quality syntax highlighting
+// Shiki will provide "dark-plus" and "light-plus" themes with proper markdown support
 async function initializeShiki() {
   console.log("[Monaco Shiki] Initializing TextMate grammars...");
 
@@ -164,45 +165,7 @@ async function initializeShiki() {
       monacoLanguages.sort(),
     );
 
-    // Enhance markdown themes with font style rules for bold/italic
-    // VS Code's grammar properly tokenizes emphasis with markup.bold/italic.markdown scopes
-    monaco.editor.defineTheme("dark-plus-enhanced", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [
-        // Markdown emphasis styling via VS Code grammar scopes
-        { token: "markup.bold.markdown", fontStyle: "bold" },
-        { token: "markup.italic.markdown", fontStyle: "italic" },
-        {
-          token: "markup.bold.markdown.markup.italic.markdown",
-          fontStyle: "italic bold",
-        },
-        { token: "emphasis.markdown", fontStyle: "italic" },
-        { token: "strong.markdown", fontStyle: "bold" },
-      ],
-      colors: {},
-    });
-
-    monaco.editor.defineTheme("light-plus-enhanced", {
-      base: "vs",
-      inherit: true,
-      rules: [
-        // Markdown emphasis styling via VS Code grammar scopes
-        { token: "markup.bold.markdown", fontStyle: "bold" },
-        { token: "markup.italic.markdown", fontStyle: "italic" },
-        {
-          token: "markup.bold.markdown.markup.italic.markdown",
-          fontStyle: "italic bold",
-        },
-        { token: "emphasis.markdown", fontStyle: "italic" },
-        { token: "strong.markdown", fontStyle: "bold" },
-      ],
-      colors: {},
-    });
-
-    console.log(
-      "[Monaco Shiki] Enhanced themes defined for markdown formatting",
-    );
+    console.log("[Monaco Shiki] Shiki TextMate grammars now active");
 
     // Export highlighter for potential use elsewhere
     (window as any).shikiHighlighter = highlighter;

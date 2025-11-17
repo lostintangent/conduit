@@ -247,7 +247,7 @@ export function EditorPane({
 }: EditorPaneProps) {
   const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
-  // Use Shiki's VS Code theme names for rich TextMate highlighting
+  // Use Shiki's VS Code themes (markdown formatting handled by Shiki's grammar)
   const editorTheme =
     resolveTheme(theme) === "light" ? "light-plus" : "dark-plus";
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
