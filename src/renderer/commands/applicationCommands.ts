@@ -415,7 +415,7 @@ export function registerApplicationCommands(
     menu: {
       id: MenuId.TabContext,
       group: "3_tab",
-      order: 2,
+      order: 3,
       when: tabIsLocked.isFalse(),
     },
     run: (context, tabId?: string) => {
@@ -436,7 +436,7 @@ export function registerApplicationCommands(
     menu: {
       id: MenuId.TabContext,
       group: "3_tab",
-      order: 3,
+      order: 4,
       when: tabIsLocked.isTrue(),
     },
     run: (context, tabId?: string) => {
@@ -457,7 +457,7 @@ export function registerApplicationCommands(
     menu: {
       id: MenuId.TabContext,
       group: "3_tab",
-      order: 4,
+      order: 1,
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
