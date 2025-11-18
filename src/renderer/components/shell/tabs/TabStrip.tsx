@@ -450,7 +450,6 @@ export const TabStrip = ({
             isActive={tab.isActive}
             disableClick={draggingTab !== null}
             isLocked={tab.locked}
-            isSynchronized={tab.synchronized}
             onContextMenu={onTabContextMenu}
             onDragStart={handleDragStart}
             onDragOver={handleDragOverTab}

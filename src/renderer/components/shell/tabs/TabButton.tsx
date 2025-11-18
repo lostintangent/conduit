@@ -1,6 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
-import { Command, Lock, Share2, Trash2 } from "lucide-react";
+import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const cx = (...classes: Array<string | false>) =>
@@ -40,7 +40,6 @@ type TabButtonProps = {
   isActive: boolean;
   disableClick: boolean;
   isLocked: boolean;
-  isSynchronized: boolean;
   onContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onDragStart: (
     event: React.DragEvent<HTMLButtonElement>,
@@ -68,7 +67,6 @@ export const TabButton = ({
   isActive,
   disableClick,
   isLocked,
-  isSynchronized,
   onContextMenu,
   onDragStart,
   onDragOver,
@@ -134,8 +132,6 @@ export const TabButton = ({
       className={cx(
         "group flex items-center gap-2 py-1.5 px-3 border-0 rounded-lg cursor-pointer text-[0.85rem] leading-none transition-colors duration-150 flex-none whitespace-nowrap select-none",
         isActive ? "magic" : "bg-secondary hover:bg-secondary-hover",
-        isSynchronized &&
-          "ring-1 ring-primary/60 ring-offset-2 ring-offset-background",
       )}
       onClick={(event) => {
         if (disableClick) {
@@ -169,13 +165,6 @@ export const TabButton = ({
         title={tooltip}
         onDoubleClick={handleDoubleClick}
       >
-        {isSynchronized && !isEditing && (
-          <Share2
-            size={12}
-            aria-label="Panes are synchronized"
-            className="text-primary/80"
-          />
-        )}
         {isEditing ? (
           <input
             ref={inputRef}

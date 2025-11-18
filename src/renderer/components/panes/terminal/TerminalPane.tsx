@@ -1,11 +1,11 @@
 import { exitFocusMode } from "@/store/actions/focusMode";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
-import { broadcastTerminalInput } from "@/utils/terminalSync";
 import { constructPrompt } from "@/utils/terminalPrompt";
+import { broadcastTerminalInput } from "@/utils/terminalSync";
 import { useAtomValue, useSetAtom } from "jotai";
+import { Keyboard } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Share2 } from "lucide-react";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
@@ -372,7 +372,7 @@ export const TerminalPane = ({
       {isTabSynchronized && (
         <div className="absolute top-3 right-3 z-20 pointer-events-none">
           <div className="flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider">
-            <Share2 size={12} aria-hidden="true" />
+            <Keyboard size={12} />
             Sync
           </div>
         </div>
