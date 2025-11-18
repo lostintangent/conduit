@@ -46,7 +46,7 @@ export function GitBranchToolbar({
   return (
     <div className="border-t bg-elevated px-3 py-2 text-xs flex items-center gap-2 mt-auto">
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger asChild>
           <Toggle
             pressed={showOnlyChangedFiles}
             onPressedChange={() => onFilterToggle()}
@@ -64,7 +64,7 @@ export function GitBranchToolbar({
       </Tooltip>
 
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger asChild>
           <Toggle
             pressed={baseBranch !== null && baseBranch !== "HEAD"}
             onPressedChange={() => onOpenBranchPicker()}

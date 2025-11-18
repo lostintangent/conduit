@@ -148,6 +148,7 @@ export function WorkspacePicker({
         className="w-[480px] max-w-[90vw]"
         onKeyDown={handleKeyDown}
         showClose={false}
+        aria-describedby={undefined}
       >
         <DialogHeader>
           <DialogTitle>Open Workspace</DialogTitle>
