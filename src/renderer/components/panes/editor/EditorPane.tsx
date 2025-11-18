@@ -542,7 +542,40 @@ export function EditorPane({
       }
     } else if (viewMode.type === "diff" && !hasGitChanges) {
       // File no longer has changes, switch back to editor
-      setViewMode({ type: "editor" });
+      // Reload file from disk to ensure we have current state
+      // (user may have made edits in diff view against intermediate state)
+      if (filePath) {
+        api
+          .readFile(filePath)
+          .then((content) => {
+            setCurrentContent(content);
+            setOriginalContent(content);
+            setExternallyModified(false);
+            setExternallyDeleted(false);
+
+            // Force Monaco to update the model with disk content
+            // DiffEditor and Editor use the same model path (file://${filePath})
+            // so we need to explicitly update the model or it will show stale edits
+            const modelUri = monaco.Uri.parse(`file://${filePath}`);
+            const existingModel = monaco.editor.getModel(modelUri);
+            if (existingModel && !existingModel.isDisposed()) {
+              // Update model content to match disk (will trigger editor refresh)
+              existingModel.setValue(content);
+            }
+
+            setViewMode({ type: "editor" });
+          })
+          .catch((error) => {
+            console.error(
+              "[EditorPane] Failed to reload file when exiting diff view:",
+              error,
+            );
+            // Still switch to editor view even if reload fails
+            setViewMode({ type: "editor" });
+          });
+      } else {
+        setViewMode({ type: "editor" });
+      }
     }
   }, [filePath, gitStatus, cwd, baseBranch, viewMode.type, fetchDiffForFile]);
 
