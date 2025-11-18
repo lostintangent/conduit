@@ -82,8 +82,9 @@ export function generateIncrementedTabTitle(
 
 export async function openTab(
   initialCommand?: string,
+  cwd?: string,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
-  const result = await api.createTerminal();
+  const result = await api.createTerminal(cwd ? { cwd } : undefined);
   if (!result) {
     return null;
   }
