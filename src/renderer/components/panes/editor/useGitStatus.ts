@@ -24,7 +24,7 @@ export function useGitStatus(cwd: string) {
           if (response.success && response.gitStatus) {
             const gitStatusMap = new Map(Object.entries(response.gitStatus));
             console.log(
-              "[useGitStatus] Loaded initial git status",
+              "[useGitStatus] Loaded initiasss git status",
               gitStatusMap.size,
             );
             setGitStatus(gitStatusMap);

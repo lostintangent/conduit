@@ -1,4 +1,5 @@
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
+import { EditorToolbarButtons } from "@/components/panes/editor/EditorToolbarButtons";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { GitBranchToolbar } from "@/components/panes/editor/tree/GitBranchToolbar";
 import {
@@ -19,17 +20,10 @@ import type { FileDiffResult, FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
   ChevronRight,
-  Eye,
-  FileText,
   FolderUp,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
-  Redo,
-  RotateCcw,
-  Save,
-  Search,
-  Undo,
   X,
 } from "lucide-react";
 
@@ -1268,6 +1262,60 @@ export function EditorPane({
     [filePath],
   );
 
+  const handleDiffEditorMount = useCallback(
+    (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
+      // Clean up previous disposable if it exists
+      if (disposableRef.current) {
+        disposableRef.current.dispose();
+        disposableRef.current = null;
+      }
+
+      // Reset state when remounting
+      setCanUndo(false);
+      setCanRedo(false);
+
+      // Get the modified (right side) editor - this is the editable one
+      const modifiedEditor = diffEditor.getModifiedEditor();
+      editorRef.current = modifiedEditor;
+
+      // Ensure correct language is set for the file
+      const model = modifiedEditor.getModel();
+      if (model && filePath) {
+        const correctLanguage = inferLanguageFromFilePath(filePath);
+        if (model.getLanguageId() !== correctLanguage) {
+          try {
+            monaco.editor.setModelLanguage(model, correctLanguage);
+          } catch (error) {
+            console.error("[Monaco] Error setting language:", error);
+          }
+        }
+      }
+
+      // Update undo/redo state when editor content changes
+      const updateUndoRedoState = () => {
+        const model = modifiedEditor.getModel();
+        if (model) {
+          setCanUndo(model.canUndo());
+          setCanRedo(model.canRedo());
+        } else {
+          setCanUndo(false);
+          setCanRedo(false);
+        }
+      };
+
+      // Initial state
+      updateUndoRedoState();
+
+      // Listen for content changes in the modified editor
+      disposableRef.current = modifiedEditor.onDidChangeModelContent(() => {
+        const newValue = modifiedEditor.getValue();
+        handleEditorChange(newValue);
+        updateUndoRedoState();
+      });
+    },
+    [filePath, handleEditorChange],
+  );
+
   const handleUndo = useCallback(() => {
     if (editorRef.current) {
       editorRef.current.trigger("keyboard", "undo", null);
@@ -1504,84 +1552,26 @@ export function EditorPane({
                         orientation="vertical"
                         className="h-4 mx-1 bg-elevated-border"
                       />
-                      {viewMode.type === "diff" ? (
-                        <>
-                          {/* Diff mode buttons */}
-                          {viewMode.data.status !== "deleted" && (
-                            <button
-                              type="button"
-                              onClick={handleToggleRawView}
-                              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                              title={
-                                viewMode.showRaw
-                                  ? "Show diff view"
-                                  : "View raw file"
-                              }
-                            >
-                              {viewMode.showRaw ? (
-                                <Eye size={14} />
-                              ) : (
-                                <FileText size={14} />
-                              )}
-                            </button>
-                          )}
-                          {viewMode.data.status !== "binary" && (
-                            <button
-                              type="button"
-                              onClick={handleRevertFile}
-                              className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                              title="Revert changes"
-                            >
-                              <RotateCcw size={14} />
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {/* Regular editor buttons */}
-                          <button
-                            type="button"
-                            onClick={handleUndo}
-                            disabled={!canUndo}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Undo"
-                          >
-                            <Undo size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleRedo}
-                            disabled={!canRedo}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Redo"
-                          >
-                            <Redo size={14} />
-                          </button>
-
-                          <Separator
-                            orientation="vertical"
-                            className="h-4 mx-1 bg-elevated-border"
-                          />
-
-                          <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={!hasUnsavedChanges}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Save"
-                          >
-                            <Save size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleFind}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                            title="Find in file (Ctrl+F)"
-                          >
-                            <Search size={14} />
-                          </button>
-                        </>
-                      )}
+                      <EditorToolbarButtons
+                        mode={viewMode.type}
+                        variant="split"
+                        diffData={
+                          viewMode.type === "diff" ? viewMode.data : undefined
+                        }
+                        showRaw={
+                          viewMode.type === "diff" ? viewMode.showRaw : false
+                        }
+                        baseBranch={baseBranch}
+                        canUndo={canUndo}
+                        canRedo={canRedo}
+                        hasUnsavedChanges={hasUnsavedChanges}
+                        onToggleRawView={handleToggleRawView}
+                        onRevert={handleRevertFile}
+                        onUndo={handleUndo}
+                        onRedo={handleRedo}
+                        onSave={handleSave}
+                        onFind={handleFind}
+                      />
                     </>
                   )}
                 </div>
@@ -1665,79 +1655,26 @@ export function EditorPane({
                 {activeView === "editor" && hasOpenFile ? (
                   <>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
-                    {viewMode.type === "diff" ? (
-                      <>
-                        {/* Diff mode buttons */}
-                        {viewMode.data.status !== "deleted" && (
-                          <button
-                            type="button"
-                            onClick={handleToggleRawView}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                            title={
-                              viewMode.showRaw
-                                ? "Show diff view"
-                                : "View raw file"
-                            }
-                          >
-                            {viewMode.showRaw ? (
-                              <Eye size={14} className="text-white/60" />
-                            ) : (
-                              <FileText size={14} className="text-white/60" />
-                            )}
-                          </button>
-                        )}
-                        {viewMode.data.status !== "binary" && (
-                          <button
-                            type="button"
-                            onClick={handleRevertFile}
-                            className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                            title="Revert changes"
-                          >
-                            <RotateCcw size={14} className="text-white/60" />
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {/* Regular editor buttons */}
-                        <button
-                          type="button"
-                          onClick={handleUndo}
-                          disabled={!canUndo}
-                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Undo"
-                        >
-                          <Undo size={14} className="text-white/60" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleRedo}
-                          disabled={!canRedo}
-                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Redo"
-                        >
-                          <Redo size={14} className="text-white/60" />
-                        </button>
-                        <div className="h-4 w-px bg-white/10 shrink-0" />
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={!hasUnsavedChanges}
-                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Save"
-                        >
-                          <Save size={14} className="text-white/60" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleFind}
-                          className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                          title="Find in file (Ctrl+F)"
-                        >
-                          <Search size={14} className="text-white/60" />
-                        </button>
-                      </>
-                    )}
+                    <EditorToolbarButtons
+                      mode={viewMode.type}
+                      variant="single"
+                      diffData={
+                        viewMode.type === "diff" ? viewMode.data : undefined
+                      }
+                      showRaw={
+                        viewMode.type === "diff" ? viewMode.showRaw : false
+                      }
+                      baseBranch={baseBranch}
+                      canUndo={canUndo}
+                      canRedo={canRedo}
+                      hasUnsavedChanges={hasUnsavedChanges}
+                      onToggleRawView={handleToggleRawView}
+                      onRevert={handleRevertFile}
+                      onUndo={handleUndo}
+                      onRedo={handleRedo}
+                      onSave={handleSave}
+                      onFind={handleFind}
+                    />
                   </>
                 ) : (
                   <>
@@ -1944,6 +1881,7 @@ export function EditorPane({
                       modified={viewMode.data.modifiedContent}
                       language={detectedLanguage}
                       theme={editorTheme}
+                      onMount={handleDiffEditorMount}
                       options={{
                         minimap: { enabled: false },
                         smoothScrolling: true,
@@ -1952,7 +1890,7 @@ export function EditorPane({
                         automaticLayout: true,
                         wordWrap: "on",
                         fontSize: 13,
-                        readOnly: true,
+                        readOnly: false,
                         renderSideBySide: true,
                       }}
                       loading={
