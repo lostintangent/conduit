@@ -111,9 +111,8 @@ export function QuickDialog({
       ...rest
     } = currentDescriptor;
 
-    onClose();
     onOpenAsTab(rest);
-  }, [currentDescriptor, onClose, onOpenAsTab]);
+  }, [currentDescriptor, onOpenAsTab]);
 
   return (
     <Dialog

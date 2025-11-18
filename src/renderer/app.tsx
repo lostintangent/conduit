@@ -335,11 +335,7 @@ export function App() {
   );
 
   const handleEditorUpdate = useCallback(
-    (
-      tabId: string,
-      paneId: string,
-      updates: Partial<EditorPane>,
-    ) => {
+    (tabId: string, paneId: string, updates: Partial<EditorPane>) => {
       setTabs((current) =>
         current.map((tab) => {
           if (tab.id !== tabId) {
@@ -676,7 +672,14 @@ export function App() {
 
   const handleOpenQuickPaneAsTab = useCallback(
     async (descriptor: PaneDescriptor) => {
-      setQuickPaneState(null);
+      // Close quick pane without disposing terminal sessions
+      // since they will be reused in the new tab
+      setQuickPaneState((current) => {
+        if (current) {
+          current.onClose?.();
+        }
+        return null;
+      });
       await openTabFromPaneDescriptor(descriptor);
     },
     [],
