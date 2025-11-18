@@ -1,5 +1,10 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useCommand } from "@/commands/hooks/useCommand";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { exitFocusMode } from "@/store/actions/focusMode";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
@@ -376,19 +381,21 @@ export const TerminalPane = ({
       </div>
 
       {isTabSynchronized && (
-        <div className="absolute top-2 right-2 z-20">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleSyncCmd.execute(tabId);
-            }}
-            className="flex items-center gap-1 rounded-full bg-elevated border-elevated-border border text-primary px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider hover:bg-elevated-hover transition-colors cursor-pointer"
-            title="Click to disable synchronization"
-          >
-            <Keyboard size={12} />
-            Sync
-          </button>
+        <div className="absolute top-2 right-3 z-20">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSyncCmd.execute(tabId);
+                }}
+                className="flex rounded-full bg-elevated border-elevated-border border px-2 py-1 text-[0.65rem] hover:bg-accent"
+              >
+                <Keyboard size={12} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Stop synchronizing</TooltipContent>
+          </Tooltip>
         </div>
       )}
 
