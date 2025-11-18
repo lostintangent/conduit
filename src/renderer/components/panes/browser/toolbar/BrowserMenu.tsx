@@ -11,6 +11,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCommand } from "@/commands/hooks/useCommand";
+import { ApplicationCommands } from "@shared/commands";
 import { BrowserPage } from "@shared/types";
 import {
   Camera,
@@ -19,6 +21,7 @@ import {
   Copy,
   ExternalLink,
   MoreVertical,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -37,6 +40,8 @@ export function BrowserMenu({
 }: BrowserMenuProps) {
   const [showCheckmark, setShowCheckmark] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const closePane = useCommand(ApplicationCommands.PANE_CLOSE);
 
   const showCheckmarkWithTimer = useCallback(() => {
     setShowCheckmark(true);
@@ -109,6 +114,11 @@ export function BrowserMenu({
         <DropdownMenuItem onClick={onOpenDevTools}>
           <Code size={12} />
           Open dev tools
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={closePane.execute}>
+          <X size={12} />
+          Close browser
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
