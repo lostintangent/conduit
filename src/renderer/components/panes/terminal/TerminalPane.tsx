@@ -32,6 +32,7 @@ const registerTerminalKeyHandler = ({
   togglePromptMode,
   getApplicationMode,
   setNormalMode,
+  onSynchronizedInput,
 }: {
   entry: TerminalInstance;
   terminalId: string;
@@ -39,6 +40,7 @@ const registerTerminalKeyHandler = ({
   togglePromptMode: () => void;
   getApplicationMode: () => ApplicationMode;
   setNormalMode: () => void;
+  onSynchronizedInput?: (input: string) => void;
 }): (() => void) => {
   const terminal = entry.terminal;
 
@@ -65,6 +67,8 @@ const registerTerminalKeyHandler = ({
         setNormalMode();
         return false;
       }
+      // If not in focus or overview mode, let escape go through and broadcast it
+      onSynchronizedInput?.("\x1b");
     }
 
     if (
@@ -99,6 +103,7 @@ const registerTerminalKeyHandler = ({
       }
 
       api.sendKeypress(terminalId, "\u0003");
+      onSynchronizedInput?.("\u0003");
       return false;
     }
 
@@ -310,6 +315,7 @@ export const TerminalPane = ({
       togglePromptMode: handleTogglePromptMode,
       getApplicationMode: () => applicationModeRef.current,
       setNormalMode: () => setApplicationModeRef.current("normal"),
+      onSynchronizedInput: isTabSynchronized ? handleSynchronizedInput : undefined,
     });
 
     return () => {
@@ -320,7 +326,7 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, [handleTogglePromptMode, showSearchWidget, terminalId]);
+  }, [handleTogglePromptMode, showSearchWidget, terminalId, isTabSynchronized, handleSynchronizedInput]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
@@ -387,7 +393,7 @@ export const TerminalPane = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleSyncCmd.execute(tabId);
+                  toggleSyncCmd.execute();
                 }}
                 className="flex rounded-full bg-elevated border-elevated-border border px-2 py-1 text-[0.65rem] hover:bg-accent"
               >
