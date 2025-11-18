@@ -19,15 +19,11 @@ export function broadcastTerminalInput(sourcePaneId: string, input: string) {
     return;
   }
 
-  // Filter out focus escape codes to prevent broadcasting terminal focus events
-  // \x1b[O = focus lost, \x1b[I = focus gained
-  if (input === "\x1b[O" || input === "\x1b[I") {
-    return;
-  }
-
-  // Filter out terminal query responses (e.g., foreground/background color queries)
-  // These start with \x1b] and contain responses like "10;rgb:..." or "11;rgb:..."
-  if (input.startsWith("\x1b]")) {
+  // Filter out terminal responses that shouldn't be broadcast:
+  // - \x1b[O = focus lost
+  // - \x1b[I = focus gained
+  // - \x1b]... = OSC (Operating System Command) responses like color queries
+  if (input === "\x1b[O" || input === "\x1b[I" || input.startsWith("\x1b]")) {
     return;
   }
 
