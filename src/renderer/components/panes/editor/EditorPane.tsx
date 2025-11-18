@@ -11,6 +11,8 @@ import {
 import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
+import { useCommand } from "@/commands/hooks/useCommand";
+import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
@@ -245,6 +247,7 @@ export function EditorPane({
 }: EditorPaneProps) {
   const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const closePaneCmd = useCommand(ApplicationCommands.PANE_CLOSE);
   // Use Shiki's VS Code themes (markdown formatting handled by Shiki's grammar)
   const editorTheme =
     resolveTheme(theme) === "light" ? "light-plus" : "dark-plus";
@@ -1630,6 +1633,15 @@ export function EditorPane({
                     </>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={closePaneCmd.execute}
+                  disabled={closePaneCmd.disabled}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Close Pane"
+                >
+                  <X size={14} />
+                </button>
               </div>
             </div>
 
@@ -1749,6 +1761,15 @@ export function EditorPane({
                   </>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={closePaneCmd.execute}
+                disabled={closePaneCmd.disabled}
+                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Close Pane"
+              >
+                <X size={14} className="text-white/60" />
+              </button>
             </div>
 
             {/* Warning banner for external modifications */}
