@@ -81,8 +81,12 @@ async function readDirectory(
   let dirEntries: Dirent[];
   try {
     dirEntries = await fs.readdir(targetPath, { withFileTypes: true });
-  } catch {
-    return [];
+  } catch (error: any) {
+    console.error(
+      `[FS] Failed to read directory "${targetPath}":`,
+      error.code || error.message || error,
+    );
+    throw error;
   }
 
   const nodes: FileTreeNode[] = [];
