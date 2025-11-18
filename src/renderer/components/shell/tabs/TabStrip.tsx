@@ -608,8 +608,7 @@ export const TabStrip = ({
                 className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
                 aria-label="New tab"
                 onClick={() => {
-                  const cwd = getActiveTabCwd(activeTab, homeDirectory);
-                  openTab(undefined, cwd);
+                  void openTab();
                 }}
               >
                 <PlusSquare size={18} />
