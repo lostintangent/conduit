@@ -331,6 +331,18 @@ export function EditorPane({
 
   const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
 
+  // Helper to fetch diff data for a file
+  const fetchDiffForFile = useCallback(
+    async (targetFilePath: string) => {
+      const result = await api.getFileDiff(targetFilePath, cwd, baseBranch);
+      if (result.success && result.diff) {
+        return result.diff;
+      }
+      return null;
+    },
+    [cwd, baseBranch],
+  );
+
   // Configure Monaco's TypeScript language service with project's tsconfig.json
   // This implements TypeScript's upward search algorithm to find tsconfig.json
   useEffect(() => {
@@ -348,10 +360,9 @@ export function EditorPane({
 
     const refetchDiff = async () => {
       try {
-        const result = await api.getFileDiff(filePath, cwd, baseBranch);
-
-        if (result.success && result.diff) {
-          setViewMode({ type: "diff", data: result.diff, showRaw: false });
+        const diff = await fetchDiffForFile(filePath);
+        if (diff) {
+          setViewMode({ type: "diff", data: diff, showRaw: false });
           // Don't call onFileChange here - it would cause render loops
           // The diff data update is sufficient for the UI to re-render
         }
@@ -361,7 +372,7 @@ export function EditorPane({
     };
 
     refetchDiff();
-  }, [baseBranch, viewMode.type, filePath, cwd]);
+  }, [baseBranch, viewMode.type, filePath, cwd, fetchDiffForFile]);
 
   // Track which paths were manually expanded by the user
   const [manuallyExpandedPaths, setManuallyExpandedPaths] = useState<
@@ -501,6 +512,36 @@ export function EditorPane({
       cancelled = true;
     };
   }, [filePath]);
+
+  // Auto-restore diff view when returning to a tab with a changed file
+  useEffect(() => {
+    if (!filePath || !gitStatus || !cwd) return;
+
+    // Calculate relative path for git status lookup
+    const normalizedFilePath = filePath.replace(/\\/g, "/");
+    const normalizedCwd = cwd.replace(/\\/g, "/");
+    const relativePath = normalizedFilePath.startsWith(normalizedCwd + "/")
+      ? normalizedFilePath.slice(normalizedCwd.length + 1)
+      : normalizedFilePath;
+
+    const fileStatus = gitStatus.get(relativePath);
+    const hasGitChanges = fileStatus !== undefined;
+
+    // If file has git changes and is modified, load diff view
+    if (hasGitChanges && fileStatus.status === "modified") {
+      // Only fetch diff if we're not already in diff mode for this file
+      if (viewMode.type !== "diff") {
+        fetchDiffForFile(filePath).then((diff) => {
+          if (diff && diff.status === "modified") {
+            setViewMode({ type: "diff", data: diff, showRaw: false });
+          }
+        });
+      }
+    } else if (viewMode.type === "diff" && !hasGitChanges) {
+      // File no longer has changes, switch back to editor
+      setViewMode({ type: "editor" });
+    }
+  }, [filePath, gitStatus, cwd, baseBranch, viewMode.type, fetchDiffForFile]);
 
   // Save file handler
   const handleSave = useCallback(async () => {
@@ -674,7 +715,9 @@ export function EditorPane({
     return () => {
       if (disposableRef.current) {
         disposableRef.current.dispose();
+        disposableRef.current = null;
       }
+      editorRef.current = null;
     };
   }, []);
 
@@ -1008,21 +1051,22 @@ export function EditorPane({
 
         if (hasDiff) {
           // Fetch diff data
-          const result = await api.getFileDiff(node.path, cwd, baseBranch);
-          if (result.success && result.diff) {
-            // Only show the diff view if the file was actually modified,
-            // since aded/removed files don't benefit from the diff UI
-            if (result.diff.status === "modified") {
-              setViewMode({ type: "diff", data: result.diff, showRaw: false });
+          const diff = await fetchDiffForFile(node.path);
+
+          if (diff) {
+            // Set appropriate view mode based on diff status
+            if (diff.status === "modified") {
+              setViewMode({ type: "diff", data: diff, showRaw: false });
             } else {
+              // Added/deleted files don't benefit from diff UI
               setViewMode({ type: "editor" });
             }
 
-            // Update parent with the modified content (for display purposes)
+            // Update parent with the modified content
             onFileChange?.({
               filePath: node.path,
               language: detectedLanguage,
-              content: result.diff.modifiedContent,
+              content: diff.modifiedContent,
             });
           } else {
             // Fallback to regular file view if diff fetch fails
@@ -1050,7 +1094,7 @@ export function EditorPane({
         console.error("Failed to open file:", error);
       }
     },
-    [onFileChange, showOnlyChangedFiles, gitStatus, cwd, baseBranch],
+    [onFileChange, showOnlyChangedFiles, gitStatus, fetchDiffForFile],
   );
 
   const handleEditorChange = useCallback(
@@ -1294,7 +1338,7 @@ export function EditorPane({
       // Update undo/redo state when editor content changes
       const updateUndoRedoState = () => {
         const model = modifiedEditor.getModel();
-        if (model) {
+        if (model && !model.isDisposed()) {
           setCanUndo(model.canUndo());
           setCanRedo(model.canRedo());
         } else {
@@ -1313,8 +1357,16 @@ export function EditorPane({
         updateUndoRedoState();
       });
 
-      // Automatically scroll to the first diff
-      diffEditor.revealFirstDiff();
+      // Automatically scroll to the first diff after a short delay
+      // to ensure diff computation is complete
+      setTimeout(() => {
+        try {
+          diffEditor.revealFirstDiff();
+        } catch (error) {
+          // Silently ignore if diff editor was disposed during timeout
+          console.debug("[DiffEditor] Could not reveal first diff:", error);
+        }
+      }, 100);
     },
     [filePath, handleEditorChange],
   );
@@ -1884,6 +1936,8 @@ export function EditorPane({
                       modified={viewMode.data.modifiedContent}
                       language={detectedLanguage}
                       theme={editorTheme}
+                      keepCurrentOriginalModel={true}
+                      keepCurrentModifiedModel={true}
                       onMount={handleDiffEditorMount}
                       options={{
                         minimap: { enabled: false },
