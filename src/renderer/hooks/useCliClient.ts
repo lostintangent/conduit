@@ -35,10 +35,44 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const newTabCommand = useCommand(ApplicationCommands.TAB_NEW);
   const duplicateTabCommand = useCommand(ApplicationCommands.TAB_DUPLICATE);
 
-  const splitLeftCommand = useCommand(ApplicationCommands.PANE_SPLIT_LEFT);
-  const splitRightCommand = useCommand(ApplicationCommands.PANE_SPLIT_RIGHT);
-  const splitTopCommand = useCommand(ApplicationCommands.PANE_SPLIT_TOP);
-  const splitBottomCommand = useCommand(ApplicationCommands.PANE_SPLIT_BOTTOM);
+  const splitLeftTerminalCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_LEFT,
+  );
+  const splitRightTerminalCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_RIGHT,
+  );
+  const splitTopTerminalCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_TOP,
+  );
+  const splitBottomTerminalCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_BOTTOM,
+  );
+
+  const splitLeftBrowserCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_LEFT_BROWSER,
+  );
+  const splitRightBrowserCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_RIGHT_BROWSER,
+  );
+  const splitTopBrowserCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_TOP_BROWSER,
+  );
+  const splitBottomBrowserCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_BOTTOM_BROWSER,
+  );
+
+  const splitLeftEditorCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_LEFT_EDITOR,
+  );
+  const splitRightEditorCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_RIGHT_EDITOR,
+  );
+  const splitTopEditorCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_TOP_EDITOR,
+  );
+  const splitBottomEditorCommand = useCommand(
+    ApplicationCommands.PANE_SPLIT_BOTTOM_EDITOR,
+  );
 
   const moveCommandMap = {
     left: moveLeftCommand,
@@ -49,10 +83,24 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   } as const;
 
   const splitCommandMap = {
-    left: splitLeftCommand,
-    right: splitRightCommand,
-    top: splitTopCommand,
-    bottom: splitBottomCommand,
+    terminal: {
+      left: splitLeftTerminalCommand,
+      right: splitRightTerminalCommand,
+      top: splitTopTerminalCommand,
+      bottom: splitBottomTerminalCommand,
+    },
+    browser: {
+      left: splitLeftBrowserCommand,
+      right: splitRightBrowserCommand,
+      top: splitTopBrowserCommand,
+      bottom: splitBottomBrowserCommand,
+    },
+    editor: {
+      left: splitLeftEditorCommand,
+      right: splitRightEditorCommand,
+      top: splitTopEditorCommand,
+      bottom: splitBottomEditorCommand,
+    },
   } as const;
 
   useEffect(() => {
@@ -183,7 +231,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "split-pane": {
-            const targetCommand = splitCommandMap[args.direction];
+            const targetCommand =
+              splitCommandMap[args.paneType][args.direction];
             await targetCommand.execute();
 
             respondResult();
@@ -241,10 +290,18 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     closeTabCommand,
     newTabCommand,
     duplicateTabCommand,
-    splitLeftCommand,
-    splitRightCommand,
-    splitTopCommand,
-    splitBottomCommand,
+    splitLeftTerminalCommand,
+    splitRightTerminalCommand,
+    splitTopTerminalCommand,
+    splitBottomTerminalCommand,
+    splitLeftBrowserCommand,
+    splitRightBrowserCommand,
+    splitTopBrowserCommand,
+    splitBottomBrowserCommand,
+    splitLeftEditorCommand,
+    splitRightEditorCommand,
+    splitTopEditorCommand,
+    splitBottomEditorCommand,
     onOpenFile,
   ]);
 }
