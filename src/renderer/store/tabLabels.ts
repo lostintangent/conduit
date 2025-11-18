@@ -1,6 +1,6 @@
-import type { Tab, Pane } from "@/types";
-import { atom } from "jotai";
 import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import type { Pane, Tab } from "@/types";
+import { atom } from "jotai";
 
 export type TabLabelDescriptor = {
   id: string;
@@ -9,7 +9,7 @@ export type TabLabelDescriptor = {
   isActive: boolean;
   title?: string;
   locked: boolean;
-  isSynchronized: boolean;
+  synchronized: boolean;
 };
 
 const resolveActivePane = (tab: Tab): Pane | undefined => {
@@ -103,7 +103,7 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
       isActive: tab.id === activeTabId,
       title: trimmedTitle || undefined,
       locked: tab.locked,
-      isSynchronized: tab.isSynchronized,
+      synchronized: tab.synchronized,
     };
   });
 });

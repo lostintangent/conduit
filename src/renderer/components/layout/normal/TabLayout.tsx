@@ -395,7 +395,7 @@ export function TabLayout({
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
                 showDimensions={shouldShowTerminalDimensions && !isInPreview}
                 hideIndividualSandboxIndicator={hasUnifiedSandbox}
-                isTabSynchronized={tab.isSynchronized}
+                isTabSynchronized={tab.synchronized}
               />
             ) : pane.type === "editor" ? (
               <div

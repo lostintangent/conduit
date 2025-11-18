@@ -16,8 +16,8 @@ import {
   hasLastWorkspace,
   hasWorkspace,
   isInAgentSession,
-  tabIsLocked,
   tabCount,
+  tabIsLocked,
 } from "@/commands/contextKeys/appContextKeys";
 import {
   handleCloseWorkspace,
@@ -60,8 +60,8 @@ import {
   lockTab,
   movePaneToTab,
   openTab,
-  updateTabProperty,
   unlockTab,
+  updateTabProperty,
 } from "@/store/actions/tab";
 import { ApplicationCommands } from "@shared/commands";
 
@@ -473,7 +473,7 @@ export function registerApplicationCommands(
       }
 
       updateTabProperty(targetTabId, {
-        isSynchronized: !targetTab.isSynchronized,
+        synchronized: !targetTab.synchronized,
       });
     },
   });

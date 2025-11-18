@@ -72,8 +72,6 @@ describe("workspaceHandlers", () => {
       },
       layout: { id: `${id}-layout`, type: "pane", paneId },
       activePaneId: paneId,
-      locked: false,
-      isSynchronized: false,
     };
   };
 

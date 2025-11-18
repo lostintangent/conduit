@@ -63,14 +63,13 @@ export type EditorPane = {
 export type Pane = TerminalPane | WebViewPane | EditorPane;
 
 export type Tab = {
-  title?: string;
-  locked: boolean;
-  isSynchronized: boolean;
-
   panes: Record<string, Pane>;
   layout: LayoutNode;
-
   activePaneId: string;
+
+  title?: string;
+  locked?: boolean;
+  synchronized?: boolean;
 } & Identifiable;
 
 /* Command palette types */

@@ -11,7 +11,7 @@ function isTerminalPane(pane: Pane): pane is TerminalPaneType {
 
 export function broadcastTerminalInput(sourcePaneId: string, input: string) {
   const activeTab = store.get(activeTabAtom);
-  if (!activeTab || !activeTab.isSynchronized) {
+  if (!activeTab || !activeTab.synchronized) {
     return;
   }
 
