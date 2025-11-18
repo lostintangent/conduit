@@ -281,7 +281,7 @@ export function registerApplicationCommands(
     when: When.and(tabCount.greaterThan(1), tabIsLocked.isFalse()),
     menu: {
       id: MenuId.TabContext,
-      group: "9_close",
+      group: "4_tab",
       order: 1,
     },
     run: (context, tabId?: string) => {
@@ -303,7 +303,7 @@ export function registerApplicationCommands(
     },
     menu: {
       id: MenuId.TabContext,
-      group: "2_tab",
+      group: "3_tab",
       order: 2,
     },
     run: (context, tabId?: string) => {
@@ -326,7 +326,7 @@ export function registerApplicationCommands(
     },
     menu: {
       id: MenuId.TabContext,
-      group: "2_tab/duplicate_into",
+      group: "3_tab/duplicate_into",
       order: 1,
       title: "CWD",
     },
@@ -351,7 +351,7 @@ export function registerApplicationCommands(
     when: When.and(hasGitRepo.isTrue()),
     menu: {
       id: MenuId.TabContext,
-      group: "2_tab/duplicate_into",
+      group: "3_tab/duplicate_into",
       order: 2,
       title: "Worktree",
     },
@@ -414,7 +414,7 @@ export function registerApplicationCommands(
     when: tabIsLocked.isFalse(),
     menu: {
       id: MenuId.TabContext,
-      group: "1_tab",
+      group: "2_tab",
       order: 2,
       when: tabIsLocked.isFalse(),
     },
@@ -435,7 +435,7 @@ export function registerApplicationCommands(
     when: tabIsLocked.isTrue(),
     menu: {
       id: MenuId.TabContext,
-      group: "1_tab",
+      group: "2_tab",
       order: 3,
       when: tabIsLocked.isTrue(),
     },
@@ -457,7 +457,7 @@ export function registerApplicationCommands(
     menu: {
       id: MenuId.TabContext,
       group: "2_tab",
-      order: 1,
+      order: 4,
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
