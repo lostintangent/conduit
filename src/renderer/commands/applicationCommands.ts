@@ -493,7 +493,7 @@ export function registerApplicationCommands(
     menu: {
       id: MenuId.PaneContext,
       group: "1_pane",
-      order: 2,
+      order: 1,
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -624,7 +624,7 @@ export function registerApplicationCommands(
   // Pane: Split Left with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_LEFT_AGENT,
-    title: "Split Pane Left with Agent Session",
+    title: "Split Pane Left (Worktree)",
     description:
       "Create a new pane to the left with an isolated agent worktree",
     category: "Pane",
@@ -634,9 +634,10 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_agent",
+      group: "3_split_more/split_worktree",
       order: 1,
       when: hasGitRepo.isTrue(),
+      title: "Left",
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -650,7 +651,7 @@ export function registerApplicationCommands(
   // Pane: Split Right with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_RIGHT_AGENT,
-    title: "Split Pane Right with Agent Session",
+    title: "Split Pane Right (Worktree)",
     description:
       "Create a new pane to the right with an isolated agent worktree",
     category: "Pane",
@@ -660,9 +661,10 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_agent",
+      group: "3_split_more/split_worktree",
       order: 2,
       when: hasGitRepo.isTrue(),
+      title: "Right",
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -676,7 +678,7 @@ export function registerApplicationCommands(
   // Pane: Split Top with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_TOP_AGENT,
-    title: "Split Pane Top with Agent Session",
+    title: "Split Pane Top (Worktree)",
     description: "Create a new pane above with an isolated agent worktree",
     category: "Pane",
     keybinding: {
@@ -685,9 +687,10 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_agent",
+      group: "3_split_more/split_worktree",
       order: 3,
       when: hasGitRepo.isTrue(),
+      title: "Top",
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -706,7 +709,7 @@ export function registerApplicationCommands(
   // Pane: Split Bottom with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT,
-    title: "Split Pane Bottom with Agent Session",
+    title: "Split Pane Bottom (Worktree)",
     description: "Create a new pane below with an isolated agent worktree",
     category: "Pane",
     keybinding: {
@@ -715,9 +718,10 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_agent",
+      group: "3_split_more/split_worktree",
       order: 4,
       when: hasGitRepo.isTrue(),
+      title: "Bottom",
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -836,8 +840,8 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "5_tab_move",
-      order: 1,
+      group: "1_pane",
+      order: 2,
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -875,7 +879,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_browser/split_browser",
+      group: "3_split_more/split_browser",
       order: 1,
       title: "Left",
     },
@@ -900,7 +904,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_browser/split_browser",
+      group: "3_split_more/split_browser",
       order: 2,
       title: "Right",
     },
@@ -925,7 +929,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_browser/split_browser",
+      group: "3_split_more/split_browser",
       order: 3,
       title: "Top",
     },
@@ -956,7 +960,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_browser/split_browser",
+      group: "3_split_more/split_browser",
       order: 4,
       title: "Bottom",
     },
@@ -987,7 +991,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_editor/split_editor",
+      group: "3_split_more/split_editor",
       order: 1,
       title: "Left",
     },
@@ -1019,7 +1023,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_editor/split_editor",
+      group: "3_split_more/split_editor",
       order: 2,
       title: "Right",
     },
@@ -1051,7 +1055,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_editor/split_editor",
+      group: "3_split_more/split_editor",
       order: 3,
       title: "Top",
     },
@@ -1083,7 +1087,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "2_split_editor/split_editor",
+      group: "3_split_more/split_editor",
       order: 4,
       title: "Bottom",
     },
@@ -1230,14 +1234,22 @@ export function registerMenuContextBuilders(): void {
     "2_tab/duplicate_into",
     "Duplicate Tab into...",
   );
+
   registerSubmenu(
     MenuId.PaneContext,
-    "2_split_browser/split_browser",
+    "3_split_more/split_browser",
     "Split browser...",
   );
+
   registerSubmenu(
     MenuId.PaneContext,
-    "2_split_editor/split_editor",
+    "3_split_more/split_editor",
     "Split editor...",
+  );
+
+  registerSubmenu(
+    MenuId.PaneContext,
+    "3_split_more/split_worktree",
+    "Split worktree...",
   );
 }
