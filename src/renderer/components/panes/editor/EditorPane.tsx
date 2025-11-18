@@ -1909,6 +1909,7 @@ export function EditorPane({
                     // Show deleted file content
                     <Editor
                       key={`${paneId}-${filePath}-deleted`}
+                      path={filePath ? `file://${filePath}` : undefined}
                       value={viewMode.data.originalContent}
                       language={detectedLanguage}
                       theme={editorTheme}
@@ -1932,6 +1933,12 @@ export function EditorPane({
                     // Show diff editor for modified/added files
                     <DiffEditor
                       key={`${paneId}-${filePath}-diff`}
+                      originalModelPath={
+                        filePath ? `inmemory://original${filePath}` : undefined
+                      }
+                      modifiedModelPath={
+                        filePath ? `file://${filePath}` : undefined
+                      }
                       original={viewMode.data.originalContent}
                       modified={viewMode.data.modifiedContent}
                       language={detectedLanguage}
@@ -1961,6 +1968,7 @@ export function EditorPane({
                   // Regular editor
                   <Editor
                     key={`${paneId}-${filePath}`}
+                    path={filePath ? `file://${filePath}` : undefined}
                     value={currentContent}
                     onChange={handleEditorChange}
                     onMount={handleEditorMount}
