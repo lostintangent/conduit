@@ -25,6 +25,12 @@ export function broadcastTerminalInput(sourcePaneId: string, input: string) {
     return;
   }
 
+  // Filter out terminal query responses (e.g., foreground/background color queries)
+  // These start with \x1b] and contain responses like "10;rgb:..." or "11;rgb:..."
+  if (input.startsWith("\x1b]")) {
+    return;
+  }
+
   Object.values(activeTab.panes).forEach((pane) => {
     if (!isTerminalPane(pane) || pane.id === sourcePaneId) {
       return;
