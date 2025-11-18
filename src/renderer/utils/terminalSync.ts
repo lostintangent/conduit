@@ -18,7 +18,13 @@ export function broadcastTerminalInput(sourcePaneId: string, input: string) {
   // - \x1b[O = focus lost
   // - \x1b[I = focus gained
   // - \x1b]... = OSC (Operating System Command) responses like color queries
-  if (input === "\x1b[O" || input === "\x1b[I" || input.startsWith("\x1b]")) {
+  // - \x1b[{row};{col}R = CPR (Cursor Position Report) responses
+  if (
+    input === "\x1b[O" ||
+    input === "\x1b[I" ||
+    input.startsWith("\x1b]") ||
+    /^\x1b\[\d+;\d+R$/.test(input)
+  ) {
     return;
   }
 
