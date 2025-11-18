@@ -50,6 +50,7 @@ import {
   movePane,
   splitPane,
   splitPaneWithAgentSession,
+  type SplitPaneOptions,
 } from "@/store/actions/pane";
 import {
   closeTab,
@@ -506,11 +507,16 @@ export function registerApplicationCommands(
       group: "2_split",
       order: 1,
     },
-    run: (context, tabId?: string, paneId?: string) => {
+    run: (
+      context,
+      tabId?: string,
+      paneId?: string,
+      options?: SplitPaneOptions,
+    ) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        void splitPane(targetTabId, targetPaneId, "row", true);
+        void splitPane(targetTabId, targetPaneId, "row", true, options);
       }
     },
   });
@@ -530,11 +536,16 @@ export function registerApplicationCommands(
       group: "2_split",
       order: 2,
     },
-    run: (context, tabId?: string, paneId?: string) => {
+    run: (
+      context,
+      tabId?: string,
+      paneId?: string,
+      options?: SplitPaneOptions,
+    ) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        void splitPane(targetTabId, targetPaneId, "row");
+        void splitPane(targetTabId, targetPaneId, "row", false, options);
       }
     },
   });
@@ -554,11 +565,16 @@ export function registerApplicationCommands(
       group: "2_split",
       order: 3,
     },
-    run: (context, tabId?: string, paneId?: string) => {
+    run: (
+      context,
+      tabId?: string,
+      paneId?: string,
+      options?: SplitPaneOptions,
+    ) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        void splitPane(targetTabId, targetPaneId, "column", true);
+        void splitPane(targetTabId, targetPaneId, "column", true, options);
       }
     },
   });
@@ -578,11 +594,16 @@ export function registerApplicationCommands(
       group: "2_split",
       order: 4,
     },
-    run: (context, tabId?: string, paneId?: string) => {
+    run: (
+      context,
+      tabId?: string,
+      paneId?: string,
+      options?: SplitPaneOptions,
+    ) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        void splitPane(targetTabId, targetPaneId, "column");
+        void splitPane(targetTabId, targetPaneId, "column", false, options);
       }
     },
   });

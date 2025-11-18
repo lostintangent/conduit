@@ -530,9 +530,12 @@ export function detachPane(
   return { pane: detachedPane, tabClosed };
 }
 
-type SplitPaneOptions = {
+export type SplitPaneOptions = {
   terminalOptions?: TerminalCreateOptions;
   agentSession?: AgentSessionInfo;
+  paneType?: "terminal" | "browser" | "editor";
+  browserUrl?: string;
+  editorCwd?: string;
 };
 
 export async function splitPane(
@@ -557,47 +560,79 @@ export async function splitPane(
     return;
   }
 
-  const sourceTerminalPane =
-    sourcePane.type === "terminal" ? sourcePane : undefined;
-
-  const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
-
-  const requestOptions = options.terminalOptions
-    ? { ...options.terminalOptions }
-    : defaultCwd
-      ? { cwd: defaultCwd }
-      : undefined;
-
-  const agentSessionId =
-    options.agentSession?.id ?? sourceTerminalPane?.agentSessionId;
-  const agentBranchName =
-    options.agentSession?.branchName ?? sourceTerminalPane?.agentBranchName;
-  const agentBaseBranch =
-    options.agentSession?.baseBranch ?? sourceTerminalPane?.agentBaseBranch;
-  const agentRepoRoot =
-    options.agentSession?.repoRoot ?? sourceTerminalPane?.agentRepoRoot;
-  const agentWorktreePath =
-    options.agentSession?.worktreePath ?? sourceTerminalPane?.agentWorktreePath;
-
-  const result = await api.createTerminal(requestOptions);
-  if (!result) {
-    return;
-  }
-
+  const paneType = options.paneType ?? "terminal";
   const newPaneId = generateId();
-  const newPaneState: Pane = {
-    id: newPaneId,
-    type: "terminal",
-    sessionId: result.sessionId,
-    cwd: result.cwd ?? null,
-    processTitle: result.title,
-    vmMetadata: result.vmMetadata,
-    agentSessionId,
-    agentBranchName,
-    agentBaseBranch,
-    agentRepoRoot,
-    agentWorktreePath,
-  };
+  let newPaneState: Pane;
+
+  if (paneType === "browser") {
+    // Create browser pane
+    const url = options.browserUrl ?? "https://github.com";
+    newPaneState = {
+      id: newPaneId,
+      type: "webview",
+      url,
+    };
+  } else if (paneType === "editor") {
+    // Create editor pane
+    const sourceTerminalPane =
+      sourcePane.type === "terminal" ? sourcePane : undefined;
+    const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
+    let editorCwd = options.editorCwd ?? defaultCwd;
+
+    if (!editorCwd) {
+      const settings = await api.getSettings();
+      editorCwd = settings.homeDirectory ?? ".";
+    }
+
+    newPaneState = {
+      id: newPaneId,
+      type: "editor",
+      cwd: editorCwd,
+    };
+  } else {
+    // Create terminal pane (default)
+    const sourceTerminalPane =
+      sourcePane.type === "terminal" ? sourcePane : undefined;
+
+    const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
+
+    const requestOptions = options.terminalOptions
+      ? { ...options.terminalOptions }
+      : defaultCwd
+        ? { cwd: defaultCwd }
+        : undefined;
+
+    const agentSessionId =
+      options.agentSession?.id ?? sourceTerminalPane?.agentSessionId;
+    const agentBranchName =
+      options.agentSession?.branchName ?? sourceTerminalPane?.agentBranchName;
+    const agentBaseBranch =
+      options.agentSession?.baseBranch ?? sourceTerminalPane?.agentBaseBranch;
+    const agentRepoRoot =
+      options.agentSession?.repoRoot ?? sourceTerminalPane?.agentRepoRoot;
+    const agentWorktreePath =
+      options.agentSession?.worktreePath ??
+      sourceTerminalPane?.agentWorktreePath;
+
+    const result = await api.createTerminal(requestOptions);
+    if (!result) {
+      return;
+    }
+
+    newPaneState = {
+      id: newPaneId,
+      type: "terminal",
+      sessionId: result.sessionId,
+      cwd: result.cwd ?? null,
+      processTitle: result.title,
+      vmMetadata: result.vmMetadata,
+      agentSessionId,
+      agentBranchName,
+      agentBaseBranch,
+      agentRepoRoot,
+      agentWorktreePath,
+    };
+  }
 
   const newLayoutNode: LayoutNode = {
     id: generateId(),

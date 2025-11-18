@@ -4,14 +4,9 @@ import {
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
-import { openEditorPane, openWebViewPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
-import type { SplitDirection, Tab, TerminalPane } from "@/types";
-import type {
-  CliRequest,
-  CliResponse,
-  PaneSplitTarget,
-} from "@shared/cli/types";
+import type { Tab, TerminalPane } from "@/types";
+import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
@@ -75,16 +70,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     top: splitTopCommand,
     bottom: splitBottomCommand,
   } as const;
-
-  const splitDirectionMap: Record<
-    PaneSplitTarget,
-    { layoutDirection: SplitDirection; insertBefore: boolean }
-  > = {
-    left: { layoutDirection: "row", insertBefore: true },
-    right: { layoutDirection: "row", insertBefore: false },
-    top: { layoutDirection: "column", insertBefore: true },
-    bottom: { layoutDirection: "column", insertBefore: false },
-  };
 
   useEffect(() => {
     tabsRef.current = tabs;
@@ -215,54 +200,37 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "split-pane": {
             const paneType = args.paneType ?? "terminal";
-            const directionConfig = splitDirectionMap[args.direction];
+            const targetCommand = splitCommandMap[args.direction];
 
-            if (paneType === "browser" || paneType === "editor") {
-              const context = findCallingTerminalPane(
-                tabsRef.current,
-                sessionId,
-              );
-
-              if (!context) {
-                respondError("Unable to locate the calling terminal pane.");
-                break;
-              }
-
-              const sourceCwd = context.pane.cwd ?? undefined;
-
-              if (paneType === "browser") {
-                openWebViewPane(
-                  context.tab.id,
-                  context.pane.id,
-                  DEFAULT_BROWSER_URL,
-                  directionConfig.layoutDirection,
-                  directionConfig.insertBefore,
-                );
-
-                respondResult();
-                break;
-              }
-
-              let editorCwd = sourceCwd;
-              if (!editorCwd) {
-                const settings = await window.conduit.getSettings();
-                editorCwd = settings.homeDirectory ?? ".";
-              }
-
-              openEditorPane(
-                context.tab.id,
-                context.pane.id,
-                editorCwd,
-                directionConfig.layoutDirection,
-                directionConfig.insertBefore,
-              );
-
-              respondResult();
+            // Find the calling terminal pane context
+            const context = findCallingTerminalPane(tabsRef.current, sessionId);
+            if (!context) {
+              respondError("Unable to locate the calling terminal pane.");
               break;
             }
 
-            const targetCommand = splitCommandMap[args.direction];
-            await targetCommand.execute();
+            // Prepare options for the split command
+            const splitOptions: {
+              paneType: "terminal" | "browser" | "editor";
+              browserUrl?: string;
+              editorCwd?: string;
+            } = {
+              paneType: paneType as "terminal" | "browser" | "editor",
+            };
+
+            if (paneType === "browser") {
+              splitOptions.browserUrl = DEFAULT_BROWSER_URL;
+            } else if (paneType === "editor") {
+              const sourceCwd = context.pane.cwd ?? undefined;
+              splitOptions.editorCwd = sourceCwd;
+            }
+
+            // Execute the split command with the context and options
+            await targetCommand.execute(
+              context.tab.id,
+              context.pane.id,
+              splitOptions,
+            );
 
             respondResult();
             break;
