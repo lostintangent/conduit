@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use hoisted pattern to ensure all mocks are set up before modules load
 const { mockApi, mockStoreGet, mockStoreSet } = vi.hoisted(() => {

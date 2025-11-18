@@ -1,8 +1,17 @@
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import { useCommand } from "@/commands/hooks/useCommand";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { exitFocusMode } from "@/store/actions/focusMode";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import { constructPrompt } from "@/utils/terminalPrompt";
+import { broadcastTerminalInput } from "@/utils/terminalSync";
 import { useAtomValue, useSetAtom } from "jotai";
+import { Keyboard } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
@@ -23,6 +32,7 @@ const registerTerminalKeyHandler = ({
   togglePromptMode,
   getApplicationMode,
   setNormalMode,
+  onSynchronizedInput,
 }: {
   entry: TerminalInstance;
   terminalId: string;
@@ -30,6 +40,7 @@ const registerTerminalKeyHandler = ({
   togglePromptMode: () => void;
   getApplicationMode: () => ApplicationMode;
   setNormalMode: () => void;
+  onSynchronizedInput?: (input: string) => void;
 }): (() => void) => {
   const terminal = entry.terminal;
 
@@ -56,6 +67,8 @@ const registerTerminalKeyHandler = ({
         setNormalMode();
         return false;
       }
+      // If not in focus or overview mode, let escape go through and broadcast it
+      onSynchronizedInput?.("\x1b");
     }
 
     if (
@@ -90,6 +103,7 @@ const registerTerminalKeyHandler = ({
       }
 
       api.sendKeypress(terminalId, "\u0003");
+      onSynchronizedInput?.("\u0003");
       return false;
     }
 
@@ -122,29 +136,35 @@ type TerminalPaneProps = {
   terminalId: string;
   isActive: boolean;
   paneId: string;
+  tabId: string;
   cwd?: string | null;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
   onLinkClick?: (url: string) => void;
   showDimensions?: boolean;
   hideIndividualSandboxIndicator?: boolean;
+  isTabSynchronized?: boolean;
 };
 
 export const TerminalPane = ({
   terminalId,
   isActive,
   paneId,
+  tabId,
   cwd,
   onContextMenu,
   onActivate,
   onLinkClick,
   showDimensions = true,
   hideIndividualSandboxIndicator = false,
+  isTabSynchronized = false,
 }: TerminalPaneProps) => {
   const settings = useAtomValue(userSettingsAtom);
   const { showTerminalRuler } = settings;
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
+
+  const toggleSyncCmd = useCommand(ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -173,6 +193,17 @@ export const TerminalPane = ({
   });
 
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
+
+  const handleSynchronizedInput = useCallback(
+    (input: string) => {
+      if (!isActive) {
+        return;
+      }
+
+      broadcastTerminalInput(paneId, input);
+    },
+    [isActive, paneId],
+  );
 
   const focusTerminal = useCallback(
     () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
@@ -284,6 +315,7 @@ export const TerminalPane = ({
       togglePromptMode: handleTogglePromptMode,
       getApplicationMode: () => applicationModeRef.current,
       setNormalMode: () => setApplicationModeRef.current("normal"),
+      onSynchronizedInput: isTabSynchronized ? handleSynchronizedInput : undefined,
     });
 
     return () => {
@@ -294,7 +326,21 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, [handleTogglePromptMode, showSearchWidget]);
+  }, [handleTogglePromptMode, showSearchWidget, terminalId, isTabSynchronized, handleSynchronizedInput]);
+
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) {
+      return;
+    }
+
+    terminal.setInputHandler(
+      isTabSynchronized ? handleSynchronizedInput : null,
+    );
+    return () => {
+      terminal.setInputHandler(null);
+    };
+  }, [handleSynchronizedInput, isTabSynchronized]);
 
   // Focus the terminal when the pane becomes active
   useEffect(() => {
@@ -340,6 +386,25 @@ export const TerminalPane = ({
         <div className="w-full h-full" ref={containerRef} />
       </div>
 
+      {isTabSynchronized && (
+        <div className="absolute top-2 right-3 z-20">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSyncCmd.execute();
+                }}
+                className="flex rounded-full bg-elevated border-elevated-border border px-2 py-1 text-[0.65rem] hover:bg-accent"
+              >
+                <Keyboard size={12} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Stop synchronizing</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
       <SearchWidget
         ref={searchWidgetRef}
         terminal={terminalRef.current}
@@ -364,13 +429,13 @@ export const TerminalPane = ({
           if (terminalRef.current) {
             terminalRef.current.setLinkHandler(
               handler ||
-                ((url: string) => {
-                  if (onLinkClick) {
-                    onLinkClick(url);
-                  } else {
-                    api.openExternal(url);
-                  }
-                }),
+              ((url: string) => {
+                if (onLinkClick) {
+                  onLinkClick(url);
+                } else {
+                  api.openExternal(url);
+                }
+              }),
             );
           }
         }}

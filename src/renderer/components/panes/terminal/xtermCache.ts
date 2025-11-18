@@ -18,6 +18,7 @@ export type TerminalInstance = {
 
   ready: boolean;
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
+  setInputHandler: (handler: ((input: string) => void) | null) => void;
   markReady: () => void;
   resize: (cols: number, rows: number) => void;
   dispose: () => void;
@@ -28,6 +29,7 @@ const store = new Map<string, TerminalInstance>();
 
 type GetOrCreateOptions = {
   onLinkClick?: (url: string) => void;
+  onInput?: (input: string) => void;
 };
 
 export function getOrCreate(
@@ -58,6 +60,9 @@ export function getOrCreate(
     const serializer = new SerializeAddon();
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
       current: options.onLinkClick,
+    };
+    const inputHandlerRef: { current: ((input: string) => void) | null } = {
+      current: options.onInput ?? null,
     };
 
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
@@ -93,9 +98,10 @@ export function getOrCreate(
       }
     });
 
-    const onKeyDispose = terminal.onData((input) =>
-      api.sendKeypress(sessionId, input),
-    );
+    const onDataDispose = terminal.onData((input) => {
+      api.sendKeypress(sessionId, input);
+      inputHandlerRef.current?.(input);
+    });
 
     // TODO: Allow configuring this
     //terminal.onBell(() => bellAudio.play());
@@ -107,6 +113,9 @@ export function getOrCreate(
       ready: false,
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
+      },
+      setInputHandler: (handler) => {
+        inputHandlerRef.current = handler;
       },
       markReady: () => {
         if (newInstance.ready) return;
@@ -124,9 +133,10 @@ export function getOrCreate(
         }
         writeBuffer = [];
         unsubData();
-        onKeyDispose?.dispose();
+        onDataDispose?.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
+        inputHandlerRef.current = null;
         newInstance.ready = false;
         serializer.dispose();
       },
@@ -134,8 +144,13 @@ export function getOrCreate(
     };
     store.set(sessionId, newInstance);
     instance = newInstance;
-  } else if (options.onLinkClick) {
-    instance.setLinkHandler(options.onLinkClick);
+  } else {
+    if (options.onLinkClick) {
+      instance.setLinkHandler(options.onLinkClick);
+    }
+    if ("onInput" in options) {
+      instance.setInputHandler(options.onInput ?? null);
+    }
   }
 
   return instance;

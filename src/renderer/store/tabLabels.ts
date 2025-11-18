@@ -1,6 +1,6 @@
-import type { Tab, Pane } from "@/types";
-import { atom } from "jotai";
 import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import type { Pane, Tab } from "@/types";
+import { atom } from "jotai";
 
 export type TabLabelDescriptor = {
   id: string;

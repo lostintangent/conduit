@@ -112,7 +112,6 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
-      locked: false,
     },
   ]);
   focusTab(tabId);
@@ -146,7 +145,6 @@ function createTabWithPane(paneState: Pane): { tabId: string; paneId: string } {
       panes: { [paneState.id]: paneState },
       layout,
       activePaneId: paneState.id,
-      locked: false,
     },
   ]);
   focusTab(tabId);
@@ -432,7 +430,6 @@ export function movePaneToTab(
     },
     layout,
     activePaneId: paneState.id,
-    locked: false,
   };
 
   store.set(tabsAtom, (current) => [...current, newTab]);
@@ -631,6 +628,7 @@ export async function duplicateTab(
     activePaneId: newActivePaneId || Object.keys(newPanes)[0],
     title: newTitle,
     locked: sourceTab.locked,
+    synchronized: sourceTab.synchronized,
   };
 
   // Insert the new tab immediately after the source tab

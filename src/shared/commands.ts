@@ -22,6 +22,7 @@ export const ApplicationCommands = {
   TAB_CHANGE_TITLE: "tab.changeTitle",
   TAB_LOCK: "tab.lock",
   TAB_UNLOCK: "tab.unlock",
+  TAB_TOGGLE_SYNCHRONIZE: "tab.toggleSynchronize",
 
   // Workspace commands
   WORKSPACE_SAVE: "workspace.save",

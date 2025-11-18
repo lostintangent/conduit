@@ -161,7 +161,7 @@ export const TabButton = ({
       onDragEnd={onDragEnd}
     >
       <span
-        className="overflow-hidden text-ellipsis max-w-[150px]"
+        className="overflow-hidden text-ellipsis max-w-[150px] flex items-center gap-1"
         title={tooltip}
         onDoubleClick={handleDoubleClick}
       >

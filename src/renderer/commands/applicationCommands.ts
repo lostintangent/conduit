@@ -16,8 +16,8 @@ import {
   hasLastWorkspace,
   hasWorkspace,
   isInAgentSession,
-  tabIsLocked,
   tabCount,
+  tabIsLocked,
 } from "@/commands/contextKeys/appContextKeys";
 import {
   handleCloseWorkspace,
@@ -61,6 +61,7 @@ import {
   movePaneToTab,
   openTab,
   unlockTab,
+  updateTabProperty,
 } from "@/store/actions/tab";
 import { ApplicationCommands } from "@shared/commands";
 
@@ -280,7 +281,7 @@ export function registerApplicationCommands(
     when: When.and(tabCount.greaterThan(1), tabIsLocked.isFalse()),
     menu: {
       id: MenuId.TabContext,
-      group: "9_close",
+      group: "4_tab",
       order: 1,
     },
     run: (context, tabId?: string) => {
@@ -413,8 +414,8 @@ export function registerApplicationCommands(
     when: tabIsLocked.isFalse(),
     menu: {
       id: MenuId.TabContext,
-      group: "1_tab",
-      order: 2,
+      group: "3_tab",
+      order: 3,
       when: tabIsLocked.isFalse(),
     },
     run: (context, tabId?: string) => {
@@ -434,8 +435,8 @@ export function registerApplicationCommands(
     when: tabIsLocked.isTrue(),
     menu: {
       id: MenuId.TabContext,
-      group: "1_tab",
-      order: 3,
+      group: "3_tab",
+      order: 4,
       when: tabIsLocked.isTrue(),
     },
     run: (context, tabId?: string) => {
@@ -443,6 +444,37 @@ export function registerApplicationCommands(
       if (targetTabId) {
         unlockTab(targetTabId);
       }
+    },
+  });
+
+  // Tab: Synchronize panes
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE,
+    title: "Synchronize Panes",
+    description:
+      "Mirror keystrokes from the active terminal to the rest of the tab",
+    category: "Tab",
+    menu: {
+      id: MenuId.TabContext,
+      group: "3_tab",
+      order: 1,
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (!targetTabId) {
+        return;
+      }
+
+      const targetTab =
+        context.allTabs.find((tab) => tab.id === targetTabId) ??
+        context.activeTab;
+      if (!targetTab) {
+        return;
+      }
+
+      updateTabProperty(targetTabId, {
+        synchronized: !targetTab.synchronized,
+      });
     },
   });
 

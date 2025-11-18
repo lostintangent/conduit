@@ -388,6 +388,7 @@ export function TabLayout({
                 key={pane.sessionId}
                 terminalId={pane.sessionId}
                 paneId={pane.id}
+                tabId={tab.id}
                 cwd={pane.cwd}
                 isActive={isActivePane}
                 onActivate={onPaneActivate}
@@ -395,6 +396,7 @@ export function TabLayout({
                 onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
                 showDimensions={shouldShowTerminalDimensions && !isInPreview}
                 hideIndividualSandboxIndicator={hasUnifiedSandbox}
+                isTabSynchronized={tab.synchronized}
               />
             ) : pane.type === "editor" ? (
               <div

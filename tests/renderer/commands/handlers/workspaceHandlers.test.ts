@@ -56,13 +56,32 @@ describe("workspaceHandlers", () => {
   let mockStoreGet: ReturnType<typeof vi.fn>;
   let mockStoreSet: ReturnType<typeof vi.fn>;
 
+  const createMockTab = (id: string, title: string): Tab => {
+    const paneId = `${id}-pane`;
+    return {
+      id,
+      title,
+      panes: {
+        [paneId]: {
+          id: paneId,
+          type: "terminal",
+          sessionId: `${paneId}-session`,
+          cwd: null,
+          processTitle: "bash",
+        },
+      },
+      layout: { id: `${id}-layout`, type: "pane", paneId },
+      activePaneId: paneId,
+    };
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
 
     mockTabs = [
-      { id: "tab-1", title: "Tab 1" },
-      { id: "tab-2", title: "Tab 2" },
-    ] as Tab[];
+      createMockTab("tab-1", "Tab 1"),
+      createMockTab("tab-2", "Tab 2"),
+    ];
 
     mockSetShowCreateWorkspaceDialog = vi.fn();
 
