@@ -19,6 +19,12 @@ export function broadcastTerminalInput(sourcePaneId: string, input: string) {
     return;
   }
 
+  // Filter out focus escape codes to prevent broadcasting terminal focus events
+  // \x1b[O = focus lost, \x1b[I = focus gained
+  if (input === "\x1b[O" || input === "\x1b[I") {
+    return;
+  }
+
   Object.values(activeTab.panes).forEach((pane) => {
     if (!isTerminalPane(pane) || pane.id === sourcePaneId) {
       return;
