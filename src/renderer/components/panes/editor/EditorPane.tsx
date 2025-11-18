@@ -1312,6 +1312,9 @@ export function EditorPane({
         handleEditorChange(newValue);
         updateUndoRedoState();
       });
+
+      // Automatically scroll to the first diff
+      diffEditor.revealFirstDiff();
     },
     [filePath, handleEditorChange],
   );
