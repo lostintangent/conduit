@@ -456,8 +456,8 @@ export function registerApplicationCommands(
     category: "Tab",
     menu: {
       id: MenuId.TabContext,
-      group: "1_tab",
-      order: 4,
+      group: "2_tab",
+      order: 1,
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
