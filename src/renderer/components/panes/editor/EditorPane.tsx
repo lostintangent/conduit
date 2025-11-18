@@ -295,6 +295,9 @@ export function EditorPane({
   const [isResizing, setIsResizing] = useState(false);
   const [activeView, setActiveView] = useState<"tree" | "editor">("tree");
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  // Track if the user has manually toggled the tree collapse state
+  // This prevents animation on initial mount and in tab previews
+  const [enableTreeAnimation, setEnableTreeAnimation] = useState(false);
 
   // File watcher state
   const [externallyModified, setExternallyModified] = useState(false);
@@ -419,8 +422,9 @@ export function EditorPane({
   // Transition classes respecting prefers-reduced-motion
   // Note: duration-200 is a Tailwind class for 200ms transitions
   // Don't apply transitions to tree width during resize - causes lag
+  // Only animate if user has manually toggled (prevents animation on mount/preview)
   const transitionClass =
-    prefersReducedMotion || isResizing
+    prefersReducedMotion || isResizing || !enableTreeAnimation
       ? "transition-none"
       : "transition-all duration-200 ease-out";
   const transitionTransformClass = prefersReducedMotion
@@ -677,6 +681,8 @@ export function EditorPane({
   }, []);
 
   const handleToggleTreeCollapse = useCallback(() => {
+    // Enable animation when user manually toggles (prevents animation on mount/preview)
+    setEnableTreeAnimation(true);
     setIsTreeCollapsed((prev) => !prev);
   }, []);
 
@@ -725,6 +731,8 @@ export function EditorPane({
         event.preventDefault();
         if (layoutMode === "split") {
           if (isTreeCollapsed) {
+            // Enable animation when user expands via keyboard
+            setEnableTreeAnimation(true);
             setIsTreeCollapsed(false);
           }
           // TODO: Focus tree element (would need a ref to the tree container)
