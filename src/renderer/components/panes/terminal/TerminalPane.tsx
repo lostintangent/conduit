@@ -1,3 +1,5 @@
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import { useCommand } from "@/commands/hooks/useCommand";
 import { exitFocusMode } from "@/store/actions/focusMode";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
@@ -124,6 +126,7 @@ type TerminalPaneProps = {
   terminalId: string;
   isActive: boolean;
   paneId: string;
+  tabId: string;
   cwd?: string | null;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
@@ -137,6 +140,7 @@ export const TerminalPane = ({
   terminalId,
   isActive,
   paneId,
+  tabId,
   cwd,
   onContextMenu,
   onActivate,
@@ -149,6 +153,8 @@ export const TerminalPane = ({
   const { showTerminalRuler } = settings;
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
+
+  const toggleSyncCmd = useCommand(ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
@@ -370,11 +376,19 @@ export const TerminalPane = ({
       </div>
 
       {isTabSynchronized && (
-        <div className="absolute top-3 right-3 z-20 pointer-events-none">
-          <div className="flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider">
+        <div className="absolute top-2 right-2 z-20">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSyncCmd.execute(tabId);
+            }}
+            className="flex items-center gap-1 rounded-full bg-elevated border-elevated-border border text-primary px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider hover:bg-elevated-hover transition-colors cursor-pointer"
+            title="Click to disable synchronization"
+          >
             <Keyboard size={12} />
             Sync
-          </div>
+          </button>
         </div>
       )}
 
@@ -402,13 +416,13 @@ export const TerminalPane = ({
           if (terminalRef.current) {
             terminalRef.current.setLinkHandler(
               handler ||
-                ((url: string) => {
-                  if (onLinkClick) {
-                    onLinkClick(url);
-                  } else {
-                    api.openExternal(url);
-                  }
-                }),
+              ((url: string) => {
+                if (onLinkClick) {
+                  onLinkClick(url);
+                } else {
+                  api.openExternal(url);
+                }
+              }),
             );
           }
         }}
