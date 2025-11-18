@@ -873,6 +873,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+B+Left",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_browser/split_browser",
+      order: 1,
+      title: "Left",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -892,6 +898,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+B+Right",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_browser/split_browser",
+      order: 2,
+      title: "Right",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -911,6 +923,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+B+Up",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_browser/split_browser",
+      order: 3,
+      title: "Top",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -936,6 +954,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+B+Down",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_browser/split_browser",
+      order: 4,
+      title: "Bottom",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -961,6 +985,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+E+Left",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_editor/split_editor",
+      order: 1,
+      title: "Left",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -987,6 +1017,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+E+Right",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_editor/split_editor",
+      order: 2,
+      title: "Right",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -1013,6 +1049,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+E+Up",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_editor/split_editor",
+      order: 3,
+      title: "Top",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -1039,6 +1081,12 @@ export function registerApplicationCommands(
       key: "Cmd+Shift+E+Down",
     },
     when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split_editor/split_editor",
+      order: 4,
+      title: "Bottom",
+    },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
@@ -1181,5 +1229,15 @@ export function registerMenuContextBuilders(): void {
     MenuId.TabContext,
     "2_tab/duplicate_into",
     "Duplicate Tab into...",
+  );
+  registerSubmenu(
+    MenuId.PaneContext,
+    "2_split_browser/split_browser",
+    "Split browser...",
+  );
+  registerSubmenu(
+    MenuId.PaneContext,
+    "2_split_editor/split_editor",
+    "Split editor...",
   );
 }
