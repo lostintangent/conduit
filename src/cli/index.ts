@@ -36,7 +36,7 @@ program
 
 program
   .cliCommand("split-pane", (request, direction, { type }) =>
-    request({ direction, paneType: type ?? "terminal" }),
+    request({ direction, paneType: type }),
   )
   .alias("split")
   .description("Split the active pane in the requested direction.")
