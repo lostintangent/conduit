@@ -66,8 +66,8 @@ import {
   unlockTab,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { ApplicationCommands } from "@shared/commands";
 import { countPanesInLayout, walkLayout } from "@/utils/layout";
+import { ApplicationCommands } from "@shared/commands";
 
 // Re-export for convenience
 export { ApplicationCommands };
@@ -511,17 +511,13 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_MINIMIZE,
     title: "Minimize Pane",
-    description: "Collapse the pane into a narrow bar",
+    description: "Collapse the active pane",
     category: "Pane",
-    when: When.and(
-      paneActionsEnabled,
-      paneCanBeMinimized.isTrue(),
-      paneIsMinimized.isFalse(),
-    ),
+    when: When.and(paneCanBeMinimized.isTrue(), paneIsMinimized.isFalse()),
     menu: {
       id: MenuId.PaneContext,
       group: "1_pane",
-      order: 2,
+      order: 3,
       when: When.and(paneCanBeMinimized.isTrue(), paneIsMinimized.isFalse()),
     },
     run: (context, tabId?: string, paneId?: string) => {
@@ -536,9 +532,9 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_RESTORE,
     title: "Restore Pane",
-    description: "Expand a minimized pane back to its size",
+    description: "Expand the active pane back to its original size",
     category: "Pane",
-    when: When.and(paneActionsEnabled, paneIsMinimized.isTrue()),
+    when: When.and(paneIsMinimized.isTrue()),
     menu: {
       id: MenuId.PaneContext,
       group: "1_pane",
@@ -1277,7 +1273,13 @@ const paneContextBuilder: MenuContextBuilder = async (
       if (node.type === "pane" && node.paneId === pane.id) {
         isMinimized = Boolean(node.minimized);
         canBeMinimized =
-          totalPanes > 1 && parent !== null && parent.children.length > 1;
+          totalPanes > 1 &&
+          parent?.children.length > 1 &&
+          !parent.children.every(
+            (child) =>
+              child.id === node.id ||
+              (child.type === "pane" && child.minimized),
+          );
         return false;
       }
       return true;

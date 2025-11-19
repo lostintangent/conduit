@@ -44,9 +44,9 @@ import type {
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
+import { ChevronsLeftRight, ChevronsUpDown } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronsLeftRight, ChevronsUpDown } from "lucide-react";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
@@ -321,6 +321,7 @@ export function TabLayout({
 
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
+
       const onPaneActivate = (event?: React.MouseEvent) => {
         // If clicking a pane in a non-active tab (e.g., from preview), switch to that tab first
         if (tab.id !== activeTabId) {
@@ -336,6 +337,38 @@ export function TabLayout({
           enterFocusMode(tab.id, pane.id);
         }
       };
+
+      if (isMinimized && !isInFocusMode) {
+        const isHorizontalBar = parentDirection === "column";
+        const barClassName = isHorizontalBar
+          ? "h-[25px] w-full"
+          : "w-[25px] h-full";
+
+        return (
+          <div
+            data-node-id={node.id}
+            className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
+            style={{
+              gridTemplateColumns: "minmax(0, 1fr)",
+              gridTemplateRows: "minmax(0, 1fr)",
+              display: isHiddenInFocusMode ? "none" : undefined,
+            }}
+          >
+            <button
+              className={`${barClassName} flex items-center justify-center bg-elevated hover:bg-elevated/80 transition-colors`}
+              onClick={() => {
+                setPaneMinimized(tab.id, pane.id, false);
+              }}
+            >
+              {isHorizontalBar ? (
+                <ChevronsUpDown className="w-5 h-5" />
+              ) : (
+                <ChevronsLeftRight className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        );
+      }
 
       const onWebViewContextMenu = (coords: {
         clientX: number;
@@ -371,55 +404,6 @@ export function TabLayout({
         (draggedPaneId === pane.id ||
           (!draggedPaneId && hoveredPaneId === pane.id) ||
           (!draggedPaneId && !hoveredPaneId && isActivePane));
-
-      if (isMinimized) {
-        const isHorizontalBar = parentDirection === "column";
-        const barClassName = isHorizontalBar
-          ? "h-[25px] w-full"
-          : "w-[25px] h-full";
-
-        return (
-          <div
-            data-node-id={node.id}
-            className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
-            style={{
-              gridTemplateColumns: "minmax(0, 1fr)",
-              gridTemplateRows: "minmax(0, 1fr)",
-              display: isHiddenInFocusMode ? "none" : undefined,
-            }}
-            {...dropHandlers}
-            onContextMenu={onPaneContextMenu}
-            onMouseEnter={() => {
-              setHoveredPaneId(pane.id);
-              if (isInPreview) {
-                setHoveredPreviewPaneId(pane.id);
-              }
-            }}
-            onMouseLeave={() => {
-              setHoveredPaneId(null);
-              if (isInPreview) {
-                setHoveredPreviewPaneId(null);
-              }
-            }}
-          >
-            <button
-              type="button"
-              className={`${barClassName} flex items-center justify-center bg-elevated text-white/80 hover:text-white hover:bg-elevated/80 transition-colors`}
-              onClick={(event) => {
-                setPaneMinimized(tab.id, pane.id, false);
-                onPaneActivate(event);
-              }}
-              aria-label="Restore pane"
-            >
-              {isHorizontalBar ? (
-                <ChevronsUpDown className="w-5 h-5" />
-              ) : (
-                <ChevronsLeftRight className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        );
-      }
 
       return (
         <div

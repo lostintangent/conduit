@@ -14,7 +14,6 @@ import type {
 } from "@/types";
 import { generateId } from "@/utils/id";
 import {
-  countPanesInLayout,
   getPaneDirectionConfig,
   walkLayout,
   type PaneDirection,
@@ -202,83 +201,44 @@ export function setPaneMinimized(
   paneId: string,
   minimized: boolean,
 ): void {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId || tab.locked || !tab.panes[paneId]) {
-        return tab;
-      }
+  store.set(tabsAtom, (tabs) => {
+    const tab = tabs.find(({ id }) => id === tabId);
+    const pane = tab.panes[paneId];
 
-      if (minimized && countPanesInLayout(tab.layout) < 2) {
-        return tab;
-      }
+    if (pane.type === "webview") {
+      document.getElementById(pane.id).style.left = "-10000px";
+    }
 
-      const path = findLayoutPath(
-        tab.layout,
-        (candidate) => candidate.type === "pane" && candidate.paneId === paneId,
-      );
+    walkLayout(tab.layout, ({ node, parent }) => {
+      if (node.type === "pane" && node.paneId === paneId) {
+        node.minimized = minimized;
 
-      if (!path || path.length < 2) {
-        return tab;
-      }
+        if (minimized && tab.activePaneId === paneId) {
+          // If the pane being minimized is then active
+          // pane, then let's find its first non-minimized
+          // sibling, and make that the active pane instead.
+          const siblingPaneId = parent.children
+            .filter(
+              (child) =>
+                child.type === "pane" &&
+                child.id !== node.id &&
+                !child.minimized,
+            )
+            .map((sibling) => findFirstPaneId(sibling))
+            .find(Boolean);
 
-      const parentEntry = path[path.length - 2];
-      const targetEntry = path[path.length - 1];
-
-      if (
-        parentEntry.node.type !== "split" ||
-        targetEntry.node.type !== "pane" ||
-        parentEntry.node.children.length < 2
-      ) {
-        return tab;
-      }
-
-      if (Boolean(targetEntry.node.minimized) === minimized) {
-        return tab;
-      }
-
-      const updatedChildren = [...parentEntry.node.children];
-      updatedChildren[targetEntry.index] = {
-        ...targetEntry.node,
-        minimized,
-      };
-
-      let updatedLayout: LayoutNode = {
-        ...parentEntry.node,
-        children: updatedChildren,
-      };
-
-      for (let i = path.length - 3; i >= 0; i -= 1) {
-        const ancestor = path[i];
-        if (ancestor.node.type !== "split") {
-          continue;
+          if (siblingPaneId) {
+            tab.activePaneId = siblingPaneId;
+          }
+        } else if (!minimized) {
+          // Activate the pane when restoring it
+          tab.activePaneId = paneId;
         }
-        const childIndex = path[i + 1]?.index ?? 0;
-        const ancestorChildren = [...ancestor.node.children];
-        ancestorChildren[childIndex] = updatedLayout;
-        updatedLayout = { ...ancestor.node, children: ancestorChildren };
+
+        return false;
       }
-
-      let nextActivePaneId = tab.activePaneId;
-      if (minimized && tab.activePaneId === paneId) {
-        const siblingPaneId = parentEntry.node.children
-          .filter((_, idx) => idx !== targetEntry.index)
-          .map((sibling) => findFirstPaneId(sibling))
-          .find(Boolean);
-
-        if (siblingPaneId) {
-          nextActivePaneId = siblingPaneId;
-        }
-      } else if (!minimized) {
-        nextActivePaneId = paneId;
-      }
-
-      return {
-        ...tab,
-        layout: updatedLayout,
-        activePaneId: nextActivePaneId,
-      };
-    }),
-  );
+    });
+  });
 }
 
 type ExtractPaneResult = {
