@@ -4,13 +4,12 @@ import {
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/quick/QuickDialog";
-import { tabsAtom } from "@/store/atoms";
-import type { Tab } from "@/types";
+import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 const { cli } = window.conduit;
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
@@ -21,7 +20,8 @@ type UseCliClientOptions = {
 
 export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const tabs = useAtomValue(tabsAtom);
-  const tabsRef = useRef<Tab[]>(tabs);
+  const activeTab = useAtomValue(activeTabAtom);
+  const floatingTerminal = useAtomValue(floatingTerminalAtom);
 
   const moveLeftCommand = useCommand(ApplicationCommands.PANE_MOVE_LEFT);
   const moveRightCommand = useCommand(ApplicationCommands.PANE_MOVE_RIGHT);
@@ -103,16 +103,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     },
   } as const;
 
-  useEffect(() => {
-    tabsRef.current = tabs;
-  }, [tabs]);
-
-  useEffect(() => {
-    const handleCliRequest = async ({
-      requestId,
-      sessionId,
-      command: { name, args },
-    }: CliRequest) => {
+  const handleCliRequest = useEffectEvent(
+    async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) =>
         cli.respondToRequest<T>({
           requestId,
@@ -147,13 +139,19 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "list-panes": {
-            const currentTabs = tabsRef.current;
-            const matchingTab = currentTabs.find((tab) =>
+            let matchingTab = tabs.find((tab) =>
               Object.values(tab.panes).some(
                 (pane) =>
                   pane.type === "terminal" && pane.sessionId === sessionId,
               ),
             );
+
+            // If the session isn't in any tab, check if it's the floating terminal
+            if (!matchingTab) {
+              if (floatingTerminal?.terminalId === sessionId) {
+                matchingTab = activeTab;
+              }
+            }
 
             const panes = Object.values(matchingTab.panes)
               // Filter out the calling terminal pane
@@ -273,35 +271,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       } catch (error) {
         respondError(error.message);
       }
-    };
+    },
+  );
 
+  useEffect(() => {
     const dispose = cli.onRequest(handleCliRequest);
     return () => {
       dispose();
     };
-  }, [
-    moveUpCommand,
-    moveDownCommand,
-    moveLeftCommand,
-    moveRightCommand,
-    moveToTabCommand,
-    focusPaneCommand,
-    closePaneCommand,
-    closeTabCommand,
-    newTabCommand,
-    duplicateTabCommand,
-    splitLeftTerminalCommand,
-    splitRightTerminalCommand,
-    splitTopTerminalCommand,
-    splitBottomTerminalCommand,
-    splitLeftBrowserCommand,
-    splitRightBrowserCommand,
-    splitTopBrowserCommand,
-    splitBottomBrowserCommand,
-    splitLeftEditorCommand,
-    splitRightEditorCommand,
-    splitTopEditorCommand,
-    splitBottomEditorCommand,
-    onOpenFile,
-  ]);
+  }, [handleCliRequest]);
 }

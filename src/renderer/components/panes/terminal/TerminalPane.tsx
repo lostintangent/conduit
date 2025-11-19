@@ -315,7 +315,9 @@ export const TerminalPane = ({
       togglePromptMode: handleTogglePromptMode,
       getApplicationMode: () => applicationModeRef.current,
       setNormalMode: () => setApplicationModeRef.current("normal"),
-      onSynchronizedInput: isTabSynchronized ? handleSynchronizedInput : undefined,
+      onSynchronizedInput: isTabSynchronized
+        ? handleSynchronizedInput
+        : undefined,
     });
 
     return () => {
@@ -326,7 +328,13 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, [handleTogglePromptMode, showSearchWidget, terminalId, isTabSynchronized, handleSynchronizedInput]);
+  }, [
+    handleTogglePromptMode,
+    showSearchWidget,
+    terminalId,
+    isTabSynchronized,
+    handleSynchronizedInput,
+  ]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
@@ -429,13 +437,13 @@ export const TerminalPane = ({
           if (terminalRef.current) {
             terminalRef.current.setLinkHandler(
               handler ||
-              ((url: string) => {
-                if (onLinkClick) {
-                  onLinkClick(url);
-                } else {
-                  api.openExternal(url);
-                }
-              }),
+                ((url: string) => {
+                  if (onLinkClick) {
+                    onLinkClick(url);
+                  } else {
+                    api.openExternal(url);
+                  }
+                }),
             );
           }
         }}

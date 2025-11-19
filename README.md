@@ -18,7 +18,7 @@ Conduit was born out of the following key assumptions:
 
 1. Developers will _continue to make use of multiple different coding agents_, because no single agent will (ever?) serve all their needs. Therefore, it's critcal to have toolchains that allow a **"learn once, use any agent"** experience.
 
-1. Coding agents will _continue to _evolve at a rapid pace_, and putting too many abstractions on top of them will creation friction in the availability of innovation. Therefore, developers want to be as **"close to the metal"** as possible with their agents.
+1. Coding agents will _continue to \_evolve at a rapid pace_, and putting too many abstractions on top of them will creation friction in the availability of innovation. Therefore, developers want to be as **"close to the metal"** as possible with their agents.
 
 1. Coding agents will _continue to get more powerful over time_, and therefore, a CLI interface, along with supporting tools, will be sufficient for most users. Therefore, toolchains should embrace **terminals as being central vs. secondary**.
 

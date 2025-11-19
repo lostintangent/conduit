@@ -227,17 +227,26 @@ describe("useSandboxHandlers", () => {
         persistent: true,
       });
       expect(mockForkVM).toHaveBeenCalledWith("vm-1");
-      expect(mockSplitPane).toHaveBeenCalledWith("tab-1", "pane-1", "column", false, {
-        terminalOptions: {
-          existingVMId: "vm-2",
+      expect(mockSplitPane).toHaveBeenCalledWith(
+        "tab-1",
+        "pane-1",
+        "column",
+        false,
+        {
+          terminalOptions: {
+            existingVMId: "vm-2",
+          },
         },
-      });
-      expect(mockUpdateNotification).toHaveBeenCalledWith("notification-id-123", {
-        kind: "success",
-        message: "VM forked successfully",
-        details: "New VM: vm-2",
-        autoCloseMs: 3000,
-      });
+      );
+      expect(mockUpdateNotification).toHaveBeenCalledWith(
+        "notification-id-123",
+        {
+          kind: "success",
+          message: "VM forked successfully",
+          details: "New VM: vm-2",
+          autoCloseMs: 3000,
+        },
+      );
     });
 
     it("should handle null VM result and show error notification", async () => {
@@ -245,12 +254,15 @@ describe("useSandboxHandlers", () => {
 
       await handleForkVMAction("tab-1", "pane-1", "vm-1");
 
-      expect(mockUpdateNotification).toHaveBeenCalledWith("notification-id-123", {
-        kind: "error",
-        message: "Failed to fork VM",
-        details: "Failed to fork VM",
-        autoCloseMs: 5000,
-      });
+      expect(mockUpdateNotification).toHaveBeenCalledWith(
+        "notification-id-123",
+        {
+          kind: "error",
+          message: "Failed to fork VM",
+          details: "Failed to fork VM",
+          autoCloseMs: 5000,
+        },
+      );
       expect(mockSplitPane).not.toHaveBeenCalled();
     });
 
@@ -260,12 +272,15 @@ describe("useSandboxHandlers", () => {
 
       await handleForkVMAction("tab-1", "pane-1", "vm-1");
 
-      expect(mockUpdateNotification).toHaveBeenCalledWith("notification-id-123", {
-        kind: "error",
-        message: "Failed to fork VM",
-        details: "Fork failed",
-        autoCloseMs: 5000,
-      });
+      expect(mockUpdateNotification).toHaveBeenCalledWith(
+        "notification-id-123",
+        {
+          kind: "error",
+          message: "Failed to fork VM",
+          details: "Fork failed",
+          autoCloseMs: 5000,
+        },
+      );
     });
   });
 
