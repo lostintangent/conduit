@@ -1981,6 +1981,8 @@ export function EditorPane({
               <GitBranchToolbar
                 currentBranch={currentBranch}
                 baseBranch={baseBranch}
+                changedFilesCount={gitStatus?.size || 0}
+                gitStatus={gitStatus}
                 onOpenBranchPicker={
                   branches.length > 0
                     ? () => setIsBranchSelectorOpen(true)
@@ -1996,7 +1998,7 @@ export function EditorPane({
                 }}
               />
             )}
-            <div className="flex-1 overflow-auto p-2">
+            <div className="flex-1 overflow-auto px-3">
               {isLoadingTree ? (
                 <div className="flex items-center justify-center w-full text-white/70">
                   <Loader2 className="w-6 h-6 animate-spin" />
