@@ -211,7 +211,7 @@
   body {
     height: 100%;
     margin: 0;
-    font-family: "Fira Code", Menlo, monospace;
+    font-family: "Fira Code", Menlo, Monaco, "Courier New", monospace;
     background-color: inherit;
     color: inherit;
   }
