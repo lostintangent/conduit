@@ -186,6 +186,8 @@ export function BrowserPane({
         previewOverlayRef.current = null;
       }
 
+      webview.style.left = "-1000px";
+
       if (webviewRef.current === webview) {
         webview.style.zIndex = "1";
         webview.style.transform = "";
