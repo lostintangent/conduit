@@ -210,12 +210,6 @@ export function setPaneCollapsed(
     const tab = tabs.find(({ id }) => id === tabId);
     const pane = tab.panes[paneId];
 
-    // TODO: Improve the way we handle pane collapsing, since
-    // it's hacky that we need to do this here.
-    if (pane.type === "webview") {
-      document.getElementById(pane.id).style.left = "-10000px";
-    }
-
     // Find the layout node for the pane and update its collapsed state
     walkLayout(tab.layout, ({ node, parent }) => {
       if (node.type === "pane" && node.paneId === paneId) {

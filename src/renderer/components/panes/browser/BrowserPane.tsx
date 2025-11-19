@@ -190,6 +190,7 @@ export function BrowserPane({
         webview.style.zIndex = "1";
         webview.style.transform = "";
         webview.style.transformOrigin = "";
+        webview.style.left = "-10000px";
         webviewRef.current = null;
       }
     };
