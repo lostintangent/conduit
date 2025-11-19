@@ -530,7 +530,8 @@ export function detachPane(
         return;
       }
 
-      detachedPane = pane;
+      // Use the pre-detach snapshot so callers don't receive an Immer draft
+      detachedPane = targetPane;
       const newPanes = { ...tab.panes };
       delete newPanes[paneId];
 
