@@ -2074,6 +2074,7 @@ export function EditorPane({
                       value={viewMode.data.originalContent}
                       language={detectedLanguage}
                       theme={editorTheme}
+                      keepCurrentModel={true}
                       options={{
                         minimap: { enabled: false },
                         smoothScrolling: true,
@@ -2148,6 +2149,7 @@ export function EditorPane({
                     onMount={handleEditorMount}
                     language={detectedLanguage}
                     theme={editorTheme}
+                    keepCurrentModel={true}
                     options={{
                       minimap: { enabled: false },
                       smoothScrolling: true,
