@@ -444,13 +444,13 @@ export function EditorPane({
   useEffect(() => {
     const filePathChanged = filePath !== previousFilePathRef.current;
 
-    if (layoutMode === "single" && hasOpenFile && filePathChanged) {
+    if (layoutMode === "single" && filePath && filePathChanged) {
       setActiveView("editor");
     }
 
     // Update the ref for next comparison
     previousFilePathRef.current = filePath;
-  }, [layoutMode, hasOpenFile, filePath]);
+  }, [layoutMode, filePath]);
 
   // Find the current tab for agent session operations
   const currentTab = useMemo(() => {
@@ -812,11 +812,9 @@ export function EditorPane({
   }, [isTreeCollapsed, paneId]);
 
   useEffect(() => {
-    // In split mode, always load the tree (even with a file open)
-    // In single mode, only load when no file is open
-    const shouldLoadTree = layoutMode === "split" || !hasOpenFile;
-
-    if (!cwd || !shouldLoadTree) {
+    // Always load the tree regardless of layout mode or open file status
+    // This ensures users can navigate the file system even when a file is open
+    if (!cwd) {
       return;
     }
 
@@ -857,7 +855,7 @@ export function EditorPane({
     return () => {
       cancelled = true;
     };
-  }, [cwd, hasOpenFile, layoutMode]);
+  }, [cwd]);
 
   // Keep refs in sync with current values
   useEffect(() => {
