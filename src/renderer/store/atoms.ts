@@ -73,8 +73,10 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  */
 export const paneActionsAtom = atom<Action[]>([]);
 
-export const floatingTerminalAtom = atom<{
+export type QuickTerminalState = {
   terminalId: string;
   paneId: string;
   cwd: string | null;
-}>();
+};
+
+export const quickTerminalAtom = atom<QuickTerminalState | null>(null);

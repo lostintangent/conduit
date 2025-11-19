@@ -4,7 +4,7 @@ import {
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/quick/QuickDialog";
-import { tabsAtom } from "@/store/atoms";
+import { activeTabAtom, quickTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
@@ -21,7 +21,11 @@ type UseCliClientOptions = {
 
 export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const tabs = useAtomValue(tabsAtom);
+  const activeTab = useAtomValue(activeTabAtom);
+  const quickTerminal = useAtomValue(quickTerminalAtom);
   const tabsRef = useRef<Tab[]>(tabs);
+  const activeTabRef = useRef<Tab | null>(activeTab ?? null);
+  const quickTerminalRef = useRef(quickTerminal);
 
   const moveLeftCommand = useCommand(ApplicationCommands.PANE_MOVE_LEFT);
   const moveRightCommand = useCommand(ApplicationCommands.PANE_MOVE_RIGHT);
@@ -108,6 +112,14 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   }, [tabs]);
 
   useEffect(() => {
+    activeTabRef.current = activeTab ?? null;
+  }, [activeTab]);
+
+  useEffect(() => {
+    quickTerminalRef.current = quickTerminal;
+  }, [quickTerminal]);
+
+  useEffect(() => {
     const handleCliRequest = async ({
       requestId,
       sessionId,
@@ -148,12 +160,25 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "list-panes": {
             const currentTabs = tabsRef.current;
-            const matchingTab = currentTabs.find((tab) =>
-              Object.values(tab.panes).some(
-                (pane) =>
-                  pane.type === "terminal" && pane.sessionId === sessionId,
-              ),
-            );
+            const quickSession =
+              quickTerminalRef.current?.terminalId === sessionId;
+
+            const matchingTab =
+              currentTabs.find((tab) =>
+                Object.values(tab.panes).some(
+                  (pane) =>
+                    pane.type === "terminal" && pane.sessionId === sessionId,
+                ),
+              ) ?? (quickSession ? activeTabRef.current : undefined);
+
+            if (!matchingTab) {
+              respondError(
+                quickSession
+                  ? "No active tab available for CLI request."
+                  : `Unable to locate tab for session ${sessionId}.`,
+              );
+              break;
+            }
 
             const panes = Object.values(matchingTab.panes)
               // Filter out the calling terminal pane

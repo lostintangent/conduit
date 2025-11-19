@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 export type PaneDescriptor = Omit<Pane, "id">;
 
 export type QuickPaneDescriptor = PaneDescriptor & {
+  paneId?: string;
   isLocked?: boolean;
   closeOnSave?: boolean;
   onClose?: () => void;
@@ -41,7 +42,10 @@ export function QuickDialog({
     useState<QuickPaneDescriptor>(paneDescriptor);
 
   // Generate a stable paneId for the quick pane
-  const [quickPaneId] = useState(() => generateId());
+  const quickPaneId = useMemo(
+    () => paneDescriptor.paneId ?? generateId(),
+    [paneDescriptor.paneId],
+  );
 
   useEffect(() => {
     setApplicationMode("quick");
