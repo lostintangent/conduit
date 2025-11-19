@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCommand } from "@/commands/hooks/useCommand";
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { DiffEditor, loader } from "@monaco-editor/react";
@@ -247,6 +247,7 @@ export function EditorPane({
 }: EditorPaneProps) {
   const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
   const closePaneCmd = useCommand(ApplicationCommands.PANE_CLOSE);
   // Use Shiki's VS Code themes (markdown formatting handled by Shiki's grammar)
   const editorTheme =
@@ -1674,15 +1675,17 @@ export function EditorPane({
                     </>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={closePaneCmd.execute}
-                  disabled={closePaneCmd.disabled}
-                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Close Pane"
-                >
-                  <X size={14} />
-                </button>
+                {applicationMode !== "quick" && (
+                  <button
+                    type="button"
+                    onClick={closePaneCmd.execute}
+                    disabled={closePaneCmd.disabled}
+                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Close Pane"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1802,15 +1805,17 @@ export function EditorPane({
                   </>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={closePaneCmd.execute}
-                disabled={closePaneCmd.disabled}
-                className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Close Pane"
-              >
-                <X size={14} className="text-white/60" />
-              </button>
+              {applicationMode !== "quick" && (
+                <button
+                  type="button"
+                  onClick={closePaneCmd.execute}
+                  disabled={closePaneCmd.disabled}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Close Pane"
+                >
+                  <X size={14} className="text-white/60" />
+                </button>
+              )}
             </div>
 
             {/* Warning banner for external modifications */}
