@@ -339,12 +339,11 @@ export function TabLayout({
         }
       };
 
+      // If the pane is collapsed, then we need to render it as a
+      // horizontal/vertical bar with an expand button. But if we're
+      // in focus mode, then we render the pane normally (not collapsed).
       if (isCollapsed && !isInFocusMode) {
         const isHorizontalBar = parentDirection === "column";
-        const barClassName = isHorizontalBar
-          ? "h-[25px] w-full"
-          : "w-[25px] h-full";
-
         return (
           <div
             data-node-id={node.id}
@@ -355,7 +354,10 @@ export function TabLayout({
             onContextMenu={onPaneContextMenu}
           >
             <button
-              className={`${barClassName} flex items-center justify-center bg-elevated hover:bg-elevated/80 transition-colors`}
+              className={cn(
+                "flex items-center justify-center bg-elevated hover:bg-elevated/80 transition-colors",
+                isHorizontalBar ? "w-full h-[25px]" : "h-full w-[25px]",
+              )}
               onClick={() => setPaneCollapsed(tab.id, pane.id, false)}
             >
               {isHorizontalBar ? (
