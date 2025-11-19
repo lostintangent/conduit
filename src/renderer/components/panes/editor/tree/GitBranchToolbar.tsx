@@ -77,7 +77,7 @@ export function GitBranchToolbar({
               pressed={showOnlyChangedFiles}
               onPressedChange={() => onFilterToggle()}
               size="sm"
-              className={`text-xs px-1.5 py-0.5 h-auto ${showOnlyChangedFiles ? "border border-border bg-primary/10" : ""}`}
+              className={`text-xs px-2 pr-3 py-0.5 h-auto ${showOnlyChangedFiles ? "border border-border bg-primary/10" : ""}`}
             >
               <GitStatusSummary
                 gitStatus={gitStatus}

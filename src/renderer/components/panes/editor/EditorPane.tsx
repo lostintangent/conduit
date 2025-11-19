@@ -333,6 +333,14 @@ export function EditorPane({
     treeMode === "changes",
   );
 
+  // Auto-reset filter when not in a git repository or when cwd changes to non-git directory
+  useEffect(() => {
+    if (!isInGitRepo && showOnlyChangedFiles) {
+      setShowOnlyChangedFiles(false);
+      onTreeModeChange?.("all");
+    }
+  }, [isInGitRepo, cwd, showOnlyChangedFiles]);
+
   // Diff viewer state - using discriminated union to prevent invalid states
   type ViewMode =
     | { type: "editor" }
@@ -1354,8 +1362,12 @@ export function EditorPane({
 
   // Apply git status filtering to file tree
   const displayedFileTree = useMemo(() => {
-    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+    if (!showOnlyChangedFiles || !gitStatus) {
       return fileTree;
+    }
+    // When filtering is on but there are no changes, return empty array
+    if (gitStatus.size === 0) {
+      return [];
     }
     return filterTreeByGitStatus(fileTree, gitStatus);
   }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
@@ -2014,11 +2026,21 @@ export function EditorPane({
                   isFiltering={showOnlyChangedFiles}
                 />
               ) : (
-                <div className="flex items-center justify-center w-full text-white/50">
+                <div className="text-foreground text-xs py-3">
                   {showOnlyChangedFiles ? (
-                    <span className="italic">
-                      No changed files in this repository
-                    </span>
+                    <div>
+                      No changed files{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOnlyChangedFiles(false);
+                          onTreeModeChange?.("all");
+                        }}
+                        className="inline text-accent/80 hover:text-accent transition-colors"
+                      >
+                        Reset filter
+                      </button>
+                    </div>
                   ) : (
                     "No files found"
                   )}
