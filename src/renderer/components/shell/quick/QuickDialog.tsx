@@ -12,7 +12,7 @@ import type { EditorPane as EditorPaneType, Pane } from "@/types";
 import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
 import { useSetAtom } from "jotai";
-import { ArrowUpRight, Cloud, X } from "lucide-react";
+import { ArrowUpRight, Cloud, PictureInPicture2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type PaneDescriptor = Omit<Pane, "id">;
@@ -27,12 +27,14 @@ type QuickDialogProps = {
   paneDescriptor: QuickPaneDescriptor;
   onClose: () => void;
   onOpenAsTab: (descriptor: PaneDescriptor) => void;
+  onOpenAsFloating?: (terminalId: string, paneId: string) => void;
 };
 
 export function QuickDialog({
   paneDescriptor,
   onClose,
   onOpenAsTab,
+  onOpenAsFloating,
 }: QuickDialogProps) {
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const [currentDescriptor, setCurrentDescriptor] =
@@ -114,6 +116,13 @@ export function QuickDialog({
     onOpenAsTab(rest);
   }, [currentDescriptor, onOpenAsTab]);
 
+  const handleOpenAsFloatingClick = useCallback(() => {
+    if (currentDescriptor.type === "terminal" && onOpenAsFloating) {
+      onOpenAsFloating(currentDescriptor.sessionId, quickPaneId);
+      onClose();
+    }
+  }, [currentDescriptor, onOpenAsFloating, quickPaneId, onClose]);
+
   return (
     <Dialog
       open
@@ -181,6 +190,21 @@ export function QuickDialog({
                   className="text-white/80 mr-2"
                   aria-hidden="true"
                 />
+              )}
+              {currentDescriptor.type === "terminal" && onOpenAsFloating && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleOpenAsFloatingClick}
+                      aria-label="Open as floating overlay"
+                      className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+                    >
+                      <PictureInPicture2 size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Floating Terminal</TooltipContent>
+                </Tooltip>
               )}
               <Tooltip>
                 <TooltipTrigger asChild>

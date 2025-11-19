@@ -1,4 +1,4 @@
-import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import type { PaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import {
   detachPane,
   removePane,

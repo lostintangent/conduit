@@ -16,20 +16,30 @@ export type BrowserPage = {
 };
 
 export type UserSettings = {
+  // UI/Layout settings
   tabPosition: "top" | "bottom";
   alwaysShowTabs: boolean;
-  showTerminalRuler: boolean;
-  autoSaveWorkspaces: boolean;
   useGradientBorders: boolean;
-  useConduitAsEditor: boolean;
   theme: ThemeMode;
   themeOverrides?: ThemeOverrides;
+
+  // Terminal settings
+  showTerminalRuler: boolean;
+  quickTerminalMode: "fullscreen" | "floating";
+  terminalPromptAgent?: string;
+  terminalPromptBufferLines?: number;
+
+  // Editor settings
+  useConduitAsEditor: boolean;
+
+  // Workspace settings
+  autoSaveWorkspaces: boolean;
+
+  // History/State
   commandHistory: string[];
   urlHistory: string[];
   starredPages: BrowserPage[];
   homeDirectory: string | null;
-  terminalPromptAgent?: string;
-  terminalPromptBufferLines?: number;
 };
 
 export type Workspace = {

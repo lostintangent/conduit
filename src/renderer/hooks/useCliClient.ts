@@ -3,7 +3,7 @@ import {
   inputToSession,
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
-import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
+import type { QuickPaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";

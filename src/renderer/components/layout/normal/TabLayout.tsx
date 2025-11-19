@@ -9,7 +9,7 @@ import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import type { PaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
