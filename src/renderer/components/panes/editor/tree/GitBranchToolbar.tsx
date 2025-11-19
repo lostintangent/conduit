@@ -5,7 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowRight, Filter, GitBranch } from "lucide-react";
+import { ArrowRight, Filter, GitCompare } from "lucide-react";
 
 type GitBranchToolbarProps = {
   currentBranch: string | null;
@@ -41,10 +41,10 @@ export function GitBranchToolbar({
       </span>
     );
 
-  const toggleButtonClass = "h-auto px-1.5 py-1 min-w-0 [&_svg]:size-3.5";
+  const toggleButtonClass = "h-auto px-1 py-1 min-w-0 [&_svg]:size-3.5";
 
   return (
-    <div className="border-t bg-elevated px-3 py-2 text-xs flex items-center gap-2 mt-auto">
+    <div className="px-3 py-1.5 text-xs flex items-center gap-2">
       <Tooltip>
         <TooltipTrigger asChild>
           <Toggle
@@ -71,19 +71,19 @@ export function GitBranchToolbar({
             size="sm"
             className={toggleButtonClass}
           >
-            <GitBranch />
+            <GitCompare />
           </Toggle>
         </TooltipTrigger>
         <TooltipContent>
           {baseBranch && baseBranch !== "HEAD"
             ? `Comparing ${baseBranch} → ${currentBranch}`
-            : `Current branch: ${currentBranch}`}
+            : "Comparing against HEAD"}
         </TooltipContent>
       </Tooltip>
 
       <Separator
         orientation="vertical"
-        className="bg-elevated-border mr-1 h-5"
+        className="bg-elevated-border mr-1 h-4"
       />
 
       {branchLabel}

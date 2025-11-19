@@ -1977,6 +1977,25 @@ export function EditorPane({
                   }),
             }}
           >
+            {isInGitRepo && (
+              <GitBranchToolbar
+                currentBranch={currentBranch}
+                baseBranch={baseBranch}
+                onOpenBranchPicker={
+                  branches.length > 0
+                    ? () => setIsBranchSelectorOpen(true)
+                    : undefined
+                }
+                showOnlyChangedFiles={showOnlyChangedFiles}
+                onFilterToggle={() => {
+                  const newMode: EditorTreeMode = showOnlyChangedFiles
+                    ? "all"
+                    : "changes";
+                  setShowOnlyChangedFiles(!showOnlyChangedFiles);
+                  onTreeModeChange?.(newMode);
+                }}
+              />
+            )}
             <div className="flex-1 overflow-auto p-2">
               {isLoadingTree ? (
                 <div className="flex items-center justify-center w-full text-white/70">
@@ -2006,25 +2025,6 @@ export function EditorPane({
                 </div>
               )}
             </div>
-            {isInGitRepo && (
-              <GitBranchToolbar
-                currentBranch={currentBranch}
-                baseBranch={baseBranch}
-                onOpenBranchPicker={
-                  branches.length > 0
-                    ? () => setIsBranchSelectorOpen(true)
-                    : undefined
-                }
-                showOnlyChangedFiles={showOnlyChangedFiles}
-                onFilterToggle={() => {
-                  const newMode: EditorTreeMode = showOnlyChangedFiles
-                    ? "all"
-                    : "changes";
-                  setShowOnlyChangedFiles(!showOnlyChangedFiles);
-                  onTreeModeChange?.(newMode);
-                }}
-              />
-            )}
           </div>
 
           {/* Resize handle - only in split mode */}
