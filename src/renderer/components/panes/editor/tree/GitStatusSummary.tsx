@@ -70,7 +70,6 @@ export function GitStatusSummary({
               }}
             >
               <div className="flex items-center">
-                <GitStatusBadge status={status} isFolder={true} />
                 <span
                   className="text-xs transition-all duration-300 ease-out origin-left"
                   style={{
@@ -83,6 +82,7 @@ export function GitStatusSummary({
                 >
                   {count}
                 </span>
+                <GitStatusBadge status={status} isFolder={true} />
               </div>
             </div>
           );

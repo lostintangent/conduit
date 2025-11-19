@@ -333,6 +333,14 @@ export function EditorPane({
     treeMode === "changes",
   );
 
+  // Auto-reset filter when not in a git repository or when cwd changes to non-git directory
+  useEffect(() => {
+    if (!isInGitRepo && showOnlyChangedFiles) {
+      setShowOnlyChangedFiles(false);
+      onTreeModeChange?.("all");
+    }
+  }, [isInGitRepo, cwd, showOnlyChangedFiles]);
+
   // Diff viewer state - using discriminated union to prevent invalid states
   type ViewMode =
     | { type: "editor" }
@@ -2018,21 +2026,19 @@ export function EditorPane({
                   isFiltering={showOnlyChangedFiles}
                 />
               ) : (
-                <div className="flex items-center justify-center w-full text-white/50">
+                <div className="text-foreground text-xs py-3">
                   {showOnlyChangedFiles ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <span className="italic">
-                        No changed files in this repository
-                      </span>
+                    <div>
+                      No changed files{" "}
                       <button
                         type="button"
                         onClick={() => {
                           setShowOnlyChangedFiles(false);
                           onTreeModeChange?.("all");
                         }}
-                        className="text-blue-400 hover:text-blue-300 underline text-sm transition-colors"
+                        className="inline text-accent/80 hover:text-accent transition-colors"
                       >
-                        Show all files
+                        Reset filter
                       </button>
                     </div>
                   ) : (
