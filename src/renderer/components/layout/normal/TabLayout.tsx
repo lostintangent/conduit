@@ -172,19 +172,25 @@ const computeIntersectionHandles = (
   }));
 };
 
+const COLLAPSED_PANE_SIZE = 25;
+
 function buildGridTemplateStyles(
   children: LayoutNode[],
   direction: SplitDirection,
   activePaneId?: string,
   isInFocusMode?: boolean,
 ): React.CSSProperties {
-  const buildTemplateString = (values: number[]): string => {
+  const buildTemplateString = (values: (number | "collapsed")[]): string => {
     if (values.length === 0) {
       return "minmax(0, 1fr)";
     }
 
     return values
-      .map((value) => `minmax(0, ${Math.max(value, 0)}fr)`)
+      .map((value) =>
+        value === "collapsed"
+          ? `${COLLAPSED_PANE_SIZE}px`
+          : `minmax(0, ${Math.max(value, 0)}fr)`,
+      )
       .join(" ");
   };
 
@@ -201,15 +207,14 @@ function buildGridTemplateStyles(
       : { gridTemplateRows: templateValue };
   }
 
-  const templateValue = children
-    .map((child) => {
+  const templateValue = buildTemplateString(
+    children.map((child) => {
       if (child.type === "pane" && child.collapsed) {
-        return "minmax(0, 25px)";
+        return "collapsed";
       }
-      const value = child.size ?? 1;
-      return `minmax(0, ${Math.max(value, 0)}fr)`;
-    })
-    .join(" ");
+      return child.size ?? 1;
+    }),
+  );
 
   return direction === "row"
     ? { gridTemplateColumns: templateValue }
@@ -354,10 +359,7 @@ export function TabLayout({
             onContextMenu={onPaneContextMenu}
           >
             <button
-              className={cn(
-                "flex items-center justify-center bg-elevated hover:bg-elevated/80 transition-colors",
-                isHorizontalBar ? "w-full h-[25px]" : "h-full w-[25px]",
-              )}
+              className="flex items-center w-full h-full justify-center bg-elevated hover:bg-elevated/80 transition-colors"
               onClick={() => setPaneCollapsed(tab.id, pane.id, false)}
             >
               {isHorizontalBar ? (
