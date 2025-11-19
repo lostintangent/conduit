@@ -360,46 +360,59 @@ export async function getGitStatus(
 export async function getMostRecentDirtyFile(
   cwd: string,
 ): Promise<string | null> {
-  const gitRoot = await findRepoRoot(cwd);
-  if (!gitRoot) {
+  try {
+    const gitRoot = await findRepoRoot(cwd);
+    if (!gitRoot) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      // Get ALL dirty files (staged + unstaged + untracked) and find most recent:
+      // 1. git status -z gets all dirty files with null delimiters
+      // 2. Strip status codes and handle renames (format: XY filename or XY old -> new)
+      // 3. Expand directories to their files, preserving full paths
+      // 4. Pass to ls -t (sorts by modification time, newest first)
+      // 5. head -1 gets the most recent file
+      const pipeline = `git status --porcelain -z | \
+        tr '\\0' '\\n' | \
+        sed 's/^...//' | \
+        sed 's/ -> .*//' | \
+        grep -v '^$' | \
+        while IFS= read -r path; do
+          if [ -d "$path" ]; then
+            find "$path" -type f
+          elif [ -f "$path" ]; then
+            echo "$path"
+          fi
+        done | \
+        tr '\\n' '\\0' | \
+        xargs -0 ls -t1 2>/dev/null | head -1`;
+
+      const child = spawn("sh", ["-c", pipeline], {
+        cwd: gitRoot,
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+
+      let output = "";
+      child.stdout.on("data", (chunk: Buffer) => {
+        output += chunk.toString();
+      });
+
+      child.once("error", () => resolve(null));
+      child.once("close", (code: number | null) => {
+        if (code !== 0 || !output.trim()) {
+          resolve(null);
+          return;
+        }
+
+        const filePath = output.trim();
+        resolve(filePath || null);
+      });
+    });
+  } catch (error) {
+    console.error("Failed to get most recent dirty file:", error);
     return null;
   }
-
-  return new Promise((resolve) => {
-    // Get ALL dirty files (staged + unstaged + untracked) and find most recent:
-    // 1. git status -z gets all dirty files with null delimiters
-    // 2. Strip status codes and handle renames (format: XY filename or XY old -> new)
-    // 3. Pass to ls -t (sorts by modification time, newest first)
-    // 4. head -1 gets the most recent file
-    const pipeline = `git status --porcelain -z | \
-      tr '\\0' '\\n' | \
-      sed 's/^...//' | \
-      sed 's/ -> .*//' | \
-      grep -v '^$' | \
-      tr '\\n' '\\0' | \
-      xargs -0 ls -t1 2>/dev/null | head -1`;
-
-    const child = spawn("sh", ["-c", pipeline], {
-      cwd: gitRoot,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-
-    let output = "";
-    child.stdout.on("data", (chunk: Buffer) => {
-      output += chunk.toString();
-    });
-
-    child.once("error", () => resolve(null));
-    child.once("close", (code: number | null) => {
-      if (code !== 0 || !output.trim()) {
-        resolve(null);
-        return;
-      }
-
-      const filePath = output.trim();
-      resolve(filePath || null);
-    });
-  });
 }
 
 /**
@@ -414,40 +427,45 @@ export async function getMostRecentTrackedFile(
   cwd: string,
   commitLimit = 10,
 ): Promise<string | null> {
-  const gitRoot = await findRepoRoot(cwd);
-  if (!gitRoot) {
+  try {
+    const gitRoot = await findRepoRoot(cwd);
+    if (!gitRoot) {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      // Optimized pipeline using ls -t (2x faster than stat + sort):
+      // 1. git log gets files from recent commits with null delimiters
+      // 2. tr removes null bytes and newlines, deduplicates with sort -u
+      // 3. xargs -0 passes to ls -t (sorts by modification time, newest first)
+      // 4. head -1 gets the most recent file
+      const pipeline = `git log --name-only --pretty=format: -n${commitLimit} -z | \
+        tr '\\0' '\\n' | grep -v '^$' | sort -u | tr '\\n' '\\0' | \
+        xargs -0 ls -t1 2>/dev/null | head -1`;
+
+      const child = spawn("sh", ["-c", pipeline], {
+        cwd: gitRoot,
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+
+      let output = "";
+      child.stdout.on("data", (chunk: Buffer) => {
+        output += chunk.toString();
+      });
+
+      child.once("error", () => resolve(null));
+      child.once("close", (code: number | null) => {
+        if (code !== 0 || !output.trim()) {
+          resolve(null);
+          return;
+        }
+
+        const filePath = output.trim();
+        resolve(filePath || null);
+      });
+    });
+  } catch (error) {
+    console.error("Failed to get most recent tracked file:", error);
     return null;
   }
-
-  return new Promise((resolve) => {
-    // Optimized pipeline using ls -t (2x faster than stat + sort):
-    // 1. git log gets files from recent commits with null delimiters
-    // 2. tr removes null bytes and newlines, deduplicates with sort -u
-    // 3. xargs -0 passes to ls -t (sorts by modification time, newest first)
-    // 4. head -1 gets the most recent file
-    const pipeline = `git log --name-only --pretty=format: -n${commitLimit} -z | \
-      tr '\\0' '\\n' | grep -v '^$' | sort -u | tr '\\n' '\\0' | \
-      xargs -0 ls -t1 2>/dev/null | head -1`;
-
-    const child = spawn("sh", ["-c", pipeline], {
-      cwd: gitRoot,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-
-    let output = "";
-    child.stdout.on("data", (chunk: Buffer) => {
-      output += chunk.toString();
-    });
-
-    child.once("error", () => resolve(null));
-    child.once("close", (code: number | null) => {
-      if (code !== 0 || !output.trim()) {
-        resolve(null);
-        return;
-      }
-
-      const filePath = output.trim();
-      resolve(filePath || null);
-    });
-  });
 }
