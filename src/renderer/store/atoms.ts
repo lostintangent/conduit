@@ -3,6 +3,7 @@ import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
 import type { UserSettings, WorkspaceState } from "@shared/types";
 import { atom } from "jotai";
+import { atomWithImmer } from "jotai-immer";
 
 export const userSettingsAtom = atom<UserSettings>({
   // UI/Layout settings
@@ -28,7 +29,7 @@ export const userSettingsAtom = atom<UserSettings>({
   homeDirectory: null,
 });
 
-export const tabsAtom = atom<Tab[]>([]);
+export const tabsAtom = atomWithImmer<Tab[]>([]);
 
 export const activeTabIdAtom = atom<string>();
 export const activeTabAtom = atom<Tab | null>((get) => {

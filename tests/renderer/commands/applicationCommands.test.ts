@@ -43,7 +43,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(50);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(52);
 
       // View commands
       expect(
@@ -108,6 +108,12 @@ describe("applicationCommands", () => {
         registeredCommands.has(ApplicationCommands.PANE_OPEN_WEB_PAGE),
       ).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.PANE_FOCUS)).toBe(true);
+      expect(registeredCommands.has(ApplicationCommands.PANE_COLLAPSE)).toBe(
+        true,
+      );
+      expect(registeredCommands.has(ApplicationCommands.PANE_EXPAND)).toBe(
+        true,
+      );
       expect(registeredCommands.has(ApplicationCommands.PANE_CLOSE)).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.PANE_SPLIT_LEFT)).toBe(
         true,

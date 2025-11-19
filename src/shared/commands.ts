@@ -49,6 +49,8 @@ export const ApplicationCommands = {
   PANE_MOVE_UP: "pane.moveUp",
   PANE_MOVE_DOWN: "pane.moveDown",
   PANE_MOVE_TO_TAB: "pane.moveToTab",
+  PANE_COLLAPSE: "pane.collapse",
+  PANE_EXPAND: "pane.expand",
   PANE_SPLIT_LEFT_BROWSER: "pane.splitLeftBrowser",
   PANE_SPLIT_RIGHT_BROWSER: "pane.splitRightBrowser",
   PANE_SPLIT_TOP_BROWSER: "pane.splitTopBrowser",

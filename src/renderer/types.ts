@@ -8,6 +8,7 @@ type Resizable = { size?: number };
 export type LayoutPaneNode = {
   type: "pane";
   paneId: string;
+  collapsed?: boolean;
 } & Identifiable &
   Resizable;
 

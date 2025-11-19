@@ -20,7 +20,11 @@ import {
   handleForkVMAction,
 } from "@/hooks/useSandboxHandlers";
 import { enterFocusMode } from "@/store/actions/focusMode";
-import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import {
+  activatePane,
+  openWebViewPane,
+  setPaneCollapsed,
+} from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
 import {
@@ -37,9 +41,11 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
+import { cn } from "@/utils";
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
+import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -166,37 +172,62 @@ const computeIntersectionHandles = (
   }));
 };
 
+const COLLAPSED_PANE_SIZE = 25;
+
+/**
+ * Generate the CSS grid template styles for a split node,
+ * taking into account collapsed panes and focus mode.
+ */
 function buildGridTemplateStyles(
   children: LayoutNode[],
   direction: SplitDirection,
   activePaneId?: string,
   isInFocusMode?: boolean,
 ): React.CSSProperties {
-  const buildTemplateString = (values: number[]): string => {
-    if (values.length === 0) {
-      return "minmax(0, 1fr)";
-    }
-
+  const buildTemplateString = (values: (number | "collapsed")[]): string => {
+    if (values.length === 0) return "minmax(0, 1fr)";
     return values
-      .map((value) => `minmax(0, ${Math.max(value, 0)}fr)`)
+      .map((value) =>
+        value === "collapsed"
+          ? `${COLLAPSED_PANE_SIZE}px`
+          : `minmax(0, ${Math.max(value, 0)}fr)`,
+      )
       .join(" ");
   };
 
-  // In focus mode, make non-active panes 0fr so the active pane fills the space
+  // When in focus mode, only allocate space to the active pane
+  // so we're only rendering one pane at a time, and hide all others.
   if (isInFocusMode && activePaneId) {
     const templateValue = buildTemplateString(
       children.map((child) =>
         layoutContainsPaneId(child, activePaneId) ? 1 : 0,
       ),
     );
-
     return direction === "row"
       ? { gridTemplateColumns: templateValue }
       : { gridTemplateRows: templateValue };
   }
 
+  const hasCollapsedSibling = children.some(
+    (c) => c.type === "pane" && c.collapsed,
+  );
+
   const templateValue = buildTemplateString(
-    children.map((child) => child.size ?? 1),
+    children.map((child) => {
+      if (child.type === "pane" && child.collapsed) return "collapsed";
+
+      // If there are collapses siblings in this layout, there we need to
+      // check if there are other expanded siblings. If not, then we need
+      // to force this pane to take up all available space.
+      if (hasCollapsedSibling) {
+        const hasExpandedSibling = children.some(
+          (c) => c.type === "pane" && c.id !== child.id && !c.collapsed,
+        );
+
+        return hasExpandedSibling ? (child.size ?? 1) : 1;
+      }
+      return child.size ?? 1;
+    }),
   );
 
   return direction === "row"
@@ -294,6 +325,7 @@ export function TabLayout({
       node: LayoutPaneNode,
       tab: Tab,
       hasUnifiedSandbox: boolean,
+      parentDirection?: SplitDirection,
     ): React.ReactNode => {
       const pane = tab.panes[node.paneId];
       if (!pane) {
@@ -305,9 +337,11 @@ export function TabLayout({
       const isInFocusMode = applicationMode === "focus";
       const isHiddenInFocusMode = isInFocusMode && !isActivePane;
       const isInPreview = isTabInPreview(tab.id);
+      const isCollapsed = Boolean(node.collapsed);
 
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
+
       const onPaneActivate = (event?: React.MouseEvent) => {
         // If clicking a pane in a non-active tab (e.g., from preview), switch to that tab first
         if (tab.id !== activeTabId) {
@@ -323,6 +357,34 @@ export function TabLayout({
           enterFocusMode(tab.id, pane.id);
         }
       };
+
+      // If the pane is collapsed, then we need to render it as a
+      // horizontal/vertical bar with an expand button. But if we're
+      // in focus mode, then we render the pane normally (not collapsed).
+      if (isCollapsed && !isInFocusMode) {
+        const isHorizontalBar = parentDirection === "column";
+        return (
+          <div
+            data-node-id={node.id}
+            className={cn(
+              "flex-1 min-h-0 min-w-0 overflow-hidden relative",
+              isHiddenInFocusMode && "hidden",
+            )}
+            onContextMenu={onPaneContextMenu}
+          >
+            <button
+              className="flex items-center w-full h-full justify-center bg-elevated hover:bg-elevated/80 transition-colors"
+              onClick={() => setPaneCollapsed(tab.id, pane.id, false)}
+            >
+              {isHorizontalBar ? (
+                <UnfoldVertical className="w-4 h-4" />
+              ) : (
+                <UnfoldHorizontal className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        );
+      }
 
       const onWebViewContextMenu = (coords: {
         clientX: number;
@@ -533,6 +595,7 @@ export function TabLayout({
       hoveredPreviewPaneId,
       setHoveredPreviewPaneId,
       setApplicationMode,
+      setPaneCollapsed,
     ],
   );
 
@@ -544,6 +607,7 @@ export function TabLayout({
         node: LayoutNode,
         tab: Tab,
         hasUnifiedSandbox: boolean,
+        parentDirection: SplitDirection,
       ) => React.ReactNode,
       hasUnifiedSandbox: boolean,
     ): React.ReactNode => {
@@ -622,8 +686,16 @@ export function TabLayout({
               ? "bg-accent/80"
               : "bg-transparent hover:bg-accent/80";
 
+            // We only want to render resize handles between two pane nodes
+            // when the previous sibling pane isn't collapsed, when the tab
+            // isn't locked, and when we're not in focus mode.
             const shouldRenderHandles =
-              primaryAxis !== null && !isInFocusMode && !isLocked;
+              primaryAxis !== null &&
+              !isInFocusMode &&
+              !isLocked &&
+              (previousSibling.type === "split" ||
+                (previousSibling.type === "pane" &&
+                  !previousSibling.collapsed));
 
             const intersectionHandles =
               shouldRenderHandles && primaryAxis
@@ -682,7 +754,7 @@ export function TabLayout({
                   </>
                 )}
 
-                {renderChild(child, tab, hasUnifiedSandbox)}
+                {renderChild(child, tab, hasUnifiedSandbox, node.direction)}
               </div>
             );
           })}
@@ -700,9 +772,14 @@ export function TabLayout({
   );
 
   const renderLayout = useCallback(
-    (node: LayoutNode, tab: Tab, hasUnifiedSandbox: boolean) => {
+    (
+      node: LayoutNode,
+      tab: Tab,
+      hasUnifiedSandbox: boolean,
+      parentDirection?: SplitDirection,
+    ) => {
       if (node.type === "pane") {
-        return renderPaneNode(node, tab, hasUnifiedSandbox);
+        return renderPaneNode(node, tab, hasUnifiedSandbox, parentDirection);
       }
       return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox);
     },
