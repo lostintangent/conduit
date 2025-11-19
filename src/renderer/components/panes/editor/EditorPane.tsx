@@ -1354,8 +1354,12 @@ export function EditorPane({
 
   // Apply git status filtering to file tree
   const displayedFileTree = useMemo(() => {
-    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+    if (!showOnlyChangedFiles || !gitStatus) {
       return fileTree;
+    }
+    // When filtering is on but there are no changes, return empty array
+    if (gitStatus.size === 0) {
+      return [];
     }
     return filterTreeByGitStatus(fileTree, gitStatus);
   }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
@@ -2016,9 +2020,21 @@ export function EditorPane({
               ) : (
                 <div className="flex items-center justify-center w-full text-white/50">
                   {showOnlyChangedFiles ? (
-                    <span className="italic">
-                      No changed files in this repository
-                    </span>
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="italic">
+                        No changed files in this repository
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOnlyChangedFiles(false);
+                          onTreeModeChange?.("all");
+                        }}
+                        className="text-blue-400 hover:text-blue-300 underline text-sm transition-colors"
+                      >
+                        Show all files
+                      </button>
+                    </div>
                   ) : (
                     "No files found"
                   )}
