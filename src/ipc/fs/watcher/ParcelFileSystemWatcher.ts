@@ -121,10 +121,6 @@ export class ParcelFileSystemWatcher
   }
 
   private handleEvents(events: ParcelEvent[]): void {
-    console.log(
-      `[ParcelFS] Received ${events.length} event(s) for ${this.cwd}`,
-    );
-
     for (const event of events) {
       this.handleEvent(event);
     }
@@ -134,8 +130,6 @@ export class ParcelFileSystemWatcher
     const { type, path: filePath } = event;
     // Use realCwd for consistent path matching (handles symlinks like /var -> /private/var)
     const relativePath = path.relative(this.realCwd, filePath);
-
-    console.log(`[ParcelFS] ${type.toUpperCase()}: ${relativePath}`);
 
     switch (type) {
       case "create":
@@ -151,11 +145,11 @@ export class ParcelFileSystemWatcher
   }
 
   private handleCreate(filePath: string, relativePath: string): void {
-    // Check for rename
-    const renamedFrom = this.renameDetector.detectRename(filePath);
+    // First, check if this CREATE matches a recent DELETE (normal order)
+    const renamedFrom = this.renameDetector.detectRenameFromCreate(filePath);
 
     if (renamedFrom) {
-      // It's a rename!
+      // It's a rename! (DELETE came before CREATE)
       const oldRelativePath = path.relative(this.realCwd, renamedFrom);
 
       console.log(
@@ -185,6 +179,9 @@ export class ParcelFileSystemWatcher
         callback(renameEvent);
       }
     } else {
+      // Not a rename yet - record this CREATE in case DELETE comes later
+      this.renameDetector.recordCreate(filePath);
+
       // It's a true file addition (not a rename) - emit file-changed event
       this.debounce(`file-addition:${filePath}`, 50, () => {
         const event: FileChangedEvent = {
@@ -225,31 +222,73 @@ export class ParcelFileSystemWatcher
   }
 
   private handleDelete(filePath: string, relativePath: string): void {
-    // Record for rename detection
-    this.renameDetector.recordUnlink(filePath);
+    // First, check if this DELETE matches a recent CREATE (reversed order)
+    const renamedTo = this.renameDetector.detectRenameFromDelete(filePath);
 
-    // Debounce deletion to allow rename detection
-    this.debounce(`file-deletion:${filePath}`, 200, () => {
-      console.log(`[ParcelFS] Broadcasting delete: ${relativePath}`);
+    if (renamedTo) {
+      // It's a rename! (CREATE came before DELETE)
+      const newRelativePath = path.relative(this.realCwd, renamedTo);
 
-      const event: FileChangedEvent = {
+      console.log(
+        `[ParcelFS] Detected rename (reversed order): ${relativePath} → ${newRelativePath}`,
+      );
+
+      // Check if the renamed item is a directory
+      let isDirectory = false;
+      try {
+        const stats = fs.statSync(renamedTo);
+        isDirectory = stats.isDirectory();
+      } catch (error) {
+        // If we can't stat the file, fall back to checking the path
+        console.error(`[ParcelFS] Failed to stat ${renamedTo}:`, error);
+      }
+
+      const renameEvent: FileRenamedEvent = {
         cwd: this.cwd,
-        filePath,
-        relativePath,
-        eventType: "deleted",
+        oldPath: filePath,
+        newPath: renamedTo,
+        oldRelativePath: relativePath,
+        newRelativePath,
+        isDirectory,
       };
 
-      for (const callback of this.fileChangedCallbacks) {
-        callback(event);
+      for (const callback of this.fileRenamedCallbacks) {
+        callback(renameEvent);
       }
-    });
 
-    // Trigger tree change
-    this.debounce(`tree-change`, 100, () => {
-      const event: TreeChangedEvent = { cwd: this.cwd };
-      for (const callback of this.treeChangedCallbacks) {
-        callback(event);
-      }
-    });
+      // Don't emit delete event - it's a rename!
+      // Still trigger tree change though
+      this.debounce(`tree-change`, 100, () => {
+        const event: TreeChangedEvent = { cwd: this.cwd };
+        for (const callback of this.treeChangedCallbacks) {
+          callback(event);
+        }
+      });
+    } else {
+      // Not a rename yet - record this DELETE in case CREATE comes later
+      this.renameDetector.recordUnlink(filePath);
+
+      // Debounce deletion to allow rename detection
+      this.debounce(`file-deletion:${filePath}`, 200, () => {
+        const event: FileChangedEvent = {
+          cwd: this.cwd,
+          filePath,
+          relativePath,
+          eventType: "deleted",
+        };
+
+        for (const callback of this.fileChangedCallbacks) {
+          callback(event);
+        }
+      });
+
+      // Trigger tree change
+      this.debounce(`tree-change`, 100, () => {
+        const event: TreeChangedEvent = { cwd: this.cwd };
+        for (const callback of this.treeChangedCallbacks) {
+          callback(event);
+        }
+      });
+    }
   }
 }

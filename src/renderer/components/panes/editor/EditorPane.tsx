@@ -1,3 +1,5 @@
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import { useCommand } from "@/commands/hooks/useCommand";
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { EditorToolbarButtons } from "@/components/panes/editor/EditorToolbarButtons";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
@@ -11,8 +13,6 @@ import {
 import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
-import { useCommand } from "@/commands/hooks/useCommand";
-import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
@@ -312,8 +312,10 @@ export function EditorPane({
   const filePathRef = useRef(filePath);
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
   const currentContentRef = useRef(currentContent);
+  const originalContentRef = useRef(originalContent);
   const previousFilePathRef = useRef(filePath);
   const previousCwdRef = useRef(cwd);
+  const viewModeRef = useRef<ViewMode>({ type: "editor" });
 
   // Git status integration
   const {
@@ -501,6 +503,7 @@ export function EditorPane({
       .then((content) => {
         if (!cancelled) {
           const language = inferLanguageFromFilePath(filePath);
+
           setCurrentContent(content);
           setOriginalContent(content);
           setCurrentLanguage(language);
@@ -508,7 +511,7 @@ export function EditorPane({
         }
       })
       .catch((error) => {
-        console.error("Failed to load file:", error);
+        console.error("[EditorPane] Failed to load file:", error);
         if (!cancelled) {
           setCurrentContent(undefined);
           setOriginalContent(undefined);
@@ -600,20 +603,25 @@ export function EditorPane({
           return; // Don't save yet
         }
       } catch (error) {
-        console.error("Failed to check file before save:", error);
+        console.error("[EditorPane] Failed to check file before save:", error);
       }
     }
 
     try {
       await api.writeFile(filePath, currentContent);
+
+      // Update refs immediately (synchronous)
+      originalContentRef.current = currentContent;
+
       setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
       setExternallyModified(false);
       setExternallyDeleted(false);
       setShowExternalChangeWarning(false);
+
       onSave?.();
     } catch (error) {
-      console.error("Failed to save file:", error);
+      console.error("[EditorPane] Failed to save file:", error);
     }
   }, [
     filePath,
@@ -856,7 +864,9 @@ export function EditorPane({
     filePathRef.current = filePath;
     hasUnsavedChangesRef.current = hasUnsavedChanges;
     currentContentRef.current = currentContent;
-  }, [filePath, hasUnsavedChanges, currentContent]);
+    originalContentRef.current = originalContent;
+    viewModeRef.current = viewMode;
+  }, [filePath, hasUnsavedChanges, currentContent, originalContent, viewMode]);
 
   // File watcher subscription lifecycle
   useEffect(() => {
@@ -883,15 +893,10 @@ export function EditorPane({
       handleFileChanged(payload.filePath, cwd);
 
       // Check if this is the currently open file
-      if (filePathRef.current && payload.filePath === filePathRef.current) {
-        console.log(
-          `[EditorPane] File changed event: ${payload.relativePath}, type=${payload.eventType}`,
-        );
-
+      const isCurrentFile =
+        filePathRef.current && payload.filePath === filePathRef.current;
+      if (isCurrentFile) {
         if (payload.eventType === "deleted") {
-          console.log(
-            `[EditorPane] File deleted externally: ${payload.relativePath}`,
-          );
           // Clear any pending debounce timer
           if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
@@ -900,9 +905,6 @@ export function EditorPane({
           setExternallyDeleted(true);
           setShowExternalChangeWarning(true);
         } else if (payload.eventType === "changed") {
-          console.log(
-            `[EditorPane] File modified externally: ${payload.relativePath}`,
-          );
           setExternallyModified(true);
 
           // Debounce rapid changes (100ms)
@@ -930,34 +932,76 @@ export function EditorPane({
 
                 // If editor has no unsaved changes, auto-reload
                 if (!hasUnsavedChangesRef.current) {
-                  console.log(
-                    `[EditorPane] Auto-reloading file (clean editor): ${currentFilePath}`,
-                  );
-                  api
-                    .readFile(currentFilePath)
-                    .then((content) => {
-                      console.log(
-                        `[EditorPane] File reloaded successfully: ${currentFilePath}`,
-                      );
-                      setCurrentContent(content);
-                      setOriginalContent(content);
-                      setExternallyModified(false);
-                      // If file was previously deleted but now exists, clear deletion flag
-                      setExternallyDeleted(false);
-                    })
-                    .catch((error) => {
-                      console.error(
-                        "[EditorPane] Failed to reload file:",
-                        error,
-                      );
-                      // If read fails, file might have been deleted
-                      api.fileExists(currentFilePath).then((stillExists) => {
-                        if (!stillExists) {
-                          setExternallyDeleted(true);
-                          setShowExternalChangeWarning(true);
+                  // Check if we're in diff mode
+                  const currentViewMode = viewModeRef.current;
+
+                  if (currentViewMode.type === "diff") {
+                    // Always reload diff when file changes (including our own saves)
+                    // This keeps the diff comparison up to date
+                    fetchDiffForFile(currentFilePath)
+                      .then((diff) => {
+                        setExternallyModified(false);
+                        setExternallyDeleted(false);
+
+                        // Update diff view with fresh data
+                        if (diff) {
+                          // CRITICAL FIX: Update refs IMMEDIATELY (synchronous)
+                          // Then update state (async/batched by React)
+                          // This prevents Monaco's change event from seeing stale values
+                          originalContentRef.current = diff.modifiedContent;
+                          currentContentRef.current = diff.modifiedContent;
+
+                          setOriginalContent(diff.modifiedContent);
+                          setCurrentContent(diff.modifiedContent);
+
+                          setViewMode({
+                            type: "diff",
+                            data: diff,
+                            showRaw: currentViewMode.showRaw,
+                          });
                         }
+                      })
+                      .catch((error) => {
+                        console.error(
+                          "[EditorPane] Failed to reload diff:",
+                          error,
+                        );
+                        // Handle file deletion or other errors
+                        api.fileExists(currentFilePath).then((stillExists) => {
+                          if (!stillExists) {
+                            setExternallyDeleted(true);
+                            setShowExternalChangeWarning(true);
+                          }
+                        });
                       });
-                    });
+                  } else {
+                    // In editor mode: just reload the file (existing behavior)
+                    api
+                      .readFile(currentFilePath)
+                      .then((content) => {
+                        console.log(
+                          `[EditorPane] File reloaded successfully: ${currentFilePath}`,
+                        );
+                        setCurrentContent(content);
+                        setOriginalContent(content);
+                        setExternallyModified(false);
+                        // If file was previously deleted but now exists, clear deletion flag
+                        setExternallyDeleted(false);
+                      })
+                      .catch((error) => {
+                        console.error(
+                          "[EditorPane] Failed to reload file:",
+                          error,
+                        );
+                        // If read fails, file might have been deleted
+                        api.fileExists(currentFilePath).then((stillExists) => {
+                          if (!stillExists) {
+                            setExternallyDeleted(true);
+                            setShowExternalChangeWarning(true);
+                          }
+                        });
+                      });
+                  }
                 } else {
                   // Editor has unsaved changes, show warning
                   console.log(
@@ -990,11 +1034,10 @@ export function EditorPane({
 
       // Check if the currently open file was renamed
       const currentFilePath = filePathRef.current;
-      if (currentFilePath && payload.oldPath === currentFilePath) {
-        console.log(
-          `[EditorPane] File renamed: ${payload.oldRelativePath} → ${payload.newRelativePath}`,
-        );
+      const isCurrentFileRenamed =
+        currentFilePath && payload.oldPath === currentFilePath;
 
+      if (isCurrentFileRenamed) {
         // Update the file path without losing content or state
         // Use currentContentRef to avoid stale closure
         onFileChange?.({
@@ -1007,10 +1050,6 @@ export function EditorPane({
         setExternallyModified(false);
         setExternallyDeleted(false);
         setShowExternalChangeWarning(false);
-
-        console.log(
-          `[EditorPane] Editor updated to track renamed file: ${payload.newPath}`,
-        );
       }
     });
 
@@ -1198,13 +1237,11 @@ export function EditorPane({
     };
   }, [isInGitRepo, filePath, cwd, paneId, handleFileSelect]);
 
-  const handleEditorChange = useCallback(
-    (value: string | undefined) => {
-      setCurrentContent(value);
-      setHasUnsavedChanges(value !== originalContent);
-    },
-    [originalContent],
-  );
+  const handleEditorChange = useCallback((value: string | undefined) => {
+    currentContentRef.current = value;
+    setCurrentContent(value);
+    setHasUnsavedChanges(value !== originalContentRef.current);
+  }, []);
 
   const handleDirectoryChange = useCallback(
     (newPath: string) => {
@@ -1423,8 +1460,9 @@ export function EditorPane({
       const modifiedEditor = diffEditor.getModifiedEditor();
       editorRef.current = modifiedEditor;
 
-      // Ensure correct language is set for the file
       const model = modifiedEditor.getModel();
+
+      // Ensure correct language is set for the file
       if (model && filePath) {
         const correctLanguage = inferLanguageFromFilePath(filePath);
         if (model.getLanguageId() !== correctLanguage) {
@@ -2079,6 +2117,19 @@ export function EditorPane({
                         fontSize: 13,
                         readOnly: false,
                         renderSideBySide: true,
+                        // Disable TypeScript language features that require URI resolution
+                        occurrencesHighlight: "off", // Prevents getDocumentHighlights errors
+                        selectionHighlight: false, // Disable selection highlighting
+                        hover: { enabled: false }, // Prevents getQuickInfoAtPosition errors on inmemory:// URIs
+                        parameterHints: { enabled: false }, // Prevents getSignatureHelpItems errors
+                        // Completely disable ALL suggestion features
+                        quickSuggestions: false, // Disable automatic suggestions
+                        suggestOnTriggerCharacters: false, // Don't trigger on . -> etc
+                        acceptSuggestionOnEnter: "off", // Don't accept on Enter
+                        acceptSuggestionOnCommitCharacter: false, // Don't accept on commit chars
+                        tabCompletion: "off", // Disable tab completion
+                        snippetSuggestions: "none", // Disable snippets
+                        inlineSuggest: { enabled: false }, // Disable inline suggestions
                       }}
                       loading={
                         <div className="flex h-full w-full items-center justify-center">
@@ -2107,6 +2158,20 @@ export function EditorPane({
                       lineNumbers:
                         detectedLanguage === "markdown" ? "off" : "on",
                       wordWrap: "on",
+                      // Disable TypeScript language features that require URI resolution
+                      occurrencesHighlight: "off", // Prevents getDocumentHighlights errors
+                      selectionHighlight: false, // Disable selection highlighting
+                      hover: { enabled: false }, // Prevents getQuickInfoAtPosition errors on file:// URIs
+                      parameterHints: { enabled: false }, // Prevents getSignatureHelpItems errors
+                      // Completely disable ALL suggestion features
+                      quickSuggestions: false, // Disable automatic suggestions
+                      suggestOnTriggerCharacters: false, // Don't trigger on . -> etc
+                      acceptSuggestionOnEnter: "off", // Don't accept on Enter
+                      acceptSuggestionOnCommitCharacter: false, // Don't accept on commit chars
+                      tabCompletion: "off", // Disable tab completion
+                      wordBasedSuggestions: "off", // Disable word-based suggestions
+                      snippetSuggestions: "none", // Disable snippets
+                      inlineSuggest: { enabled: false }, // Disable inline suggestions
                       // Markdown-specific enhancements
                       ...(detectedLanguage === "markdown" && {
                         glyphMargin: false, // Hide glyph margin

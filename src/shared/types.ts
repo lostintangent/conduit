@@ -301,6 +301,7 @@ export type FileRenamedEvent = {
   newPath: string;
   oldRelativePath: string;
   newRelativePath: string;
+  isDirectory: boolean;
 };
 
 /* VM IPC payloads */

@@ -71,23 +71,28 @@ export async function configureTsConfig(cwd: string, api: any): Promise<void> {
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
   monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
 
-  // Disable semantic validation (type checking) since Monaco can't resolve imports
-  // Keep syntax validation for basic error detection
-  // This prevents errors like "Cannot find module 'electron'" while maintaining
-  // syntax highlighting and basic IntelliSense
-  monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-    noSemanticValidation: true, // Disable type checking
-    noSyntaxValidation: false, // Keep syntax checking (e.g., missing semicolons)
-  });
-  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-    noSemanticValidation: true,
-    noSyntaxValidation: false,
-  });
+  // Note: Diagnostics are disabled globally at Monaco initialization
+  // See the global configuration after monaco import
 }
 
 console.log(
   "[Monaco Workers] Full monaco-editor bundle loaded with all languages",
 );
+
+// Disable TypeScript diagnostics globally to prevent errors with custom URIs
+// This must be done at initialization, not in configureTsConfig
+monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+  noSemanticValidation: true, // Disable type checking (can't resolve imports)
+  noSyntaxValidation: true, // Disable syntax checking (fails on inmemory:// URIs)
+  noSuggestionDiagnostics: true, // Disable suggestion diagnostics
+});
+monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+  noSemanticValidation: true,
+  noSyntaxValidation: true,
+  noSuggestionDiagnostics: true,
+});
+
+console.log("[Monaco TypeScript] Diagnostics disabled globally");
 
 // Configure markdown language to support wrapping selections with markdown syntax
 monaco.languages.setLanguageConfiguration("markdown", {
