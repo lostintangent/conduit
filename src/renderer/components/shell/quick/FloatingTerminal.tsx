@@ -196,7 +196,7 @@ export function FloatingTerminal({
             />
             <Separator
               orientation="vertical"
-              className="h-4 bg-elevated-border mx-1"
+              className="h-5 bg-elevated-border mx-1"
             />
             <ToolbarButton
               icon={<X size={14} />}
@@ -205,15 +205,17 @@ export function FloatingTerminal({
             />
           </div>
         </div>
-        <div
-          className="flex-1 min-h-0 origin-top-left"
-          style={{
-            transform: `scale(${OVERLAY_SCALE})`,
-            width: `${100 / OVERLAY_SCALE}%`,
-            height: `${100 / OVERLAY_SCALE}%`,
-          }}
-        >
-          <TerminalPane terminalId={terminalId} paneId={paneId} isActive />
+        <div className="flex-1 min-h-0 overflow-hidden px-0.5">
+          <div
+            className="origin-top-left h-full"
+            style={{
+              transform: `scale(${OVERLAY_SCALE})`,
+              width: `${100 / OVERLAY_SCALE}%`,
+              height: `${100 / OVERLAY_SCALE}%`,
+            }}
+          >
+            <TerminalPane terminalId={terminalId} paneId={paneId} isActive />
+          </div>
         </div>
       </div>
     </div>
