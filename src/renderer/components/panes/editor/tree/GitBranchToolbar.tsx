@@ -5,12 +5,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowRight, Filter, GitBranch } from "lucide-react";
+import { ArrowRight, GitCompare } from "lucide-react";
+import { GitStatusSummary } from "./GitStatusSummary";
+import type { GitStatusMap } from "@shared/types";
 
 type GitBranchToolbarProps = {
   currentBranch: string | null;
   baseBranch: string | null;
   showOnlyChangedFiles: boolean;
+  changedFilesCount?: number;
+  gitStatus?: GitStatusMap | null;
   onFilterToggle: () => void;
   onOpenBranchPicker: () => void;
 };
@@ -19,6 +23,8 @@ export function GitBranchToolbar({
   currentBranch,
   baseBranch,
   showOnlyChangedFiles,
+  changedFilesCount = 0,
+  gitStatus,
   onFilterToggle,
   onOpenBranchPicker,
 }: GitBranchToolbarProps) {
@@ -41,28 +47,10 @@ export function GitBranchToolbar({
       </span>
     );
 
-  const toggleButtonClass = "h-auto px-1.5 py-1 min-w-0 [&_svg]:size-3.5";
+  const toggleButtonClass = "[&_svg]:size-3.5";
 
   return (
-    <div className="border-t bg-elevated px-3 py-2 text-xs flex items-center gap-2 mt-auto">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Toggle
-            pressed={showOnlyChangedFiles}
-            onPressedChange={() => onFilterToggle()}
-            size="sm"
-            className={toggleButtonClass}
-          >
-            <Filter />
-          </Toggle>
-        </TooltipTrigger>
-        <TooltipContent>
-          {showOnlyChangedFiles
-            ? "Show all files"
-            : "Show only files with changes"}
-        </TooltipContent>
-      </Tooltip>
-
+    <div className="px-3 py-1.5 text-xs flex items-center gap-2">
       <Tooltip>
         <TooltipTrigger asChild>
           <Toggle
@@ -71,22 +59,39 @@ export function GitBranchToolbar({
             size="sm"
             className={toggleButtonClass}
           >
-            <GitBranch />
+            <GitCompare />
           </Toggle>
         </TooltipTrigger>
         <TooltipContent>
           {baseBranch && baseBranch !== "HEAD"
             ? `Comparing ${baseBranch} → ${currentBranch}`
-            : `Current branch: ${currentBranch}`}
+            : "Comparing against HEAD"}
         </TooltipContent>
       </Tooltip>
+      <div className="flex flex-1 truncate">{branchLabel}</div>
 
-      <Separator
-        orientation="vertical"
-        className="bg-elevated-border mr-1 h-5"
-      />
-
-      {branchLabel}
+      {changedFilesCount > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Toggle
+              pressed={showOnlyChangedFiles}
+              onPressedChange={() => onFilterToggle()}
+              size="sm"
+              className={`text-xs px-1.5 py-0.5 h-auto ${showOnlyChangedFiles ? "border border-border bg-primary/10" : ""}`}
+            >
+              <GitStatusSummary
+                gitStatus={gitStatus}
+                changedFilesCount={changedFilesCount}
+              />
+            </Toggle>
+          </TooltipTrigger>
+          <TooltipContent>
+            {showOnlyChangedFiles
+              ? "Showing only changed files • Click to show all files"
+              : `Show only ${changedFilesCount} changed ${changedFilesCount === 1 ? "file" : "files"}`}
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   );
 }
