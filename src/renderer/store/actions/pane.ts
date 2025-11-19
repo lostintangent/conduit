@@ -14,6 +14,7 @@ import type {
 } from "@/types";
 import { generateId } from "@/utils/id";
 import {
+  countPanesInLayout,
   getPaneDirectionConfig,
   walkLayout,
   type PaneDirection,
@@ -194,6 +195,90 @@ export function findLayoutPath(
   }
 
   return null;
+}
+
+export function setPaneMinimized(
+  tabId: string,
+  paneId: string,
+  minimized: boolean,
+): void {
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId || tab.locked || !tab.panes[paneId]) {
+        return tab;
+      }
+
+      if (minimized && countPanesInLayout(tab.layout) < 2) {
+        return tab;
+      }
+
+      const path = findLayoutPath(
+        tab.layout,
+        (candidate) => candidate.type === "pane" && candidate.paneId === paneId,
+      );
+
+      if (!path || path.length < 2) {
+        return tab;
+      }
+
+      const parentEntry = path[path.length - 2];
+      const targetEntry = path[path.length - 1];
+
+      if (
+        parentEntry.node.type !== "split" ||
+        targetEntry.node.type !== "pane" ||
+        parentEntry.node.children.length < 2
+      ) {
+        return tab;
+      }
+
+      if (Boolean(targetEntry.node.minimized) === minimized) {
+        return tab;
+      }
+
+      const updatedChildren = [...parentEntry.node.children];
+      updatedChildren[targetEntry.index] = {
+        ...targetEntry.node,
+        minimized,
+      };
+
+      let updatedLayout: LayoutNode = {
+        ...parentEntry.node,
+        children: updatedChildren,
+      };
+
+      for (let i = path.length - 3; i >= 0; i -= 1) {
+        const ancestor = path[i];
+        if (ancestor.node.type !== "split") {
+          continue;
+        }
+        const childIndex = path[i + 1]?.index ?? 0;
+        const ancestorChildren = [...ancestor.node.children];
+        ancestorChildren[childIndex] = updatedLayout;
+        updatedLayout = { ...ancestor.node, children: ancestorChildren };
+      }
+
+      let nextActivePaneId = tab.activePaneId;
+      if (minimized && tab.activePaneId === paneId) {
+        const siblingPaneId = parentEntry.node.children
+          .filter((_, idx) => idx !== targetEntry.index)
+          .map((sibling) => findFirstPaneId(sibling))
+          .find(Boolean);
+
+        if (siblingPaneId) {
+          nextActivePaneId = siblingPaneId;
+        }
+      } else if (!minimized) {
+        nextActivePaneId = paneId;
+      }
+
+      return {
+        ...tab,
+        layout: updatedLayout,
+        activePaneId: nextActivePaneId,
+      };
+    }),
+  );
 }
 
 type ExtractPaneResult = {

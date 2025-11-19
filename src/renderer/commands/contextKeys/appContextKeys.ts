@@ -69,6 +69,16 @@ export const isFocusMode = new ContextKey<boolean>("isFocusMode", false);
  */
 export const activePaneType = new ContextKey<string>("activePaneType", "");
 
+export const paneIsMinimized = new ContextKey<boolean>(
+  "paneIsMinimized",
+  false,
+);
+
+export const paneCanBeMinimized = new ContextKey<boolean>(
+  "paneCanBeMinimized",
+  false,
+);
+
 /**
  * Whether the active pane is in an agent session
  * Used by: agent.mergeAndClose, agent.terminate

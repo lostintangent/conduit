@@ -20,7 +20,11 @@ import {
   handleForkVMAction,
 } from "@/hooks/useSandboxHandlers";
 import { enterFocusMode } from "@/store/actions/focusMode";
-import { activatePane, openWebViewPane } from "@/store/actions/pane";
+import {
+  activatePane,
+  openWebViewPane,
+  setPaneMinimized,
+} from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
 import {
@@ -42,6 +46,7 @@ import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ChevronsLeftRight, ChevronsUpDown } from "lucide-react";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
@@ -195,9 +200,15 @@ function buildGridTemplateStyles(
       : { gridTemplateRows: templateValue };
   }
 
-  const templateValue = buildTemplateString(
-    children.map((child) => child.size ?? 1),
-  );
+  const templateValue = children
+    .map((child) => {
+      if (child.type === "pane" && child.minimized) {
+        return "minmax(0, 25px)";
+      }
+      const value = child.size ?? 1;
+      return `minmax(0, ${Math.max(value, 0)}fr)`;
+    })
+    .join(" ");
 
   return direction === "row"
     ? { gridTemplateColumns: templateValue }
@@ -294,6 +305,7 @@ export function TabLayout({
       node: LayoutPaneNode,
       tab: Tab,
       hasUnifiedSandbox: boolean,
+      parentDirection?: SplitDirection,
     ): React.ReactNode => {
       const pane = tab.panes[node.paneId];
       if (!pane) {
@@ -305,6 +317,7 @@ export function TabLayout({
       const isInFocusMode = applicationMode === "focus";
       const isHiddenInFocusMode = isInFocusMode && !isActivePane;
       const isInPreview = isTabInPreview(tab.id);
+      const isMinimized = Boolean(node.minimized);
 
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
@@ -358,6 +371,55 @@ export function TabLayout({
         (draggedPaneId === pane.id ||
           (!draggedPaneId && hoveredPaneId === pane.id) ||
           (!draggedPaneId && !hoveredPaneId && isActivePane));
+
+      if (isMinimized) {
+        const isHorizontalBar = parentDirection === "column";
+        const barClassName = isHorizontalBar
+          ? "h-[25px] w-full"
+          : "w-[25px] h-full";
+
+        return (
+          <div
+            data-node-id={node.id}
+            className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
+            style={{
+              gridTemplateColumns: "minmax(0, 1fr)",
+              gridTemplateRows: "minmax(0, 1fr)",
+              display: isHiddenInFocusMode ? "none" : undefined,
+            }}
+            {...dropHandlers}
+            onContextMenu={onPaneContextMenu}
+            onMouseEnter={() => {
+              setHoveredPaneId(pane.id);
+              if (isInPreview) {
+                setHoveredPreviewPaneId(pane.id);
+              }
+            }}
+            onMouseLeave={() => {
+              setHoveredPaneId(null);
+              if (isInPreview) {
+                setHoveredPreviewPaneId(null);
+              }
+            }}
+          >
+            <button
+              type="button"
+              className={`${barClassName} flex items-center justify-center bg-elevated text-white/80 hover:text-white hover:bg-elevated/80 transition-colors`}
+              onClick={(event) => {
+                setPaneMinimized(tab.id, pane.id, false);
+                onPaneActivate(event);
+              }}
+              aria-label="Restore pane"
+            >
+              {isHorizontalBar ? (
+                <ChevronsUpDown className="w-5 h-5" />
+              ) : (
+                <ChevronsLeftRight className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        );
+      }
 
       return (
         <div
@@ -533,6 +595,7 @@ export function TabLayout({
       hoveredPreviewPaneId,
       setHoveredPreviewPaneId,
       setApplicationMode,
+      setPaneMinimized,
     ],
   );
 
@@ -544,6 +607,7 @@ export function TabLayout({
         node: LayoutNode,
         tab: Tab,
         hasUnifiedSandbox: boolean,
+        parentDirection: SplitDirection,
       ) => React.ReactNode,
       hasUnifiedSandbox: boolean,
     ): React.ReactNode => {
@@ -682,7 +746,7 @@ export function TabLayout({
                   </>
                 )}
 
-                {renderChild(child, tab, hasUnifiedSandbox)}
+                {renderChild(child, tab, hasUnifiedSandbox, node.direction)}
               </div>
             );
           })}
@@ -700,9 +764,14 @@ export function TabLayout({
   );
 
   const renderLayout = useCallback(
-    (node: LayoutNode, tab: Tab, hasUnifiedSandbox: boolean) => {
+    (
+      node: LayoutNode,
+      tab: Tab,
+      hasUnifiedSandbox: boolean,
+      parentDirection?: SplitDirection,
+    ) => {
       if (node.type === "pane") {
-        return renderPaneNode(node, tab, hasUnifiedSandbox);
+        return renderPaneNode(node, tab, hasUnifiedSandbox, parentDirection);
       }
       return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox);
     },

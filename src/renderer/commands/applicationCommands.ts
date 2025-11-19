@@ -16,6 +16,8 @@ import {
   hasLastWorkspace,
   hasWorkspace,
   isInAgentSession,
+  paneCanBeMinimized,
+  paneIsMinimized,
   tabCount,
   tabIsLocked,
 } from "@/commands/contextKeys/appContextKeys";
@@ -50,6 +52,7 @@ import {
   movePane,
   openEditorPane,
   openWebViewPane,
+  setPaneMinimized,
   splitPane,
   splitPaneWithAgentSession,
 } from "@/store/actions/pane";
@@ -64,6 +67,7 @@ import {
   updateTabProperty,
 } from "@/store/actions/tab";
 import { ApplicationCommands } from "@shared/commands";
+import { countPanesInLayout, walkLayout } from "@/utils/layout";
 
 // Re-export for convenience
 export { ApplicationCommands };
@@ -500,6 +504,52 @@ export function registerApplicationCommands(
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
         toggleFocusMode(targetTabId, targetPaneId);
+      }
+    },
+  });
+
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MINIMIZE,
+    title: "Minimize Pane",
+    description: "Collapse the pane into a narrow bar",
+    category: "Pane",
+    when: When.and(
+      paneActionsEnabled,
+      paneCanBeMinimized.isTrue(),
+      paneIsMinimized.isFalse(),
+    ),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "1_pane",
+      order: 2,
+      when: When.and(paneCanBeMinimized.isTrue(), paneIsMinimized.isFalse()),
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        setPaneMinimized(targetTabId, targetPaneId, true);
+      }
+    },
+  });
+
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_RESTORE,
+    title: "Restore Pane",
+    description: "Expand a minimized pane back to its size",
+    category: "Pane",
+    when: When.and(paneActionsEnabled, paneIsMinimized.isTrue()),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "1_pane",
+      order: 3,
+      when: paneIsMinimized.isTrue(),
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        setPaneMinimized(targetTabId, targetPaneId, false);
       }
     },
   });
@@ -1217,6 +1267,25 @@ const paneContextBuilder: MenuContextBuilder = async (
   if (tab) {
     contextKeyService.setGlobal(tabIsLocked.key, tab.locked);
   }
+
+  let isMinimized = false;
+  let canBeMinimized = false;
+
+  if (pane && tab) {
+    const totalPanes = countPanesInLayout(tab.layout);
+    walkLayout(tab.layout, ({ node, parent }) => {
+      if (node.type === "pane" && node.paneId === pane.id) {
+        isMinimized = Boolean(node.minimized);
+        canBeMinimized =
+          totalPanes > 1 && parent !== null && parent.children.length > 1;
+        return false;
+      }
+      return true;
+    });
+  }
+
+  contextKeyService.setGlobal(paneIsMinimized.key, isMinimized);
+  contextKeyService.setGlobal(paneCanBeMinimized.key, canBeMinimized);
 };
 
 /**
