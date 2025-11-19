@@ -14,6 +14,7 @@ import type {
   FileChangedEvent,
   FileDiffResult,
   FileRenamedEvent,
+  FileStats,
   FileTreeNode,
   ForkVMPayload,
   ForwardPortResponse,
@@ -305,6 +306,9 @@ const conduitAPI = {
   fileExists: (filePath: string) =>
     ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,
 
+  getFileStats: (filePath: string) =>
+    ipcRenderer.invoke("fs:get-stats", filePath) as Promise<FileStats>,
+
   /* File watcher methods (UI->main) */
 
   subscribeFileWatcher: (cwd: string, paneId: string) =>
@@ -356,6 +360,13 @@ const conduitAPI = {
     ipcRenderer.invoke("git:get-branches", cwd) as Promise<{
       success: boolean;
       branches: Branch[];
+      error?: string;
+    }>,
+
+  getMostRecentFile: (cwd: string) =>
+    ipcRenderer.invoke("git:get-most-recent-file", cwd) as Promise<{
+      success: boolean;
+      file: string | null;
       error?: string;
     }>,
 

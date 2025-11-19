@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { FSWatcher, promises as fs } from "node:fs";
+import path from "node:path";
 import { listDirectory, readFile } from "./utils";
-const path = require("node:path");
 
 // Store active file watchers
 const fileWatchers = new Map<string, FSWatcher>();
@@ -106,6 +106,21 @@ export function initializeFsHandlers() {
       return true;
     } catch (error) {
       return false;
+    }
+  });
+
+  ipcMain.handle("fs:get-stats", async (_, filePath: string) => {
+    try {
+      const stats = await fs.stat(filePath);
+      return {
+        mtime: stats.mtime.getTime(),
+        size: stats.size,
+        isFile: stats.isFile(),
+        isDirectory: stats.isDirectory(),
+      };
+    } catch (error) {
+      console.error("Failed to get file stats", filePath, error);
+      throw error;
     }
   });
 }

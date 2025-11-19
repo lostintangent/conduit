@@ -227,6 +227,16 @@ export type FileTreeNode = {
 };
 
 /**
+ * File statistics
+ */
+export type FileStats = {
+  mtime: number; // Modification time in milliseconds since epoch
+  size: number; // File size in bytes
+  isFile: boolean;
+  isDirectory: boolean;
+};
+
+/**
  * Git file status for a single file
  */
 export type GitFileStatus = {

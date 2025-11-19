@@ -1142,6 +1142,62 @@ export function EditorPane({
     [onFileChange, showOnlyChangedFiles, gitStatus, fetchDiffForFile],
   );
 
+  // Auto-open most recently modified file on mount (dirty files first, then tracked files)
+  useEffect(() => {
+    // Only run once on initial mount
+    const hasAutoOpened = sessionStorage.getItem(
+      `editor-auto-opened-${paneId}`,
+    );
+    if (hasAutoOpened) {
+      return;
+    }
+
+    // Don't auto-open if a file is already open
+    if (filePath) {
+      sessionStorage.setItem(`editor-auto-opened-${paneId}`, "true");
+      return;
+    }
+
+    // Need to be in a git repo
+    if (!isInGitRepo) {
+      return;
+    }
+
+    let cancelled = false;
+
+    // Get and open the most recently modified file
+    const openMostRecentFile = async () => {
+      try {
+        // Single API call - server does all the stat work
+        const result = await api.getMostRecentFile(cwd);
+
+        if (!result.success || !result.file || cancelled) {
+          return;
+        }
+
+        // Open the file
+        const fullPath = path.join(cwd, result.file);
+        const node: FileTreeNode = {
+          type: "file",
+          name: path.basename(fullPath),
+          path: fullPath,
+          relativePath: result.file,
+        };
+
+        await handleFileSelect(node);
+        sessionStorage.setItem(`editor-auto-opened-${paneId}`, "true");
+      } catch (error) {
+        console.error("Failed to auto-open most recent file:", error);
+      }
+    };
+
+    openMostRecentFile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isInGitRepo, filePath, cwd, paneId, handleFileSelect]);
+
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
       setCurrentContent(value);
