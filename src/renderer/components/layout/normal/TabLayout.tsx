@@ -23,7 +23,7 @@ import { enterFocusMode } from "@/store/actions/focusMode";
 import {
   activatePane,
   openWebViewPane,
-  setPaneMinimized,
+  setPaneCollapsed,
 } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
@@ -41,10 +41,11 @@ import type {
   SplitDirection,
   Tab,
 } from "@/types";
+import { cn } from "@/utils";
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { useAtomValue, useSetAtom } from "jotai";
-import { ChevronsLeftRight, ChevronsUpDown } from "lucide-react";
+import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -202,7 +203,7 @@ function buildGridTemplateStyles(
 
   const templateValue = children
     .map((child) => {
-      if (child.type === "pane" && child.minimized) {
+      if (child.type === "pane" && child.collapsed) {
         return "minmax(0, 25px)";
       }
       const value = child.size ?? 1;
@@ -317,7 +318,7 @@ export function TabLayout({
       const isInFocusMode = applicationMode === "focus";
       const isHiddenInFocusMode = isInFocusMode && !isActivePane;
       const isInPreview = isTabInPreview(tab.id);
-      const isMinimized = Boolean(node.minimized);
+      const isCollapsed = Boolean(node.collapsed);
 
       const onPaneContextMenu = (event: React.MouseEvent) =>
         handleContextMenu(event, tab.id, pane.id);
@@ -338,7 +339,7 @@ export function TabLayout({
         }
       };
 
-      if (isMinimized && !isInFocusMode) {
+      if (isCollapsed && !isInFocusMode) {
         const isHorizontalBar = parentDirection === "column";
         const barClassName = isHorizontalBar
           ? "h-[25px] w-full"
@@ -347,23 +348,20 @@ export function TabLayout({
         return (
           <div
             data-node-id={node.id}
-            className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
-            style={{
-              gridTemplateColumns: "minmax(0, 1fr)",
-              gridTemplateRows: "minmax(0, 1fr)",
-              display: isHiddenInFocusMode ? "none" : undefined,
-            }}
+            className={cn(
+              "flex-1 min-h-0 min-w-0 overflow-hidden relative",
+              isHiddenInFocusMode && "hidden",
+            )}
+            onContextMenu={onPaneContextMenu}
           >
             <button
               className={`${barClassName} flex items-center justify-center bg-elevated hover:bg-elevated/80 transition-colors`}
-              onClick={() => {
-                setPaneMinimized(tab.id, pane.id, false);
-              }}
+              onClick={() => setPaneCollapsed(tab.id, pane.id, false)}
             >
               {isHorizontalBar ? (
-                <ChevronsUpDown className="w-5 h-5" />
+                <UnfoldVertical className="w-4 h-4" />
               ) : (
-                <ChevronsLeftRight className="w-5 h-5" />
+                <UnfoldHorizontal className="w-4 h-4" />
               )}
             </button>
           </div>
@@ -579,7 +577,7 @@ export function TabLayout({
       hoveredPreviewPaneId,
       setHoveredPreviewPaneId,
       setApplicationMode,
-      setPaneMinimized,
+      setPaneCollapsed,
     ],
   );
 
@@ -670,8 +668,16 @@ export function TabLayout({
               ? "bg-accent/80"
               : "bg-transparent hover:bg-accent/80";
 
+            // We only want to render resize handles between two pane nodes
+            // when the previous sibling pane isn't collapsed, when the tab
+            // isn't locked, and when we're not in focus mode.
             const shouldRenderHandles =
-              primaryAxis !== null && !isInFocusMode && !isLocked;
+              primaryAxis !== null &&
+              !isInFocusMode &&
+              !isLocked &&
+              (previousSibling.type === "split" ||
+                (previousSibling.type === "pane" &&
+                  !previousSibling.collapsed));
 
             const intersectionHandles =
               shouldRenderHandles && primaryAxis

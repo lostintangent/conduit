@@ -108,10 +108,10 @@ describe("applicationCommands", () => {
         registeredCommands.has(ApplicationCommands.PANE_OPEN_WEB_PAGE),
       ).toBe(true);
       expect(registeredCommands.has(ApplicationCommands.PANE_FOCUS)).toBe(true);
-      expect(registeredCommands.has(ApplicationCommands.PANE_MINIMIZE)).toBe(
+      expect(registeredCommands.has(ApplicationCommands.PANE_COLLAPSE)).toBe(
         true,
       );
-      expect(registeredCommands.has(ApplicationCommands.PANE_RESTORE)).toBe(
+      expect(registeredCommands.has(ApplicationCommands.PANE_EXPAND)).toBe(
         true,
       );
       expect(registeredCommands.has(ApplicationCommands.PANE_CLOSE)).toBe(true);

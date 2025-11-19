@@ -16,8 +16,8 @@ import {
   hasLastWorkspace,
   hasWorkspace,
   isInAgentSession,
-  paneCanBeMinimized,
-  paneIsMinimized,
+  paneCanBeCollapsed,
+  paneIsCollapsed,
   tabCount,
   tabIsLocked,
 } from "@/commands/contextKeys/appContextKeys";
@@ -52,7 +52,7 @@ import {
   movePane,
   openEditorPane,
   openWebViewPane,
-  setPaneMinimized,
+  setPaneCollapsed,
   splitPane,
   splitPaneWithAgentSession,
 } from "@/store/actions/pane";
@@ -66,7 +66,7 @@ import {
   unlockTab,
   updateTabProperty,
 } from "@/store/actions/tab";
-import { countPanesInLayout, walkLayout } from "@/utils/layout";
+import { walkLayout } from "@/utils/layout";
 import { ApplicationCommands } from "@shared/commands";
 
 // Re-export for convenience
@@ -485,6 +485,7 @@ export function registerApplicationCommands(
   const paneActionsEnabled = When.and(
     hasActivePane.isTrue(),
     tabIsLocked.isFalse(),
+    paneIsCollapsed.isFalse(),
   );
 
   // Pane: Toggle Focus
@@ -509,43 +510,43 @@ export function registerApplicationCommands(
   });
 
   commandRegistry.registerCommand({
-    id: ApplicationCommands.PANE_MINIMIZE,
-    title: "Minimize Pane",
+    id: ApplicationCommands.PANE_COLLAPSE,
+    title: "Collapse Pane",
     description: "Collapse the active pane",
     category: "Pane",
-    when: When.and(paneCanBeMinimized.isTrue(), paneIsMinimized.isFalse()),
+    when: When.and(paneCanBeCollapsed.isTrue(), paneIsCollapsed.isFalse()),
     menu: {
       id: MenuId.PaneContext,
       group: "1_pane",
       order: 3,
-      when: When.and(paneCanBeMinimized.isTrue(), paneIsMinimized.isFalse()),
+      when: When.and(paneIsCollapsed.isFalse()),
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        setPaneMinimized(targetTabId, targetPaneId, true);
+        setPaneCollapsed(targetTabId, targetPaneId, true);
       }
     },
   });
 
   commandRegistry.registerCommand({
-    id: ApplicationCommands.PANE_RESTORE,
-    title: "Restore Pane",
+    id: ApplicationCommands.PANE_EXPAND,
+    title: "Expand Pane",
     description: "Expand the active pane back to its original size",
     category: "Pane",
-    when: When.and(paneIsMinimized.isTrue()),
+    when: When.and(paneIsCollapsed.isTrue()),
     menu: {
       id: MenuId.PaneContext,
       group: "1_pane",
       order: 3,
-      when: paneIsMinimized.isTrue(),
+      when: paneIsCollapsed.isTrue(),
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        setPaneMinimized(targetTabId, targetPaneId, false);
+        setPaneCollapsed(targetTabId, targetPaneId, false);
       }
     },
   });
@@ -1264,30 +1265,30 @@ const paneContextBuilder: MenuContextBuilder = async (
     contextKeyService.setGlobal(tabIsLocked.key, tab.locked);
   }
 
-  let isMinimized = false;
-  let canBeMinimized = false;
+  let isPaneCollapsed = false;
+  let canPaneBeCollapsed = false;
 
   if (pane && tab) {
-    const totalPanes = countPanesInLayout(tab.layout);
+    // Find the pane in the layout tree and determine whether
+    // it can be collapsed based on whether it has any sibling
+    // panes that aren't already collapsed.
     walkLayout(tab.layout, ({ node, parent }) => {
       if (node.type === "pane" && node.paneId === pane.id) {
-        isMinimized = Boolean(node.minimized);
-        canBeMinimized =
-          totalPanes > 1 &&
+        isPaneCollapsed = Boolean(node.collapsed);
+        canPaneBeCollapsed =
           parent?.children.length > 1 &&
           !parent.children.every(
             (child) =>
               child.id === node.id ||
-              (child.type === "pane" && child.minimized),
+              (child.type === "pane" && child.collapsed),
           );
         return false;
       }
-      return true;
     });
   }
 
-  contextKeyService.setGlobal(paneIsMinimized.key, isMinimized);
-  contextKeyService.setGlobal(paneCanBeMinimized.key, canBeMinimized);
+  contextKeyService.setGlobal(paneIsCollapsed.key, isPaneCollapsed);
+  contextKeyService.setGlobal(paneCanBeCollapsed.key, canPaneBeCollapsed);
 };
 
 /**

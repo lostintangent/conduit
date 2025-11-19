@@ -196,41 +196,53 @@ export function findLayoutPath(
   return null;
 }
 
-export function setPaneMinimized(
+export function setPaneCollapsed(
   tabId: string,
   paneId: string,
-  minimized: boolean,
+  collapsed: boolean,
 ): void {
+  // Note: This method is only expected to be called from the collapse/expand
+  // commands, which are already guarded by checks for whether the pane can be
+  // collapsed or expanded. So we're not repeating those checks here. That said,
+  // this function shouldn't be called directly from unguarded locations.
+
   store.set(tabsAtom, (tabs) => {
     const tab = tabs.find(({ id }) => id === tabId);
     const pane = tab.panes[paneId];
 
+    // TODO: Improve the way we handle pane collapsing, since
+    // it's hacky that we need to do this here.
     if (pane.type === "webview") {
       document.getElementById(pane.id).style.left = "-10000px";
     }
 
+    // Find the layout node for the pane and update its collapsed state
     walkLayout(tab.layout, ({ node, parent }) => {
       if (node.type === "pane" && node.paneId === paneId) {
-        node.minimized = minimized;
+        if (collapsed) {
+          node.collapsed = true;
 
-        if (minimized && tab.activePaneId === paneId) {
-          // If the pane being minimized is then active
-          // pane, then let's find its first non-minimized
-          // sibling, and make that the active pane instead.
-          const siblingPaneId = parent.children
-            .filter(
-              (child) =>
-                child.type === "pane" &&
-                child.id !== node.id &&
-                !child.minimized,
-            )
-            .map((sibling) => findFirstPaneId(sibling))
-            .find(Boolean);
+          if (tab.activePaneId === paneId) {
+            // If the pane being minimized is then active
+            // pane, then let's find its first non-minimized
+            // sibling, and make that the active pane instead.
+            const siblingPaneId = parent.children
+              .filter(
+                (child) =>
+                  child.type === "pane" &&
+                  child.id !== node.id &&
+                  !child.collapsed,
+              )
+              .map((sibling) => findFirstPaneId(sibling))
+              .find(Boolean);
 
-          if (siblingPaneId) {
-            tab.activePaneId = siblingPaneId;
+            if (siblingPaneId) {
+              tab.activePaneId = siblingPaneId;
+            }
           }
-        } else if (!minimized) {
+        } else {
+          delete node.collapsed;
+
           // Activate the pane when restoring it
           tab.activePaneId = paneId;
         }

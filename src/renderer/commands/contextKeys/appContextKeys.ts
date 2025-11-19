@@ -69,13 +69,13 @@ export const isFocusMode = new ContextKey<boolean>("isFocusMode", false);
  */
 export const activePaneType = new ContextKey<string>("activePaneType", "");
 
-export const paneIsMinimized = new ContextKey<boolean>(
-  "paneIsMinimized",
+export const paneIsCollapsed = new ContextKey<boolean>(
+  "paneIsCollapsed",
   false,
 );
 
-export const paneCanBeMinimized = new ContextKey<boolean>(
-  "paneCanBeMinimized",
+export const paneCanBeCollapsed = new ContextKey<boolean>(
+  "paneCanBeCollapsed",
   false,
 );
 
