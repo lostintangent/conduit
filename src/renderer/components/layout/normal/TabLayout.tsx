@@ -174,6 +174,10 @@ const computeIntersectionHandles = (
 
 const COLLAPSED_PANE_SIZE = 25;
 
+/**
+ * Generate the CSS grid template styles for a split node,
+ * taking into account collapsed panes and focus mode.
+ */
 function buildGridTemplateStyles(
   children: LayoutNode[],
   direction: SplitDirection,
@@ -181,10 +185,7 @@ function buildGridTemplateStyles(
   isInFocusMode?: boolean,
 ): React.CSSProperties {
   const buildTemplateString = (values: (number | "collapsed")[]): string => {
-    if (values.length === 0) {
-      return "minmax(0, 1fr)";
-    }
-
+    if (values.length === 0) return "minmax(0, 1fr)";
     return values
       .map((value) =>
         value === "collapsed"
@@ -194,23 +195,36 @@ function buildGridTemplateStyles(
       .join(" ");
   };
 
-  // In focus mode, make non-active panes 0fr so the active pane fills the space
+  // When in focus mode, only allocate space to the active pane
+  // so we're only rendering one pane at a time, and hide all others.
   if (isInFocusMode && activePaneId) {
     const templateValue = buildTemplateString(
       children.map((child) =>
         layoutContainsPaneId(child, activePaneId) ? 1 : 0,
       ),
     );
-
     return direction === "row"
       ? { gridTemplateColumns: templateValue }
       : { gridTemplateRows: templateValue };
   }
 
+  const hasCollapsedSibling = children.some(
+    (c) => c.type === "pane" && c.collapsed,
+  );
+
   const templateValue = buildTemplateString(
     children.map((child) => {
-      if (child.type === "pane" && child.collapsed) {
-        return "collapsed";
+      if (child.type === "pane" && child.collapsed) return "collapsed";
+
+      // If there are collapses siblings in this layout, there we need to
+      // check if there are other expanded siblings. If not, then we need
+      // to force this pane to take up all available space.
+      if (hasCollapsedSibling) {
+        const hasExpandedSibling = children.some(
+          (c) => c.type === "pane" && c.id !== child.id && !c.collapsed,
+        );
+
+        return hasExpandedSibling ? (child.size ?? 1) : 1;
       }
       return child.size ?? 1;
     }),
