@@ -15,8 +15,10 @@ import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
+import { enqueueNotification } from "@/store/actions/notifications";
 import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
+import { cleanGitError } from "@/utils/gitErrors";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { DiffEditor, loader } from "@monaco-editor/react";
 import type { FileDiffResult, FileTreeNode } from "@shared/types";
@@ -429,20 +431,14 @@ export function EditorPane({
         console.log("[EditorPane] Pull output:", result.stdout);
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.error("[EditorPane] Pull failed:", errorMessage);
-
-      // Check for common error scenarios
-      if (errorMessage.includes("no tracking information")) {
-        console.warn(
-          "[EditorPane] No upstream branch configured. Use 'git branch --set-upstream-to' to configure.",
-        );
-      } else if (errorMessage.includes("uncommitted changes")) {
-        console.warn(
-          "[EditorPane] Uncommitted changes would be overwritten. Commit or stash changes first.",
-        );
-      }
+      console.error("[EditorPane] Pull failed:", error);
+      const { message, details } = cleanGitError(error);
+      enqueueNotification({
+        kind: "error",
+        message,
+        details,
+        autoCloseMs: 5000,
+      });
     } finally {
       setIsPulling(false);
     }
@@ -469,27 +465,17 @@ export function EditorPane({
         console.log("[EditorPane] Output:", result.stdout);
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
       console.error(
         `[EditorPane] ${hasUpstream ? "Push" : "Publish"} failed:`,
-        errorMessage,
+        error,
       );
-
-      // Check for common error scenarios
-      if (errorMessage.includes("no upstream branch")) {
-        console.warn(
-          "[EditorPane] No upstream branch configured. Use 'git push --set-upstream' to configure.",
-        );
-      } else if (errorMessage.includes("rejected")) {
-        console.warn(
-          "[EditorPane] Push rejected. Pull the latest changes first or use force push if needed.",
-        );
-      } else if (errorMessage.includes("permission denied")) {
-        console.warn(
-          "[EditorPane] Permission denied. Check your git credentials and repository access.",
-        );
-      }
+      const { message, details } = cleanGitError(error);
+      enqueueNotification({
+        kind: "error",
+        message,
+        details,
+        autoCloseMs: 5000,
+      });
     } finally {
       setIsPushing(false);
     }
@@ -528,9 +514,14 @@ export function EditorPane({
       // Clear message after successful commit
       setCommitMessage("");
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.error("[EditorPane] Commit failed:", errorMessage);
+      console.error("[EditorPane] Commit failed:", error);
+      const { message, details } = cleanGitError(error);
+      enqueueNotification({
+        kind: "error",
+        message,
+        details,
+        autoCloseMs: 5000,
+      });
     } finally {
       setIsCommitting(false);
     }
@@ -544,6 +535,13 @@ export function EditorPane({
         console.log(`[EditorPane] Staged file: ${relativePath}`);
       } catch (error) {
         console.error("[EditorPane] Failed to stage file:", error);
+        const { details } = cleanGitError(error);
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to stage ${relativePath}`,
+          details,
+          autoCloseMs: 5000,
+        });
       }
     },
     [cwd],
@@ -557,6 +555,13 @@ export function EditorPane({
         console.log(`[EditorPane] Unstaged file: ${relativePath}`);
       } catch (error) {
         console.error("[EditorPane] Failed to unstage file:", error);
+        const { details } = cleanGitError(error);
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to unstage ${relativePath}`,
+          details,
+          autoCloseMs: 5000,
+        });
       }
     },
     [cwd],
@@ -570,6 +575,13 @@ export function EditorPane({
         console.log(`[EditorPane] Discarded changes for file: ${relativePath}`);
       } catch (error) {
         console.error("[EditorPane] Failed to discard file changes:", error);
+        const { details } = cleanGitError(error);
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to discard changes for ${relativePath}`,
+          details,
+          autoCloseMs: 5000,
+        });
       }
     },
     [cwd],
@@ -2373,8 +2385,12 @@ export function EditorPane({
                 isPushing={isPushing}
                 hasUpstream={hasUpstream}
                 onStageFile={baseBranch === null ? handleStageFile : undefined}
-                onUnstageFile={baseBranch === null ? handleUnstageFile : undefined}
-                onRevertFile={baseBranch === null ? handleDiscardFileChanges : undefined}
+                onUnstageFile={
+                  baseBranch === null ? handleUnstageFile : undefined
+                }
+                onRevertFile={
+                  baseBranch === null ? handleDiscardFileChanges : undefined
+                }
               />
             ) : hasOpenFile ? (
               <>
@@ -2533,8 +2549,12 @@ export function EditorPane({
                 isPushing={isPushing}
                 hasUpstream={hasUpstream}
                 onStageFile={baseBranch === null ? handleStageFile : undefined}
-                onUnstageFile={baseBranch === null ? handleUnstageFile : undefined}
-                onRevertFile={baseBranch === null ? handleDiscardFileChanges : undefined}
+                onUnstageFile={
+                  baseBranch === null ? handleUnstageFile : undefined
+                }
+                onRevertFile={
+                  baseBranch === null ? handleDiscardFileChanges : undefined
+                }
               />
             ) : (
               <div className="flex flex-1 bg-background" />

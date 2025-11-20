@@ -28,7 +28,9 @@ import {
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { DiffEditor } from "@monaco-editor/react";
+import { enqueueNotification } from "@/store/actions/notifications";
 import { resolveTheme } from "@/utils/theme";
+import { cleanGitError } from "@/utils/gitErrors";
 import { useAtomValue } from "jotai";
 import { userSettingsAtom } from "@/store/atoms";
 
@@ -129,6 +131,13 @@ export function ChangesReviewPane({
       } catch (error) {
         console.error(`Failed to load diff for ${relativePath}:`, error);
         setFileDiffs((prev) => new Map(prev).set(relativePath, null));
+        const { details } = cleanGitError(error);
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to load diff for ${relativePath}`,
+          details,
+          autoCloseMs: 5000,
+        });
       } finally {
         setLoadingDiffs((prev) => {
           const next = new Set(prev);
