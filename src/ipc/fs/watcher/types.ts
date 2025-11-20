@@ -44,6 +44,7 @@ export type GitStatusChangedEvent = {
   cwd: string;
   gitStatus: GitStatusMap | null;
   baseBranch: string | null;
+  currentBranch: string | null;
 };
 
 /**

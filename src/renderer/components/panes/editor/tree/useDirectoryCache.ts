@@ -43,6 +43,7 @@ function hasListeners(dirPath: string): boolean {
  */
 export function invalidateDirectory(dirPath: string, rootPath?: string) {
   const entry = directoryCache.get(dirPath);
+
   if (entry) {
     if (hasListeners(dirPath)) {
       // Directory is currently mounted - do silent refresh by incrementing version
@@ -62,6 +63,7 @@ export function invalidateDirectory(dirPath: string, rootPath?: string) {
           // Update cache with fresh data
           const currentEntry = directoryCache.get(dirPath);
           const newVersion = (currentEntry?.version ?? 0) + 1;
+
           directoryCache.set(dirPath, {
             children: fetchedChildren,
             version: newVersion,

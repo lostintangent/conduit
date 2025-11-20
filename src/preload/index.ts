@@ -393,6 +393,7 @@ const conduitAPI = {
       cwd: string;
       gitStatus: Record<string, GitFileStatus> | null;
       baseBranch: string | null;
+      currentBranch: string | null;
     }) => void,
   ) => createEventListener("git:status-changed", listener),
 

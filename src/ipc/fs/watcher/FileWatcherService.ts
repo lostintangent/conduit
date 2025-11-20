@@ -1,7 +1,7 @@
 import type { GitStatusMap } from "@shared/types";
 import { BrowserWindow } from "electron";
 import path from "node:path";
-import { findRepoRoot } from "../../agent/git";
+import { findRepoRoot, getCurrentBranch } from "../../agent/git";
 import { listBranches } from "../../git/gitStatus";
 import type { IFileSystemWatcher } from "./IFileSystemWatcher";
 import type { IGitWatcher } from "./IGitWatcher";
@@ -18,6 +18,7 @@ type WatcherEntry = {
   subscribers: Set<FileWatcherSubscription>;
   gitStatus: GitStatusMap | null;
   baseBranch: string | null;
+  currentBranch: string | null;
   branches: any[] | null;
   setupInProgress: boolean;
   // Git status batching
@@ -108,6 +109,7 @@ export class FileWatcherService {
         subscribers: new Set(),
         gitStatus: null,
         baseBranch: null,
+        currentBranch: null,
         branches: null,
         setupInProgress: false,
         gitStatusBatchTimer: null,
@@ -239,6 +241,9 @@ export class FileWatcherService {
         );
         entry.gitStatus = gitStatus;
 
+        // Load current branch
+        entry.currentBranch = await getCurrentBranch(cwd);
+
         // Load branches
         entry.branches = await listBranches(gitRoot);
 
@@ -359,6 +364,11 @@ export class FileWatcherService {
         entry.baseBranch,
       );
       entry.gitStatus = gitStatus;
+
+      // Also refresh current branch (important for branch switches!)
+      const currentBranch = await getCurrentBranch(cwd);
+      entry.currentBranch = currentBranch;
+
       this.broadcastGitStatusChanged(cwd);
     }, delay);
   }
@@ -415,6 +425,7 @@ export class FileWatcherService {
       cwd,
       gitStatus: gitStatusObj as any,
       baseBranch: entry.baseBranch,
+      currentBranch: entry.currentBranch,
     };
 
     this.broadcast(cwd, "git:status-changed", event);
@@ -483,6 +494,10 @@ export class FileWatcherService {
       entry.baseBranch,
     );
     entry.gitStatus = gitStatus;
+
+    // Also refresh current branch
+    entry.currentBranch = await getCurrentBranch(cwd);
+
     this.broadcastGitStatusChanged(normalizedCwd);
   }
 }

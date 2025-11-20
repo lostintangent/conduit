@@ -306,6 +306,8 @@ export function EditorPane({
   const [showExternalChangeWarning, setShowExternalChangeWarning] =
     useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Track files that were modified externally while not being viewed
+  const filesModifiedWhileAwayRef = useRef<Set<string>>(new Set());
 
   // Refs to track current values for file watcher event handlers
   // This allows handlers to access current values without causing re-subscription
@@ -506,6 +508,10 @@ export function EditorPane({
 
     let cancelled = false;
 
+    // Check if this file was modified externally while we were viewing a different file
+    const wasModifiedWhileAway =
+      filesModifiedWhileAwayRef.current.has(filePath);
+
     api
       .readFile(filePath)
       .then((content) => {
@@ -516,6 +522,21 @@ export function EditorPane({
           setOriginalContent(content);
           setCurrentLanguage(language);
           setHasUnsavedChanges(false);
+
+          // If file was modified while away, force Monaco to update its model
+          if (wasModifiedWhileAway) {
+            // Clear from tracking set
+            filesModifiedWhileAwayRef.current.delete(filePath);
+
+            // Force Monaco to update the model with disk content
+            // This is needed because keepCurrentModel={true} may reuse a stale model
+            const modelUri = monaco.Uri.parse(`file://${filePath}`);
+            const existingModel = monaco.editor.getModel(modelUri);
+            if (existingModel && !existingModel.isDisposed()) {
+              // Update model content to match disk (will trigger editor refresh)
+              existingModel.setValue(content);
+            }
+          }
         }
       })
       .catch((error) => {
@@ -546,17 +567,20 @@ export function EditorPane({
     const fileStatus = gitStatus.get(relativePath);
     const hasGitChanges = fileStatus !== undefined;
 
+    // Use ref to check current view mode to avoid re-triggering effect when mode changes
+    const currentViewMode = viewModeRef.current;
+
     // If file has git changes and is modified, load diff view
     if (hasGitChanges && fileStatus.status === "modified") {
       // Only fetch diff if we're not already in diff mode for this file
-      if (viewMode.type !== "diff") {
+      if (currentViewMode.type !== "diff") {
         fetchDiffForFile(filePath).then((diff) => {
           if (diff && diff.status === "modified") {
             setViewMode({ type: "diff", data: diff, showRaw: false });
           }
         });
       }
-    } else if (viewMode.type === "diff" && !hasGitChanges) {
+    } else if (currentViewMode.type === "diff" && !hasGitChanges) {
       // File no longer has changes, switch back to editor
       // Reload file from disk to ensure we have current state
       // (user may have made edits in diff view against intermediate state)
@@ -593,7 +617,7 @@ export function EditorPane({
         setViewMode({ type: "editor" });
       }
     }
-  }, [filePath, gitStatus, cwd, baseBranch, viewMode.type, fetchDiffForFile]);
+  }, [filePath, gitStatus, cwd, baseBranch, fetchDiffForFile]);
 
   // Save file handler
   const handleSave = useCallback(async () => {
@@ -985,9 +1009,6 @@ export function EditorPane({
                     api
                       .readFile(currentFilePath)
                       .then((content) => {
-                        console.log(
-                          `[EditorPane] File reloaded successfully: ${currentFilePath}`,
-                        );
                         setCurrentContent(content);
                         setOriginalContent(content);
                         setExternallyModified(false);
@@ -1010,9 +1031,6 @@ export function EditorPane({
                   }
                 } else {
                   // Editor has unsaved changes, show warning
-                  console.log(
-                    `[EditorPane] Showing warning (dirty editor): ${currentFilePath}`,
-                  );
                   setShowExternalChangeWarning(true);
                 }
               })
@@ -1020,6 +1038,15 @@ export function EditorPane({
                 console.error("Failed to check file existence:", error);
               });
           }, 100);
+        }
+      } else {
+        // File was modified but is not currently open
+        // Track it so we can reload when user switches back to it
+        if (payload.eventType === "changed") {
+          filesModifiedWhileAwayRef.current.add(payload.filePath);
+        } else if (payload.eventType === "deleted") {
+          // Remove from tracking if it was deleted
+          filesModifiedWhileAwayRef.current.delete(payload.filePath);
         }
       }
     });
@@ -1064,8 +1091,6 @@ export function EditorPane({
       if (payload.cwd !== cwd) {
         return;
       }
-
-      console.log(`[EditorPane] Tree changed event received for cwd=${cwd}`);
 
       // Invalidate the root directory cache
       invalidateDirectory(cwd, cwd);
