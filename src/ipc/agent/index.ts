@@ -19,9 +19,12 @@ import {
   getCurrentBranch,
   getGitHubRepoInfo,
   getRemoteOriginUrl,
+  gitPull,
+  gitPush,
   hasGitRepository,
   hasUncommittedChanges,
   hasUnpushedCommits,
+  hasUpstreamBranch,
   parseGitHubRepo,
   pushCommitsViaSSH,
   runGit,
@@ -496,6 +499,24 @@ export async function initializeAgentHandlers() {
       return await applyDiffPatch(cwd, patchData);
     },
   );
+
+  ipcMain.handle(
+    "agent:git-pull",
+    async (_event, cwd: string, rebase = false) => {
+      return await gitPull(cwd, rebase);
+    },
+  );
+
+  ipcMain.handle(
+    "agent:git-push",
+    async (_event, cwd: string, force = false, setUpstream = false) => {
+      return await gitPush(cwd, force, setUpstream);
+    },
+  );
+
+  ipcMain.handle("agent:has-upstream-branch", async (_event, cwd: string) => {
+    return await hasUpstreamBranch(cwd);
+  });
 }
 
 export {

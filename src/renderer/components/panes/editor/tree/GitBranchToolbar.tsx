@@ -5,7 +5,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowRight, GitCompare } from "lucide-react";
+import {
+  ArrowRight,
+  GitCompare,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Send,
+} from "lucide-react";
 import { GitStatusSummary } from "./GitStatusSummary";
 import type { GitStatusMap } from "@shared/types";
 
@@ -17,6 +23,11 @@ type GitBranchToolbarProps = {
   gitStatus?: GitStatusMap | null;
   onFilterToggle: () => void;
   onOpenBranchPicker: () => void;
+  onPull?: () => void;
+  onPush?: () => void;
+  isPulling?: boolean;
+  isPushing?: boolean;
+  hasUpstream?: boolean;
 };
 
 export function GitBranchToolbar({
@@ -27,6 +38,11 @@ export function GitBranchToolbar({
   gitStatus,
   onFilterToggle,
   onOpenBranchPicker,
+  onPull,
+  onPush,
+  isPulling = false,
+  isPushing = false,
+  hasUpstream = true,
 }: GitBranchToolbarProps) {
   if (!currentBranch) {
     return null;
@@ -91,6 +107,79 @@ export function GitBranchToolbar({
               : `Show only ${changedFilesCount} changed ${changedFilesCount === 1 ? "file" : "files"}`}
           </TooltipContent>
         </Tooltip>
+      )}
+
+      {showOnlyChangedFiles && (onPull || onPush) && (
+        <Separator orientation="vertical" className="h-4" />
+      )}
+
+      {showOnlyChangedFiles && (onPull || onPush) && (
+        <div className="flex items-center gap-0.5">
+          {onPull && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  pressed={false}
+                  onPressedChange={onPull}
+                  disabled={isPulling || isPushing || !hasUpstream}
+                  size="sm"
+                  className={toggleButtonClass}
+                >
+                  <ArrowDownToLine
+                    className={isPulling ? "animate-pulse" : ""}
+                  />
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>
+                {!hasUpstream
+                  ? "No upstream branch configured"
+                  : isPulling
+                    ? "Pulling..."
+                    : "Pull from remote"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {onPush && hasUpstream && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  pressed={false}
+                  onPressedChange={onPush}
+                  disabled={isPulling || isPushing}
+                  size="sm"
+                  className={toggleButtonClass}
+                >
+                  <ArrowUpFromLine
+                    className={isPushing ? "animate-pulse" : ""}
+                  />
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isPushing ? "Pushing..." : "Push to remote"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {onPush && !hasUpstream && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  pressed={false}
+                  onPressedChange={onPush}
+                  disabled={isPulling || isPushing}
+                  size="sm"
+                  className={toggleButtonClass}
+                >
+                  <Send className={isPushing ? "animate-pulse" : ""} />
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isPushing ? "Publishing..." : "Publish branch"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       )}
     </div>
   );

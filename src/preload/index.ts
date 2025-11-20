@@ -269,6 +269,21 @@ const conduitAPI = {
       patchData,
     ) as Promise<boolean>,
 
+  gitPull: (cwd: string, rebase = false) =>
+    ipcRenderer.invoke("agent:git-pull", cwd, rebase) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  gitPush: (cwd: string, force = false, setUpstream = false) =>
+    ipcRenderer.invoke("agent:git-push", cwd, force, setUpstream) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  hasUpstreamBranch: (cwd: string) =>
+    ipcRenderer.invoke("agent:has-upstream-branch", cwd) as Promise<boolean>,
+
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",

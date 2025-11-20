@@ -335,6 +335,28 @@ export function EditorPane({
     treeMode === "changes",
   );
 
+  const [isPulling, setIsPulling] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [hasUpstream, setHasUpstream] = useState(true);
+
+  // Check if current branch has upstream
+  useEffect(() => {
+    if (!isInGitRepo || !currentBranch) {
+      setHasUpstream(true);
+      return;
+    }
+
+    api
+      .hasUpstreamBranch(cwd)
+      .then((hasUpstream) => {
+        setHasUpstream(hasUpstream);
+      })
+      .catch((error) => {
+        console.error("[EditorPane] Failed to check upstream branch:", error);
+        setHasUpstream(true); // Default to true on error
+      });
+  }, [cwd, currentBranch, isInGitRepo]);
+
   // Auto-reset filter when not in a git repository or when cwd changes to non-git directory
   useEffect(() => {
     if (!isInGitRepo && showOnlyChangedFiles) {
@@ -361,6 +383,84 @@ export function EditorPane({
     },
     [cwd, baseBranch],
   );
+
+  // Pull from remote
+  const handlePull = useCallback(async () => {
+    if (isPulling || isPushing) return;
+
+    setIsPulling(true);
+    try {
+      const result = await api.gitPull(cwd, false);
+      console.log("[EditorPane] Pull completed successfully");
+      if (result.stdout) {
+        console.log("[EditorPane] Pull output:", result.stdout);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("[EditorPane] Pull failed:", errorMessage);
+
+      // Check for common error scenarios
+      if (errorMessage.includes("no tracking information")) {
+        console.warn(
+          "[EditorPane] No upstream branch configured. Use 'git branch --set-upstream-to' to configure.",
+        );
+      } else if (errorMessage.includes("uncommitted changes")) {
+        console.warn(
+          "[EditorPane] Uncommitted changes would be overwritten. Commit or stash changes first.",
+        );
+      }
+    } finally {
+      setIsPulling(false);
+    }
+  }, [cwd, isPulling, isPushing]);
+
+  // Push to remote (or publish if no upstream)
+  const handlePush = useCallback(async () => {
+    if (isPulling || isPushing) return;
+
+    setIsPushing(true);
+    try {
+      const isPublishing = !hasUpstream;
+      const result = await api.gitPush(cwd, false, isPublishing);
+
+      if (isPublishing) {
+        console.log("[EditorPane] Publish completed successfully");
+        // After publishing, the branch now has an upstream
+        setHasUpstream(true);
+      } else {
+        console.log("[EditorPane] Push completed successfully");
+      }
+
+      if (result.stdout) {
+        console.log("[EditorPane] Output:", result.stdout);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `[EditorPane] ${hasUpstream ? "Push" : "Publish"} failed:`,
+        errorMessage,
+      );
+
+      // Check for common error scenarios
+      if (errorMessage.includes("no upstream branch")) {
+        console.warn(
+          "[EditorPane] No upstream branch configured. Use 'git push --set-upstream' to configure.",
+        );
+      } else if (errorMessage.includes("rejected")) {
+        console.warn(
+          "[EditorPane] Push rejected. Pull the latest changes first or use force push if needed.",
+        );
+      } else if (errorMessage.includes("permission denied")) {
+        console.warn(
+          "[EditorPane] Permission denied. Check your git credentials and repository access.",
+        );
+      }
+    } finally {
+      setIsPushing(false);
+    }
+  }, [cwd, isPulling, isPushing, hasUpstream]);
 
   // Configure Monaco's TypeScript language service with project's tsconfig.json
   // This implements TypeScript's upward search algorithm to find tsconfig.json
@@ -2031,6 +2131,11 @@ export function EditorPane({
                   setShowOnlyChangedFiles(!showOnlyChangedFiles);
                   onTreeModeChange?.(newMode);
                 }}
+                onPull={handlePull}
+                onPush={handlePush}
+                isPulling={isPulling}
+                isPushing={isPushing}
+                hasUpstream={hasUpstream}
               />
             )}
             <div className="flex-1 overflow-auto px-3">
