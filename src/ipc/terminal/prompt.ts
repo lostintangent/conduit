@@ -51,7 +51,8 @@ async function handlePromptRequest(
       return;
     }
 
-    const command = parts[0];
+    // Strip quotes from command (to support paths with spaces)
+    const command = parts[0].replace(/^"|"$/g, "");
     let args: string[] = [];
     let useStdin = false;
 
