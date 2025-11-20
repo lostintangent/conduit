@@ -281,15 +281,30 @@ export function getSSHConnectionInfo(vm: VM): SSHConnectionInfo {
     throw new Error(`VM ${vm.id} does not have SSH port forwarded`);
   }
 
-  const [host, portStr] = sshPort.connection_url.split(":");
-  const port = parseInt(portStr, 10);
+  const host = vm.ip_address; // Use VM internal IP for host
 
-  if (!host || !port) {
+  // Parse port from the new URL format: https://20_125_42_246-5201.blue.sandbox.githubnext.com
+  // Extract the subdomain prefix and get the port after the last dash
+  let port: number;
+  const url = sshPort.connection_url;
+
+  if (url.includes("://")) {
+    // New format: extract from subdomain
+    const hostname = url.split("://")[1].split(".")[0]; // Get "20_125_42_246-5201"
+    const portStr = hostname.split("-").pop(); // Get "5201"
+    port = parseInt(portStr || "", 10);
+  } else {
+    // Old format: host:port
+    const portStr = url.split(":")[1];
+    port = parseInt(portStr, 10);
+  }
+
+  if (!host || !port || isNaN(port)) {
     throw new Error(`Invalid SSH connection URL: ${sshPort.connection_url}`);
   }
 
   return {
-    host,
+    host: vm.ip_address,
     port,
     username: "ace", // Default username from VM API
   };
@@ -302,6 +317,7 @@ export async function executeInVM(
   vmId: string,
   command: string,
   args?: string[],
+  working_directory?: string,
   timeoutSeconds = 30,
 ): Promise<{
   exit_code: number;
@@ -312,6 +328,7 @@ export async function executeInVM(
   const payload = {
     command,
     args: args || [],
+    working_directory,
     timeout_seconds: timeoutSeconds,
   };
 
@@ -345,7 +362,13 @@ export async function configureVMForGitPush(
     // This allows pushing to the currently checked-out branch and updates the working directory
     const configCommand = `cd ${repoPath} && git config receive.denyCurrentBranch updateInstead`;
 
-    const result = await executeInVM(vmId, "bash", ["-c", configCommand], 30);
+    const result = await executeInVM(
+      vmId,
+      "bash",
+      ["-c", configCommand],
+      undefined,
+      30,
+    );
 
     if (result.exit_code !== 0) {
       console.error(`[VM] Failed to configure git:`, result.stderr);
@@ -521,7 +544,13 @@ export async function applyDiffToVM(
 
     // Execute all patch applications in sequence
     for (const command of commands) {
-      const result = await executeInVM(vmId, "bash", ["-c", command], 60);
+      const result = await executeInVM(
+        vmId,
+        "bash",
+        ["-c", command],
+        undefined,
+        60,
+      );
 
       if (result.exit_code !== 0) {
         console.error(`[VM] Failed to apply patch:`, result.stderr);
