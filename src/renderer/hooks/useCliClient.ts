@@ -215,6 +215,19 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
+          case "navigate-browser": {
+            const webview = document.getElementById(args?.paneId) as WebviewTag;
+
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
+
+            webview.loadURL(args.url);
+            respondResult();
+            break;
+          }
+
           case "write-terminal": {
             // Determine target session IDs based on wildcard or specific session
             let targetSessionIds: string[];

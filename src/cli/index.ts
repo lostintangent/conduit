@@ -126,6 +126,15 @@ program
   .description("Capture a screenshot of a specific browser pane")
   .argument("<paneId>", "The browser pane to capture");
 
+program
+  .cliCommand("navigate-browser", (request, paneId, url) =>
+    request({ paneId, url }),
+  )
+  .alias("navigate")
+  .description("Navigate a browser pane to a specific URL")
+  .argument("<paneId>", "The browser pane to navigate")
+  .argument("<url>", "The URL to navigate to");
+
 /* Editor commands */
 
 program

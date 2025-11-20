@@ -55,6 +55,7 @@ export type CliCommand =
   | DefineCommand<"write-terminal", { sessionId: string; input: string }>
   // Browser commands
   | DefineCommand<"capture-browser", { paneId: string }, string>
+  | DefineCommand<"navigate-browser", { paneId: string; url: string }>
   // Editor commands
   | DefineCommand<"open-file", { cwd: string; filePath?: string }>;
 
