@@ -69,6 +69,16 @@ export const isFocusMode = new ContextKey<boolean>("isFocusMode", false);
  */
 export const activePaneType = new ContextKey<string>("activePaneType", "");
 
+export const paneIsCollapsed = new ContextKey<boolean>(
+  "paneIsCollapsed",
+  false,
+);
+
+export const paneCanBeCollapsed = new ContextKey<boolean>(
+  "paneCanBeCollapsed",
+  false,
+);
+
 /**
  * Whether the active pane is in an agent session
  * Used by: agent.mergeAndClose, agent.terminate

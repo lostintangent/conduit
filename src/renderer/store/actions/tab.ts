@@ -1,10 +1,10 @@
-import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import type { PaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import {
   detachPane,
   removePane,
   updatePaneProperty,
 } from "@/store/actions/pane";
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type {
   EditorPane,
   LayoutNode,
@@ -83,7 +83,11 @@ export function generateIncrementedTabTitle(
 export async function openTab(
   initialCommand?: string,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
-  const result = await api.createTerminal();
+  // Inherit CWD from the active tab's active pane
+  const activeTab = store.get(activeTabAtom);
+  const cwd = getActiveTabCwd(activeTab);
+
+  const result = await api.createTerminal(cwd ? { cwd } : undefined);
   if (!result) {
     return null;
   }

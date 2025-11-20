@@ -7,11 +7,12 @@ import path from "path-browserify";
  * This is the single source of truth for directory contents.
  *
  * Key: absolute directory path (e.g., "/repo/src/components")
- * Value: { children: FileTreeNode[], version: number }
+ * Value: { children: FileTreeNode[], version: number, fetchInProgress?: boolean }
  */
 type CacheEntry = {
   children: FileTreeNode[];
   version: number;
+  fetchInProgress?: boolean; // Track if a proactive refetch is currently in progress
 };
 
 const directoryCache = new Map<string, CacheEntry>();
@@ -42,6 +43,7 @@ function hasListeners(dirPath: string): boolean {
  */
 export function invalidateDirectory(dirPath: string, rootPath?: string) {
   const entry = directoryCache.get(dirPath);
+
   if (entry) {
     if (hasListeners(dirPath)) {
       // Directory is currently mounted - do silent refresh by incrementing version
@@ -51,15 +53,21 @@ export function invalidateDirectory(dirPath: string, rootPath?: string) {
     } else if (rootPath) {
       // Directory is not mounted - proactively refetch to keep cache fresh
       // This prevents stale data from showing when the folder is reopened
+
+      // Mark fetch as in-progress to prevent components from using stale data
+      entry.fetchInProgress = true;
+
       window.conduit
         .listDirectory(dirPath, rootPath)
         .then((fetchedChildren) => {
           // Update cache with fresh data
           const currentEntry = directoryCache.get(dirPath);
           const newVersion = (currentEntry?.version ?? 0) + 1;
+
           directoryCache.set(dirPath, {
             children: fetchedChildren,
             version: newVersion,
+            fetchInProgress: false, // Clear in-progress flag
           });
 
           // Check if component mounted while we were fetching - notify it if so
@@ -187,7 +195,11 @@ export function useDirectoryCache({
   const [loadedChildren, setLoadedChildren] = useState<
     FileTreeNode[] | undefined
   >(cacheEntry?.children);
-  const [isResolved, setIsResolved] = useState(!!cacheEntry);
+  // Only consider resolved if cache exists AND no fetch is in progress
+  // This prevents showing stale data while proactive refetch is happening
+  const [isResolved, setIsResolved] = useState(
+    !!cacheEntry && !cacheEntry.fetchInProgress,
+  );
   const [isLoading, setIsLoading] = useState(false);
   // Track cache version to detect external invalidations
   const [cacheVersion, setCacheVersion] = useState(cacheEntry?.version ?? 0);
@@ -204,30 +216,51 @@ export function useDirectoryCache({
         setIsLoading(true);
       }
 
+      // Capture version BEFORE fetching to detect concurrent invalidations
+      const fetchStartVersion = directoryCache.get(cacheKey)?.version ?? 0;
+
       try {
         const fetchedChildren = await window.conduit.listDirectory(
           node.path,
           rootPath,
         );
+
+        // Check if version changed during fetch (indicates concurrent invalidation)
+        const currentEntry = directoryCache.get(cacheKey);
+        const currentVersion = currentEntry?.version ?? 0;
+
+        if (currentVersion !== fetchStartVersion) {
+          // Version changed during fetch - data is stale
+          console.log(
+            `[Cache] Discarding stale fetch for ${cacheKey} ` +
+              `(started at v${fetchStartVersion}, now v${currentVersion})`,
+          );
+          // Trigger a new silent fetch with current version
+          loadChildren(false);
+          return;
+        }
+
+        // Version unchanged - safe to update
         setLoadedChildren(fetchedChildren);
         setIsResolved(true);
 
         // Store in cache with version
-        const existingEntry = directoryCache.get(cacheKey);
         directoryCache.set(cacheKey, {
           children: fetchedChildren,
-          version: existingEntry?.version ?? 0, // Preserve version if exists
+          version: fetchStartVersion, // Use captured version
+          fetchInProgress: false, // Clear any in-progress flag
         });
       } catch (error) {
         console.error("Failed to load directory contents:", error);
+        // Mark as resolved with empty array to avoid retry loops
         setLoadedChildren([]);
         setIsResolved(true);
 
-        // Store empty result in cache
-        const existingEntry = directoryCache.get(cacheKey);
+        // Cache empty array to prevent retry loops
         directoryCache.set(cacheKey, {
           children: [],
-          version: existingEntry?.version ?? 0,
+          version: fetchStartVersion,
+          fetchInProgress: false,
         });
       } finally {
         setIsLoading(false);
@@ -304,7 +337,8 @@ export function useDirectoryCache({
       const newVersion = newCacheEntry?.version ?? 0;
 
       setLoadedChildren(newCacheEntry?.children);
-      setIsResolved(!!newCacheEntry);
+      // Only consider resolved if cache exists AND no fetch is in progress
+      setIsResolved(!!newCacheEntry && !newCacheEntry?.fetchInProgress);
       setCacheVersion(newVersion);
 
       // Reset prevCacheVersion to -1 so version change effect will sync on first run for new path
@@ -314,26 +348,27 @@ export function useDirectoryCache({
   }, [cacheKey]);
 
   // Filter loaded children when in filter mode
-  const children = isFiltering
-    ? loadedChildren?.filter((child) => {
-        if (child.type === "file") {
-          return gitStatus?.has(child.relativePath);
-        } else {
-          // For directories, check if any file under it has changes
-          const dirPath = child.relativePath;
-          if (!gitStatus) return false;
-          for (const [filePath] of gitStatus) {
-            if (
-              filePath.startsWith(dirPath + "/") ||
-              filePath.startsWith(dirPath + "\\")
-            ) {
-              return true;
+  // Only apply filter if gitStatus is available (prevents empty display during git status load)
+  const children =
+    isFiltering && gitStatus
+      ? loadedChildren?.filter((child) => {
+          if (child.type === "file") {
+            return gitStatus.has(child.relativePath);
+          } else {
+            // For directories, check if any file under it has changes
+            const dirPath = child.relativePath;
+            for (const [filePath] of gitStatus) {
+              if (
+                filePath.startsWith(dirPath + "/") ||
+                filePath.startsWith(dirPath + "\\")
+              ) {
+                return true;
+              }
             }
+            return false;
           }
-          return false;
-        }
-      })
-    : loadedChildren;
+        })
+      : loadedChildren;
 
   return {
     children,

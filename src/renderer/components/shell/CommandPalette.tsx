@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Command } from "@/types";
 import {
@@ -288,7 +288,9 @@ export function CommandPalette({
       <DialogContent
         className="w-[480px] max-w-[90vw] p-4 gap-0 bg-popover border-white/10"
         showClose={false}
+        aria-describedby={undefined}
       >
+        <DialogTitle className="sr-only">Command Palette</DialogTitle>
         <Input
           autoFocus
           value={inputValue}

@@ -1,3 +1,5 @@
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import { useCommand } from "@/commands/hooks/useCommand";
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { EditorToolbarButtons } from "@/components/panes/editor/EditorToolbarButtons";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
@@ -12,7 +14,7 @@ import { useGitStatus } from "@/components/panes/editor/useGitStatus";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { DiffEditor, loader } from "@monaco-editor/react";
@@ -245,6 +247,8 @@ export function EditorPane({
 }: EditorPaneProps) {
   const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const applicationMode = useAtomValue(applicationModeAtom);
+  const closePaneCmd = useCommand(ApplicationCommands.PANE_CLOSE);
   // Use Shiki's VS Code themes (markdown formatting handled by Shiki's grammar)
   const editorTheme =
     resolveTheme(theme) === "light" ? "light-plus" : "dark-plus";
@@ -292,6 +296,9 @@ export function EditorPane({
   const [isResizing, setIsResizing] = useState(false);
   const [activeView, setActiveView] = useState<"tree" | "editor">("tree");
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  // Track if the user has manually toggled the tree collapse state
+  // This prevents animation on initial mount and in tab previews
+  const [enableTreeAnimation, setEnableTreeAnimation] = useState(false);
 
   // File watcher state
   const [externallyModified, setExternallyModified] = useState(false);
@@ -299,14 +306,18 @@ export function EditorPane({
   const [showExternalChangeWarning, setShowExternalChangeWarning] =
     useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Track files that were modified externally while not being viewed
+  const filesModifiedWhileAwayRef = useRef<Set<string>>(new Set());
 
   // Refs to track current values for file watcher event handlers
   // This allows handlers to access current values without causing re-subscription
   const filePathRef = useRef(filePath);
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
   const currentContentRef = useRef(currentContent);
+  const originalContentRef = useRef(originalContent);
   const previousFilePathRef = useRef(filePath);
   const previousCwdRef = useRef(cwd);
+  const viewModeRef = useRef<ViewMode>({ type: "editor" });
 
   // Git status integration
   const {
@@ -323,6 +334,36 @@ export function EditorPane({
   const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(
     treeMode === "changes",
   );
+
+  const [isPulling, setIsPulling] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [hasUpstream, setHasUpstream] = useState(true);
+
+  // Check if current branch has upstream
+  useEffect(() => {
+    if (!isInGitRepo || !currentBranch) {
+      setHasUpstream(true);
+      return;
+    }
+
+    api
+      .hasUpstreamBranch(cwd)
+      .then((hasUpstream) => {
+        setHasUpstream(hasUpstream);
+      })
+      .catch((error) => {
+        console.error("[EditorPane] Failed to check upstream branch:", error);
+        setHasUpstream(true); // Default to true on error
+      });
+  }, [cwd, currentBranch, isInGitRepo]);
+
+  // Auto-reset filter when not in a git repository or when cwd changes to non-git directory
+  useEffect(() => {
+    if (!isInGitRepo && showOnlyChangedFiles) {
+      setShowOnlyChangedFiles(false);
+      onTreeModeChange?.("all");
+    }
+  }, [isInGitRepo, cwd, showOnlyChangedFiles]);
 
   // Diff viewer state - using discriminated union to prevent invalid states
   type ViewMode =
@@ -342,6 +383,125 @@ export function EditorPane({
     },
     [cwd, baseBranch],
   );
+
+  // Pull from remote
+  const handlePull = useCallback(async () => {
+    if (isPulling || isPushing) return;
+
+    setIsPulling(true);
+    try {
+      const result = await api.gitPull(cwd, false);
+      console.log("[EditorPane] Pull completed successfully");
+      if (result.stdout) {
+        console.log("[EditorPane] Pull output:", result.stdout);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("[EditorPane] Pull failed:", errorMessage);
+
+      // Check for common error scenarios
+      if (errorMessage.includes("no tracking information")) {
+        console.warn(
+          "[EditorPane] No upstream branch configured. Use 'git branch --set-upstream-to' to configure.",
+        );
+      } else if (errorMessage.includes("uncommitted changes")) {
+        console.warn(
+          "[EditorPane] Uncommitted changes would be overwritten. Commit or stash changes first.",
+        );
+      }
+    } finally {
+      setIsPulling(false);
+    }
+  }, [cwd, isPulling, isPushing]);
+
+  // Push to remote (or publish if no upstream)
+  const handlePush = useCallback(async () => {
+    if (isPulling || isPushing) return;
+
+    setIsPushing(true);
+    try {
+      const isPublishing = !hasUpstream;
+      const result = await api.gitPush(cwd, false, isPublishing);
+
+      if (isPublishing) {
+        console.log("[EditorPane] Publish completed successfully");
+        // After publishing, the branch now has an upstream
+        setHasUpstream(true);
+      } else {
+        console.log("[EditorPane] Push completed successfully");
+      }
+
+      if (result.stdout) {
+        console.log("[EditorPane] Output:", result.stdout);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `[EditorPane] ${hasUpstream ? "Push" : "Publish"} failed:`,
+        errorMessage,
+      );
+
+      // Check for common error scenarios
+      if (errorMessage.includes("no upstream branch")) {
+        console.warn(
+          "[EditorPane] No upstream branch configured. Use 'git push --set-upstream' to configure.",
+        );
+      } else if (errorMessage.includes("rejected")) {
+        console.warn(
+          "[EditorPane] Push rejected. Pull the latest changes first or use force push if needed.",
+        );
+      } else if (errorMessage.includes("permission denied")) {
+        console.warn(
+          "[EditorPane] Permission denied. Check your git credentials and repository access.",
+        );
+      }
+    } finally {
+      setIsPushing(false);
+    }
+  }, [cwd, isPulling, isPushing, hasUpstream]);
+
+  // Commit state
+  const [commitMessage, setCommitMessage] = useState("");
+  const [isCommitting, setIsCommitting] = useState(false);
+
+  // Calculate if there are staged files from git status
+  const hasStagedFiles = useMemo(() => {
+    if (!gitStatus) return false;
+    const staged = Array.from(gitStatus.values()).some(
+      (status) => status.staged,
+    );
+    const stagedCount = Array.from(gitStatus.values()).filter(
+      (status) => status.staged,
+    ).length;
+    console.log(
+      `[EditorPane] hasStagedFiles: ${staged} (${stagedCount} staged files out of ${gitStatus.size} total)`,
+    );
+    return staged;
+  }, [gitStatus]);
+
+  // Commit staged changes
+  const handleCommit = useCallback(async () => {
+    if (!commitMessage.trim() || !hasStagedFiles || isCommitting) return;
+
+    setIsCommitting(true);
+    try {
+      const result = await api.gitCommit(cwd, commitMessage);
+      console.log("[EditorPane] Commit completed successfully");
+      if (result.stdout) {
+        console.log("[EditorPane] Commit output:", result.stdout);
+      }
+      // Clear message after successful commit
+      setCommitMessage("");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("[EditorPane] Commit failed:", errorMessage);
+    } finally {
+      setIsCommitting(false);
+    }
+  }, [cwd, commitMessage, hasStagedFiles, isCommitting]);
 
   // Configure Monaco's TypeScript language service with project's tsconfig.json
   // This implements TypeScript's upward search algorithm to find tsconfig.json
@@ -416,8 +576,9 @@ export function EditorPane({
   // Transition classes respecting prefers-reduced-motion
   // Note: duration-200 is a Tailwind class for 200ms transitions
   // Don't apply transitions to tree width during resize - causes lag
+  // Only animate if user has manually toggled (prevents animation on mount/preview)
   const transitionClass =
-    prefersReducedMotion || isResizing
+    prefersReducedMotion || isResizing || !enableTreeAnimation
       ? "transition-none"
       : "transition-all duration-200 ease-out";
   const transitionTransformClass = prefersReducedMotion
@@ -434,13 +595,13 @@ export function EditorPane({
   useEffect(() => {
     const filePathChanged = filePath !== previousFilePathRef.current;
 
-    if (layoutMode === "single" && hasOpenFile && filePathChanged) {
+    if (layoutMode === "single" && filePath && filePathChanged) {
       setActiveView("editor");
     }
 
     // Update the ref for next comparison
     previousFilePathRef.current = filePath;
-  }, [layoutMode, hasOpenFile, filePath]);
+  }, [layoutMode, filePath]);
 
   // Find the current tab for agent session operations
   const currentTab = useMemo(() => {
@@ -488,19 +649,39 @@ export function EditorPane({
 
     let cancelled = false;
 
+    // Check if this file was modified externally while we were viewing a different file
+    const wasModifiedWhileAway =
+      filesModifiedWhileAwayRef.current.has(filePath);
+
     api
       .readFile(filePath)
       .then((content) => {
         if (!cancelled) {
           const language = inferLanguageFromFilePath(filePath);
+
           setCurrentContent(content);
           setOriginalContent(content);
           setCurrentLanguage(language);
           setHasUnsavedChanges(false);
+
+          // If file was modified while away, force Monaco to update its model
+          if (wasModifiedWhileAway) {
+            // Clear from tracking set
+            filesModifiedWhileAwayRef.current.delete(filePath);
+
+            // Force Monaco to update the model with disk content
+            // This is needed because keepCurrentModel={true} may reuse a stale model
+            const modelUri = monaco.Uri.parse(`file://${filePath}`);
+            const existingModel = monaco.editor.getModel(modelUri);
+            if (existingModel && !existingModel.isDisposed()) {
+              // Update model content to match disk (will trigger editor refresh)
+              existingModel.setValue(content);
+            }
+          }
         }
       })
       .catch((error) => {
-        console.error("Failed to load file:", error);
+        console.error("[EditorPane] Failed to load file:", error);
         if (!cancelled) {
           setCurrentContent(undefined);
           setOriginalContent(undefined);
@@ -527,21 +708,57 @@ export function EditorPane({
     const fileStatus = gitStatus.get(relativePath);
     const hasGitChanges = fileStatus !== undefined;
 
+    // Use ref to check current view mode to avoid re-triggering effect when mode changes
+    const currentViewMode = viewModeRef.current;
+
     // If file has git changes and is modified, load diff view
     if (hasGitChanges && fileStatus.status === "modified") {
       // Only fetch diff if we're not already in diff mode for this file
-      if (viewMode.type !== "diff") {
+      if (currentViewMode.type !== "diff") {
         fetchDiffForFile(filePath).then((diff) => {
           if (diff && diff.status === "modified") {
             setViewMode({ type: "diff", data: diff, showRaw: false });
           }
         });
       }
-    } else if (viewMode.type === "diff" && !hasGitChanges) {
+    } else if (currentViewMode.type === "diff" && !hasGitChanges) {
       // File no longer has changes, switch back to editor
-      setViewMode({ type: "editor" });
+      // Reload file from disk to ensure we have current state
+      // (user may have made edits in diff view against intermediate state)
+      if (filePath) {
+        api
+          .readFile(filePath)
+          .then((content) => {
+            setCurrentContent(content);
+            setOriginalContent(content);
+            setExternallyModified(false);
+            setExternallyDeleted(false);
+
+            // Force Monaco to update the model with disk content
+            // DiffEditor and Editor use the same model path (file://${filePath})
+            // so we need to explicitly update the model or it will show stale edits
+            const modelUri = monaco.Uri.parse(`file://${filePath}`);
+            const existingModel = monaco.editor.getModel(modelUri);
+            if (existingModel && !existingModel.isDisposed()) {
+              // Update model content to match disk (will trigger editor refresh)
+              existingModel.setValue(content);
+            }
+
+            setViewMode({ type: "editor" });
+          })
+          .catch((error) => {
+            console.error(
+              "[EditorPane] Failed to reload file when exiting diff view:",
+              error,
+            );
+            // Still switch to editor view even if reload fails
+            setViewMode({ type: "editor" });
+          });
+      } else {
+        setViewMode({ type: "editor" });
+      }
     }
-  }, [filePath, gitStatus, cwd, baseBranch, viewMode.type, fetchDiffForFile]);
+  }, [filePath, gitStatus, cwd, baseBranch, fetchDiffForFile]);
 
   // Save file handler
   const handleSave = useCallback(async () => {
@@ -559,20 +776,25 @@ export function EditorPane({
           return; // Don't save yet
         }
       } catch (error) {
-        console.error("Failed to check file before save:", error);
+        console.error("[EditorPane] Failed to check file before save:", error);
       }
     }
 
     try {
       await api.writeFile(filePath, currentContent);
+
+      // Update refs immediately (synchronous)
+      originalContentRef.current = currentContent;
+
       setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
       setExternallyModified(false);
       setExternallyDeleted(false);
       setShowExternalChangeWarning(false);
+
       onSave?.();
     } catch (error) {
-      console.error("Failed to save file:", error);
+      console.error("[EditorPane] Failed to save file:", error);
     }
   }, [
     filePath,
@@ -641,6 +863,8 @@ export function EditorPane({
   }, []);
 
   const handleToggleTreeCollapse = useCallback(() => {
+    // Enable animation when user manually toggles (prevents animation on mount/preview)
+    setEnableTreeAnimation(true);
     setIsTreeCollapsed((prev) => !prev);
   }, []);
 
@@ -689,6 +913,8 @@ export function EditorPane({
         event.preventDefault();
         if (layoutMode === "split") {
           if (isTreeCollapsed) {
+            // Enable animation when user expands via keyboard
+            setEnableTreeAnimation(true);
             setIsTreeCollapsed(false);
           }
           // TODO: Focus tree element (would need a ref to the tree container)
@@ -759,11 +985,9 @@ export function EditorPane({
   }, [isTreeCollapsed, paneId]);
 
   useEffect(() => {
-    // In split mode, always load the tree (even with a file open)
-    // In single mode, only load when no file is open
-    const shouldLoadTree = layoutMode === "split" || !hasOpenFile;
-
-    if (!cwd || !shouldLoadTree) {
+    // Always load the tree regardless of layout mode or open file status
+    // This ensures users can navigate the file system even when a file is open
+    if (!cwd) {
       return;
     }
 
@@ -804,14 +1028,16 @@ export function EditorPane({
     return () => {
       cancelled = true;
     };
-  }, [cwd, hasOpenFile, layoutMode]);
+  }, [cwd]);
 
   // Keep refs in sync with current values
   useEffect(() => {
     filePathRef.current = filePath;
     hasUnsavedChangesRef.current = hasUnsavedChanges;
     currentContentRef.current = currentContent;
-  }, [filePath, hasUnsavedChanges, currentContent]);
+    originalContentRef.current = originalContent;
+    viewModeRef.current = viewMode;
+  }, [filePath, hasUnsavedChanges, currentContent, originalContent, viewMode]);
 
   // File watcher subscription lifecycle
   useEffect(() => {
@@ -838,15 +1064,10 @@ export function EditorPane({
       handleFileChanged(payload.filePath, cwd);
 
       // Check if this is the currently open file
-      if (filePathRef.current && payload.filePath === filePathRef.current) {
-        console.log(
-          `[EditorPane] File changed event: ${payload.relativePath}, type=${payload.eventType}`,
-        );
-
+      const isCurrentFile =
+        filePathRef.current && payload.filePath === filePathRef.current;
+      if (isCurrentFile) {
         if (payload.eventType === "deleted") {
-          console.log(
-            `[EditorPane] File deleted externally: ${payload.relativePath}`,
-          );
           // Clear any pending debounce timer
           if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
@@ -855,9 +1076,6 @@ export function EditorPane({
           setExternallyDeleted(true);
           setShowExternalChangeWarning(true);
         } else if (payload.eventType === "changed") {
-          console.log(
-            `[EditorPane] File modified externally: ${payload.relativePath}`,
-          );
           setExternallyModified(true);
 
           // Debounce rapid changes (100ms)
@@ -885,39 +1103,75 @@ export function EditorPane({
 
                 // If editor has no unsaved changes, auto-reload
                 if (!hasUnsavedChangesRef.current) {
-                  console.log(
-                    `[EditorPane] Auto-reloading file (clean editor): ${currentFilePath}`,
-                  );
-                  api
-                    .readFile(currentFilePath)
-                    .then((content) => {
-                      console.log(
-                        `[EditorPane] File reloaded successfully: ${currentFilePath}`,
-                      );
-                      setCurrentContent(content);
-                      setOriginalContent(content);
-                      setExternallyModified(false);
-                      // If file was previously deleted but now exists, clear deletion flag
-                      setExternallyDeleted(false);
-                    })
-                    .catch((error) => {
-                      console.error(
-                        "[EditorPane] Failed to reload file:",
-                        error,
-                      );
-                      // If read fails, file might have been deleted
-                      api.fileExists(currentFilePath).then((stillExists) => {
-                        if (!stillExists) {
-                          setExternallyDeleted(true);
-                          setShowExternalChangeWarning(true);
+                  // Check if we're in diff mode
+                  const currentViewMode = viewModeRef.current;
+
+                  if (currentViewMode.type === "diff") {
+                    // Always reload diff when file changes (including our own saves)
+                    // This keeps the diff comparison up to date
+                    fetchDiffForFile(currentFilePath)
+                      .then((diff) => {
+                        setExternallyModified(false);
+                        setExternallyDeleted(false);
+
+                        // Update diff view with fresh data
+                        if (diff) {
+                          // CRITICAL FIX: Update refs IMMEDIATELY (synchronous)
+                          // Then update state (async/batched by React)
+                          // This prevents Monaco's change event from seeing stale values
+                          originalContentRef.current = diff.modifiedContent;
+                          currentContentRef.current = diff.modifiedContent;
+
+                          setOriginalContent(diff.modifiedContent);
+                          setCurrentContent(diff.modifiedContent);
+
+                          setViewMode({
+                            type: "diff",
+                            data: diff,
+                            showRaw: currentViewMode.showRaw,
+                          });
                         }
+                      })
+                      .catch((error) => {
+                        console.error(
+                          "[EditorPane] Failed to reload diff:",
+                          error,
+                        );
+                        // Handle file deletion or other errors
+                        api.fileExists(currentFilePath).then((stillExists) => {
+                          if (!stillExists) {
+                            setExternallyDeleted(true);
+                            setShowExternalChangeWarning(true);
+                          }
+                        });
                       });
-                    });
+                  } else {
+                    // In editor mode: just reload the file (existing behavior)
+                    api
+                      .readFile(currentFilePath)
+                      .then((content) => {
+                        setCurrentContent(content);
+                        setOriginalContent(content);
+                        setExternallyModified(false);
+                        // If file was previously deleted but now exists, clear deletion flag
+                        setExternallyDeleted(false);
+                      })
+                      .catch((error) => {
+                        console.error(
+                          "[EditorPane] Failed to reload file:",
+                          error,
+                        );
+                        // If read fails, file might have been deleted
+                        api.fileExists(currentFilePath).then((stillExists) => {
+                          if (!stillExists) {
+                            setExternallyDeleted(true);
+                            setShowExternalChangeWarning(true);
+                          }
+                        });
+                      });
+                  }
                 } else {
                   // Editor has unsaved changes, show warning
-                  console.log(
-                    `[EditorPane] Showing warning (dirty editor): ${currentFilePath}`,
-                  );
                   setShowExternalChangeWarning(true);
                 }
               })
@@ -925,6 +1179,15 @@ export function EditorPane({
                 console.error("Failed to check file existence:", error);
               });
           }, 100);
+        }
+      } else {
+        // File was modified but is not currently open
+        // Track it so we can reload when user switches back to it
+        if (payload.eventType === "changed") {
+          filesModifiedWhileAwayRef.current.add(payload.filePath);
+        } else if (payload.eventType === "deleted") {
+          // Remove from tracking if it was deleted
+          filesModifiedWhileAwayRef.current.delete(payload.filePath);
         }
       }
     });
@@ -945,11 +1208,10 @@ export function EditorPane({
 
       // Check if the currently open file was renamed
       const currentFilePath = filePathRef.current;
-      if (currentFilePath && payload.oldPath === currentFilePath) {
-        console.log(
-          `[EditorPane] File renamed: ${payload.oldRelativePath} → ${payload.newRelativePath}`,
-        );
+      const isCurrentFileRenamed =
+        currentFilePath && payload.oldPath === currentFilePath;
 
+      if (isCurrentFileRenamed) {
         // Update the file path without losing content or state
         // Use currentContentRef to avoid stale closure
         onFileChange?.({
@@ -962,10 +1224,6 @@ export function EditorPane({
         setExternallyModified(false);
         setExternallyDeleted(false);
         setShowExternalChangeWarning(false);
-
-        console.log(
-          `[EditorPane] Editor updated to track renamed file: ${payload.newPath}`,
-        );
       }
     });
 
@@ -974,8 +1232,6 @@ export function EditorPane({
       if (payload.cwd !== cwd) {
         return;
       }
-
-      console.log(`[EditorPane] Tree changed event received for cwd=${cwd}`);
 
       // Invalidate the root directory cache
       invalidateDirectory(cwd, cwd);
@@ -1097,13 +1353,67 @@ export function EditorPane({
     [onFileChange, showOnlyChangedFiles, gitStatus, fetchDiffForFile],
   );
 
-  const handleEditorChange = useCallback(
-    (value: string | undefined) => {
-      setCurrentContent(value);
-      setHasUnsavedChanges(value !== originalContent);
-    },
-    [originalContent],
-  );
+  // Auto-open most recently modified file on mount (dirty files first, then tracked files)
+  useEffect(() => {
+    // Only run once on initial mount
+    const hasAutoOpened = sessionStorage.getItem(
+      `editor-auto-opened-${paneId}`,
+    );
+    if (hasAutoOpened) {
+      return;
+    }
+
+    // Don't auto-open if a file is already open
+    if (filePath) {
+      sessionStorage.setItem(`editor-auto-opened-${paneId}`, "true");
+      return;
+    }
+
+    // Need to be in a git repo
+    if (!isInGitRepo) {
+      return;
+    }
+
+    let cancelled = false;
+
+    // Get and open the most recently modified file
+    const openMostRecentFile = async () => {
+      try {
+        // Single API call - server does all the stat work
+        const result = await api.getMostRecentFile(cwd);
+
+        if (!result.success || !result.file || cancelled) {
+          return;
+        }
+
+        // Open the file
+        const fullPath = path.join(cwd, result.file);
+        const node: FileTreeNode = {
+          type: "file",
+          name: path.basename(fullPath),
+          path: fullPath,
+          relativePath: result.file,
+        };
+
+        await handleFileSelect(node);
+        sessionStorage.setItem(`editor-auto-opened-${paneId}`, "true");
+      } catch (error) {
+        console.error("Failed to auto-open most recent file:", error);
+      }
+    };
+
+    openMostRecentFile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isInGitRepo, filePath, cwd, paneId, handleFileSelect]);
+
+  const handleEditorChange = useCallback((value: string | undefined) => {
+    currentContentRef.current = value;
+    setCurrentContent(value);
+    setHasUnsavedChanges(value !== originalContentRef.current);
+  }, []);
 
   const handleDirectoryChange = useCallback(
     (newPath: string) => {
@@ -1218,8 +1528,12 @@ export function EditorPane({
 
   // Apply git status filtering to file tree
   const displayedFileTree = useMemo(() => {
-    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+    if (!showOnlyChangedFiles || !gitStatus) {
       return fileTree;
+    }
+    // When filtering is on but there are no changes, return empty array
+    if (gitStatus.size === 0) {
+      return [];
     }
     return filterTreeByGitStatus(fileTree, gitStatus);
   }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
@@ -1322,8 +1636,9 @@ export function EditorPane({
       const modifiedEditor = diffEditor.getModifiedEditor();
       editorRef.current = modifiedEditor;
 
-      // Ensure correct language is set for the file
       const model = modifiedEditor.getModel();
+
+      // Ensure correct language is set for the file
       if (model && filePath) {
         const correctLanguage = inferLanguageFromFilePath(filePath);
         if (model.getLanguageId() !== correctLanguage) {
@@ -1630,6 +1945,17 @@ export function EditorPane({
                     </>
                   )}
                 </div>
+                {applicationMode !== "quick" && (
+                  <button
+                    type="button"
+                    onClick={closePaneCmd.execute}
+                    disabled={closePaneCmd.disabled}
+                    className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Close Pane"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1749,6 +2075,17 @@ export function EditorPane({
                   </>
                 )}
               </div>
+              {applicationMode !== "quick" && (
+                <button
+                  type="button"
+                  onClick={closePaneCmd.execute}
+                  disabled={closePaneCmd.disabled}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Close Pane"
+                >
+                  <X size={14} className="text-white/60" />
+                </button>
+              )}
             </div>
 
             {/* Warning banner for external modifications */}
@@ -1816,7 +2153,38 @@ export function EditorPane({
                   }),
             }}
           >
-            <div className="flex-1 overflow-auto p-2">
+            {isInGitRepo && (
+              <GitBranchToolbar
+                currentBranch={currentBranch}
+                baseBranch={baseBranch}
+                changedFilesCount={gitStatus?.size || 0}
+                gitStatus={gitStatus}
+                onOpenBranchPicker={
+                  branches.length > 0
+                    ? () => setIsBranchSelectorOpen(true)
+                    : undefined
+                }
+                showOnlyChangedFiles={showOnlyChangedFiles}
+                onFilterToggle={() => {
+                  const newMode: EditorTreeMode = showOnlyChangedFiles
+                    ? "all"
+                    : "changes";
+                  setShowOnlyChangedFiles(!showOnlyChangedFiles);
+                  onTreeModeChange?.(newMode);
+                }}
+                onPull={handlePull}
+                onPush={handlePush}
+                isPulling={isPulling}
+                isPushing={isPushing}
+                hasUpstream={hasUpstream}
+                commitMessage={commitMessage}
+                onCommitMessageChange={setCommitMessage}
+                onCommit={handleCommit}
+                hasStagedFiles={hasStagedFiles}
+                isCommitting={isCommitting}
+              />
+            )}
+            <div className="flex-1 overflow-auto px-3">
               {isLoadingTree ? (
                 <div className="flex items-center justify-center w-full text-white/70">
                   <Loader2 className="w-6 h-6 animate-spin" />
@@ -1834,36 +2202,27 @@ export function EditorPane({
                   isFiltering={showOnlyChangedFiles}
                 />
               ) : (
-                <div className="flex items-center justify-center w-full text-white/50">
+                <div className="text-foreground text-xs py-3">
                   {showOnlyChangedFiles ? (
-                    <span className="italic">
-                      No changed files in this repository
-                    </span>
+                    <div>
+                      No changed files{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOnlyChangedFiles(false);
+                          onTreeModeChange?.("all");
+                        }}
+                        className="inline text-accent/80 hover:text-accent transition-colors"
+                      >
+                        Reset filter
+                      </button>
+                    </div>
                   ) : (
                     "No files found"
                   )}
                 </div>
               )}
             </div>
-            {isInGitRepo && (
-              <GitBranchToolbar
-                currentBranch={currentBranch}
-                baseBranch={baseBranch}
-                onOpenBranchPicker={
-                  branches.length > 0
-                    ? () => setIsBranchSelectorOpen(true)
-                    : undefined
-                }
-                showOnlyChangedFiles={showOnlyChangedFiles}
-                onFilterToggle={() => {
-                  const newMode: EditorTreeMode = showOnlyChangedFiles
-                    ? "all"
-                    : "changes";
-                  setShowOnlyChangedFiles(!showOnlyChangedFiles);
-                  onTreeModeChange?.(newMode);
-                }}
-              />
-            )}
           </div>
 
           {/* Resize handle - only in split mode */}
@@ -1909,9 +2268,11 @@ export function EditorPane({
                     // Show deleted file content
                     <Editor
                       key={`${paneId}-${filePath}-deleted`}
+                      path={filePath ? `file://${filePath}` : undefined}
                       value={viewMode.data.originalContent}
                       language={detectedLanguage}
                       theme={editorTheme}
+                      keepCurrentModel={true}
                       options={{
                         minimap: { enabled: false },
                         smoothScrolling: true,
@@ -1932,6 +2293,12 @@ export function EditorPane({
                     // Show diff editor for modified/added files
                     <DiffEditor
                       key={`${paneId}-${filePath}-diff`}
+                      originalModelPath={
+                        filePath ? `inmemory://original${filePath}` : undefined
+                      }
+                      modifiedModelPath={
+                        filePath ? `file://${filePath}` : undefined
+                      }
                       original={viewMode.data.originalContent}
                       modified={viewMode.data.modifiedContent}
                       language={detectedLanguage}
@@ -1949,6 +2316,19 @@ export function EditorPane({
                         fontSize: 13,
                         readOnly: false,
                         renderSideBySide: true,
+                        // Disable TypeScript language features that require URI resolution
+                        occurrencesHighlight: "off", // Prevents getDocumentHighlights errors
+                        selectionHighlight: false, // Disable selection highlighting
+                        hover: { enabled: false }, // Prevents getQuickInfoAtPosition errors on inmemory:// URIs
+                        parameterHints: { enabled: false }, // Prevents getSignatureHelpItems errors
+                        // Completely disable ALL suggestion features
+                        quickSuggestions: false, // Disable automatic suggestions
+                        suggestOnTriggerCharacters: false, // Don't trigger on . -> etc
+                        acceptSuggestionOnEnter: "off", // Don't accept on Enter
+                        acceptSuggestionOnCommitCharacter: false, // Don't accept on commit chars
+                        tabCompletion: "off", // Disable tab completion
+                        snippetSuggestions: "none", // Disable snippets
+                        inlineSuggest: { enabled: false }, // Disable inline suggestions
                       }}
                       loading={
                         <div className="flex h-full w-full items-center justify-center">
@@ -1961,11 +2341,13 @@ export function EditorPane({
                   // Regular editor
                   <Editor
                     key={`${paneId}-${filePath}`}
+                    path={filePath ? `file://${filePath}` : undefined}
                     value={currentContent}
                     onChange={handleEditorChange}
                     onMount={handleEditorMount}
                     language={detectedLanguage}
                     theme={editorTheme}
+                    keepCurrentModel={true}
                     options={{
                       minimap: { enabled: false },
                       smoothScrolling: true,
@@ -1976,6 +2358,20 @@ export function EditorPane({
                       lineNumbers:
                         detectedLanguage === "markdown" ? "off" : "on",
                       wordWrap: "on",
+                      // Disable TypeScript language features that require URI resolution
+                      occurrencesHighlight: "off", // Prevents getDocumentHighlights errors
+                      selectionHighlight: false, // Disable selection highlighting
+                      hover: { enabled: false }, // Prevents getQuickInfoAtPosition errors on file:// URIs
+                      parameterHints: { enabled: false }, // Prevents getSignatureHelpItems errors
+                      // Completely disable ALL suggestion features
+                      quickSuggestions: false, // Disable automatic suggestions
+                      suggestOnTriggerCharacters: false, // Don't trigger on . -> etc
+                      acceptSuggestionOnEnter: "off", // Don't accept on Enter
+                      acceptSuggestionOnCommitCharacter: false, // Don't accept on commit chars
+                      tabCompletion: "off", // Disable tab completion
+                      wordBasedSuggestions: "off", // Disable word-based suggestions
+                      snippetSuggestions: "none", // Disable snippets
+                      inlineSuggest: { enabled: false }, // Disable inline suggestions
                       // Markdown-specific enhancements
                       ...(detectedLanguage === "markdown" && {
                         glyphMargin: false, // Hide glyph margin

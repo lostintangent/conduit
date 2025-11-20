@@ -14,6 +14,7 @@ import type {
   FileChangedEvent,
   FileDiffResult,
   FileRenamedEvent,
+  FileStats,
   FileTreeNode,
   ForkVMPayload,
   ForwardPortResponse,
@@ -278,6 +279,27 @@ const conduitAPI = {
       patchData,
     ) as Promise<boolean>,
 
+  gitPull: (cwd: string, rebase = false) =>
+    ipcRenderer.invoke("agent:git-pull", cwd, rebase) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  gitPush: (cwd: string, force = false, setUpstream = false) =>
+    ipcRenderer.invoke("agent:git-push", cwd, force, setUpstream) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  hasUpstreamBranch: (cwd: string) =>
+    ipcRenderer.invoke("agent:has-upstream-branch", cwd) as Promise<boolean>,
+
+  gitCommit: (cwd: string, message: string) =>
+    ipcRenderer.invoke("agent:git-commit", cwd, message) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",
@@ -314,6 +336,9 @@ const conduitAPI = {
 
   fileExists: (filePath: string) =>
     ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,
+
+  getFileStats: (filePath: string) =>
+    ipcRenderer.invoke("fs:get-stats", filePath) as Promise<FileStats>,
 
   /* File watcher methods (UI->main) */
 
@@ -369,6 +394,13 @@ const conduitAPI = {
       error?: string;
     }>,
 
+  getMostRecentFile: (cwd: string) =>
+    ipcRenderer.invoke("git:get-most-recent-file", cwd) as Promise<{
+      success: boolean;
+      file: string | null;
+      error?: string;
+    }>,
+
   refreshGitStatus: (cwd: string) =>
     ipcRenderer.invoke("git:refresh-status", cwd) as Promise<{
       success: boolean;
@@ -392,6 +424,7 @@ const conduitAPI = {
       cwd: string;
       gitStatus: Record<string, GitFileStatus> | null;
       baseBranch: string | null;
+      currentBranch: string | null;
     }) => void,
   ) => createEventListener("git:status-changed", listener),
 

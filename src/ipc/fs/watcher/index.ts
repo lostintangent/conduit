@@ -9,7 +9,11 @@
 import { ipcMain } from "electron";
 import { findRepoRoot } from "../../agent/git";
 import { getFileDiff } from "../../git/gitDiff";
-import { listBranches } from "../../git/gitStatus";
+import {
+  getMostRecentDirtyFile,
+  getMostRecentTrackedFile,
+  listBranches,
+} from "../../git/gitStatus";
 import { FileWatcherService } from "./FileWatcherService";
 
 export { FileWatcherService } from "./FileWatcherService";
@@ -128,6 +132,32 @@ export function initializeFileWatcherHandlers(): void {
       return {
         success: false,
         branches: [],
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  /**
+   * Handler: git:get-most-recent-file
+   * Gets the single most recently modified file (dirty file first, then tracked files).
+   * All stat work is done server-side for efficiency.
+   */
+  ipcMain.handle("git:get-most-recent-file", async (_, cwd: string) => {
+    try {
+      // First try to find the most recent dirty file
+      let file = await getMostRecentDirtyFile(cwd);
+
+      // If no dirty files, try recently modified tracked files
+      if (!file) {
+        file = await getMostRecentTrackedFile(cwd, 10);
+      }
+
+      return { success: true, file };
+    } catch (error) {
+      console.error("Failed to get most recent file:", error);
+      return {
+        success: false,
+        file: null,
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }

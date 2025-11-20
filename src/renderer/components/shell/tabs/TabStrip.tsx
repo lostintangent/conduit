@@ -3,7 +3,7 @@ import {
   getCommandDisplayTitle,
   useCommand,
 } from "@/commands/hooks/useCommand";
-import type { PaneDescriptor } from "@/components/shell/QuickDialog";
+import type { PaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import { TabPreviewOverlay } from "@/components/shell/tabs/preview/TabPreviewOverlay";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
@@ -65,6 +65,11 @@ type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
+  onOpenFloatingTerminal?: (
+    terminalId: string,
+    paneId: string,
+    cwd: string | null,
+  ) => void;
   position?: "top" | "bottom";
 };
 
@@ -72,12 +77,14 @@ export const TabStrip = ({
   onOpenCommandPalette,
   onTabContextMenu,
   onOpenQuickPane,
+  onOpenFloatingTerminal,
   position = "top",
 }: TabStripProps) => {
   const tabLabels = useAtomValue(tabLabelsAtom);
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const { quickTerminalMode } = useAtomValue(userSettingsAtom);
   const { homeDirectory, alwaysShowTabs } = useAtomValue(userSettingsAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
@@ -488,17 +495,38 @@ export const TabStrip = ({
     placeholderIndex,
   ]);
 
+  const openTerminalInPreferredMode = useCallback(
+    async (
+      result: { sessionId: string; cwd: string | null },
+      vmMetadata?: { vmId: string; vmUrl: string },
+    ) => {
+      if (quickTerminalMode === "floating" && onOpenFloatingTerminal) {
+        const { generateId } = await import("@/utils/id");
+        const paneId = generateId();
+        onOpenFloatingTerminal(result.sessionId, paneId, result.cwd);
+      } else if (onOpenQuickPane) {
+        onOpenQuickPane({
+          type: "terminal",
+          sessionId: result.sessionId,
+          cwd: result.cwd,
+          vmMetadata,
+        });
+      }
+    },
+    [quickTerminalMode, onOpenQuickPane, onOpenFloatingTerminal],
+  );
+
   const handleOpenQuickTerminal = useCallback(async () => {
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
     if (!result) return;
-    onOpenQuickPane({
-      type: "terminal",
+
+    await openTerminalInPreferredMode({
       sessionId: result.sessionId,
       cwd: result.cwd ?? null,
     });
-  }, [activeTab, homeDirectory, onOpenQuickPane]);
+  }, [activeTab, homeDirectory, openTerminalInPreferredMode]);
 
   const handleOpenQuickCloudTerminal = useCallback(() => {
     setIsRepoDialogOpen(true);
@@ -525,18 +553,19 @@ export const TabStrip = ({
           githubRepo: repo,
         });
 
-        if (!result || !onOpenQuickPane) {
+        if (!result) {
           throw new Error("Failed to create VM terminal");
         }
 
         dismissNotification(notificationId);
 
-        onOpenQuickPane({
-          type: "terminal",
-          sessionId: result.sessionId,
-          cwd: result.cwd ?? null,
-          vmMetadata: result.vmMetadata ?? undefined,
-        });
+        await openTerminalInPreferredMode(
+          {
+            sessionId: result.sessionId,
+            cwd: result.cwd ?? null,
+          },
+          result.vmMetadata ?? undefined,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         updateNotification(notificationId, {
@@ -547,7 +576,7 @@ export const TabStrip = ({
         });
       }
     },
-    [onOpenQuickPane],
+    [openTerminalInPreferredMode],
   );
 
   // Use margins to create gaps that reveal the overlay underneath

@@ -12,12 +12,14 @@ import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { DuplicateTabDialog } from "@/components/shell/DuplicateTabDialog";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
+import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { PaneActionsEditor } from "@/components/shell/paneActions";
+import { FloatingTerminal } from "@/components/shell/quick/FloatingTerminal";
 import {
   QuickDialog,
   type PaneDescriptor,
   type QuickPaneDescriptor,
-} from "@/components/shell/QuickDialog";
+} from "@/components/shell/quick/QuickDialog";
 import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
@@ -51,6 +53,7 @@ import {
 import {
   activeTabAtom,
   applicationModeAtom,
+  floatingTerminalAtom,
   keybindingsAtom,
   tabsAtom,
 } from "@/store/atoms";
@@ -59,7 +62,6 @@ import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NotificationCenter } from "./components/shell/NotificationCenter";
 
 const api = window.conduit;
 
@@ -68,6 +70,7 @@ export function App() {
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setKeybindings = useSetAtom(keybindingsAtom);
+  const [floatingTerminal, setFloatingTerminal] = useAtom(floatingTerminalAtom);
 
   const {
     tabPosition,
@@ -239,7 +242,12 @@ export function App() {
   }, [tabs, openTab]);
 
   useEffect(() => {
+    const closeTerminalSession = (sessionId: string) => {
+      disposeSession(sessionId);
+    };
+
     const unsubscribeExit = api.onExit(({ sessionId }) => {
+      // Handle quick pane exit
       setQuickPaneState((current) => {
         if (
           !current ||
@@ -249,7 +257,17 @@ export function App() {
           return current;
         }
 
-        disposeSession(sessionId);
+        closeTerminalSession(sessionId);
+        return null;
+      });
+
+      // Handle floating terminal exit
+      setFloatingTerminal((current) => {
+        if (!current || current.terminalId !== sessionId) {
+          return current;
+        }
+
+        closeTerminalSession(sessionId);
         return null;
       });
     });
@@ -335,11 +353,7 @@ export function App() {
   );
 
   const handleEditorUpdate = useCallback(
-    (
-      tabId: string,
-      paneId: string,
-      updates: Partial<EditorPane>,
-    ) => {
+    (tabId: string, paneId: string, updates: Partial<EditorPane>) => {
       setTabs((current) =>
         current.map((tab) => {
           if (tab.id !== tabId) {
@@ -676,10 +690,87 @@ export function App() {
 
   const handleOpenQuickPaneAsTab = useCallback(
     async (descriptor: PaneDescriptor) => {
-      setQuickPaneState(null);
+      // Close quick pane without disposing terminal sessions
+      // since they will be reused in the new tab
+      setQuickPaneState((current) => {
+        if (current) {
+          current.onClose?.();
+        }
+        return null;
+      });
       await openTabFromPaneDescriptor(descriptor);
     },
     [],
+  );
+
+  const handleOpenQuickPaneAsFloating = useCallback(
+    (terminalId: string, paneId: string) => {
+      // Transfer terminal from quick pane to floating overlay.
+      setQuickPaneState((current) => {
+        if (!current || current.type !== "terminal") {
+          return null;
+        }
+
+        const cwd = current.cwd;
+
+        current.onClose?.();
+
+        setFloatingTerminal({ terminalId, paneId, cwd });
+
+        return null;
+      });
+    },
+    [setFloatingTerminal],
+  );
+
+  const handleOpenFloatingTerminal = useCallback(
+    (terminalId: string, paneId: string, cwd: string | null) => {
+      // Directly open terminal in floating overlay.
+      setFloatingTerminal({ terminalId, paneId, cwd });
+    },
+    [setFloatingTerminal],
+  );
+
+  const handleCloseFloatingTerminal = useCallback(() => {
+    setFloatingTerminal((current) => {
+      if (!current) {
+        return current;
+      }
+
+      api.closeTerminal(current.terminalId);
+      disposeSession(current.terminalId);
+
+      return null;
+    });
+  }, [setFloatingTerminal]);
+
+  const handleMaximizeFloatingTerminal = useCallback(
+    (terminalId: string, cwd: string | null) => {
+      // Transfer terminal from floating overlay back to quick dialog.
+      setFloatingTerminal(null);
+      setQuickPaneState({
+        type: "terminal",
+        sessionId: terminalId,
+        cwd,
+      });
+    },
+    [setFloatingTerminal, setQuickPaneState],
+  );
+
+  const handleOpenFloatingTerminalAsTab = useCallback(
+    async (terminalId: string, cwd: string | null) => {
+      // Transfer terminal from floating overlay to new tab.
+      setFloatingTerminal(null);
+
+      const { openTabFromExistingSession } = await import(
+        "@/store/actions/tab"
+      );
+      await openTabFromExistingSession({
+        sessionId: terminalId,
+        cwd,
+      });
+    },
+    [setFloatingTerminal],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -695,6 +786,7 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
+            onOpenFloatingTerminal={handleOpenFloatingTerminal}
             position={tabPosition}
           />
         )}
@@ -706,6 +798,7 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
+                onOpenFloatingTerminal={handleOpenFloatingTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -745,6 +838,7 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
+            onOpenFloatingTerminal={handleOpenFloatingTerminal}
             position={tabPosition}
           />
         )}
@@ -756,6 +850,7 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
+                onOpenFloatingTerminal={handleOpenFloatingTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -794,6 +889,28 @@ export function App() {
           paneDescriptor={quickPaneState}
           onClose={handleCloseQuickPane}
           onOpenAsTab={handleOpenQuickPaneAsTab}
+          onOpenAsFloating={handleOpenQuickPaneAsFloating}
+        />
+      )}
+
+      {floatingTerminal && (
+        <FloatingTerminal
+          terminalId={floatingTerminal.terminalId}
+          paneId={floatingTerminal.paneId}
+          cwd={floatingTerminal.cwd}
+          onClose={handleCloseFloatingTerminal}
+          onMaximize={() =>
+            handleMaximizeFloatingTerminal(
+              floatingTerminal.terminalId,
+              floatingTerminal.cwd,
+            )
+          }
+          onOpenAsTab={() =>
+            handleOpenFloatingTerminalAsTab(
+              floatingTerminal.terminalId,
+              floatingTerminal.cwd,
+            )
+          }
         />
       )}
 

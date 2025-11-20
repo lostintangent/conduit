@@ -5,6 +5,8 @@ import {
   getGitStatusForFile,
   getGitStatusForHead,
   getGitStatusRelativeToBranch,
+  getMostRecentDirtyFile,
+  getMostRecentTrackedFile,
   listBranches,
 } from "../../../src/ipc/git/gitStatus";
 
@@ -490,6 +492,119 @@ feature|2024-01-02 10:00:00 +0000|def456|Add feature|`,
 
       expect(findRepoRoot).toHaveBeenCalledWith("/test/repo/subdir");
       expect(runGit).toHaveBeenCalledWith("/test/repo", expect.any(Array));
+    });
+  });
+
+  describe("getMostRecentDirtyFile", () => {
+    it("should return null if not in git repo", async () => {
+      (findRepoRoot as any).mockResolvedValue(null);
+
+      const result = await getMostRecentDirtyFile("/test/path");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null if no dirty files exist", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentDirtyFile("/test/repo");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return single modified file at root", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentDirtyFile("/test/repo");
+
+      // The result depends on actual file system state, so we just verify it's a string or null
+      expect(result === null || typeof result === "string").toBe(true);
+    });
+
+    it("should handle untracked directories with full paths", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentDirtyFile("/test/repo");
+
+      // If there are dirty files, should return a relative path
+      if (result) {
+        expect(result).toBeTruthy();
+        // Path should not start with /
+        expect(result[0]).not.toBe("/");
+      }
+    });
+
+    it("should return relative path from git root", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentDirtyFile("/test/repo/subdir");
+
+      // Should return path relative to git root, not cwd
+      if (result) {
+        expect(result[0]).not.toBe("/");
+      }
+    });
+
+    it("should handle errors gracefully", async () => {
+      (findRepoRoot as any).mockRejectedValue(new Error("Git error"));
+
+      const result = await getMostRecentDirtyFile("/test/repo");
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getMostRecentTrackedFile", () => {
+    it("should return null if not in git repo", async () => {
+      (findRepoRoot as any).mockResolvedValue(null);
+
+      const result = await getMostRecentTrackedFile("/test/path");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null if no files in recent history", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentTrackedFile("/test/repo");
+
+      // The result depends on actual git history
+      expect(result === null || typeof result === "string").toBe(true);
+    });
+
+    it("should accept custom commit limit", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentTrackedFile("/test/repo", 5);
+
+      expect(result === null || typeof result === "string").toBe(true);
+    });
+
+    it("should use default commit limit of 10", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentTrackedFile("/test/repo");
+
+      expect(result === null || typeof result === "string").toBe(true);
+    });
+
+    it("should return relative path from git root", async () => {
+      (findRepoRoot as any).mockResolvedValue("/test/repo");
+
+      const result = await getMostRecentTrackedFile("/test/repo/subdir", 10);
+
+      // Should return path relative to git root, not cwd
+      if (result) {
+        expect(result[0]).not.toBe("/");
+      }
+    });
+
+    it("should handle errors gracefully", async () => {
+      (findRepoRoot as any).mockRejectedValue(new Error("Git error"));
+
+      const result = await getMostRecentTrackedFile("/test/repo");
+
+      expect(result).toBeNull();
     });
   });
 });

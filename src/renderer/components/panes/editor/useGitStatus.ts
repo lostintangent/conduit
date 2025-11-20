@@ -110,12 +110,21 @@ export function useGitStatus(cwd: string) {
           ? new Map(Object.entries(payload.gitStatus))
           : null;
 
+        // Log for debugging
+        const stagedCount = statusMap
+          ? Array.from(statusMap.values()).filter((s) => s.staged).length
+          : 0;
         console.log(
-          `[useGitStatus] Git status changed for cwd=${cwd}, size=${statusMap?.size ?? 0}`,
+          `[useGitStatus] Received git status update: ${statusMap?.size || 0} files (${stagedCount} staged)`,
         );
 
         // Update git status
         setGitStatus(statusMap);
+
+        // Always update current branch when it changes
+        if (payload.currentBranch !== undefined) {
+          setCurrentBranch(payload.currentBranch);
+        }
 
         // Only update base branch on initial load, not on subsequent updates
         // User's branch selection should persist across git status updates

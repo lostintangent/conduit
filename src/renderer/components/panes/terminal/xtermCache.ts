@@ -46,8 +46,8 @@ export function getOrCreate(
     };
 
     const terminal = new Terminal({
-      fontFamily: "Fira Code, Menlo, monospace",
-      fontSize: 14,
+      fontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',
+      fontSize: 13,
       cursorBlink: true,
       scrollback: 2000,
       allowProposedApi: true, // Required for us to use the decorations API (for displaying search results in the terminal)

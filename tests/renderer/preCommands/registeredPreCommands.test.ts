@@ -3,10 +3,10 @@
  */
 
 import {
-    createAgentSession,
-    detectGitHubRepoForCloud,
-    registerDefaultPreCommands,
-    verifyGitRepo,
+  createAgentSession,
+  detectGitHubRepoForCloud,
+  registerDefaultPreCommands,
+  verifyGitRepo,
 } from "@/commands/preCommands/registeredPreCommands";
 import { PreCommandRegistry } from "@/commands/preCommands/registry";
 import type { TerminalConfig } from "@/commands/preCommands/types";

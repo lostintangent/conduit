@@ -11,6 +11,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCommand } from "@/commands/hooks/useCommand";
+import { ApplicationCommands } from "@shared/commands";
 import { BrowserPage } from "@shared/types";
 import {
   Camera,
@@ -18,7 +20,9 @@ import {
   Code,
   Copy,
   ExternalLink,
+  Minimize2,
   MoreVertical,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -36,18 +40,21 @@ export function BrowserMenu({
   onCaptureScreenshot,
 }: BrowserMenuProps) {
   const [showCheckmark, setShowCheckmark] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const collapsePane = useCommand(ApplicationCommands.PANE_COLLAPSE);
+  const closePane = useCommand(ApplicationCommands.PANE_CLOSE);
 
   const showCheckmarkWithTimer = useCallback(() => {
     setShowCheckmark(true);
 
     // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+    if (checkmarkTimeoutRef.current) {
+      clearTimeout(checkmarkTimeoutRef.current);
     }
 
     // Set timeout to hide checkmark after 2 seconds
-    timeoutRef.current = setTimeout(() => {
+    checkmarkTimeoutRef.current = setTimeout(() => {
       setShowCheckmark(false);
     }, 2000);
   }, []);
@@ -65,8 +72,8 @@ export function BrowserMenu({
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      if (checkmarkTimeoutRef.current) {
+        clearTimeout(checkmarkTimeoutRef.current);
       }
     };
   }, []);
@@ -109,6 +116,15 @@ export function BrowserMenu({
         <DropdownMenuItem onClick={onOpenDevTools}>
           <Code size={12} />
           Open dev tools
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={collapsePane.execute}>
+          <Minimize2 size={12} />
+          Collapse browser
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={closePane.execute}>
+          <X size={12} />
+          Close browser
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

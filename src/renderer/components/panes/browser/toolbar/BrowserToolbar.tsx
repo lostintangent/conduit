@@ -12,7 +12,7 @@ import {
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { BrowserPage } from "@shared/types";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";
 import { StarredPagesMenu } from "./StarredPagesMenu";
 
@@ -50,12 +50,39 @@ export function BrowserToolbar({
 
   const [inputUrl, setInputUrl] = useState<string>(currentPage.url);
   const [showHistory, setShowHistory] = useState<boolean>(false);
+  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Filter history based on input text
+  const filteredHistory = useMemo(() => {
+    const searchText = inputUrl.trim().toLowerCase();
+    // Don't filter if empty or "about:blank" (show all history)
+    if (!searchText || searchText === "about:blank") {
+      return urlHistory;
+    }
+    return urlHistory.filter((url) => url.toLowerCase().includes(searchText));
+  }, [inputUrl, urlHistory]);
 
   const closeDropdowns = useCallback(() => {
     setShowHistory(false);
+    setSelectedHistoryIndex(-1);
   }, []);
 
   const handleUrlSubmit = useCallback(() => {
+    // If history is showing and an item is selected, navigate to it
+    if (
+      showHistory &&
+      selectedHistoryIndex >= 0 &&
+      selectedHistoryIndex < filteredHistory.length
+    ) {
+      const selectedUrl = filteredHistory[selectedHistoryIndex];
+      setInputUrl(selectedUrl);
+      onNavigate(selectedUrl);
+      addUrlToHistory(selectedUrl);
+      closeDropdowns();
+      return;
+    }
+
     let targetUrl = inputUrl.trim();
     if (targetUrl.length === 0) return;
 
@@ -74,16 +101,26 @@ export function BrowserToolbar({
     closeDropdowns();
 
     onNavigate(targetUrl);
-  }, [inputUrl, addUrlToHistory, closeDropdowns, onNavigate]);
+  }, [
+    inputUrl,
+    addUrlToHistory,
+    closeDropdowns,
+    onNavigate,
+    showHistory,
+    selectedHistoryIndex,
+    filteredHistory,
+  ]);
 
   const handleUrlInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setInputUrl(value);
 
-      // If the user cleared the input bar, then
-      // show the MRU history dropdown (if we have any).
-      setShowHistory(value.trim().length === 0 && urlHistory.length > 0);
+      // Show history dropdown when there's input or when cleared (if history exists)
+      if (urlHistory.length > 0) {
+        setShowHistory(true);
+      }
+      setSelectedHistoryIndex(-1);
     },
     [urlHistory.length],
   );
@@ -99,6 +136,45 @@ export function BrowserToolbar({
       setShowHistory(true);
     }
   }, [inputUrl, urlHistory.length]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Escape") {
+        if (showHistory) {
+          closeDropdowns();
+        } else {
+          // Clear the input if history isn't showing
+          setInputUrl("");
+          // Show history if available
+          if (urlHistory.length > 0) {
+            setShowHistory(true);
+          }
+        }
+        return;
+      }
+
+      if (!showHistory || filteredHistory.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedHistoryIndex((prev) => {
+          if (prev < filteredHistory.length - 1) {
+            return prev + 1;
+          }
+          return 0; // Wrap to top
+        });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedHistoryIndex((prev) => {
+          if (prev <= 0) {
+            return filteredHistory.length - 1; // Wrap to bottom
+          }
+          return prev - 1;
+        });
+      }
+    },
+    [showHistory, filteredHistory.length, closeDropdowns, urlHistory.length],
+  );
 
   const handleHistoryItemClick = useCallback(
     (historyUrl: string) => {
@@ -131,6 +207,39 @@ export function BrowserToolbar({
 
   const handleStarredCloseRequest = useCallback(() => {
     setShowHistory(false);
+  }, []);
+
+  // Helper to highlight matching text
+  const highlightMatch = (text: string, query: string) => {
+    if (!query) return text;
+
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const index = lowerText.indexOf(lowerQuery);
+
+    if (index === -1) return text;
+
+    return (
+      <>
+        {text.slice(0, index)}
+        <span className="text-accent">
+          {text.slice(index, index + query.length)}
+        </span>
+        {text.slice(index + query.length)}
+      </>
+    );
+  };
+
+  // On mount, if URL is blank, auto-focus and select all text
+  useEffect(() => {
+    if (currentPage.url === "about:blank" || currentPage.url === "") {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+
+      if (urlHistory.length > 0) {
+        setShowHistory(true);
+      }
+    }
   }, []);
 
   // Update input URL when user navigates via in-page links or back/forward buttons
@@ -191,10 +300,12 @@ export function BrowserToolbar({
         >
           <InputGroup className="h-8">
             <InputGroupInput
+              ref={inputRef}
               value={inputUrl}
               onChange={handleUrlInputChange}
               onBlur={handleUrlInputBlur}
               onFocus={handleUrlInputFocus}
+              onKeyDown={handleKeyDown}
               className="text-sm"
               placeholder="Enter URL..."
             />
@@ -208,12 +319,14 @@ export function BrowserToolbar({
           </InputGroup>
         </form>
 
-        {showHistory && urlHistory.length > 0 && (
+        {showHistory && filteredHistory.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded shadow-lg z-10 max-h-48 overflow-y-auto">
-            {urlHistory.map((historyUrl) => (
+            {filteredHistory.map((historyUrl, index) => (
               <div
                 key={historyUrl}
-                className="group flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition"
+                className={`group flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition ${
+                  index === selectedHistoryIndex ? "bg-accent/50" : ""
+                }`}
               >
                 <button
                   type="button"
@@ -221,7 +334,7 @@ export function BrowserToolbar({
                   onClick={() => handleHistoryItemClick(historyUrl)}
                   className="flex-1 px-3 py-2 text-sm text-left transition overflow-hidden text-ellipsis whitespace-nowrap"
                 >
-                  {historyUrl}
+                  {highlightMatch(historyUrl, inputUrl.trim())}
                 </button>
                 <button
                   type="button"

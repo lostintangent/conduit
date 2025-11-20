@@ -70,11 +70,29 @@ export async function configureTsConfig(cwd: string, api: any): Promise<void> {
   // Enable eager model sync for better cross-file IntelliSense
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
   monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+
+  // Note: Diagnostics are disabled globally at Monaco initialization
+  // See the global configuration after monaco import
 }
 
 console.log(
   "[Monaco Workers] Full monaco-editor bundle loaded with all languages",
 );
+
+// Disable TypeScript diagnostics globally to prevent errors with custom URIs
+// This must be done at initialization, not in configureTsConfig
+monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+  noSemanticValidation: true, // Disable type checking (can't resolve imports)
+  noSyntaxValidation: true, // Disable syntax checking (fails on inmemory:// URIs)
+  noSuggestionDiagnostics: true, // Disable suggestion diagnostics
+});
+monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+  noSemanticValidation: true,
+  noSyntaxValidation: true,
+  noSuggestionDiagnostics: true,
+});
+
+console.log("[Monaco TypeScript] Diagnostics disabled globally");
 
 // Configure markdown language to support wrapping selections with markdown syntax
 monaco.languages.setLanguageConfiguration("markdown", {

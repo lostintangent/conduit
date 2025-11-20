@@ -629,3 +629,66 @@ export async function applyDiffPatch(
     return false;
   }
 }
+
+/**
+ * Pull changes from remote repository
+ */
+export async function gitPull(
+  cwd: string,
+  rebase = false,
+): Promise<{ stdout: string; stderr: string }> {
+  const args = ["pull"];
+  if (rebase) {
+    args.push("--rebase");
+  }
+
+  return await runGit(cwd, args);
+}
+
+/**
+ * Push changes to remote repository
+ */
+export async function gitPush(
+  cwd: string,
+  force = false,
+  setUpstream = false,
+): Promise<{ stdout: string; stderr: string }> {
+  const args = ["push"];
+  if (force) {
+    args.push("--force-with-lease");
+  }
+  if (setUpstream) {
+    args.push("--set-upstream", "origin", "HEAD");
+  }
+
+  return await runGit(cwd, args);
+}
+
+/**
+ * Check if the current branch has an upstream (tracking) branch
+ */
+export async function hasUpstreamBranch(cwd: string): Promise<boolean> {
+  try {
+    const result = await runGit(cwd, [
+      "rev-parse",
+      "--abbrev-ref",
+      "--symbolic-full-name",
+      "@{u}",
+    ]);
+    return result.stdout.trim().length > 0;
+  } catch (error) {
+    // Command fails if no upstream is set
+    return false;
+  }
+}
+
+/**
+ * Commit staged changes with a message
+ */
+export async function gitCommit(
+  cwd: string,
+  message: string,
+): Promise<{ stdout: string; stderr: string }> {
+  const args = ["commit", "-m", message];
+  return await runGit(cwd, args);
+}

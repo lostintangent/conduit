@@ -3,14 +3,14 @@ import {
   inputToSession,
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
-import type { QuickPaneDescriptor } from "@/components/shell/QuickDialog";
-import { tabsAtom } from "@/store/atoms";
-import type { Tab } from "@/types";
+import type { QuickPaneDescriptor } from "@/components/shell/quick/QuickDialog";
+import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
+import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 const { cli } = window.conduit;
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
@@ -21,7 +21,8 @@ type UseCliClientOptions = {
 
 export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const tabs = useAtomValue(tabsAtom);
-  const tabsRef = useRef<Tab[]>(tabs);
+  const activeTab = useAtomValue(activeTabAtom);
+  const floatingTerminal = useAtomValue(floatingTerminalAtom);
 
   const moveLeftCommand = useCommand(ApplicationCommands.PANE_MOVE_LEFT);
   const moveRightCommand = useCommand(ApplicationCommands.PANE_MOVE_RIGHT);
@@ -103,16 +104,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
     },
   } as const;
 
-  useEffect(() => {
-    tabsRef.current = tabs;
-  }, [tabs]);
-
-  useEffect(() => {
-    const handleCliRequest = async ({
-      requestId,
-      sessionId,
-      command: { name, args },
-    }: CliRequest) => {
+  const handleCliRequest = useEffectEvent(
+    async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) =>
         cli.respondToRequest<T>({
           requestId,
@@ -121,6 +114,24 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
       const respondResult = (result?: any) => respond({ result });
       const respondError = (error: string) => respond({ error });
+
+      // Helper function to find the tab containing the calling terminal
+      const findCallingTerminalTab = () => {
+        let matchingTab = tabs.find((tab) =>
+          Object.values(tab.panes).some(
+            (pane) => pane.type === "terminal" && pane.sessionId === sessionId,
+          ),
+        );
+
+        // If the session isn't in any tab, check if it's the floating terminal
+        if (!matchingTab) {
+          if (floatingTerminal?.terminalId === sessionId) {
+            matchingTab = activeTab;
+          }
+        }
+
+        return matchingTab;
+      };
 
       try {
         switch (name) {
@@ -147,13 +158,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "list-panes": {
-            const currentTabs = tabsRef.current;
-            const matchingTab = currentTabs.find((tab) =>
-              Object.values(tab.panes).some(
-                (pane) =>
-                  pane.type === "terminal" && pane.sessionId === sessionId,
-              ),
-            );
+            const matchingTab = findCallingTerminalTab();
 
             const panes = Object.values(matchingTab.panes)
               // Filter out the calling terminal pane
@@ -211,9 +216,44 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "write-terminal": {
-            const didWrite = inputToSession(args.sessionId, args.input);
+            // Determine target session IDs based on wildcard or specific session
+            let targetSessionIds: string[];
 
-            if (!didWrite) {
+            if (args.sessionId === "*") {
+              // Find the tab containing the calling terminal
+              const matchingTab = findCallingTerminalTab();
+
+              if (!matchingTab) {
+                respondError("Unable to find the calling terminal's tab.");
+                break;
+              }
+
+              // Get all terminal panes in the tab, excluding the caller
+              targetSessionIds = Object.values(matchingTab.panes)
+                .filter(
+                  (pane) =>
+                    pane.type === "terminal" && pane.sessionId !== sessionId,
+                )
+                .map((pane) => (pane as TerminalPane).sessionId);
+
+              if (targetSessionIds.length === 0) {
+                respondError("No other terminals found in the tab.");
+                break;
+              }
+            } else {
+              // Single terminal case
+              targetSessionIds = [args.sessionId];
+            }
+
+            // Send input to all target terminals
+            let successCount = 0;
+            for (const targetSessionId of targetSessionIds) {
+              if (inputToSession(targetSessionId, args.input)) {
+                successCount++;
+              }
+            }
+
+            if (successCount === 0) {
               respondError("Unable to write to terminal.");
               break;
             }
@@ -273,35 +313,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       } catch (error) {
         respondError(error.message);
       }
-    };
+    },
+  );
 
+  useEffect(() => {
     const dispose = cli.onRequest(handleCliRequest);
     return () => {
       dispose();
     };
-  }, [
-    moveUpCommand,
-    moveDownCommand,
-    moveLeftCommand,
-    moveRightCommand,
-    moveToTabCommand,
-    focusPaneCommand,
-    closePaneCommand,
-    closeTabCommand,
-    newTabCommand,
-    duplicateTabCommand,
-    splitLeftTerminalCommand,
-    splitRightTerminalCommand,
-    splitTopTerminalCommand,
-    splitBottomTerminalCommand,
-    splitLeftBrowserCommand,
-    splitRightBrowserCommand,
-    splitTopBrowserCommand,
-    splitBottomBrowserCommand,
-    splitLeftEditorCommand,
-    splitRightEditorCommand,
-    splitTopEditorCommand,
-    splitBottomEditorCommand,
-    onOpenFile,
-  ]);
+  }, [handleCliRequest]);
 }

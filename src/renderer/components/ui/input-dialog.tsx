@@ -32,7 +32,10 @@ export function InputDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-popover border-border">
+      <DialogContent
+        className="sm:max-w-[425px] bg-popover border-border"
+        aria-describedby={undefined}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

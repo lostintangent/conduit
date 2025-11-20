@@ -3,22 +3,33 @@ import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
 import type { UserSettings, WorkspaceState } from "@shared/types";
 import { atom } from "jotai";
+import { atomWithImmer } from "jotai-immer";
 
 export const userSettingsAtom = atom<UserSettings>({
+  // UI/Layout settings
   tabPosition: "bottom",
   alwaysShowTabs: true,
-  showTerminalRuler: true,
-  autoSaveWorkspaces: true,
   useGradientBorders: true,
-  useConduitAsEditor: true,
   theme: "dark",
+
+  // Terminal settings
+  showTerminalRuler: true,
+  quickTerminalMode: "floating",
+
+  // Editor settings
+  useConduitAsEditor: true,
+
+  // Workspace settings
+  autoSaveWorkspaces: true,
+
+  // History/State
   commandHistory: [],
   urlHistory: [],
   starredPages: [],
   homeDirectory: null,
 });
 
-export const tabsAtom = atom<Tab[]>([]);
+export const tabsAtom = atomWithImmer<Tab[]>([]);
 
 export const activeTabIdAtom = atom<string>();
 export const activeTabAtom = atom<Tab | null>((get) => {
@@ -61,3 +72,9 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  * Updated when actions are loaded from file or changed programmatically
  */
 export const paneActionsAtom = atom<Action[]>([]);
+
+export const floatingTerminalAtom = atom<{
+  terminalId: string;
+  paneId: string;
+  cwd: string | null;
+}>();

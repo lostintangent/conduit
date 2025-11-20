@@ -133,7 +133,10 @@ export function showContextMenu(
       const fullSubmenuPath = `${parentGroup}/${submenuPath}`;
       const existingItems = grouped.get(parentGroup)!;
       const submenuExists = existingItems.some(
-        (entry) => "type" in entry && entry.type === "submenu" && entry.submenu.path === fullSubmenuPath
+        (entry) =>
+          "type" in entry &&
+          entry.type === "submenu" &&
+          entry.submenu.path === fullSubmenuPath,
       );
 
       if (!submenuExists) {
@@ -164,14 +167,13 @@ export function showContextMenu(
     items.forEach((item) => {
       if ("type" in item && item.type === "submenu") {
         // Add submenu
-        const submenuItems: MenuItemConstructorOptions[] = item.submenu.items.map(
-          (subItem: ContextMenuItemData) => ({
+        const submenuItems: MenuItemConstructorOptions[] =
+          item.submenu.items.map((subItem: ContextMenuItemData) => ({
             label: subItem.title,
             accelerator: subItem.keybinding,
             enabled: subItem.enabled,
             click: () => sendCommandToRenderer(subItem.commandId),
-          }),
-        );
+          }));
 
         menuTemplate.push({
           label: item.submenu.label,

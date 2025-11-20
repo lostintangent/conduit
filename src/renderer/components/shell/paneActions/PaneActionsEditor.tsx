@@ -36,7 +36,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 const api = window.conduit;
 
@@ -530,10 +530,9 @@ export function PaneActionsEditor({
                 const isExpanded = expandedActions.has(action.name);
 
                 return (
-                  <>
+                  <React.Fragment key={index}>
                     {/* Main action row */}
                     <tr
-                      key={index}
                       draggable
                       onDragStart={() => handleDragStart(index)}
                       onDragOver={(e) => handleDragOver(e, index)}
@@ -986,7 +985,7 @@ export function PaneActionsEditor({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
 

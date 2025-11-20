@@ -136,7 +136,7 @@ type TerminalPaneProps = {
   terminalId: string;
   isActive: boolean;
   paneId: string;
-  tabId: string;
+  tabId?: string;
   cwd?: string | null;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
@@ -144,6 +144,7 @@ type TerminalPaneProps = {
   showDimensions?: boolean;
   hideIndividualSandboxIndicator?: boolean;
   isTabSynchronized?: boolean;
+  fontSize?: number;
 };
 
 export const TerminalPane = ({
@@ -158,6 +159,7 @@ export const TerminalPane = ({
   showDimensions = true,
   hideIndividualSandboxIndicator = false,
   isTabSynchronized = false,
+  fontSize,
 }: TerminalPaneProps) => {
   const settings = useAtomValue(userSettingsAtom);
   const { showTerminalRuler } = settings;
@@ -319,6 +321,12 @@ export const TerminalPane = ({
 
     const terminal = getOrCreate(terminalId);
     terminalRef.current = terminal;
+
+    // Apply custom font size if provided
+    if (fontSize !== undefined) {
+      terminal.terminal.options.fontSize = fontSize;
+    }
+
     attach(terminalId, container);
 
     const controller = createFitController({
@@ -326,6 +334,14 @@ export const TerminalPane = ({
       entry: terminal,
       setDimensions,
     });
+
+    // If font size was changed, trigger a fit after a short delay
+    // to ensure the terminal has rendered with the new font size
+    if (fontSize !== undefined) {
+      setTimeout(() => {
+        terminal.fit.fit();
+      }, 0);
+    }
 
     const detachKeyHandler = registerTerminalKeyHandler({
       entry: terminal,
@@ -343,6 +359,11 @@ export const TerminalPane = ({
       detachKeyHandler();
       controller.dispose();
 
+      // Reset font size to default when unmounting
+      if (fontSize !== undefined) {
+        terminal.terminal.options.fontSize = 13;
+      }
+
       linkHandlerRef.current = null;
       terminalRef.current = null;
       searchWidgetRef.current = null;
@@ -353,6 +374,7 @@ export const TerminalPane = ({
     terminalId,
     isTabSynchronized,
     handleSynchronizedInput,
+    fontSize,
   ]);
 
   useEffect(() => {

@@ -108,7 +108,10 @@ program
   )
   .alias("write")
   .description("Send input to a terminal session")
-  .argument("<sessionId>", "The terminal session to write to")
+  .argument(
+    "<sessionId>",
+    "The terminal session to write to (use '*' for all terminals in the tab)",
+  )
   .argument("<input...>", "Input to send to the terminal")
   .option("-n, --newline", "Add a newline to the end of the input");
 
