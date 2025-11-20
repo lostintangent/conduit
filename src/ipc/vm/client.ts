@@ -317,7 +317,6 @@ export async function executeInVM(
   vmId: string,
   command: string,
   args?: string[],
-  working_directory?: string,
   timeoutSeconds = 30,
 ): Promise<{
   exit_code: number;
@@ -328,7 +327,6 @@ export async function executeInVM(
   const payload = {
     command,
     args: args || [],
-    working_directory,
     timeout_seconds: timeoutSeconds,
   };
 
@@ -362,13 +360,7 @@ export async function configureVMForGitPush(
     // This allows pushing to the currently checked-out branch and updates the working directory
     const configCommand = `cd ${repoPath} && git config receive.denyCurrentBranch updateInstead`;
 
-    const result = await executeInVM(
-      vmId,
-      "bash",
-      ["-c", configCommand],
-      undefined,
-      30,
-    );
+    const result = await executeInVM(vmId, "bash", ["-c", configCommand], 30);
 
     if (result.exit_code !== 0) {
       console.error(`[VM] Failed to configure git:`, result.stderr);
@@ -544,13 +536,7 @@ export async function applyDiffToVM(
 
     // Execute all patch applications in sequence
     for (const command of commands) {
-      const result = await executeInVM(
-        vmId,
-        "bash",
-        ["-c", command],
-        undefined,
-        60,
-      );
+      const result = await executeInVM(vmId, "bash", ["-c", command], 60);
 
       if (result.exit_code !== 0) {
         console.error(`[VM] Failed to apply patch:`, result.stderr);
