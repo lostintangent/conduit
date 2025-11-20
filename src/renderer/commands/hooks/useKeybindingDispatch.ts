@@ -68,6 +68,10 @@ export function useKeybindingDispatch(
           event.preventDefault();
           currentChordRef.current = event;
 
+          // Clear pressed keys after first chord to prevent them from interfering
+          // with the second chord matching
+          clearPressedKeys();
+
           // Set timeout to clear chord state
           const timeout = window.setTimeout(() => {
             currentChordRef.current = null;

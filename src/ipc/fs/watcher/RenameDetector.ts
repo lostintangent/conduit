@@ -54,6 +54,11 @@ export class RenameDetector {
         continue;
       }
 
+      // Must be different files (not a create of the same file that was just deleted)
+      if (newFilePath === oldPath) {
+        continue;
+      }
+
       // Found a match - remove from tracking
       this.recentUnlinks.delete(oldPath);
       return oldPath;
@@ -80,6 +85,11 @@ export class RenameDetector {
 
       // Must be in same directory (simple rename, not move)
       if (oldDir !== newDir) {
+        continue;
+      }
+
+      // Must be different files (not a delete of the same file that was just created)
+      if (oldFilePath === newPath) {
         continue;
       }
 

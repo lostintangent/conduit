@@ -17,8 +17,8 @@ describe("RenameDetector", () => {
     it("should record a file deletion", () => {
       detector.recordUnlink("/test/path/file.txt");
 
-      // Verify by checking if detectRename can find it
-      const renamed = detector.detectRename("/test/path/renamed.txt");
+      // Verify by checking if detectRenameFromCreate can find it
+      const renamed = detector.detectRenameFromCreate("/test/path/renamed.txt");
       expect(renamed).toBe("/test/path/file.txt");
     });
 
@@ -29,19 +29,21 @@ describe("RenameDetector", () => {
       vi.advanceTimersByTime(500);
 
       // Should no longer detect rename
-      const renamed = detector.detectRename("/test/path/renamed.txt");
+      const renamed = detector.detectRenameFromCreate("/test/path/renamed.txt");
       expect(renamed).toBeNull();
     });
   });
 
-  describe("detectRename()", () => {
+  describe("detectRenameFromCreate()", () => {
     it("should detect rename in same directory within time window", () => {
       detector.recordUnlink("/test/path/old-name.txt");
 
       // Advance time but stay within 500ms window
       vi.advanceTimersByTime(100);
 
-      const renamed = detector.detectRename("/test/path/new-name.txt");
+      const renamed = detector.detectRenameFromCreate(
+        "/test/path/new-name.txt",
+      );
       expect(renamed).toBe("/test/path/old-name.txt");
     });
 
@@ -50,7 +52,9 @@ describe("RenameDetector", () => {
 
       vi.advanceTimersByTime(100);
 
-      const renamed = detector.detectRename("/test/path/dir2/file.txt");
+      const renamed = detector.detectRenameFromCreate(
+        "/test/path/dir2/file.txt",
+      );
       expect(renamed).toBeNull();
     });
 
@@ -60,7 +64,9 @@ describe("RenameDetector", () => {
       // Advance time beyond the 500ms window
       vi.advanceTimersByTime(600);
 
-      const renamed = detector.detectRename("/test/path/new-name.txt");
+      const renamed = detector.detectRenameFromCreate(
+        "/test/path/new-name.txt",
+      );
       expect(renamed).toBeNull();
     });
 
@@ -68,16 +74,22 @@ describe("RenameDetector", () => {
       detector.recordUnlink("/test/path/old-name.txt");
 
       // First detection should work
-      const renamed1 = detector.detectRename("/test/path/new-name.txt");
+      const renamed1 = detector.detectRenameFromCreate(
+        "/test/path/new-name.txt",
+      );
       expect(renamed1).toBe("/test/path/old-name.txt");
 
       // Second detection should not find it (already consumed)
-      const renamed2 = detector.detectRename("/test/path/another-name.txt");
+      const renamed2 = detector.detectRenameFromCreate(
+        "/test/path/another-name.txt",
+      );
       expect(renamed2).toBeNull();
     });
 
     it("should return null if no recent unlinks", () => {
-      const renamed = detector.detectRename("/test/path/new-file.txt");
+      const renamed = detector.detectRenameFromCreate(
+        "/test/path/new-file.txt",
+      );
       expect(renamed).toBeNull();
     });
 
@@ -89,15 +101,21 @@ describe("RenameDetector", () => {
       vi.advanceTimersByTime(100);
 
       // Should match file1 (same directory)
-      const renamed1 = detector.detectRename("/test/path/renamed1.txt");
+      const renamed1 = detector.detectRenameFromCreate(
+        "/test/path/renamed1.txt",
+      );
       expect(renamed1).toBe("/test/path/file1.txt");
 
       // Should match file2 (file1 already consumed)
-      const renamed2 = detector.detectRename("/test/path/renamed2.txt");
+      const renamed2 = detector.detectRenameFromCreate(
+        "/test/path/renamed2.txt",
+      );
       expect(renamed2).toBe("/test/path/file2.txt");
 
       // Should not match file3 (different directory)
-      const renamed3 = detector.detectRename("/test/path/renamed3.txt");
+      const renamed3 = detector.detectRenameFromCreate(
+        "/test/path/renamed3.txt",
+      );
       expect(renamed3).toBeNull();
     });
   });
@@ -110,8 +128,8 @@ describe("RenameDetector", () => {
       detector.clear();
 
       // Should not detect any renames after clear
-      const renamed1 = detector.detectRename("/test/path/new1.txt");
-      const renamed2 = detector.detectRename("/test/path/new2.txt");
+      const renamed1 = detector.detectRenameFromCreate("/test/path/new1.txt");
+      const renamed2 = detector.detectRenameFromCreate("/test/path/new2.txt");
 
       expect(renamed1).toBeNull();
       expect(renamed2).toBeNull();
@@ -130,7 +148,7 @@ describe("RenameDetector", () => {
 
       vi.advanceTimersByTime(100);
 
-      const renamed = detector.detectRename(
+      const renamed = detector.detectRenameFromCreate(
         "/test/path/renamed with spaces.txt",
       );
       expect(renamed).toBe("/test/path/file with spaces.txt");
@@ -141,7 +159,7 @@ describe("RenameDetector", () => {
 
       vi.advanceTimersByTime(100);
 
-      const renamed = detector.detectRename(
+      const renamed = detector.detectRenameFromCreate(
         "/test/path/deep/nested/dir/renamed.txt",
       );
       expect(renamed).toBe("/test/path/deep/nested/dir/file.txt");
@@ -159,7 +177,7 @@ describe("RenameDetector", () => {
       vi.setSystemTime(now + 200);
 
       // Should match file1 (oldest in same directory)
-      const renamed = detector.detectRename("/test/path/renamed.txt");
+      const renamed = detector.detectRenameFromCreate("/test/path/renamed.txt");
       expect(renamed).toBe("/test/path/file1.txt");
     });
   });

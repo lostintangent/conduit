@@ -252,12 +252,16 @@ export function useDirectoryCache({
         });
       } catch (error) {
         console.error("Failed to load directory contents:", error);
-        setLoadedChildren(undefined);
-        setIsResolved(false); // Allow retry on next expansion
+        // Mark as resolved with empty array to avoid retry loops
+        setLoadedChildren([]);
+        setIsResolved(true);
 
-        // Don't cache errors - remove from cache to prevent persistent empty display
-        // This allows recovery when the error condition is resolved (e.g., permissions fixed)
-        directoryCache.delete(cacheKey);
+        // Cache empty array to prevent retry loops
+        directoryCache.set(cacheKey, {
+          children: [],
+          version: fetchStartVersion,
+          fetchInProgress: false,
+        });
       } finally {
         setIsLoading(false);
       }
