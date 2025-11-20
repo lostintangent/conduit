@@ -59,6 +59,66 @@ export type CliCommand =
   // Browser commands
   | DefineCommand<"capture-browser", { paneId: string }, string>
   | DefineCommand<"navigate-browser", { paneId: string; url: string }>
+  | DefineCommand<
+      "browser-click",
+      {
+        paneId: string;
+        selector: string;
+        nth?: number;
+        state?: "attached" | "visible";
+        timeoutMs?: number;
+      }
+    >
+  | DefineCommand<
+      "browser-type",
+      {
+        paneId: string;
+        selector: string;
+        text: string;
+        nth?: number;
+        clear?: boolean;
+        enterKey?: boolean;
+        state?: "attached" | "visible";
+        timeoutMs?: number;
+      }
+    >
+  | DefineCommand<
+      "browser-scroll",
+      {
+        paneId: string;
+        selector?: string;
+        intoView?: boolean;
+        x?: number;
+        y?: number;
+      }
+    >
+  | DefineCommand<
+      "browser-evaluate",
+      {
+        paneId: string;
+        script: string;
+      },
+      unknown
+    >
+  | DefineCommand<
+      "browser-wait-for",
+      {
+        paneId: string;
+        selector: string;
+        nth?: number;
+        state?: "attached" | "visible";
+        timeoutMs?: number;
+      },
+      { count: number }
+    >
+  | DefineCommand<
+      "browser-query",
+      {
+        paneId: string;
+        selector: string;
+      },
+      BrowserQueryResult[]
+    >
   // Editor commands
   | DefineCommand<"open-file", { cwd: string; filePath?: string }>;
 
@@ -68,4 +128,18 @@ export type CliResponse<T = undefined> = {
   requestId: string;
   result?: T;
   error?: string;
+};
+
+export type BrowserQueryResult = {
+  selector: string;
+  tag: string;
+  id?: string;
+  classes: string[];
+  innerText?: string;
+  boundingBox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 };

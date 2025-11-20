@@ -131,6 +131,139 @@ program
   .argument("<paneId>", "The browser pane to navigate")
   .argument("<url>", "The URL to navigate to");
 
+program
+  .cliCommand("browser-click", (request, paneId, selector, options) =>
+    request({
+      paneId,
+      selector,
+      nth: options.nth,
+      state: options.state,
+      timeoutMs: options.timeout,
+    }),
+  )
+  .description("Click an element in the target browser pane")
+  .argument("<paneId>", "The browser pane to target")
+  .argument("<selector>", "CSS selector to click")
+  .addOption(
+    new Option(
+      "--nth <index>",
+      "Index to select when multiple matches are found",
+    ).argParser(Number),
+  )
+  .addOption(
+    new Option("--state <state>", "Wait condition before clicking")
+      .choices(["attached", "visible"])
+      .default("visible"),
+  )
+  .addOption(
+    new Option("--timeout <ms>", "Timeout in milliseconds").argParser(Number),
+  );
+
+program
+  .cliCommand("browser-type", (request, paneId, selector, text, options) =>
+    request({
+      paneId,
+      selector,
+      text,
+      nth: options.nth,
+      clear: options.clear,
+      enterKey: options.enter,
+      state: options.state,
+      timeoutMs: options.timeout,
+    }),
+  )
+  .description("Type into an element in the target browser pane")
+  .argument("<paneId>", "The browser pane to target")
+  .argument("<selector>", "CSS selector to type into")
+  .argument("<text>", "Text to enter")
+  .addOption(
+    new Option(
+      "--nth <index>",
+      "Index to select when multiple matches are found",
+    ).argParser(Number),
+  )
+  .addOption(
+    new Option("--state <state>", "Wait condition before typing")
+      .choices(["attached", "visible"])
+      .default("visible"),
+  )
+  .addOption(
+    new Option("--timeout <ms>", "Timeout in milliseconds").argParser(Number),
+  )
+  .option("--clear", "Clear the field before typing")
+  .option("--enter", "Send an Enter key after typing");
+
+program
+  .cliCommand("browser-scroll", (request, paneId, selector, options) =>
+    request({
+      paneId,
+      selector: selector === "" ? undefined : selector,
+      intoView: options.intoView,
+      x: options.x,
+      y: options.y,
+    }),
+  )
+  .description("Scroll within a browser pane")
+  .argument("<paneId>", "The browser pane to target")
+  .argument("[selector]", "Optional selector to scroll into view")
+  .addOption(
+    new Option("--x <pixels>", "Horizontal scroll offset").argParser(Number),
+  )
+  .addOption(
+    new Option("--y <pixels>", "Vertical scroll offset").argParser(Number),
+  )
+  .option("--into-view", "Center the selector in view when provided");
+
+program
+  .cliCommand("browser-evaluate", async (request, paneId, script) => {
+    const result = await request({ paneId, script });
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  })
+  .description("Run arbitrary JavaScript inside a browser pane")
+  .argument("<paneId>", "The browser pane to target")
+  .argument("<script>", "JavaScript snippet to execute");
+
+program
+  .cliCommand(
+    "browser-wait-for",
+    async (request, paneId, selector, options) => {
+      const result = await request({
+        paneId,
+        selector,
+        nth: options.nth,
+        state: options.state,
+        timeoutMs: options.timeout,
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    },
+  )
+  .description("Wait for a selector to meet the requested condition")
+  .argument("<paneId>", "The browser pane to target")
+  .argument("<selector>", "CSS selector to wait for")
+  .addOption(
+    new Option(
+      "--nth <index>",
+      "Index to select when multiple matches are found",
+    ).argParser(Number),
+  )
+  .addOption(
+    new Option("--state <state>", "Wait condition")
+      .choices(["attached", "visible"])
+      .default("visible"),
+  )
+  .addOption(
+    new Option("--timeout <ms>", "Timeout in milliseconds").argParser(Number),
+  );
+
+program
+  .cliCommand("browser-query", async (request, paneId, selector) => {
+    const result = await request({ paneId, selector });
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  })
+  .description("Return metadata for matching elements in a browser pane")
+  .argument("<paneId>", "The browser pane to target")
+  .argument("<selector>", "CSS selector to query");
+
 /* Editor commands */
 
 program

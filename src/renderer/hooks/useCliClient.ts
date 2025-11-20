@@ -11,6 +11,14 @@ import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
 import { useEffect, useEffectEvent } from "react";
+import {
+  clickElement,
+  evaluateScript,
+  queryElements,
+  scrollPage,
+  typeIntoElement,
+  waitForSelector,
+} from "../browser/automation";
 
 const { cli } = window.conduit;
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
@@ -114,6 +122,29 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
       const respondResult = (result?: any) => respond({ result });
       const respondError = (error: string) => respond({ error });
+
+      const resolveWebview = (paneId?: string) => {
+        if (!paneId) return null;
+        return document.getElementById(paneId) as WebviewTag | null;
+      };
+
+      const respondAutomation = <T>(result: {
+        success: boolean;
+        error?: string;
+        data?: T;
+        details?: unknown;
+      }) => {
+        if (!result.success) {
+          const detailString = result.details
+            ? ` (${JSON.stringify(result.details)})`
+            : "";
+          respondError(`${result.error ?? "Automation failed"}${detailString}`);
+          return false;
+        }
+
+        respondResult(result.data);
+        return true;
+      };
 
       // Helper function to find the tab containing the calling terminal
       const findCallingTerminalTab = () => {
@@ -225,6 +256,111 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
             webview.loadURL(args.url);
             respondResult();
+            break;
+          }
+
+          case "browser-click": {
+            const webview = resolveWebview(args?.paneId);
+
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
+
+            const result = await clickElement(webview, {
+              selector: args.selector,
+              nth: args.nth,
+              state: args.state,
+              timeoutMs: args.timeoutMs,
+            });
+
+            respondAutomation(result);
+            break;
+          }
+
+          case "browser-type": {
+            const webview = resolveWebview(args?.paneId);
+
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
+
+            const result = await typeIntoElement(webview, {
+              selector: args.selector,
+              nth: args.nth,
+              text: args.text,
+              clear: args.clear,
+              enterKey: args.enterKey,
+              state: args.state,
+              timeoutMs: args.timeoutMs,
+            });
+
+            respondAutomation(result);
+            break;
+          }
+
+          case "browser-scroll": {
+            const webview = resolveWebview(args?.paneId);
+
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
+
+            const result = await scrollPage(webview, {
+              selector: args.selector,
+              intoView: args.intoView,
+              x: args.x,
+              y: args.y,
+            });
+
+            respondAutomation(result);
+            break;
+          }
+
+          case "browser-evaluate": {
+            const webview = resolveWebview(args?.paneId);
+
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
+
+            const result = await evaluateScript(webview, args.script);
+            respondAutomation(result);
+            break;
+          }
+
+          case "browser-wait-for": {
+            const webview = resolveWebview(args?.paneId);
+
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
+
+            const result = await waitForSelector(webview, {
+              selector: args.selector,
+              nth: args.nth,
+              state: args.state,
+              timeoutMs: args.timeoutMs,
+            });
+
+            respondAutomation(result);
+            break;
+          }
+
+          case "browser-query": {
+            const webview = resolveWebview(args?.paneId);
+
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
+
+            const result = await queryElements(webview, args.selector);
+            respondAutomation(result);
             break;
           }
 
