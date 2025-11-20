@@ -15,6 +15,7 @@ import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";
 import { StarredPagesMenu } from "./StarredPagesMenu";
+import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
 
 const api = window.conduit;
 
@@ -23,6 +24,9 @@ type BrowserToolbarProps = {
   isLoading: boolean;
   canGoBack: boolean;
   canGoForward: boolean;
+  consoleErrors: ConsoleMessage[];
+  onClearConsoleErrors: () => void;
+  onRemoveConsoleError: (index: number) => void;
   onNavigate: (url: string) => void;
   onGoBack: () => void;
   onGoForward: () => void;
@@ -37,6 +41,9 @@ export function BrowserToolbar({
   isLoading,
   canGoBack,
   canGoForward,
+  consoleErrors,
+  onClearConsoleErrors,
+  onRemoveConsoleError,
   onNavigate,
   onGoBack,
   onGoForward,
@@ -353,6 +360,11 @@ export function BrowserToolbar({
           </div>
         )}
       </div>
+      <ConsoleErrors
+        errors={consoleErrors}
+        onClear={onClearConsoleErrors}
+        onRemove={onRemoveConsoleError}
+      />
       <BrowserMenu
         currentPage={currentPage}
         onOpenDevTools={onOpenDevTools}

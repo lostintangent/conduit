@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, session } from "electron";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import {
@@ -100,4 +100,15 @@ async function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  const extensionPath = MAIN_WINDOW_VITE_DEV_SERVER_URL
+    ? path.join(__dirname, "../../.vite/extension")
+    : path.join(__dirname, "../extension");
+
+  await createWindow();
+
+  const webviewSession = session.fromPartition("persist:webview");
+  await webviewSession.extensions.loadExtension(extensionPath, {
+    allowFileAccess: true,
+  });
+});

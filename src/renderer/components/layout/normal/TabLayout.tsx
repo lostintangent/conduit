@@ -509,6 +509,7 @@ export function TabLayout({
                   key={pane.id}
                   url={pane.url}
                   paneId={pane.id}
+                  tabId={tab.id}
                   disableInteraction={resizingNode !== null}
                   onContextMenu={onWebViewContextMenu}
                   onUrlChange={(nextUrl) =>

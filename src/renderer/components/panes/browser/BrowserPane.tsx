@@ -1,4 +1,5 @@
 import { applicationModeAtom } from "@/store/atoms";
+import { activatePane } from "@/store/actions/pane";
 import {
   applyWebviewScaling,
   calculateWebviewScale,
@@ -14,12 +15,14 @@ import { useAtomValue } from "jotai";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BrowserToolbar } from "./toolbar/BrowserToolbar";
+import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
 
 const { browser } = window.conduit;
 
 type BrowserPaneProps = {
   url: string;
   paneId: string;
+  tabId: string;
 
   onUrlChange: (url: string) => void;
   onTitleChange: (title: string) => void;
@@ -37,6 +40,7 @@ type BrowserPaneProps = {
 export function BrowserPane({
   url,
   paneId,
+  tabId,
   onTitleChange,
   onUrlChange,
   onContextMenu,
@@ -61,6 +65,8 @@ export function BrowserPane({
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
 
+  const [consoleErrors, setConsoleErrors] = useState<ConsoleMessage[]>([]);
+
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
   useEffect(() => {
@@ -72,6 +78,7 @@ export function BrowserPane({
       webview = document.createElement("webview") as WebviewTag;
       webview.src = url;
       webview.id = paneId;
+      webview.partition = "persist:webview";
       webview.style.position = "absolute";
       webview.style.overflow = "hidden";
 
@@ -238,6 +245,7 @@ export function BrowserPane({
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
 
+      setConsoleErrors([]);
       onUrlChange(url);
     };
 
@@ -269,6 +277,40 @@ export function BrowserPane({
       onHover(false);
     };
 
+    const handleWebViewFocus = () => {
+      activatePane(tabId, paneId);
+    };
+
+    const handleConsoleMessage = (
+      event: Event & {
+        message?: string;
+        level?: number;
+        sourceId?: string;
+        line?: number;
+      },
+    ) => {
+      const { message, level, sourceId, line } = event;
+
+      // Only capture errors (level 2) from HTTP/HTTPS sources
+      if (level !== 2) return;
+
+      const source = (sourceId ?? "").toLowerCase();
+      if (!source.startsWith("http://") && !source.startsWith("https://")) {
+        return;
+      }
+
+      setConsoleErrors((prev) => [
+        ...prev,
+        {
+          message: message ?? "",
+          level: level ?? 0,
+          sourceId: sourceId ?? "",
+          line: line ?? 0,
+          timestamp: Date.now(),
+        },
+      ]);
+    };
+
     webview.addEventListener("did-start-loading", handleStartLoading);
     webview.addEventListener("did-stop-loading", handleStopLoading);
     webview.addEventListener("did-finish-load", handleStopLoading);
@@ -281,6 +323,10 @@ export function BrowserPane({
 
     webview.addEventListener("mouseenter", handleWebViewMouseEnter);
     webview.addEventListener("mouseleave", handleWebViewMouseLeave);
+
+    webview.addEventListener("focus", handleWebViewFocus);
+
+    webview.addEventListener("console-message", handleConsoleMessage);
 
     return () => {
       webview.removeEventListener("did-start-loading", handleStartLoading);
@@ -295,6 +341,10 @@ export function BrowserPane({
 
       webview.removeEventListener("mouseenter", handleWebViewMouseEnter);
       webview.removeEventListener("mouseleave", handleWebViewMouseLeave);
+
+      webview.removeEventListener("focus", handleWebViewFocus);
+
+      webview.removeEventListener("console-message", handleConsoleMessage);
     };
   }, [webviewRef]);
 
@@ -328,6 +378,11 @@ export function BrowserPane({
           isLoading={isLoading}
           canGoBack={canGoBack}
           canGoForward={canGoForward}
+          consoleErrors={consoleErrors}
+          onClearConsoleErrors={() => setConsoleErrors([])}
+          onRemoveConsoleError={(index) =>
+            setConsoleErrors((prev) => prev.filter((_, i) => i !== index))
+          }
           onNavigate={(url) => webviewRef.current?.loadURL(url)}
           onGoBack={() => webviewRef.current?.goBack()}
           onGoForward={() => webviewRef.current?.goForward()}

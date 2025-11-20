@@ -161,8 +161,7 @@ export const TabButton = ({
       onDragEnd={onDragEnd}
     >
       <span
-        className="overflow-hidden text-ellipsis max-w-[150px] flex items-center gap-1"
-        title={tooltip}
+        className="flex items-center gap-1 max-w-[150px] min-w-0"
         onDoubleClick={handleDoubleClick}
       >
         {isEditing ? (
@@ -184,7 +183,12 @@ export const TabButton = ({
             }}
           />
         ) : (
-          label
+          <span
+            className="overflow-hidden text-ellipsis whitespace-nowrap"
+            title={tooltip}
+          >
+            {label}
+          </span>
         )}
       </span>
 

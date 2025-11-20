@@ -93,6 +93,11 @@ const config: ForgeConfig = {
           config: "build/vite.cli.config.ts",
           target: "main",
         },
+        {
+          entry: "src/extension/content.ts",
+          config: "build/vite.extension.config.ts",
+          target: "main",
+        },
       ],
       renderer: [
         {
