@@ -625,13 +625,3 @@ fi
 ### Session ID Validation
 
 Each CLI request includes the `CONDUIT_SESSION_ID` to identify which terminal is making the request. This prevents cross-session interference and ensures commands operate on the correct tab.
-
-## Future Enhancements
-
-Potential improvements to the CLI architecture:
-
-1. **WebContentsView Migration** - Move away from `<webview>` tags for browser capture
-2. **Bi-directional Streaming** - Support streaming responses for long-running commands
-3. **Command Plugins** - Allow extensions to register custom CLI commands
-4. **Remote CLI** - Enable CLI access from external terminals over network sockets
-5. **Shell Completion** - Auto-generate shell completion scripts for bash/zsh/fish
