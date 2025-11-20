@@ -5,6 +5,7 @@ import {
 } from "@/components/panes/terminal/xtermCache";
 import type { QuickPaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
+import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
@@ -209,14 +210,66 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "write-terminal": {
-            const didWrite = inputToSession(args.sessionId, args.input);
+            // Handle wildcard "*" to send input to all terminals in the tab
+            if (args.sessionId === "*") {
+              // Find the tab containing the calling terminal
+              let matchingTab = tabs.find((tab) =>
+                Object.values(tab.panes).some(
+                  (pane) =>
+                    pane.type === "terminal" && pane.sessionId === sessionId,
+                ),
+              );
 
-            if (!didWrite) {
-              respondError("Unable to write to terminal.");
-              break;
+              // If the session isn't in any tab, check if it's the floating terminal
+              if (!matchingTab) {
+                if (floatingTerminal?.terminalId === sessionId) {
+                  matchingTab = activeTab;
+                }
+              }
+
+              if (!matchingTab) {
+                respondError("Unable to find the calling terminal's tab.");
+                break;
+              }
+
+              // Get all terminal panes in the tab, excluding the caller
+              const targetTerminals = Object.values(matchingTab.panes)
+                .filter(
+                  (pane) =>
+                    pane.type === "terminal" && pane.sessionId !== sessionId,
+                )
+                .map((pane) => (pane as TerminalPane).sessionId);
+
+              if (targetTerminals.length === 0) {
+                respondError("No other terminals found in the tab.");
+                break;
+              }
+
+              // Send input to all target terminals
+              let successCount = 0;
+              for (const targetSessionId of targetTerminals) {
+                if (inputToSession(targetSessionId, args.input)) {
+                  successCount++;
+                }
+              }
+
+              if (successCount === 0) {
+                respondError("Unable to write to any terminals.");
+                break;
+              }
+
+              respondResult();
+            } else {
+              // Normal single-terminal write
+              const didWrite = inputToSession(args.sessionId, args.input);
+
+              if (!didWrite) {
+                respondError("Unable to write to terminal.");
+                break;
+              }
+
+              respondResult();
             }
-
-            respondResult();
             break;
           }
 
