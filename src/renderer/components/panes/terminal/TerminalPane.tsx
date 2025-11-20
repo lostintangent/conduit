@@ -240,6 +240,7 @@ export const TerminalPane = ({
           );
         }
         setPromptMode((prev) => ({ ...prev, isOpen: false }));
+        focusTerminal();
         return;
       }
 
@@ -263,6 +264,29 @@ export const TerminalPane = ({
       // Construct full prompt
       const fullPrompt = constructPrompt(prompt, buffer || "", cwd || null);
 
+      // Set up stream listener
+      const removeListener = api.onPromptStream(terminalId, (chunk) => {
+        if (!terminal) return;
+
+        if (chunk.type === "data" && chunk.data) {
+          // Stream data to terminal
+          const formattedData = chunk.data.replace(/\n/g, "\r\n");
+          terminal.write(`\x1b[32m${formattedData}\x1b[0m`);
+        } else if (chunk.type === "error" && chunk.error) {
+          // Write error
+          terminal.writeln(`\r\n\x1b[31mError: ${chunk.error}\x1b[0m\r`);
+        } else if (chunk.type === "end") {
+          // Stream ended
+          terminal.write("\r\n");
+          setPromptMode({
+            isOpen: false,
+            isProcessing: false,
+          });
+          removeListener();
+          focusTerminal();
+        }
+      });
+
       // Call IPC handler
       const response = await api.promptTerminal({
         sessionId: terminalId,
@@ -270,29 +294,24 @@ export const TerminalPane = ({
         agentCommand,
       });
 
-      // Write response to terminal
-      if (terminal) {
-        if (response.success && response.response) {
-          // Convert \n to \r\n for proper terminal line breaks
-          const formattedResponse = response.response.replace(/\n/g, "\r\n");
-          terminal.write(`\x1b[32m${formattedResponse}\x1b[0m\r\n`);
-        } else if (response.error) {
-          terminal.writeln(`\x1b[31mError: ${response.error}\x1b[0m\r`);
-        }
+      // Handle any errors from the initial call
+      if (!response.success && response.error && terminal) {
+        terminal.writeln(`\x1b[31mError: ${response.error}\x1b[0m\r`);
+        setPromptMode({
+          isOpen: false,
+          isProcessing: false,
+        });
+        removeListener();
+        focusTerminal();
       }
-
-      // Close prompt mode
-      setPromptMode({
-        isOpen: false,
-        isProcessing: false,
-      });
     },
-    [terminalId, cwd, settings],
+    [terminalId, cwd, settings, focusTerminal],
   );
 
   const handleClosePromptMode = useCallback(() => {
     setPromptMode((prev) => ({ ...prev, isOpen: false }));
-  }, []);
+    focusTerminal();
+  }, [focusTerminal]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -315,7 +334,9 @@ export const TerminalPane = ({
       togglePromptMode: handleTogglePromptMode,
       getApplicationMode: () => applicationModeRef.current,
       setNormalMode: () => setApplicationModeRef.current("normal"),
-      onSynchronizedInput: isTabSynchronized ? handleSynchronizedInput : undefined,
+      onSynchronizedInput: isTabSynchronized
+        ? handleSynchronizedInput
+        : undefined,
     });
 
     return () => {
@@ -326,7 +347,13 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, [handleTogglePromptMode, showSearchWidget, terminalId, isTabSynchronized, handleSynchronizedInput]);
+  }, [
+    handleTogglePromptMode,
+    showSearchWidget,
+    terminalId,
+    isTabSynchronized,
+    handleSynchronizedInput,
+  ]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
@@ -429,13 +456,13 @@ export const TerminalPane = ({
           if (terminalRef.current) {
             terminalRef.current.setLinkHandler(
               handler ||
-              ((url: string) => {
-                if (onLinkClick) {
-                  onLinkClick(url);
-                } else {
-                  api.openExternal(url);
-                }
-              }),
+                ((url: string) => {
+                  if (onLinkClick) {
+                    onLinkClick(url);
+                  } else {
+                    api.openExternal(url);
+                  }
+                }),
             );
           }
         }}

@@ -27,6 +27,7 @@ import type {
   TerminalExitPayload,
   TerminalPromptRequest,
   TerminalPromptResponse,
+  TerminalPromptStreamChunk,
   TerminalSSHStatePayload,
   TerminalTitlePayload,
   TreeChangedEvent,
@@ -73,6 +74,15 @@ const conduitAPI = {
       "terminal:prompt",
       request,
     ) as Promise<TerminalPromptResponse>,
+
+  onPromptStream: (
+    sessionId: string,
+    listener: (chunk: TerminalPromptStreamChunk) => void,
+  ) =>
+    createEventListener<TerminalPromptStreamChunk>(
+      `terminal:prompt:stream:${sessionId}`,
+      listener,
+    ),
 
   /* UI event listeners (main->UI) */
 
