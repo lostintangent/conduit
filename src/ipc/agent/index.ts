@@ -19,6 +19,7 @@ import {
   getCurrentBranch,
   getGitHubRepoInfo,
   getRemoteOriginUrl,
+  gitCommit,
   gitPull,
   gitPush,
   hasGitRepository,
@@ -517,6 +518,13 @@ export async function initializeAgentHandlers() {
   ipcMain.handle("agent:has-upstream-branch", async (_event, cwd: string) => {
     return await hasUpstreamBranch(cwd);
   });
+
+  ipcMain.handle(
+    "agent:git-commit",
+    async (_event, cwd: string, message: string) => {
+      return await gitCommit(cwd, message);
+    },
+  );
 }
 
 export {

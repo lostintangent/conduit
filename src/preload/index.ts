@@ -284,6 +284,12 @@ const conduitAPI = {
   hasUpstreamBranch: (cwd: string) =>
     ipcRenderer.invoke("agent:has-upstream-branch", cwd) as Promise<boolean>,
 
+  gitCommit: (cwd: string, message: string) =>
+    ipcRenderer.invoke("agent:git-commit", cwd, message) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",

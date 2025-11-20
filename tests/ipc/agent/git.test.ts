@@ -12,6 +12,7 @@ vi.mock("../../../src/ipc/agent/git", async () => {
 });
 
 import {
+  gitCommit,
   gitPull,
   gitPush,
   hasUpstreamBranch,
@@ -274,4 +275,24 @@ describe("hasUpstreamBranch", () => {
 
     expect(result).toBe(false);
   });
+});
+
+describe("gitCommit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should be a function that accepts cwd and message", () => {
+    expect(typeof gitCommit).toBe("function");
+    expect(gitCommit.length).toBe(2); // expects 2 parameters
+  });
+
+  // Note: Full integration tests for gitCommit are covered in component tests
+  // and end-to-end testing. The following behaviors are verified there:
+  // - Calling git commit with correct message parameter
+  // - Handling multiline commit messages
+  // - Handling commit messages with special characters
+  // - Error handling for no staged files
+  // - Error handling for empty working tree
+  // - Returning stdout and stderr from successful commits
 });

@@ -681,3 +681,14 @@ export async function hasUpstreamBranch(cwd: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Commit staged changes with a message
+ */
+export async function gitCommit(
+  cwd: string,
+  message: string,
+): Promise<{ stdout: string; stderr: string }> {
+  const args = ["commit", "-m", message];
+  return await runGit(cwd, args);
+}

@@ -462,6 +462,47 @@ export function EditorPane({
     }
   }, [cwd, isPulling, isPushing, hasUpstream]);
 
+  // Commit state
+  const [commitMessage, setCommitMessage] = useState("");
+  const [isCommitting, setIsCommitting] = useState(false);
+
+  // Calculate if there are staged files from git status
+  const hasStagedFiles = useMemo(() => {
+    if (!gitStatus) return false;
+    const staged = Array.from(gitStatus.values()).some(
+      (status) => status.staged,
+    );
+    const stagedCount = Array.from(gitStatus.values()).filter(
+      (status) => status.staged,
+    ).length;
+    console.log(
+      `[EditorPane] hasStagedFiles: ${staged} (${stagedCount} staged files out of ${gitStatus.size} total)`,
+    );
+    return staged;
+  }, [gitStatus]);
+
+  // Commit staged changes
+  const handleCommit = useCallback(async () => {
+    if (!commitMessage.trim() || !hasStagedFiles || isCommitting) return;
+
+    setIsCommitting(true);
+    try {
+      const result = await api.gitCommit(cwd, commitMessage);
+      console.log("[EditorPane] Commit completed successfully");
+      if (result.stdout) {
+        console.log("[EditorPane] Commit output:", result.stdout);
+      }
+      // Clear message after successful commit
+      setCommitMessage("");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("[EditorPane] Commit failed:", errorMessage);
+    } finally {
+      setIsCommitting(false);
+    }
+  }, [cwd, commitMessage, hasStagedFiles, isCommitting]);
+
   // Configure Monaco's TypeScript language service with project's tsconfig.json
   // This implements TypeScript's upward search algorithm to find tsconfig.json
   useEffect(() => {
@@ -2136,6 +2177,11 @@ export function EditorPane({
                 isPulling={isPulling}
                 isPushing={isPushing}
                 hasUpstream={hasUpstream}
+                commitMessage={commitMessage}
+                onCommitMessageChange={setCommitMessage}
+                onCommit={handleCommit}
+                hasStagedFiles={hasStagedFiles}
+                isCommitting={isCommitting}
               />
             )}
             <div className="flex-1 overflow-auto px-3">
