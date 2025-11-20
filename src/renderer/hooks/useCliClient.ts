@@ -1,9 +1,9 @@
 import { useCommand } from "@/commands/hooks/useCommand";
+import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import {
   inputToSession,
   serializeSession,
 } from "@/components/panes/terminal/xtermCache";
-import type { QuickPaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";

@@ -3,8 +3,8 @@ import {
   getCommandDisplayTitle,
   useCommand,
 } from "@/commands/hooks/useCommand";
-import type { PaneDescriptor } from "@/components/shell/quick/QuickDialog";
-import { TabPreviewOverlay } from "@/components/shell/tabs/preview/TabPreviewOverlay";
+import { TabPreviewOverlay } from "@/components/layout/overview/TabPreviewOverlay";
+import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
 import {

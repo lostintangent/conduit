@@ -4,27 +4,27 @@ import { usePaneActionsSystem } from "@/commands/paneActions";
 import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
-import {
-  disposeSession,
-  updateTerminalThemes,
-} from "@/components/panes/terminal/xtermCache";
-import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
-import { CommandPalette } from "@/components/shell/CommandPalette";
-import { DuplicateTabDialog } from "@/components/shell/DuplicateTabDialog";
-import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
-import { NotificationCenter } from "@/components/shell/NotificationCenter";
-import { PaneActionsEditor } from "@/components/shell/paneActions";
-import { FloatingTerminal } from "@/components/shell/quick/FloatingTerminal";
+import { TabsOverview } from "@/components/layout/overview/TabsOverview";
+import { FloatingTerminal } from "@/components/layout/quick/FloatingTerminal";
 import {
   QuickDialog,
   type PaneDescriptor,
   type QuickPaneDescriptor,
-} from "@/components/shell/quick/QuickDialog";
-import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
+} from "@/components/layout/quick/QuickDialog";
+import {
+  disposeSession,
+  updateTerminalThemes,
+} from "@/components/panes/terminal/xtermCache";
+import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
+import { NotificationCenter } from "@/components/shell/NotificationCenter";
+import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
+import { CommandPalette } from "@/components/shell/palette/CommandPalette";
+import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
+import { PaneActionsEditor } from "@/components/shell/paneActions";
+import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
 import { TitleBar } from "@/components/shell/title/TitleBar";
-import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { useAutoUpdater } from "@/hooks/useAutoUpdater";
