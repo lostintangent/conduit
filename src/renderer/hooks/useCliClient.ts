@@ -115,6 +115,24 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       const respondResult = (result?: any) => respond({ result });
       const respondError = (error: string) => respond({ error });
 
+      // Helper function to find the tab containing the calling terminal
+      const findCallingTerminalTab = () => {
+        let matchingTab = tabs.find((tab) =>
+          Object.values(tab.panes).some(
+            (pane) => pane.type === "terminal" && pane.sessionId === sessionId,
+          ),
+        );
+
+        // If the session isn't in any tab, check if it's the floating terminal
+        if (!matchingTab) {
+          if (floatingTerminal?.terminalId === sessionId) {
+            matchingTab = activeTab;
+          }
+        }
+
+        return matchingTab;
+      };
+
       try {
         switch (name) {
           case "open-file": {
@@ -140,19 +158,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "list-panes": {
-            let matchingTab = tabs.find((tab) =>
-              Object.values(tab.panes).some(
-                (pane) =>
-                  pane.type === "terminal" && pane.sessionId === sessionId,
-              ),
-            );
-
-            // If the session isn't in any tab, check if it's the floating terminal
-            if (!matchingTab) {
-              if (floatingTerminal?.terminalId === sessionId) {
-                matchingTab = activeTab;
-              }
-            }
+            const matchingTab = findCallingTerminalTab();
 
             const panes = Object.values(matchingTab.panes)
               // Filter out the calling terminal pane
@@ -210,22 +216,12 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "write-terminal": {
-            // Handle wildcard "*" to send input to all terminals in the tab
+            // Determine target session IDs based on wildcard or specific session
+            let targetSessionIds: string[];
+
             if (args.sessionId === "*") {
               // Find the tab containing the calling terminal
-              let matchingTab = tabs.find((tab) =>
-                Object.values(tab.panes).some(
-                  (pane) =>
-                    pane.type === "terminal" && pane.sessionId === sessionId,
-                ),
-              );
-
-              // If the session isn't in any tab, check if it's the floating terminal
-              if (!matchingTab) {
-                if (floatingTerminal?.terminalId === sessionId) {
-                  matchingTab = activeTab;
-                }
-              }
+              const matchingTab = findCallingTerminalTab();
 
               if (!matchingTab) {
                 respondError("Unable to find the calling terminal's tab.");
@@ -233,43 +229,36 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               }
 
               // Get all terminal panes in the tab, excluding the caller
-              const targetTerminals = Object.values(matchingTab.panes)
+              targetSessionIds = Object.values(matchingTab.panes)
                 .filter(
                   (pane) =>
                     pane.type === "terminal" && pane.sessionId !== sessionId,
                 )
                 .map((pane) => (pane as TerminalPane).sessionId);
 
-              if (targetTerminals.length === 0) {
+              if (targetSessionIds.length === 0) {
                 respondError("No other terminals found in the tab.");
                 break;
               }
-
-              // Send input to all target terminals
-              let successCount = 0;
-              for (const targetSessionId of targetTerminals) {
-                if (inputToSession(targetSessionId, args.input)) {
-                  successCount++;
-                }
-              }
-
-              if (successCount === 0) {
-                respondError("Unable to write to any terminals.");
-                break;
-              }
-
-              respondResult();
             } else {
-              // Normal single-terminal write
-              const didWrite = inputToSession(args.sessionId, args.input);
-
-              if (!didWrite) {
-                respondError("Unable to write to terminal.");
-                break;
-              }
-
-              respondResult();
+              // Single terminal case
+              targetSessionIds = [args.sessionId];
             }
+
+            // Send input to all target terminals
+            let successCount = 0;
+            for (const targetSessionId of targetSessionIds) {
+              if (inputToSession(targetSessionId, args.input)) {
+                successCount++;
+              }
+            }
+
+            if (successCount === 0) {
+              respondError("Unable to write to terminal.");
+              break;
+            }
+
+            respondResult();
             break;
           }
 
