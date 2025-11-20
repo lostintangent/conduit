@@ -52,7 +52,10 @@ export type CliCommand =
   | DefineCommand<"duplicate-tab">
   // Terminal commands
   | DefineCommand<"read-terminal", { sessionId: string }, string>
-  | DefineCommand<"write-terminal", { sessionId: string; input: string }>
+  | DefineCommand<
+      "write-terminal",
+      { sessionId: string; input: string; enter?: boolean }
+    >
   // Browser commands
   | DefineCommand<"capture-browser", { paneId: string }, string>
   | DefineCommand<"navigate-browser", { paneId: string; url: string }>

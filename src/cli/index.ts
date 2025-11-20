@@ -97,13 +97,9 @@ program
 program
   .cliCommand(
     "write-terminal",
-    async (request, sessionId, inputParts: string[], { newline }) => {
-      if (newline) {
-        inputParts.push("\n");
-      }
-
+    async (request, sessionId, inputParts: string[], { enter }) => {
       const input = inputParts.join(" ");
-      await request({ sessionId, input });
+      await request({ sessionId, input, enter: !!enter });
     },
   )
   .alias("write")
@@ -113,7 +109,7 @@ program
     "The terminal session to write to (use '*' for all terminals in the tab)",
   )
   .argument("<input...>", "Input to send to the terminal")
-  .option("-n, --newline", "Add a newline to the end of the input");
+  .option("-e, --enter", "Simular press enter/return after sending the input");
 
 /* Browser commands */
 

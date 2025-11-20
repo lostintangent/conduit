@@ -261,9 +261,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             // Send input to all target terminals
             let successCount = 0;
             for (const targetSessionId of targetSessionIds) {
-              if (inputToSession(targetSessionId, args.input)) {
-                successCount++;
+              // Send the input text
+              window.conduit.sendKeypress(targetSessionId, args.input);
+
+              // If enter flag is set, wait briefly then send Enter key. The 100ms delay gives TUIs time to process the input before receiving Enter
+              if (args.enter) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                window.conduit.sendKeypress(targetSessionId, "\r");
               }
+
+              successCount++;
             }
 
             if (successCount === 0) {
