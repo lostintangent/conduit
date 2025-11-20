@@ -1062,7 +1062,8 @@ export function PaneActionsEditor({
                   <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
                     {"{arg}"}
                   </code>{" "}
-                  as a placeholder for the prompt text. Default:{" "}
+                  as a placeholder for the prompt (passed as an argument), or
+                  omit it to use stdin. Default:{" "}
                   <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
                     copilot -p {"{arg}"}
                   </code>

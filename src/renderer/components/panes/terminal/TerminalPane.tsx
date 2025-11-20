@@ -195,6 +195,7 @@ export const TerminalPane = ({
   });
 
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
+  const streamCleanupRef = useRef<(() => void) | null>(null);
 
   const handleSynchronizedInput = useCallback(
     (input: string) => {
@@ -242,7 +243,14 @@ export const TerminalPane = ({
           );
         }
         setPromptMode((prev) => ({ ...prev, isOpen: false }));
+        focusTerminal();
         return;
+      }
+
+      // Clean up any existing stream listener
+      if (streamCleanupRef.current) {
+        streamCleanupRef.current();
+        streamCleanupRef.current = null;
       }
 
       setPromptMode((prev) => ({
@@ -252,9 +260,16 @@ export const TerminalPane = ({
 
       // Write the prompt to terminal
       const terminal = terminalRef.current?.terminal;
-      if (terminal) {
-        terminal.writeln(`\r\n\x1b[36m❯ ${prompt}\x1b[0m\r`);
+      if (!terminal) {
+        console.error("Terminal not available");
+        setPromptMode({
+          isOpen: false,
+          isProcessing: false,
+        });
+        return;
       }
+
+      terminal.writeln(`\r\n\x1b[36m❯ ${prompt}\x1b[0m\r`);
 
       // Get terminal buffer
       const buffer = getTerminalBuffer(
@@ -265,36 +280,95 @@ export const TerminalPane = ({
       // Construct full prompt
       const fullPrompt = constructPrompt(prompt, buffer || "", cwd || null);
 
-      // Call IPC handler
-      const response = await api.promptTerminal({
-        sessionId: terminalId,
-        prompt: fullPrompt,
-        agentCommand,
-      });
-
-      // Write response to terminal
-      if (terminal) {
-        if (response.success && response.response) {
-          // Convert \n to \r\n for proper terminal line breaks
-          const formattedResponse = response.response.replace(/\n/g, "\r\n");
-          terminal.write(`\x1b[32m${formattedResponse}\x1b[0m\r\n`);
-        } else if (response.error) {
-          terminal.writeln(`\x1b[31mError: ${response.error}\x1b[0m\r`);
+      // Set up stream listener
+      const removeListener = api.onPromptStream(terminalId, (chunk) => {
+        const currentTerminal = terminalRef.current?.terminal;
+        if (!currentTerminal) {
+          // Terminal destroyed, clean up listener
+          if (streamCleanupRef.current) {
+            streamCleanupRef.current();
+            streamCleanupRef.current = null;
+          }
+          return;
         }
-      }
 
-      // Close prompt mode
-      setPromptMode({
-        isOpen: false,
-        isProcessing: false,
+        if (chunk.type === "data" && chunk.data) {
+          // Stream data to terminal
+          const formattedData = chunk.data.replace(/\n/g, "\r\n");
+          currentTerminal.write(`\x1b[32m${formattedData}\x1b[0m`);
+        } else if (chunk.type === "error" && chunk.error) {
+          // Write error
+          currentTerminal.writeln(`\r\n\x1b[31mError: ${chunk.error}\x1b[0m\r`);
+        } else if (chunk.type === "end") {
+          // Stream ended
+          currentTerminal.write("\r\n");
+          setPromptMode({
+            isOpen: false,
+            isProcessing: false,
+          });
+          if (streamCleanupRef.current) {
+            streamCleanupRef.current();
+            streamCleanupRef.current = null;
+          }
+          focusTerminal();
+        }
       });
+
+      // Store cleanup function for unmount
+      streamCleanupRef.current = removeListener;
+
+      try {
+        // Call IPC handler
+        const response = await api.promptTerminal({
+          sessionId: terminalId,
+          prompt: fullPrompt,
+          agentCommand,
+        });
+
+        // Handle any errors from the initial call
+        if (!response.success && response.error) {
+          const currentTerminal = terminalRef.current?.terminal;
+          if (currentTerminal) {
+            currentTerminal.writeln(
+              `\x1b[31mError: ${response.error}\x1b[0m\r`,
+            );
+          }
+          setPromptMode({
+            isOpen: false,
+            isProcessing: false,
+          });
+          if (streamCleanupRef.current) {
+            streamCleanupRef.current();
+            streamCleanupRef.current = null;
+          }
+          focusTerminal();
+        }
+      } catch (error) {
+        // Handle IPC call errors
+        const currentTerminal = terminalRef.current?.terminal;
+        if (currentTerminal) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          currentTerminal.writeln(`\x1b[31mError: ${errorMessage}\x1b[0m\r`);
+        }
+        setPromptMode({
+          isOpen: false,
+          isProcessing: false,
+        });
+        if (streamCleanupRef.current) {
+          streamCleanupRef.current();
+          streamCleanupRef.current = null;
+        }
+        focusTerminal();
+      }
     },
-    [terminalId, cwd, settings],
+    [terminalId, cwd, settings, focusTerminal],
   );
 
   const handleClosePromptMode = useCallback(() => {
     setPromptMode((prev) => ({ ...prev, isOpen: false }));
-  }, []);
+    focusTerminal();
+  }, [focusTerminal]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -343,6 +417,12 @@ export const TerminalPane = ({
       // Reset font size to default when unmounting
       if (fontSize !== undefined) {
         terminal.terminal.options.fontSize = 13;
+      }
+
+      // Clean up stream listener if active
+      if (streamCleanupRef.current) {
+        streamCleanupRef.current();
+        streamCleanupRef.current = null;
       }
 
       linkHandlerRef.current = null;

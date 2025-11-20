@@ -389,3 +389,9 @@ export type TerminalPromptResponse = {
   response?: string;
   error?: string;
 };
+
+export type TerminalPromptStreamChunk = {
+  type: "data" | "error" | "end";
+  data?: string;
+  error?: string;
+};
