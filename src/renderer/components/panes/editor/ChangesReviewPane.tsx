@@ -1,8 +1,12 @@
 import { GitStatusBadge } from "./tree/GitStatusBadge";
-import type { GitStatusMap, FileTreeNode } from "@shared/types";
+import type {
+  GitStatusMap,
+  FileTreeNode,
+  FileDiffResult,
+  GitFileStatus,
+} from "@shared/types";
 import {
   FileIcon,
-  FolderIcon,
   GitCommitVertical,
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -11,18 +15,24 @@ import {
   Minus,
   RotateCcw,
   Check,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import path from "path-browserify";
 import { Input } from "@/components/ui/input";
-import { Toggle } from "@/components/ui/toggle";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/utils/index";
+import { DiffEditor } from "@monaco-editor/react";
+import { resolveTheme } from "@/utils/theme";
+import { useAtomValue } from "jotai";
+import { userSettingsAtom } from "@/store/atoms";
+
+const api = window.conduit;
 
 interface ChangesReviewPaneProps {
   gitStatus: GitStatusMap | null;
@@ -62,6 +72,32 @@ export function ChangesReviewPane({
   onRevertFile,
 }: ChangesReviewPaneProps) {
   const commitInputRef = useRef<HTMLInputElement>(null);
+  const { theme } = useAtomValue(userSettingsAtom);
+  const editorTheme =
+    resolveTheme(theme) === "light" ? "light-plus" : "dark-plus";
+
+  // Track expanded state and diffs for each file
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [fileDiffs, setFileDiffs] = useState<
+    Map<string, FileDiffResult | null>
+  >(new Map());
+  const [loadingDiffs, setLoadingDiffs] = useState<Set<string>>(new Set());
+
+  // Initialize expanded files on mount or when gitStatus changes
+  useEffect(() => {
+    if (!gitStatus) return;
+
+    // Expand all files by default and load their diffs
+    const allFiles = new Set<string>();
+    for (const [filePath] of gitStatus.entries()) {
+      allFiles.add(filePath);
+      // Load diff if not already loaded
+      if (!fileDiffs.has(filePath) && !loadingDiffs.has(filePath)) {
+        loadDiffForFile(filePath);
+      }
+    }
+    setExpandedFiles(allFiles);
+  }, [gitStatus]); // Only re-run when gitStatus changes
 
   const handleCommitClick = () => {
     if (!commitMessage.trim()) {
@@ -72,12 +108,62 @@ export function ChangesReviewPane({
     onCommit?.();
   };
 
+  // Load diff for a file when it's expanded
+  const loadDiffForFile = useCallback(
+    async (relativePath: string) => {
+      if (fileDiffs.has(relativePath) || loadingDiffs.has(relativePath)) {
+        return;
+      }
+
+      setLoadingDiffs((prev) => new Set(prev).add(relativePath));
+
+      try {
+        const fullPath = path.join(cwd, relativePath);
+        const result = await api.getFileDiff(fullPath, cwd, null);
+
+        if (result.success && result.diff) {
+          setFileDiffs((prev) => new Map(prev).set(relativePath, result.diff));
+        } else {
+          setFileDiffs((prev) => new Map(prev).set(relativePath, null));
+        }
+      } catch (error) {
+        console.error(`Failed to load diff for ${relativePath}:`, error);
+        setFileDiffs((prev) => new Map(prev).set(relativePath, null));
+      } finally {
+        setLoadingDiffs((prev) => {
+          const next = new Set(prev);
+          next.delete(relativePath);
+          return next;
+        });
+      }
+    },
+    [cwd, fileDiffs, loadingDiffs],
+  );
+
+  // Toggle file expansion and load diff if needed
+  const toggleFileExpansion = useCallback(
+    (relativePath: string) => {
+      setExpandedFiles((prev) => {
+        const next = new Set(prev);
+        if (next.has(relativePath)) {
+          next.delete(relativePath);
+        } else {
+          next.add(relativePath);
+          // Load diff when expanding
+          loadDiffForFile(relativePath);
+        }
+        return next;
+      });
+    },
+    [loadDiffForFile],
+  );
+
   // Separate files by staging status
   const { stagedFiles, unstagedFiles } = useMemo(() => {
     if (!gitStatus) return { stagedFiles: [], unstagedFiles: [] };
 
-    const staged: Array<[string, typeof gitStatus extends Map<any, infer V> ? V : never]> = [];
-    const unstaged: Array<[string, typeof gitStatus extends Map<any, infer V> ? V : never]> = [];
+    const staged: Array<[string, GitFileStatus]> = [];
+    const unstaged: Array<[string, GitFileStatus]> = [];
 
     for (const [filePath, status] of gitStatus.entries()) {
       if (status.staged) {
@@ -260,32 +346,142 @@ export function ChangesReviewPane({
                 </button>
               )}
             </div>
-            <div className="px-2 py-1">
-              {stagedFiles.map(([filePath, status]) => (
-                <div
-                  key={filePath}
-                  className="group flex items-center gap-2 px-2 py-1 hover:bg-foreground/5 rounded transition-colors"
-                >
-                  <FileIcon size={14} className="text-muted-foreground" />
-                  <button
-                    onClick={() => handleFileClick(filePath)}
-                    className="flex-1 text-left text-sm truncate hover:text-accent transition-colors"
-                    title={filePath}
+            <div className="">
+              {stagedFiles.map(([filePath, status]) => {
+                const isExpanded = expandedFiles.has(filePath);
+                const diff = fileDiffs.get(filePath);
+                const isLoading = loadingDiffs.has(filePath);
+
+                return (
+                  <div
+                    key={filePath}
+                    className="border-b border-border/50 last:border-b-0"
                   >
-                    {filePath}
-                  </button>
-                  <GitStatusBadge status={status.status} staged={true} />
-                  {onUnstageFile && (
-                    <button
-                      onClick={() => onUnstageFile(filePath)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-primary/10 rounded transition-all"
-                      title="Unstage file"
-                    >
-                      <Minus size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
+                    <div className="group flex items-center gap-2 px-2 py-1 hover:bg-foreground/5 transition-colors">
+                      <button
+                        onClick={() => toggleFileExpansion(filePath)}
+                        className="p-0.5 hover:bg-foreground/10 rounded transition-colors"
+                        title={isExpanded ? "Collapse" : "Expand"}
+                      >
+                        {isExpanded ? (
+                          <ChevronDown size={12} />
+                        ) : (
+                          <ChevronRight size={12} />
+                        )}
+                      </button>
+                      <FileIcon size={14} className="text-muted-foreground" />
+                      <button
+                        onClick={() => handleFileClick(filePath)}
+                        className="flex-1 text-left text-sm truncate hover:text-accent transition-colors"
+                        title={filePath}
+                      >
+                        {filePath}
+                      </button>
+                      <GitStatusBadge status={status} />
+                      {onUnstageFile && (
+                        <button
+                          onClick={() => onUnstageFile(filePath)}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-primary/10 rounded transition-all"
+                          title="Unstage file"
+                        >
+                          <Minus size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t border-border/30">
+                        {isLoading ? (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            Loading diff...
+                          </div>
+                        ) : diff ? (
+                          diff.isBinary ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              Binary file
+                            </div>
+                          ) : status.status === "untracked" ||
+                            status.status === "added" ? (
+                            <div className="h-[400px] overflow-hidden">
+                              <DiffEditor
+                                original=""
+                                modified={diff.modifiedContent}
+                                language="plaintext"
+                                theme={editorTheme}
+                                height="400px"
+                                options={{
+                                  readOnly: true,
+                                  minimap: { enabled: false },
+                                  scrollBeyondLastLine: false,
+                                  renderSideBySide: false,
+                                  lineNumbers: "on",
+                                  fontSize: 12,
+                                  wordWrap: "on",
+                                  automaticLayout: true,
+                                  diffWordWrap: "on",
+                                  renderOverviewRuler: false,
+                                  hideCursorInOverviewRuler: true,
+                                  overviewRulerBorder: false,
+                                  overviewRulerLanes: 0,
+                                  renderLineHighlight: "none",
+                                  scrollbar: {
+                                    vertical: "auto",
+                                    horizontal: "auto",
+                                    verticalScrollbarSize: 10,
+                                    horizontalScrollbarSize: 10,
+                                  },
+                                  hideUnchangedRegions: {
+                                    enabled: true,
+                                  },
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-[400px] overflow-hidden">
+                              <DiffEditor
+                                original={diff.originalContent}
+                                modified={diff.modifiedContent}
+                                language="plaintext"
+                                theme={editorTheme}
+                                height="400px"
+                                options={{
+                                  readOnly: true,
+                                  minimap: { enabled: false },
+                                  scrollBeyondLastLine: false,
+                                  renderSideBySide: false,
+                                  lineNumbers: "on",
+                                  fontSize: 12,
+                                  wordWrap: "on",
+                                  automaticLayout: true,
+                                  diffWordWrap: "on",
+                                  renderOverviewRuler: false,
+                                  hideCursorInOverviewRuler: true,
+                                  overviewRulerBorder: false,
+                                  overviewRulerLanes: 0,
+                                  renderLineHighlight: "none",
+                                  scrollbar: {
+                                    vertical: "auto",
+                                    horizontal: "auto",
+                                    verticalScrollbarSize: 10,
+                                    horizontalScrollbarSize: 10,
+                                  },
+                                  hideUnchangedRegions: {
+                                    enabled: true,
+                                  },
+                                }}
+                              />
+                            </div>
+                          )
+                        ) : (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            Failed to load diff
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -308,47 +504,157 @@ export function ChangesReviewPane({
                 </button>
               )}
             </div>
-            <div className="px-2 py-1">
-              {unstagedFiles.map(([filePath, status]) => (
-                <div
-                  key={filePath}
-                  className="group flex items-center gap-2 px-2 py-1 hover:bg-foreground/5 rounded transition-colors"
-                >
-                  <FileIcon size={14} className="text-muted-foreground" />
-                  <button
-                    onClick={() => handleFileClick(filePath)}
-                    className="flex-1 text-left text-sm truncate hover:text-accent transition-colors"
-                    title={filePath}
+            <div className="">
+              {unstagedFiles.map(([filePath, status]) => {
+                const isExpanded = expandedFiles.has(filePath);
+                const diff = fileDiffs.get(filePath);
+                const isLoading = loadingDiffs.has(filePath);
+
+                return (
+                  <div
+                    key={filePath}
+                    className="border-b border-border/50 last:border-b-0"
                   >
-                    {filePath}
-                  </button>
-                  <GitStatusBadge status={status.status} staged={false} />
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {onStageFile && (
+                    <div className="group flex items-center gap-2 px-2 py-1 hover:bg-foreground/5 transition-colors">
                       <button
-                        onClick={() => onStageFile(filePath)}
-                        className="p-1 hover:bg-primary/10 rounded transition-colors"
-                        title="Stage file"
+                        onClick={() => toggleFileExpansion(filePath)}
+                        className="p-0.5 hover:bg-foreground/10 rounded transition-colors"
+                        title={isExpanded ? "Collapse" : "Expand"}
                       >
-                        <Plus size={14} />
+                        {isExpanded ? (
+                          <ChevronDown size={12} />
+                        ) : (
+                          <ChevronRight size={12} />
+                        )}
                       </button>
-                    )}
-                    {onRevertFile && status.status !== "untracked" && (
+                      <FileIcon size={14} className="text-muted-foreground" />
                       <button
-                        onClick={() => {
-                          if (confirm(`Discard changes to ${filePath}?`)) {
-                            onRevertFile(filePath);
-                          }
-                        }}
-                        className="p-1 hover:bg-red-500/10 rounded transition-colors text-red-400"
-                        title="Discard changes"
+                        onClick={() => handleFileClick(filePath)}
+                        className="flex-1 text-left text-sm truncate hover:text-accent transition-colors"
+                        title={filePath}
                       >
-                        <RotateCcw size={14} />
+                        {filePath}
                       </button>
+                      <GitStatusBadge status={status} />
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onStageFile && (
+                          <button
+                            onClick={() => onStageFile(filePath)}
+                            className="p-1 hover:bg-primary/10 rounded transition-colors"
+                            title="Stage file"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        )}
+                        {onRevertFile && status.status !== "untracked" && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Discard changes to ${filePath}?`)) {
+                                onRevertFile(filePath);
+                              }
+                            }}
+                            className="p-1 hover:bg-red-500/10 rounded transition-colors text-red-400"
+                            title="Discard changes"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t border-border/30">
+                        {isLoading ? (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            Loading diff...
+                          </div>
+                        ) : diff ? (
+                          diff.isBinary ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              Binary file
+                            </div>
+                          ) : status.status === "untracked" ||
+                            status.status === "added" ? (
+                            <div className="h-[400px] overflow-hidden">
+                              <DiffEditor
+                                original=""
+                                modified={diff.modifiedContent}
+                                language="plaintext"
+                                theme={editorTheme}
+                                height="400px"
+                                options={{
+                                  readOnly: true,
+                                  minimap: { enabled: false },
+                                  scrollBeyondLastLine: false,
+                                  renderSideBySide: false,
+                                  lineNumbers: "on",
+                                  fontSize: 12,
+                                  wordWrap: "on",
+                                  automaticLayout: true,
+                                  diffWordWrap: "on",
+                                  renderOverviewRuler: false,
+                                  hideCursorInOverviewRuler: true,
+                                  overviewRulerBorder: false,
+                                  overviewRulerLanes: 0,
+                                  renderLineHighlight: "none",
+                                  scrollbar: {
+                                    vertical: "auto",
+                                    horizontal: "auto",
+                                    verticalScrollbarSize: 10,
+                                    horizontalScrollbarSize: 10,
+                                  },
+                                  hideUnchangedRegions: {
+                                    enabled: true,
+                                  },
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-[400px] overflow-hidden">
+                              <DiffEditor
+                                original={diff.originalContent}
+                                modified={diff.modifiedContent}
+                                language="plaintext"
+                                theme={editorTheme}
+                                height="400px"
+                                options={{
+                                  readOnly: true,
+                                  minimap: { enabled: false },
+                                  scrollBeyondLastLine: false,
+                                  renderSideBySide: false,
+                                  lineNumbers: "on",
+                                  fontSize: 12,
+                                  wordWrap: "on",
+                                  automaticLayout: true,
+                                  diffWordWrap: "on",
+                                  renderOverviewRuler: false,
+                                  hideCursorInOverviewRuler: true,
+                                  overviewRulerBorder: false,
+                                  overviewRulerLanes: 0,
+                                  renderLineHighlight: "none",
+                                  scrollbar: {
+                                    vertical: "auto",
+                                    horizontal: "auto",
+                                    verticalScrollbarSize: 10,
+                                    horizontalScrollbarSize: 10,
+                                  },
+                                  hideUnchangedRegions: {
+                                    enabled: true,
+                                  },
+                                }}
+                              />
+                            </div>
+                          )
+                        ) : (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            Failed to load diff
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -357,9 +663,7 @@ export function ChangesReviewPane({
       {/* Summary footer */}
       <div className="px-4 py-2 bg-elevated/30 border-t border-border text-xs text-muted-foreground">
         {stagedFiles.length > 0 && (
-          <span className="text-green-500">
-            {stagedFiles.length} staged
-          </span>
+          <span className="text-green-500">{stagedFiles.length} staged</span>
         )}
         {stagedFiles.length > 0 && unstagedFiles.length > 0 && (
           <span className="mx-2">•</span>
