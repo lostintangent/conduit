@@ -82,15 +82,22 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
       {
         requestId,
         webContentsId,
+        clip,
       }: {
         requestId: string;
         webContentsId: number;
+        clip?: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        };
       },
     ) => {
       try {
         const contents = webContents.fromId(webContentsId);
 
-        const image = await contents.capturePage();
+        const image = await contents.capturePage(clip);
         const buffer = image.toPNG();
 
         const filePath = path.join(tmpdir(), `capture-${randomUUID()}.png`);

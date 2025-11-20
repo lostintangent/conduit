@@ -1,4 +1,14 @@
 import { useCommand } from "@/commands/hooks/useCommand";
+import {
+  browserClick,
+  browserEvaluate,
+  browserKeys,
+  browserQuery,
+  browserScroll,
+  browserType,
+  browserWait,
+  resolveClip,
+} from "@/automation/webviewAutomation";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import {
   inputToSession,
@@ -201,7 +211,12 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "capture-browser": {
             const webview = document.getElementById(args?.paneId) as WebviewTag;
+            if (!webview) {
+              respondError(`Browser pane ${args?.paneId} not found.`);
+              break;
+            }
             const webContentsId = webview.getWebContentsId();
+            const clip = await resolveClip(args);
 
             // Note that when trying to capture the page from the renderer, Chrome
             // kept throwing exceptions that I couldn't figure out. So we're currently
@@ -211,7 +226,50 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             await cli.completeCaptureBrowserRequest({
               requestId,
               webContentsId,
+              clip,
             });
+            break;
+          }
+
+          case "browser-query": {
+            const results = await browserQuery(args);
+            respondResult(results);
+            break;
+          }
+
+          case "browser-click": {
+            await browserClick(args);
+            respondResult();
+            break;
+          }
+
+          case "browser-type": {
+            await browserType(args);
+            respondResult();
+            break;
+          }
+
+          case "browser-keys": {
+            await browserKeys(args);
+            respondResult();
+            break;
+          }
+
+          case "browser-scroll": {
+            await browserScroll(args);
+            respondResult();
+            break;
+          }
+
+          case "browser-wait": {
+            await browserWait(args);
+            respondResult();
+            break;
+          }
+
+          case "browser-evaluate": {
+            const result = await browserEvaluate(args);
+            respondResult(result);
             break;
           }
 
