@@ -1,5 +1,5 @@
-import type { getOrCreate } from "./xtermCache";
 import type { Dispatch, SetStateAction } from "react";
+import type { getOrCreate } from "./xtermCache";
 
 /**
  * Creates a FitController that automatically fits and resizes the terminal
@@ -12,7 +12,7 @@ export function createFitController({
   container,
   setDimensions,
 }: {
-  entry: ReturnType<typeof getOrCreate>;
+  entry: Awaited<ReturnType<typeof getOrCreate>>;
   container: HTMLDivElement;
   setDimensions: Dispatch<
     SetStateAction<{ width: number; height: number } | null>

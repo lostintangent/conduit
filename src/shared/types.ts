@@ -28,6 +28,8 @@ export type UserSettings = {
   quickTerminalMode: "fullscreen" | "floating";
   terminalPromptAgent?: string;
   terminalPromptBufferLines?: number;
+  terminalFontFamily?: string;
+  terminalFontSize?: number;
 
   // Editor settings
   useConduitAsEditor: boolean;

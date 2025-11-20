@@ -180,6 +180,15 @@ export async function updateApplicationMenu(
             await updateApplicationMenu(window, settings, saveSettings);
           },
         },
+        {
+          label: "Terminal Font Settings...",
+          type: "normal",
+          click: () => {
+            if (!window.isDestroyed()) {
+              window.webContents.send("ui:open-terminal-font-settings");
+            }
+          },
+        },
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },

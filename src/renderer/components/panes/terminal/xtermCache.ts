@@ -1,3 +1,7 @@
+import {
+  defaultFontFamily,
+  defaultFontSize,
+} from "@/components/ui/terminal-font-settings-dialog";
 import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -32,10 +36,10 @@ type GetOrCreateOptions = {
   onInput?: (input: string) => void;
 };
 
-export function getOrCreate(
+export async function getOrCreate(
   sessionId: string,
   options: GetOrCreateOptions = {},
-): TerminalInstance {
+): Promise<TerminalInstance> {
   let instance = store.get(sessionId);
   if (!instance) {
     const terminalTheme = {
@@ -45,9 +49,14 @@ export function getOrCreate(
       selectionBackground: resolveColor("selection"),
     };
 
+    // Get font settings from user settings
+    const settings = await api.getSettings();
+    const fontFamily = settings.terminalFontFamily ?? defaultFontFamily;
+    const fontSize = settings.terminalFontSize ?? defaultFontSize;
+
     const terminal = new Terminal({
-      fontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',
-      fontSize: 13,
+      fontFamily,
+      fontSize,
       cursorBlink: true,
       scrollback: 2000,
       allowProposedApi: true, // Required for us to use the decorations API (for displaying search results in the terminal)
@@ -213,6 +222,21 @@ export function updateTerminalThemes() {
 
   store.forEach((instance) => {
     instance.terminal.options.theme = terminalTheme;
+  });
+}
+
+/**
+ * Update terminal fonts for all active terminals
+ * Called when the terminal font settings change
+ */
+export async function updateTerminalFonts() {
+  const settings = await api.getSettings();
+  const fontFamily = settings.terminalFontFamily ?? defaultFontFamily;
+  const fontSize = settings.terminalFontSize ?? defaultFontSize;
+
+  store.forEach((instance) => {
+    instance.terminal.options.fontFamily = fontFamily;
+    instance.terminal.options.fontSize = fontSize;
   });
 }
 
