@@ -11,7 +11,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Constants for overlay dimensions and positioning
 const OVERLAY_WIDTH = 400;
 const OVERLAY_HEIGHT = 300;
-const OVERLAY_SCALE = 0.75;
 const DEFAULT_MARGIN = 16;
 const POSITION_STORAGE_KEY = "floatingTerminalPosition";
 
@@ -206,16 +205,12 @@ export function FloatingTerminal({
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden px-0.5">
-          <div
-            className="origin-top-left h-full"
-            style={{
-              transform: `scale(${OVERLAY_SCALE})`,
-              width: `${100 / OVERLAY_SCALE}%`,
-              height: `${100 / OVERLAY_SCALE}%`,
-            }}
-          >
-            <TerminalPane terminalId={terminalId} paneId={paneId} isActive />
-          </div>
+          <TerminalPane
+            terminalId={terminalId}
+            paneId={paneId}
+            isActive
+            fontSize={11}
+          />
         </div>
       </div>
     </div>
