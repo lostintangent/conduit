@@ -22,6 +22,9 @@ import {
   gitCommit,
   gitPull,
   gitPush,
+  gitRevert,
+  gitStage,
+  gitUnstage,
   hasGitRepository,
   hasUncommittedChanges,
   hasUnpushedCommits,
@@ -523,6 +526,27 @@ export async function initializeAgentHandlers() {
     "agent:git-commit",
     async (_event, cwd: string, message: string) => {
       return await gitCommit(cwd, message);
+    },
+  );
+
+  ipcMain.handle(
+    "agent:git-stage",
+    async (_event, cwd: string, files: string[]) => {
+      return await gitStage(cwd, files);
+    },
+  );
+
+  ipcMain.handle(
+    "agent:git-unstage",
+    async (_event, cwd: string, files: string[]) => {
+      return await gitUnstage(cwd, files);
+    },
+  );
+
+  ipcMain.handle(
+    "agent:git-revert",
+    async (_event, cwd: string, files: string[]) => {
+      return await gitRevert(cwd, files);
     },
   );
 }

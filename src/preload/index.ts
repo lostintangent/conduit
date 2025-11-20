@@ -300,6 +300,24 @@ const conduitAPI = {
       stderr: string;
     }>,
 
+  gitStage: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("agent:git-stage", cwd, files) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  gitUnstage: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("agent:git-unstage", cwd, files) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  gitRevert: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("agent:git-revert", cwd, files) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",

@@ -13,6 +13,9 @@ type FileTreeItemProps = {
   onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
   isFiltering?: boolean;
   prefetch?: boolean;
+  onStageFile?: (relativePath: string) => void;
+  onUnstageFile?: (relativePath: string) => void;
+  onRevertFile?: (relativePath: string) => void;
 };
 
 export function FileTreeItem({
@@ -26,6 +29,9 @@ export function FileTreeItem({
   onManualExpansionToggle,
   isFiltering,
   prefetch,
+  onStageFile,
+  onUnstageFile,
+  onRevertFile,
 }: FileTreeItemProps) {
   const isDirectory = node.type === "directory";
   if (isDirectory) {
@@ -42,6 +48,9 @@ export function FileTreeItem({
         onManualExpansionToggle={onManualExpansionToggle}
         isFiltering={isFiltering}
         prefetch={prefetch}
+        onStageFile={onStageFile}
+        onUnstageFile={onUnstageFile}
+        onRevertFile={onRevertFile}
       />
     );
   }
@@ -55,6 +64,9 @@ export function FileTreeItem({
       gitStatus={fileStatus}
       onSelect={onFileSelect}
       onOpen={onFileOpen}
+      onStageFile={onStageFile}
+      onUnstageFile={onUnstageFile}
+      onRevertFile={onRevertFile}
     />
   );
 }

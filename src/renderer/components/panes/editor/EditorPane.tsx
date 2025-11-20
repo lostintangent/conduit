@@ -503,6 +503,45 @@ export function EditorPane({
     }
   }, [cwd, commitMessage, hasStagedFiles, isCommitting]);
 
+  // Stage file (add to index)
+  const handleStageFile = useCallback(
+    async (relativePath: string) => {
+      try {
+        await api.gitStage(cwd, [relativePath]);
+        console.log(`[EditorPane] Staged file: ${relativePath}`);
+      } catch (error) {
+        console.error("[EditorPane] Failed to stage file:", error);
+      }
+    },
+    [cwd],
+  );
+
+  // Unstage file (reset from index)
+  const handleUnstageFile = useCallback(
+    async (relativePath: string) => {
+      try {
+        await api.gitUnstage(cwd, [relativePath]);
+        console.log(`[EditorPane] Unstaged file: ${relativePath}`);
+      } catch (error) {
+        console.error("[EditorPane] Failed to unstage file:", error);
+      }
+    },
+    [cwd],
+  );
+
+  // Revert file changes (discard changes)
+  const handleDiscardFileChanges = useCallback(
+    async (relativePath: string) => {
+      try {
+        await api.gitRevert(cwd, [relativePath]);
+        console.log(`[EditorPane] Discarded changes for file: ${relativePath}`);
+      } catch (error) {
+        console.error("[EditorPane] Failed to discard file changes:", error);
+      }
+    },
+    [cwd],
+  );
+
   // Configure Monaco's TypeScript language service with project's tsconfig.json
   // This implements TypeScript's upward search algorithm to find tsconfig.json
   useEffect(() => {
@@ -2200,6 +2239,18 @@ export function EditorPane({
                   expandedPaths={expandedPaths}
                   onManualExpansionToggle={handleManualExpansionToggle}
                   isFiltering={showOnlyChangedFiles}
+                  showGroupedByStaging={
+                    showOnlyChangedFiles && baseBranch === null
+                  }
+                  onStageFile={
+                    baseBranch === null ? handleStageFile : undefined
+                  }
+                  onUnstageFile={
+                    baseBranch === null ? handleUnstageFile : undefined
+                  }
+                  onRevertFile={
+                    baseBranch === null ? handleDiscardFileChanges : undefined
+                  }
                 />
               ) : (
                 <div className="text-foreground text-xs py-3">

@@ -25,6 +25,9 @@ type DirectoryItemProps = {
   onManualExpansionToggle?: (path: string, isExpanded: boolean) => void;
   isFiltering?: boolean;
   prefetch?: boolean;
+  onStageFile?: (relativePath: string) => void;
+  onUnstageFile?: (relativePath: string) => void;
+  onRevertFile?: (relativePath: string) => void;
 };
 
 export function DirectoryItem({
@@ -39,9 +42,16 @@ export function DirectoryItem({
   onManualExpansionToggle,
   isFiltering,
   prefetch = false,
+  onStageFile,
+  onUnstageFile,
+  onRevertFile,
 }: DirectoryItemProps) {
-  // Use custom hook for cache management
-  const { children, isLoading, loadChildren, isResolved } = useDirectoryCache({
+  // Check if children are already provided (e.g., from grouped staging view)
+  // When showing staged/unstaged groups, the tree is pre-built with children populated
+  const hasPrePopulatedChildren = node.children !== undefined;
+
+  // Use custom hook for cache management only if children aren't pre-populated
+  const cacheResult = useDirectoryCache({
     node,
     rootPath,
     isExpanded,
@@ -49,6 +59,14 @@ export function DirectoryItem({
     isFiltering,
     gitStatus,
   });
+
+  // Use pre-populated children if available, otherwise use cache
+  const children = hasPrePopulatedChildren
+    ? node.children
+    : cacheResult.children;
+  const isLoading = hasPrePopulatedChildren ? false : cacheResult.isLoading;
+  const loadChildren = cacheResult.loadChildren;
+  const isResolved = hasPrePopulatedChildren ? true : cacheResult.isResolved;
 
   // Aggregate git status for this folder using VS Code's weight-based priority system
   const folderStatus = useMemo(
@@ -66,7 +84,8 @@ export function DirectoryItem({
 
     // Load children if expanding and not already resolved
     // (This handles the click case; the useEffect in the hook handles prefetch)
-    if (!isExpanded && !isResolved) {
+    // Skip loading if children are pre-populated
+    if (!isExpanded && !isResolved && !hasPrePopulatedChildren) {
       await loadChildren(true); // Show spinner for user-initiated expand
     }
   }, [
@@ -75,6 +94,7 @@ export function DirectoryItem({
     node.relativePath,
     onManualExpansionToggle,
     loadChildren,
+    hasPrePopulatedChildren,
   ]);
 
   const handleChangeCwd = useCallback(
@@ -161,6 +181,9 @@ export function DirectoryItem({
                 onManualExpansionToggle={onManualExpansionToggle}
                 isFiltering={isFiltering}
                 prefetch={isExpanded && child.type === "directory"}
+                onStageFile={onStageFile}
+                onUnstageFile={onUnstageFile}
+                onRevertFile={onRevertFile}
               />
             ))
           ) : (

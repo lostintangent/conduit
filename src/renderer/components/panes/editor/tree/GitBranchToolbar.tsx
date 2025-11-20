@@ -136,122 +136,129 @@ export function GitBranchToolbar({
           </Tooltip>
         )}
 
-        {showOnlyChangedFiles && (onPull || onPush) && (
-          <Separator orientation="vertical" className="h-4" />
-        )}
+        {showOnlyChangedFiles &&
+          (onPull || onPush) &&
+          (baseBranch === null || baseBranch === "HEAD") && (
+            <Separator orientation="vertical" className="h-4" />
+          )}
 
-        {showOnlyChangedFiles && (onPull || onPush) && (
-          <div className="flex items-center gap-0.5">
-            {onPull && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Toggle
-                    pressed={false}
-                    onPressedChange={onPull}
-                    disabled={isPulling || isPushing || !hasUpstream}
-                    size="sm"
-                    className={toggleButtonClass}
-                  >
-                    <ArrowDownToLine
-                      className={isPulling ? "animate-pulse" : ""}
-                    />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {!hasUpstream
-                    ? "No upstream branch configured"
-                    : isPulling
-                      ? "Pulling..."
-                      : "Pull from remote"}
-                </TooltipContent>
-              </Tooltip>
-            )}
+        {showOnlyChangedFiles &&
+          (onPull || onPush) &&
+          (baseBranch === null || baseBranch === "HEAD") && (
+            <div className="flex items-center gap-0.5">
+              {onPull && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      pressed={false}
+                      onPressedChange={onPull}
+                      disabled={isPulling || isPushing || !hasUpstream}
+                      size="sm"
+                      className={toggleButtonClass}
+                    >
+                      <ArrowDownToLine
+                        className={isPulling ? "animate-pulse" : ""}
+                      />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {!hasUpstream
+                      ? "No upstream branch configured"
+                      : isPulling
+                        ? "Pulling..."
+                        : "Pull from remote"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
-            {onPush && hasUpstream && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Toggle
-                    pressed={false}
-                    onPressedChange={onPush}
-                    disabled={isPulling || isPushing}
-                    size="sm"
-                    className={toggleButtonClass}
-                  >
-                    <ArrowUpFromLine
-                      className={isPushing ? "animate-pulse" : ""}
-                    />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isPushing ? "Pushing..." : "Push to remote"}
-                </TooltipContent>
-              </Tooltip>
-            )}
+              {onPush && hasUpstream && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      pressed={false}
+                      onPressedChange={onPush}
+                      disabled={isPulling || isPushing}
+                      size="sm"
+                      className={toggleButtonClass}
+                    >
+                      <ArrowUpFromLine
+                        className={isPushing ? "animate-pulse" : ""}
+                      />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isPushing ? "Pushing..." : "Push to remote"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
-            {onPush && !hasUpstream && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Toggle
-                    pressed={false}
-                    onPressedChange={onPush}
-                    disabled={isPulling || isPushing}
-                    size="sm"
-                    className={toggleButtonClass}
-                  >
-                    <Send className={isPushing ? "animate-pulse" : ""} />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isPushing ? "Publishing..." : "Publish branch"}
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        )}
+              {onPush && !hasUpstream && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      pressed={false}
+                      onPressedChange={onPush}
+                      disabled={isPulling || isPushing}
+                      size="sm"
+                      className={toggleButtonClass}
+                    >
+                      <Send className={isPushing ? "animate-pulse" : ""} />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isPushing ? "Publishing..." : "Publish branch"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          )}
       </div>
 
       {/* Second row: Commit message input and button */}
-      {showOnlyChangedFiles && onCommit && onCommitMessageChange && (
-        <div className="px-3 pb-1.5 flex items-center gap-2">
-          <Input
-            ref={commitInputRef}
-            type="text"
-            placeholder="Commit message"
-            value={commitMessage}
-            onChange={(e) => onCommitMessageChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleCommitClick();
-              }
-            }}
-            disabled={isCommitting}
-            className="flex-1 h-7 text-xs"
-          />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Toggle
-                pressed={false}
-                onPressedChange={handleCommitClick}
-                disabled={!hasStagedFiles || isCommitting}
-                size="sm"
-                className={toggleButtonClass}
-              >
-                <GitCommitVertical
-                  className={isCommitting ? "animate-pulse" : ""}
-                />
-              </Toggle>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isCommitting
-                ? "Committing..."
-                : !hasStagedFiles
-                  ? "No staged files to commit"
-                  : "Commit staged changes"}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      )}
+      {showOnlyChangedFiles &&
+        onCommit &&
+        onCommitMessageChange &&
+        (baseBranch === null || baseBranch === "HEAD") && (
+          <div className="px-3 pb-1.5 flex items-center gap-2">
+            <Input
+              ref={commitInputRef}
+              type="text"
+              placeholder="Commit message"
+              value={commitMessage}
+              onChange={(e) => onCommitMessageChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleCommitClick();
+                }
+              }}
+              disabled={isCommitting}
+              className="flex-1 h-7 text-xs"
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Toggle
+                  pressed={false}
+                  onPressedChange={handleCommitClick}
+                  disabled={!hasStagedFiles || isCommitting}
+                  size="sm"
+                  className={toggleButtonClass}
+                >
+                  <GitCommitVertical
+                    className={isCommitting ? "animate-pulse" : ""}
+                  />
+                </Toggle>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isCommitting
+                  ? "Committing..."
+                  : !hasStagedFiles
+                    ? "No staged files to commit"
+                    : "Commit staged changes"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
     </div>
   );
 }

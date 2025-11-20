@@ -692,3 +692,36 @@ export async function gitCommit(
   const args = ["commit", "-m", message];
   return await runGit(cwd, args);
 }
+
+/**
+ * Stage files (add to index)
+ */
+export async function gitStage(
+  cwd: string,
+  files: string[],
+): Promise<{ stdout: string; stderr: string }> {
+  const args = ["add", "--", ...files];
+  return await runGit(cwd, args);
+}
+
+/**
+ * Unstage files (reset from index)
+ */
+export async function gitUnstage(
+  cwd: string,
+  files: string[],
+): Promise<{ stdout: string; stderr: string }> {
+  const args = ["reset", "HEAD", "--", ...files];
+  return await runGit(cwd, args);
+}
+
+/**
+ * Revert/discard changes to files (checkout from HEAD)
+ */
+export async function gitRevert(
+  cwd: string,
+  files: string[],
+): Promise<{ stdout: string; stderr: string }> {
+  const args = ["checkout", "HEAD", "--", ...files];
+  return await runGit(cwd, args);
+}
