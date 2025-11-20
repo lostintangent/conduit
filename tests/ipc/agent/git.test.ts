@@ -1,18 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Create a hoisted mock function that can be used in vi.mock factory
-const mockRunGit = vi.hoisted(() => vi.fn());
+// Create a callback-style mock function that promisify can work with
+const mockExecFileImpl = vi.hoisted(() => vi.fn());
 
-// Mock the git module
-vi.mock("../../../src/ipc/agent/git", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../../../src/ipc/agent/git")>();
-  return {
-    ...actual,
-    runGit: mockRunGit,
-  };
-});
+// Mock child_process module with a proper callback-style function
+vi.mock("node:child_process", () => ({
+  execFile: mockExecFileImpl,
+  default: {
+    execFile: mockExecFileImpl,
+  },
+}));
 
+const execFile = mockExecFileImpl;
 import {
   gitCommit,
   gitPull,
@@ -23,8 +22,6 @@ import {
   hasUpstreamBranch,
   parseGitHubRepo,
 } from "../../../src/ipc/agent/git";
-
-const runGitSpy = mockRunGit;
 
 describe("parseGitHubRepo", () => {
   it("should parse HTTPS GitHub URL", () => {
@@ -76,26 +73,37 @@ describe("gitPull", () => {
   });
 
   it("should call git pull without rebase by default", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "Already up to date.",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "Already up to date.", stderr: "" });
     });
 
     const result = await gitPull("/test/repo");
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", ["pull"]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["pull"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
     expect(result.stdout).toBe("Already up to date.");
   });
 
   it("should call git pull with --rebase when rebase is true", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "Successfully rebased and updated refs/heads/main.",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, {
+        stdout: "Successfully rebased and updated refs/heads/main.",
+        stderr: "",
+      });
     });
 
     await gitPull("/test/repo", true);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", ["pull", "--rebase"]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["pull", "--rebase"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should return stdout and stderr from git command", async () => {
@@ -103,15 +111,22 @@ describe("gitPull", () => {
       stdout: "Updating abc123..def456\nFast-forward",
       stderr: "some warning",
     };
-    runGitSpy.mockResolvedValue(mockOutput);
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, mockOutput);
+    });
 
     const result = await gitPull("/test/repo");
 
     expect(result).toEqual(mockOutput);
   });
 
-  it("should propagate errors from runGit", async () => {
-    runGitSpy.mockRejectedValue(new Error("fatal: no tracking information"));
+  it("should propagate errors from git command", async () => {
+    const error: any = new Error("fatal: no tracking information");
+    error.code = 1;
+    error.stderr = "fatal: no tracking information";
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(error);
+    });
 
     await expect(gitPull("/test/repo")).rejects.toThrow(
       "no tracking information",
@@ -125,63 +140,71 @@ describe("gitPush", () => {
   });
 
   it("should call git push without flags by default", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "Everything up-to-date",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "Everything up-to-date", stderr: "" });
     });
 
     const result = await gitPush("/test/repo");
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", ["push"]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["push"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
     expect(result.stdout).toBe("Everything up-to-date");
   });
 
   it("should call git push with --force-with-lease when force is true", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "Branch main set up to track remote branch main from origin.",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, {
+        stdout: "Branch main set up to track remote branch main from origin.",
+        stderr: "",
+      });
     });
 
     await gitPush("/test/repo", true);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "push",
-      "--force-with-lease",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["push", "--force-with-lease"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should call git push with --set-upstream when setUpstream is true", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout:
-        "Branch feature set up to track remote branch feature from origin.",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, {
+        stdout:
+          "Branch feature set up to track remote branch feature from origin.",
+        stderr: "",
+      });
     });
 
     await gitPush("/test/repo", false, true);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "push",
-      "--set-upstream",
-      "origin",
-      "HEAD",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["push", "--set-upstream", "origin", "HEAD"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should combine force and setUpstream flags", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "Branch pushed with upstream",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "Branch pushed with upstream", stderr: "" });
     });
 
     await gitPush("/test/repo", true, true);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "push",
-      "--force-with-lease",
-      "--set-upstream",
-      "origin",
-      "HEAD",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["push", "--force-with-lease", "--set-upstream", "origin", "HEAD"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should return stdout and stderr from git command", async () => {
@@ -189,15 +212,22 @@ describe("gitPush", () => {
       stdout: "To github.com:user/repo.git\n   abc123..def456  main -> main",
       stderr: "",
     };
-    runGitSpy.mockResolvedValue(mockOutput);
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, mockOutput);
+    });
 
     const result = await gitPush("/test/repo");
 
     expect(result).toEqual(mockOutput);
   });
 
-  it("should propagate errors from runGit", async () => {
-    runGitSpy.mockRejectedValue(new Error("error: failed to push some refs"));
+  it("should propagate errors from git command", async () => {
+    const error: any = new Error("error: failed to push some refs");
+    error.code = 1;
+    error.stderr = "error: failed to push some refs";
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(error);
+    });
 
     await expect(gitPush("/test/repo")).rejects.toThrow(
       "failed to push some refs",
@@ -211,26 +241,24 @@ describe("hasUpstreamBranch", () => {
   });
 
   it("should return true when upstream branch exists", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "origin/main",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "origin/main", stderr: "" });
     });
 
     const result = await hasUpstreamBranch("/test/repo");
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "rev-parse",
-      "--abbrev-ref",
-      "--symbolic-full-name",
-      "@{u}",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
     expect(result).toBe(true);
   });
 
   it("should return true when upstream exists with whitespace", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "origin/feature\n",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "origin/feature\n", stderr: "" });
     });
 
     const result = await hasUpstreamBranch("/test/repo");
@@ -239,9 +267,12 @@ describe("hasUpstreamBranch", () => {
   });
 
   it("should return false when upstream branch does not exist", async () => {
-    runGitSpy.mockRejectedValue(
-      new Error("fatal: no upstream configured for branch"),
-    );
+    const error: any = new Error("fatal: no upstream configured for branch");
+    error.code = 128;
+    error.stderr = "fatal: no upstream configured for branch";
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(error);
+    });
 
     const result = await hasUpstreamBranch("/test/repo");
 
@@ -249,9 +280,8 @@ describe("hasUpstreamBranch", () => {
   });
 
   it("should return false when git command returns empty output", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "", stderr: "" });
     });
 
     const result = await hasUpstreamBranch("/test/repo");
@@ -260,9 +290,8 @@ describe("hasUpstreamBranch", () => {
   });
 
   it("should return false when git command returns only whitespace", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "   \n  \t  ",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "   \n  \t  ", stderr: "" });
     });
 
     const result = await hasUpstreamBranch("/test/repo");
@@ -271,7 +300,10 @@ describe("hasUpstreamBranch", () => {
   });
 
   it("should return false on any error", async () => {
-    runGitSpy.mockRejectedValue(new Error("Git error"));
+    const error: any = new Error("Git error");
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(error);
+    });
 
     const result = await hasUpstreamBranch("/test/repo");
 
@@ -305,35 +337,33 @@ describe("gitStage", () => {
   });
 
   it("should call git add with single file", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "", stderr: "" });
     });
 
     await gitStage("/test/repo", ["file1.ts"]);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "add",
-      "--",
-      "file1.ts",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["add", "--", "file1.ts"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should call git add with multiple files", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "", stderr: "" });
     });
 
     await gitStage("/test/repo", ["file1.ts", "file2.ts", "src/index.ts"]);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "add",
-      "--",
-      "file1.ts",
-      "file2.ts",
-      "src/index.ts",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["add", "--", "file1.ts", "file2.ts", "src/index.ts"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should return stdout and stderr from git command", async () => {
@@ -341,17 +371,24 @@ describe("gitStage", () => {
       stdout: "",
       stderr: "warning: LF will be replaced by CRLF",
     };
-    runGitSpy.mockResolvedValue(mockOutput);
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, mockOutput);
+    });
 
     const result = await gitStage("/test/repo", ["file1.ts"]);
 
     expect(result).toEqual(mockOutput);
   });
 
-  it("should propagate errors from runGit", async () => {
-    runGitSpy.mockRejectedValue(
-      new Error("fatal: pathspec 'file.ts' did not match any files"),
+  it("should propagate errors from git command", async () => {
+    const error: any = new Error(
+      "fatal: pathspec 'file.ts' did not match any files",
     );
+    error.code = 128;
+    error.stderr = "fatal: pathspec 'file.ts' did not match any files";
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(error);
+    });
 
     await expect(gitStage("/test/repo", ["file.ts"])).rejects.toThrow(
       "did not match any files",
@@ -365,36 +402,39 @@ describe("gitUnstage", () => {
   });
 
   it("should call git reset HEAD with single file", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "Unstaged changes after reset:\nM\tfile1.ts",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, {
+        stdout: "Unstaged changes after reset:\nM\tfile1.ts",
+        stderr: "",
+      });
     });
 
     await gitUnstage("/test/repo", ["file1.ts"]);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "reset",
-      "HEAD",
-      "--",
-      "file1.ts",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["reset", "HEAD", "--", "file1.ts"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should call git reset HEAD with multiple files", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "Unstaged changes after reset:\nM\tfile1.ts\nM\tfile2.ts",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, {
+        stdout: "Unstaged changes after reset:\nM\tfile1.ts\nM\tfile2.ts",
+        stderr: "",
+      });
     });
 
     await gitUnstage("/test/repo", ["file1.ts", "file2.ts"]);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "reset",
-      "HEAD",
-      "--",
-      "file1.ts",
-      "file2.ts",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["reset", "HEAD", "--", "file1.ts", "file2.ts"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should return stdout and stderr from git command", async () => {
@@ -402,15 +442,22 @@ describe("gitUnstage", () => {
       stdout: "Unstaged changes after reset:\nM\tfile1.ts",
       stderr: "",
     };
-    runGitSpy.mockResolvedValue(mockOutput);
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, mockOutput);
+    });
 
     const result = await gitUnstage("/test/repo", ["file1.ts"]);
 
     expect(result).toEqual(mockOutput);
   });
 
-  it("should propagate errors from runGit", async () => {
-    runGitSpy.mockRejectedValue(new Error("fatal: ambiguous argument 'HEAD'"));
+  it("should propagate errors from git command", async () => {
+    const error: any = new Error("fatal: ambiguous argument 'HEAD'");
+    error.code = 128;
+    error.stderr = "fatal: ambiguous argument 'HEAD'";
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(error);
+    });
 
     await expect(gitUnstage("/test/repo", ["file.ts"])).rejects.toThrow(
       "ambiguous argument",
@@ -424,37 +471,33 @@ describe("gitRevert", () => {
   });
 
   it("should call git checkout HEAD with single file", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "", stderr: "" });
     });
 
     await gitRevert("/test/repo", ["file1.ts"]);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "checkout",
-      "HEAD",
-      "--",
-      "file1.ts",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["checkout", "HEAD", "--", "file1.ts"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should call git checkout HEAD with multiple files", async () => {
-    runGitSpy.mockResolvedValue({
-      stdout: "",
-      stderr: "",
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, { stdout: "", stderr: "" });
     });
 
     await gitRevert("/test/repo", ["file1.ts", "file2.ts", "src/index.ts"]);
 
-    expect(runGitSpy).toHaveBeenCalledWith("/test/repo", [
-      "checkout",
-      "HEAD",
-      "--",
-      "file1.ts",
-      "file2.ts",
-      "src/index.ts",
-    ]);
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["checkout", "HEAD", "--", "file1.ts", "file2.ts", "src/index.ts"],
+      expect.objectContaining({ cwd: "/test/repo" }),
+      expect.any(Function),
+    );
   });
 
   it("should return stdout and stderr from git command", async () => {
@@ -462,17 +505,24 @@ describe("gitRevert", () => {
       stdout: "",
       stderr: "",
     };
-    runGitSpy.mockResolvedValue(mockOutput);
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(null, mockOutput);
+    });
 
     const result = await gitRevert("/test/repo", ["file1.ts"]);
 
     expect(result).toEqual(mockOutput);
   });
 
-  it("should propagate errors from runGit", async () => {
-    runGitSpy.mockRejectedValue(
-      new Error("error: pathspec 'file.ts' did not match any files"),
+  it("should propagate errors from git command", async () => {
+    const error: any = new Error(
+      "error: pathspec 'file.ts' did not match any files",
     );
+    error.code = 1;
+    error.stderr = "error: pathspec 'file.ts' did not match any files";
+    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
+      callback(error);
+    });
 
     await expect(gitRevert("/test/repo", ["file.ts"])).rejects.toThrow(
       "did not match any files",
