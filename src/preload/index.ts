@@ -437,6 +437,13 @@ const conduitAPI = {
       error?: string;
     }>,
 
+  getDiffStats: (cwd: string) =>
+    ipcRenderer.invoke("git:get-diff-stats", cwd) as Promise<{
+      success: boolean;
+      stats?: { added: number; removed: number; files: number };
+      error?: string;
+    }>,
+
   onGitStatusChanged: (
     listener: (payload: {
       cwd: string;

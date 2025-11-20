@@ -1,6 +1,7 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useCommand } from "@/commands/hooks/useCommand";
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
+import { ChangesReviewPane } from "@/components/panes/editor/ChangesReviewPane";
 import { EditorToolbarButtons } from "@/components/panes/editor/EditorToolbarButtons";
 import { FileTree } from "@/components/panes/editor/tree/FileTree";
 import { GitBranchToolbar } from "@/components/panes/editor/tree/GitBranchToolbar";
@@ -52,6 +53,10 @@ import path from "path-browserify";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
+
+// Tree view modes for the file explorer
+export type TreeViewMode = "files" | "changes";
+// Future modes could include: "outline", "search", "timeline", etc.
 
 let isMonacoConfigured = false;
 
@@ -331,13 +336,40 @@ export function EditorPane({
     handleBranchSelect,
   } = useGitStatus(cwd);
 
-  const [showOnlyChangedFiles, setShowOnlyChangedFiles] = useState(
-    treeMode === "changes",
+  const [treeViewMode, setTreeViewMode] = useState<TreeViewMode>(
+    treeMode === "changes" ? "changes" : "files",
   );
 
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [hasUpstream, setHasUpstream] = useState(true);
+  const [diffStats, setDiffStats] = useState<{
+    added: number;
+    removed: number;
+  } | null>(null);
+
+  // Fetch diff stats when git status changes
+  useEffect(() => {
+    if (!isInGitRepo || !gitStatus || gitStatus.size === 0) {
+      setDiffStats(null);
+      return;
+    }
+
+    api
+      .getDiffStats(cwd)
+      .then((result) => {
+        if (result.success && result.stats) {
+          setDiffStats({
+            added: result.stats.added,
+            removed: result.stats.removed,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("[EditorPane] Failed to get diff stats:", error);
+        setDiffStats(null);
+      });
+  }, [cwd, gitStatus, isInGitRepo]);
 
   // Check if current branch has upstream
   useEffect(() => {
@@ -359,16 +391,17 @@ export function EditorPane({
 
   // Auto-reset filter when not in a git repository or when cwd changes to non-git directory
   useEffect(() => {
-    if (!isInGitRepo && showOnlyChangedFiles) {
-      setShowOnlyChangedFiles(false);
+    if (!isInGitRepo && treeViewMode === "changes") {
+      setTreeViewMode("files");
       onTreeModeChange?.("all");
     }
-  }, [isInGitRepo, cwd, showOnlyChangedFiles]);
+  }, [isInGitRepo, cwd, treeViewMode]);
 
   // Diff viewer state - using discriminated union to prevent invalid states
   type ViewMode =
     | { type: "editor" }
-    | { type: "diff"; data: FileDiffResult; showRaw: boolean };
+    | { type: "diff"; data: FileDiffResult; showRaw: boolean }
+    | { type: "changes-review" };
 
   const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
 
@@ -589,10 +622,10 @@ export function EditorPane({
 
   // Clear manually collapsed paths when filtering is turned off
   useEffect(() => {
-    if (!showOnlyChangedFiles) {
+    if (treeViewMode !== "changes") {
       setManuallyCollapsedPaths(new Set());
     }
-  }, [showOnlyChangedFiles]);
+  }, [treeViewMode]);
 
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
@@ -1389,7 +1422,7 @@ export function EditorPane({
         console.error("Failed to open file:", error);
       }
     },
-    [onFileChange, showOnlyChangedFiles, gitStatus, fetchDiffForFile],
+    [onFileChange, gitStatus, fetchDiffForFile],
   );
 
   // Auto-open most recently modified file on mount (dirty files first, then tracked files)
@@ -1480,7 +1513,7 @@ export function EditorPane({
       });
 
       // When filtering is on, track manual collapses to override auto-expansion
-      if (showOnlyChangedFiles) {
+      if (treeViewMode === "changes") {
         setManuallyCollapsedPaths((prev) => {
           const next = new Set(prev);
           if (isExpanded) {
@@ -1494,7 +1527,7 @@ export function EditorPane({
         });
       }
     },
-    [paneId, showOnlyChangedFiles],
+    [paneId, treeViewMode],
   );
 
   const handleNavigateUp = useCallback(() => {
@@ -1567,7 +1600,7 @@ export function EditorPane({
 
   // Apply git status filtering to file tree
   const displayedFileTree = useMemo(() => {
-    if (!showOnlyChangedFiles || !gitStatus) {
+    if (treeViewMode !== "changes" || !gitStatus) {
       return fileTree;
     }
     // When filtering is on but there are no changes, return empty array
@@ -1575,19 +1608,19 @@ export function EditorPane({
       return [];
     }
     return filterTreeByGitStatus(fileTree, gitStatus);
-  }, [fileTree, showOnlyChangedFiles, gitStatus, filterTreeByGitStatus]);
+  }, [fileTree, treeViewMode, gitStatus, filterTreeByGitStatus]);
 
   // Compute paths that should be auto-expanded when filtering
   const autoExpandedPaths = useMemo(() => {
-    if (!showOnlyChangedFiles || !gitStatus || gitStatus.size === 0) {
+    if (treeViewMode !== "changes" || !gitStatus || gitStatus.size === 0) {
       return new Set<string>();
     }
     return getExpandedPaths(gitStatus);
-  }, [showOnlyChangedFiles, gitStatus, getExpandedPaths]);
+  }, [treeViewMode, gitStatus, getExpandedPaths]);
 
   // Combine manual and auto expanded paths
   const expandedPaths = useMemo(() => {
-    if (showOnlyChangedFiles) {
+    if (treeViewMode === "changes") {
       // When filtering, combine manually and auto-expanded paths,
       // but exclude paths that were manually collapsed
       const combined = new Set([
@@ -1602,7 +1635,7 @@ export function EditorPane({
     // When not filtering, only show manually expanded paths
     return manuallyExpandedPaths;
   }, [
-    showOnlyChangedFiles,
+    treeViewMode,
     manuallyExpandedPaths,
     autoExpandedPaths,
     manuallyCollapsedPaths,
@@ -1736,6 +1769,15 @@ export function EditorPane({
       editorRef.current.trigger("keyboard", "redo", null);
     }
   }, []);
+
+  // Handler to enter review mode
+  const handleReviewChanges = useCallback(() => {
+    setViewMode({ type: "changes-review" });
+    // In single mode, switch to editor view to show the review pane
+    if (layoutMode === "single") {
+      setActiveView("editor");
+    }
+  }, [layoutMode]);
 
   // Diff viewer handlers
   const handleToggleRawView = useCallback(() => {
@@ -1952,17 +1994,26 @@ export function EditorPane({
                       title="Unsaved changes"
                     />
                   )}
-                  <span className="truncate" title={filePath || ""}>
-                    {displayFilePath}
+                  <span
+                    className="truncate"
+                    title={
+                      viewMode.type === "changes-review"
+                        ? "Review Changes"
+                        : filePath || ""
+                    }
+                  >
+                    {viewMode.type === "changes-review"
+                      ? `Review Changes (${gitStatus?.size || 0})`
+                      : displayFilePath}
                   </span>
-                  {hasOpenFile && (
+                  {hasOpenFile && viewMode.type !== "changes-review" && (
                     <>
                       <Separator
                         orientation="vertical"
                         className="h-4 mx-1 bg-elevated-border"
                       />
                       <EditorToolbarButtons
-                        mode={viewMode.type}
+                        mode={viewMode.type === "diff" ? "diff" : "editor"}
                         variant="split"
                         diffData={
                           viewMode.type === "diff" ? viewMode.data : undefined
@@ -2068,15 +2119,28 @@ export function EditorPane({
                 )}
                 <span
                   className="truncate"
-                  title={activeView === "editor" ? filePath || "" : cwd}
+                  title={
+                    activeView === "editor" &&
+                    viewMode.type === "changes-review"
+                      ? "Review Changes"
+                      : activeView === "editor"
+                        ? filePath || ""
+                        : cwd
+                  }
                 >
-                  {activeView === "editor" ? displayFilePath : displayCwd}
+                  {activeView === "editor"
+                    ? viewMode.type === "changes-review"
+                      ? `Review Changes (${gitStatus?.size || 0})`
+                      : displayFilePath
+                    : displayCwd}
                 </span>
-                {activeView === "editor" && hasOpenFile ? (
+                {activeView === "editor" &&
+                hasOpenFile &&
+                viewMode.type !== "changes-review" ? (
                   <>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
                     <EditorToolbarButtons
-                      mode={viewMode.type}
+                      mode={viewMode.type === "diff" ? "diff" : "editor"}
                       variant="single"
                       diffData={
                         viewMode.type === "diff" ? viewMode.data : undefined
@@ -2197,30 +2261,21 @@ export function EditorPane({
                 currentBranch={currentBranch}
                 baseBranch={baseBranch}
                 changedFilesCount={gitStatus?.size || 0}
-                gitStatus={gitStatus}
+                diffStats={diffStats || undefined}
                 onOpenBranchPicker={
                   branches.length > 0
                     ? () => setIsBranchSelectorOpen(true)
                     : undefined
                 }
-                showOnlyChangedFiles={showOnlyChangedFiles}
-                onFilterToggle={() => {
-                  const newMode: EditorTreeMode = showOnlyChangedFiles
-                    ? "all"
-                    : "changes";
-                  setShowOnlyChangedFiles(!showOnlyChangedFiles);
-                  onTreeModeChange?.(newMode);
+                treeViewMode={treeViewMode}
+                onTreeViewModeChange={(mode) => {
+                  setTreeViewMode(mode);
+                  // Convert to old EditorTreeMode for compatibility
+                  const editorMode: EditorTreeMode =
+                    mode === "changes" ? "changes" : "all";
+                  onTreeModeChange?.(editorMode);
                 }}
-                onPull={handlePull}
-                onPush={handlePush}
-                isPulling={isPulling}
-                isPushing={isPushing}
-                hasUpstream={hasUpstream}
-                commitMessage={commitMessage}
-                onCommitMessageChange={setCommitMessage}
-                onCommit={handleCommit}
-                hasStagedFiles={hasStagedFiles}
-                isCommitting={isCommitting}
+                onReviewChanges={handleReviewChanges}
               />
             )}
             <div className="flex-1 overflow-auto px-3">
@@ -2238,9 +2293,9 @@ export function EditorPane({
                   rootPath={cwd}
                   expandedPaths={expandedPaths}
                   onManualExpansionToggle={handleManualExpansionToggle}
-                  isFiltering={showOnlyChangedFiles}
+                  isFiltering={treeViewMode === "changes"}
                   showGroupedByStaging={
-                    showOnlyChangedFiles && baseBranch === null
+                    treeViewMode === "changes" && baseBranch === null
                   }
                   onStageFile={
                     baseBranch === null ? handleStageFile : undefined
@@ -2254,13 +2309,13 @@ export function EditorPane({
                 />
               ) : (
                 <div className="text-foreground text-xs py-3">
-                  {showOnlyChangedFiles ? (
+                  {treeViewMode === "changes" ? (
                     <div>
                       No changed files{" "}
                       <button
                         type="button"
                         onClick={() => {
-                          setShowOnlyChangedFiles(false);
+                          setTreeViewMode("files");
                           onTreeModeChange?.("all");
                         }}
                         className="inline text-accent/80 hover:text-accent transition-colors"
@@ -2301,7 +2356,27 @@ export function EditorPane({
                     : "none",
             }}
           >
-            {hasOpenFile ? (
+            {hasOpenFile && viewMode.type === "changes-review" ? (
+              // Show changes review pane
+              <ChangesReviewPane
+                gitStatus={gitStatus}
+                cwd={cwd}
+                onFileSelect={handleFileSelect}
+                commitMessage={commitMessage}
+                onCommitMessageChange={setCommitMessage}
+                onCommit={handleCommit}
+                hasStagedFiles={hasStagedFiles}
+                isCommitting={isCommitting}
+                onPull={handlePull}
+                onPush={handlePush}
+                isPulling={isPulling}
+                isPushing={isPushing}
+                hasUpstream={hasUpstream}
+                onStageFile={baseBranch === null ? handleStageFile : undefined}
+                onUnstageFile={baseBranch === null ? handleUnstageFile : undefined}
+                onRevertFile={baseBranch === null ? handleDiscardFileChanges : undefined}
+              />
+            ) : hasOpenFile ? (
               <>
                 {viewMode.type === "diff" && !viewMode.showRaw ? (
                   // Show diff editor when in diff mode
@@ -2441,6 +2516,26 @@ export function EditorPane({
                   />
                 )}
               </>
+            ) : viewMode.type === "changes-review" ? (
+              // Show changes review pane even when no file is open
+              <ChangesReviewPane
+                gitStatus={gitStatus}
+                cwd={cwd}
+                onFileSelect={handleFileSelect}
+                commitMessage={commitMessage}
+                onCommitMessageChange={setCommitMessage}
+                onCommit={handleCommit}
+                hasStagedFiles={hasStagedFiles}
+                isCommitting={isCommitting}
+                onPull={handlePull}
+                onPush={handlePush}
+                isPulling={isPulling}
+                isPushing={isPushing}
+                hasUpstream={hasUpstream}
+                onStageFile={baseBranch === null ? handleStageFile : undefined}
+                onUnstageFile={baseBranch === null ? handleUnstageFile : undefined}
+                onRevertFile={baseBranch === null ? handleDiscardFileChanges : undefined}
+              />
             ) : (
               <div className="flex flex-1 bg-background" />
             )}

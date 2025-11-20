@@ -9,6 +9,7 @@
 import { ipcMain } from "electron";
 import { findRepoRoot } from "../../agent/git";
 import { getFileDiff } from "../../git/gitDiff";
+import { getGitDiffStats } from "../../git/gitDiffStats";
 import {
   getMostRecentDirtyFile,
   getMostRecentTrackedFile,
@@ -199,4 +200,21 @@ export function initializeFileWatcherHandlers(): void {
       }
     },
   );
+
+  /**
+   * Handler: git:get-diff-stats
+   * Gets aggregated diff statistics for all changed files.
+   */
+  ipcMain.handle("git:get-diff-stats", async (_, cwd: string) => {
+    try {
+      const stats = await getGitDiffStats(cwd);
+      return { success: true, stats };
+    } catch (error) {
+      console.error("Failed to get diff stats:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
 }
