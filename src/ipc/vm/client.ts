@@ -281,15 +281,30 @@ export function getSSHConnectionInfo(vm: VM): SSHConnectionInfo {
     throw new Error(`VM ${vm.id} does not have SSH port forwarded`);
   }
 
-  const [host, portStr] = sshPort.connection_url.split(":");
-  const port = parseInt(portStr, 10);
+  const host = vm.ip_address; // Use VM internal IP for host
 
-  if (!host || !port) {
+  // Parse port from the new URL format: https://20_125_42_246-5201.blue.sandbox.githubnext.com
+  // Extract the subdomain prefix and get the port after the last dash
+  let port: number;
+  const url = sshPort.connection_url;
+
+  if (url.includes("://")) {
+    // New format: extract from subdomain
+    const hostname = url.split("://")[1].split(".")[0]; // Get "20_125_42_246-5201"
+    const portStr = hostname.split("-").pop(); // Get "5201"
+    port = parseInt(portStr || "", 10);
+  } else {
+    // Old format: host:port
+    const portStr = url.split(":")[1];
+    port = parseInt(portStr, 10);
+  }
+
+  if (!host || !port || isNaN(port)) {
     throw new Error(`Invalid SSH connection URL: ${sshPort.connection_url}`);
   }
 
   return {
-    host,
+    host: vm.ip_address,
     port,
     username: "ace", // Default username from VM API
   };
