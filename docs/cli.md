@@ -598,6 +598,13 @@ async function shutdown() {
 ### Browser Commands
 
 - `capture-browser <paneId>` - Capture screenshot of browser pane
+- `navigate-browser <paneId> <url>` - Navigate browser pane to URL
+- `browser-click <paneId> <selector>` - Click an element in the browser pane
+- `browser-type <paneId> <selector> <text>` - Type into a field
+- `browser-scroll <paneId> [selector]` - Scroll by coordinates or to a selector
+- `browser-wait-for <paneId> <selector>` - Wait for a selector to appear or become visible
+- `browser-query <paneId> <selector>` - Return metadata about matching elements
+- `browser-evaluate <paneId> <script>` - Run arbitrary JavaScript within the page
 
 ### Editor Commands
 
