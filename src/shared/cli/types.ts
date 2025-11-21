@@ -1,4 +1,15 @@
 import { Pane } from "@/types";
+import type {
+  BrowserCaptureArgs,
+  BrowserClickArgs,
+  BrowserEvaluateArgs,
+  BrowserKeysArgs,
+  BrowserQueryArgs,
+  BrowserQueryResult,
+  BrowserScrollArgs,
+  BrowserTypeArgs,
+  BrowserWaitArgs,
+} from "./automation";
 
 export const CLI_COMMAND_NAME = "conduit";
 
@@ -57,8 +68,18 @@ export type CliCommand =
       { sessionId: string; input: string; enter?: boolean }
     >
   // Browser commands
-  | DefineCommand<"capture-browser", { paneId: string }, string>
+  | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
   | DefineCommand<"navigate-browser", { paneId: string; url: string }>
+  | DefineCommand<"browser-back", { paneId: string }>
+  | DefineCommand<"browser-forward", { paneId: string }>
+  | DefineCommand<"browser-refresh", { paneId: string }>
+  | DefineCommand<"browser-query", BrowserQueryArgs, BrowserQueryResult>
+  | DefineCommand<"browser-click", BrowserClickArgs>
+  | DefineCommand<"browser-type", BrowserTypeArgs>
+  | DefineCommand<"browser-keys", BrowserKeysArgs>
+  | DefineCommand<"browser-scroll", BrowserScrollArgs>
+  | DefineCommand<"browser-wait", BrowserWaitArgs>
+  | DefineCommand<"browser-evaluate", BrowserEvaluateArgs, unknown>
   // Editor commands
   | DefineCommand<"open-file", { cwd: string; filePath?: string }>;
 

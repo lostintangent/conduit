@@ -252,6 +252,13 @@ export function BrowserToolbar({
   // Update input URL when user navigates via in-page links or back/forward buttons
   useEffect(() => {
     setInputUrl(currentPage.url);
+
+    // If a navigation just happened, then
+    // lets close any dropdowns, under the assumption
+    // that the user or the CLI just navigated.
+    if (currentPage.url !== "about:blank") {
+      closeDropdowns();
+    }
   }, [currentPage.url]);
 
   return (
