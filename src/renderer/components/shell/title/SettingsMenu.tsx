@@ -51,9 +51,13 @@ const quickTerminalModeOptions = new Map<"fullscreen" | "floating", LucideIcon>(
 
 type SettingsMenuProps = {
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
+  onOpenTerminalFontSettings: () => void;
 };
 
-export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
+export function SettingsMenu({
+  onUpdateSettings,
+  onOpenTerminalFontSettings,
+}: SettingsMenuProps) {
   const {
     alwaysShowTabs,
     showTerminalRuler,
@@ -182,6 +186,10 @@ export function SettingsMenu({ onUpdateSettings }: SettingsMenuProps) {
             >
               Show terminal ruler
             </DropdownMenuCheckboxItem>
+
+            <DropdownMenuItem onClick={onOpenTerminalFontSettings}>
+              Terminal Font Settings...
+            </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 

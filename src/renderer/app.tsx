@@ -790,7 +790,10 @@ export function App() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
-      <TitleBar onUpdateSettings={updateSettings} />
+      <TitleBar
+        onUpdateSettings={updateSettings}
+        onOpenTerminalFontSettings={() => setShowTerminalFontSettings(true)}
+      />
 
       <TabContentPortalProvider>
         {/* Top positioned tabs */}

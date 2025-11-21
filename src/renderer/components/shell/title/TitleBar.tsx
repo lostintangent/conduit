@@ -6,17 +6,20 @@ import type { UserSettings } from "@shared/types";
 
 import { Separator } from "@/components/ui/separator";
 import { SettingsMenu } from "./SettingsMenu";
+import { WindowControls } from "./WindowControls";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 
 const api = window.conduit;
 
 type TitleBarProps = {
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
+  onOpenTerminalFontSettings: () => void;
 };
 
-export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
-  if (api.platform !== "darwin") return null;
-
+export const TitleBar = ({
+  onUpdateSettings,
+  onOpenTerminalFontSettings,
+}: TitleBarProps) => {
   const workspaceName = useAtomValue(workspaceNameAtom);
 
   return (
@@ -33,7 +36,7 @@ export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
         </span>
       </div>
 
-      {/* Right area (Workspace/Settings menu) */}
+      {/* Right area (Workspace/Settings menu + optional window controls) */}
       <div className="flex-1 flex justify-end">
         <div className="flex gap-2 [app-region:no-drag]">
           <WorkspaceMenu />
@@ -41,7 +44,11 @@ export const TitleBar = ({ onUpdateSettings }: TitleBarProps) => {
             orientation="vertical"
             className="h-4.5 mt-[3px] bg-elevated-border"
           />
-          <SettingsMenu onUpdateSettings={onUpdateSettings} />
+          <SettingsMenu
+            onUpdateSettings={onUpdateSettings}
+            onOpenTerminalFontSettings={onOpenTerminalFontSettings}
+          />
+          {api.platform !== "darwin" && <WindowControls />}
         </div>
       </div>
     </div>
