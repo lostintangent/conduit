@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
-import { DiffEditor } from "@monaco-editor/react";
+import { ConduitDiffEditor } from "./ConduitDiffEditor";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { resolveTheme } from "@/utils/theme";
 import { cleanGitError } from "@/utils/gitErrors";
@@ -432,7 +432,7 @@ export function ChangesReviewPane({
                           ) : status.status === "untracked" ||
                             status.status === "added" ? (
                             <div className="h-[400px] overflow-hidden">
-                              <DiffEditor
+                              <ConduitDiffEditor
                                 original=""
                                 modified={diff.modifiedContent}
                                 language="plaintext"
@@ -467,7 +467,7 @@ export function ChangesReviewPane({
                             </div>
                           ) : (
                             <div className="h-[400px] overflow-hidden">
-                              <DiffEditor
+                              <ConduitDiffEditor
                                 original={diff.originalContent}
                                 modified={diff.modifiedContent}
                                 language="plaintext"
@@ -605,7 +605,7 @@ export function ChangesReviewPane({
                           ) : status.status === "untracked" ||
                             status.status === "added" ? (
                             <div className="h-[400px] overflow-hidden">
-                              <DiffEditor
+                              <ConduitDiffEditor
                                 original=""
                                 modified={diff.modifiedContent}
                                 language="plaintext"
@@ -640,7 +640,7 @@ export function ChangesReviewPane({
                             </div>
                           ) : (
                             <div className="h-[400px] overflow-hidden">
-                              <DiffEditor
+                              <ConduitDiffEditor
                                 original={diff.originalContent}
                                 modified={diff.modifiedContent}
                                 language="plaintext"

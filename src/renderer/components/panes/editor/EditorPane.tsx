@@ -20,7 +20,8 @@ import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
 import { cleanGitError } from "@/utils/gitErrors";
 import { resolveTheme } from "@/utils/theme";
-import Editor, { DiffEditor, loader } from "@monaco-editor/react";
+import Editor, { loader } from "@monaco-editor/react";
+import { ConduitDiffEditor } from "./ConduitDiffEditor";
 import type { FileDiffResult, FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
@@ -2429,7 +2430,7 @@ export function EditorPane({
                     />
                   ) : (
                     // Show diff editor for modified/added files
-                    <DiffEditor
+                    <ConduitDiffEditor
                       key={`${paneId}-${filePath}-diff`}
                       originalModelPath={
                         filePath ? `inmemory://original${filePath}` : undefined
