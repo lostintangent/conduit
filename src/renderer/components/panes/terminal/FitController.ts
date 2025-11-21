@@ -12,7 +12,7 @@ export function createFitController({
   container,
   setDimensions,
 }: {
-  entry: Awaited<ReturnType<typeof getOrCreate>>;
+  entry: ReturnType<typeof getOrCreate>;
   container: HTMLDivElement;
   setDimensions: Dispatch<
     SetStateAction<{ width: number; height: number } | null>

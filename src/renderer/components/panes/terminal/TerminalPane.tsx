@@ -23,7 +23,7 @@ import { attach, getOrCreate, getTerminalBuffer } from "./xtermCache";
 import "@xterm/xterm/css/xterm.css";
 
 const api = window.conduit;
-type TerminalInstance = Awaited<ReturnType<typeof getOrCreate>>;
+type TerminalInstance = ReturnType<typeof getOrCreate>;
 
 const registerTerminalKeyHandler = ({
   entry,
@@ -379,7 +379,8 @@ export const TerminalPane = ({
     let detachKeyHandler: (() => void) | null = null;
 
     (async () => {
-      const terminal = await getOrCreate(terminalId);
+      const settings = await api.getSettings();
+      const terminal = getOrCreate(terminalId, settings);
       if (!mounted) return;
 
       terminalRef.current = terminal;

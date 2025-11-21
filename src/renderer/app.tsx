@@ -1069,7 +1069,7 @@ export function App() {
             terminalFontFamily: fontFamily,
             terminalFontSize: fontSize,
           });
-          await updateTerminalFonts();
+          updateTerminalFonts(fontFamily, fontSize);
         }}
       />
     </div>

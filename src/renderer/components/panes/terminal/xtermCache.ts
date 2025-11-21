@@ -10,6 +10,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 
 import chimeUrl from "@/assets/chime.mp3";
+import { UserSettings } from "@shared/types";
 const bellAudio = new Audio(chimeUrl);
 bellAudio.preload = "auto";
 bellAudio.load();
@@ -36,10 +37,11 @@ type GetOrCreateOptions = {
   onInput?: (input: string) => void;
 };
 
-export async function getOrCreate(
+export function getOrCreate(
   sessionId: string,
+  userSettings: UserSettings,
   options: GetOrCreateOptions = {},
-): Promise<TerminalInstance> {
+): TerminalInstance {
   let instance = store.get(sessionId);
   if (!instance) {
     const terminalTheme = {
@@ -49,10 +51,8 @@ export async function getOrCreate(
       selectionBackground: resolveColor("selection"),
     };
 
-    // Get font settings from user settings
-    const settings = await api.getSettings();
-    const fontFamily = settings.terminalFontFamily ?? defaultFontFamily;
-    const fontSize = settings.terminalFontSize ?? defaultFontSize;
+    const fontFamily = userSettings.terminalFontFamily ?? defaultFontFamily;
+    const fontSize = userSettings.terminalFontSize ?? defaultFontSize;
 
     const terminal = new Terminal({
       fontFamily,
@@ -229,11 +229,7 @@ export function updateTerminalThemes() {
  * Update terminal fonts for all active terminals
  * Called when the terminal font settings change
  */
-export async function updateTerminalFonts() {
-  const settings = await api.getSettings();
-  const fontFamily = settings.terminalFontFamily ?? defaultFontFamily;
-  const fontSize = settings.terminalFontSize ?? defaultFontSize;
-
+export function updateTerminalFonts(fontFamily: string, fontSize: number) {
   store.forEach((instance) => {
     instance.terminal.options.fontFamily = fontFamily;
     instance.terminal.options.fontSize = fontSize;
