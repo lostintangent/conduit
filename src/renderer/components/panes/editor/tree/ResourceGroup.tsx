@@ -21,7 +21,7 @@ export function ResourceGroup({
   return (
     <div className="resource-group">
       <div
-        className="flex items-center px-3 py-1 text-xs font-semibold text-white/90 bg-white/5 hover:bg-white/10 cursor-pointer select-none"
+        className="flex items-center px-3 py-1 text-xs font-semibold text-foreground/90 bg-foreground/10 hover:bg-foreground/15 cursor-pointer select-none"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {isExpanded ? (
@@ -30,7 +30,7 @@ export function ResourceGroup({
           <ChevronRight className="w-4 h-4 mr-1.5" />
         )}
         <span className="flex-1">{label}</span>
-        <span className="text-white/60 text-[11px] px-2 py-0.5 rounded bg-white/15 font-medium">
+        <span className="text-muted-foreground text-[11px] px-2 py-0.5 rounded bg-muted font-medium">
           {count}
         </span>
         {actions && (

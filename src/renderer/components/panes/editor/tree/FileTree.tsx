@@ -2,6 +2,7 @@ import type { FileTreeNode, GitStatusMap } from "@shared/types";
 import { useMemo } from "react";
 import { FileTreeItem } from "./FileTreeItem";
 import { ResourceGroup } from "./ResourceGroup";
+import path from "path-browserify";
 
 type FileTreeProps = {
   items: FileTreeNode[];
@@ -83,7 +84,7 @@ export function FileTree({
             dirNode = {
               type: "directory",
               name: dirName,
-              path: currentPath,
+              path: path.join(rootPath, currentPath),
               relativePath: currentPath,
               children: [],
             };
@@ -114,7 +115,7 @@ export function FileTree({
         ({
           type: "file",
           name: relativePath.split("/").pop() || relativePath,
-          path: relativePath,
+          path: path.join(rootPath, relativePath),
           relativePath: relativePath,
         } as FileTreeNode);
 
