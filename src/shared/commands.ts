@@ -69,4 +69,5 @@ export const ApplicationCommands = {
   AGENT_MANAGE_SESSIONS: "agent.manageSessions",
   AGENT_MERGE_AND_CLOSE: "agent.mergeAndClose",
   AGENT_TERMINATE: "agent.terminate",
+  AGENT_MULTILAUNCH_PROMPT: "agent.multilaunchPrompt",
 } as const;

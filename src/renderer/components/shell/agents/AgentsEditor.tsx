@@ -127,6 +127,8 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
       id: `agent-${Date.now()}`,
       name: "New Agent",
       command: "copilot -p {arg}",
+      launchCommand: "",
+      enabledForMultiLaunch: false,
       isDefault: false,
     };
 
@@ -277,6 +279,65 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
                       </p>
                     </div>
 
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">
+                        Launch Command{" "}
+                        <span className="text-gray-600">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={editedAgent.launchCommand || ""}
+                        onChange={(e) =>
+                          setEditedAgent({
+                            ...editedAgent,
+                            launchCommand: e.target.value,
+                          })
+                        }
+                        className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                        placeholder="e.g., codex {arg}"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Auto-launch command with{" "}
+                        <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
+                          {"{arg}"}
+                        </code>{" "}
+                        as placeholder (e.g.,{" "}
+                        <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
+                          codex {"{arg}"}
+                        </code>{" "}
+                        runs{" "}
+                        <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
+                          codex "prompt here"
+                        </code>
+                        )
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`multilaunch-${editedAgent.id}`}
+                        checked={editedAgent.enabledForMultiLaunch || false}
+                        onChange={(e) =>
+                          setEditedAgent({
+                            ...editedAgent,
+                            enabledForMultiLaunch: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                      />
+                      <label
+                        htmlFor={`multilaunch-${editedAgent.id}`}
+                        className="text-sm text-gray-300"
+                      >
+                        Enable for Multi-Launch (Cmd+I)
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-6 -mt-2">
+                      Include this agent when using multi-launch mode to spawn
+                      multiple agents simultaneously
+                    </p>
+
                     <div className="flex items-center justify-between pt-2">
                       <label className="flex items-center gap-2">
                         <input
@@ -329,10 +390,25 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
                             default
                           </span>
                         )}
+                        {agent.enabledForMultiLaunch && (
+                          <span className="px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded">
+                            multi-launch
+                          </span>
+                        )}
                       </div>
-                      <code className="text-xs text-gray-400 font-mono">
+                      <code className="text-xs text-gray-400 font-mono block mb-1">
                         {agent.command}
                       </code>
+                      {agent.launchCommand && (
+                        <div className="mt-1">
+                          <span className="text-xs text-gray-500">
+                            Launch:{" "}
+                          </span>
+                          <code className="text-xs text-gray-400 font-mono">
+                            {agent.launchCommand}
+                          </code>
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       {!agent.isDefault && (

@@ -13,6 +13,7 @@ import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { DuplicateTabDialog } from "@/components/shell/DuplicateTabDialog";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
+import { MultiLaunchPrompt } from "@/components/shell/MultiLaunchPrompt";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { PaneActionsEditor } from "@/components/shell/paneActions";
 import { FloatingTerminal } from "@/components/shell/quick/FloatingTerminal";
@@ -80,6 +81,8 @@ export function App() {
     homeDirectory,
     theme,
     themeOverrides,
+    agents,
+    multiLaunchCreateWorktrees,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -127,6 +130,7 @@ export function App() {
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
   const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
   const [showAgentsEditor, setShowAgentsEditor] = useState(false);
+  const [showMultiLaunchPrompt, setShowMultiLaunchPrompt] = useState(false);
 
   const {
     workspaceName,
@@ -171,6 +175,7 @@ export function App() {
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
+    setShowMultiLaunchPrompt,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -1051,6 +1056,40 @@ export function App() {
 
       {showAgentsEditor && (
         <AgentsEditor onClose={() => setShowAgentsEditor(false)} />
+      )}
+
+      {showMultiLaunchPrompt && activeTab && (
+        <MultiLaunchPrompt
+          onClose={() => setShowMultiLaunchPrompt(false)}
+          onLaunch={async (prompt, createWorktrees) => {
+            if (activeTab.activePaneId) {
+              const { executeMultiLaunch, getEnabledMultiLaunchAgents } =
+                await import("@/store/actions/multiLaunch");
+              const enabledAgents = getEnabledMultiLaunchAgents(agents || []);
+              void executeMultiLaunch(
+                activeTab.id,
+                activeTab.activePaneId,
+                prompt,
+                enabledAgents,
+                createWorktrees,
+              );
+            }
+            setShowMultiLaunchPrompt(false);
+          }}
+          enabledAgents={(() => {
+            // Compute enabled agents synchronously for display
+            const agentList = agents || [];
+            return agentList.filter(
+              (agent) => agent.enabledForMultiLaunch && agent.launchCommand,
+            );
+          })()}
+          initialCreateWorktrees={multiLaunchCreateWorktrees ?? true}
+          onWorktreePreferenceChange={(createWorktrees) => {
+            void updateSettings({
+              multiLaunchCreateWorktrees: createWorktrees,
+            });
+          }}
+        />
       )}
     </div>
   );

@@ -19,6 +19,8 @@ export type AgentConfig = {
   id: string;
   name: string;
   command: string;
+  launchCommand?: string;
+  enabledForMultiLaunch?: boolean;
   isDefault?: boolean;
 };
 
@@ -36,6 +38,9 @@ export type UserSettings = {
   terminalPromptAgent?: string; // Deprecated: kept for backward compatibility
   terminalPromptBufferLines?: number;
   agents?: AgentConfig[];
+
+  // Agent/Multi-launch settings
+  multiLaunchCreateWorktrees?: boolean;
 
   // Editor settings
   useConduitAsEditor: boolean;

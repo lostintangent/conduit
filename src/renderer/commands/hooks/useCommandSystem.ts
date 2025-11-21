@@ -43,6 +43,7 @@ export interface UseCommandSystemOptions {
   setShowKeybindingsEditor: (show: boolean) => void;
   setShowPaneActionsEditor: (show: boolean) => void;
   setShowAgentsEditor: (show: boolean) => void;
+  setShowMultiLaunchPrompt: (show: boolean) => void;
   setIsCommandPaletteOpenOverride: (open: boolean) => void;
   setShowRenameWorkspaceDialog: (show: boolean) => void;
   setShowWorkspacePicker: (show: boolean) => void;
@@ -80,6 +81,7 @@ export function useCommandSystem(
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
+    setShowMultiLaunchPrompt,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -184,6 +186,7 @@ export function useCommandSystem(
       setShowKeybindingsEditor,
       setShowPaneActionsEditor,
       setShowAgentsEditor,
+      setShowMultiLaunchPrompt,
       setIsCommandPaletteOpenOverride,
       setShowRenameWorkspaceDialog,
       setShowWorkspacePicker,
@@ -207,6 +210,7 @@ export function useCommandSystem(
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
+    setShowMultiLaunchPrompt,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -260,17 +264,33 @@ export function useCommandSystem(
           "hasCwd",
           !!(activePane.type === "terminal" && activePane.cwd),
         );
+
+        // Check git repository status for keyboard shortcuts
+        const cwd =
+          activePane.type === "terminal" || activePane.type === "editor"
+            ? activePane.cwd
+            : null;
+        if (cwd) {
+          // Async check for git repo
+          window.conduit.hasGitRepository(cwd).then((hasRepo) => {
+            contextKeyService.setGlobal("hasGitRepo", hasRepo);
+          });
+        } else {
+          contextKeyService.setGlobal("hasGitRepo", false);
+        }
       } else {
         // Clear pane context keys if no active pane
         contextKeyService.setGlobal("activePaneType", "");
         contextKeyService.setGlobal("isInAgentSession", false);
         contextKeyService.setGlobal("hasCwd", false);
+        contextKeyService.setGlobal("hasGitRepo", false);
       }
     } else {
       // Clear pane context keys if no active pane
       contextKeyService.setGlobal("activePaneType", "");
       contextKeyService.setGlobal("isInAgentSession", false);
       contextKeyService.setGlobal("hasCwd", false);
+      contextKeyService.setGlobal("hasGitRepo", false);
     }
   }, [
     commandSystem,

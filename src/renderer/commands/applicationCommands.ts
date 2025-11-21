@@ -1223,6 +1223,57 @@ export function registerApplicationCommands(
       void handleTerminate(context.activeTab);
     },
   });
+
+  // Agent: Multi-Launch Prompt
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_MULTILAUNCH_PROMPT,
+    title: "Multi-Launch Agents",
+    description:
+      "Launch multiple AI agents simultaneously with the same prompt",
+    category: "Agent",
+    keybinding: {
+      key: "Cmd+I",
+    },
+    when: When.and(activePaneType.equals("terminal"), hasGitRepo.isTrue()),
+    run: async (context) => {
+      const api = window.conduit;
+
+      // Check if we're on a terminal pane
+      if (context.activeTab?.activePaneId) {
+        const activePane =
+          context.activeTab.panes[context.activeTab.activePaneId];
+        if (activePane?.type !== "terminal") {
+          enqueueNotification({
+            kind: "error",
+            message: "Multi-launch requires a terminal pane",
+            details: "Please focus on a terminal pane and try again",
+            autoCloseMs: 4000,
+          });
+          return;
+        }
+      }
+
+      // Check for enabled agents
+      const settings = await api.getSettings();
+      const { getEnabledMultiLaunchAgents } = await import(
+        "@/store/actions/multiLaunch"
+      );
+      const enabledAgents = getEnabledMultiLaunchAgents(settings?.agents || []);
+
+      if (enabledAgents.length === 0) {
+        enqueueNotification({
+          kind: "error",
+          message: "No agents enabled for multi-launch",
+          details:
+            "Please configure agents with launch commands and enable them for multi-launch (Cmd+Shift+P > Manage Agents)",
+          autoCloseMs: 6000,
+        });
+        return;
+      }
+
+      context.setShowMultiLaunchPrompt?.(true);
+    },
+  });
 }
 
 /**
