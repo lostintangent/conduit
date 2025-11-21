@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 interface PromptModeOverlayProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (prompt: string) => void;
+  onSubmit: (prompt: string, agentId?: string) => void;
   isProcessing: boolean;
   response?: string;
   error?: string;
@@ -33,7 +33,19 @@ export const PromptModeOverlay: React.FC<PromptModeOverlayProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (promptValue.trim() && !isProcessing) {
-      onSubmit(promptValue.trim());
+      const trimmed = promptValue.trim();
+
+      // Parse slash command (e.g., "/claude how do I...?" or "/codex fix this")
+      const slashCommandMatch = trimmed.match(/^\/(\w+)\s+(.+)$/);
+
+      if (slashCommandMatch) {
+        const [, agentId, actualPrompt] = slashCommandMatch;
+        onSubmit(actualPrompt, agentId);
+      } else {
+        // No slash command, use default agent
+        onSubmit(trimmed);
+      }
+
       setPromptValue("");
     }
   };
@@ -60,7 +72,9 @@ export const PromptModeOverlay: React.FC<PromptModeOverlayProps> = ({
           onChange={(e) => setPromptValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
-            isProcessing ? "Processing..." : "Ask a question... (Esc to exit)"
+            isProcessing
+              ? "Processing..."
+              : "Ask a question... (use /agent for specific agent, Esc to exit)"
           }
           className="flex-1 px-2 py-1 bg-transparent text-foreground placeholder:text-foreground/50 focus:outline-none text-sm"
           disabled={isProcessing}

@@ -9,6 +9,7 @@ import {
   updateTerminalThemes,
 } from "@/components/panes/terminal/xtermCache";
 import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
+import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { DuplicateTabDialog } from "@/components/shell/DuplicateTabDialog";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
@@ -125,6 +126,7 @@ export function App() {
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
   const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
+  const [showAgentsEditor, setShowAgentsEditor] = useState(false);
 
   const {
     workspaceName,
@@ -168,6 +170,7 @@ export function App() {
     // UI state setters
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
+    setShowAgentsEditor,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -1045,6 +1048,10 @@ export function App() {
           </div>
         </div>
       ) : null}
+
+      {showAgentsEditor && (
+        <AgentsEditor onClose={() => setShowAgentsEditor(false)} />
+      )}
     </div>
   );
 }

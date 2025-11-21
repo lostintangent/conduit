@@ -15,6 +15,13 @@ export type BrowserPage = {
   title: string;
 };
 
+export type AgentConfig = {
+  id: string;
+  name: string;
+  command: string;
+  isDefault?: boolean;
+};
+
 export type UserSettings = {
   // UI/Layout settings
   tabPosition: "top" | "bottom";
@@ -26,8 +33,9 @@ export type UserSettings = {
   // Terminal settings
   showTerminalRuler: boolean;
   quickTerminalMode: "fullscreen" | "floating";
-  terminalPromptAgent?: string;
+  terminalPromptAgent?: string; // Deprecated: kept for backward compatibility
   terminalPromptBufferLines?: number;
+  agents?: AgentConfig[];
 
   // Editor settings
   useConduitAsEditor: boolean;

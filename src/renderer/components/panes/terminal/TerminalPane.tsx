@@ -231,15 +231,40 @@ export const TerminalPane = ({
   }, []);
 
   const handlePromptSubmit = useCallback(
-    async (prompt: string) => {
-      const agentCommand = settings.terminalPromptAgent;
+    async (prompt: string, requestedAgentId?: string) => {
+      const agents = settings.agents || [];
+
+      // Find the requested agent or default agent
+      let selectedAgent = agents.find((a) => a.isDefault);
+
+      if (requestedAgentId) {
+        const requestedAgent = agents.find((a) => a.id === requestedAgentId);
+        if (requestedAgent) {
+          selectedAgent = requestedAgent;
+        } else {
+          // Agent not found - show error
+          const terminal = terminalRef.current?.terminal;
+          if (terminal) {
+            terminal.writeln(
+              `\r\n\x1b[31mError: Agent '${requestedAgentId}' not found. Available agents: ${agents.map((a) => a.id).join(", ")}\x1b[0m\r`,
+            );
+          }
+          setPromptMode((prev) => ({ ...prev, isOpen: false }));
+          focusTerminal();
+          return;
+        }
+      }
+
+      // Fallback to legacy terminalPromptAgent if no agents configured
+      const agentCommand =
+        selectedAgent?.command || settings.terminalPromptAgent;
 
       if (!agentCommand) {
         // Write error to terminal
         const terminal = terminalRef.current?.terminal;
         if (terminal) {
           terminal.writeln(
-            "\r\n\x1b[31mError: No agent command configured. Please configure 'terminalPromptAgent' in settings.\x1b[0m\r",
+            "\r\n\x1b[31mError: No agent configured. Please configure agents in settings.\x1b[0m\r",
           );
         }
         setPromptMode((prev) => ({ ...prev, isOpen: false }));
@@ -269,7 +294,8 @@ export const TerminalPane = ({
         return;
       }
 
-      terminal.writeln(`\r\n\x1b[36m❯ ${prompt}\x1b[0m\r`);
+      const agentName = selectedAgent?.name || "Agent";
+      terminal.writeln(`\r\n\x1b[36m❯ [${agentName}] ${prompt}\x1b[0m\r`);
 
       // Get terminal buffer
       const buffer = getTerminalBuffer(
