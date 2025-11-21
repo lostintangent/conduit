@@ -1,7 +1,7 @@
 import {
   defaultFontFamily,
   defaultFontSize,
-} from "@/components/ui/terminal-font-settings-dialog";
+} from "@/components/shell/TerminalFontSettingsDialog";
 import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
