@@ -17,6 +17,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  SquareArrowOutDownLeft,
 } from "lucide-react";
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import path from "path-browserify";
@@ -53,6 +54,7 @@ interface ChangesReviewPaneProps {
   onStageFile?: (relativePath: string) => void;
   onUnstageFile?: (relativePath: string) => void;
   onRevertFile?: (relativePath: string) => void;
+  onExitReview?: () => void;
 }
 
 export function ChangesReviewPane({
@@ -72,6 +74,7 @@ export function ChangesReviewPane({
   onStageFile,
   onUnstageFile,
   onRevertFile,
+  onExitReview,
 }: ChangesReviewPaneProps) {
   const commitInputRef = useRef<HTMLInputElement>(null);
   const { theme } = useAtomValue(userSettingsAtom);
@@ -329,6 +332,23 @@ export function ChangesReviewPane({
                     </Tooltip>
                   )}
                 </div>
+              </>
+            )}
+
+            {onExitReview && (
+              <>
+                <Separator orientation="vertical" className="h-6" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={onExitReview}
+                      className="p-1.5 rounded hover:bg-primary/10 transition-colors"
+                    >
+                      <SquareArrowOutDownLeft size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Exit review mode</TooltipContent>
+                </Tooltip>
               </>
             )}
           </div>

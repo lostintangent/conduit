@@ -1,17 +1,21 @@
 import { GitStatusBadge, getStatusConfig } from "./GitStatusBadge";
 import type { GitFileStatus, GitStatusMap } from "@shared/types";
-import { useState } from "react";
 
 type GitStatusSummaryProps = {
   gitStatus: GitStatusMap | null;
   changedFilesCount: number;
+  showOnlyChangedFiles?: boolean;
+  isHovered?: boolean;
 };
 
 export function GitStatusSummary({
   gitStatus,
   changedFilesCount,
+  showOnlyChangedFiles = false,
+  isHovered = false,
 }: GitStatusSummaryProps) {
-  const [isHovered, setIsHovered] = useState(false);
+  // Show expanded state (letter badges) when filter is active or when hovered
+  const isExpanded = showOnlyChangedFiles || isHovered;
 
   // Calculate unique status badges and counts (one per status type)
   const statusCounts = new Map<string, number>();
@@ -40,12 +44,8 @@ export function GitStatusSummary({
   });
 
   return (
-    <div
-      className="flex items-center gap-1"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {!isHovered && (
+    <div className="flex items-center gap-1">
+      {!isExpanded && (
         <div className="relative">
           <span
             className="block transition-opacity duration-300 ease-out"
@@ -63,26 +63,71 @@ export function GitStatusSummary({
           return (
             <div
               key={status.status}
-              className="flex items-center transition-all duration-300 ease-out"
+              className="flex items-center"
               style={{
                 marginLeft:
-                  index > 0 ? (isHovered ? "0.25rem" : "-0.125rem") : 0,
+                  index > 0 ? (isExpanded ? "0.25rem" : "-0.125rem") : 0,
+                transition: "margin-left 300ms ease-out",
               }}
             >
               <div className="flex items-center">
                 <span
-                  className="text-xs transition-all duration-300 ease-out origin-left"
+                  className="text-xs origin-left overflow-hidden whitespace-nowrap"
                   style={{
-                    opacity: isHovered ? 1 : 0,
-                    transform: isHovered ? "scaleX(1)" : "scaleX(0)",
-                    width: isHovered ? "auto" : 0,
-                    marginLeft: isHovered ? "0.25rem" : 0,
-                    marginRight: isHovered ? "0.125rem" : 0,
+                    opacity: isExpanded ? 1 : 0,
+                    transform: isExpanded
+                      ? "scaleX(1) translateZ(0)"
+                      : "scaleX(0) translateZ(0)",
+                    width: isExpanded ? "auto" : 0,
+                    marginLeft: isExpanded ? "0.25rem" : 0,
+                    marginRight: isExpanded ? "0.125rem" : 0,
+                    transition:
+                      "opacity 300ms ease-out, transform 300ms ease-out, width 300ms ease-out, margin 300ms ease-out",
+                    willChange: "transform, opacity",
                   }}
                 >
                   {count}
                 </span>
-                <GitStatusBadge status={status} isFolder={true} />
+                {/* Morph between dot and letter badge */}
+                <div
+                  className="relative flex items-center justify-center"
+                  style={{
+                    width: isExpanded ? "14px" : "6px",
+                    height: isExpanded ? "14px" : "6px",
+                    transition: "width 300ms ease-out, height 300ms ease-out",
+                  }}
+                >
+                  {/* Dot (visible when not expanded) */}
+                  <div
+                    className="absolute flex items-center justify-center"
+                    style={{
+                      opacity: isExpanded ? 0 : 1,
+                      transform: isExpanded
+                        ? "scale(0.5) translateZ(0)"
+                        : "scale(1) translateZ(0)",
+                      transition:
+                        "opacity 300ms ease-out, transform 300ms ease-out",
+                      willChange: "transform, opacity",
+                    }}
+                  >
+                    <GitStatusBadge status={status} isFolder={true} />
+                  </div>
+                  {/* Letter badge (visible when expanded) */}
+                  <div
+                    className="absolute flex items-center justify-center"
+                    style={{
+                      opacity: isExpanded ? 1 : 0,
+                      transform: isExpanded
+                        ? "scale(1) translateZ(0)"
+                        : "scale(0.5) translateZ(0)",
+                      transition:
+                        "opacity 300ms ease-out, transform 300ms ease-out",
+                      willChange: "transform, opacity",
+                    }}
+                  >
+                    <GitStatusBadge status={status} isFolder={false} />
+                  </div>
+                </div>
               </div>
             </div>
           );

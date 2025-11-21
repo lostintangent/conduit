@@ -345,33 +345,6 @@ export function EditorPane({
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [hasUpstream, setHasUpstream] = useState(true);
-  const [diffStats, setDiffStats] = useState<{
-    added: number;
-    removed: number;
-  } | null>(null);
-
-  // Fetch diff stats when git status changes
-  useEffect(() => {
-    if (!isInGitRepo || !gitStatus || gitStatus.size === 0) {
-      setDiffStats(null);
-      return;
-    }
-
-    api
-      .getDiffStats(cwd)
-      .then((result) => {
-        if (result.success && result.stats) {
-          setDiffStats({
-            added: result.stats.added,
-            removed: result.stats.removed,
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("[EditorPane] Failed to get diff stats:", error);
-        setDiffStats(null);
-      });
-  }, [cwd, gitStatus, isInGitRepo]);
 
   // Check if current branch has upstream
   useEffect(() => {
@@ -665,9 +638,6 @@ export function EditorPane({
     prefersReducedMotion || isResizing || !enableTreeAnimation
       ? "transition-none"
       : "transition-all duration-200 ease-out";
-  const transitionTransformClass = prefersReducedMotion
-    ? "transition-none"
-    : "transition-transform duration-200 ease-out";
 
   // Resize handle highlight class (matches pane resize behavior)
   const resizeHandleClass = isResizing
@@ -1791,6 +1761,11 @@ export function EditorPane({
     }
   }, [layoutMode]);
 
+  // Handler to exit review mode
+  const handleExitReviewMode = useCallback(() => {
+    setViewMode({ type: "editor" });
+  }, []);
+
   // Diff viewer handlers
   const handleToggleRawView = useCallback(() => {
     if (viewMode.type === "diff") {
@@ -2273,20 +2248,40 @@ export function EditorPane({
                 currentBranch={currentBranch}
                 baseBranch={baseBranch}
                 changedFilesCount={gitStatus?.size || 0}
-                diffStats={diffStats || undefined}
+                gitStatus={gitStatus}
+                showOnlyChangedFiles={treeViewMode === "changes"}
+                isReviewModeActive={viewMode.type === "changes-review"}
+                onFilterToggle={() => {
+                  // If review mode is active, exit it and switch to files mode
+                  if (viewMode.type === "changes-review") {
+                    setViewMode({ type: "editor" });
+                    setTreeViewMode("files");
+                    onTreeModeChange?.("all");
+                  } else {
+                    // Normal toggle behavior
+                    const newMode: TreeViewMode =
+                      treeViewMode === "changes" ? "files" : "changes";
+                    setTreeViewMode(newMode);
+                    const editorMode: EditorTreeMode =
+                      newMode === "changes" ? "changes" : "all";
+                    onTreeModeChange?.(editorMode);
+                  }
+                }}
                 onOpenBranchPicker={
                   branches.length > 0
                     ? () => setIsBranchSelectorOpen(true)
                     : undefined
                 }
-                treeViewMode={treeViewMode}
-                onTreeViewModeChange={(mode) => {
-                  setTreeViewMode(mode);
-                  // Convert to old EditorTreeMode for compatibility
-                  const editorMode: EditorTreeMode =
-                    mode === "changes" ? "changes" : "all";
-                  onTreeModeChange?.(editorMode);
-                }}
+                onPull={handlePull}
+                onPush={handlePush}
+                isPulling={isPulling}
+                isPushing={isPushing}
+                hasUpstream={hasUpstream}
+                commitMessage={commitMessage}
+                onCommitMessageChange={setCommitMessage}
+                onCommit={handleCommit}
+                hasStagedFiles={hasStagedFiles}
+                isCommitting={isCommitting}
                 onReviewChanges={handleReviewChanges}
               />
             )}
@@ -2391,6 +2386,7 @@ export function EditorPane({
                 onRevertFile={
                   baseBranch === null ? handleDiscardFileChanges : undefined
                 }
+                onExitReview={handleExitReviewMode}
               />
             ) : hasOpenFile ? (
               <>
@@ -2555,6 +2551,7 @@ export function EditorPane({
                 onRevertFile={
                   baseBranch === null ? handleDiscardFileChanges : undefined
                 }
+                onExitReview={handleExitReviewMode}
               />
             ) : (
               <div className="flex flex-1 bg-background" />
