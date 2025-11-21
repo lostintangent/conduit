@@ -13,6 +13,7 @@ import {
 } from "@/components/layout/quick/QuickDialog";
 import {
   disposeSession,
+  updateTerminalFonts,
   updateTerminalThemes,
 } from "@/components/panes/terminal/xtermCache";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
@@ -24,6 +25,7 @@ import { PaneActionsEditor } from "@/components/shell/paneActions";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
+import { TerminalFontSettingsDialog } from "@/components/shell/TerminalFontSettingsDialog";
 import { TitleBar } from "@/components/shell/title/TitleBar";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
@@ -79,6 +81,8 @@ export function App() {
     homeDirectory,
     theme,
     themeOverrides,
+    terminalFontFamily,
+    terminalFontSize,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -125,6 +129,8 @@ export function App() {
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
   const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
+  const [showTerminalFontSettings, setShowTerminalFontSettings] =
+    useState(false);
 
   const {
     workspaceName,
@@ -287,10 +293,17 @@ export function App() {
       }
     });
 
+    const unsubscribeOpenTerminalFontSettings = api.onOpenTerminalFontSettings(
+      () => {
+        setShowTerminalFontSettings(true);
+      },
+    );
+
     return () => {
       unsubscribeExit();
       unsubscribeNotification();
       unsubscribeBeforeClose();
+      unsubscribeOpenTerminalFontSettings();
     };
   }, [tabs, activeTab]);
 
@@ -1045,6 +1058,20 @@ export function App() {
           </div>
         </div>
       ) : null}
+
+      <TerminalFontSettingsDialog
+        isOpen={showTerminalFontSettings}
+        initialFontFamily={terminalFontFamily}
+        initialFontSize={terminalFontSize}
+        onClose={() => setShowTerminalFontSettings(false)}
+        onSave={async (fontFamily, fontSize) => {
+          await updateSettings({
+            terminalFontFamily: fontFamily,
+            terminalFontSize: fontSize,
+          });
+          updateTerminalFonts(fontFamily, fontSize);
+        }}
+      />
     </div>
   );
 }

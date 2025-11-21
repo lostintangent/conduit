@@ -154,6 +154,9 @@ const conduitAPI = {
   onUseConduitAsEditorChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-use-conduit-editor", listener),
 
+  onOpenTerminalFontSettings: (listener: () => void) =>
+    createEventListener("ui:open-terminal-font-settings", listener),
+
   /* UI-related methods (UI->main) */
 
   getSettings: () =>

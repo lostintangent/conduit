@@ -1,3 +1,7 @@
+import {
+  defaultFontFamily,
+  defaultFontSize,
+} from "@/components/shell/TerminalFontSettingsDialog";
 import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -6,6 +10,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 
 import chimeUrl from "@/assets/chime.mp3";
+import { UserSettings } from "@shared/types";
 const bellAudio = new Audio(chimeUrl);
 bellAudio.preload = "auto";
 bellAudio.load();
@@ -34,6 +39,7 @@ type GetOrCreateOptions = {
 
 export function getOrCreate(
   sessionId: string,
+  userSettings: UserSettings,
   options: GetOrCreateOptions = {},
 ): TerminalInstance {
   let instance = store.get(sessionId);
@@ -45,9 +51,12 @@ export function getOrCreate(
       selectionBackground: resolveColor("selection"),
     };
 
+    const fontFamily = userSettings.terminalFontFamily ?? defaultFontFamily;
+    const fontSize = userSettings.terminalFontSize ?? defaultFontSize;
+
     const terminal = new Terminal({
-      fontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',
-      fontSize: 13,
+      fontFamily,
+      fontSize,
       cursorBlink: true,
       scrollback: 2000,
       allowProposedApi: true, // Required for us to use the decorations API (for displaying search results in the terminal)
@@ -213,6 +222,17 @@ export function updateTerminalThemes() {
 
   store.forEach((instance) => {
     instance.terminal.options.theme = terminalTheme;
+  });
+}
+
+/**
+ * Update terminal fonts for all active terminals
+ * Called when the terminal font settings change
+ */
+export function updateTerminalFonts(fontFamily: string, fontSize: number) {
+  store.forEach((instance) => {
+    instance.terminal.options.fontFamily = fontFamily;
+    instance.terminal.options.fontSize = fontSize;
   });
 }
 
