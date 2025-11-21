@@ -125,7 +125,7 @@ program
   .option("-h, --handle <handle>", "Element handle to crop to");
 
 program
-  .cliCommand("navigate-browser", (request, paneId, url) =>
+  .cliCommand("browser-navigate", (request, paneId, url) =>
     request({ paneId, url }),
   )
   .alias("navigate")
@@ -287,19 +287,6 @@ program
   .option("--timeout <ms>", "Timeout before failing", (value) =>
     parseInt(value, 10),
   );
-
-program
-  .cliCommand("browser-evaluate", (request, paneId, expression, options) =>
-    request({
-      paneId,
-      expression,
-      contextHandle: options.context,
-    }),
-  )
-  .description("Evaluate scoped JavaScript via the automation bridge")
-  .argument("<paneId>", "Target browser pane")
-  .argument("<expression>", "Expression to evaluate")
-  .option("-c, --context <handle>", "Context element to bind as 'element'");
 
 /* Editor commands */
 

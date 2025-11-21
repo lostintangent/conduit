@@ -69,12 +69,6 @@ export type BrowserWaitArgs = {
   timeout?: number;
 };
 
-export type BrowserEvaluateArgs = {
-  paneId: string;
-  expression: string;
-  contextHandle?: string;
-};
-
 export type BrowserCaptureArgs = {
   paneId: string;
   handle?: string;

@@ -2,7 +2,6 @@ import { Pane } from "@/types";
 import type {
   BrowserCaptureArgs,
   BrowserClickArgs,
-  BrowserEvaluateArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
   BrowserQueryResult,
@@ -69,7 +68,7 @@ export type CliCommand =
     >
   // Browser commands
   | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
-  | DefineCommand<"navigate-browser", { paneId: string; url: string }>
+  | DefineCommand<"browser-navigate", { paneId: string; url: string }>
   | DefineCommand<"browser-back", { paneId: string }>
   | DefineCommand<"browser-forward", { paneId: string }>
   | DefineCommand<"browser-refresh", { paneId: string }>
@@ -79,7 +78,6 @@ export type CliCommand =
   | DefineCommand<"browser-keys", BrowserKeysArgs>
   | DefineCommand<"browser-scroll", BrowserScrollArgs>
   | DefineCommand<"browser-wait", BrowserWaitArgs>
-  | DefineCommand<"browser-evaluate", BrowserEvaluateArgs, unknown>
   // Editor commands
   | DefineCommand<"open-file", { cwd: string; filePath?: string }>;
 

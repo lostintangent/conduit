@@ -263,13 +263,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "browser-evaluate": {
-            const result = await browserAutomate("evaluate", args);
-            respondResult(result);
-            break;
-          }
-
-          case "navigate-browser": {
+          case "browser-navigate": {
             executeWebviewAction(args?.paneId, (webview) =>
               webview.loadURL(args.url),
             );
