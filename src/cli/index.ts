@@ -115,7 +115,7 @@ program
 /* Browser commands */
 
 program
-  .cliCommand("capture-browser", async (request, paneId, options) => {
+  .cliCommand("browser-capture", async (request, paneId, options) => {
     const filePath = await request({ paneId, handle: options.handle });
     process.stdout.write(`Screenshot saved to: ${filePath}\n`);
   })
@@ -132,6 +132,21 @@ program
   .description("Navigate a browser pane to a specific URL")
   .argument("<paneId>", "The browser pane to navigate")
   .argument("<url>", "The URL to navigate to");
+
+program
+  .cliCommand("browser-back", (request, paneId) => request({ paneId }))
+  .description("Navigate back in browser history")
+  .argument("<paneId>", "The browser pane to navigate");
+
+program
+  .cliCommand("browser-forward", (request, paneId) => request({ paneId }))
+  .description("Navigate forward in browser history")
+  .argument("<paneId>", "The browser pane to navigate");
+
+program
+  .cliCommand("browser-refresh", (request, paneId) => request({ paneId }))
+  .description("Refresh the browser pane")
+  .argument("<paneId>", "The browser pane to refresh");
 
 program
   .cliCommand(
@@ -170,8 +185,8 @@ program
     request({
       paneId,
       handle,
-      button: options.button,
-      clicks: options.clicks,
+      button: options.button ?? "left",
+      clicks: options.clicks ?? 1,
       offset: {
         x: options.offsetX,
         y: options.offsetY,
@@ -181,7 +196,11 @@ program
   .description("Click an element in a browser pane")
   .argument("<paneId>", "Target browser pane")
   .argument("<handle>", "Handle of the element to click")
-  .option("-b, --button <button>", "Mouse button", ["left", "middle", "right"], "left")
+  .addOption(
+    new Option("-b, --button <button>", "Mouse button")
+      .choices(["left", "middle", "right"])
+      .default("left"),
+  )
   .option("-c, --clicks <count>", "Number of clicks", (value) =>
     parseInt(value, 10),
   )

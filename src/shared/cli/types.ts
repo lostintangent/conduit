@@ -68,8 +68,11 @@ export type CliCommand =
       { sessionId: string; input: string; enter?: boolean }
     >
   // Browser commands
-  | DefineCommand<"capture-browser", BrowserCaptureArgs, string>
+  | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
   | DefineCommand<"navigate-browser", { paneId: string; url: string }>
+  | DefineCommand<"browser-back", { paneId: string }>
+  | DefineCommand<"browser-forward", { paneId: string }>
+  | DefineCommand<"browser-refresh", { paneId: string }>
   | DefineCommand<"browser-query", BrowserQueryArgs, BrowserQueryResult>
   | DefineCommand<"browser-click", BrowserClickArgs>
   | DefineCommand<"browser-type", BrowserTypeArgs>

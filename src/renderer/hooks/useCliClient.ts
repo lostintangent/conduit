@@ -1,19 +1,7 @@
 import { useCommand } from "@/commands/hooks/useCommand";
-import {
-  browserClick,
-  browserEvaluate,
-  browserKeys,
-  browserQuery,
-  browserScroll,
-  browserType,
-  browserWait,
-  resolveClip,
-} from "@/automation/webviewAutomation";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
-import {
-  inputToSession,
-  serializeSession,
-} from "@/components/panes/terminal/xtermCache";
+import { browserAutomate } from "@/components/panes/browser/automation/webviewAutomation";
+import { serializeSession } from "@/components/panes/terminal/xtermCache";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
@@ -125,6 +113,20 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       const respondResult = (result?: any) => respond({ result });
       const respondError = (error: string) => respond({ error });
 
+      // Helper function to execute a webview action
+      const executeWebviewAction = (
+        paneId: string,
+        action: (webview: WebviewTag) => void,
+      ) => {
+        const webview = document.getElementById(paneId) as WebviewTag;
+        if (!webview) {
+          respondError(`Browser pane ${paneId} not found.`);
+          return;
+        }
+        action(webview);
+        respondResult();
+      };
+
       // Helper function to find the tab containing the calling terminal
       const findCallingTerminalTab = () => {
         let matchingTab = tabs.find((tab) =>
@@ -209,14 +211,9 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "capture-browser": {
+          case "browser-capture": {
             const webview = document.getElementById(args?.paneId) as WebviewTag;
-            if (!webview) {
-              respondError(`Browser pane ${args?.paneId} not found.`);
-              break;
-            }
             const webContentsId = webview.getWebContentsId();
-            const clip = await resolveClip(args);
 
             // Note that when trying to capture the page from the renderer, Chrome
             // kept throwing exceptions that I couldn't figure out. So we're currently
@@ -226,63 +223,73 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             await cli.completeCaptureBrowserRequest({
               requestId,
               webContentsId,
-              clip,
             });
             break;
           }
 
           case "browser-query": {
-            const results = await browserQuery(args);
+            const results = await browserAutomate("query", args);
             respondResult(results);
             break;
           }
 
           case "browser-click": {
-            await browserClick(args);
+            await browserAutomate("click", args);
             respondResult();
             break;
           }
 
           case "browser-type": {
-            await browserType(args);
+            await browserAutomate("type", args);
             respondResult();
             break;
           }
 
           case "browser-keys": {
-            await browserKeys(args);
+            await browserAutomate("keys", args);
             respondResult();
             break;
           }
 
           case "browser-scroll": {
-            await browserScroll(args);
+            await browserAutomate("scroll", args);
             respondResult();
             break;
           }
 
           case "browser-wait": {
-            await browserWait(args);
+            await browserAutomate("waitFor", args);
             respondResult();
             break;
           }
 
           case "browser-evaluate": {
-            const result = await browserEvaluate(args);
+            const result = await browserAutomate("evaluate", args);
             respondResult(result);
             break;
           }
 
           case "navigate-browser": {
-            const webview = document.getElementById(args?.paneId) as WebviewTag;
+            executeWebviewAction(args?.paneId, (webview) =>
+              webview.loadURL(args.url),
+            );
+            break;
+          }
 
-            if (!webview) {
-              respondError(`Browser pane ${args?.paneId} not found.`);
-              break;
-            }
+          case "browser-back": {
+            executeWebviewAction(args?.paneId, (webview) => webview.goBack());
+            break;
+          }
 
-            webview.loadURL(args.url);
-            respondResult();
+          case "browser-forward": {
+            executeWebviewAction(args?.paneId, (webview) =>
+              webview.goForward(),
+            );
+            break;
+          }
+
+          case "browser-refresh": {
+            executeWebviewAction(args?.paneId, (webview) => webview.reload());
             break;
           }
 
