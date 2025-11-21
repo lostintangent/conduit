@@ -57,36 +57,52 @@ function parseGitStatusLine(
     const indexStatus = xy[0];
     const wtStatus = xy[1];
 
+    // Parse staged status (X)
+    let stagedStatus: GitFileStatus["stagedStatus"] = undefined;
+    if (indexStatus === "M") {
+      stagedStatus = "modified";
+    } else if (indexStatus === "A") {
+      stagedStatus = "added";
+    } else if (indexStatus === "D") {
+      stagedStatus = "deleted";
+    } else if (indexStatus === "R") {
+      stagedStatus = "renamed";
+    } else if (indexStatus === "C") {
+      stagedStatus = "copied";
+    }
+
+    // Parse unstaged status (Y)
+    let unstagedStatus: GitFileStatus["unstagedStatus"] = undefined;
+    if (wtStatus === "M") {
+      unstagedStatus = "modified";
+    } else if (wtStatus === "A") {
+      unstagedStatus = "added";
+    } else if (wtStatus === "D") {
+      unstagedStatus = "deleted";
+    } else if (wtStatus === "?") {
+      unstagedStatus = "untracked";
+    }
+
+    // Determine primary status and staged flag for backward compatibility
     let status: GitFileStatus["status"] = "modified";
     let staged = false;
 
-    // Determine status based on codes
-    if (indexStatus === "A" || wtStatus === "A") {
-      status = "added";
-      staged = indexStatus === "A";
-    } else if (indexStatus === "D" || wtStatus === "D") {
-      status = "deleted";
-      staged = indexStatus === "D";
-    } else if (indexStatus === "R") {
-      status = "renamed";
+    // If we have a staged change, use that as primary status
+    if (stagedStatus) {
+      status = stagedStatus;
       staged = true;
-    } else if (indexStatus === "C") {
-      status = "copied";
-      staged = true;
-    } else if (indexStatus === "M" || wtStatus === "M") {
-      status = "modified";
-      staged = indexStatus === "M";
-    }
-
-    // If both index and working tree are modified, prioritize staged
-    if (indexStatus !== "." && indexStatus !== " ") {
-      staged = true;
+    } else if (unstagedStatus) {
+      // Otherwise use unstaged status
+      status = unstagedStatus;
+      staged = false;
     }
 
     return {
       status,
       staged,
       relativePath,
+      stagedStatus,
+      unstagedStatus,
     };
   }
 

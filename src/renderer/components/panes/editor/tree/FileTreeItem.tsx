@@ -16,6 +16,7 @@ type FileTreeItemProps = {
   onStageFile?: (relativePath: string) => void;
   onUnstageFile?: (relativePath: string) => void;
   onRevertFile?: (relativePath: string) => void;
+  showStagedView?: boolean;
 };
 
 export function FileTreeItem({
@@ -32,6 +33,7 @@ export function FileTreeItem({
   onStageFile,
   onUnstageFile,
   onRevertFile,
+  showStagedView,
 }: FileTreeItemProps) {
   const isDirectory = node.type === "directory";
   if (isDirectory) {
@@ -51,12 +53,32 @@ export function FileTreeItem({
         onStageFile={onStageFile}
         onUnstageFile={onUnstageFile}
         onRevertFile={onRevertFile}
+        showStagedView={showStagedView}
       />
     );
   }
 
   // Extract specific file status from map
-  const fileStatus = gitStatus?.get(node.relativePath);
+  let fileStatus = gitStatus?.get(node.relativePath);
+
+  // If file has both staged and unstaged status, construct the appropriate view
+  if (fileStatus && showStagedView !== undefined) {
+    if (showStagedView && fileStatus.stagedStatus) {
+      // Show staged status
+      fileStatus = {
+        ...fileStatus,
+        status: fileStatus.stagedStatus,
+        staged: true,
+      };
+    } else if (!showStagedView && fileStatus.unstagedStatus) {
+      // Show unstaged status
+      fileStatus = {
+        ...fileStatus,
+        status: fileStatus.unstagedStatus,
+        staged: false,
+      };
+    }
+  }
 
   return (
     <FileItem

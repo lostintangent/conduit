@@ -18,20 +18,48 @@ export function GitStatusSummary({
   const isExpanded = showOnlyChangedFiles || isHovered;
 
   // Calculate unique status badges and counts (one per status type)
+  // Count both staged and unstaged statuses separately
   const statusCounts = new Map<string, number>();
   const uniqueStatuses: GitFileStatus[] = [];
 
   if (gitStatus) {
     gitStatus.forEach((status) => {
-      // Count by status type only (not staged state)
-      statusCounts.set(
-        status.status,
-        (statusCounts.get(status.status) || 0) + 1,
-      );
+      // Count staged status if present
+      if (status.stagedStatus) {
+        statusCounts.set(
+          status.stagedStatus,
+          (statusCounts.get(status.stagedStatus) || 0) + 1,
+        );
 
-      // Add to unique statuses if this status type isn't already present
-      if (!uniqueStatuses.some((s) => s.status === status.status)) {
-        uniqueStatuses.push(status);
+        // Add to unique statuses if this status type isn't already present
+        if (!uniqueStatuses.some((s) => s.status === status.stagedStatus)) {
+          uniqueStatuses.push({ ...status, status: status.stagedStatus });
+        }
+      }
+
+      // Count unstaged status if present
+      if (status.unstagedStatus) {
+        statusCounts.set(
+          status.unstagedStatus,
+          (statusCounts.get(status.unstagedStatus) || 0) + 1,
+        );
+
+        // Add to unique statuses if this status type isn't already present
+        if (!uniqueStatuses.some((s) => s.status === status.unstagedStatus)) {
+          uniqueStatuses.push({ ...status, status: status.unstagedStatus });
+        }
+      }
+
+      // Fallback to old behavior if stagedStatus/unstagedStatus not set
+      if (!status.stagedStatus && !status.unstagedStatus) {
+        statusCounts.set(
+          status.status,
+          (statusCounts.get(status.status) || 0) + 1,
+        );
+
+        if (!uniqueStatuses.some((s) => s.status === status.status)) {
+          uniqueStatuses.push(status);
+        }
       }
     });
   }

@@ -18,6 +18,7 @@ type FileTreeProps = {
   onStageFile?: (relativePath: string) => void;
   onUnstageFile?: (relativePath: string) => void;
   onRevertFile?: (relativePath: string) => void;
+  showStagedView?: boolean; // Which status to show when file has both staged and unstaged
 };
 
 export function FileTree({
@@ -34,6 +35,7 @@ export function FileTree({
   onStageFile,
   onUnstageFile,
   onRevertFile,
+  showStagedView,
 }: FileTreeProps) {
   // Group files by staged/unstaged when showGroupedByStaging is true
   const groupedItems = useMemo(() => {
@@ -119,10 +121,23 @@ export function FileTree({
           relativePath: relativePath,
         } as FileTreeNode);
 
-      if (status.staged) {
+      // A file can appear in both staged and unstaged when it has both statuses
+      // (e.g., "AD" = added in index, deleted in working tree)
+      if (status.stagedStatus) {
         stagedFiles.push(node);
-      } else {
+      }
+
+      if (status.unstagedStatus) {
         unstagedFiles.push(node);
+      }
+
+      // Fallback to old behavior if stagedStatus/unstagedStatus not set
+      if (!status.stagedStatus && !status.unstagedStatus) {
+        if (status.staged) {
+          stagedFiles.push(node);
+        } else {
+          unstagedFiles.push(node);
+        }
       }
     }
 
@@ -160,6 +175,7 @@ export function FileTree({
                   prefetch={item.type === "directory"}
                   onUnstageFile={onUnstageFile}
                   onRevertFile={onRevertFile}
+                  showStagedView={true}
                 />
               ))}
             </ul>
@@ -184,6 +200,7 @@ export function FileTree({
                   prefetch={item.type === "directory"}
                   onStageFile={onStageFile}
                   onRevertFile={onRevertFile}
+                  showStagedView={false}
                 />
               ))}
             </ul>
@@ -216,6 +233,7 @@ export function FileTree({
             onManualExpansionToggle={onManualExpansionToggle}
             isFiltering={isFiltering}
             prefetch={item.type === "directory"}
+            showStagedView={showStagedView}
           />
         ))}
       </ul>
