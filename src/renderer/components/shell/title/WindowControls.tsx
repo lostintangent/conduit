@@ -1,4 +1,3 @@
-import { Separator } from "@/components/ui/separator";
 import { Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -27,10 +26,6 @@ export const WindowControls = () => {
 
   return (
     <div className="flex items-center gap-1">
-      <Separator
-        orientation="vertical"
-        className="h-4.5 mt-[3px] bg-elevated-border"
-      />
       <button
         className="p-1 rounded hover:bg-foreground/10 transition-colors"
         onClick={handleMinimize}

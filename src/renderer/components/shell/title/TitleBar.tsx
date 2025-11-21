@@ -48,7 +48,15 @@ export const TitleBar = ({
             onUpdateSettings={onUpdateSettings}
             onOpenTerminalFontSettings={onOpenTerminalFontSettings}
           />
-          {api.platform !== "darwin" && <WindowControls />}
+          {api.platform !== "darwin" && (
+            <>
+              <Separator
+                orientation="vertical"
+                className="h-4.5 mt-[3px] bg-elevated-border"
+              />
+              <WindowControls />
+            </>
+          )}
         </div>
       </div>
     </div>
