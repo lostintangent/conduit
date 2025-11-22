@@ -11,6 +11,8 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
 } from "../../shared/types";
+import { getTerminal } from "../terminal/store";
+import { getVMAgentClient } from "../vm/agent-client";
 import {
   applyDiffPatch,
   createDiffPatch,
@@ -531,21 +533,54 @@ export async function initializeAgentHandlers() {
 
   ipcMain.handle(
     "agent:git-stage",
-    async (_event, cwd: string, files: string[]) => {
+    async (_event, cwd: string, files: string[], sessionId?: string) => {
+      // Check if this is for a cloud VM session
+      if (sessionId) {
+        const terminal = getTerminal(sessionId);
+        if (terminal?.cloudEnvironment) {
+          const vmAgent = getVMAgentClient();
+          await vmAgent.gitStage(terminal.cloudEnvironment, cwd, files);
+          return { stdout: "", stderr: "" };
+        }
+      }
+
+      // Local git operation
       return await gitStage(cwd, files);
     },
   );
 
   ipcMain.handle(
     "agent:git-unstage",
-    async (_event, cwd: string, files: string[]) => {
+    async (_event, cwd: string, files: string[], sessionId?: string) => {
+      // Check if this is for a cloud VM session
+      if (sessionId) {
+        const terminal = getTerminal(sessionId);
+        if (terminal?.cloudEnvironment) {
+          const vmAgent = getVMAgentClient();
+          await vmAgent.gitUnstage(terminal.cloudEnvironment, cwd, files);
+          return { stdout: "", stderr: "" };
+        }
+      }
+
+      // Local git operation
       return await gitUnstage(cwd, files);
     },
   );
 
   ipcMain.handle(
     "agent:git-revert",
-    async (_event, cwd: string, files: string[]) => {
+    async (_event, cwd: string, files: string[], sessionId?: string) => {
+      // Check if this is for a cloud VM session
+      if (sessionId) {
+        const terminal = getTerminal(sessionId);
+        if (terminal?.cloudEnvironment) {
+          const vmAgent = getVMAgentClient();
+          await vmAgent.gitRevert(terminal.cloudEnvironment, cwd, files);
+          return { stdout: "", stderr: "" };
+        }
+      }
+
+      // Local git operation
       return await gitRevert(cwd, files);
     },
   );

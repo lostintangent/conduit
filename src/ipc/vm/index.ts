@@ -72,7 +72,7 @@ export function initializeVMHandlers() {
         timeoutSeconds?: number;
       },
     ) => {
-      return await executeInVM(vmId, command, args, timeoutSeconds);
+      return await executeInVM(vmId, command, args, undefined, timeoutSeconds);
     },
   );
 

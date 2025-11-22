@@ -1,0 +1,38 @@
+{
+  "name": "@conduit/vm-agent",
+  "version": "1.0.0",
+  "description": "File system WebSocket agent for Conduit cloud VMs",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "build:bundle": "npm run build && esbuild dist/index.js --bundle --platform=node --format=cjs --external:@parcel/watcher --outfile=bundle/vm-agent.js",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "bin": "dist/index.js",
+  "pkg": {
+    "assets": [
+      "node_modules/@parcel/watcher/**/*"
+    ]
+  },
+  "keywords": [
+    "conduit",
+    "vm",
+    "filesystem",
+    "websocket"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@parcel/watcher": "^2.5.1",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -314,20 +314,20 @@ const conduitAPI = {
       stderr: string;
     }>,
 
-  gitStage: (cwd: string, files: string[]) =>
-    ipcRenderer.invoke("agent:git-stage", cwd, files) as Promise<{
+  gitStage: (cwd: string, files: string[], sessionId?: string) =>
+    ipcRenderer.invoke("agent:git-stage", cwd, files, sessionId) as Promise<{
       stdout: string;
       stderr: string;
     }>,
 
-  gitUnstage: (cwd: string, files: string[]) =>
-    ipcRenderer.invoke("agent:git-unstage", cwd, files) as Promise<{
+  gitUnstage: (cwd: string, files: string[], sessionId?: string) =>
+    ipcRenderer.invoke("agent:git-unstage", cwd, files, sessionId) as Promise<{
       stdout: string;
       stderr: string;
     }>,
 
-  gitRevert: (cwd: string, files: string[]) =>
-    ipcRenderer.invoke("agent:git-revert", cwd, files) as Promise<{
+  gitRevert: (cwd: string, files: string[], sessionId?: string) =>
+    ipcRenderer.invoke("agent:git-revert", cwd, files, sessionId) as Promise<{
       stdout: string;
       stderr: string;
     }>,
@@ -351,20 +351,33 @@ const conduitAPI = {
    *
    * @param directoryPath - The directory to list
    * @param rootPath - Optional root path for computing relative paths (used for git status matching)
+   * @param sessionId - Optional terminal session ID for VM filesystem routing
    */
-  listDirectory: (directoryPath: string, rootPath?: string) =>
-    ipcRenderer.invoke("fs:list-directory", directoryPath, rootPath) as Promise<
-      FileTreeNode[]
-    >,
+  listDirectory: (
+    directoryPath: string,
+    rootPath?: string,
+    sessionId?: string,
+  ) =>
+    ipcRenderer.invoke(
+      "fs:list-directory",
+      directoryPath,
+      rootPath,
+      sessionId,
+    ) as Promise<FileTreeNode[]>,
 
-  readFile: (filePath: string) =>
-    ipcRenderer.invoke("fs:read-file", filePath) as Promise<string>,
+  readFile: (filePath: string, sessionId?: string) =>
+    ipcRenderer.invoke("fs:read-file", filePath, sessionId) as Promise<string>,
 
-  writeFile: (filePath: string, content: string) =>
-    ipcRenderer.invoke("fs:write-file", filePath, content) as Promise<void>,
+  writeFile: (filePath: string, content: string, sessionId?: string) =>
+    ipcRenderer.invoke(
+      "fs:write-file",
+      filePath,
+      content,
+      sessionId,
+    ) as Promise<void>,
 
-  deleteFile: (filePath: string) =>
-    ipcRenderer.invoke("fs:delete-file", filePath) as Promise<void>,
+  deleteFile: (filePath: string, sessionId?: string) =>
+    ipcRenderer.invoke("fs:delete-file", filePath, sessionId) as Promise<void>,
 
   fileExists: (filePath: string) =>
     ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,

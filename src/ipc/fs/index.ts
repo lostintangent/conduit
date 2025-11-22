@@ -1,6 +1,8 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { FSWatcher, promises as fs } from "node:fs";
 import path from "node:path";
+import { getTerminal } from "../terminal/store";
+import { getVMAgentClient } from "../vm/agent-client";
 import { listDirectory, readFile } from "./utils";
 
 // Store active file watchers
@@ -9,29 +11,70 @@ const fileWatchers = new Map<string, FSWatcher>();
 export function initializeFsHandlers() {
   ipcMain.handle(
     "fs:list-directory",
-    async (_, directoryPath: string, rootPath?: string) => {
+    async (_, dirPath: string, rootPath?: string, sessionId?: string) => {
       try {
-        return await listDirectory(directoryPath, rootPath);
+        // Check if this is for a cloud VM session
+        if (sessionId) {
+          const terminal = getTerminal(sessionId);
+          if (terminal?.cloudEnvironment) {
+            const vmAgent = getVMAgentClient();
+            return await vmAgent.listDirectory(
+              terminal.cloudEnvironment,
+              dirPath,
+              rootPath,
+            );
+          }
+        }
+
+        // Local filesystem
+        return await listDirectory(dirPath, rootPath);
       } catch (error) {
-        console.error("Failed to list directory for", directoryPath, error);
+        console.error("Failed to list directory for", dirPath, error);
         return [];
       }
     },
   );
 
-  ipcMain.handle("fs:read-file", async (_, filePath: string) => {
-    try {
-      return await readFile(filePath);
-    } catch (error) {
-      console.error("Failed to read file", filePath, error);
-      throw error;
-    }
-  });
+  ipcMain.handle(
+    "fs:read-file",
+    async (_, filePath: string, sessionId?: string) => {
+      try {
+        // Check if this is for a cloud VM session
+        if (sessionId) {
+          const terminal = getTerminal(sessionId);
+          if (terminal?.cloudEnvironment) {
+            const vmAgent = getVMAgentClient();
+            return await vmAgent.readFile(terminal.cloudEnvironment, filePath);
+          }
+        }
+
+        // Local filesystem
+        return await readFile(filePath);
+      } catch (error) {
+        console.error("Failed to read file", filePath, error);
+        throw error;
+      }
+    },
+  );
 
   ipcMain.handle(
     "fs:write-file",
-    async (_, filePath: string, content: string) => {
+    async (_, filePath: string, content: string, sessionId?: string) => {
       try {
+        // Check if this is for a cloud VM session
+        if (sessionId) {
+          const terminal = getTerminal(sessionId);
+          if (terminal?.cloudEnvironment) {
+            const vmAgent = getVMAgentClient();
+            return await vmAgent.writeFile(
+              terminal.cloudEnvironment,
+              filePath,
+              content,
+            );
+          }
+        }
+
+        // Local filesystem
         // Ensure directory exists
         const dir = path.dirname(filePath);
         await fs.mkdir(dir, { recursive: true });
@@ -45,17 +88,33 @@ export function initializeFsHandlers() {
     },
   );
 
-  ipcMain.handle("fs:delete-file", async (_, filePath: string) => {
-    try {
-      const fs = require("node:fs").promises;
+  ipcMain.handle(
+    "fs:delete-file",
+    async (_, filePath: string, sessionId?: string) => {
+      try {
+        // Check if this is for a cloud VM session
+        if (sessionId) {
+          const terminal = getTerminal(sessionId);
+          if (terminal?.cloudEnvironment) {
+            const vmAgent = getVMAgentClient();
+            return await vmAgent.deleteFile(
+              terminal.cloudEnvironment,
+              filePath,
+            );
+          }
+        }
 
-      // Delete file
-      await fs.unlink(filePath);
-    } catch (error) {
-      console.error("Failed to delete file", filePath, error);
-      throw error;
-    }
-  });
+        // Local filesystem
+        const fs = require("node:fs").promises;
+
+        // Delete file
+        await fs.unlink(filePath);
+      } catch (error) {
+        console.error("Failed to delete file", filePath, error);
+        throw error;
+      }
+    },
+  );
 
   ipcMain.handle(
     "fs:watch-file",
