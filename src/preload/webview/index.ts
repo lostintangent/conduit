@@ -1,5 +1,5 @@
 import { ipcRenderer } from "electron";
-import automation from "./automation";
+import automation from "./api/automation";
 
 ipcRenderer.on("automation:invoke", async (_, payload) => {
   const { id, command, args } = payload ?? {};

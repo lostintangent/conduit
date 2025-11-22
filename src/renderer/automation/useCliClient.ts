@@ -147,7 +147,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
       try {
         switch (name) {
-          case "open-file": {
+          case "editor-open": {
             const isCommitMessageRequest = args.filePath?.endsWith(
               COMMIT_EDITMSG_FILENAME,
             );
@@ -169,7 +169,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "list-panes": {
+          case "pane-list": {
             const matchingTab = findCallingTerminalTab();
 
             const panes = Object.values(matchingTab.panes)
@@ -197,7 +197,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "read-terminal": {
+          case "terminal-read": {
             const serialized = serializeSession(args.sessionId);
 
             if (serialized === null) {
@@ -299,7 +299,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "write-terminal": {
+          case "terminal-write": {
             // Determine target session IDs based on wildcard or specific session
             let targetSessionIds: string[];
 
@@ -353,7 +353,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "move-pane": {
+          case "pane-move": {
             const targetCommand = moveCommandMap[args.direction];
             await targetCommand.execute();
 
@@ -361,7 +361,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "split-pane": {
+          case "pane-split": {
             const targetCommand =
               splitCommandMap[args.paneType][args.direction];
             await targetCommand.execute();
@@ -370,13 +370,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "focus-pane": {
+          case "pane-focus": {
             await focusPaneCommand.execute();
             respondResult();
             break;
           }
 
-          case "close-pane": {
+          case "pane-close": {
             const targetCommand = args.closeTab
               ? closeTabCommand
               : closePaneCommand;
@@ -386,13 +386,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "new-tab": {
+          case "tab-new": {
             await newTabCommand.execute();
             respondResult();
             break;
           }
 
-          case "duplicate-tab": {
+          case "tab-duplicate": {
             await duplicateTabCommand.execute();
             respondResult();
             break;

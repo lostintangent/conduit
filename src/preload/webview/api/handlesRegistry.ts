@@ -1,6 +1,5 @@
 class HandleRegistry {
   private handles = new Map<string, WeakRef<Element>>();
-
   private sequence = 0;
 
   register(element: Element): string {

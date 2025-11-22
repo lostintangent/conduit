@@ -51,21 +51,21 @@ export type PaneSplitTarget = (typeof PANE_SPLIT_TARGETS)[number];
 
 export type CliCommand =
   // Pane commands
-  | DefineCommand<"list-panes", { paneType: PaneType }, Pane[]>
-  | DefineCommand<"move-pane", { direction: PaneMoveTarget }>
+  | DefineCommand<"pane-list", { paneType: PaneType }, Pane[]>
+  | DefineCommand<"pane-move", { direction: PaneMoveTarget }>
   | DefineCommand<
-      "split-pane",
+      "pane-split",
       { direction: PaneSplitTarget; paneType: PaneSplitType }
     >
-  | DefineCommand<"close-pane", { closeTab: boolean }>
-  | DefineCommand<"focus-pane">
+  | DefineCommand<"pane-close", { closeTab: boolean }>
+  | DefineCommand<"pane-focus">
   // Tab commands
-  | DefineCommand<"new-tab">
-  | DefineCommand<"duplicate-tab">
+  | DefineCommand<"tab-new">
+  | DefineCommand<"tab-duplicate">
   // Terminal commands
-  | DefineCommand<"read-terminal", { sessionId: string }, string>
+  | DefineCommand<"terminal-read", { sessionId: string }, string>
   | DefineCommand<
-      "write-terminal",
+      "terminal-write",
       { sessionId: string; input: string; enter?: boolean }
     >
   // Browser commands
@@ -83,7 +83,7 @@ export type CliCommand =
   | DefineCommand<"browser-scroll", BrowserScrollArgs>
   | DefineCommand<"browser-wait", BrowserWaitArgs>
   // Editor commands
-  | DefineCommand<"open-file", { cwd: string; filePath?: string }>;
+  | DefineCommand<"editor-open", { cwd: string; filePath?: string }>;
 
 /* Response types (Renderer -> IPC -> CLI) */
 
