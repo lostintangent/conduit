@@ -716,12 +716,46 @@ export async function gitUnstage(
 }
 
 /**
- * Revert/discard changes to files (checkout from HEAD)
+ * Sanitize file path to use forward slashes (required for git on Windows)
+ */
+function sanitizePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
+/**
+ * Revert/discard changes to files (restore from index/HEAD)
+ * This handles deleted files, modified files, and staged changes.
  */
 export async function gitRevert(
   cwd: string,
   files: string[],
 ): Promise<{ stdout: string; stderr: string }> {
-  const args = ["checkout", "HEAD", "--", ...files];
-  return await runGit(cwd, args);
+  // Find git repository root
+  const gitRoot = await findRepoRoot(cwd);
+  if (!gitRoot) {
+    throw new Error("Not in a git repository");
+  }
+
+  // Convert file paths to be relative to git root and sanitize
+  const relativePaths = files.map((file) => {
+    // If path is already relative, use it as-is
+    if (!path.isAbsolute(file)) {
+      return sanitizePath(file);
+    }
+    // Convert absolute path to relative path from git root
+    const relative = path.relative(gitRoot, file);
+    return sanitizePath(relative);
+  });
+
+  // Use git restore if available (Git 2.23+), otherwise fall back to checkout
+  // git restore is the modern way to discard changes
+  try {
+    // Try git restore first (restores working tree from index)
+    const args = ["restore", "--", ...relativePaths];
+    return await runGit(gitRoot, args);
+  } catch (error) {
+    // Fall back to git checkout for older git versions
+    const args = ["checkout", "--", ...relativePaths];
+    return await runGit(gitRoot, args);
+  }
 }
