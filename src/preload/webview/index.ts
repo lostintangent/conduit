@@ -1,7 +1,7 @@
 import { ipcRenderer } from "electron";
 import automation from "./automation";
 
-ipcRenderer.on("automation:invoke", async (_event, payload) => {
+ipcRenderer.on("automation:invoke", async (_, payload) => {
   const { id, command, args } = payload ?? {};
   if (!id || !command || !(command in automation)) {
     return;

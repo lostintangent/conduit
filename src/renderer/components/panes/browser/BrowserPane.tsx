@@ -1,5 +1,5 @@
-import { applicationModeAtom } from "@/store/atoms";
 import { activatePane } from "@/store/actions/pane";
+import { applicationModeAtom } from "@/store/atoms";
 import {
   applyWebviewScaling,
   calculateWebviewScale,
@@ -78,7 +78,6 @@ export function BrowserPane({
       webview = document.createElement("webview") as WebviewTag;
       webview.src = url;
       webview.id = paneId;
-      webview.partition = "persist:webview";
       webview.style.position = "absolute";
       webview.style.overflow = "hidden";
 
