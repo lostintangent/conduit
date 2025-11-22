@@ -239,6 +239,18 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
+          case "browser-hover": {
+            await browserAutomate("hover", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-focus": {
+            await browserAutomate("focus", args);
+            respondResult();
+            break;
+          }
+
           case "browser-type": {
             await browserAutomate("type", args);
             respondResult();

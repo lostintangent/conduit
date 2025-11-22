@@ -1,6 +1,8 @@
 import type {
   AutomationElementDescriptor,
   BrowserClickArgs,
+  BrowserFocusArgs,
+  BrowserHoverArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
   BrowserQueryResult,
@@ -51,6 +53,16 @@ type AutomationCommand =
   | {
       command: "click";
       args: BrowserClickArgs;
+      result: AutomationElementDescriptor;
+    }
+  | {
+      command: "hover";
+      args: BrowserHoverArgs;
+      result: AutomationElementDescriptor;
+    }
+  | {
+      command: "focus";
+      args: BrowserFocusArgs;
       result: AutomationElementDescriptor;
     }
   | {

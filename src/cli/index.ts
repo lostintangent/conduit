@@ -212,6 +212,36 @@ program
   );
 
 program
+  .cliCommand("browser-hover", (request, paneId, handle, options) =>
+    request({
+      paneId,
+      handle,
+      offset: {
+        x: options.offsetX,
+        y: options.offsetY,
+      },
+    }),
+  )
+  .description("Hover over an element in a browser pane")
+  .argument("<paneId>", "Target browser pane")
+  .argument("<handle>", "Handle of the element to hover")
+  .option("--offset-x <x>", "X offset from element top-left", (value) =>
+    parseInt(value, 10),
+  )
+  .option("--offset-y <y>", "Y offset from element top-left", (value) =>
+    parseInt(value, 10),
+  );
+
+program
+  .cliCommand("browser-focus", (request, paneId, handle, options) =>
+    request({ paneId, handle, scroll: options.scroll }),
+  )
+  .description("Focus an element in a browser pane")
+  .argument("<paneId>", "Target browser pane")
+  .argument("<handle>", "Handle of the element to focus")
+  .option("--no-scroll", "Do not scroll the element into view before focusing");
+
+program
   .cliCommand("browser-type", (request, paneId, handle, text, options) =>
     request({
       paneId,

@@ -2,6 +2,8 @@ import { Pane } from "@/types";
 import type {
   BrowserCaptureArgs,
   BrowserClickArgs,
+  BrowserFocusArgs,
+  BrowserHoverArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
   BrowserQueryResult,
@@ -74,6 +76,8 @@ export type CliCommand =
   | DefineCommand<"browser-refresh", { paneId: string }>
   | DefineCommand<"browser-query", BrowserQueryArgs, BrowserQueryResult>
   | DefineCommand<"browser-click", BrowserClickArgs>
+  | DefineCommand<"browser-hover", BrowserHoverArgs>
+  | DefineCommand<"browser-focus", BrowserFocusArgs>
   | DefineCommand<"browser-type", BrowserTypeArgs>
   | DefineCommand<"browser-keys", BrowserKeysArgs>
   | DefineCommand<"browser-scroll", BrowserScrollArgs>

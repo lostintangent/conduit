@@ -39,6 +39,18 @@ export type BrowserClickArgs = {
   offset?: { x?: number; y?: number };
 };
 
+export type BrowserHoverArgs = {
+  paneId: string;
+  handle: string;
+  offset?: { x?: number; y?: number };
+};
+
+export type BrowserFocusArgs = {
+  paneId: string;
+  handle: string;
+  scroll?: boolean;
+};
+
 export type BrowserTypeArgs = {
   paneId: string;
   handle: string;

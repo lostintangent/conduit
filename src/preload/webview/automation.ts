@@ -1,6 +1,8 @@
 import type {
   AutomationElementDescriptor,
   BrowserClickArgs,
+  BrowserFocusArgs,
+  BrowserHoverArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
   BrowserQueryResult,
@@ -8,9 +10,7 @@ import type {
   BrowserTypeArgs,
   BrowserWaitArgs,
 } from "@shared/cli/browser";
-
-const handles = new Map<string, Element>();
-let sequence = 0;
+import { handles } from "./handlesRegistry";
 
 const cssEscape = (str: string): string => {
   if (typeof CSS !== "undefined" && CSS.escape) {
@@ -88,12 +88,6 @@ const toSelector = (element: Element): string => {
   return parts.join(" > ");
 };
 
-const registerHandle = (element: Element): string => {
-  const handle = "h-" + Date.now() + "-" + ++sequence;
-  handles.set(handle, element);
-  return handle;
-};
-
 const describeElement = (
   element: Element | null,
 ): AutomationElementDescriptor | null => {
@@ -101,7 +95,7 @@ const describeElement = (
 
   const rect = element.getBoundingClientRect();
   const visible = rect.width > 0 && rect.height > 0;
-  const handle = registerHandle(element);
+  const handle = handles.register(element);
   const textValue =
     "value" in element &&
     typeof (element as HTMLInputElement).value === "string"
@@ -125,12 +119,6 @@ const describeElement = (
     selector: toSelector(element),
     visible,
   };
-};
-
-const resolveHandle = (handle: string): Element => {
-  const element = handles.get(handle);
-  if (!element) throw new Error("ERR_HANDLE_STALE");
-  return element;
 };
 
 const waitForSelector = (selector: string, timeout?: number) =>
@@ -162,6 +150,23 @@ const waitForSelector = (selector: string, timeout?: number) =>
     });
   });
 
+const scrollElementIntoView = (element: Element) => {
+  if (typeof (element as HTMLElement).scrollIntoView === "function") {
+    (element as HTMLElement).scrollIntoView({
+      block: "center",
+      behavior: "instant",
+    });
+  }
+};
+
+const dispatchMouseEvent = (
+  element: Element,
+  type: string,
+  init: MouseEventInit,
+) => {
+  element.dispatchEvent(new MouseEvent(type, init));
+};
+
 export const automation = {
   async query(payload?: BrowserQueryArgs): Promise<BrowserQueryResult> {
     const {
@@ -175,7 +180,7 @@ export const automation = {
     } = payload ?? {};
 
     const root = contextHandle
-      ? resolveHandle(contextHandle)
+      ? handles.resolve(contextHandle)
       : document.documentElement;
 
     const runQuery = (): BrowserQueryResult => {
@@ -232,20 +237,17 @@ export const automation = {
   },
 
   describe(payload: { handle: string }) {
-    return describeElement(resolveHandle(payload.handle));
+    return describeElement(handles.resolve(payload.handle));
   },
 
   click(payload: BrowserClickArgs) {
     const { handle, button = "left", clicks = 1, offset } = payload ?? {};
-    const element = resolveHandle(handle);
+    const element = handles.resolve(handle);
 
     if (typeof (element as HTMLElement).focus === "function") {
       (element as HTMLElement).focus();
     }
-    (element as HTMLElement).scrollIntoView({
-      block: "center",
-      behavior: "instant",
-    });
+    scrollElementIntoView(element);
 
     if (
       button === "left" &&
@@ -280,7 +282,7 @@ export const automation = {
 
   async type(payload: BrowserTypeArgs) {
     const { handle, text = "", submit, delay = 0, replace } = payload ?? {};
-    const element = resolveHandle(handle);
+    const element = handles.resolve(handle);
 
     if (typeof (element as HTMLElement).focus === "function") {
       (element as HTMLElement).focus();
@@ -345,7 +347,7 @@ export const automation = {
 
   scroll(payload?: BrowserScrollArgs) {
     const { handle, x, y, direction, smooth } = payload ?? {};
-    const target = handle ? resolveHandle(handle) : null;
+    const target = handle ? handles.resolve(handle) : null;
     const behavior: ScrollBehavior = smooth ? "smooth" : "auto";
 
     const scrollX =
@@ -399,6 +401,46 @@ export const automation = {
     }
 
     return true;
+  },
+
+  hover(payload: BrowserHoverArgs) {
+    const { handle, offset } = payload ?? {};
+    const element = handles.resolve(handle);
+
+    scrollElementIntoView(element);
+
+    const rect = element.getBoundingClientRect();
+    const clientX = rect.left + (offset?.x ?? rect.width / 2);
+    const clientY = rect.top + (offset?.y ?? rect.height / 2);
+
+    const init: MouseEventInit = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX,
+      clientY,
+    };
+
+    ["pointerenter", "pointerover", "mousemove", "mouseover"].forEach((type) =>
+      dispatchMouseEvent(element, type, init),
+    );
+
+    return describeElement(element);
+  },
+
+  focus(payload: BrowserFocusArgs) {
+    const { handle, scroll = true } = payload ?? {};
+    const element = handles.resolve(handle);
+
+    if (scroll) {
+      scrollElementIntoView(element);
+    }
+
+    if (typeof (element as HTMLElement).focus === "function") {
+      (element as HTMLElement).focus();
+    }
+
+    return describeElement(element);
   },
 };
 
