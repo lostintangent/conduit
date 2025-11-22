@@ -346,6 +346,8 @@ export function EditorPane({
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [hasUpstream, setHasUpstream] = useState(true);
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [commitMessage, setCommitMessage] = useState("");
 
   // Check if current branch has upstream
   useEffect(() => {
@@ -395,7 +397,8 @@ export function EditorPane({
 
   // Pull from remote
   const handlePull = useCallback(async () => {
-    if (isPulling || isPushing) return;
+    // Prevent concurrent git operations
+    if (isPulling || isPushing || isCommitting) return;
 
     setIsPulling(true);
     try {
@@ -416,11 +419,12 @@ export function EditorPane({
     } finally {
       setIsPulling(false);
     }
-  }, [cwd, isPulling, isPushing]);
+  }, [cwd, isPulling, isPushing, isCommitting]);
 
   // Push to remote (or publish if no upstream)
   const handlePush = useCallback(async () => {
-    if (isPulling || isPushing) return;
+    // Prevent concurrent git operations
+    if (isPulling || isPushing || isCommitting) return;
 
     setIsPushing(true);
     try {
@@ -453,11 +457,7 @@ export function EditorPane({
     } finally {
       setIsPushing(false);
     }
-  }, [cwd, isPulling, isPushing, hasUpstream]);
-
-  // Commit state
-  const [commitMessage, setCommitMessage] = useState("");
-  const [isCommitting, setIsCommitting] = useState(false);
+  }, [cwd, isPulling, isPushing, isCommitting, hasUpstream]);
 
   // Calculate if there are staged files from git status
   const hasStagedFiles = useMemo(() => {
@@ -476,7 +476,9 @@ export function EditorPane({
 
   // Commit staged changes
   const handleCommit = useCallback(async () => {
-    if (!commitMessage.trim() || !hasStagedFiles || isCommitting) return;
+    // Prevent concurrent git operations
+    if (isPulling || isPushing || isCommitting) return;
+    if (!commitMessage.trim() || !hasStagedFiles) return;
 
     setIsCommitting(true);
     try {
@@ -499,7 +501,7 @@ export function EditorPane({
     } finally {
       setIsCommitting(false);
     }
-  }, [cwd, commitMessage, hasStagedFiles, isCommitting]);
+  }, [cwd, commitMessage, hasStagedFiles, isPulling, isPushing, isCommitting]);
 
   // Stage file (add to index)
   const handleStageFile = useCallback(

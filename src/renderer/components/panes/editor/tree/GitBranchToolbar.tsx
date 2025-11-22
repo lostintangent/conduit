@@ -1,3 +1,5 @@
+import { FillingIcon } from "@/components/ui/filling-icon";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Toggle } from "@/components/ui/toggle";
 import {
@@ -5,19 +7,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
+import type { GitStatusMap } from "@shared/types";
 import {
-  ArrowRight,
-  GitCompare,
   ArrowDownToLine,
+  ArrowRight,
   ArrowUpFromLine,
-  Send,
   GitCommitVertical,
+  GitCompare,
+  Send,
   SquareArrowOutUpRight,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { GitStatusSummary } from "./GitStatusSummary";
-import type { GitStatusMap } from "@shared/types";
 
 type GitBranchToolbarProps = {
   currentBranch: string | null;
@@ -64,6 +65,10 @@ export function GitBranchToolbar({
 }: GitBranchToolbarProps) {
   const commitInputRef = useRef<HTMLInputElement>(null);
   const [isStatusHovered, setIsStatusHovered] = useState(false);
+
+  // Generic flag to indicate any git operation is running
+  // All git operations should be mutually exclusive
+  const isGitOperationRunning = isPulling || isPushing || isCommitting;
 
   const handleCommitClick = () => {
     if (!commitMessage.trim()) {
@@ -193,12 +198,13 @@ export function GitBranchToolbar({
                           <Toggle
                             pressed={false}
                             onPressedChange={onPull}
-                            disabled={isPulling || isPushing || !hasUpstream}
+                            disabled={isGitOperationRunning || !hasUpstream}
                             size="sm"
                             className={toggleButtonClass}
                           >
-                            <ArrowDownToLine
-                              className={isPulling ? "animate-pulse" : ""}
+                            <FillingIcon
+                              icon={ArrowDownToLine}
+                              isAnimating={isPulling}
                             />
                           </Toggle>
                         </TooltipTrigger>
@@ -218,12 +224,13 @@ export function GitBranchToolbar({
                           <Toggle
                             pressed={false}
                             onPressedChange={onPush}
-                            disabled={isPulling || isPushing}
+                            disabled={isGitOperationRunning}
                             size="sm"
                             className={toggleButtonClass}
                           >
-                            <ArrowUpFromLine
-                              className={isPushing ? "animate-pulse" : ""}
+                            <FillingIcon
+                              icon={ArrowUpFromLine}
+                              isAnimating={isPushing}
                             />
                           </Toggle>
                         </TooltipTrigger>
@@ -239,13 +246,11 @@ export function GitBranchToolbar({
                           <Toggle
                             pressed={false}
                             onPressedChange={onPush}
-                            disabled={isPulling || isPushing}
+                            disabled={isGitOperationRunning}
                             size="sm"
                             className={toggleButtonClass}
                           >
-                            <Send
-                              className={isPushing ? "animate-pulse" : ""}
-                            />
+                            <FillingIcon icon={Send} isAnimating={isPushing} />
                           </Toggle>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -297,7 +302,7 @@ export function GitBranchToolbar({
                   handleCommitClick();
                 }
               }}
-              disabled={isCommitting}
+              disabled={isGitOperationRunning}
               className="flex-1 h-7 text-xs"
             />
             <Tooltip>
@@ -305,12 +310,13 @@ export function GitBranchToolbar({
                 <Toggle
                   pressed={false}
                   onPressedChange={handleCommitClick}
-                  disabled={!hasStagedFiles || isCommitting}
+                  disabled={!hasStagedFiles || isGitOperationRunning}
                   size="sm"
                   className={toggleButtonClass}
                 >
-                  <GitCommitVertical
-                    className={isCommitting ? "animate-pulse" : ""}
+                  <FillingIcon
+                    icon={GitCommitVertical}
+                    isAnimating={isCommitting}
                   />
                 </Toggle>
               </TooltipTrigger>
