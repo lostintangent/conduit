@@ -18,6 +18,34 @@ function getWebview(paneId: string) {
   return webview;
 }
 
+function sendAutomationCommand<T>(
+  webview: WebviewTag,
+  command: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  return new Promise<T>((resolve, reject) => {
+    const handleMessage = (
+      event: Electron.IpcMessageEvent & { channel: string },
+    ) => {
+      if (event.channel !== "automation:result") return;
+      const payload = event.args?.[0];
+      if (!payload || payload.id !== requestId) return;
+
+      webview.removeEventListener("ipc-message", handleMessage as any);
+      if (payload.error) {
+        reject(new Error(payload.error));
+        return;
+      }
+      resolve(payload.result as T);
+    };
+
+    webview.addEventListener("ipc-message", handleMessage as any);
+    webview.send("automation:invoke", { id: requestId, command, args });
+  });
+}
+
 type AutomationCommand =
   | { command: "query"; args: BrowserQueryArgs; result: BrowserQueryResult }
   | {
@@ -46,8 +74,9 @@ export async function browserAutomate<T extends AutomationCommand["command"]>(
   const webview = getWebview(payload.paneId);
   const { paneId, ...rest } = payload;
 
-  return webview.executeJavaScript<ExtractCommand<T>["result"]>(
-    `window.__conduitAutomation.${command}(${JSON.stringify(rest ?? {})})`,
-    true,
+  return sendAutomationCommand<ExtractCommand<T>["result"]>(
+    webview,
+    command,
+    rest,
   );
 }

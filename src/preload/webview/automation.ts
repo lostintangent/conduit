@@ -1,36 +1,38 @@
-// @ts-check
+import type {
+  AutomationElementDescriptor,
+  BrowserClickArgs,
+  BrowserKeysArgs,
+  BrowserQueryArgs,
+  BrowserQueryResult,
+  BrowserScrollArgs,
+  BrowserTypeArgs,
+  BrowserWaitArgs,
+} from "@shared/cli/browser";
 
-/**
- * @typedef {import("@shared/cli/browser").AutomationElementDescriptor} AutomationElementDescriptor
- * @typedef {import("@shared/cli/browser").BrowserClickArgs} BrowserClickArgs
- * @typedef {import("@shared/cli/browser").BrowserKeysArgs} BrowserKeysArgs
- * @typedef {import("@shared/cli/browser").BrowserQueryArgs} BrowserQueryArgs
- * @typedef {import("@shared/cli/browser").BrowserQueryResult} BrowserQueryResult
- * @typedef {import("@shared/cli/browser").BrowserScrollArgs} BrowserScrollArgs
- * @typedef {import("@shared/cli/browser").BrowserTypeArgs} BrowserTypeArgs
- * @typedef {import("@shared/cli/browser").BrowserWaitArgs} BrowserWaitArgs
- */
-
-const handles = new Map();
+const handles = new Map<string, Element>();
 let sequence = 0;
 
-const cssEscape = (str) => {
+const cssEscape = (str: string): string => {
   if (typeof CSS !== "undefined" && CSS.escape) {
     return CSS.escape(str);
   }
   return str.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^{`{|}~]/g, "\\$&");
 };
 
-const computeActions = (element) => {
-  const actions = [];
+const computeActions = (element: Element): string[] => {
+  const actions: string[] = [];
   const tag = element.tagName?.toLowerCase();
   const type = element.getAttribute("type") ?? undefined;
 
-  if (typeof element.click === "function") {
+  if (typeof (element as HTMLElement).click === "function") {
     actions.push("clickable");
   }
 
-  if (tag === "input" || tag === "textarea" || element.isContentEditable) {
+  if (
+    tag === "input" ||
+    tag === "textarea" ||
+    (element as HTMLElement).isContentEditable
+  ) {
     actions.push("typeable");
   }
 
@@ -41,18 +43,17 @@ const computeActions = (element) => {
   return actions;
 };
 
-const describeAttributes = (element) => {
-  /** @type {Record<string, string>} */
-  const attributes = {};
+const describeAttributes = (element: Element): Record<string, string> => {
+  const attributes: Record<string, string> = {};
   for (const attr of element.getAttributeNames()) {
     attributes[attr] = element.getAttribute(attr) ?? "";
   }
   return attributes;
 };
 
-const toSelector = (element) => {
-  const parts = [];
-  let node = element;
+const toSelector = (element: Element): string => {
+  const parts: string[] = [];
+  let node: Element | null = element;
   while (node && node.nodeType === Node.ELEMENT_NODE && parts.length < 5) {
     let selector = node.nodeName.toLowerCase() ?? "";
     if (node.id) {
@@ -87,22 +88,24 @@ const toSelector = (element) => {
   return parts.join(" > ");
 };
 
-const registerHandle = (element) => {
+const registerHandle = (element: Element): string => {
   const handle = "h-" + Date.now() + "-" + ++sequence;
   handles.set(handle, element);
   return handle;
 };
 
-/** @param {Element | null} element */
-const describeElement = (element) => {
+const describeElement = (
+  element: Element | null,
+): AutomationElementDescriptor | null => {
   if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
 
   const rect = element.getBoundingClientRect();
   const visible = rect.width > 0 && rect.height > 0;
   const handle = registerHandle(element);
   const textValue =
-    "value" in element && typeof element.value === "string"
-      ? element.value
+    "value" in element &&
+    typeof (element as HTMLInputElement).value === "string"
+      ? (element as HTMLInputElement).value
       : (element.textContent ?? "");
 
   return {
@@ -124,14 +127,14 @@ const describeElement = (element) => {
   };
 };
 
-const resolveHandle = (handle) => {
+const resolveHandle = (handle: string): Element => {
   const element = handles.get(handle);
   if (!element) throw new Error("ERR_HANDLE_STALE");
   return element;
 };
 
-const waitForSelector = (selector, timeout) =>
-  new Promise((resolve, reject) => {
+const waitForSelector = (selector: string, timeout?: number) =>
+  new Promise<boolean>((resolve, reject) => {
     const existing = document.querySelector(selector);
     if (existing) {
       resolve(true);
@@ -159,9 +162,8 @@ const waitForSelector = (selector, timeout) =>
     });
   });
 
-const automation = {
-  /** @param {BrowserQueryArgs=} payload */
-  async query(payload) {
+export const automation = {
+  async query(payload?: BrowserQueryArgs): Promise<BrowserQueryResult> {
     const {
       selector = "*",
       contextHandle,
@@ -176,30 +178,32 @@ const automation = {
       ? resolveHandle(contextHandle)
       : document.documentElement;
 
-    /** @returns {BrowserQueryResult} */
-    const runQuery = () => {
+    const runQuery = (): BrowserQueryResult => {
       if (dumpTree) {
-        const tree = [];
+        const tree: Array<AutomationElementDescriptor | null> = [];
         const walker = document.createTreeWalker(
           document.body ?? document.documentElement,
           NodeFilter.SHOW_ELEMENT,
         );
-        let current = walker.currentNode;
+        let current: Node | null = walker.currentNode;
         while (current && tree.length < maxResults) {
-          tree.push(describeElement(current));
+          tree.push(describeElement(current as Element));
           current = walker.nextNode();
         }
-        return tree.filter(Boolean);
+        return tree.filter(Boolean) as AutomationElementDescriptor[];
       }
 
       const matches = Array.from(root.querySelectorAll(selector)).filter(
         (node) => {
-          if (role && node.getAttribute("role") !== role) return false;
+          if (role && (node as Element).getAttribute("role") !== role) {
+            return false;
+          }
           if (text) {
             const content =
               (node.textContent ?? "") +
-              ("value" in node && typeof node.value === "string"
-                ? node.value
+              ("value" in node &&
+              typeof (node as HTMLInputElement).value === "string"
+                ? (node as HTMLInputElement).value
                 : "");
             if (!content.toLowerCase().includes(text.toLowerCase())) {
               return false;
@@ -209,12 +213,15 @@ const automation = {
         },
       );
 
-      return matches.slice(0, maxResults).map((node) => describeElement(node));
+      return matches
+        .slice(0, maxResults)
+        .map((node) => describeElement(node))
+        .filter(Boolean) as AutomationElementDescriptor[];
     };
 
     if (timeout) {
       return Promise.race([
-        new Promise((_, reject) =>
+        new Promise<BrowserQueryResult>((_, reject) =>
           setTimeout(() => reject(new Error("ERR_TIMEOUT")), timeout),
         ),
         Promise.resolve(runQuery()),
@@ -224,29 +231,36 @@ const automation = {
     return runQuery();
   },
 
-  /** @param {{ handle: string }} payload */
-  describe(payload) {
+  describe(payload: { handle: string }) {
     return describeElement(resolveHandle(payload.handle));
   },
 
-  /** @param {BrowserClickArgs} payload */
-  click(payload) {
+  click(payload: BrowserClickArgs) {
     const { handle, button = "left", clicks = 1, offset } = payload ?? {};
     const element = resolveHandle(handle);
 
-    if (typeof element.focus === "function") element.focus();
-    element.scrollIntoView({ block: "center", behavior: "instant" });
+    if (typeof (element as HTMLElement).focus === "function") {
+      (element as HTMLElement).focus();
+    }
+    (element as HTMLElement).scrollIntoView({
+      block: "center",
+      behavior: "instant",
+    });
 
-    if (button === "left" && !offset && typeof element.click === "function") {
+    if (
+      button === "left" &&
+      !offset &&
+      typeof (element as HTMLElement).click === "function"
+    ) {
       for (let i = 0; i < clicks; i++) {
-        element.click();
+        (element as HTMLElement).click();
       }
     } else {
       const rect = element.getBoundingClientRect();
       const clientX = rect.left + (offset?.x ?? rect.width / 2);
       const clientY = rect.top + (offset?.y ?? rect.height / 2);
 
-      const init = {
+      const init: MouseEventInit = {
         bubbles: true,
         cancelable: true,
         view: window,
@@ -264,27 +278,29 @@ const automation = {
     return describeElement(element);
   },
 
-  /** @param {BrowserTypeArgs} payload */
-  async type(payload) {
+  async type(payload: BrowserTypeArgs) {
     const { handle, text = "", submit, delay = 0, replace } = payload ?? {};
     const element = resolveHandle(handle);
 
-    if (typeof element.focus === "function") element.focus();
+    if (typeof (element as HTMLElement).focus === "function") {
+      (element as HTMLElement).focus();
+    }
 
-    const applyValue = (next) => {
+    const applyValue = (next: string) => {
       if ("value" in element) {
-        element.value = next;
+        (element as HTMLInputElement).value = next;
         element.dispatchEvent(
           new Event("input", { bubbles: true, cancelable: true }),
         );
       } else {
-        element.textContent = next;
+        (element as HTMLElement).textContent = next;
       }
     };
 
     const currentValue =
-      "value" in element && typeof element.value === "string"
-        ? element.value
+      "value" in element &&
+      typeof (element as HTMLInputElement).value === "string"
+        ? (element as HTMLInputElement).value
         : (element.textContent ?? "");
 
     let nextValue = replace ? text : currentValue + text;
@@ -315,9 +331,9 @@ const automation = {
     return describeElement(element);
   },
 
-  /** @param {BrowserKeysArgs} payload */
-  keys(payload) {
-    const active = document.activeElement ?? document.body;
+  keys(payload: BrowserKeysArgs) {
+    const active =
+      (document.activeElement as HTMLElement | null) ?? document.body;
     for (const key of payload.keys ?? []) {
       const down = new KeyboardEvent("keydown", { key, bubbles: true });
       const up = new KeyboardEvent("keyup", { key, bubbles: true });
@@ -327,19 +343,22 @@ const automation = {
     return true;
   },
 
-  /** @param {BrowserScrollArgs=} payload */
-  scroll(payload) {
+  scroll(payload?: BrowserScrollArgs) {
     const { handle, x, y, direction, smooth } = payload ?? {};
     const target = handle ? resolveHandle(handle) : null;
-    const behavior = smooth ? "smooth" : "auto";
+    const behavior: ScrollBehavior = smooth ? "smooth" : "auto";
 
     const scrollX =
       x ?? (direction === "left" ? -200 : direction === "right" ? 200 : 0);
     const scrollY =
       y ?? (direction === "up" ? -200 : direction === "down" ? 200 : 0);
 
-    if (target && typeof target.scrollBy === "function") {
-      target.scrollBy({ left: scrollX, top: scrollY, behavior });
+    if (target && typeof (target as HTMLElement).scrollBy === "function") {
+      (target as HTMLElement).scrollBy({
+        left: scrollX,
+        top: scrollY,
+        behavior,
+      });
     } else {
       window.scrollBy({ left: scrollX, top: scrollY, behavior });
     }
@@ -347,8 +366,7 @@ const automation = {
     return true;
   },
 
-  /** @param {BrowserWaitArgs=} payload */
-  async waitFor(payload) {
+  async waitFor(payload?: BrowserWaitArgs): Promise<boolean> {
     const { state, selector, timeout = 5000 } = payload ?? {};
 
     if (state === "domcontentloaded") {
@@ -384,7 +402,6 @@ const automation = {
   },
 };
 
-// Expose on the page
-// @ts-ignore
-window.__conduitAutomation = automation;
 window.addEventListener("beforeunload", () => handles.clear());
+
+export default automation;
