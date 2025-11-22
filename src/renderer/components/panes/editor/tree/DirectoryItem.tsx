@@ -29,6 +29,7 @@ type DirectoryItemProps = {
   onUnstageFile?: (relativePath: string) => void;
   onRevertFile?: (relativePath: string) => void;
   showStagedView?: boolean;
+  selectedFilePath?: string | null;
 };
 
 export function DirectoryItem({
@@ -47,6 +48,7 @@ export function DirectoryItem({
   onUnstageFile,
   onRevertFile,
   showStagedView,
+  selectedFilePath,
 }: DirectoryItemProps) {
   // Check if children are already provided (e.g., from grouped staging view)
   // When showing staged/unstaged groups, the tree is pre-built with children populated
@@ -187,6 +189,7 @@ export function DirectoryItem({
                 onUnstageFile={onUnstageFile}
                 onRevertFile={onRevertFile}
                 showStagedView={showStagedView}
+                selectedFilePath={selectedFilePath}
               />
             ))
           ) : (

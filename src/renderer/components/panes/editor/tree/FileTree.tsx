@@ -19,6 +19,7 @@ type FileTreeProps = {
   onUnstageFile?: (relativePath: string) => void;
   onRevertFile?: (relativePath: string) => void;
   showStagedView?: boolean; // Which status to show when file has both staged and unstaged
+  selectedFilePath?: string | null; // Path of currently selected file for highlighting
 };
 
 export function FileTree({
@@ -36,6 +37,7 @@ export function FileTree({
   onUnstageFile,
   onRevertFile,
   showStagedView,
+  selectedFilePath,
 }: FileTreeProps) {
   // Group files by staged/unstaged when showGroupedByStaging is true
   const groupedItems = useMemo(() => {
@@ -176,6 +178,7 @@ export function FileTree({
                   onUnstageFile={onUnstageFile}
                   onRevertFile={onRevertFile}
                   showStagedView={true}
+                  selectedFilePath={selectedFilePath}
                 />
               ))}
             </ul>
@@ -201,6 +204,7 @@ export function FileTree({
                   onStageFile={onStageFile}
                   onRevertFile={onRevertFile}
                   showStagedView={false}
+                  selectedFilePath={selectedFilePath}
                 />
               ))}
             </ul>
@@ -234,6 +238,7 @@ export function FileTree({
             isFiltering={isFiltering}
             prefetch={item.type === "directory"}
             showStagedView={showStagedView}
+            selectedFilePath={selectedFilePath}
           />
         ))}
       </ul>

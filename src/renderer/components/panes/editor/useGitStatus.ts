@@ -3,13 +3,47 @@ import { useCallback, useEffect, useState } from "react";
 
 const api = window.conduit;
 
+// Module-level cache for git status data (persists across component mounts)
+// This prevents loading states when switching between tabs
+type GitStatusCache = {
+  gitStatus: GitStatusMap | null;
+  currentBranch: string | null;
+  baseBranch: string | null;
+  branches: Branch[];
+  isInGitRepo: boolean;
+};
+
+const gitStatusCache = new Map<string, GitStatusCache>();
+
 export function useGitStatus(cwd: string) {
-  const [gitStatus, setGitStatus] = useState<GitStatusMap | null>(null);
-  const [baseBranch, setBaseBranch] = useState<string | null>(null);
-  const [branches, setBranches] = useState<Branch[]>([]);
+  // Initialize from cache if available
+  const cached = gitStatusCache.get(cwd);
+
+  const [gitStatus, setGitStatus] = useState<GitStatusMap | null>(
+    cached?.gitStatus ?? null,
+  );
+  const [baseBranch, setBaseBranch] = useState<string | null>(
+    cached?.baseBranch ?? null,
+  );
+  const [branches, setBranches] = useState<Branch[]>(cached?.branches ?? []);
   const [isBranchSelectorOpen, setIsBranchSelectorOpen] = useState(false);
-  const [isInGitRepo, setIsInGitRepo] = useState(false);
-  const [currentBranch, setCurrentBranch] = useState<string | null>(null);
+  const [isInGitRepo, setIsInGitRepo] = useState(cached?.isInGitRepo ?? false);
+  const [currentBranch, setCurrentBranch] = useState<string | null>(
+    cached?.currentBranch ?? null,
+  );
+
+  // Update cache whenever state changes
+  useEffect(() => {
+    if (cwd) {
+      gitStatusCache.set(cwd, {
+        gitStatus,
+        currentBranch,
+        baseBranch,
+        branches,
+        isInGitRepo,
+      });
+    }
+  }, [cwd, gitStatus, currentBranch, baseBranch, branches, isInGitRepo]);
 
   // Load initial git status and branches on mount/cwd change
   useEffect(() => {
@@ -20,52 +54,35 @@ export function useGitStatus(cwd: string) {
       api
         .getGitStatus(cwd)
         .then((response) => {
-          console.log("[useGitStatus] getGitStatus response:", response);
           if (response.success && response.gitStatus) {
             const gitStatusMap = new Map(Object.entries(response.gitStatus));
-            console.log(
-              "[useGitStatus] Loaded initiasss git status",
-              gitStatusMap.size,
-            );
             setGitStatus(gitStatusMap);
-            setIsInGitRepo(true);
+            // Note: Don't set isInGitRepo here - getCurrentBranch is the definitive source
           } else if (response.error) {
             console.error(
               "[useGitStatus] Failed to load git status:",
               response.error,
             );
-            setIsInGitRepo(false);
-          } else {
-            console.log("[useGitStatus] Not in git repo or no git status");
-            setIsInGitRepo(false);
           }
         })
         .catch((error) => {
           console.error("[useGitStatus] Failed to load git status:", error);
-          setIsInGitRepo(false);
         });
     }
 
-    // Load branches if in git repo
+    // Load branches
     if (api.getBranches) {
       api
         .getBranches(cwd)
         .then((response) => {
-          console.log("[useGitStatus] getBranches response:", response);
           if (response.success && response.branches) {
-            console.log(
-              "[useGitStatus] Loaded branches:",
-              response.branches.length,
-            );
             setBranches(response.branches);
-            setIsInGitRepo(true);
+            // Note: Don't set isInGitRepo here - getCurrentBranch is the definitive source
           } else if (response.error) {
             console.error(
               "[useGitStatus] Failed to load branches:",
               response.error,
             );
-          } else {
-            console.log("[useGitStatus] No branches found");
           }
         })
         .catch((error) => {
@@ -73,19 +90,18 @@ export function useGitStatus(cwd: string) {
         });
     }
 
-    // Load current branch
+    // Load current branch - THIS IS THE DEFINITIVE SOURCE for isInGitRepo
     if (api.getCurrentBranch) {
       api
         .getCurrentBranch(cwd)
         .then((branch) => {
-          console.log("[useGitStatus] Current branch:", branch);
           setCurrentBranch(branch);
-          if (branch) {
-            setIsInGitRepo(true);
-          }
+          // Only source of truth for isInGitRepo
+          setIsInGitRepo(!!branch);
         })
         .catch((error) => {
           console.error("[useGitStatus] Failed to get current branch:", error);
+          setIsInGitRepo(false);
         });
     }
   }, [cwd]);
@@ -98,7 +114,6 @@ export function useGitStatus(cwd: string) {
     let isInitialLoad = true;
 
     if (api.onGitStatusChanged) {
-      console.log("[useGitStatus] Setting up git status change listener");
       removeGitStatusListener = api.onGitStatusChanged((payload) => {
         // Only handle events for this cwd
         if (payload.cwd !== cwd) {
@@ -110,20 +125,14 @@ export function useGitStatus(cwd: string) {
           ? new Map(Object.entries(payload.gitStatus))
           : null;
 
-        // Log for debugging
-        const stagedCount = statusMap
-          ? Array.from(statusMap.values()).filter((s) => s.staged).length
-          : 0;
-        console.log(
-          `[useGitStatus] Received git status update: ${statusMap?.size || 0} files (${stagedCount} staged)`,
-        );
-
         // Update git status
         setGitStatus(statusMap);
 
         // Always update current branch when it changes
+        // Also update isInGitRepo since currentBranch is the source of truth
         if (payload.currentBranch !== undefined) {
           setCurrentBranch(payload.currentBranch);
+          setIsInGitRepo(!!payload.currentBranch);
         }
 
         // Only update base branch on initial load, not on subsequent updates
@@ -133,8 +142,6 @@ export function useGitStatus(cwd: string) {
           isInitialLoad = false;
         }
       });
-    } else {
-      console.warn("[useGitStatus] api.onGitStatusChanged is not defined");
     }
 
     return () => {
@@ -151,7 +158,6 @@ export function useGitStatus(cwd: string) {
       }
 
       try {
-        console.log("[useGitStatus] Setting base branch to:", branchName);
         await api.setBaseBranch(cwd, branchName);
         setBaseBranch(branchName);
         setIsBranchSelectorOpen(false);

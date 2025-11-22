@@ -103,7 +103,7 @@ export function GitBranchToolbar({
   return (
     <div className="flex flex-col">
       {/* First row: Branch info and actions */}
-      <div className="px-3 py-1.5 text-xs flex items-center gap-2">
+      <div className="px-3 py-1.5 text-xs flex items-center gap-2 min-h-[32px]">
         <Tooltip>
           <TooltipTrigger asChild>
             <Toggle

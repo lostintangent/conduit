@@ -11,6 +11,7 @@ type FileItemProps = {
   onStageFile?: (relativePath: string) => void;
   onUnstageFile?: (relativePath: string) => void;
   onRevertFile?: (relativePath: string) => void;
+  selectedFilePath?: string | null;
 };
 
 export function FileItem({
@@ -21,6 +22,7 @@ export function FileItem({
   onStageFile,
   onUnstageFile,
   onRevertFile,
+  selectedFilePath,
 }: FileItemProps) {
   const handleClick = useCallback(() => {
     onSelect?.(node);
@@ -63,12 +65,19 @@ export function FileItem({
   const colorClass = config?.textColorClass || "text-foreground";
   const iconColorClass = config?.textColorClass || "text-foreground";
 
+  // Check if this file is currently selected
+  const isSelected = selectedFilePath === node.path;
+
   return (
     <li>
       <button
         type="button"
         onClick={handleClick}
-        className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-foreground/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+        className={`group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer ${
+          isSelected
+            ? "bg-accent/20 hover:bg-accent/25"
+            : "hover:bg-foreground/10"
+        }`}
       >
         <FileText className={`shrink-0 ${iconColorClass}`} size={12} />
         <span

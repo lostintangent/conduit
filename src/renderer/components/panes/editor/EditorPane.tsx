@@ -339,9 +339,24 @@ export function EditorPane({
     handleBranchSelect,
   } = useGitStatus(cwd);
 
-  const [treeViewMode, setTreeViewMode] = useState<TreeViewMode>(
-    treeMode === "changes" ? "changes" : "files",
-  );
+  // Use isInGitRepo directly - now cached in useGitStatus hook
+  const shouldShowGitToolbar = isInGitRepo;
+
+  // Cache tree view mode per pane to prevent toolbar height shifts
+  const [treeViewMode, setTreeViewMode] = useState<TreeViewMode>(() => {
+    // Try to load from cache first
+    const cached = localStorage.getItem(`tree-view-mode-${paneId}`);
+    if (cached === "changes" || cached === "files") {
+      return cached;
+    }
+    // Fall back to prop
+    return treeMode === "changes" ? "changes" : "files";
+  });
+
+  // Persist tree view mode when it changes
+  useEffect(() => {
+    localStorage.setItem(`tree-view-mode-${paneId}`, treeViewMode);
+  }, [treeViewMode, paneId]);
 
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
@@ -402,11 +417,7 @@ export function EditorPane({
 
     setIsPulling(true);
     try {
-      const result = await api.gitPull(cwd, false);
-      console.log("[EditorPane] Pull completed successfully");
-      if (result.stdout) {
-        console.log("[EditorPane] Pull output:", result.stdout);
-      }
+      await api.gitPull(cwd, false);
     } catch (error) {
       console.error("[EditorPane] Pull failed:", error);
       const { message, details } = cleanGitError(error);
@@ -429,18 +440,11 @@ export function EditorPane({
     setIsPushing(true);
     try {
       const isPublishing = !hasUpstream;
-      const result = await api.gitPush(cwd, false, isPublishing);
+      await api.gitPush(cwd, false, isPublishing);
 
       if (isPublishing) {
-        console.log("[EditorPane] Publish completed successfully");
         // After publishing, the branch now has an upstream
         setHasUpstream(true);
-      } else {
-        console.log("[EditorPane] Push completed successfully");
-      }
-
-      if (result.stdout) {
-        console.log("[EditorPane] Output:", result.stdout);
       }
     } catch (error) {
       console.error(
@@ -462,16 +466,7 @@ export function EditorPane({
   // Calculate if there are staged files from git status
   const hasStagedFiles = useMemo(() => {
     if (!gitStatus) return false;
-    const staged = Array.from(gitStatus.values()).some(
-      (status) => status.staged,
-    );
-    const stagedCount = Array.from(gitStatus.values()).filter(
-      (status) => status.staged,
-    ).length;
-    console.log(
-      `[EditorPane] hasStagedFiles: ${staged} (${stagedCount} staged files out of ${gitStatus.size} total)`,
-    );
-    return staged;
+    return Array.from(gitStatus.values()).some((status) => status.staged);
   }, [gitStatus]);
 
   // Commit staged changes
@@ -482,11 +477,7 @@ export function EditorPane({
 
     setIsCommitting(true);
     try {
-      const result = await api.gitCommit(cwd, commitMessage);
-      console.log("[EditorPane] Commit completed successfully");
-      if (result.stdout) {
-        console.log("[EditorPane] Commit output:", result.stdout);
-      }
+      await api.gitCommit(cwd, commitMessage);
       // Clear message after successful commit
       setCommitMessage("");
     } catch (error) {
@@ -508,7 +499,6 @@ export function EditorPane({
     async (relativePath: string) => {
       try {
         await api.gitStage(cwd, [relativePath]);
-        console.log(`[EditorPane] Staged file: ${relativePath}`);
       } catch (error) {
         console.error("[EditorPane] Failed to stage file:", error);
         const { details } = cleanGitError(error);
@@ -528,7 +518,6 @@ export function EditorPane({
     async (relativePath: string) => {
       try {
         await api.gitUnstage(cwd, [relativePath]);
-        console.log(`[EditorPane] Unstaged file: ${relativePath}`);
       } catch (error) {
         console.error("[EditorPane] Failed to unstage file:", error);
         const { details } = cleanGitError(error);
@@ -548,7 +537,6 @@ export function EditorPane({
     async (relativePath: string) => {
       try {
         await api.gitRevert(cwd, [relativePath]);
-        console.log(`[EditorPane] Discarded changes for file: ${relativePath}`);
       } catch (error) {
         console.error("[EditorPane] Failed to discard file changes:", error);
         const { details } = cleanGitError(error);
@@ -608,12 +596,61 @@ export function EditorPane({
     Set<string>
   >(new Set());
 
+  // Track paths that should be expanded to reveal the selected file
+  const [selectedFileExpandedPaths, setSelectedFileExpandedPaths] = useState<
+    Set<string>
+  >(new Set());
+
+  // Ref for the tree scroll container
+  const treeScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Track scroll position per pane (for saving, not for initial state)
+  const [treeScrollPosition, setTreeScrollPosition] = useState(0);
+
   // Clear manually collapsed paths when filtering is turned off
   useEffect(() => {
     if (treeViewMode !== "changes") {
       setManuallyCollapsedPaths(new Set());
     }
   }, [treeViewMode]);
+
+  // Auto-expand parent directories of the selected file
+  useEffect(() => {
+    if (!filePath || !cwd) {
+      setSelectedFileExpandedPaths(new Set());
+      return;
+    }
+
+    // Calculate relative path
+    const normalizedFilePath = filePath.replace(/\\/g, "/");
+    const normalizedCwd = cwd.replace(/\\/g, "/");
+    const cwdWithSlash = normalizedCwd.endsWith("/")
+      ? normalizedCwd
+      : `${normalizedCwd}/`;
+
+    if (!normalizedFilePath.startsWith(cwdWithSlash)) {
+      setSelectedFileExpandedPaths(new Set());
+      return;
+    }
+
+    const relativePath = normalizedFilePath.slice(cwdWithSlash.length);
+    const parts = relativePath.split("/");
+
+    // Build all parent directory paths
+    const parentPaths = new Set<string>();
+    let currentPath = "";
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (currentPath) {
+        currentPath += "/" + parts[i];
+      } else {
+        currentPath = parts[i];
+      }
+      parentPaths.add(currentPath);
+    }
+
+    setSelectedFileExpandedPaths(parentPaths);
+  }, [filePath, cwd]);
 
   // Compute layout mode based on container width
   const layoutMode = containerWidth > SPLIT_MODE_THRESHOLD ? "split" : "single";
@@ -1001,6 +1038,12 @@ export function EditorPane({
         disposableRef.current = null;
       }
       editorRef.current = null;
+
+      // Clean up scroll save timeout
+      if (scrollSaveTimeoutRef.current) {
+        clearTimeout(scrollSaveTimeoutRef.current);
+        scrollSaveTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -1040,6 +1083,26 @@ export function EditorPane({
       isTreeCollapsed.toString(),
     );
   }, [isTreeCollapsed, paneId]);
+
+  // Save scroll position when scrolling (debounced)
+  const scrollSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleTreeScroll = useCallback(() => {
+    if (treeScrollRef.current) {
+      const scrollTop = treeScrollRef.current.scrollTop;
+      setTreeScrollPosition(scrollTop);
+
+      // Debounce localStorage writes
+      if (scrollSaveTimeoutRef.current) {
+        clearTimeout(scrollSaveTimeoutRef.current);
+      }
+      scrollSaveTimeoutRef.current = setTimeout(() => {
+        localStorage.setItem(
+          `tree-scroll-position-${paneId}`,
+          scrollTop.toString(),
+        );
+      }, 100);
+    }
+  }, [paneId]);
 
   useEffect(() => {
     // Always load the tree regardless of layout mode or open file status
@@ -1606,25 +1669,52 @@ export function EditorPane({
   // Combine manual and auto expanded paths
   const expandedPaths = useMemo(() => {
     if (treeViewMode === "changes") {
-      // When filtering, combine manually and auto-expanded paths,
+      // When filtering, combine manually, auto-expanded, and selected file paths,
       // but exclude paths that were manually collapsed
       const combined = new Set([
         ...manuallyExpandedPaths,
         ...autoExpandedPaths,
+        ...selectedFileExpandedPaths,
       ]);
       for (const path of manuallyCollapsedPaths) {
         combined.delete(path);
       }
       return combined;
     }
-    // When not filtering, only show manually expanded paths
-    return manuallyExpandedPaths;
+    // When not filtering, combine manually expanded paths and selected file paths
+    return new Set([...manuallyExpandedPaths, ...selectedFileExpandedPaths]);
   }, [
     treeViewMode,
     manuallyExpandedPaths,
     autoExpandedPaths,
     manuallyCollapsedPaths,
+    selectedFileExpandedPaths,
   ]);
+
+  // Restore scroll position after tree is loaded
+  useEffect(() => {
+    // Only restore if tree is loaded and we have a saved position
+    if (
+      treeScrollRef.current &&
+      !isLoadingTree &&
+      displayedFileTree.length > 0
+    ) {
+      const savedPosition = localStorage.getItem(
+        `tree-scroll-position-${paneId}`,
+      );
+      if (savedPosition) {
+        const position = parseInt(savedPosition, 10);
+        if (position > 0) {
+          // Use requestAnimationFrame to ensure DOM is ready
+          requestAnimationFrame(() => {
+            if (treeScrollRef.current) {
+              treeScrollRef.current.scrollTop = position;
+            }
+          });
+        }
+      }
+    }
+  }, [isLoadingTree, displayedFileTree.length, paneId]);
 
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
@@ -2246,7 +2336,7 @@ export function EditorPane({
                   }),
             }}
           >
-            {isInGitRepo && (
+            {shouldShowGitToolbar && (
               <GitBranchToolbar
                 currentBranch={currentBranch}
                 baseBranch={baseBranch}
@@ -2288,7 +2378,11 @@ export function EditorPane({
                 onReviewChanges={handleReviewChanges}
               />
             )}
-            <div className="flex-1 overflow-auto px-3">
+            <div
+              ref={treeScrollRef}
+              className="flex-1 overflow-auto px-3"
+              onScroll={handleTreeScroll}
+            >
               {isLoadingTree ? (
                 <div className="flex items-center justify-center w-full text-white/70">
                   <Loader2 className="w-6 h-6 animate-spin" />
@@ -2316,6 +2410,7 @@ export function EditorPane({
                   onRevertFile={
                     baseBranch === null ? handleDiscardFileChanges : undefined
                   }
+                  selectedFilePath={filePath || null}
                 />
               ) : (
                 <div className="text-foreground text-xs py-3">
