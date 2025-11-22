@@ -1,6 +1,6 @@
+import { browserAutomate } from "@/automation/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
-import { browserAutomate } from "@/components/panes/browser/automation/webviewAutomation";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { TerminalPane } from "@/types";

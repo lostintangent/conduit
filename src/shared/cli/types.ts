@@ -8,7 +8,7 @@ import type {
   BrowserScrollArgs,
   BrowserTypeArgs,
   BrowserWaitArgs,
-} from "./automation";
+} from "./browser";
 
 export const CLI_COMMAND_NAME = "conduit";
 

@@ -1,3 +1,4 @@
+import { useCliClient } from "@/automation/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { usePaneActionsSystem } from "@/commands/paneActions";
@@ -30,7 +31,6 @@ import { TitleBar } from "@/components/shell/title/TitleBar";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { useAutoUpdater } from "@/hooks/useAutoUpdater";
-import { useCliClient } from "@/hooks/useCliClient";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
