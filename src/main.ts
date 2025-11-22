@@ -57,13 +57,16 @@ async function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
     },
+    frame: false,
+    transparent: true,
+    backgroundColor: "#171717",
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
