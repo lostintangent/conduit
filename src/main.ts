@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow } from "electron";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import {
@@ -104,14 +104,17 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  const extensionPath = MAIN_WINDOW_VITE_DEV_SERVER_URL
-    ? path.join(__dirname, "../../.vite/extension")
-    : path.join(__dirname, "../extension");
+  const webviewPreloadPath = app.isPackaged
+    ? path.join(process.resourcesPath, "webview-preload.js")
+    : path.join(__dirname, "webview-preload.js");
+
+  app.on("web-contents-created", (_event, contents) => {
+    contents.on("will-attach-webview", (_attachEvent, webPreferences) => {
+      webPreferences.preload = webviewPreloadPath;
+      webPreferences.contextIsolation = true;
+      webPreferences.nodeIntegration = false;
+    });
+  });
 
   await createWindow();
-
-  const webviewSession = session.fromPartition("persist:webview");
-  await webviewSession.extensions.loadExtension(extensionPath, {
-    allowFileAccess: true,
-  });
 });

@@ -34,7 +34,7 @@ import type {
   TreeChangedEvent,
   UserSettings,
   VMInfo,
-} from "../shared/types";
+} from "../../shared/types";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import configureUpdatesModule from "./modules/updates";

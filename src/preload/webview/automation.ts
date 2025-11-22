@@ -1,3 +1,16 @@
+// @ts-check
+
+/**
+ * @typedef {import("@shared/cli/browser").AutomationElementDescriptor} AutomationElementDescriptor
+ * @typedef {import("@shared/cli/browser").BrowserClickArgs} BrowserClickArgs
+ * @typedef {import("@shared/cli/browser").BrowserKeysArgs} BrowserKeysArgs
+ * @typedef {import("@shared/cli/browser").BrowserQueryArgs} BrowserQueryArgs
+ * @typedef {import("@shared/cli/browser").BrowserQueryResult} BrowserQueryResult
+ * @typedef {import("@shared/cli/browser").BrowserScrollArgs} BrowserScrollArgs
+ * @typedef {import("@shared/cli/browser").BrowserTypeArgs} BrowserTypeArgs
+ * @typedef {import("@shared/cli/browser").BrowserWaitArgs} BrowserWaitArgs
+ */
+
 const handles = new Map();
 let sequence = 0;
 
@@ -11,7 +24,7 @@ const cssEscape = (str) => {
 const computeActions = (element) => {
   const actions = [];
   const tag = element.tagName?.toLowerCase();
-  const type = element.getAttribute("type");
+  const type = element.getAttribute("type") ?? undefined;
 
   if (typeof element.click === "function") {
     actions.push("clickable");
@@ -29,6 +42,7 @@ const computeActions = (element) => {
 };
 
 const describeAttributes = (element) => {
+  /** @type {Record<string, string>} */
   const attributes = {};
   for (const attr of element.getAttributeNames()) {
     attributes[attr] = element.getAttribute(attr) ?? "";
@@ -40,7 +54,7 @@ const toSelector = (element) => {
   const parts = [];
   let node = element;
   while (node && node.nodeType === Node.ELEMENT_NODE && parts.length < 5) {
-    let selector = node.nodeName.toLowerCase();
+    let selector = node.nodeName.toLowerCase() ?? "";
     if (node.id) {
       selector += "#" + cssEscape(node.id);
       parts.unshift(selector);
@@ -79,6 +93,7 @@ const registerHandle = (element) => {
   return handle;
 };
 
+/** @param {Element | null} element */
 const describeElement = (element) => {
   if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
 
@@ -145,7 +160,8 @@ const waitForSelector = (selector, timeout) =>
   });
 
 const automation = {
-  query: async (payload) => {
+  /** @param {BrowserQueryArgs=} payload */
+  async query(payload) {
     const {
       selector = "*",
       contextHandle,
@@ -160,6 +176,7 @@ const automation = {
       ? resolveHandle(contextHandle)
       : document.documentElement;
 
+    /** @returns {BrowserQueryResult} */
     const runQuery = () => {
       if (dumpTree) {
         const tree = [];
@@ -207,9 +224,13 @@ const automation = {
     return runQuery();
   },
 
-  describe: (payload) => describeElement(resolveHandle(payload.handle)),
+  /** @param {{ handle: string }} payload */
+  describe(payload) {
+    return describeElement(resolveHandle(payload.handle));
+  },
 
-  click: (payload) => {
+  /** @param {BrowserClickArgs} payload */
+  click(payload) {
     const { handle, button = "left", clicks = 1, offset } = payload ?? {};
     const element = resolveHandle(handle);
 
@@ -243,7 +264,8 @@ const automation = {
     return describeElement(element);
   },
 
-  type: async (payload) => {
+  /** @param {BrowserTypeArgs} payload */
+  async type(payload) {
     const { handle, text = "", submit, delay = 0, replace } = payload ?? {};
     const element = resolveHandle(handle);
 
@@ -293,7 +315,8 @@ const automation = {
     return describeElement(element);
   },
 
-  keys: (payload) => {
+  /** @param {BrowserKeysArgs} payload */
+  keys(payload) {
     const active = document.activeElement ?? document.body;
     for (const key of payload.keys ?? []) {
       const down = new KeyboardEvent("keydown", { key, bubbles: true });
@@ -304,7 +327,8 @@ const automation = {
     return true;
   },
 
-  scroll: (payload) => {
+  /** @param {BrowserScrollArgs=} payload */
+  scroll(payload) {
     const { handle, x, y, direction, smooth } = payload ?? {};
     const target = handle ? resolveHandle(handle) : null;
     const behavior = smooth ? "smooth" : "auto";
@@ -323,7 +347,8 @@ const automation = {
     return true;
   },
 
-  waitFor: async (payload) => {
+  /** @param {BrowserWaitArgs=} payload */
+  async waitFor(payload) {
     const { state, selector, timeout = 5000 } = payload ?? {};
 
     if (state === "domcontentloaded") {
@@ -357,18 +382,9 @@ const automation = {
 
     return true;
   },
-
-  evaluate: (payload) => {
-    const { expression, contextHandle } = payload ?? {};
-    const element = contextHandle ? resolveHandle(contextHandle) : null;
-    const fn = new Function(
-      "element",
-      "handles",
-      "'use strict'; " + expression,
-    );
-    return fn(element, (id) => handles.get(id));
-  },
 };
 
+// Expose on the page
+// @ts-ignore
 window.__conduitAutomation = automation;
 window.addEventListener("beforeunload", () => handles.clear());

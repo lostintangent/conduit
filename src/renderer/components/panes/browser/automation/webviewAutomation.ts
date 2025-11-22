@@ -1,14 +1,13 @@
 import type {
   AutomationElementDescriptor,
   BrowserClickArgs,
-  BrowserEvaluateArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
   BrowserQueryResult,
   BrowserScrollArgs,
   BrowserTypeArgs,
   BrowserWaitArgs,
-} from "@shared/cli/automation";
+} from "@shared/cli/browser";
 import type { WebviewTag } from "electron";
 
 function getWebview(paneId: string) {
@@ -33,8 +32,7 @@ type AutomationCommand =
     }
   | { command: "keys"; args: BrowserKeysArgs; result: boolean }
   | { command: "scroll"; args: BrowserScrollArgs; result: boolean }
-  | { command: "waitFor"; args: BrowserWaitArgs; result: boolean }
-  | { command: "evaluate"; args: BrowserEvaluateArgs; result: unknown };
+  | { command: "waitFor"; args: BrowserWaitArgs; result: boolean };
 
 type ExtractCommand<T extends AutomationCommand["command"]> = Extract<
   AutomationCommand,

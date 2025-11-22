@@ -9,7 +9,7 @@ import {
   PANE_SPLIT_TYPES,
   PANE_TYPES,
 } from "../shared/cli/types";
-import type { BrowserQueryResult } from "../shared/cli/automation";
+import type { BrowserQueryResult } from "../shared/cli/browser";
 
 // Import the cliCommand extension to commander
 // that allows defining CLI command handlers
