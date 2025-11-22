@@ -1,10 +1,10 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { FileTreeNode, GitStatusMap } from "@shared/types";
+import { renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  useDirectoryCache,
   clearDirectoryCache,
   invalidateDirectory,
+  useDirectoryCache,
 } from "../../../../../../src/renderer/components/panes/editor/tree/useDirectoryCache";
 
 // Mock the conduit API
@@ -77,7 +77,11 @@ describe("useDirectoryCache", () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(mockListDirectory).toHaveBeenCalledWith("/repo/src", "/repo");
+      expect(mockListDirectory).toHaveBeenCalledWith(
+        "/repo/src",
+        "/repo",
+        undefined,
+      );
       expect(result.current.children).toHaveLength(3);
       expect(result.current.isResolved).toBe(true);
     });
@@ -101,7 +105,11 @@ describe("useDirectoryCache", () => {
         expect(result.current.isResolved).toBe(true);
       });
 
-      expect(mockListDirectory).toHaveBeenCalledWith("/repo/src", "/repo");
+      expect(mockListDirectory).toHaveBeenCalledWith(
+        "/repo/src",
+        "/repo",
+        undefined,
+      );
       expect(result.current.children).toHaveLength(3);
     });
 
@@ -388,7 +396,11 @@ describe("useDirectoryCache", () => {
         expect(result.current.isResolved).toBe(true);
       });
 
-      expect(mockListDirectory).toHaveBeenCalledWith("/repo/src", "/repo");
+      expect(mockListDirectory).toHaveBeenCalledWith(
+        "/repo/src",
+        "/repo",
+        undefined,
+      );
       expect(result.current.children).toHaveLength(3);
     });
 

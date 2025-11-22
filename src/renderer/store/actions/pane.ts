@@ -812,23 +812,41 @@ export function openEditorPane(
   insertBefore = false,
 ) {
   const newPaneId = generateId();
-  const newPaneState: Pane = {
-    id: newPaneId,
-    type: "editor",
-    cwd,
-  };
-
-  const newLayoutNode: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId: newPaneId,
-  };
 
   store.set(tabsAtom, (current) =>
     current.map((tab) => {
       if (tab.id !== tabId) {
         return tab;
       }
+
+      // Find a cloud VM terminal in this tab to link the editor to
+      let vmSessionId: string | undefined = undefined;
+      let vmCwd: string | undefined = undefined;
+      let vmId: string | "local" = "local";
+      for (const pane of Object.values(tab.panes)) {
+        if (pane.type === "terminal" && pane.vmMetadata?.vmId) {
+          vmSessionId = pane.sessionId;
+          vmId = pane.vmMetadata.vmId;
+          // Use the VM terminal's remote cwd
+          vmCwd = pane.cwd || undefined;
+          break;
+        }
+      }
+
+      const newPaneState: Pane = {
+        id: newPaneId,
+        type: "editor",
+        // Use VM cwd if linked to VM terminal, otherwise use provided cwd
+        cwd: vmCwd || cwd,
+        vmId,
+        ...(vmSessionId && { sessionId: vmSessionId }),
+      };
+
+      const newLayoutNode: LayoutNode = {
+        id: generateId(),
+        type: "pane",
+        paneId: newPaneId,
+      };
 
       const { node: newLayout, modified } = splitLayoutNode(
         tab.layout,

@@ -35,7 +35,7 @@ export async function readPaneActionsFile(
   }
 
   try {
-    const content = await api.readFile(filePath);
+    const content = await api.readFile(filePath, "local");
     return parsePaneActionsContent(content);
   } catch (error) {
     // File doesn't exist - this is expected on first run
@@ -97,7 +97,7 @@ export async function writePaneActionsFile(
 
   // Write with pretty formatting (2 space indent)
   const content = JSON.stringify(actions, null, 2);
-  await api.writeFile(filePath, content);
+  await api.writeFile(filePath, content, "local");
 }
 
 /**

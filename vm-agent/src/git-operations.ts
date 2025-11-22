@@ -336,3 +336,93 @@ export async function gitRevert(cwd: string, files: string[]): Promise<void> {
     { cwd: gitRoot },
   );
 }
+
+/**
+ * Get diff statistics for all changed files
+ */
+export async function getGitDiffStats(cwd: string): Promise<any> {
+  try {
+    const gitRoot = await findGitRoot(cwd);
+    if (!gitRoot) {
+      return null;
+    }
+
+    const { stdout } = await execAsync("git diff --numstat", {
+      cwd: gitRoot,
+    });
+
+    let totalAdditions = 0;
+    let totalDeletions = 0;
+    const files: Array<{ file: string; additions: number; deletions: number }> =
+      [];
+
+    for (const line of stdout.trim().split("\n")) {
+      if (!line) continue;
+
+      const parts = line.split("\t");
+      if (parts.length !== 3) continue;
+
+      const additions = parseInt(parts[0]) || 0;
+      const deletions = parseInt(parts[1]) || 0;
+      const file = parts[2];
+
+      totalAdditions += additions;
+      totalDeletions += deletions;
+      files.push({ file, additions, deletions });
+    }
+
+    return {
+      totalAdditions,
+      totalDeletions,
+      filesChanged: files.length,
+      files,
+    };
+  } catch (error) {
+    console.error("[Git] Error getting diff stats:", error);
+    return null;
+  }
+}
+
+/**
+ * Get the most recently modified file (dirty or tracked)
+ */
+export async function getMostRecentFile(cwd: string): Promise<string | null> {
+  try {
+    const gitRoot = await findGitRoot(cwd);
+    if (!gitRoot) {
+      return null;
+    }
+
+    // First try dirty files (modified/staged)
+    const { stdout: statusOut } = await execAsync("git status --porcelain", {
+      cwd: gitRoot,
+    });
+
+    if (statusOut.trim()) {
+      // Get the first modified file
+      const lines = statusOut.trim().split("\n");
+      for (const line of lines) {
+        const filePath = line.substring(3).trim();
+        if (filePath) {
+          return path.join(gitRoot, filePath);
+        }
+      }
+    }
+
+    // If no dirty files, get most recently committed file
+    const { stdout: recentFile } = await execAsync(
+      'git log -1 --pretty="" --name-only',
+      { cwd: gitRoot },
+    );
+
+    const file = recentFile.trim().split("\n")[0];
+    if (file) {
+      return path.join(gitRoot, file);
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[Git] Error getting most recent file:", error);
+    return null;
+  }
+}

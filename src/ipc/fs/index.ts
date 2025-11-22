@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { FSWatcher, promises as fs } from "node:fs";
 import path from "node:path";
-import { getTerminal } from "../terminal/store";
+import { getCloudEnvironmentByVmId } from "../terminal/store";
 import { getVMAgentClient } from "../vm/agent-client";
 import { listDirectory, readFile } from "./utils";
 
@@ -11,18 +11,14 @@ const fileWatchers = new Map<string, FSWatcher>();
 export function initializeFsHandlers() {
   ipcMain.handle(
     "fs:list-directory",
-    async (_, dirPath: string, rootPath?: string, sessionId?: string) => {
+    async (_, dirPath: string, rootPath?: string, vmId?: string | "local") => {
       try {
-        // Check if this is for a cloud VM session
-        if (sessionId) {
-          const terminal = getTerminal(sessionId);
-          if (terminal?.cloudEnvironment) {
+        // Check if this is for a cloud VM
+        if (vmId && vmId !== "local") {
+          const cloudEnv = getCloudEnvironmentByVmId(vmId);
+          if (cloudEnv) {
             const vmAgent = getVMAgentClient();
-            return await vmAgent.listDirectory(
-              terminal.cloudEnvironment,
-              dirPath,
-              rootPath,
-            );
+            return await vmAgent.listDirectory(cloudEnv, dirPath, rootPath);
           }
         }
 
@@ -37,14 +33,14 @@ export function initializeFsHandlers() {
 
   ipcMain.handle(
     "fs:read-file",
-    async (_, filePath: string, sessionId?: string) => {
+    async (_, filePath: string, vmId: string | "local") => {
       try {
-        // Check if this is for a cloud VM session
-        if (sessionId) {
-          const terminal = getTerminal(sessionId);
-          if (terminal?.cloudEnvironment) {
+        // Check if this is for a cloud VM
+        if (vmId !== "local") {
+          const cloudEnv = getCloudEnvironmentByVmId(vmId);
+          if (cloudEnv) {
             const vmAgent = getVMAgentClient();
-            return await vmAgent.readFile(terminal.cloudEnvironment, filePath);
+            return await vmAgent.readFile(cloudEnv, filePath);
           }
         }
 
@@ -59,18 +55,14 @@ export function initializeFsHandlers() {
 
   ipcMain.handle(
     "fs:write-file",
-    async (_, filePath: string, content: string, sessionId?: string) => {
+    async (_, filePath: string, content: string, vmId: string | "local") => {
       try {
-        // Check if this is for a cloud VM session
-        if (sessionId) {
-          const terminal = getTerminal(sessionId);
-          if (terminal?.cloudEnvironment) {
+        // Check if this is for a cloud VM
+        if (vmId !== "local") {
+          const cloudEnv = getCloudEnvironmentByVmId(vmId);
+          if (cloudEnv) {
             const vmAgent = getVMAgentClient();
-            return await vmAgent.writeFile(
-              terminal.cloudEnvironment,
-              filePath,
-              content,
-            );
+            return await vmAgent.writeFile(cloudEnv, filePath, content);
           }
         }
 
@@ -90,17 +82,14 @@ export function initializeFsHandlers() {
 
   ipcMain.handle(
     "fs:delete-file",
-    async (_, filePath: string, sessionId?: string) => {
+    async (_, filePath: string, vmId: string | "local") => {
       try {
-        // Check if this is for a cloud VM session
-        if (sessionId) {
-          const terminal = getTerminal(sessionId);
-          if (terminal?.cloudEnvironment) {
+        // Check if this is for a cloud VM
+        if (vmId !== "local") {
+          const cloudEnv = getCloudEnvironmentByVmId(vmId);
+          if (cloudEnv) {
             const vmAgent = getVMAgentClient();
-            return await vmAgent.deleteFile(
-              terminal.cloudEnvironment,
-              filePath,
-            );
+            return await vmAgent.deleteFile(cloudEnv, filePath);
           }
         }
 

@@ -1,8 +1,8 @@
 import type { FileTreeNode, GitStatusMap } from "@shared/types";
+import path from "path-browserify";
 import { useMemo } from "react";
 import { FileTreeItem } from "./FileTreeItem";
 import { ResourceGroup } from "./ResourceGroup";
-import path from "path-browserify";
 
 type FileTreeProps = {
   items: FileTreeNode[];
@@ -20,6 +20,7 @@ type FileTreeProps = {
   onRevertFile?: (relativePath: string) => void;
   showStagedView?: boolean; // Which status to show when file has both staged and unstaged
   selectedFilePath?: string | null; // Path of currently selected file for highlighting
+  vmId?: string | "local"; // VM ID for file operations routing
 };
 
 export function FileTree({
@@ -38,6 +39,7 @@ export function FileTree({
   onRevertFile,
   showStagedView,
   selectedFilePath,
+  vmId,
 }: FileTreeProps) {
   // Group files by staged/unstaged when showGroupedByStaging is true
   const groupedItems = useMemo(() => {
@@ -179,6 +181,7 @@ export function FileTree({
                   onRevertFile={onRevertFile}
                   showStagedView={true}
                   selectedFilePath={selectedFilePath}
+                  vmId={vmId}
                 />
               ))}
             </ul>
@@ -205,6 +208,7 @@ export function FileTree({
                   onRevertFile={onRevertFile}
                   showStagedView={false}
                   selectedFilePath={selectedFilePath}
+                  vmId={vmId}
                 />
               ))}
             </ul>
@@ -239,6 +243,7 @@ export function FileTree({
             prefetch={item.type === "directory"}
             showStagedView={showStagedView}
             selectedFilePath={selectedFilePath}
+            vmId={vmId}
           />
         ))}
       </ul>

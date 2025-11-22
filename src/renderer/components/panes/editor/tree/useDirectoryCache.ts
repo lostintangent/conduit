@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { FileTreeNode, GitStatusMap } from "@shared/types";
 import path from "path-browserify";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Module-level cache that persists across component mounts/unmounts.
@@ -40,8 +40,13 @@ function hasListeners(dirPath: string): boolean {
  *
  * @param dirPath - Absolute path to the directory that changed
  * @param rootPath - Root path for the repository (needed for refetching)
+ * @param vmId - Optional VM ID for file operations routing
  */
-export function invalidateDirectory(dirPath: string, rootPath?: string) {
+export function invalidateDirectory(
+  dirPath: string,
+  rootPath?: string,
+  vmId?: string | "local",
+) {
   const entry = directoryCache.get(dirPath);
 
   if (entry) {
@@ -58,7 +63,7 @@ export function invalidateDirectory(dirPath: string, rootPath?: string) {
       entry.fetchInProgress = true;
 
       window.conduit
-        .listDirectory(dirPath, rootPath)
+        .listDirectory(dirPath, rootPath, vmId)
         .then((fetchedChildren) => {
           // Update cache with fresh data
           const currentEntry = directoryCache.get(dirPath);
@@ -106,10 +111,15 @@ export function clearDirectory(dirPath: string) {
  *
  * @param filePath - Absolute path to the file that changed
  * @param rootPath - Root path for the repository (for proactive refetching)
+ * @param vmId - Optional VM ID for file operations routing
  */
-export function handleFileChanged(filePath: string, rootPath: string) {
+export function handleFileChanged(
+  filePath: string,
+  rootPath: string,
+  vmId?: string | "local",
+) {
   const dirPath = path.dirname(filePath);
-  invalidateDirectory(dirPath, rootPath);
+  invalidateDirectory(dirPath, rootPath, vmId);
 }
 
 /**
@@ -121,20 +131,22 @@ export function handleFileChanged(filePath: string, rootPath: string) {
  * @param newPath - New absolute path
  * @param isDirectory - Whether the renamed item is a directory
  * @param rootPath - Root path for the repository (for proactive refetching)
+ * @param vmId - Optional VM ID for file operations routing
  */
 export function handleFileRenamed(
   oldPath: string,
   newPath: string,
   isDirectory: boolean,
   rootPath: string,
+  vmId?: string | "local",
 ) {
   const oldDirPath = path.dirname(oldPath);
   const newDirPath = path.dirname(newPath);
 
   // Invalidate both parent directories
-  invalidateDirectory(oldDirPath, rootPath);
+  invalidateDirectory(oldDirPath, rootPath, vmId);
   if (newDirPath !== oldDirPath) {
-    invalidateDirectory(newDirPath, rootPath);
+    invalidateDirectory(newDirPath, rootPath, vmId);
   }
 
   // If a directory was renamed, clear all cache entries that start with old path
@@ -163,6 +175,7 @@ type UseDirectoryCacheParams = {
   prefetch: boolean;
   isFiltering?: boolean;
   gitStatus?: GitStatusMap | null;
+  vmId?: string | "local";
 };
 
 /**
@@ -186,6 +199,7 @@ export function useDirectoryCache({
   prefetch,
   isFiltering,
   gitStatus,
+  vmId,
 }: UseDirectoryCacheParams) {
   const cacheKey = node.path;
 
@@ -223,6 +237,7 @@ export function useDirectoryCache({
         const fetchedChildren = await window.conduit.listDirectory(
           node.path,
           rootPath,
+          vmId,
         );
 
         // Check if version changed during fetch (indicates concurrent invalidation)

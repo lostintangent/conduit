@@ -341,6 +341,7 @@ export function PaneActionsEditor({
       type: "editor",
       cwd: homeDirectory,
       filePath: configPath,
+      vmId: "local",
     });
     onClose();
   };

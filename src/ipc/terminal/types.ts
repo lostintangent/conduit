@@ -41,6 +41,9 @@ export type CloudEnvironment = {
   connectionState: "connecting" | "connected" | "disconnected";
   connectionStartTime?: number; // Timestamp when connection started (for timeout detection)
 
+  // VM Agent WebSocket connection
+  agentPort?: number; // Forwarded port for vm-agent WebSocket connection
+
   // Port forwarding state
   detectedPorts: Set<number>;
   forwardedPorts: Map<number, string>; // port -> connection_url

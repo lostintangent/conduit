@@ -1,7 +1,7 @@
-import { getUserPaneActionsPath, writePaneActionsFile } from "./fileOperations";
-import { updatePaneActionsAtom } from "./updatePaneActionsAtom";
 import { getDefaultActions } from "../core/defaults";
 import type { Action } from "../core/types";
+import { getUserPaneActionsPath, writePaneActionsFile } from "./fileOperations";
+import { updatePaneActionsAtom } from "./updatePaneActionsAtom";
 
 /**
  * Save pane actions to file and update the atom
@@ -47,7 +47,7 @@ export async function resetPaneActionsToDefaults(
     throw new Error("Conduit API not available");
   }
 
-  await api.deleteFile(filePath);
+  await api.deleteFile(filePath, "local");
 
   // Update global atom with defaults for immediate reactive updates
   const defaults = getDefaultActions();
@@ -71,7 +71,7 @@ export async function hasUserPaneActionsFile(
   }
 
   try {
-    await api.readFile(filePath);
+    await api.readFile(filePath, "local");
     return true;
   } catch (error) {
     // File doesn't exist

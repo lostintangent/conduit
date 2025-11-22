@@ -84,7 +84,7 @@ describe("useSandboxHandlers", () => {
       );
       expect(mockEnqueueNotification).toHaveBeenCalledWith({
         kind: "success",
-        message: "Agent session completed",
+        message: "Worktree changes merged",
         details: "Successfully merged changes",
         autoCloseMs: 3000,
       });
@@ -117,7 +117,7 @@ describe("useSandboxHandlers", () => {
       expect(mockEnqueueNotification).toHaveBeenCalledWith({
         kind: "success",
         message: "No changes to merge",
-        details: "No changes to merge",
+        details: undefined,
         autoCloseMs: 3000,
       });
     });
@@ -178,8 +178,7 @@ describe("useSandboxHandlers", () => {
       );
       expect(mockEnqueueNotification).toHaveBeenCalledWith({
         kind: "success",
-        message: "Agent session deleted",
-        details: "Agent session deleted successfully",
+        message: "Worktree deleted",
         autoCloseMs: 3000,
       });
     });

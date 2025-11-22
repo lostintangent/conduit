@@ -18,6 +18,7 @@ type FileTreeItemProps = {
   onRevertFile?: (relativePath: string) => void;
   showStagedView?: boolean;
   selectedFilePath?: string | null;
+  sessionId?: string;
 };
 
 export function FileTreeItem({
@@ -36,6 +37,7 @@ export function FileTreeItem({
   onRevertFile,
   showStagedView,
   selectedFilePath,
+  sessionId,
 }: FileTreeItemProps) {
   const isDirectory = node.type === "directory";
   if (isDirectory) {
@@ -57,6 +59,7 @@ export function FileTreeItem({
         onRevertFile={onRevertFile}
         showStagedView={showStagedView}
         selectedFilePath={selectedFilePath}
+        sessionId={sessionId}
       />
     );
   }

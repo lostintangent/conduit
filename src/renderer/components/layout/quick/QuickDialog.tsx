@@ -151,6 +151,7 @@ export function QuickDialog({
               paneId={quickPaneId}
               cwd={currentDescriptor.cwd}
               filePath={currentDescriptor.filePath}
+              vmId={currentDescriptor.vmId ?? "local"}
               treeMode={currentDescriptor.treeMode}
               agentSessionId={undefined}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}

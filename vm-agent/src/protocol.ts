@@ -14,6 +14,8 @@ export type FSRequest =
   | GitStatusRequest
   | GitBranchesRequest
   | GitDiffRequest
+  | GitDiffStatsRequest
+  | GitMostRecentFileRequest
   | GitRepoRootRequest
   | GitStageRequest
   | GitUnstageRequest
@@ -82,6 +84,18 @@ export type GitDiffRequest = {
   cwd: string;
   filePath: string;
   baseBranch?: string | null;
+};
+
+export type GitDiffStatsRequest = {
+  type: "git-diff-stats";
+  id: string;
+  cwd: string;
+};
+
+export type GitMostRecentFileRequest = {
+  type: "git-most-recent-file";
+  id: string;
+  cwd: string;
 };
 
 export type GitRepoRootRequest = {

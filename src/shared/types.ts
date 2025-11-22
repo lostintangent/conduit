@@ -149,6 +149,7 @@ export type VMMetadata = {
   sshPort: number;
   imageId: string;
   useSSHKey?: boolean;
+  agentPort?: number; // Forwarded port for vm-agent WebSocket connection
 };
 
 export type TerminalDataPayload = TerminalPayload & {

@@ -15,7 +15,7 @@ type GitStatusCache = {
 
 const gitStatusCache = new Map<string, GitStatusCache>();
 
-export function useGitStatus(cwd: string) {
+export function useGitStatus(cwd: string, vmId: string | "local") {
   // Initialize from cache if available
   const cached = gitStatusCache.get(cwd);
 
@@ -73,7 +73,7 @@ export function useGitStatus(cwd: string) {
     // Load branches
     if (api.getBranches) {
       api
-        .getBranches(cwd)
+        .getBranches(cwd, vmId)
         .then((response) => {
           if (response.success && response.branches) {
             setBranches(response.branches);
@@ -158,14 +158,14 @@ export function useGitStatus(cwd: string) {
       }
 
       try {
-        await api.setBaseBranch(cwd, branchName);
+        await api.setBaseBranch(cwd, branchName, vmId);
         setBaseBranch(branchName);
         setIsBranchSelectorOpen(false);
       } catch (error) {
         console.error("[useGitStatus] Failed to set base branch:", error);
       }
     },
-    [cwd],
+    [cwd, vmId],
   );
 
   return {

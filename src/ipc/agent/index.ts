@@ -11,7 +11,7 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
 } from "../../shared/types";
-import { getTerminal } from "../terminal/store";
+import { getCloudEnvironmentByVmId } from "../terminal/store";
 import { getVMAgentClient } from "../vm/agent-client";
 import {
   applyDiffPatch,
@@ -533,13 +533,13 @@ export async function initializeAgentHandlers() {
 
   ipcMain.handle(
     "agent:git-stage",
-    async (_event, cwd: string, files: string[], sessionId?: string) => {
-      // Check if this is for a cloud VM session
-      if (sessionId) {
-        const terminal = getTerminal(sessionId);
-        if (terminal?.cloudEnvironment) {
+    async (_event, cwd: string, files: string[], vmId: string | "local") => {
+      // Check if this is for a cloud VM
+      if (vmId !== "local") {
+        const cloudEnv = getCloudEnvironmentByVmId(vmId);
+        if (cloudEnv) {
           const vmAgent = getVMAgentClient();
-          await vmAgent.gitStage(terminal.cloudEnvironment, cwd, files);
+          await vmAgent.gitStage(cloudEnv, cwd, files);
           return { stdout: "", stderr: "" };
         }
       }
@@ -551,13 +551,13 @@ export async function initializeAgentHandlers() {
 
   ipcMain.handle(
     "agent:git-unstage",
-    async (_event, cwd: string, files: string[], sessionId?: string) => {
-      // Check if this is for a cloud VM session
-      if (sessionId) {
-        const terminal = getTerminal(sessionId);
-        if (terminal?.cloudEnvironment) {
+    async (_event, cwd: string, files: string[], vmId: string | "local") => {
+      // Check if this is for a cloud VM
+      if (vmId !== "local") {
+        const cloudEnv = getCloudEnvironmentByVmId(vmId);
+        if (cloudEnv) {
           const vmAgent = getVMAgentClient();
-          await vmAgent.gitUnstage(terminal.cloudEnvironment, cwd, files);
+          await vmAgent.gitUnstage(cloudEnv, cwd, files);
           return { stdout: "", stderr: "" };
         }
       }
@@ -569,13 +569,13 @@ export async function initializeAgentHandlers() {
 
   ipcMain.handle(
     "agent:git-revert",
-    async (_event, cwd: string, files: string[], sessionId?: string) => {
-      // Check if this is for a cloud VM session
-      if (sessionId) {
-        const terminal = getTerminal(sessionId);
-        if (terminal?.cloudEnvironment) {
+    async (_event, cwd: string, files: string[], vmId: string | "local") => {
+      // Check if this is for a cloud VM
+      if (vmId !== "local") {
+        const cloudEnv = getCloudEnvironmentByVmId(vmId);
+        if (cloudEnv) {
           const vmAgent = getVMAgentClient();
-          await vmAgent.gitRevert(terminal.cloudEnvironment, cwd, files);
+          await vmAgent.gitRevert(cloudEnv, cwd, files);
           return { stdout: "", stderr: "" };
         }
       }

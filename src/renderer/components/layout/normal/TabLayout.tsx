@@ -471,6 +471,7 @@ export function TabLayout({
                   paneId={pane.id}
                   cwd={pane.cwd}
                   filePath={pane.filePath}
+                  vmId={pane.vmId ?? "local"}
                   agentSessionId={pane.agentSessionId}
                   treeMode={pane.treeMode}
                   onFileChange={(fileData) =>
@@ -489,13 +490,14 @@ export function TabLayout({
                   onTreeModeChange={(mode) =>
                     handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
                   }
-                  onFileOpen={(node) =>
+                  onFileOpen={(node) => {
                     onOpenQuickPane({
                       type: "editor",
-                      cwd: pane?.cwd,
+                      vmId: pane.vmId ?? "local",
+                      cwd: pane.cwd,
                       filePath: node.path,
-                    })
-                  }
+                    } as Omit<EditorPaneType, "id">);
+                  }}
                   hideIndividualSandboxIndicator={hasUnifiedSandbox}
                 />
               </div>

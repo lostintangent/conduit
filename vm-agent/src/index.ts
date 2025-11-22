@@ -9,7 +9,9 @@ import {
   findGitRoot,
   getFileDiff,
   getGitBranches,
+  getGitDiffStats,
   getGitStatus,
+  getMostRecentFile,
   gitRevert,
   gitStage,
   gitUnstage,
@@ -102,6 +104,14 @@ class FileSystemAgent {
 
         case "git-diff":
           await this.handleGitDiff(ws, request);
+          break;
+
+        case "git-diff-stats":
+          await this.handleGitDiffStats(ws, request);
+          break;
+
+        case "git-most-recent-file":
+          await this.handleGitMostRecentFile(ws, request);
           break;
 
         case "git-repo-root":
@@ -341,6 +351,40 @@ class FileSystemAgent {
         request.id,
         error instanceof Error ? error.message : String(error),
         "GIT_DIFF_ERROR",
+      );
+    }
+  }
+
+  private async handleGitDiffStats(
+    ws: WebSocket,
+    request: Extract<FSRequest, { type: "git-diff-stats" }>,
+  ): Promise<void> {
+    try {
+      const stats = await getGitDiffStats(request.cwd);
+      this.sendSuccess(ws, request.id, stats);
+    } catch (error) {
+      this.sendError(
+        ws,
+        request.id,
+        error instanceof Error ? error.message : String(error),
+        "GIT_DIFF_STATS_ERROR",
+      );
+    }
+  }
+
+  private async handleGitMostRecentFile(
+    ws: WebSocket,
+    request: Extract<FSRequest, { type: "git-most-recent-file" }>,
+  ): Promise<void> {
+    try {
+      const file = await getMostRecentFile(request.cwd);
+      this.sendSuccess(ws, request.id, file);
+    } catch (error) {
+      this.sendError(
+        ws,
+        request.id,
+        error instanceof Error ? error.message : String(error),
+        "GIT_RECENT_FILE_ERROR",
       );
     }
   }

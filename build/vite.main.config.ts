@@ -4,7 +4,13 @@ import { defineConfig } from "vite";
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: ["electron", "node-pty", "@parcel/watcher"],
+      external: [
+        "electron",
+        "node-pty",
+        "@parcel/watcher",
+        "bufferutil",
+        "utf-8-validate",
+      ],
       output: {
         format: "es",
       },

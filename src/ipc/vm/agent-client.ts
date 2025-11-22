@@ -433,6 +433,25 @@ export class VMAgentClient {
       files,
     });
   }
+
+  async getGitDiffStats(cloudEnv: CloudEnvironment, cwd: string): Promise<any> {
+    const response = await this.sendRequest(cloudEnv, {
+      type: "git-diff-stats",
+      cwd,
+    });
+    return response;
+  }
+
+  async getMostRecentFile(
+    cloudEnv: CloudEnvironment,
+    cwd: string,
+  ): Promise<string | null> {
+    const response = await this.sendRequest(cloudEnv, {
+      type: "git-most-recent-file",
+      cwd,
+    });
+    return response as string | null;
+  }
 }
 
 // Singleton instance

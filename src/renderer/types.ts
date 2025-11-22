@@ -54,6 +54,10 @@ export type EditorPane = {
   filePath?: string;
   treeMode?: EditorTreeMode;
 
+  // Link to terminal session for cloud VM filesystem routing
+  sessionId?: string;
+  vmId: string | "local"; // VM ID for file operations ("local" for local filesystem, "vm-xxx" for cloud VM)
+
   agentSessionId?: string;
   agentBranchName?: string;
   agentBaseBranch?: string | null;

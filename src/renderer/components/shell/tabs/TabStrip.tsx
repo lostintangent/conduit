@@ -534,7 +534,7 @@ export const TabStrip = ({
 
   const handleOpenQuickFileExplorer = useCallback(() => {
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    onOpenQuickPane({ type: "editor", cwd });
+    onOpenQuickPane({ type: "editor", cwd, vmId: "local" });
   }, [activeTab, homeDirectory, onOpenQuickPane]);
 
   const handleRepoSubmit = useCallback(

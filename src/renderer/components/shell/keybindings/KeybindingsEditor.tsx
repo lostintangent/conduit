@@ -208,6 +208,7 @@ export function KeybindingsEditor({
       type: "editor",
       cwd: homeDirectory,
       filePath: keybindingsPath,
+      vmId: "local",
     });
     onClose();
   };

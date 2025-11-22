@@ -140,11 +140,14 @@ export async function createTerminal(
       const homeDirectory = process.env.HOME ?? process.cwd();
       const pty = spawnTerminalProcess(id, homeDirectory);
 
+      // For cloud VMs, use the remote home directory as the initial cwd
+      const remoteCwd = "/workspace";
+
       const session: TerminalInstance = {
         id,
         pty,
         lastProcessName: `VM ${vm.id}`,
-        cwd: homeDirectory,
+        cwd: remoteCwd,
         oscBuffer: "",
         cwdPoller: undefined,
         isPollingCwd: false,
@@ -244,6 +247,41 @@ function setupTerminalListeners(
             sessionId: id,
             state: "connected",
           });
+
+          // Deploy vm-agent to /.conduit/ for file system operations
+          (async () => {
+            try {
+              console.log(
+                `[VM Agent] Deploying file system agent to VM ${terminal.cloudEnvironment!.vmId}`,
+              );
+              const { deployFileSystemAgent } = await import(
+                "../../vm/agent-deployment"
+              );
+              const result = await deployFileSystemAgent(
+                terminal.cloudEnvironment!.vmId,
+              );
+
+              if (result.success) {
+                console.log(
+                  `[VM Agent] Successfully deployed agent, WebSocket port: ${result.wsPort}`,
+                );
+                terminal.cloudEnvironment!.agentPort = result.wsPort;
+
+                // Notify renderer about agent availability
+                sendToRenderer("terminal:agent-ready", {
+                  sessionId: id,
+                  agentPort: result.wsPort,
+                });
+              } else {
+                console.error(
+                  `[VM Agent] Failed to deploy agent: ${result.error}`,
+                );
+              }
+            } catch (error) {
+              console.error("[VM Agent] Error deploying agent:", error);
+            }
+          })();
+
           // Now that we're connected, send this data (the prompt) to the terminal
           if (terminal.isRendererReady) {
             sendToRenderer("terminal:data", { sessionId: id, data });

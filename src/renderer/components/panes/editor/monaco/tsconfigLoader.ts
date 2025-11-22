@@ -94,8 +94,8 @@ export async function loadTsConfigOptions(
       throw new Error("No tsconfig.json found");
     }
 
-    // Read and parse tsconfig.json
-    const content = await api.readFile(tsconfigPath);
+    // Read and parse tsconfig.json (local only, tsconfig not supported for VM)
+    const content = await api.readFile(tsconfigPath, "local");
     const opts: any = parseTsConfig(content);
 
     // Convert to Monaco-compatible options

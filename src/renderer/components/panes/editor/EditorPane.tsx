@@ -21,7 +21,6 @@ import type { EditorTreeMode } from "@/types";
 import { cleanGitError } from "@/utils/gitErrors";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { loader } from "@monaco-editor/react";
-import { ConduitDiffEditor } from "./ConduitDiffEditor";
 import type { FileDiffResult, FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
@@ -32,6 +31,7 @@ import {
   PanelLeftOpen,
   X,
 } from "lucide-react";
+import { ConduitDiffEditor } from "./ConduitDiffEditor";
 
 // CRITICAL: Import worker setup BEFORE any monaco contribution imports
 // This sets up MonacoEnvironment before languages try to register
@@ -222,6 +222,7 @@ type EditorPaneProps = {
   cwd: string;
   filePath?: string;
   paneId: string;
+  vmId: string | "local"; // VM ID for file operations routing
   agentSessionId?: string | null;
   treeMode?: EditorTreeMode;
   onFileChange?: (fileData: {
@@ -242,6 +243,7 @@ export function EditorPane({
   cwd,
   filePath,
   paneId,
+  vmId,
   agentSessionId,
   treeMode,
   onFileChange,
@@ -337,7 +339,7 @@ export function EditorPane({
     currentBranch,
     setIsBranchSelectorOpen,
     handleBranchSelect,
-  } = useGitStatus(cwd);
+  } = useGitStatus(cwd, vmId);
 
   // Use isInGitRepo directly - now cached in useGitStatus hook
   const shouldShowGitToolbar = isInGitRepo;
@@ -498,7 +500,7 @@ export function EditorPane({
   const handleStageFile = useCallback(
     async (relativePath: string) => {
       try {
-        await api.gitStage(cwd, [relativePath]);
+        await api.gitStage(cwd, [relativePath], vmId);
       } catch (error) {
         console.error("[EditorPane] Failed to stage file:", error);
         const { details } = cleanGitError(error);
@@ -510,14 +512,14 @@ export function EditorPane({
         });
       }
     },
-    [cwd],
+    [cwd, vmId],
   );
 
   // Unstage file (reset from index)
   const handleUnstageFile = useCallback(
     async (relativePath: string) => {
       try {
-        await api.gitUnstage(cwd, [relativePath]);
+        await api.gitUnstage(cwd, [relativePath], vmId);
       } catch (error) {
         console.error("[EditorPane] Failed to unstage file:", error);
         const { details } = cleanGitError(error);
@@ -529,14 +531,14 @@ export function EditorPane({
         });
       }
     },
-    [cwd],
+    [cwd, vmId],
   );
 
   // Revert file changes (discard changes)
   const handleDiscardFileChanges = useCallback(
     async (relativePath: string) => {
       try {
-        await api.gitRevert(cwd, [relativePath]);
+        await api.gitRevert(cwd, [relativePath], vmId);
       } catch (error) {
         console.error("[EditorPane] Failed to discard file changes:", error);
         const { details } = cleanGitError(error);
@@ -548,7 +550,7 @@ export function EditorPane({
         });
       }
     },
-    [cwd],
+    [cwd, vmId],
   );
 
   // Configure Monaco's TypeScript language service with project's tsconfig.json
@@ -863,7 +865,7 @@ export function EditorPane({
     // Check if file was externally modified before saving
     if (externallyModified && !externallyDeleted) {
       try {
-        const diskContent = await api.readFile(filePath);
+        const diskContent = await api.readFile(filePath, vmId);
         // If disk content differs from what we last read, show warning
         if (diskContent !== originalContent) {
           setShowExternalChangeWarning(true);
@@ -875,7 +877,7 @@ export function EditorPane({
     }
 
     try {
-      await api.writeFile(filePath, currentContent);
+      await api.writeFile(filePath, currentContent, vmId);
 
       // Update refs immediately (synchronous)
       originalContentRef.current = currentContent;
@@ -898,6 +900,7 @@ export function EditorPane({
     externallyDeleted,
     originalContent,
     onSave,
+    vmId,
   ]);
 
   // Handler to reload file from disk (discard local changes)
@@ -907,7 +910,7 @@ export function EditorPane({
     }
 
     try {
-      const content = await api.readFile(filePath);
+      const content = await api.readFile(filePath, vmId);
       setCurrentContent(content);
       setOriginalContent(content);
       setHasUnsavedChanges(false);
@@ -917,7 +920,7 @@ export function EditorPane({
     } catch (error) {
       console.error("Failed to reload file:", error);
     }
-  }, [filePath]);
+  }, [filePath, vmId]);
 
   // Handler to dismiss warning and keep local changes
   const handleDismissWarning = useCallback(() => {
@@ -931,7 +934,7 @@ export function EditorPane({
     }
 
     try {
-      await api.writeFile(filePath, currentContent);
+      await api.writeFile(filePath, currentContent, vmId);
       setOriginalContent(currentContent);
       setHasUnsavedChanges(false);
       setExternallyModified(false);
@@ -941,7 +944,7 @@ export function EditorPane({
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, currentContent, onSave]);
+  }, [filePath, currentContent, onSave, vmId]);
 
   // Find handler
   const handleFind = useCallback(() => {
@@ -1129,7 +1132,7 @@ export function EditorPane({
     setIsLoadingTree(true);
 
     api
-      .listDirectory(cwd)
+      .listDirectory(cwd, undefined, vmId)
       .then((tree) => {
         if (!cancelled) {
           setFileTree(tree);
@@ -1167,9 +1170,9 @@ export function EditorPane({
 
     // Subscribe to file watcher
     console.log(
-      `[EditorPane] Subscribing to file watcher: paneId=${paneId}, cwd=${cwd}`,
+      `[EditorPane] Subscribing to file watcher: paneId=${paneId}, cwd=${cwd}, vmId=${vmId}`,
     );
-    api.subscribeFileWatcher(cwd, paneId).catch((error) => {
+    api.subscribeFileWatcher(cwd, paneId, vmId).catch((error) => {
       console.error("[EditorPane] Failed to subscribe to file watcher:", error);
     });
 
@@ -1358,7 +1361,7 @@ export function EditorPane({
 
       // Refresh the root file tree
       api
-        .listDirectory(cwd)
+        .listDirectory(cwd, undefined, vmId)
         .then((tree) => {
           console.log(
             `[EditorPane] File tree refreshed successfully for cwd=${cwd}`,
@@ -1384,7 +1387,7 @@ export function EditorPane({
       }
 
       // Unsubscribe from file watcher
-      api.unsubscribeFileWatcher(cwd, paneId).catch((error) => {
+      api.unsubscribeFileWatcher(cwd, paneId, vmId).catch((error) => {
         console.error(
           "[EditorPane] Failed to unsubscribe from file watcher:",
           error,
@@ -1446,7 +1449,7 @@ export function EditorPane({
             });
           } else {
             // Fallback to regular file view if diff fetch fails
-            const fileContent = await api.readFile(node.path);
+            const fileContent = await api.readFile(node.path, vmId);
             setViewMode({ type: "editor" });
 
             onFileChange?.({
@@ -1457,7 +1460,7 @@ export function EditorPane({
           }
         } else {
           // Regular file view
-          const fileContent = await api.readFile(node.path);
+          const fileContent = await api.readFile(node.path, vmId);
           setViewMode({ type: "editor" });
 
           onFileChange?.({
@@ -1470,7 +1473,7 @@ export function EditorPane({
         console.error("Failed to open file:", error);
       }
     },
-    [onFileChange, gitStatus, fetchDiffForFile],
+    [onFileChange, gitStatus, fetchDiffForFile, vmId],
   );
 
   // Auto-open most recently modified file on mount (dirty files first, then tracked files)
@@ -1500,7 +1503,7 @@ export function EditorPane({
     const openMostRecentFile = async () => {
       try {
         // Single API call - server does all the stat work
-        const result = await api.getMostRecentFile(cwd);
+        const result = await api.getMostRecentFile(cwd, vmId);
 
         if (!result.success || !result.file || cancelled) {
           return;
@@ -1877,9 +1880,9 @@ export function EditorPane({
     try {
       // Write the original content back to the file
       if (viewMode.data.originalContent !== undefined) {
-        await api.writeFile(filePath, viewMode.data.originalContent);
+        await api.writeFile(filePath, viewMode.data.originalContent, vmId);
         // Reload the file to show the reverted content
-        const fileContent = await api.readFile(filePath);
+        const fileContent = await api.readFile(filePath, vmId);
         onFileChange?.({
           filePath,
           language: currentLanguage || "plaintext",
@@ -2411,6 +2414,7 @@ export function EditorPane({
                     baseBranch === null ? handleDiscardFileChanges : undefined
                   }
                   selectedFilePath={filePath || null}
+                  vmId={vmId}
                 />
               ) : (
                 <div className="text-foreground text-xs py-3">

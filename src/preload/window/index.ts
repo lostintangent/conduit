@@ -314,20 +314,20 @@ const conduitAPI = {
       stderr: string;
     }>,
 
-  gitStage: (cwd: string, files: string[], sessionId?: string) =>
-    ipcRenderer.invoke("agent:git-stage", cwd, files, sessionId) as Promise<{
+  gitStage: (cwd: string, files: string[], vmId: string | "local") =>
+    ipcRenderer.invoke("agent:git-stage", cwd, files, vmId) as Promise<{
       stdout: string;
       stderr: string;
     }>,
 
-  gitUnstage: (cwd: string, files: string[], sessionId?: string) =>
-    ipcRenderer.invoke("agent:git-unstage", cwd, files, sessionId) as Promise<{
+  gitUnstage: (cwd: string, files: string[], vmId: string | "local") =>
+    ipcRenderer.invoke("agent:git-unstage", cwd, files, vmId) as Promise<{
       stdout: string;
       stderr: string;
     }>,
 
-  gitRevert: (cwd: string, files: string[], sessionId?: string) =>
-    ipcRenderer.invoke("agent:git-revert", cwd, files, sessionId) as Promise<{
+  gitRevert: (cwd: string, files: string[], vmId: string | "local") =>
+    ipcRenderer.invoke("agent:git-revert", cwd, files, vmId) as Promise<{
       stdout: string;
       stderr: string;
     }>,
@@ -351,33 +351,33 @@ const conduitAPI = {
    *
    * @param directoryPath - The directory to list
    * @param rootPath - Optional root path for computing relative paths (used for git status matching)
-   * @param sessionId - Optional terminal session ID for VM filesystem routing
+   * @param vmId - VM ID for routing ('local' for local filesystem, 'vm-xxx' for cloud VM)
    */
   listDirectory: (
     directoryPath: string,
-    rootPath?: string,
-    sessionId?: string,
+    rootPath: string | undefined,
+    vmId: string | "local",
   ) =>
     ipcRenderer.invoke(
       "fs:list-directory",
       directoryPath,
       rootPath,
-      sessionId,
+      vmId,
     ) as Promise<FileTreeNode[]>,
 
-  readFile: (filePath: string, sessionId?: string) =>
-    ipcRenderer.invoke("fs:read-file", filePath, sessionId) as Promise<string>,
+  readFile: (filePath: string, vmId: string | "local") =>
+    ipcRenderer.invoke("fs:read-file", filePath, vmId) as Promise<string>,
 
-  writeFile: (filePath: string, content: string, sessionId?: string) =>
+  writeFile: (filePath: string, content: string, vmId: string | "local") =>
     ipcRenderer.invoke(
       "fs:write-file",
       filePath,
       content,
-      sessionId,
+      vmId,
     ) as Promise<void>,
 
-  deleteFile: (filePath: string, sessionId?: string) =>
-    ipcRenderer.invoke("fs:delete-file", filePath, sessionId) as Promise<void>,
+  deleteFile: (filePath: string, vmId: string | "local") =>
+    ipcRenderer.invoke("fs:delete-file", filePath, vmId) as Promise<void>,
 
   fileExists: (filePath: string) =>
     ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,
@@ -387,14 +387,23 @@ const conduitAPI = {
 
   /* File watcher methods (UI->main) */
 
-  subscribeFileWatcher: (cwd: string, paneId: string) =>
-    ipcRenderer.invoke("file-watcher:subscribe", cwd, paneId) as Promise<{
+  subscribeFileWatcher: (cwd: string, paneId: string, vmId: string | "local") =>
+    ipcRenderer.invoke("file-watcher:subscribe", cwd, paneId, vmId) as Promise<{
       success: boolean;
       error?: string;
     }>,
 
-  unsubscribeFileWatcher: (cwd: string, paneId: string) =>
-    ipcRenderer.invoke("file-watcher:unsubscribe", cwd, paneId) as Promise<{
+  unsubscribeFileWatcher: (
+    cwd: string,
+    paneId: string,
+    vmId: string | "local",
+  ) =>
+    ipcRenderer.invoke(
+      "file-watcher:unsubscribe",
+      cwd,
+      paneId,
+      vmId,
+    ) as Promise<{
       success: boolean;
       error?: string;
     }>,
@@ -426,21 +435,30 @@ const conduitAPI = {
       error?: string;
     }>,
 
-  setBaseBranch: (cwd: string, baseBranch: string | null) =>
-    ipcRenderer.invoke("git:set-base-branch", cwd, baseBranch) as Promise<{
+  setBaseBranch: (
+    cwd: string,
+    baseBranch: string | null,
+    vmId: string | "local",
+  ) =>
+    ipcRenderer.invoke(
+      "git:set-base-branch",
+      cwd,
+      baseBranch,
+      vmId,
+    ) as Promise<{
       success: boolean;
       error?: string;
     }>,
 
-  getBranches: (cwd: string) =>
-    ipcRenderer.invoke("git:get-branches", cwd) as Promise<{
+  getBranches: (cwd: string, vmId: string | "local") =>
+    ipcRenderer.invoke("git:get-branches", cwd, vmId) as Promise<{
       success: boolean;
       branches: Branch[];
       error?: string;
     }>,
 
-  getMostRecentFile: (cwd: string) =>
-    ipcRenderer.invoke("git:get-most-recent-file", cwd) as Promise<{
+  getMostRecentFile: (cwd: string, vmId: string | "local") =>
+    ipcRenderer.invoke("git:get-most-recent-file", cwd, vmId) as Promise<{
       success: boolean;
       file: string | null;
       error?: string;
