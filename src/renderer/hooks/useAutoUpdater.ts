@@ -54,8 +54,8 @@ export function useAutoUpdater() {
             {
               label: "Install and Restart",
               onClick: () => {
-                currentNotificationIdRef.current = null;
                 dismissNotification(availableNotification);
+                currentNotificationIdRef.current = null;
 
                 // Show a loading notification while waiting
                 // for the app to restart after installing the update.
