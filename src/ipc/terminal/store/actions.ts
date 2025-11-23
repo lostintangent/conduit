@@ -97,32 +97,77 @@ export async function createTerminal(
       }
 
       // Check if we have SSH keys and set them up in the VM (only for new VMs)
+      // Also deploy vm-agent in parallel - both operations are independent
       let useSSHKey = false;
+      let agentPort: number | undefined;
 
       if (!options?.vmId || options.vmId === "local") {
         const keysAvailable = await hasSSHKeys();
 
-        if (keysAvailable) {
-          console.log("[SSH] Found SSH keys, installing in VM...");
-          const { loadConfig } = await import("../../vm/config");
-          const config = await loadConfig();
-          useSSHKey = await setupSSHKeyInVM(
-            vm.id,
-            config.managerUrl,
-            config.token,
-          );
+        // Run SSH key setup and agent deployment in parallel
+        const [sshSetupResult, agentDeployResult] = await Promise.allSettled([
+          // SSH key setup
+          (async () => {
+            if (keysAvailable) {
+              console.log("[SSH] Found SSH keys, installing in VM...");
+              const { loadConfig } = await import("../../vm/config");
+              const config = await loadConfig();
+              const success = await setupSSHKeyInVM(
+                vm.id,
+                config.managerUrl,
+                config.token,
+              );
 
-          if (useSSHKey) {
-            console.log("[SSH] SSH key authentication enabled");
-          } else {
-            console.log(
-              "[SSH] Failed to setup SSH key, will use password authentication",
-            );
-          }
-        } else {
-          console.log(
-            "[SSH] No SSH keys found in keys/ folder, will use password authentication",
-          );
+              if (success) {
+                console.log("[SSH] SSH key authentication enabled");
+              } else {
+                console.log(
+                  "[SSH] Failed to setup SSH key, will use password authentication",
+                );
+              }
+              return success;
+            } else {
+              console.log(
+                "[SSH] No SSH keys found in keys/ folder, will use password authentication",
+              );
+              return false;
+            }
+          })(),
+          // VM agent deployment
+          (async () => {
+            try {
+              console.log(
+                `[VM Agent] Deploying file system agent to VM ${vm.id}`,
+              );
+              const { deployFileSystemAgent } = await import(
+                "../../vm/agent-deployment"
+              );
+              const result = await deployFileSystemAgent(vm.id);
+
+              if (result.success) {
+                console.log(
+                  `[VM Agent] Successfully deployed agent, WebSocket port: ${result.wsPort}`,
+                );
+                return result.wsPort;
+              } else {
+                console.error(
+                  `[VM Agent] Failed to deploy agent: ${result.error}`,
+                );
+                return undefined;
+              }
+            } catch (error) {
+              console.error("[VM Agent] Error deploying agent:", error);
+              return undefined;
+            }
+          })(),
+        ]);
+
+        // Extract results
+        if (sshSetupResult.status === "fulfilled") {
+          useSSHKey = sshSetupResult.value;
+        }
+        if (agentDeployResult.status === "fulfilled") {
+          agentPort = agentDeployResult.value;
         }
       } else {
         // For existing VMs, assume SSH key is already set up if available
@@ -172,11 +217,20 @@ export async function createTerminal(
           repoName: options.githubRepo?.name,
           localBranch: options.githubRepo?.branch,
           branchExistsOnRemote: options.githubRepo?.branchExistsOnRemote,
+          agentPort,
         },
       };
 
       storeTerminal(session);
       setupTerminalListeners(session, sendToRenderer);
+
+      // Notify renderer about agent availability if it was deployed
+      if (agentPort) {
+        sendToRenderer("terminal:agent-ready", {
+          sessionId: id,
+          agentPort: agentPort,
+        });
+      }
 
       // Send initial connecting state to renderer
       sendToRenderer("terminal:ssh-state", {
@@ -247,40 +301,6 @@ function setupTerminalListeners(
             sessionId: id,
             state: "connected",
           });
-
-          // Deploy vm-agent to /.conduit/ for file system operations
-          (async () => {
-            try {
-              console.log(
-                `[VM Agent] Deploying file system agent to VM ${terminal.cloudEnvironment!.vmId}`,
-              );
-              const { deployFileSystemAgent } = await import(
-                "../../vm/agent-deployment"
-              );
-              const result = await deployFileSystemAgent(
-                terminal.cloudEnvironment!.vmId,
-              );
-
-              if (result.success) {
-                console.log(
-                  `[VM Agent] Successfully deployed agent, WebSocket port: ${result.wsPort}`,
-                );
-                terminal.cloudEnvironment!.agentPort = result.wsPort;
-
-                // Notify renderer about agent availability
-                sendToRenderer("terminal:agent-ready", {
-                  sessionId: id,
-                  agentPort: result.wsPort,
-                });
-              } else {
-                console.error(
-                  `[VM Agent] Failed to deploy agent: ${result.error}`,
-                );
-              }
-            } catch (error) {
-              console.error("[VM Agent] Error deploying agent:", error);
-            }
-          })();
 
           // Now that we're connected, send this data (the prompt) to the terminal
           if (terminal.isRendererReady) {
