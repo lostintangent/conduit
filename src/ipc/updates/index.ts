@@ -90,7 +90,11 @@ export function initializeUpdateHandlers(
 
     // Set up timer to check for updates every 2 hours
     updateCheckTimer = setInterval(() => {
-      autoUpdater.checkForUpdates();
+      try {
+        autoUpdater.checkForUpdates();
+      } catch (error) {
+        console.error("Failed to check for updates:", error);
+      }
     }, CHECK_INTERVAL_MS);
   }
 }
