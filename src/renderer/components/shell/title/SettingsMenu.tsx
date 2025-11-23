@@ -1,6 +1,7 @@
 import { useAtomValue } from "jotai";
 import type { LucideIcon } from "lucide-react";
 import {
+  Bot,
   Fullscreen,
   Keyboard,
   Monitor,
@@ -74,6 +75,7 @@ export function SettingsMenu({
     ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
   );
   const paneActionsCmd = useCommand(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS);
+  const agentsCmd = useCommand(ApplicationCommands.VIEW_OPEN_AGENTS);
 
   return (
     <DropdownMenu>
@@ -220,6 +222,14 @@ export function SettingsMenu({
         >
           <Palette className="w-4 h-4 mr-2" />
           {paneActionsCmd.title}
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={agentsCmd.execute}
+          title={getCommandDisplayTitle(agentsCmd)}
+        >
+          <Bot className="w-4 h-4 mr-2" />
+          {agentsCmd.title}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

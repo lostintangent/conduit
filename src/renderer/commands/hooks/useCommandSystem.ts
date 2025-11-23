@@ -42,6 +42,7 @@ export interface UseCommandSystemOptions {
   // UI state setters
   setShowKeybindingsEditor: (show: boolean) => void;
   setShowPaneActionsEditor: (show: boolean) => void;
+  setShowAgentsEditor: (show: boolean) => void;
   setIsCommandPaletteOpenOverride: (open: boolean) => void;
   setShowRenameWorkspaceDialog: (show: boolean) => void;
   setShowWorkspacePicker: (show: boolean) => void;
@@ -78,6 +79,7 @@ export function useCommandSystem(
     hasLastWorkspace,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
+    setShowAgentsEditor,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -158,6 +160,9 @@ export function useCommandSystem(
         openPaneActions: () => {
           setShowPaneActionsEditor(true);
         },
+        openAgents: () => {
+          setShowAgentsEditor(true);
+        },
       },
 
       // Agent service
@@ -178,6 +183,7 @@ export function useCommandSystem(
       // UI state setters
       setShowKeybindingsEditor,
       setShowPaneActionsEditor,
+      setShowAgentsEditor,
       setIsCommandPaletteOpenOverride,
       setShowRenameWorkspaceDialog,
       setShowWorkspacePicker,
@@ -200,6 +206,7 @@ export function useCommandSystem(
     workspaceName,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
+    setShowAgentsEditor,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
