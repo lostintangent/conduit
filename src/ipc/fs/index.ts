@@ -148,27 +148,53 @@ export function initializeFsHandlers() {
     }
   });
 
-  ipcMain.handle("fs:file-exists", async (_, filePath: string) => {
-    try {
-      await fs.access(filePath);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  });
+  ipcMain.handle(
+    "fs:file-exists",
+    async (_, filePath: string, vmId: string | "local") => {
+      try {
+        // Check if this is for a cloud VM
+        if (vmId !== "local") {
+          const cloudEnv = getCloudEnvironmentByVmId(vmId);
+          if (cloudEnv) {
+            const vmAgent = getVMAgentClient();
+            return await vmAgent.fileExists(cloudEnv, filePath);
+          }
+        }
 
-  ipcMain.handle("fs:get-stats", async (_, filePath: string) => {
-    try {
-      const stats = await fs.stat(filePath);
-      return {
-        mtime: stats.mtime.getTime(),
-        size: stats.size,
-        isFile: stats.isFile(),
-        isDirectory: stats.isDirectory(),
-      };
-    } catch (error) {
-      console.error("Failed to get file stats", filePath, error);
-      throw error;
-    }
-  });
+        // Local filesystem
+        await fs.access(filePath);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "fs:get-stats",
+    async (_, filePath: string, vmId: string | "local" = "local") => {
+      try {
+        // Check if this is for a cloud VM
+        if (vmId !== "local") {
+          const cloudEnv = getCloudEnvironmentByVmId(vmId);
+          if (cloudEnv) {
+            const vmAgent = getVMAgentClient();
+            return await vmAgent.getFileStats(cloudEnv, filePath);
+          }
+        }
+
+        // Local filesystem
+        const stats = await fs.stat(filePath);
+        return {
+          mtime: stats.mtime.getTime(),
+          size: stats.size,
+          isFile: stats.isFile(),
+          isDirectory: stats.isDirectory(),
+        };
+      } catch (error) {
+        console.error("Failed to get file stats", filePath, error);
+        throw error;
+      }
+    },
+  );
 }

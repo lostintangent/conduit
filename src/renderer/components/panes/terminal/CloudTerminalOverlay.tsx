@@ -70,7 +70,7 @@ export const CloudTerminalOverlay = ({
 
       // Reconnect to the existing VM
       const result = await api.createTerminal({
-        existingVMId: vmId ?? undefined,
+        vmId: vmId ?? "local",
       });
 
       if (!result) {

@@ -1,6 +1,8 @@
 import { WebSocket, WebSocketServer } from "ws";
 import {
   deleteFile,
+  fileExists,
+  getFileStats,
   listDirectory,
   readFile,
   writeFile,
@@ -76,6 +78,14 @@ class FileSystemAgent {
 
         case "delete-file":
           await this.handleDeleteFile(ws, request);
+          break;
+
+        case "file-exists":
+          await this.handleFileExists(ws, request);
+          break;
+
+        case "file-stats":
+          await this.handleFileStats(ws, request);
           break;
 
         case "list-directory":
@@ -194,6 +204,40 @@ class FileSystemAgent {
         request.id,
         error instanceof Error ? error.message : String(error),
         "DELETE_ERROR",
+      );
+    }
+  }
+
+  private async handleFileExists(
+    ws: WebSocket,
+    request: Extract<FSRequest, { type: "file-exists" }>,
+  ): Promise<void> {
+    try {
+      const exists = await fileExists(request.path);
+      this.sendSuccess(ws, request.id, exists);
+    } catch (error) {
+      this.sendError(
+        ws,
+        request.id,
+        error instanceof Error ? error.message : String(error),
+        "FILE_EXISTS_ERROR",
+      );
+    }
+  }
+
+  private async handleFileStats(
+    ws: WebSocket,
+    request: Extract<FSRequest, { type: "file-stats" }>,
+  ): Promise<void> {
+    try {
+      const stats = await getFileStats(request.path);
+      this.sendSuccess(ws, request.id, stats);
+    } catch (error) {
+      this.sendError(
+        ws,
+        request.id,
+        error instanceof Error ? error.message : String(error),
+        "FILE_STATS_ERROR",
       );
     }
   }

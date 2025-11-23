@@ -39,6 +39,36 @@ export async function deleteFile(filePath: string): Promise<void> {
 }
 
 /**
+ * Check if a file exists
+ */
+export async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get file statistics
+ */
+export async function getFileStats(filePath: string): Promise<{
+  mtime: number;
+  size: number;
+  isFile: boolean;
+  isDirectory: boolean;
+}> {
+  const stats = await fs.stat(filePath);
+  return {
+    mtime: stats.mtime.getTime(),
+    size: stats.size,
+    isFile: stats.isFile(),
+    isDirectory: stats.isDirectory(),
+  };
+}
+
+/**
  * List directory contents recursively
  */
 export async function listDirectory(

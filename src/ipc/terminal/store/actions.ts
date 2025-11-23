@@ -50,27 +50,27 @@ export async function createTerminal(
 ) {
   console.log("[createTerminal] Function called with options:", {
     isRemoteVM: options?.isRemoteVM,
-    existingVMId: options?.existingVMId,
+    vmId: options?.vmId,
     hasGithubRepo: !!options?.githubRepo,
   });
 
   const id = randomUUID();
 
   // Check if this should be a remote VM session
-  if (options?.isRemoteVM || options?.existingVMId) {
+  if (options?.isRemoteVM || (options?.vmId && options.vmId !== "local")) {
     console.log(
-      options?.existingVMId
-        ? `[VM] Connecting to existing VM ${options.existingVMId}`
+      options?.vmId && options.vmId !== "local"
+        ? `[VM] Connecting to existing VM ${options.vmId}`
         : "[VM] Creating remote VM terminal session",
     );
 
     try {
       let vm;
 
-      if (options?.existingVMId) {
+      if (options?.vmId && options.vmId !== "local") {
         // Connect to an existing VM
         const { getVM } = await import("../../vm/client");
-        vm = await getVM(options.existingVMId);
+        vm = await getVM(options.vmId);
         console.log(`[VM] Connected to existing VM ${vm.id}`);
       } else {
         // Create the VM with conduitVM label
@@ -99,7 +99,7 @@ export async function createTerminal(
       // Check if we have SSH keys and set them up in the VM (only for new VMs)
       let useSSHKey = false;
 
-      if (!options?.existingVMId) {
+      if (!options?.vmId || options.vmId === "local") {
         const keysAvailable = await hasSSHKeys();
 
         if (keysAvailable) {

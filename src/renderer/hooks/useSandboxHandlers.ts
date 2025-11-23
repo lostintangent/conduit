@@ -1,12 +1,12 @@
 import {
+  enqueueNotification,
+  updateNotification,
+} from "@/store/actions/notifications";
+import {
   completeAgentSession,
   deleteAgentSession,
   splitPane,
 } from "@/store/actions/pane";
-import {
-  enqueueNotification,
-  updateNotification,
-} from "@/store/actions/notifications";
 import { useCallback } from "react";
 
 type UseSandboxHandlersOptions = {
@@ -110,7 +110,7 @@ export async function handleForkVMAction(
 
     await splitPane(tabId, paneId, "column", false, {
       terminalOptions: {
-        existingVMId: forkedVM.id,
+        vmId: forkedVM.id,
       },
     });
 

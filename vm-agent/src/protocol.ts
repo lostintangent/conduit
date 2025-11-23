@@ -7,6 +7,8 @@ export type FSRequest =
   | ReadFileRequest
   | WriteFileRequest
   | DeleteFileRequest
+  | FileExistsRequest
+  | FileStatsRequest
   | ListDirectoryRequest
   | WatchDirectoryRequest
   | UnwatchDirectoryRequest
@@ -36,6 +38,18 @@ export type WriteFileRequest = {
 
 export type DeleteFileRequest = {
   type: "delete-file";
+  id: string;
+  path: string;
+};
+
+export type FileExistsRequest = {
+  type: "file-exists";
+  id: string;
+  path: string;
+};
+
+export type FileStatsRequest = {
+  type: "file-stats";
   id: string;
   path: string;
 };

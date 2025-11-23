@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use hoisted pattern to ensure all mocks are set up before modules load
 const {
@@ -233,7 +233,7 @@ describe("useSandboxHandlers", () => {
         false,
         {
           terminalOptions: {
-            existingVMId: "vm-2",
+            vmId: "vm-2",
           },
         },
       );
@@ -350,7 +350,7 @@ describe("useSandboxHandlers", () => {
         false,
         {
           terminalOptions: {
-            existingVMId: "vm-2",
+            vmId: "vm-2",
           },
         },
       );

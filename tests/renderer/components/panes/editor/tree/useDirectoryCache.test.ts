@@ -79,8 +79,8 @@ describe("useDirectoryCache", () => {
 
       expect(mockListDirectory).toHaveBeenCalledWith(
         "/repo/src",
-        "/repo",
         undefined,
+        "/repo",
       );
       expect(result.current.children).toHaveLength(3);
       expect(result.current.isResolved).toBe(true);
@@ -107,8 +107,8 @@ describe("useDirectoryCache", () => {
 
       expect(mockListDirectory).toHaveBeenCalledWith(
         "/repo/src",
-        "/repo",
         undefined,
+        "/repo",
       );
       expect(result.current.children).toHaveLength(3);
     });
@@ -398,8 +398,8 @@ describe("useDirectoryCache", () => {
 
       expect(mockListDirectory).toHaveBeenCalledWith(
         "/repo/src",
-        "/repo",
         undefined,
+        "/repo",
       );
       expect(result.current.children).toHaveLength(3);
     });

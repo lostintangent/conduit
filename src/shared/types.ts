@@ -139,7 +139,7 @@ export interface CloudTerminalOptions {
 
 export type TerminalCreateOptions = {
   cwd?: string;
-  existingVMId?: string; // Connect to an existing VM instead of creating one
+  vmId?: string | "local"; // VM ID to connect to, or "local" for local terminal
   vmIdleTimeout?: number;
 } & CloudTerminalOptions;
 

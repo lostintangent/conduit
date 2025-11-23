@@ -299,6 +299,35 @@ export class VMAgentClient {
     });
   }
 
+  async fileExists(cloudEnv: CloudEnvironment, path: string): Promise<boolean> {
+    const response = await this.sendRequest(cloudEnv, {
+      type: "file-exists",
+      path,
+    });
+    return response as boolean;
+  }
+
+  async getFileStats(
+    cloudEnv: CloudEnvironment,
+    path: string,
+  ): Promise<{
+    mtime: number;
+    size: number;
+    isFile: boolean;
+    isDirectory: boolean;
+  }> {
+    const response = await this.sendRequest(cloudEnv, {
+      type: "file-stats",
+      path,
+    });
+    return response as {
+      mtime: number;
+      size: number;
+      isFile: boolean;
+      isDirectory: boolean;
+    };
+  }
+
   async listDirectory(
     cloudEnv: CloudEnvironment,
     path: string,

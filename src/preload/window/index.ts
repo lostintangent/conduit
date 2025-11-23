@@ -379,11 +379,11 @@ const conduitAPI = {
   deleteFile: (filePath: string, vmId: string | "local") =>
     ipcRenderer.invoke("fs:delete-file", filePath, vmId) as Promise<void>,
 
-  fileExists: (filePath: string) =>
-    ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,
+  fileExists: (filePath: string, vmId: string | "local") =>
+    ipcRenderer.invoke("fs:file-exists", filePath, vmId) as Promise<boolean>,
 
-  getFileStats: (filePath: string) =>
-    ipcRenderer.invoke("fs:get-stats", filePath) as Promise<FileStats>,
+  getFileStats: (filePath: string, vmId: string | "local" = "local") =>
+    ipcRenderer.invoke("fs:get-stats", filePath, vmId) as Promise<FileStats>,
 
   /* File watcher methods (UI->main) */
 

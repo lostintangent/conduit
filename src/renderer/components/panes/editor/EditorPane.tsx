@@ -1218,8 +1218,9 @@ export function EditorPane({
             const currentFilePath = filePathRef.current;
             if (!currentFilePath) return;
 
+            // Check if file still exists before reading
             api
-              .fileExists(currentFilePath)
+              .fileExists(currentFilePath, vmId)
               .then((exists) => {
                 if (!exists) {
                   // File was deleted during debounce
@@ -1266,17 +1267,19 @@ export function EditorPane({
                           error,
                         );
                         // Handle file deletion or other errors
-                        api.fileExists(currentFilePath).then((stillExists) => {
-                          if (!stillExists) {
-                            setExternallyDeleted(true);
-                            setShowExternalChangeWarning(true);
-                          }
-                        });
+                        api
+                          .fileExists(currentFilePath, vmId)
+                          .then((stillExists) => {
+                            if (!stillExists) {
+                              setExternallyDeleted(true);
+                              setShowExternalChangeWarning(true);
+                            }
+                          });
                       });
                   } else {
                     // In editor mode: just reload the file (existing behavior)
                     api
-                      .readFile(currentFilePath)
+                      .readFile(currentFilePath, vmId)
                       .then((content) => {
                         setCurrentContent(content);
                         setOriginalContent(content);
@@ -1289,13 +1292,14 @@ export function EditorPane({
                           "[EditorPane] Failed to reload file:",
                           error,
                         );
-                        // If read fails, file might have been deleted
-                        api.fileExists(currentFilePath).then((stillExists) => {
-                          if (!stillExists) {
-                            setExternallyDeleted(true);
-                            setShowExternalChangeWarning(true);
-                          }
-                        });
+                        api
+                          .fileExists(currentFilePath, vmId)
+                          .then((stillExists) => {
+                            if (!stillExists) {
+                              setExternallyDeleted(true);
+                              setShowExternalChangeWarning(true);
+                            }
+                          });
                       });
                   }
                 } else {
