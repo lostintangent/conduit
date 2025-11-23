@@ -36,7 +36,9 @@ export function useAutoUpdater() {
       if (currentNotificationIdRef.current) {
         // Update the existing notification with the latest version info
         updateNotification(currentNotificationIdRef.current, {
+          kind: "success",
           message: `Update available (${releaseName})`,
+          persistent: true,
           actions: [
             {
               label: "Install and Restart",
