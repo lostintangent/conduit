@@ -78,6 +78,7 @@ export function useAutoUpdater() {
 
     return () => {
       unsubscribe();
+      currentNotificationIdRef.current = null;
     };
   }, []);
 }
