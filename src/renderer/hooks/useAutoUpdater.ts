@@ -11,6 +11,24 @@ export function useAutoUpdater() {
   const currentNotificationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const handleInstallAndRestart = (notificationId: string | null) => {
+      if (notificationId) {
+        dismissNotification(notificationId);
+      }
+
+      currentNotificationIdRef.current = null;
+
+      // Show a loading notification while waiting
+      // for the app to restart after installing the update.
+      enqueueNotification({
+        kind: "info",
+        message: "Installing update and restarting...",
+        persistent: true,
+      });
+
+      updates.installAndRestart();
+    };
+
     const unsubscribe = updates.onStatusChanged(({ status, releaseName }) => {
       if (status !== "downloaded") return;
 
@@ -23,22 +41,7 @@ export function useAutoUpdater() {
             {
               label: "Install and Restart",
               onClick: () => {
-                const notificationId = currentNotificationIdRef.current;
-                currentNotificationIdRef.current = null;
-
-                if (notificationId) {
-                  dismissNotification(notificationId);
-                }
-
-                // Show a loading notification while waiting
-                // for the app to restart after installing the update.
-                enqueueNotification({
-                  kind: "info",
-                  message: "Installing update and restarting...",
-                  persistent: true,
-                });
-
-                updates.installAndRestart();
+                handleInstallAndRestart(currentNotificationIdRef.current);
               },
             },
           ],
@@ -54,18 +57,7 @@ export function useAutoUpdater() {
             {
               label: "Install and Restart",
               onClick: () => {
-                dismissNotification(availableNotification);
-                currentNotificationIdRef.current = null;
-
-                // Show a loading notification while waiting
-                // for the app to restart after installing the update.
-                enqueueNotification({
-                  kind: "info",
-                  message: "Installing update and restarting...",
-                  persistent: true,
-                });
-
-                updates.installAndRestart();
+                handleInstallAndRestart(availableNotification);
               },
             },
           ],
