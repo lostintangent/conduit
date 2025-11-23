@@ -3,12 +3,15 @@ import { app, autoUpdater, ipcMain } from "electron";
 import { SendToRendererFn } from "../terminal/types";
 
 const SUPPORTED_PLATFORMS = new Set(["darwin"]);
+const CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
+
 let currentState: UpdateState = {
   status: determineSupport() ? "idle" : "disabled",
 };
 
 let sendToRenderer: SendToRendererFn;
 let stateListener: () => void;
+let updateCheckTimer: NodeJS.Timeout | null = null;
 
 function determineSupport() {
   return app.isPackaged && SUPPORTED_PLATFORMS.has(process.platform);
@@ -82,10 +85,23 @@ export function initializeUpdateHandlers(
 
     ipcMain.handle("updates:install", () => autoUpdater.quitAndInstall());
 
+    // Check for updates immediately
     autoUpdater.checkForUpdates();
+
+    // Set up timer to check for updates every 2 hours
+    updateCheckTimer = setInterval(() => {
+      autoUpdater.checkForUpdates();
+    }, CHECK_INTERVAL_MS);
   }
 }
 
 export function getUpdateStatus() {
   return currentState.status;
+}
+
+export function cleanupUpdateHandlers() {
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer);
+    updateCheckTimer = null;
+  }
 }
