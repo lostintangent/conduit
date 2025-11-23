@@ -1,5 +1,5 @@
 import type { FileTreeNode, GitFileStatus } from "@shared/types";
-import { ExternalLink, FileText } from "lucide-react";
+import { ExternalLink, FileText, Plus, Minus, RotateCcw } from "lucide-react";
 import { useCallback } from "react";
 import { GitStatusBadge, getStatusConfig } from "./GitStatusBadge";
 
@@ -8,9 +8,22 @@ type FileItemProps = {
   gitStatus?: GitFileStatus;
   onSelect?: (node: FileTreeNode) => void;
   onOpen?: (node: FileTreeNode) => void;
+  onStageFile?: (relativePath: string) => void;
+  onUnstageFile?: (relativePath: string) => void;
+  onRevertFile?: (relativePath: string) => void;
+  selectedFilePath?: string | null;
 };
 
-export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
+export function FileItem({
+  node,
+  gitStatus,
+  onSelect,
+  onOpen,
+  onStageFile,
+  onUnstageFile,
+  onRevertFile,
+  selectedFilePath,
+}: FileItemProps) {
   const handleClick = useCallback(() => {
     onSelect?.(node);
   }, [node, onSelect]);
@@ -23,17 +36,48 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
     [node, onOpen],
   );
 
+  const handleStage = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onStageFile?.(node.relativePath);
+    },
+    [node.relativePath, onStageFile],
+  );
+
+  const handleUnstage = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onUnstageFile?.(node.relativePath);
+    },
+    [node.relativePath, onUnstageFile],
+  );
+
+  const handleRevert = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRevertFile?.(node.relativePath);
+    },
+    [node.relativePath, onRevertFile],
+  );
+
   // Get git status color for text and icon
   const config = gitStatus ? getStatusConfig(gitStatus) : null;
   const colorClass = config?.textColorClass || "text-foreground";
   const iconColorClass = config?.textColorClass || "text-foreground";
+
+  // Check if this file is currently selected
+  const isSelected = selectedFilePath === node.path;
 
   return (
     <li>
       <button
         type="button"
         onClick={handleClick}
-        className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition hover:bg-foreground/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+        className={`group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer ${
+          isSelected
+            ? "bg-accent/20 hover:bg-accent/25"
+            : "hover:bg-foreground/10"
+        }`}
       >
         <FileText className={`shrink-0 ${iconColorClass}`} size={12} />
         <span
@@ -43,6 +87,67 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
           {node.name}
         </span>
         <div className="shrink-0 flex items-center gap-1">
+          {/* Stage action (only for unstaged files) */}
+          {onStageFile && gitStatus && !gitStatus.staged && (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleStage}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleStage(e as any);
+                }
+              }}
+              className="opacity-0 group-hover:opacity-100 group-hover:text-foreground group-focus-within:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+              title="Stage changes"
+              aria-label="Stage changes"
+            >
+              <Plus size={12} />
+            </div>
+          )}
+
+          {/* Unstage action (only for staged files) */}
+          {onUnstageFile && gitStatus && gitStatus.staged && (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleUnstage}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleUnstage(e as any);
+                }
+              }}
+              className="opacity-0 group-hover:opacity-100 group-hover:text-foreground group-focus-within:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+              title="Unstage changes"
+              aria-label="Unstage changes"
+            >
+              <Minus size={12} />
+            </div>
+          )}
+
+          {/* Revert action */}
+          {onRevertFile && gitStatus && (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleRevert}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleRevert(e as any);
+                }
+              }}
+              className="opacity-0 group-hover:opacity-100 group-hover:text-foreground group-focus-within:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+              title="Discard changes"
+              aria-label="Discard changes"
+            >
+              <RotateCcw size={12} />
+            </div>
+          )}
+
+          {/* Open in quick pane */}
           <div
             role="button"
             tabIndex={0}
@@ -59,6 +164,7 @@ export function FileItem({ node, gitStatus, onSelect, onOpen }: FileItemProps) {
           >
             <ExternalLink size={12} />
           </div>
+
           {gitStatus && (
             <div
               className="flex items-center justify-center"

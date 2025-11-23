@@ -3,8 +3,13 @@ import { cn } from "@/utils";
 import type { Workspace } from "@shared/types";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Button } from "../../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../ui/dialog";
 
 type WorkspacePickerDialog = {
   isOpen: boolean;

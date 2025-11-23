@@ -36,6 +36,8 @@ export type UserSettings = {
   terminalPromptAgent?: string; // Deprecated: kept for backward compatibility
   terminalPromptBufferLines?: number;
   agents?: AgentConfig[];
+  terminalFontFamily?: string;
+  terminalFontSize?: number;
 
   // Editor settings
   useConduitAsEditor: boolean;
@@ -261,6 +263,10 @@ export type GitFileStatus = {
     | "ignored";
   staged: boolean;
   relativePath: string;
+
+  // Optional separate staging statuses to handle cases like "AD" (added in index, deleted in working tree)
+  stagedStatus?: "modified" | "added" | "deleted" | "renamed" | "copied";
+  unstagedStatus?: "modified" | "added" | "deleted" | "untracked";
 };
 
 /**

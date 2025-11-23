@@ -1,4 +1,16 @@
 import { Pane } from "@/types";
+import type {
+  BrowserCaptureArgs,
+  BrowserClickArgs,
+  BrowserFocusArgs,
+  BrowserHoverArgs,
+  BrowserKeysArgs,
+  BrowserQueryArgs,
+  BrowserQueryResult,
+  BrowserScrollArgs,
+  BrowserTypeArgs,
+  BrowserWaitArgs,
+} from "./browser";
 
 export const CLI_COMMAND_NAME = "conduit";
 
@@ -39,24 +51,39 @@ export type PaneSplitTarget = (typeof PANE_SPLIT_TARGETS)[number];
 
 export type CliCommand =
   // Pane commands
-  | DefineCommand<"list-panes", { paneType: PaneType }, Pane[]>
-  | DefineCommand<"move-pane", { direction: PaneMoveTarget }>
+  | DefineCommand<"pane-list", { paneType: PaneType }, Pane[]>
+  | DefineCommand<"pane-move", { direction: PaneMoveTarget }>
   | DefineCommand<
-      "split-pane",
+      "pane-split",
       { direction: PaneSplitTarget; paneType: PaneSplitType }
     >
-  | DefineCommand<"close-pane", { closeTab: boolean }>
-  | DefineCommand<"focus-pane">
+  | DefineCommand<"pane-close", { closeTab: boolean }>
+  | DefineCommand<"pane-focus">
   // Tab commands
-  | DefineCommand<"new-tab">
-  | DefineCommand<"duplicate-tab">
+  | DefineCommand<"tab-new">
+  | DefineCommand<"tab-duplicate">
   // Terminal commands
-  | DefineCommand<"read-terminal", { sessionId: string }, string>
-  | DefineCommand<"write-terminal", { sessionId: string; input: string }>
+  | DefineCommand<"terminal-read", { sessionId: string }, string>
+  | DefineCommand<
+      "terminal-write",
+      { sessionId: string; input: string; enter?: boolean }
+    >
   // Browser commands
-  | DefineCommand<"capture-browser", { paneId: string }, string>
+  | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
+  | DefineCommand<"browser-navigate", { paneId: string; url: string }>
+  | DefineCommand<"browser-back", { paneId: string }>
+  | DefineCommand<"browser-forward", { paneId: string }>
+  | DefineCommand<"browser-refresh", { paneId: string }>
+  | DefineCommand<"browser-query", BrowserQueryArgs, BrowserQueryResult>
+  | DefineCommand<"browser-click", BrowserClickArgs>
+  | DefineCommand<"browser-hover", BrowserHoverArgs>
+  | DefineCommand<"browser-focus", BrowserFocusArgs>
+  | DefineCommand<"browser-type", BrowserTypeArgs>
+  | DefineCommand<"browser-keys", BrowserKeysArgs>
+  | DefineCommand<"browser-scroll", BrowserScrollArgs>
+  | DefineCommand<"browser-wait", BrowserWaitArgs>
   // Editor commands
-  | DefineCommand<"open-file", { cwd: string; filePath?: string }>;
+  | DefineCommand<"editor-open", { cwd: string; filePath?: string }>;
 
 /* Response types (Renderer -> IPC -> CLI) */
 

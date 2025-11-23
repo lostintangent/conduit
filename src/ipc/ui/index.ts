@@ -245,4 +245,25 @@ export function initializeUIHandlers(window: BrowserWindow) {
 
     return result.filePaths[0];
   });
+
+  // Window control handlers
+  ipcMain.on("ui:window-minimize", () => {
+    window.minimize();
+  });
+
+  ipcMain.on("ui:window-maximize", () => {
+    if (window.isMaximized()) {
+      window.unmaximize();
+    } else {
+      window.maximize();
+    }
+  });
+
+  ipcMain.on("ui:window-close", () => {
+    window.close();
+  });
+
+  ipcMain.handle("ui:window-is-maximized", () => {
+    return window.isMaximized();
+  });
 }

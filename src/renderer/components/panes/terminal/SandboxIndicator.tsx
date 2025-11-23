@@ -1,7 +1,12 @@
 import { applicationModeAtom } from "@/store/atoms";
 import { getHashedColor } from "@/utils/theme";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
-import { Check, Cloud, GitFork, Trash2 } from "lucide-react";
+import { Cloud, GitFork, GitMerge, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
 type SandboxIndicatorProps = {
@@ -85,22 +90,30 @@ export function SandboxIndicator({
           className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur"
           style={overlayStyle}
         >
-          <button
-            type="button"
-            onClick={onCompleteAgentSession}
-            title="Complete agent session"
-            className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-          >
-            <Check size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={onDeleteAgentSession}
-            title="Delete agent session"
-            className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-          >
-            <Trash2 size={16} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onCompleteAgentSession}
+                className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+              >
+                <GitMerge size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Merge changes</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onDeleteAgentSession}
+                className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+              >
+                <Trash2 size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Delete worktree</TooltipContent>
+          </Tooltip>
         </div>
       )}
     </div>

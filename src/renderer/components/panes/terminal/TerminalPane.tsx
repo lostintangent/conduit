@@ -169,7 +169,7 @@ export const TerminalPane = ({
   const toggleSyncCmd = useCommand(ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const terminalRef = useRef<ReturnType<typeof getOrCreate> | null>(null);
+  const terminalRef = useRef<TerminalInstance | null>(null);
   const linkHandlerRef = useRef<((url: string) => void) | null>(null);
   const applicationModeRef = useRef<ApplicationMode>(applicationMode);
   applicationModeRef.current = applicationMode;
@@ -400,48 +400,59 @@ export const TerminalPane = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const terminal = getOrCreate(terminalId);
-    terminalRef.current = terminal;
+    let mounted = true;
+    let controller: ReturnType<typeof createFitController> | null = null;
+    let detachKeyHandler: (() => void) | null = null;
 
-    // Apply custom font size if provided
-    if (fontSize !== undefined) {
-      terminal.terminal.options.fontSize = fontSize;
-    }
+    (async () => {
+      const settings = await api.getSettings();
+      const terminal = getOrCreate(terminalId, settings);
+      if (!mounted) return;
 
-    attach(terminalId, container);
+      terminalRef.current = terminal;
 
-    const controller = createFitController({
-      container,
-      entry: terminal,
-      setDimensions,
-    });
+      // Apply custom font size if provided
+      if (fontSize !== undefined) {
+        terminal.terminal.options.fontSize = fontSize;
+      }
 
-    // If font size was changed, trigger a fit after a short delay
-    // to ensure the terminal has rendered with the new font size
-    if (fontSize !== undefined) {
-      setTimeout(() => {
-        terminal.fit.fit();
-      }, 0);
-    }
+      attach(terminalId, container);
 
-    const detachKeyHandler = registerTerminalKeyHandler({
-      entry: terminal,
-      terminalId,
-      showSearchWidget,
-      togglePromptMode: handleTogglePromptMode,
-      getApplicationMode: () => applicationModeRef.current,
-      setNormalMode: () => setApplicationModeRef.current("normal"),
-      onSynchronizedInput: isTabSynchronized
-        ? handleSynchronizedInput
-        : undefined,
-    });
+      controller = createFitController({
+        container,
+        entry: terminal,
+        setDimensions,
+      });
+
+      // If font size was changed, trigger a fit after a short delay
+      // to ensure the terminal has rendered with the new font size
+      if (fontSize !== undefined) {
+        setTimeout(() => {
+          terminal.fit.fit();
+        }, 0);
+      }
+
+      detachKeyHandler = registerTerminalKeyHandler({
+        entry: terminal,
+        terminalId,
+        showSearchWidget,
+        togglePromptMode: handleTogglePromptMode,
+        getApplicationMode: () => applicationModeRef.current,
+        setNormalMode: () => setApplicationModeRef.current("normal"),
+        onSynchronizedInput: isTabSynchronized
+          ? handleSynchronizedInput
+          : undefined,
+      });
+    })();
 
     return () => {
-      detachKeyHandler();
-      controller.dispose();
+      mounted = false;
+      detachKeyHandler?.();
+      controller?.dispose();
 
+      const terminal = terminalRef.current;
       // Reset font size to default when unmounting
-      if (fontSize !== undefined) {
+      if (terminal && fontSize !== undefined) {
         terminal.terminal.options.fontSize = 13;
       }
 

@@ -1,35 +1,37 @@
+import { useCliClient } from "@/automation/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { usePaneActionsSystem } from "@/commands/paneActions";
 import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
-import {
-  disposeSession,
-  updateTerminalThemes,
-} from "@/components/panes/terminal/xtermCache";
-import { AgentCleanupDialog } from "@/components/shell/AgentCleanupDialog";
-import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
-import { CommandPalette } from "@/components/shell/CommandPalette";
-import { DuplicateTabDialog } from "@/components/shell/DuplicateTabDialog";
-import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
-import { NotificationCenter } from "@/components/shell/NotificationCenter";
-import { PaneActionsEditor } from "@/components/shell/paneActions";
-import { FloatingTerminal } from "@/components/shell/quick/FloatingTerminal";
+import { TabsOverview } from "@/components/layout/overview/TabsOverview";
+import { FloatingTerminal } from "@/components/layout/quick/FloatingTerminal";
 import {
   QuickDialog,
   type PaneDescriptor,
   type QuickPaneDescriptor,
-} from "@/components/shell/quick/QuickDialog";
-import { TabsOverview } from "@/components/shell/tabs/preview/TabsOverview";
+} from "@/components/layout/quick/QuickDialog";
+import {
+  disposeSession,
+  updateTerminalFonts,
+  updateTerminalThemes,
+} from "@/components/panes/terminal/xtermCache";
+import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
+import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
+import { NotificationCenter } from "@/components/shell/NotificationCenter";
+import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
+import { CommandPalette } from "@/components/shell/palette/CommandPalette";
+import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
+import { PaneActionsEditor } from "@/components/shell/paneActions";
+import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
+import { TerminalFontSettingsDialog } from "@/components/shell/TerminalFontSettingsDialog";
 import { TitleBar } from "@/components/shell/title/TitleBar";
-import { WorkspacePicker } from "@/components/shell/WorkspacePicker";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
 import { useAutoUpdater } from "@/hooks/useAutoUpdater";
-import { useCliClient } from "@/hooks/useCliClient";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
@@ -80,6 +82,8 @@ export function App() {
     homeDirectory,
     theme,
     themeOverrides,
+    terminalFontFamily,
+    terminalFontSize,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -127,6 +131,8 @@ export function App() {
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
   const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
   const [showAgentsEditor, setShowAgentsEditor] = useState(false);
+  const [showTerminalFontSettings, setShowTerminalFontSettings] =
+    useState(false);
 
   const {
     workspaceName,
@@ -290,10 +296,17 @@ export function App() {
       }
     });
 
+    const unsubscribeOpenTerminalFontSettings = api.onOpenTerminalFontSettings(
+      () => {
+        setShowTerminalFontSettings(true);
+      },
+    );
+
     return () => {
       unsubscribeExit();
       unsubscribeNotification();
       unsubscribeBeforeClose();
+      unsubscribeOpenTerminalFontSettings();
     };
   }, [tabs, activeTab]);
 
@@ -780,7 +793,10 @@ export function App() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
-      <TitleBar onUpdateSettings={updateSettings} />
+      <TitleBar
+        onUpdateSettings={updateSettings}
+        onOpenTerminalFontSettings={() => setShowTerminalFontSettings(true)}
+      />
 
       <TabContentPortalProvider>
         {/* Top positioned tabs */}
@@ -1052,6 +1068,19 @@ export function App() {
       {showAgentsEditor && (
         <AgentsEditor onClose={() => setShowAgentsEditor(false)} />
       )}
+      <TerminalFontSettingsDialog
+        isOpen={showTerminalFontSettings}
+        initialFontFamily={terminalFontFamily}
+        initialFontSize={terminalFontSize}
+        onClose={() => setShowTerminalFontSettings(false)}
+        onSave={async (fontFamily, fontSize) => {
+          await updateSettings({
+            terminalFontFamily: fontFamily,
+            terminalFontSize: fontSize,
+          });
+          updateTerminalFonts(fontFamily, fontSize);
+        }}
+      />
     </div>
   );
 }

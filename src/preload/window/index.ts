@@ -34,7 +34,7 @@ import type {
   TreeChangedEvent,
   UserSettings,
   VMInfo,
-} from "../shared/types";
+} from "../../shared/types";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import configureUpdatesModule from "./modules/updates";
@@ -154,6 +154,9 @@ const conduitAPI = {
   onUseConduitAsEditorChange: (listener: (value: boolean) => void) =>
     createEventListener<boolean>("ui:set-use-conduit-editor", listener),
 
+  onOpenTerminalFontSettings: (listener: () => void) =>
+    createEventListener("ui:open-terminal-font-settings", listener),
+
   /* UI-related methods (UI->main) */
 
   getSettings: () =>
@@ -206,6 +209,17 @@ const conduitAPI = {
     ipcRenderer.invoke("ui:show-folder-picker", defaultPath) as Promise<
       string | null
     >,
+
+  /* Window control methods */
+
+  minimizeWindow: () => ipcRenderer.send("ui:window-minimize"),
+
+  maximizeWindow: () => ipcRenderer.send("ui:window-maximize"),
+
+  closeWindow: () => ipcRenderer.send("ui:window-close"),
+
+  isWindowMaximized: () =>
+    ipcRenderer.invoke("ui:window-is-maximized") as Promise<boolean>,
 
   /* Agent session management */
 
@@ -296,6 +310,24 @@ const conduitAPI = {
 
   gitCommit: (cwd: string, message: string) =>
     ipcRenderer.invoke("agent:git-commit", cwd, message) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  gitStage: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("agent:git-stage", cwd, files) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  gitUnstage: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("agent:git-unstage", cwd, files) as Promise<{
+      stdout: string;
+      stderr: string;
+    }>,
+
+  gitRevert: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("agent:git-revert", cwd, files) as Promise<{
       stdout: string;
       stderr: string;
     }>,
@@ -416,6 +448,13 @@ const conduitAPI = {
     ) as Promise<{
       success: boolean;
       diff: FileDiffResult | null;
+      error?: string;
+    }>,
+
+  getDiffStats: (cwd: string) =>
+    ipcRenderer.invoke("git:get-diff-stats", cwd) as Promise<{
+      success: boolean;
+      stats?: { added: number; removed: number; files: number };
       error?: string;
     }>,
 

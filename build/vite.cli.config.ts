@@ -1,3 +1,4 @@
+import path from "path-browserify";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -6,6 +7,11 @@ export default defineConfig({
       output: {
         entryFileNames: "cli.js",
       },
+    },
+  },
+  resolve: {
+    alias: {
+      "@shared": path.resolve(__dirname, "../src/shared"),
     },
   },
 });

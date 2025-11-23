@@ -35,7 +35,7 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   const { commandName, cliDirectory, socketPath } = getCliState();
 
   // Add the Conduit CLI's directory to the $PATH so that commands
-  // like `conduit open-file` can be run from the terminal.
+  // like `conduit editor-open` can be run from the terminal.
   const currentPath = env.PATH ?? "";
   const pathSegments = currentPath
     .split(path.delimiter)

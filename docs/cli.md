@@ -13,7 +13,7 @@ This document provides a comprehensive overview of how the Conduit CLI is archit
 
 ## Overview
 
-The Conduit CLI enables users to interact with the Conduit application from within terminal sessions. Commands like `conduit open-file`, `conduit split-pane`, and `conduit list-panes` allow developers to control the IDE programmatically from their shell, enabling powerful automation and workflow integration.
+The Conduit CLI enables users to interact with the Conduit application from within terminal sessions. Commands like `conduit editor-open`, `conduit pane-split`, and `conduit pane-list` allow developers to control the IDE programmatically from their shell, enabling powerful automation and workflow integration.
 
 The CLI is built on a multi-process architecture that leverages:
 
@@ -36,7 +36,7 @@ The CLI is built using the [Commander.js](https://github.com/tj/commander.js) li
 
 ```typescript
 program
-  .cliCommand("split-pane", (request, direction, { type }) =>
+  .cliCommand("pane-split", (request, direction, { type }) =>
     request({ direction, paneType: type }),
   )
   .alias("split")
@@ -263,7 +263,7 @@ sequenceDiagram
     participant MainProcess
     participant Renderer
 
-    User->>Terminal: conduit split-pane right
+    User->>Terminal: conduit pane-split right
     Terminal->>CLI: Execute launcher script
     CLI->>CLI: Parse arguments with Commander
     CLI->>Socket: Send CliRequest + sessionId
@@ -286,7 +286,7 @@ type CliRequest = {
   requestId: string; // Unique UUID for this request
   sessionId: string; // Terminal session making the request
   command: {
-    name: string; // Command name (e.g., "split-pane")
+    name: string; // Command name (e.g., "pane-split")
     args?: object; // Command-specific arguments
   };
 };
@@ -299,7 +299,7 @@ type CliRequest = {
   "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "sessionId": "term-abc123",
   "command": {
-    "name": "split-pane",
+    "name": "pane-split",
     "args": {
       "direction": "right",
       "paneType": "terminal"
@@ -383,7 +383,7 @@ const findCallingTerminalTab = () => {
 When a CLI command is run from a terminal pane within a tab:
 
 - The command operates on the **tab containing that terminal**
-- Other panes in that tab can be accessed (e.g., `list-panes`)
+- Other panes in that tab can be accessed (e.g., `pane-list`)
 - Split operations create new panes in that tab
 - Move operations can relocate the pane within the tab
 
@@ -401,7 +401,7 @@ When a CLI command is run from the floating quick terminal:
 
 ```bash
 # Running from terminal in Tab 1
-$ conduit list-panes
+$ conduit pane-list
 # Returns: All panes in Tab 1 (excluding the calling terminal)
 ```
 
@@ -409,7 +409,7 @@ $ conduit list-panes
 
 ```bash
 # Running from floating terminal, Tab 2 is active
-$ conduit list-panes
+$ conduit pane-list
 # Returns: All panes in Tab 2 (floating terminal is not included)
 ```
 
@@ -417,7 +417,7 @@ $ conduit list-panes
 
 ```bash
 # Running from terminal in Tab 1
-$ conduit split-pane right --type editor
+$ conduit pane-split right --type editor
 # Creates: Editor pane to the right within Tab 1
 ```
 
@@ -425,13 +425,13 @@ $ conduit split-pane right --type editor
 
 ```bash
 # Running from floating terminal, Tab 3 is active
-$ conduit split-pane bottom --type browser
+$ conduit pane-split bottom --type browser
 # Creates: Browser pane at the bottom of Tab 3
 ```
 
 ### Wildcard Terminal Operations
 
-The `write-terminal` command supports a wildcard (`*`) to target all terminals in the tab:
+The `terminal-write` command supports a wildcard (`*`) to target all terminals in the tab:
 
 ```typescript
 if (args.sessionId === "*") {
@@ -448,7 +448,7 @@ This enables powerful automation like:
 
 ```bash
 # Send the same command to all other terminals in the tab
-$ conduit write-terminal "*" npm test --newline
+$ conduit terminal-write "*" npm test --newline
 ```
 
 ## Request/Response Lifecycle
@@ -466,12 +466,12 @@ sequenceDiagram
     participant Renderer as Renderer Process<br/>(useCliClient)
     participant Commands as Command System
 
-    User->>Launcher: conduit split-pane right
+    User->>Launcher: conduit pane-split right
     Launcher->>Launcher: Check CONDUIT_SOCKET_PATH
     Launcher->>CLI: Execute with ELECTRON_RUN_AS_NODE=1
     CLI->>CLI: Parse args with Commander
     CLI->>CLI: Generate requestId UUID
-    CLI->>IPC: sendCliCommand("split-pane", {direction: "right"})
+    CLI->>IPC: sendCliCommand("pane-split", {direction: "right"})
     IPC->>IPC: Create socket connection
     IPC->>Main: Send CliRequest JSON + "\n"
     Main->>Main: processCliMessage()
@@ -479,7 +479,7 @@ sequenceDiagram
     Main->>Renderer: Emit 'cli:request' event
     Renderer->>Renderer: findCallingTerminalTab()
     Renderer->>Renderer: Determine active tab from sessionId
-    Renderer->>Commands: Execute split-pane command
+    Renderer->>Commands: Execute pane-split command
     Commands->>Renderer: Command complete
     Renderer->>Main: Invoke 'cli:respond' with result
     Main->>Main: Lookup socket from requestId
@@ -579,21 +579,21 @@ async function shutdown() {
 
 ### Pane Commands
 
-- `list-panes` - List all panes in the active tab
-- `split-pane [direction]` - Split the active pane
-- `move-pane [direction]` - Move the active pane
-- `close-pane` - Close the active pane
-- `focus-pane` - Toggle focus mode
+- `pane-list` - List all panes in the active tab
+- `pane-split [direction]` - Split the active pane
+- `pane-move [direction]` - Move the active pane
+- `pane-close` - Close the active pane
+- `pane-focus` - Toggle focus mode
 
 ### Tab Commands
 
-- `new-tab` - Open a new tab
-- `duplicate-tab` - Duplicate the active tab
+- `tab-new` - Open a new tab
+- `tab-duplicate` - Duplicate the active tab
 
 ### Terminal Commands
 
-- `read-terminal <sessionId>` - Read terminal buffer contents
-- `write-terminal <sessionId> <input...>` - Send input to terminal
+- `terminal-read <sessionId>` - Read terminal buffer contents
+- `terminal-write <sessionId> <input...>` - Send input to terminal
 
 ### Browser Commands
 
@@ -601,7 +601,7 @@ async function shutdown() {
 
 ### Editor Commands
 
-- `open-file <path>` - Open file or directory (default command)
+- `editor-open <path>` - Open file or directory (default command)
 
 ## Security Considerations
 

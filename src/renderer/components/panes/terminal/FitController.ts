@@ -1,5 +1,5 @@
-import type { getOrCreate } from "./xtermCache";
 import type { Dispatch, SetStateAction } from "react";
+import type { getOrCreate } from "./xtermCache";
 
 /**
  * Creates a FitController that automatically fits and resizes the terminal

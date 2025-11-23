@@ -1,9 +1,7 @@
+import { browserAutomate } from "@/automation/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
-import {
-  inputToSession,
-  serializeSession,
-} from "@/components/panes/terminal/xtermCache";
-import type { QuickPaneDescriptor } from "@/components/shell/quick/QuickDialog";
+import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import { serializeSession } from "@/components/panes/terminal/xtermCache";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
@@ -115,6 +113,20 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       const respondResult = (result?: any) => respond({ result });
       const respondError = (error: string) => respond({ error });
 
+      // Helper function to execute a webview action
+      const executeWebviewAction = (
+        paneId: string,
+        action: (webview: WebviewTag) => void,
+      ) => {
+        const webview = document.getElementById(paneId) as WebviewTag;
+        if (!webview) {
+          respondError(`Browser pane ${paneId} not found.`);
+          return;
+        }
+        action(webview);
+        respondResult();
+      };
+
       // Helper function to find the tab containing the calling terminal
       const findCallingTerminalTab = () => {
         let matchingTab = tabs.find((tab) =>
@@ -135,7 +147,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
       try {
         switch (name) {
-          case "open-file": {
+          case "editor-open": {
             const isCommitMessageRequest = args.filePath?.endsWith(
               COMMIT_EDITMSG_FILENAME,
             );
@@ -157,7 +169,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "list-panes": {
+          case "pane-list": {
             const matchingTab = findCallingTerminalTab();
 
             const panes = Object.values(matchingTab.panes)
@@ -185,7 +197,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "read-terminal": {
+          case "terminal-read": {
             const serialized = serializeSession(args.sessionId);
 
             if (serialized === null) {
@@ -199,7 +211,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "capture-browser": {
+          case "browser-capture": {
             const webview = document.getElementById(args?.paneId) as WebviewTag;
             const webContentsId = webview.getWebContentsId();
 
@@ -215,7 +227,79 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "write-terminal": {
+          case "browser-query": {
+            const results = await browserAutomate("query", args);
+            respondResult(results);
+            break;
+          }
+
+          case "browser-click": {
+            await browserAutomate("click", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-hover": {
+            await browserAutomate("hover", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-focus": {
+            await browserAutomate("focus", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-type": {
+            await browserAutomate("type", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-keys": {
+            await browserAutomate("keys", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-scroll": {
+            await browserAutomate("scroll", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-wait": {
+            await browserAutomate("waitFor", args);
+            respondResult();
+            break;
+          }
+
+          case "browser-navigate": {
+            executeWebviewAction(args?.paneId, (webview) =>
+              webview.loadURL(args.url),
+            );
+            break;
+          }
+
+          case "browser-back": {
+            executeWebviewAction(args?.paneId, (webview) => webview.goBack());
+            break;
+          }
+
+          case "browser-forward": {
+            executeWebviewAction(args?.paneId, (webview) =>
+              webview.goForward(),
+            );
+            break;
+          }
+
+          case "browser-refresh": {
+            executeWebviewAction(args?.paneId, (webview) => webview.reload());
+            break;
+          }
+
+          case "terminal-write": {
             // Determine target session IDs based on wildcard or specific session
             let targetSessionIds: string[];
 
@@ -248,9 +332,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             // Send input to all target terminals
             let successCount = 0;
             for (const targetSessionId of targetSessionIds) {
-              if (inputToSession(targetSessionId, args.input)) {
-                successCount++;
+              // Send the input text
+              window.conduit.sendKeypress(targetSessionId, args.input);
+
+              // If enter flag is set, wait briefly then send Enter key. The 100ms delay gives TUIs time to process the input before receiving Enter
+              if (args.enter) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                window.conduit.sendKeypress(targetSessionId, "\r");
               }
+
+              successCount++;
             }
 
             if (successCount === 0) {
@@ -262,7 +353,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "move-pane": {
+          case "pane-move": {
             const targetCommand = moveCommandMap[args.direction];
             await targetCommand.execute();
 
@@ -270,7 +361,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "split-pane": {
+          case "pane-split": {
             const targetCommand =
               splitCommandMap[args.paneType][args.direction];
             await targetCommand.execute();
@@ -279,13 +370,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "focus-pane": {
+          case "pane-focus": {
             await focusPaneCommand.execute();
             respondResult();
             break;
           }
 
-          case "close-pane": {
+          case "pane-close": {
             const targetCommand = args.closeTab
               ? closeTabCommand
               : closePaneCommand;
@@ -295,13 +386,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             break;
           }
 
-          case "new-tab": {
+          case "tab-new": {
             await newTabCommand.execute();
             respondResult();
             break;
           }
 
-          case "duplicate-tab": {
+          case "tab-duplicate": {
             await duplicateTabCommand.execute();
             respondResult();
             break;

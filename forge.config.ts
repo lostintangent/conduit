@@ -18,6 +18,7 @@ const config: ForgeConfig = {
       unpack: "**/node_modules/{node-pty,@parcel/watcher}/**/*",
     },
     icon: "./build/assets/icon",
+    extraResource: [path.resolve(__dirname, ".vite/build/webview-preload.js")],
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",
     osxSign: process.env.CONDUIT_APPLE_ID_PASSWORD
@@ -84,14 +85,19 @@ const config: ForgeConfig = {
           target: "main",
         },
         {
-          entry: "src/preload/index.ts",
+          entry: "src/cli/index.ts",
+          config: "build/vite.cli.config.ts",
+          target: "main",
+        },
+        {
+          entry: "src/preload/window/index.ts",
           config: "build/vite.preload.config.ts",
           target: "preload",
         },
         {
-          entry: "src/cli/index.ts",
-          config: "build/vite.cli.config.ts",
-          target: "main",
+          entry: "src/preload/webview/index.ts",
+          config: "build/vite.preload.webview.config.ts",
+          target: "preload",
         },
       ],
       renderer: [

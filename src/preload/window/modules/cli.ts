@@ -12,6 +12,12 @@ export default {
   completeCaptureBrowserRequest: (payload: {
     requestId: string;
     webContentsId: number;
+    clip?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
   }) =>
     ipcRenderer.invoke(
       "cli:complete-capture-browser",

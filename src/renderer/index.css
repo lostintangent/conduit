@@ -30,6 +30,9 @@
   --accent-2: oklch(61.44% 0.2346 294.74);
   --accent-2-foreground: oklch(98.48% 0 0);
 
+  /* Bright accent for filling animations */
+  --accent-bright: oklch(75% 0.24 259.81);
+
   --muted: oklch(36% 0 0);
   --muted-foreground: oklch(71.53% 0 0);
 
@@ -147,6 +150,8 @@
 
   --color-accent-2: var(--accent-2);
   --color-accent-2-foreground: var(--accent-2-foreground);
+
+  --color-accent-bright: var(--accent-bright);
 
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
@@ -333,4 +338,48 @@
 
 .animate-fan-in {
   animation: fan-in 0.2s ease-out;
+}
+
+/* Filling icon animation - bottom-to-top liquid fill effect */
+
+@keyframes fillUp {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.filling-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.filling-icon-active {
+  animation: fillUp var(--fill-duration, 2s) ease-out infinite;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Override disabled opacity when button contains an active filling icon */
+button:disabled:has(.filling-icon-active),
+[role="button"]:disabled:has(.filling-icon-active) {
+  opacity: 1 !important;
+}
+
+/* Fallback for reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .filling-icon-active {
+    animation: none;
+    opacity: 0.7;
+  }
 }

@@ -5,11 +5,11 @@ import { PaneHighlight } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
+import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPane } from "@/components/panes/editor/EditorPane";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import type { PaneDescriptor } from "@/components/shell/quick/QuickDialog";
 import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,
@@ -509,6 +509,7 @@ export function TabLayout({
                   key={pane.id}
                   url={pane.url}
                   paneId={pane.id}
+                  tabId={tab.id}
                   disableInteraction={resizingNode !== null}
                   onContextMenu={onWebViewContextMenu}
                   onUrlChange={(nextUrl) =>
