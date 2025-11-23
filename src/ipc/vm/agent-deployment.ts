@@ -197,11 +197,11 @@ fi
     const agentPid = startResult.stdout.trim();
     console.log(`[VM Agent] Agent started with PID: ${agentPid}`);
 
-    // Step 5: Forward the WebSocket port (8765)
+    // Step 5: Forward the WebSocket port (59432)
     console.log(`[VM Agent] Forwarding WebSocket port...`);
     const portForward = await addPortForward(
       vmId,
-      8765,
+      59432,
       "Conduit File System Agent",
     );
 

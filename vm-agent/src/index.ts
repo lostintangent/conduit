@@ -26,7 +26,7 @@ import type {
 } from "./protocol.js";
 import { DirectoryWatcher } from "./watcher.js";
 
-const PORT = parseInt(process.env.PORT || "8765", 10);
+const PORT = parseInt(process.env.PORT || "59432", 10);
 const watchers = new Map<string, DirectoryWatcher>();
 
 /**
