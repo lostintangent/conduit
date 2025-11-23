@@ -93,8 +93,38 @@ export function BrowserToolbar({
     let targetUrl = inputUrl.trim();
     if (targetUrl.length === 0) return;
 
-    // Add protocol if missing
-    if (!targetUrl.match(/^http(s)?:\/\//i)) {
+    // Check if the input looks like a URL or a search query
+    const isUrl = (() => {
+      // If it already has a protocol, it's a URL
+      if (targetUrl.match(/^[a-z][a-z0-9+.-]*:\/\//i)) {
+        return true;
+      }
+
+      // If it contains spaces, it's likely a search query
+      if (targetUrl.includes(" ")) {
+        return false;
+      }
+
+      // Check if it looks like a domain with a TLD
+      const host = targetUrl.split("/")[0];
+      const isLocalhost = host === "localhost" || host.startsWith("localhost:");
+
+      if (isLocalhost) {
+        return true;
+      }
+
+      // Check if it has a valid TLD (at least one dot followed by 2+ characters)
+      // This matches domains like google.com, github.io, co.uk, etc.
+      const hasTLD = /\.[a-z]{2,}$/i.test(host);
+
+      return hasTLD;
+    })();
+
+    if (!isUrl) {
+      // Convert to DuckDuckGo search query
+      targetUrl = `https://duckduckgo.com/?q=${encodeURIComponent(targetUrl)}`;
+    } else if (!targetUrl.match(/^http(s)?:\/\//i)) {
+      // Add protocol if missing for URLs
       const lowerTarget = targetUrl.toLowerCase();
       const host = lowerTarget.split("/")[0];
 
