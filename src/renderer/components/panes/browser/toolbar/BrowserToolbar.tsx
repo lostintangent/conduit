@@ -93,6 +93,10 @@ export function BrowserToolbar({
     let targetUrl = inputUrl.trim();
     if (targetUrl.length === 0) return;
 
+    // Helper function to check if a host is localhost
+    const checkIsLocalhost = (host: string) =>
+      host === "localhost" || host.startsWith("localhost:");
+
     // Check if the input looks like a URL or a search query
     const isUrl = (() => {
       // If it already has a protocol, it's a URL
@@ -107,9 +111,8 @@ export function BrowserToolbar({
 
       // Check if it looks like a domain with a TLD
       const host = targetUrl.split("/")[0];
-      const isLocalhost = host === "localhost" || host.startsWith("localhost:");
-
-      if (isLocalhost) {
+      
+      if (checkIsLocalhost(host)) {
         return true;
       }
 
@@ -127,10 +130,7 @@ export function BrowserToolbar({
       // Add protocol if missing for URLs
       const lowerTarget = targetUrl.toLowerCase();
       const host = lowerTarget.split("/")[0];
-
-      const isLocalhost = host === "localhost" || host.startsWith("localhost:");
-
-      const protocol = isLocalhost ? "http" : "https";
+      const protocol = checkIsLocalhost(host) ? "http" : "https";
       targetUrl = `${protocol}://${targetUrl}`;
     }
 
