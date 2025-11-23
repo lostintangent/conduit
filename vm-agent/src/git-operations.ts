@@ -399,12 +399,12 @@ export async function getMostRecentFile(cwd: string): Promise<string | null> {
     });
 
     if (statusOut.trim()) {
-      // Get the first modified file
+      // Get the first modified file - return relative path
       const lines = statusOut.trim().split("\n");
       for (const line of lines) {
         const filePath = line.substring(3).trim();
         if (filePath) {
-          return path.join(gitRoot, filePath);
+          return filePath; // Return relative path, not absolute
         }
       }
     }
@@ -417,7 +417,7 @@ export async function getMostRecentFile(cwd: string): Promise<string | null> {
 
     const file = recentFile.trim().split("\n")[0];
     if (file) {
-      return path.join(gitRoot, file);
+      return file; // Return relative path, not absolute
     }
 
     return null;

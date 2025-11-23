@@ -544,7 +544,7 @@ export function markTerminalReady(
                 "-c",
                 `cd /workspace || exit 1; for i in {1..5}; do if git status > /dev/null 2>&1; then echo "ready"; exit 0; fi; sleep 1; done; echo "not-ready"; exit 1`,
               ],
-              7, // 5 seconds loop + 2 seconds buffer
+              "7", // 5 seconds loop + 2 seconds buffer
             );
             const elapsed = Date.now() - startTime;
 
@@ -603,7 +603,7 @@ export function markTerminalReady(
                 "-c",
                 `cd ${repoPath} && git checkout -b ${terminal.cloudEnvironment!.localBranch}`,
               ],
-              10,
+              "10",
             );
 
             if (createBranchResult.exit_code !== 0) {

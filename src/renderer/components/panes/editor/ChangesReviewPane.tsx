@@ -1,45 +1,46 @@
-import { GitStatusBadge } from "./tree/GitStatusBadge";
-import type {
-  GitStatusMap,
-  FileTreeNode,
-  FileDiffResult,
-  GitFileStatus,
-} from "@shared/types";
-import {
-  FileIcon,
-  GitCommitVertical,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Send,
-  Plus,
-  Minus,
-  RotateCcw,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  SquareArrowOutDownLeft,
-} from "lucide-react";
-import { useMemo, useRef, useState, useEffect, useCallback } from "react";
-import path from "path-browserify";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
-import { ConduitDiffEditor } from "./ConduitDiffEditor";
 import { enqueueNotification } from "@/store/actions/notifications";
-import { resolveTheme } from "@/utils/theme";
-import { cleanGitError } from "@/utils/gitErrors";
-import { useAtomValue } from "jotai";
 import { userSettingsAtom } from "@/store/atoms";
+import { cleanGitError } from "@/utils/gitErrors";
+import { resolveTheme } from "@/utils/theme";
+import type {
+  FileDiffResult,
+  FileTreeNode,
+  GitFileStatus,
+  GitStatusMap,
+} from "@shared/types";
+import { useAtomValue } from "jotai";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FileIcon,
+  GitCommitVertical,
+  Minus,
+  Plus,
+  RotateCcw,
+  Send,
+  SquareArrowOutDownLeft,
+} from "lucide-react";
+import path from "path-browserify";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConduitDiffEditor } from "./ConduitDiffEditor";
+import { GitStatusBadge } from "./tree/GitStatusBadge";
 
 const api = window.conduit;
 
 interface ChangesReviewPaneProps {
   gitStatus: GitStatusMap | null;
   cwd: string;
+  vmId: string | "local";
   onFileSelect?: (node: FileTreeNode) => void;
   commitMessage?: string;
   onCommitMessageChange?: (message: string) => void;
@@ -60,6 +61,7 @@ interface ChangesReviewPaneProps {
 export function ChangesReviewPane({
   gitStatus,
   cwd,
+  vmId,
   onFileSelect,
   commitMessage = "",
   onCommitMessageChange,
@@ -124,7 +126,7 @@ export function ChangesReviewPane({
 
       try {
         const fullPath = path.join(cwd, relativePath);
-        const result = await api.getFileDiff(fullPath, cwd, null);
+        const result = await api.getFileDiff(fullPath, cwd, vmId, null);
 
         if (result.success && result.diff) {
           setFileDiffs((prev) => new Map(prev).set(relativePath, result.diff));

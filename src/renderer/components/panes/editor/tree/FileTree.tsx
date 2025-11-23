@@ -20,7 +20,7 @@ type FileTreeProps = {
   onRevertFile?: (relativePath: string) => void;
   showStagedView?: boolean; // Which status to show when file has both staged and unstaged
   selectedFilePath?: string | null; // Path of currently selected file for highlighting
-  vmId?: string | "local"; // VM ID for file operations routing
+  vmId: string | "local"; // VM ID for file operations routing
 };
 
 export function FileTree({

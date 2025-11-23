@@ -403,13 +403,18 @@ export function EditorPane({
   // Helper to fetch diff data for a file
   const fetchDiffForFile = useCallback(
     async (targetFilePath: string) => {
-      const result = await api.getFileDiff(targetFilePath, cwd, baseBranch);
+      const result = await api.getFileDiff(
+        targetFilePath,
+        cwd,
+        vmId,
+        baseBranch,
+      );
       if (result.success && result.diff) {
         return result.diff;
       }
       return null;
     },
-    [cwd, baseBranch],
+    [cwd, vmId, baseBranch],
   );
 
   // Pull from remote
@@ -750,7 +755,7 @@ export function EditorPane({
       filesModifiedWhileAwayRef.current.has(filePath);
 
     api
-      .readFile(filePath)
+      .readFile(filePath, vmId)
       .then((content) => {
         if (!cancelled) {
           const language = inferLanguageFromFilePath(filePath);
@@ -1132,7 +1137,7 @@ export function EditorPane({
     setIsLoadingTree(true);
 
     api
-      .listDirectory(cwd, undefined, vmId)
+      .listDirectory(cwd, vmId, undefined)
       .then((tree) => {
         if (!cancelled) {
           setFileTree(tree);
@@ -1184,7 +1189,7 @@ export function EditorPane({
       }
 
       // Invalidate the parent directory cache for this file
-      handleFileChanged(payload.filePath, cwd);
+      handleFileChanged(payload.filePath, cwd, vmId);
 
       // Check if this is the currently open file
       const isCurrentFile =
@@ -1327,6 +1332,7 @@ export function EditorPane({
         payload.newPath,
         payload.isDirectory,
         cwd,
+        vmId,
       );
 
       // Check if the currently open file was renamed
@@ -1357,11 +1363,11 @@ export function EditorPane({
       }
 
       // Invalidate the root directory cache
-      invalidateDirectory(cwd, cwd);
+      invalidateDirectory(cwd, vmId, cwd);
 
       // Refresh the root file tree
       api
-        .listDirectory(cwd, undefined, vmId)
+        .listDirectory(cwd, vmId, undefined)
         .then((tree) => {
           console.log(
             `[EditorPane] File tree refreshed successfully for cwd=${cwd}`,
@@ -1509,7 +1515,7 @@ export function EditorPane({
           return;
         }
 
-        // Open the file
+        // Open the file (result.file is now always a relative path from both VM and local)
         const fullPath = path.join(cwd, result.file);
         const node: FileTreeNode = {
           type: "file",
@@ -2470,6 +2476,7 @@ export function EditorPane({
               <ChangesReviewPane
                 gitStatus={gitStatus}
                 cwd={cwd}
+                vmId={vmId}
                 onFileSelect={handleFileSelect}
                 commitMessage={commitMessage}
                 onCommitMessageChange={setCommitMessage}
@@ -2635,6 +2642,7 @@ export function EditorPane({
               <ChangesReviewPane
                 gitStatus={gitStatus}
                 cwd={cwd}
+                vmId={vmId}
                 onFileSelect={handleFileSelect}
                 commitMessage={commitMessage}
                 onCommitMessageChange={setCommitMessage}
@@ -2664,6 +2672,7 @@ export function EditorPane({
 
       {!hideIndividualSandboxIndicator && (
         <SandboxIndicator
+          vmId={vmId === "local" ? null : vmId}
           agentSessionId={agentSessionId ?? null}
           onCompleteAgentSession={handleCompleteAgentSession}
           onDeleteAgentSession={handleDeleteAgentSession}

@@ -1,16 +1,16 @@
-import { applicationModeAtom } from "@/store/atoms";
-import { getHashedColor } from "@/utils/theme";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { applicationModeAtom } from "@/store/atoms";
+import { getHashedColor } from "@/utils/theme";
 import { useAtomValue } from "jotai";
 import { Cloud, GitFork, GitMerge, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
 type SandboxIndicatorProps = {
-  vmId?: string | null;
+  vmId: string | null;
   agentSessionId?: string | null;
   onCompleteAgentSession?: () => void;
   onDeleteAgentSession?: () => void;

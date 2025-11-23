@@ -190,11 +190,11 @@ export function initializeFileWatcherHandlers(): void {
       _,
       filePath: string,
       cwd: string,
+      vmId: string | "local",
       baseBranch?: string | null,
-      vmId?: string | "local",
     ) => {
       try {
-        const diff = await service.getFileDiff(filePath, cwd, baseBranch, vmId);
+        const diff = await service.getFileDiff(filePath, cwd, vmId, baseBranch);
         return { success: true, diff };
       } catch (error) {
         console.error("Failed to get file diff:", error);

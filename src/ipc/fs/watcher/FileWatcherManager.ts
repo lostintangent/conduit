@@ -183,8 +183,8 @@ export class FileWatcherManager {
    */
   public async getDiffStats(
     cwd: string,
+    vmId: string | "local",
     baseBranch?: string | null,
-    vmId?: string | "local",
   ): Promise<any> {
     if (vmId && vmId !== "local") {
       const cloudEnv = getCloudEnvironmentByVmId(vmId);
@@ -236,8 +236,8 @@ export class FileWatcherManager {
   public async getFileDiff(
     filePath: string,
     cwd: string,
+    vmId: string | "local",
     baseBranch?: string | null,
-    vmId?: string | "local",
   ): Promise<any> {
     if (vmId && vmId !== "local") {
       const cloudEnv = getCloudEnvironmentByVmId(vmId);

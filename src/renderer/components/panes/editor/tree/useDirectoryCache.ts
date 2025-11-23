@@ -44,8 +44,8 @@ function hasListeners(dirPath: string): boolean {
  */
 export function invalidateDirectory(
   dirPath: string,
+  vmId: string | "local",
   rootPath?: string,
-  vmId?: string | "local",
 ) {
   const entry = directoryCache.get(dirPath);
 
@@ -63,7 +63,7 @@ export function invalidateDirectory(
       entry.fetchInProgress = true;
 
       window.conduit
-        .listDirectory(dirPath, rootPath, vmId)
+        .listDirectory(dirPath, vmId, rootPath)
         .then((fetchedChildren) => {
           // Update cache with fresh data
           const currentEntry = directoryCache.get(dirPath);
@@ -116,10 +116,10 @@ export function clearDirectory(dirPath: string) {
 export function handleFileChanged(
   filePath: string,
   rootPath: string,
-  vmId?: string | "local",
+  vmId: string | "local",
 ) {
   const dirPath = path.dirname(filePath);
-  invalidateDirectory(dirPath, rootPath, vmId);
+  invalidateDirectory(dirPath, vmId, rootPath);
 }
 
 /**
@@ -138,15 +138,15 @@ export function handleFileRenamed(
   newPath: string,
   isDirectory: boolean,
   rootPath: string,
-  vmId?: string | "local",
+  vmId: string | "local",
 ) {
   const oldDirPath = path.dirname(oldPath);
   const newDirPath = path.dirname(newPath);
 
   // Invalidate both parent directories
-  invalidateDirectory(oldDirPath, rootPath, vmId);
+  invalidateDirectory(oldDirPath, vmId, rootPath);
   if (newDirPath !== oldDirPath) {
-    invalidateDirectory(newDirPath, rootPath, vmId);
+    invalidateDirectory(newDirPath, vmId, rootPath);
   }
 
   // If a directory was renamed, clear all cache entries that start with old path
@@ -175,7 +175,7 @@ type UseDirectoryCacheParams = {
   prefetch: boolean;
   isFiltering?: boolean;
   gitStatus?: GitStatusMap | null;
-  vmId?: string | "local";
+  vmId: string | "local";
 };
 
 /**
@@ -236,8 +236,8 @@ export function useDirectoryCache({
       try {
         const fetchedChildren = await window.conduit.listDirectory(
           node.path,
-          rootPath,
           vmId,
+          rootPath,
         );
 
         // Check if version changed during fetch (indicates concurrent invalidation)

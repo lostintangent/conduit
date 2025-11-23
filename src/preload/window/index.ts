@@ -355,14 +355,14 @@ const conduitAPI = {
    */
   listDirectory: (
     directoryPath: string,
-    rootPath: string | undefined,
     vmId: string | "local",
+    rootPath?: string,
   ) =>
     ipcRenderer.invoke(
       "fs:list-directory",
       directoryPath,
-      rootPath,
       vmId,
+      rootPath,
     ) as Promise<FileTreeNode[]>,
 
   readFile: (filePath: string, vmId: string | "local") =>
@@ -470,11 +470,17 @@ const conduitAPI = {
       error?: string;
     }>,
 
-  getFileDiff: (filePath: string, cwd: string, baseBranch?: string | null) =>
+  getFileDiff: (
+    filePath: string,
+    cwd: string,
+    vmId: string | "local",
+    baseBranch?: string | null,
+  ) =>
     ipcRenderer.invoke(
       "git:get-file-diff",
       filePath,
       cwd,
+      vmId,
       baseBranch,
     ) as Promise<{
       success: boolean;

@@ -30,7 +30,7 @@ type DirectoryItemProps = {
   onRevertFile?: (relativePath: string) => void;
   showStagedView?: boolean;
   selectedFilePath?: string | null;
-  vmId?: string | "local";
+  vmId: string | "local";
 };
 
 export function DirectoryItem({
@@ -193,6 +193,7 @@ export function DirectoryItem({
                 onRevertFile={onRevertFile}
                 showStagedView={showStagedView}
                 selectedFilePath={selectedFilePath}
+                vmId={vmId}
               />
             ))
           ) : (

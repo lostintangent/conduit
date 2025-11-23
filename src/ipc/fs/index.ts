@@ -11,7 +11,7 @@ const fileWatchers = new Map<string, FSWatcher>();
 export function initializeFsHandlers() {
   ipcMain.handle(
     "fs:list-directory",
-    async (_, dirPath: string, rootPath?: string, vmId?: string | "local") => {
+    async (_, dirPath: string, vmId: string | "local", rootPath?: string) => {
       try {
         // Check if this is for a cloud VM
         if (vmId && vmId !== "local") {

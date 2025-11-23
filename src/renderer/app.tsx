@@ -651,7 +651,7 @@ export function App() {
 
       // Validate that the directory exists
       try {
-        await api.listDirectory(trimmedCwd, undefined, "local");
+        await api.listDirectory(trimmedCwd, "local", undefined);
       } catch (error) {
         enqueueNotification({
           kind: "error",
