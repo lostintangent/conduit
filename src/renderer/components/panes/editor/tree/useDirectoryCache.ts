@@ -59,7 +59,7 @@ export function invalidateDirectory(dirPath: string, rootPath?: string) {
 
       window.conduit
         .listDirectory(dirPath, rootPath)
-        .then((fetchedChildren) => {
+        .then((fetchedChildren: FileTreeNode[]) => {
           // Update cache with fresh data
           const currentEntry = directoryCache.get(dirPath);
           const newVersion = (currentEntry?.version ?? 0) + 1;
@@ -75,7 +75,7 @@ export function invalidateDirectory(dirPath: string, rootPath?: string) {
             notifyListeners(dirPath);
           }
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           console.error(
             `[Cache] Failed to proactively refetch ${dirPath}:`,
             error,

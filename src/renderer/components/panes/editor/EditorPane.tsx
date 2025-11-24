@@ -22,7 +22,13 @@ import { cleanGitError } from "@/utils/gitErrors";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { loader } from "@monaco-editor/react";
 import { ConduitDiffEditor } from "./ConduitDiffEditor";
-import type { FileDiffResult, FileTreeNode } from "@shared/types";
+import type {
+  FileChangedEvent,
+  FileDiffResult,
+  FileRenamedEvent,
+  FileTreeNode,
+  TreeChangedEvent,
+} from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
   ChevronRight,
@@ -373,10 +379,10 @@ export function EditorPane({
 
     api
       .hasUpstreamBranch(cwd)
-      .then((hasUpstream) => {
+      .then((hasUpstream: boolean) => {
         setHasUpstream(hasUpstream);
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error("[EditorPane] Failed to check upstream branch:", error);
         setHasUpstream(true); // Default to true on error
       });
@@ -749,7 +755,7 @@ export function EditorPane({
 
     api
       .readFile(filePath)
-      .then((content) => {
+      .then((content: string) => {
         if (!cancelled) {
           const language = inferLanguageFromFilePath(filePath);
 
@@ -774,7 +780,7 @@ export function EditorPane({
           }
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error("[EditorPane] Failed to load file:", error);
         if (!cancelled) {
           setCurrentContent(undefined);
@@ -822,7 +828,7 @@ export function EditorPane({
       if (filePath) {
         api
           .readFile(filePath)
-          .then((content) => {
+          .then((content: string) => {
             setCurrentContent(content);
             setOriginalContent(content);
             setExternallyModified(false);
@@ -840,7 +846,7 @@ export function EditorPane({
 
             setViewMode({ type: "editor" });
           })
-          .catch((error) => {
+          .catch((error: unknown) => {
             console.error(
               "[EditorPane] Failed to reload file when exiting diff view:",
               error,
@@ -1130,14 +1136,14 @@ export function EditorPane({
 
     api
       .listDirectory(cwd)
-      .then((tree) => {
+      .then((tree: FileTreeNode[]) => {
         if (!cancelled) {
           setFileTree(tree);
           fileTreeCache.set(cwd, tree);
           setIsLoadingTree(false);
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error("Failed to load file tree:", error);
         if (!cancelled) {
           setFileTree([]);
@@ -1169,207 +1175,217 @@ export function EditorPane({
     console.log(
       `[EditorPane] Subscribing to file watcher: paneId=${paneId}, cwd=${cwd}`,
     );
-    api.subscribeFileWatcher(cwd, paneId).catch((error) => {
+    api.subscribeFileWatcher(cwd, paneId).catch((error: unknown) => {
       console.error("[EditorPane] Failed to subscribe to file watcher:", error);
     });
 
     // Set up event listeners
-    const removeFileChangedListener = api.onFileChanged((payload) => {
-      // Only handle events for this cwd
-      if (payload.cwd !== cwd) {
-        return;
-      }
+    const removeFileChangedListener = api.onFileChanged(
+      (payload: FileChangedEvent) => {
+        // Only handle events for this cwd
+        if (payload.cwd !== cwd) {
+          return;
+        }
 
-      // Invalidate the parent directory cache for this file
-      handleFileChanged(payload.filePath, cwd);
+        // Invalidate the parent directory cache for this file
+        handleFileChanged(payload.filePath, cwd);
 
-      // Check if this is the currently open file
-      const isCurrentFile =
-        filePathRef.current && payload.filePath === filePathRef.current;
-      if (isCurrentFile) {
-        if (payload.eventType === "deleted") {
-          // Clear any pending debounce timer
-          if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-            debounceTimerRef.current = null;
-          }
-          setExternallyDeleted(true);
-          setShowExternalChangeWarning(true);
-        } else if (payload.eventType === "changed") {
-          setExternallyModified(true);
+        // Check if this is the currently open file
+        const isCurrentFile =
+          filePathRef.current && payload.filePath === filePathRef.current;
+        if (isCurrentFile) {
+          if (payload.eventType === "deleted") {
+            // Clear any pending debounce timer
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current);
+              debounceTimerRef.current = null;
+            }
+            setExternallyDeleted(true);
+            setShowExternalChangeWarning(true);
+          } else if (payload.eventType === "changed") {
+            setExternallyModified(true);
 
-          // Debounce rapid changes (100ms)
-          if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-          }
+            // Debounce rapid changes (100ms)
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current);
+            }
 
-          debounceTimerRef.current = setTimeout(() => {
-            debounceTimerRef.current = null;
+            debounceTimerRef.current = setTimeout(() => {
+              debounceTimerRef.current = null;
 
-            // Check if file still exists before reading
-            const currentFilePath = filePathRef.current;
-            if (!currentFilePath) return;
+              // Check if file still exists before reading
+              const currentFilePath = filePathRef.current;
+              if (!currentFilePath) return;
 
-            api
-              .fileExists(currentFilePath)
-              .then((exists) => {
-                if (!exists) {
-                  // File was deleted during debounce
-                  setExternallyDeleted(true);
-                  setExternallyModified(false);
-                  setShowExternalChangeWarning(true);
-                  return;
-                }
-
-                // If editor has no unsaved changes, auto-reload
-                if (!hasUnsavedChangesRef.current) {
-                  // Check if we're in diff mode
-                  const currentViewMode = viewModeRef.current;
-
-                  if (currentViewMode.type === "diff") {
-                    // Always reload diff when file changes (including our own saves)
-                    // This keeps the diff comparison up to date
-                    fetchDiffForFile(currentFilePath)
-                      .then((diff) => {
-                        setExternallyModified(false);
-                        setExternallyDeleted(false);
-
-                        // Update diff view with fresh data
-                        if (diff) {
-                          // CRITICAL FIX: Update refs IMMEDIATELY (synchronous)
-                          // Then update state (async/batched by React)
-                          // This prevents Monaco's change event from seeing stale values
-                          originalContentRef.current = diff.modifiedContent;
-                          currentContentRef.current = diff.modifiedContent;
-
-                          setOriginalContent(diff.modifiedContent);
-                          setCurrentContent(diff.modifiedContent);
-
-                          setViewMode({
-                            type: "diff",
-                            data: diff,
-                            showRaw: currentViewMode.showRaw,
-                          });
-                        }
-                      })
-                      .catch((error) => {
-                        console.error(
-                          "[EditorPane] Failed to reload diff:",
-                          error,
-                        );
-                        // Handle file deletion or other errors
-                        api.fileExists(currentFilePath).then((stillExists) => {
-                          if (!stillExists) {
-                            setExternallyDeleted(true);
-                            setShowExternalChangeWarning(true);
-                          }
-                        });
-                      });
-                  } else {
-                    // In editor mode: just reload the file (existing behavior)
-                    api
-                      .readFile(currentFilePath)
-                      .then((content) => {
-                        setCurrentContent(content);
-                        setOriginalContent(content);
-                        setExternallyModified(false);
-                        // If file was previously deleted but now exists, clear deletion flag
-                        setExternallyDeleted(false);
-                      })
-                      .catch((error) => {
-                        console.error(
-                          "[EditorPane] Failed to reload file:",
-                          error,
-                        );
-                        // If read fails, file might have been deleted
-                        api.fileExists(currentFilePath).then((stillExists) => {
-                          if (!stillExists) {
-                            setExternallyDeleted(true);
-                            setShowExternalChangeWarning(true);
-                          }
-                        });
-                      });
+              api
+                .fileExists(currentFilePath)
+                .then((exists: boolean) => {
+                  if (!exists) {
+                    // File was deleted during debounce
+                    setExternallyDeleted(true);
+                    setExternallyModified(false);
+                    setShowExternalChangeWarning(true);
+                    return;
                   }
-                } else {
-                  // Editor has unsaved changes, show warning
-                  setShowExternalChangeWarning(true);
-                }
-              })
-              .catch((error) => {
-                console.error("Failed to check file existence:", error);
-              });
-          }, 100);
+
+                  // If editor has no unsaved changes, auto-reload
+                  if (!hasUnsavedChangesRef.current) {
+                    // Check if we're in diff mode
+                    const currentViewMode = viewModeRef.current;
+
+                    if (currentViewMode.type === "diff") {
+                      // Always reload diff when file changes (including our own saves)
+                      // This keeps the diff comparison up to date
+                      fetchDiffForFile(currentFilePath)
+                        .then((diff) => {
+                          setExternallyModified(false);
+                          setExternallyDeleted(false);
+
+                          // Update diff view with fresh data
+                          if (diff) {
+                            // CRITICAL FIX: Update refs IMMEDIATELY (synchronous)
+                            // Then update state (async/batched by React)
+                            // This prevents Monaco's change event from seeing stale values
+                            originalContentRef.current = diff.modifiedContent;
+                            currentContentRef.current = diff.modifiedContent;
+
+                            setOriginalContent(diff.modifiedContent);
+                            setCurrentContent(diff.modifiedContent);
+
+                            setViewMode({
+                              type: "diff",
+                              data: diff,
+                              showRaw: currentViewMode.showRaw,
+                            });
+                          }
+                        })
+                        .catch((error: unknown) => {
+                          console.error(
+                            "[EditorPane] Failed to reload diff:",
+                            error,
+                          );
+                          // Handle file deletion or other errors
+                          api
+                            .fileExists(currentFilePath)
+                            .then((stillExists: boolean) => {
+                              if (!stillExists) {
+                                setExternallyDeleted(true);
+                                setShowExternalChangeWarning(true);
+                              }
+                            });
+                        });
+                    } else {
+                      // In editor mode: just reload the file (existing behavior)
+                      api
+                        .readFile(currentFilePath)
+                        .then((content: string) => {
+                          setCurrentContent(content);
+                          setOriginalContent(content);
+                          setExternallyModified(false);
+                          // If file was previously deleted but now exists, clear deletion flag
+                          setExternallyDeleted(false);
+                        })
+                        .catch((error: unknown) => {
+                          console.error(
+                            "[EditorPane] Failed to reload file:",
+                            error,
+                          );
+                          // If read fails, file might have been deleted
+                          api
+                            .fileExists(currentFilePath)
+                            .then((stillExists: boolean) => {
+                              if (!stillExists) {
+                                setExternallyDeleted(true);
+                                setShowExternalChangeWarning(true);
+                              }
+                            });
+                        });
+                    }
+                  } else {
+                    // Editor has unsaved changes, show warning
+                    setShowExternalChangeWarning(true);
+                  }
+                })
+                .catch((error: unknown) => {
+                  console.error("Failed to check file existence:", error);
+                });
+            }, 100);
+          }
+        } else {
+          // File was modified but is not currently open
+          // Track it so we can reload when user switches back to it
+          if (payload.eventType === "changed") {
+            filesModifiedWhileAwayRef.current.add(payload.filePath);
+          } else if (payload.eventType === "deleted") {
+            // Remove from tracking if it was deleted
+            filesModifiedWhileAwayRef.current.delete(payload.filePath);
+          }
         }
-      } else {
-        // File was modified but is not currently open
-        // Track it so we can reload when user switches back to it
-        if (payload.eventType === "changed") {
-          filesModifiedWhileAwayRef.current.add(payload.filePath);
-        } else if (payload.eventType === "deleted") {
-          // Remove from tracking if it was deleted
-          filesModifiedWhileAwayRef.current.delete(payload.filePath);
+      },
+    );
+
+    const removeFileRenamedListener = api.onFileRenamed(
+      (payload: FileRenamedEvent) => {
+        // Only handle events for this cwd
+        if (payload.cwd !== cwd) {
+          return;
         }
-      }
-    });
 
-    const removeFileRenamedListener = api.onFileRenamed((payload) => {
-      // Only handle events for this cwd
-      if (payload.cwd !== cwd) {
-        return;
-      }
+        // Invalidate parent directory caches for the rename
+        handleFileRenamed(
+          payload.oldPath,
+          payload.newPath,
+          payload.isDirectory,
+          cwd,
+        );
 
-      // Invalidate parent directory caches for the rename
-      handleFileRenamed(
-        payload.oldPath,
-        payload.newPath,
-        payload.isDirectory,
-        cwd,
-      );
+        // Check if the currently open file was renamed
+        const currentFilePath = filePathRef.current;
+        const isCurrentFileRenamed =
+          currentFilePath && payload.oldPath === currentFilePath;
 
-      // Check if the currently open file was renamed
-      const currentFilePath = filePathRef.current;
-      const isCurrentFileRenamed =
-        currentFilePath && payload.oldPath === currentFilePath;
+        if (isCurrentFileRenamed) {
+          // Update the file path without losing content or state
+          // Use currentContentRef to avoid stale closure
+          onFileChange?.({
+            filePath: payload.newPath,
+            language: inferLanguageFromFilePath(payload.newPath),
+            content: currentContentRef.current || "", // Keep existing content
+          });
 
-      if (isCurrentFileRenamed) {
-        // Update the file path without losing content or state
-        // Use currentContentRef to avoid stale closure
-        onFileChange?.({
-          filePath: payload.newPath,
-          language: inferLanguageFromFilePath(payload.newPath),
-          content: currentContentRef.current || "", // Keep existing content
-        });
+          // Clear any external modification warnings
+          setExternallyModified(false);
+          setExternallyDeleted(false);
+          setShowExternalChangeWarning(false);
+        }
+      },
+    );
 
-        // Clear any external modification warnings
-        setExternallyModified(false);
-        setExternallyDeleted(false);
-        setShowExternalChangeWarning(false);
-      }
-    });
+    const removeTreeChangedListener = api.onTreeChanged(
+      (payload: TreeChangedEvent) => {
+        // Only handle events for this cwd
+        if (payload.cwd !== cwd) {
+          return;
+        }
 
-    const removeTreeChangedListener = api.onTreeChanged((payload) => {
-      // Only handle events for this cwd
-      if (payload.cwd !== cwd) {
-        return;
-      }
+        // Invalidate the root directory cache
+        invalidateDirectory(cwd, cwd);
 
-      // Invalidate the root directory cache
-      invalidateDirectory(cwd, cwd);
-
-      // Refresh the root file tree
-      api
-        .listDirectory(cwd)
-        .then((tree) => {
-          console.log(
-            `[EditorPane] File tree refreshed successfully for cwd=${cwd}`,
-          );
-          setFileTree(tree);
-          fileTreeCache.set(cwd, tree);
-        })
-        .catch((error) => {
-          console.error("[EditorPane] Failed to refresh file tree:", error);
-        });
-    });
+        // Refresh the root file tree
+        api
+          .listDirectory(cwd)
+          .then((tree: FileTreeNode[]) => {
+            console.log(
+              `[EditorPane] File tree refreshed successfully for cwd=${cwd}`,
+            );
+            setFileTree(tree);
+            fileTreeCache.set(cwd, tree);
+          })
+          .catch((error: unknown) => {
+            console.error("[EditorPane] Failed to refresh file tree:", error);
+          });
+      },
+    );
 
     // Cleanup on unmount or cwd change
     return () => {
@@ -1384,7 +1400,7 @@ export function EditorPane({
       }
 
       // Unsubscribe from file watcher
-      api.unsubscribeFileWatcher(cwd, paneId).catch((error) => {
+      api.unsubscribeFileWatcher(cwd, paneId).catch((error: unknown) => {
         console.error(
           "[EditorPane] Failed to unsubscribe from file watcher:",
           error,

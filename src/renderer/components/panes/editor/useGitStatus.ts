@@ -1,4 +1,4 @@
-import type { Branch, GitStatusMap } from "@shared/types";
+import type { Branch, GitFileStatus, GitStatusMap } from "@shared/types";
 import { useCallback, useEffect, useState } from "react";
 
 const api = window.conduit;
@@ -53,19 +53,25 @@ export function useGitStatus(cwd: string) {
     if (api.getGitStatus) {
       api
         .getGitStatus(cwd)
-        .then((response) => {
-          if (response.success && response.gitStatus) {
-            const gitStatusMap = new Map(Object.entries(response.gitStatus));
-            setGitStatus(gitStatusMap);
-            // Note: Don't set isInGitRepo here - getCurrentBranch is the definitive source
-          } else if (response.error) {
-            console.error(
-              "[useGitStatus] Failed to load git status:",
-              response.error,
-            );
-          }
-        })
-        .catch((error) => {
+        .then(
+          (response: {
+            success: boolean;
+            gitStatus: Record<string, GitFileStatus> | null;
+            error?: string;
+          }) => {
+            if (response.success && response.gitStatus) {
+              const gitStatusMap = new Map(Object.entries(response.gitStatus));
+              setGitStatus(gitStatusMap);
+              // Note: Don't set isInGitRepo here - getCurrentBranch is the definitive source
+            } else if (response.error) {
+              console.error(
+                "[useGitStatus] Failed to load git status:",
+                response.error,
+              );
+            }
+          },
+        )
+        .catch((error: unknown) => {
           console.error("[useGitStatus] Failed to load git status:", error);
         });
     }
@@ -74,18 +80,24 @@ export function useGitStatus(cwd: string) {
     if (api.getBranches) {
       api
         .getBranches(cwd)
-        .then((response) => {
-          if (response.success && response.branches) {
-            setBranches(response.branches);
-            // Note: Don't set isInGitRepo here - getCurrentBranch is the definitive source
-          } else if (response.error) {
-            console.error(
-              "[useGitStatus] Failed to load branches:",
-              response.error,
-            );
-          }
-        })
-        .catch((error) => {
+        .then(
+          (response: {
+            success: boolean;
+            branches: Branch[];
+            error?: string;
+          }) => {
+            if (response.success && response.branches) {
+              setBranches(response.branches);
+              // Note: Don't set isInGitRepo here - getCurrentBranch is the definitive source
+            } else if (response.error) {
+              console.error(
+                "[useGitStatus] Failed to load branches:",
+                response.error,
+              );
+            }
+          },
+        )
+        .catch((error: unknown) => {
           console.error("[useGitStatus] Failed to load branches:", error);
         });
     }
@@ -94,12 +106,12 @@ export function useGitStatus(cwd: string) {
     if (api.getCurrentBranch) {
       api
         .getCurrentBranch(cwd)
-        .then((branch) => {
+        .then((branch: string | null) => {
           setCurrentBranch(branch);
           // Only source of truth for isInGitRepo
           setIsInGitRepo(!!branch);
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           console.error("[useGitStatus] Failed to get current branch:", error);
           setIsInGitRepo(false);
         });
@@ -114,34 +126,41 @@ export function useGitStatus(cwd: string) {
     let isInitialLoad = true;
 
     if (api.onGitStatusChanged) {
-      removeGitStatusListener = api.onGitStatusChanged((payload) => {
-        // Only handle events for this cwd
-        if (payload.cwd !== cwd) {
-          return;
-        }
+      removeGitStatusListener = api.onGitStatusChanged(
+        (payload: {
+          cwd: string;
+          gitStatus: Record<string, GitFileStatus> | null;
+          baseBranch: string | null;
+          currentBranch: string | null;
+        }) => {
+          // Only handle events for this cwd
+          if (payload.cwd !== cwd) {
+            return;
+          }
 
-        // Convert plain object to Map if needed
-        const statusMap = payload.gitStatus
-          ? new Map(Object.entries(payload.gitStatus))
-          : null;
+          // Convert plain object to Map if needed
+          const statusMap = payload.gitStatus
+            ? (new Map(Object.entries(payload.gitStatus)) as GitStatusMap)
+            : null;
 
-        // Update git status
-        setGitStatus(statusMap);
+          // Update git status
+          setGitStatus(statusMap);
 
-        // Always update current branch when it changes
-        // Also update isInGitRepo since currentBranch is the source of truth
-        if (payload.currentBranch !== undefined) {
-          setCurrentBranch(payload.currentBranch);
-          setIsInGitRepo(!!payload.currentBranch);
-        }
+          // Always update current branch when it changes
+          // Also update isInGitRepo since currentBranch is the source of truth
+          if (payload.currentBranch !== undefined) {
+            setCurrentBranch(payload.currentBranch);
+            setIsInGitRepo(!!payload.currentBranch);
+          }
 
-        // Only update base branch on initial load, not on subsequent updates
-        // User's branch selection should persist across git status updates
-        if (isInitialLoad && payload.baseBranch !== undefined) {
-          setBaseBranch(payload.baseBranch);
-          isInitialLoad = false;
-        }
-      });
+          // Only update base branch on initial load, not on subsequent updates
+          // User's branch selection should persist across git status updates
+          if (isInitialLoad && payload.baseBranch !== undefined) {
+            setBaseBranch(payload.baseBranch);
+            isInitialLoad = false;
+          }
+        },
+      );
     }
 
     return () => {
