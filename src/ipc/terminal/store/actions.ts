@@ -212,6 +212,7 @@ export async function createTerminal(
         branchExistsOnRemote: options.githubRepo?.branchExistsOnRemote,
         agentPort,
         connectedTerminals: new Set<string>(),
+        connectedEditors: new Set<string>(),
       };
       storeCloudEnvironment(cloudEnvironment);
 

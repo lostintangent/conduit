@@ -41,7 +41,7 @@ describe("terminalHandlers", () => {
         sessionId: "session-123",
         cwd: "/home/user",
         title: "VM Terminal",
-        vmMetadata: { host: "vm-host" },
+        vmId: "vm-123",
       };
 
       mockApi.createTerminal.mockResolvedValue(mockResult);
@@ -73,7 +73,7 @@ describe("terminalHandlers", () => {
         sessionId: "session-123",
         cwd: "/home/user",
         title: "VM Terminal",
-        vmMetadata: { host: "vm-host" },
+        vmId: "vm-123",
       });
     });
 
@@ -129,12 +129,12 @@ describe("terminalHandlers", () => {
       });
     });
 
-    it("should handle vmMetadata being null/undefined", async () => {
+    it("should handle vmId being null/undefined", async () => {
       const mockResult = {
         sessionId: "session-456",
         cwd: "/home/user",
         title: "VM Terminal",
-        vmMetadata: null,
+        vmId: null,
       };
 
       mockApi.createTerminal.mockResolvedValue(mockResult);
@@ -142,12 +142,12 @@ describe("terminalHandlers", () => {
 
       await handleCreateVM();
 
-      // Should open tab with undefined vmMetadata
+      // Should open tab with "local" as default vmId
       expect(tabActions.openTabFromExistingSession).toHaveBeenCalledWith({
         sessionId: "session-456",
         cwd: "/home/user",
         title: "VM Terminal",
-        vmMetadata: undefined,
+        vmId: "local",
       });
     });
   });

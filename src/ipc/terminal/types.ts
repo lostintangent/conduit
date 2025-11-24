@@ -61,6 +61,7 @@ export type CloudEnvironment = {
 
   // Connected terminals/panes
   connectedTerminals: Set<string>; // Terminal IDs connected to this VM
+  connectedEditors: Set<string>; // Editor pane IDs connected to this VM
 };
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;

@@ -45,7 +45,7 @@ export const addTerminalToCloudEnvironment = (
 
 /**
  * Disassociate a terminal from a cloud environment.
- * Automatically deletes the VM if no terminals remain connected.
+ * Automatically deletes the VM if no terminals or editors remain connected.
  */
 export const removeTerminalFromCloudEnvironment = async (
   vmId: string,
@@ -55,10 +55,13 @@ export const removeTerminalFromCloudEnvironment = async (
   if (cloudEnv) {
     cloudEnv.connectedTerminals.delete(terminalId);
 
-    // If no more terminals are connected, delete the VM
-    if (cloudEnv.connectedTerminals.size === 0) {
+    // If no more terminals or editors are connected, delete the VM
+    if (
+      cloudEnv.connectedTerminals.size === 0 &&
+      cloudEnv.connectedEditors.size === 0
+    ) {
       console.log(
-        `[VM] No more terminals connected to VM ${vmId}, deleting VM`,
+        `[VM] No more terminals or editors connected to VM ${vmId}, deleting VM`,
       );
       try {
         const { deleteVM } = await import("../../vm/client");
@@ -77,16 +80,71 @@ export const removeTerminalFromCloudEnvironment = async (
       }
     } else {
       console.log(
-        `[VM] Other terminals still connected to VM ${vmId}, keeping VM alive`,
+        `[VM] Other panes still connected to VM ${vmId} (terminals: ${cloudEnv.connectedTerminals.size}, editors: ${cloudEnv.connectedEditors.size}), keeping VM alive`,
       );
     }
   }
 };
 
 /**
- * Check if a cloud environment has any connected terminals.
+ * Check if a cloud environment has any connected terminals or editors.
  */
-export const hasConnectedTerminals = (vmId: string): boolean => {
+export const hasConnectedPanes = (vmId: string): boolean => {
   const cloudEnv = cloudEnvironments.get(vmId);
-  return cloudEnv ? cloudEnv.connectedTerminals.size > 0 : false;
+  return cloudEnv
+    ? cloudEnv.connectedTerminals.size > 0 || cloudEnv.connectedEditors.size > 0
+    : false;
+};
+
+/**
+ * Associate an editor pane with a cloud environment.
+ */
+export const addEditorToCloudEnvironment = (vmId: string, editorId: string) => {
+  const cloudEnv = cloudEnvironments.get(vmId);
+  if (cloudEnv) {
+    cloudEnv.connectedEditors.add(editorId);
+  }
+};
+
+/**
+ * Disassociate an editor pane from a cloud environment.
+ * Automatically deletes the VM if no terminals or editors remain connected.
+ */
+export const removeEditorFromCloudEnvironment = async (
+  vmId: string,
+  editorId: string,
+) => {
+  const cloudEnv = cloudEnvironments.get(vmId);
+  if (cloudEnv) {
+    cloudEnv.connectedEditors.delete(editorId);
+
+    // If no more terminals or editors are connected, delete the VM
+    if (
+      cloudEnv.connectedTerminals.size === 0 &&
+      cloudEnv.connectedEditors.size === 0
+    ) {
+      console.log(
+        `[VM] No more terminals or editors connected to VM ${vmId}, deleting VM`,
+      );
+      try {
+        const { deleteVM } = await import("../../vm/client");
+        await deleteVM(vmId);
+        console.log(`[VM] Successfully deleted VM ${vmId}`);
+        // Remove from our store
+        cloudEnvironments.delete(vmId);
+      } catch (error) {
+        // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
+        if (error instanceof Error && error.message.includes("404")) {
+          console.log(`[VM] VM ${vmId} was already deleted`);
+          cloudEnvironments.delete(vmId);
+        } else {
+          console.error(`[VM] Failed to delete VM ${vmId}:`, error);
+        }
+      }
+    } else {
+      console.log(
+        `[VM] Other panes still connected to VM ${vmId} (terminals: ${cloudEnv.connectedTerminals.size}, editors: ${cloudEnv.connectedEditors.size}), keeping VM alive`,
+      );
+    }
+  }
 };

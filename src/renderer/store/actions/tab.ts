@@ -101,6 +101,7 @@ export async function openTab(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
+    vmId: result.vmId ?? "local",
   };
 
   const layout: LayoutNode = {
@@ -160,12 +161,12 @@ export function openTabFromExistingSession({
   sessionId,
   cwd,
   title,
-  vmMetadata,
+  vmId,
 }: {
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
-  vmMetadata?: TerminalPane["vmMetadata"] | null;
+  vmId?: string | "local" | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -175,7 +176,7 @@ export function openTabFromExistingSession({
     sessionId,
     cwd: cwd ?? null,
     processTitle: title ?? "Terminal",
-    vmMetadata: vmMetadata ?? undefined,
+    vmId: vmId ?? "local",
   };
 
   return createTabWithPane(paneState);
@@ -198,6 +199,7 @@ export async function openTabFromExistingAgentSession(
     sessionId: result.sessionId,
     cwd: result.cwd ?? session.worktreePath,
     processTitle: result.title ?? session.branchName,
+    vmId: result.vmId ?? "local",
     agentSessionId: session.id,
     agentBranchName: session.branchName,
     agentBaseBranch: session.baseBranch ?? undefined,
@@ -225,7 +227,7 @@ export async function openTabFromPaneDescriptor(
       sessionId: terminalDescriptor.sessionId,
       cwd: terminalDescriptor.cwd,
       processTitle: terminalDescriptor.processTitle,
-      vmMetadata: terminalDescriptor.vmMetadata,
+      vmId: terminalDescriptor.vmId ?? "local",
     };
   } else if (descriptor.type === "editor") {
     const editorDescriptor = descriptor as Omit<EditorPane, "id">;
@@ -234,6 +236,8 @@ export async function openTabFromPaneDescriptor(
       type: "editor",
       cwd: editorDescriptor.cwd,
       filePath: editorDescriptor.filePath,
+      vmId: editorDescriptor.vmId ?? "local",
+      sessionId: editorDescriptor.sessionId,
       agentSessionId: editorDescriptor.agentSessionId,
       agentBranchName: editorDescriptor.agentBranchName,
       agentBaseBranch: editorDescriptor.agentBaseBranch,
@@ -565,6 +569,8 @@ export async function duplicateTab(
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         filePath: translatedFilePath,
+        vmId: sourcePane.vmId ?? "local",
+        sessionId: sourcePane.sessionId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,

@@ -448,6 +448,7 @@ export function App() {
         type: "terminal",
         sessionId: result.sessionId,
         cwd: result.cwd ?? requestedCwd ?? null,
+        vmId: result.vmId ?? "local",
       });
 
       if (options.trackHistory) {
@@ -485,7 +486,7 @@ export function App() {
           sessionId: result.sessionId,
           cwd: result.cwd,
           title: result.title,
-          vmMetadata: result.vmMetadata ?? undefined,
+          vmId: result.vmId ?? "local",
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -765,6 +766,7 @@ export function App() {
         type: "terminal",
         sessionId: terminalId,
         cwd,
+        vmId: "local", // Floating terminals are always local
       });
     },
     [setFloatingTerminal, setQuickPaneState],

@@ -588,6 +588,18 @@ const conduitAPI = {
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,
 
+  registerEditorWithVM: (vmId: string, editorId: string) =>
+    ipcRenderer.invoke("vm:register-editor", {
+      vmId,
+      editorId,
+    }) as Promise<void>,
+
+  unregisterEditorFromVM: (vmId: string, editorId: string) =>
+    ipcRenderer.invoke("vm:unregister-editor", {
+      vmId,
+      editorId,
+    }) as Promise<void>,
+
   browser: configureBrowserModule,
   cli: configureCliModule,
   updates: configureUpdatesModule,

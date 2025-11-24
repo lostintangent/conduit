@@ -126,4 +126,24 @@ export function initializeVMHandlers() {
       return result;
     },
   );
+
+  // Register an editor pane with a VM
+  ipcMain.handle(
+    "vm:register-editor",
+    async (_, { vmId, editorId }: { vmId: string; editorId: string }) => {
+      const { addEditorToCloudEnvironment } = await import("./store");
+      addEditorToCloudEnvironment(vmId, editorId);
+      console.log(`[VM] Registered editor ${editorId} with VM ${vmId}`);
+    },
+  );
+
+  // Unregister an editor pane from a VM
+  ipcMain.handle(
+    "vm:unregister-editor",
+    async (_, { vmId, editorId }: { vmId: string; editorId: string }) => {
+      const { removeEditorFromCloudEnvironment } = await import("./store");
+      await removeEditorFromCloudEnvironment(vmId, editorId);
+      console.log(`[VM] Unregistered editor ${editorId} from VM ${vmId}`);
+    },
+  );
 }

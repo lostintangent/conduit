@@ -842,6 +842,16 @@ export function openEditorPane(
         ...(vmSessionId && { sessionId: vmSessionId }),
       };
 
+      // Register the editor pane with the VM if it's a cloud VM
+      if (vmId && vmId !== "local") {
+        api.registerEditorWithVM(vmId, newPaneId).catch((error: unknown) => {
+          console.error(
+            `[VM] Failed to register editor ${newPaneId} with VM ${vmId}:`,
+            error,
+          );
+        });
+      }
+
       const newLayoutNode: LayoutNode = {
         id: generateId(),
         type: "pane",
@@ -915,6 +925,18 @@ export function removePane(
           api.closeTerminal(pane.sessionId);
         }
         disposeSession(pane.sessionId);
+      }
+
+      // Unregister editor pane from VM if it's a cloud VM
+      if (pane.type === "editor" && pane.vmId && pane.vmId !== "local") {
+        api
+          .unregisterEditorFromVM(pane.vmId, paneId)
+          .catch((error: unknown) => {
+            console.error(
+              `[VM] Failed to unregister editor ${paneId} from VM ${pane.vmId}:`,
+              error,
+            );
+          });
       }
 
       const newPanes = { ...tab.panes };

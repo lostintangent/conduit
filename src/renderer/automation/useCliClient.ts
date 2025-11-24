@@ -155,6 +155,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
             const descriptor: QuickPaneDescriptor = {
               ...args,
               type: "editor",
+              vmId: args.vmId ?? "local",
             };
 
             if (isCommitMessageRequest) {
