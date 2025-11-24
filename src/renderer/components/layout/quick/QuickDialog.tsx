@@ -92,18 +92,21 @@ export function QuickDialog({
     });
   }, []);
 
-  const isVmTerminal = useMemo(
-    () =>
-      currentDescriptor.type === "terminal" &&
-      !!currentDescriptor.vmMetadata?.vmId,
-    [currentDescriptor],
-  );
-  const vmTitle = useMemo(() => {
-    if (!isVmTerminal) {
-      return undefined;
+  const vmLabel = useMemo(() => {
+    if (currentDescriptor.type !== "terminal") {
+      return null;
     }
-    return `Connected to VM ${currentDescriptor.vmMetadata?.vmId ?? ""}`;
-  }, [currentDescriptor, isVmTerminal]);
+
+    const terminalDescriptor = currentDescriptor as Omit<
+      import("@/types").TerminalPane,
+      "id"
+    >;
+    if (!terminalDescriptor.vmId) {
+      return null;
+    }
+
+    return `Connected to VM ${terminalDescriptor.vmId}`;
+  }, [currentDescriptor]);
 
   const handleOpenAsTabClick = useCallback(() => {
     const {
@@ -183,9 +186,9 @@ export function QuickDialog({
           <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">
             <div
               className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur"
-              title={vmTitle}
+              title={vmLabel ?? undefined}
             >
-              {isVmTerminal && (
+              {vmLabel && (
                 <Cloud
                   size={16}
                   className="text-white/80 mr-2"

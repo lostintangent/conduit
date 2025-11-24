@@ -1,5 +1,3 @@
-import type { VMMetadata } from "@shared/types";
-
 type Identifiable = { id: string };
 type Resizable = { size?: number };
 
@@ -30,7 +28,7 @@ export type TerminalPane = {
   cwd: string | null;
   processTitle: string;
 
-  vmMetadata?: VMMetadata;
+  vmId: string | "local"; // VM ID for cloud terminals, "local" for local terminals
 
   agentSessionId?: string;
   agentBranchName?: string;

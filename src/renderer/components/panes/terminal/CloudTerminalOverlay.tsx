@@ -32,7 +32,7 @@ export const CloudTerminalOverlay = ({
   const terminalPane =
     currentPane?.type === "terminal" ? currentPane : undefined;
 
-  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
+  const vmId = terminalPane?.vmId !== "local" ? terminalPane?.vmId : null;
 
   const [sshConnectionState, setSSHConnectionState] = useState<
     "connecting" | "connected" | "disconnected" | null

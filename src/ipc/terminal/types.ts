@@ -12,7 +12,7 @@ export type TerminalInstance = {
   bufferedOutput: string[];
 
   // VM metadata (only present for remote VM sessions)
-  cloudEnvironment?: CloudEnvironment;
+  vmId?: string; // Reference to the VM this terminal is connected to
 
   // Internal state for tracking CWD
   oscBuffer: string;
@@ -58,6 +58,9 @@ export type CloudEnvironment = {
   repoName?: string; // Repository name for determining clone path
   localBranch?: string; // Local branch name (may not exist on remote)
   branchExistsOnRemote?: boolean; // Whether local branch exists on remote
+
+  // Connected terminals/panes
+  connectedTerminals: Set<string>; // Terminal IDs connected to this VM
 };
 
 export type SendToRendererFn = (channel: string, payload: unknown) => void;

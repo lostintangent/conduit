@@ -22,11 +22,12 @@ export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
     `${CHANNEL}:create`,
     async (_, payload: CreateTerminalOptions) => {
       const terminal = await createTerminal(sendToRenderer, payload);
+
       return {
         sessionId: terminal.id,
         title: terminal.lastProcessName,
         cwd: terminal.cwd,
-        vmMetadata: terminal.cloudEnvironment,
+        vmId: terminal.vmId,
       };
     },
   );

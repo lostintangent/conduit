@@ -113,25 +113,14 @@ export function initializeVMHandlers() {
     ) => {
       const { addPortForward } = await import("./client");
 
-      // Find the terminal session for this VM
-      const terminals = (await import("../terminal/store")).getAllTerminals();
-      let terminal;
-      for (const [_, term] of terminals) {
-        if (term.cloudEnvironment?.vmId === vmId) {
-          terminal = term;
-          break;
-        }
-      }
-
       // Call the VM API to forward the port
       const result = await addPortForward(vmId, port, description);
 
-      // Update the terminal's forwarded ports map
-      if (terminal?.cloudEnvironment) {
-        terminal.cloudEnvironment.forwardedPorts.set(
-          port,
-          result.connection_url,
-        );
+      // Update the cloud environment's forwarded ports map
+      const { getCloudEnvironment } = await import("./store");
+      const cloudEnv = getCloudEnvironment(vmId);
+      if (cloudEnv) {
+        cloudEnv.forwardedPorts.set(port, result.connection_url);
       }
 
       return result;

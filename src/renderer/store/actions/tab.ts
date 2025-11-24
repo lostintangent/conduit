@@ -503,7 +503,7 @@ export async function duplicateTab(
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
         processTitle: result.title,
-        vmMetadata: result.vmMetadata,
+        vmId: result.vmId ?? "local",
         agentSessionId,
         agentBranchName,
         agentBaseBranch,

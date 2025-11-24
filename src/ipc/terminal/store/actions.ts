@@ -9,6 +9,12 @@ import {
   hasSSHKeys,
   setupSSHKeyInVM,
 } from "../../vm/ssh-keys";
+import {
+  addTerminalToCloudEnvironment,
+  getCloudEnvironment,
+  removeTerminalFromCloudEnvironment,
+  storeCloudEnvironment,
+} from "../../vm/store";
 import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
@@ -33,8 +39,8 @@ const disposeSessionResources = (session: TerminalInstance) => {
 };
 
 const describeProcess = (session: TerminalInstance) => {
-  if (session.cloudEnvironment) {
-    return `VM ${session.cloudEnvironment.vmId}`;
+  if (session.vmId) {
+    return `VM ${session.vmId}`;
   }
 
   if (session.lastProcessName && session.lastProcessName.trim().length > 0) {
@@ -188,6 +194,27 @@ export async function createTerminal(
       // For cloud VMs, use the remote home directory as the initial cwd
       const remoteCwd = "/workspace";
 
+      // Store CloudEnvironment in VM store
+      const cloudEnvironment = {
+        vmId: vm.id,
+        vmHost: sshInfo.host,
+        sshPort: sshInfo.port,
+        imageId: vm.image_id,
+        useSSHKey,
+        connectionState: "connecting" as const,
+        connectionStartTime: Date.now(),
+        detectedPorts: new Set<number>(),
+        forwardedPorts: new Map<number, string>(),
+        localRepoCwd: options.localRepoCwd,
+        diffPatches: options.diffPatches,
+        repoName: options.githubRepo?.name,
+        localBranch: options.githubRepo?.branch,
+        branchExistsOnRemote: options.githubRepo?.branchExistsOnRemote,
+        agentPort,
+        connectedTerminals: new Set<string>(),
+      };
+      storeCloudEnvironment(cloudEnvironment);
+
       const session: TerminalInstance = {
         id,
         pty,
@@ -202,26 +229,11 @@ export async function createTerminal(
         cwdPollBackedOff: false,
         isRendererReady: false,
         bufferedOutput: [],
-        cloudEnvironment: {
-          vmId: vm.id,
-          vmHost: sshInfo.host,
-          sshPort: sshInfo.port,
-          imageId: vm.image_id,
-          useSSHKey,
-          connectionState: "connecting",
-          connectionStartTime: Date.now(),
-          detectedPorts: new Set(),
-          forwardedPorts: new Map(),
-          localRepoCwd: options.localRepoCwd,
-          diffPatches: options.diffPatches,
-          repoName: options.githubRepo?.name,
-          localBranch: options.githubRepo?.branch,
-          branchExistsOnRemote: options.githubRepo?.branchExistsOnRemote,
-          agentPort,
-        },
+        vmId: vm.id,
       };
 
       storeTerminal(session);
+      addTerminalToCloudEnvironment(vm.id, id);
       setupTerminalListeners(session, sendToRenderer);
 
       // Notify renderer about agent availability if it was deployed
@@ -278,8 +290,11 @@ function setupTerminalListeners(
 
   pty.onData((data) => {
     // Handle SSH connection state tracking for cloud terminals
-    if (terminal.cloudEnvironment) {
-      const currentState = terminal.cloudEnvironment.connectionState;
+    const cloudEnvironment = terminal.vmId
+      ? getCloudEnvironment(terminal.vmId)
+      : undefined;
+    if (cloudEnvironment) {
+      const currentState = cloudEnvironment.connectionState;
 
       // Check for successful connection
       // We use a hybrid approach: check if the SSH process is running AND we see a shell prompt
@@ -296,7 +311,7 @@ function setupTerminalListeners(
           console.log(
             "[VM] SSH connection established (ssh process + remote prompt detected)",
           );
-          terminal.cloudEnvironment.connectionState = "connected";
+          cloudEnvironment.connectionState = "connected";
           sendToRenderer("terminal:ssh-state", {
             sessionId: id,
             state: "connected",
@@ -332,8 +347,8 @@ function setupTerminalListeners(
       sendToRenderer("terminal:title", { sessionId: id, title: processName });
 
       // For cloud terminals, detect SSH disconnection via process change
-      if (terminal.cloudEnvironment) {
-        const currentState = terminal.cloudEnvironment.connectionState;
+      if (cloudEnvironment) {
+        const currentState = cloudEnvironment.connectionState;
 
         // SSH session ended when process changes from 'ssh' to something else (local shell)
         // This is more reliable than text parsing
@@ -346,7 +361,7 @@ function setupTerminalListeners(
             `[VM] SSH process ended (changed from ssh to ${processName}), terminal disconnected`,
           );
 
-          terminal.cloudEnvironment.connectionState = "disconnected";
+          cloudEnvironment.connectionState = "disconnected";
           sendToRenderer("terminal:ssh-state", {
             sessionId: id,
             state: "disconnected",
@@ -356,22 +371,22 @@ function setupTerminalListeners(
     }
 
     // Detect ports in terminal output for cloud VMs
-    if (terminal.cloudEnvironment) {
+    if (cloudEnvironment) {
       const detectedPorts = detectPorts(data);
 
       for (const port of detectedPorts) {
         if (
-          !terminal.cloudEnvironment.detectedPorts.has(port) &&
-          !terminal.cloudEnvironment.forwardedPorts.has(port)
+          !cloudEnvironment.detectedPorts.has(port) &&
+          !cloudEnvironment.forwardedPorts.has(port)
         ) {
-          terminal.cloudEnvironment.detectedPorts.add(port);
+          cloudEnvironment.detectedPorts.add(port);
           sendToRenderer("terminal:port-detected", { sessionId: id, port });
         }
       }
     }
 
     // Only consume OSC sequences for local sessions
-    if (!terminal.cloudEnvironment) {
+    if (!cloudEnvironment) {
       consumeOscSequences(terminal, data, sendToRenderer);
     }
   });
@@ -380,27 +395,22 @@ function setupTerminalListeners(
     disposeSessionResources(terminal);
 
     // Clean up VM if this was a VM session
-    if (terminal.cloudEnvironment) {
-      console.log(
-        `[VM] Terminal exited, cleaning up VM ${terminal.cloudEnvironment.vmId}`,
-      );
+    if (terminal.vmId) {
+      console.log(`[VM] Terminal exited, cleaning up VM ${terminal.vmId}`);
+
+      // Remove terminal from cloud environment
+      removeTerminalFromCloudEnvironment(terminal.vmId, terminal.id);
+
       try {
         const { deleteVM } = await import("../../vm/client");
-        await deleteVM(terminal.cloudEnvironment.vmId);
-        console.log(
-          `[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`,
-        );
+        await deleteVM(terminal.vmId);
+        console.log(`[VM] Successfully deleted VM ${terminal.vmId}`);
       } catch (error) {
         // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
         if (error instanceof Error && error.message.includes("404")) {
-          console.log(
-            `[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`,
-          );
+          console.log(`[VM] VM ${terminal.vmId} was already deleted`);
         } else {
-          console.error(
-            `[VM] Failed to delete VM ${terminal.cloudEnvironment.vmId}:`,
-            error,
-          );
+          console.error(`[VM] Failed to delete VM ${terminal.vmId}:`, error);
         }
       }
     }
@@ -433,7 +443,7 @@ function setupTerminalListeners(
   });
 
   // Only start CWD polling for local sessions
-  if (!terminal.cloudEnvironment) {
+  if (!terminal.vmId) {
     startCwdPolling(terminal, sendToRenderer);
   }
 }
@@ -443,27 +453,22 @@ export async function killTerminal(terminalId: string) {
   if (!terminal) return;
 
   // Clean up VM if this is a VM session
-  if (terminal.cloudEnvironment) {
-    console.log(
-      `[VM] Closing session, deleting VM ${terminal.cloudEnvironment.vmId}`,
-    );
+  if (terminal.vmId) {
+    console.log(`[VM] Closing session, deleting VM ${terminal.vmId}`);
+
+    // Remove terminal from cloud environment
+    removeTerminalFromCloudEnvironment(terminal.vmId, terminal.id);
+
     try {
       const { deleteVM } = await import("../../vm/client");
-      await deleteVM(terminal.cloudEnvironment.vmId);
-      console.log(
-        `[VM] Successfully deleted VM ${terminal.cloudEnvironment.vmId}`,
-      );
+      await deleteVM(terminal.vmId);
+      console.log(`[VM] Successfully deleted VM ${terminal.vmId}`);
     } catch (error) {
       // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
       if (error instanceof Error && error.message.includes("404")) {
-        console.log(
-          `[VM] VM ${terminal.cloudEnvironment.vmId} was already deleted`,
-        );
+        console.log(`[VM] VM ${terminal.vmId} was already deleted`);
       } else {
-        console.error(
-          `[VM] Failed to delete VM ${terminal.cloudEnvironment.vmId}:`,
-          error,
-        );
+        console.error(`[VM] Failed to delete VM ${terminal.vmId}:`, error);
       }
     }
   }
@@ -496,19 +501,22 @@ export function markTerminalReady(
   }
 
   // If this is a VM session, send the SSH command now that the terminal is ready
-  if (terminal.cloudEnvironment) {
+  const cloudEnvironment = terminal.vmId
+    ? getCloudEnvironment(terminal.vmId)
+    : undefined;
+  if (cloudEnvironment) {
     let sshCommand: string;
 
-    if (terminal.cloudEnvironment.useSSHKey) {
+    if (cloudEnvironment.useSSHKey) {
       // Use SSH key authentication with the Conduit key
       const keyPath = getPrivateKeyPath();
-      sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
+      sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${cloudEnvironment.sshPort} ace@${cloudEnvironment.vmHost}\n`;
       console.log(
         `[VM] Terminal ready, sending SSH command with key: ${sshCommand.trim()}`,
       );
     } else {
       // Use password authentication
-      sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
+      sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${cloudEnvironment.sshPort} ace@${cloudEnvironment.vmHost}\n`;
       console.log(
         `[VM] Terminal ready, sending SSH command: ${sshCommand.trim()}`,
       );
@@ -517,10 +525,10 @@ export function markTerminalReady(
     terminal.pty.write(sshCommand);
 
     // If there's git state to apply (working tree changes), schedule it after repo clone
-    const hasDiffPatch = terminal.cloudEnvironment.diffPatches;
-    const hasLocalRepoCwd = terminal.cloudEnvironment.localRepoCwd;
+    const hasDiffPatch = cloudEnvironment.diffPatches;
+    const hasLocalRepoCwd = cloudEnvironment.localRepoCwd;
     const hasGitSync =
-      (hasDiffPatch || hasLocalRepoCwd) && terminal.cloudEnvironment.repoName;
+      (hasDiffPatch || hasLocalRepoCwd) && cloudEnvironment.repoName;
 
     if (hasGitSync) {
       console.log(`[VM] Will apply git state after repo clone completes`);
@@ -531,17 +539,17 @@ export function markTerminalReady(
       }
       if (hasDiffPatch) {
         const patches = [];
-        if (terminal.cloudEnvironment.diffPatches!.staged)
+        if (cloudEnvironment.diffPatches!.staged)
           patches.push(
-            `staged: ${terminal.cloudEnvironment.diffPatches!.staged.length}b`,
+            `staged: ${cloudEnvironment.diffPatches!.staged.length}b`,
           );
-        if (terminal.cloudEnvironment.diffPatches!.unstaged)
+        if (cloudEnvironment.diffPatches!.unstaged)
           patches.push(
-            `unstaged: ${terminal.cloudEnvironment.diffPatches!.unstaged.length}b`,
+            `unstaged: ${cloudEnvironment.diffPatches!.unstaged.length}b`,
           );
-        if (terminal.cloudEnvironment.diffPatches!.untracked)
+        if (cloudEnvironment.diffPatches!.untracked)
           patches.push(
-            `untracked: ${terminal.cloudEnvironment.diffPatches!.untracked.length}b`,
+            `untracked: ${cloudEnvironment.diffPatches!.untracked.length}b`,
           );
         console.log(`[VM] - Working tree patches: ${patches.join(", ")}`);
       }
@@ -557,14 +565,16 @@ export function markTerminalReady(
             // Use a bash loop that checks every second for 5 seconds
             // Check that git repo exists AND git status works (meaning clone is complete)
             const startTime = Date.now();
+            const vmId = terminal.vmId!;
             const checkResult = await executeInVM(
-              terminal.cloudEnvironment!.vmId,
+              vmId,
               "bash",
               [
                 "-c",
                 `cd /workspace || exit 1; for i in {1..5}; do if git status > /dev/null 2>&1; then echo "ready"; exit 0; fi; sleep 1; done; echo "not-ready"; exit 1`,
               ],
-              "7", // 5 seconds loop + 2 seconds buffer
+              undefined, // working_directory
+              7, // 5 seconds loop + 2 seconds buffer timeout
             );
             const elapsed = Date.now() - startTime;
 
@@ -606,24 +616,30 @@ export function markTerminalReady(
         const { executeInVM } = await import("../../vm/client");
 
         try {
+          // Get the cloud environment again for this async context
+          const vmId = terminal.vmId!;
+          const cloudEnv = getCloudEnvironment(vmId);
+          if (!cloudEnv) {
+            console.error(`[VM] Cloud environment not found for VM ${vmId}`);
+            return;
+          }
+
           // Step 0: If local branch doesn't exist on remote, create it on VM first
-          if (
-            !terminal.cloudEnvironment!.branchExistsOnRemote &&
-            terminal.cloudEnvironment!.localBranch
-          ) {
+          if (!cloudEnv.branchExistsOnRemote && cloudEnv.localBranch) {
             console.log(
-              `[VM] Local branch "${terminal.cloudEnvironment!.localBranch}" doesn't exist on remote, creating it on VM`,
+              `[VM] Local branch "${cloudEnv.localBranch}" doesn't exist on remote, creating it on VM`,
             );
 
             // Create and checkout the new branch on VM
             const createBranchResult = await executeInVM(
-              terminal.cloudEnvironment!.vmId,
+              vmId,
               "bash",
               [
                 "-c",
-                `cd ${repoPath} && git checkout -b ${terminal.cloudEnvironment!.localBranch}`,
+                `cd ${repoPath} && git checkout -b ${cloudEnv.localBranch}`,
               ],
-              "10",
+              undefined, // working_directory
+              10, // timeout
             );
 
             if (createBranchResult.exit_code !== 0) {
@@ -639,20 +655,15 @@ export function markTerminalReady(
               return;
             }
 
-            console.log(
-              `[VM] Created branch "${terminal.cloudEnvironment!.localBranch}" on VM`,
-            );
+            console.log(`[VM] Created branch "${cloudEnv.localBranch}" on VM`);
           }
 
           // Step 1: Configure VM to accept git pushes, then push commits via SSH
-          if (hasLocalRepoCwd && terminal.cloudEnvironment!.useSSHKey) {
+          if (hasLocalRepoCwd && cloudEnv.useSSHKey) {
             const { configureVMForGitPush } = await import("../../vm/client");
             console.log(`[VM] Configuring git to accept pushes`);
 
-            const configResult = await configureVMForGitPush(
-              terminal.cloudEnvironment!.vmId,
-              repoPath,
-            );
+            const configResult = await configureVMForGitPush(vmId, repoPath);
 
             if (!configResult.success) {
               console.error(
@@ -676,8 +687,8 @@ export function markTerminalReady(
             const sshKeyPath = getPrivateKeyPath();
             const pushSuccess = await pushCommitsViaSSH(
               hasLocalRepoCwd,
-              terminal.cloudEnvironment!.vmHost,
-              terminal.cloudEnvironment!.sshPort,
+              cloudEnv.vmHost,
+              cloudEnv.sshPort,
               sshKeyPath,
               repoPath,
             );
@@ -699,25 +710,23 @@ export function markTerminalReady(
           if (hasDiffPatch) {
             const { applyDiffToVM } = await import("../../vm/client");
             const patches = [];
-            if (terminal.cloudEnvironment!.diffPatches!.staged)
+            if (cloudEnv.diffPatches!.staged)
+              patches.push(`staged: ${cloudEnv.diffPatches!.staged.length}b`);
+            if (cloudEnv.diffPatches!.unstaged)
               patches.push(
-                `staged: ${terminal.cloudEnvironment!.diffPatches!.staged.length}b`,
+                `unstaged: ${cloudEnv.diffPatches!.unstaged.length}b`,
               );
-            if (terminal.cloudEnvironment!.diffPatches!.unstaged)
+            if (cloudEnv.diffPatches!.untracked)
               patches.push(
-                `unstaged: ${terminal.cloudEnvironment!.diffPatches!.unstaged.length}b`,
-              );
-            if (terminal.cloudEnvironment!.diffPatches!.untracked)
-              patches.push(
-                `untracked: ${terminal.cloudEnvironment!.diffPatches!.untracked.length}b`,
+                `untracked: ${cloudEnv.diffPatches!.untracked.length}b`,
               );
             console.log(
               `[VM] Applying working tree patches: ${patches.join(", ")}`,
             );
 
             const patchResult = await applyDiffToVM(
-              terminal.cloudEnvironment!.vmId,
-              terminal.cloudEnvironment!.diffPatches!,
+              vmId,
+              cloudEnv.diffPatches!,
               repoPath,
             );
 

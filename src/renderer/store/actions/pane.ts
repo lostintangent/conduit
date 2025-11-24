@@ -643,7 +643,7 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
-    vmMetadata: result.vmMetadata,
+    vmId: result.vmId ?? "local",
     agentSessionId,
     agentBranchName,
     agentBaseBranch,
@@ -824,9 +824,9 @@ export function openEditorPane(
       let vmCwd: string | undefined = undefined;
       let vmId: string | "local" = "local";
       for (const pane of Object.values(tab.panes)) {
-        if (pane.type === "terminal" && pane.vmMetadata?.vmId) {
+        if (pane.type === "terminal" && pane.vmId !== "local") {
           vmSessionId = pane.sessionId;
-          vmId = pane.vmMetadata.vmId;
+          vmId = pane.vmId;
           // Use the VM terminal's remote cwd
           vmCwd = pane.cwd || undefined;
           break;

@@ -48,7 +48,7 @@ export function ComputeTargetIndicator({
     currentPane?.type === "terminal" ? currentPane : undefined;
 
   const agentSessionId = terminalPane?.agentSessionId ?? null;
-  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
+  const vmId = terminalPane?.vmId !== "local" ? terminalPane?.vmId : null;
 
   // Use sandbox handlers from the shared hook
   const {

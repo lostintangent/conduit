@@ -1,4 +1,4 @@
-import type { Tab, TerminalPane, EditorPane } from "@/types";
+import type { EditorPane, Tab, TerminalPane } from "@/types";
 
 export type UnifiedSandboxInfo =
   | {
@@ -45,12 +45,16 @@ export function getUnifiedSandboxForTab(tab: Tab): UnifiedSandboxInfo {
 
   // Check for unified VM
   const firstVmId =
-    firstPane.type === "terminal" ? firstPane.vmMetadata?.vmId : undefined;
+    firstPane.type === "terminal" && firstPane.vmId !== "local"
+      ? firstPane.vmId
+      : undefined;
 
   if (firstVmId) {
     // Check if all panes have the same vmId
     const allHaveSameVm = nonWebviewPanes.every((pane) =>
-      pane.type === "terminal" ? pane.vmMetadata?.vmId === firstVmId : false,
+      pane.type === "terminal" && pane.vmId !== "local"
+        ? pane.vmId === firstVmId
+        : false,
     );
 
     if (allHaveSameVm) {

@@ -59,6 +59,7 @@ export type Workspace = {
 
       // For editor panes
       filePath?: string;
+      vmId?: string | "local"; // VM ID for file operations routing
 
       // For webview panes - the pane ID this is showing devtools for
       url?: string;
@@ -84,7 +85,7 @@ export type TerminalPayload = {
 export type TerminalCreateResponse = TerminalPayload & {
   title: string;
   cwd: string;
-  vmMetadata?: VMMetadata;
+  vmId?: string; // VM ID if this is a cloud terminal
 };
 
 export type TerminalCaptureCommandResponse = string | null;
