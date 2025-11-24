@@ -134,7 +134,7 @@ describe("terminalHandlers", () => {
         sessionId: "session-456",
         cwd: "/home/user",
         title: "VM Terminal",
-        vmId: null,
+        vmId: null as string | null,
       };
 
       mockApi.createTerminal.mockResolvedValue(mockResult);
