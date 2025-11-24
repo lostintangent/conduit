@@ -11,7 +11,7 @@ import {
   initializeTerminalHandlers,
 } from "./terminal";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
-import { initializeUpdateHandlers } from "./updates";
+import { initializeUpdateHandlers, cleanupUpdateHandlers } from "./updates";
 import { initializeVMHandlers } from "./vm";
 import initializeWorkspaceHandlers from "./workspace";
 
@@ -57,4 +57,9 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeUpdateHandlers(sendToRenderer, refreshMenu);
 }
 
-export { cleanupTerminalSessions, initializeIpcHandlers, shutdownCliServer };
+export {
+  cleanupTerminalSessions,
+  cleanupUpdateHandlers,
+  initializeIpcHandlers,
+  shutdownCliServer,
+};
