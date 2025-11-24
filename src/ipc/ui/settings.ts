@@ -19,6 +19,14 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   theme: "dark",
   terminalPromptAgent: "copilot -p {arg}",
   terminalPromptBufferLines: 100,
+  agents: [
+    {
+      id: "copilot",
+      name: "GitHub Copilot",
+      command: "copilot -p {arg}",
+      isDefault: true,
+    },
+  ],
 };
 
 export async function loadSettings(

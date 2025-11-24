@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import {
   cleanupTerminalSessions,
+  cleanupUpdateHandlers,
   initializeIpcHandlers,
   shutdownCliServer,
 } from "./ipc";
@@ -87,6 +88,7 @@ async function createWindow() {
   // resources and then quit the app.
   mainWindow.on("closed", () => {
     cleanupTerminalSessions();
+    cleanupUpdateHandlers();
     shutdownCliServer();
 
     app.quit();

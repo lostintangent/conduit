@@ -17,6 +17,7 @@ import {
   updateTerminalFonts,
   updateTerminalThemes,
 } from "@/components/panes/terminal/xtermCache";
+import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
@@ -129,6 +130,7 @@ export function App() {
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
   const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
+  const [showAgentsEditor, setShowAgentsEditor] = useState(false);
   const [showTerminalFontSettings, setShowTerminalFontSettings] =
     useState(false);
 
@@ -174,6 +176,7 @@ export function App() {
     // UI state setters
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
+    setShowAgentsEditor,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -1064,6 +1067,9 @@ export function App() {
         </div>
       ) : null}
 
+      {showAgentsEditor && (
+        <AgentsEditor onClose={() => setShowAgentsEditor(false)} />
+      )}
       <TerminalFontSettingsDialog
         isOpen={showTerminalFontSettings}
         initialFontFamily={terminalFontFamily}

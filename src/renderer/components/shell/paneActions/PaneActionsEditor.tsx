@@ -60,26 +60,10 @@ export function PaneActionsEditor({
 }: PaneActionsEditorProps) {
   const actions = usePaneActions();
   const preCommands = usePreCommands();
-  const [settings, setSettings] = useState<{
-    terminalPromptAgent?: string;
-    terminalPromptBufferLines?: number;
-  }>({
-    terminalPromptAgent: "copilot -p {arg}",
-    terminalPromptBufferLines: 100,
-  });
   const [expandedActions, setExpandedActions] = useState<Set<string>>(
     new Set(),
   );
 
-  // Load settings on mount
-  useEffect(() => {
-    api.getSettings().then((s) =>
-      setSettings({
-        terminalPromptAgent: s.terminalPromptAgent,
-        terminalPromptBufferLines: s.terminalPromptBufferLines,
-      }),
-    );
-  }, []);
   const [editingActionIndex, setEditingActionIndex] = useState<number | null>(
     null,
   );
@@ -1018,87 +1002,6 @@ export function PaneActionsEditor({
               })}
             </tbody>
           </table>
-        </div>
-
-        {/* Hotkey Commands Section */}
-        <div className="px-6 py-4 border-t border-gray-700 bg-gray-800/30">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-sm font-semibold text-white">
-                Hotkey Commands
-              </h3>
-              <span className="text-xs text-gray-500 italic">
-                Configure commands for keyboard shortcuts
-              </span>
-            </div>
-
-            <div className="bg-gray-800/50 rounded-lg p-4 space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-gray-400 font-medium">
-                    Terminal Prompt Agent (Cmd+P)
-                  </label>
-                  <kbd className="px-2 py-0.5 text-xs bg-gray-700 border border-gray-600 rounded text-gray-300">
-                    Cmd+P
-                  </kbd>
-                </div>
-                <input
-                  type="text"
-                  value={settings.terminalPromptAgent || ""}
-                  onChange={(e) => {
-                    const newValue = e.target.value || undefined;
-                    setSettings({
-                      ...settings,
-                      terminalPromptAgent: newValue,
-                    });
-                    api.updateSettings({
-                      terminalPromptAgent: newValue,
-                    });
-                  }}
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
-                  placeholder="e.g., copilot -p {arg}"
-                />
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Command to invoke when pressing Cmd+P in a terminal. Use{" "}
-                  <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
-                    {"{arg}"}
-                  </code>{" "}
-                  as a placeholder for the prompt (passed as an argument), or
-                  omit it to use stdin. Default:{" "}
-                  <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
-                    copilot -p {"{arg}"}
-                  </code>
-                </p>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 font-medium block mb-1">
-                  Terminal Buffer Lines
-                </label>
-                <input
-                  type="number"
-                  min="10"
-                  max="1000"
-                  value={settings.terminalPromptBufferLines || 100}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    if (!isNaN(value)) {
-                      setSettings({
-                        ...settings,
-                        terminalPromptBufferLines: value,
-                      });
-                      api.updateSettings({ terminalPromptBufferLines: value });
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
-                />
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Number of terminal buffer lines to include as context
-                  (default: 100)
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

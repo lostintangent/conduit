@@ -2,14 +2,21 @@ import {
   dismissNotification,
   enqueueNotification,
 } from "@/store/actions/notifications";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const { updates } = window.conduit;
 
 export function useAutoUpdater() {
+  const currentNotificationIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = updates.onStatusChanged(({ status, releaseName }) => {
       if (status !== "downloaded") return;
+
+      // Dismiss the previous notification if it exists
+      if (currentNotificationIdRef.current) {
+        dismissNotification(currentNotificationIdRef.current);
+      }
 
       // When an update is available and downloaded, then
       // notify the user to see if they want to install it.
@@ -36,10 +43,14 @@ export function useAutoUpdater() {
           },
         ],
       });
+
+      // Store the notification ID so we can dismiss it if another update arrives
+      currentNotificationIdRef.current = availableNotification;
     });
 
     return () => {
       unsubscribe();
+      currentNotificationIdRef.current = null;
     };
   }, []);
 }

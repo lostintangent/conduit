@@ -10,6 +10,7 @@ export const ApplicationCommands = {
   VIEW_TOGGLE_DESIGN_MODE: "view.toggleDesignMode",
   VIEW_OPEN_KEYBOARD_SHORTCUTS: "view.openKeyboardShortcuts",
   VIEW_OPEN_PANE_ACTIONS: "view.openPaneActions",
+  VIEW_OPEN_AGENTS: "view.openAgents",
   VIEW_SHOW_COMMAND_PALETTE: "view.showCommandPalette",
   VIEW_RESET_LAYOUT: "view.resetLayout",
 

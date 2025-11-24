@@ -139,6 +139,17 @@ export function registerApplicationCommands(
     },
   });
 
+  // View: Manage Agents
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_AGENTS,
+    title: "Manage Agents",
+    description: "Configure AI agents for terminal prompt mode (Cmd+P)",
+    category: "View",
+    run: (context) => {
+      context.view.openAgents();
+    },
+  });
+
   // View: Show Command Palette
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,

@@ -93,8 +93,11 @@ export function BrowserToolbar({
     let targetUrl = inputUrl.trim();
     if (targetUrl.length === 0) return;
 
-    // Add protocol if missing
-    if (!targetUrl.match(/^http(s)?:\/\//i)) {
+    // If it contains spaces, treat as a search query
+    if (targetUrl.includes(" ")) {
+      targetUrl = `https://www.bing.com/search?q=${encodeURIComponent(targetUrl)}`;
+    } else if (!targetUrl.match(/^http(s)?:\/\//i)) {
+      // Add protocol if missing
       const lowerTarget = targetUrl.toLowerCase();
       const host = lowerTarget.split("/")[0];
 
