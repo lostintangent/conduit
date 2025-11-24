@@ -45,14 +45,41 @@ export const addTerminalToCloudEnvironment = (
 
 /**
  * Disassociate a terminal from a cloud environment.
+ * Automatically deletes the VM if no terminals remain connected.
  */
-export const removeTerminalFromCloudEnvironment = (
+export const removeTerminalFromCloudEnvironment = async (
   vmId: string,
   terminalId: string,
 ) => {
   const cloudEnv = cloudEnvironments.get(vmId);
   if (cloudEnv) {
     cloudEnv.connectedTerminals.delete(terminalId);
+
+    // If no more terminals are connected, delete the VM
+    if (cloudEnv.connectedTerminals.size === 0) {
+      console.log(
+        `[VM] No more terminals connected to VM ${vmId}, deleting VM`,
+      );
+      try {
+        const { deleteVM } = await import("../../vm/client");
+        await deleteVM(vmId);
+        console.log(`[VM] Successfully deleted VM ${vmId}`);
+        // Remove from our store
+        cloudEnvironments.delete(vmId);
+      } catch (error) {
+        // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
+        if (error instanceof Error && error.message.includes("404")) {
+          console.log(`[VM] VM ${vmId} was already deleted`);
+          cloudEnvironments.delete(vmId);
+        } else {
+          console.error(`[VM] Failed to delete VM ${vmId}:`, error);
+        }
+      }
+    } else {
+      console.log(
+        `[VM] Other terminals still connected to VM ${vmId}, keeping VM alive`,
+      );
+    }
   }
 };
 

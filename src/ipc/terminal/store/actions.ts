@@ -396,23 +396,8 @@ function setupTerminalListeners(
 
     // Clean up VM if this was a VM session
     if (terminal.vmId) {
-      console.log(`[VM] Terminal exited, cleaning up VM ${terminal.vmId}`);
-
-      // Remove terminal from cloud environment
-      removeTerminalFromCloudEnvironment(terminal.vmId, terminal.id);
-
-      try {
-        const { deleteVM } = await import("../../vm/client");
-        await deleteVM(terminal.vmId);
-        console.log(`[VM] Successfully deleted VM ${terminal.vmId}`);
-      } catch (error) {
-        // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
-        if (error instanceof Error && error.message.includes("404")) {
-          console.log(`[VM] VM ${terminal.vmId} was already deleted`);
-        } else {
-          console.error(`[VM] Failed to delete VM ${terminal.vmId}:`, error);
-        }
-      }
+      console.log(`[VM] Terminal exited, removing from VM ${terminal.vmId}`);
+      await removeTerminalFromCloudEnvironment(terminal.vmId, terminal.id);
     }
 
     sendToRenderer("terminal:exit", {
@@ -454,23 +439,8 @@ export async function killTerminal(terminalId: string) {
 
   // Clean up VM if this is a VM session
   if (terminal.vmId) {
-    console.log(`[VM] Closing session, deleting VM ${terminal.vmId}`);
-
-    // Remove terminal from cloud environment
-    removeTerminalFromCloudEnvironment(terminal.vmId, terminal.id);
-
-    try {
-      const { deleteVM } = await import("../../vm/client");
-      await deleteVM(terminal.vmId);
-      console.log(`[VM] Successfully deleted VM ${terminal.vmId}`);
-    } catch (error) {
-      // Ignore 404 errors - VM was already deleted (e.g., by idle timeout)
-      if (error instanceof Error && error.message.includes("404")) {
-        console.log(`[VM] VM ${terminal.vmId} was already deleted`);
-      } else {
-        console.error(`[VM] Failed to delete VM ${terminal.vmId}:`, error);
-      }
-    }
+    console.log(`[VM] Closing session, removing from VM ${terminal.vmId}`);
+    await removeTerminalFromCloudEnvironment(terminal.vmId, terminal.id);
   }
 
   removeTerminal(terminalId);
