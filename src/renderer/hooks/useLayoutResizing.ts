@@ -1,10 +1,5 @@
 import { tabsAtom } from "@/store/atoms";
-import type {
-  LayoutNode,
-  LayoutPaneNode,
-  LayoutSplitNode,
-  SplitDirection,
-} from "@/types";
+import type { LayoutNode, SplitDirection } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import { useAtom } from "jotai";
 import { useCallback, useState } from "react";
@@ -24,6 +19,14 @@ export type LayoutResizeStartConfig = {
   activeHandleId: string;
 };
 
+type LayoutResizeUpdate = {
+  size: number;
+  pixelSize?: number;
+};
+
+const MIN_PANE_SIZE_PX = 200;
+const COLLAPSE_THRESHOLD_PX = 100;
+
 const layoutHasCustomSizes = (node: LayoutNode): boolean => {
   let hasCustomSize = false;
   walkLayout(node, ({ node: current }) => {
@@ -36,34 +39,14 @@ const layoutHasCustomSizes = (node: LayoutNode): boolean => {
   return hasCustomSize;
 };
 
-const stripLayoutSizes = (node: LayoutNode): LayoutNode => {
+const stripLayoutSizes = (node: LayoutNode): void => {
+  if (node.size !== undefined) {
+    delete node.size;
+  }
+
   if (node.type === "split") {
-    const cleanedChildren = node.children.map(stripLayoutSizes);
-    const hasChanged =
-      node.size !== undefined ||
-      cleanedChildren.some((child, index) => child !== node.children[index]);
-
-    if (!hasChanged) {
-      return node;
-    }
-
-    return {
-      id: node.id,
-      type: "split",
-      direction: node.direction,
-      children: cleanedChildren,
-    } as LayoutSplitNode;
+    node.children.forEach(stripLayoutSizes);
   }
-
-  if (node.size === undefined) {
-    return node;
-  }
-
-  return {
-    id: node.id,
-    type: "pane",
-    paneId: node.paneId,
-  } as LayoutPaneNode;
 };
 
 export const useLayoutResizing = () => {
@@ -71,46 +54,49 @@ export const useLayoutResizing = () => {
   const [resizingNode, setResizingNode] = useState<string | null>(null);
 
   const applySizeUpdates = useCallback(
-    (tabId: string, updates: Map<string, number>) => {
+    (tabId: string, updates: Map<string, LayoutResizeUpdate>): boolean => {
       if (updates.size === 0) {
-        return;
+        return false;
       }
 
-      setTabs((current) =>
-        current.map((tab) => {
-          if (tab.id !== tabId) {
-            return tab;
+      let didCollapse = false;
+
+      setTabs((tabs) => {
+        const tab = tabs.find(({ id }) => id === tabId);
+        if (!tab) {
+          return;
+        }
+
+        walkLayout(tab.layout, ({ node }) => {
+          const pendingUpdate = updates.get(node.id);
+
+          // Only update size if pixelSize >= MIN_PANE_SIZE_PX or if no pixelSize is provided
+          const shouldUpdateSize =
+            pendingUpdate === undefined ||
+            pendingUpdate.pixelSize === undefined ||
+            pendingUpdate.pixelSize >= MIN_PANE_SIZE_PX;
+
+          if (shouldUpdateSize && pendingUpdate !== undefined) {
+            node.size = pendingUpdate.size;
           }
 
-          const updateNode = (node: LayoutNode): LayoutNode => {
-            const pendingSize = updates.get(node.id);
-            const baseNode =
-              pendingSize !== undefined ? { ...node, size: pendingSize } : node;
-
-            if (baseNode.type === "split") {
-              let childChanged = false;
-              const newChildren = baseNode.children.map((child) => {
-                const updatedChild = updateNode(child);
-                if (updatedChild !== child) {
-                  childChanged = true;
-                }
-                return updatedChild;
-              });
-
-              if (childChanged) {
-                return { ...baseNode, children: newChildren };
-              }
+          if (pendingUpdate && node.type === "pane") {
+            if (node.collapsed) {
+              delete node.collapsed;
             }
 
-            return baseNode;
-          };
+            if (
+              pendingUpdate.pixelSize !== undefined &&
+              pendingUpdate.pixelSize < COLLAPSE_THRESHOLD_PX
+            ) {
+              node.collapsed = true;
+              didCollapse = true;
+            }
+          }
+        });
+      });
 
-          return {
-            ...tab,
-            layout: updateNode(tab.layout),
-          };
-        }),
-      );
+      return didCollapse;
     },
     [setTabs],
   );
@@ -137,10 +123,10 @@ export const useLayoutResizing = () => {
       }));
 
       let rafId: number | null = null;
-      let pendingUpdates: Map<string, number> | null = null;
+      let pendingUpdates: Map<string, LayoutResizeUpdate> | null = null;
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
-        const sizeUpdates = new Map<string, number>();
+        const sizeUpdates = new Map<string, LayoutResizeUpdate>();
 
         axisContexts.forEach(
           ({ axis, startPos, containerElement, totalSize }) => {
@@ -167,9 +153,44 @@ export const useLayoutResizing = () => {
               Math.min(totalSize - 0.1, rawLeading),
             );
             const clampedTrailing = totalSize - clampedLeading;
+            const leadingPixels = (clampedLeading / totalSize) * containerSize;
+            const trailingPixels = containerSize - leadingPixels;
 
-            sizeUpdates.set(axis.leadingNodeId, clampedLeading);
-            sizeUpdates.set(axis.trailingNodeId, clampedTrailing);
+            // Enforce minimum size of MIN_PANE_SIZE_PX, unless collapsing below COLLAPSE_THRESHOLD_PX
+            let finalLeading = clampedLeading;
+            let finalTrailing = clampedTrailing;
+            let finalLeadingPixels = leadingPixels;
+            let finalTrailingPixels = trailingPixels;
+
+            // If leading pane would be between COLLAPSE_THRESHOLD_PX and MIN_PANE_SIZE_PX, clamp it to MIN_PANE_SIZE_PX
+            if (
+              leadingPixels >= COLLAPSE_THRESHOLD_PX &&
+              leadingPixels < MIN_PANE_SIZE_PX
+            ) {
+              finalLeadingPixels = MIN_PANE_SIZE_PX;
+              finalLeading = (MIN_PANE_SIZE_PX / containerSize) * totalSize;
+              finalTrailing = totalSize - finalLeading;
+              finalTrailingPixels = containerSize - MIN_PANE_SIZE_PX;
+            }
+            // If trailing pane would be between COLLAPSE_THRESHOLD_PX and MIN_PANE_SIZE_PX, clamp it to MIN_PANE_SIZE_PX
+            else if (
+              trailingPixels >= COLLAPSE_THRESHOLD_PX &&
+              trailingPixels < MIN_PANE_SIZE_PX
+            ) {
+              finalTrailingPixels = MIN_PANE_SIZE_PX;
+              finalTrailing = (MIN_PANE_SIZE_PX / containerSize) * totalSize;
+              finalLeading = totalSize - finalTrailing;
+              finalLeadingPixels = containerSize - MIN_PANE_SIZE_PX;
+            }
+
+            sizeUpdates.set(axis.leadingNodeId, {
+              size: finalLeading,
+              pixelSize: finalLeadingPixels,
+            });
+            sizeUpdates.set(axis.trailingNodeId, {
+              size: finalTrailing,
+              pixelSize: finalTrailingPixels,
+            });
           },
         );
 
@@ -178,8 +199,13 @@ export const useLayoutResizing = () => {
         if (rafId === null) {
           rafId = requestAnimationFrame(() => {
             if (pendingUpdates) {
-              applySizeUpdates(tabId, pendingUpdates);
+              const collapsed = applySizeUpdates(tabId, pendingUpdates);
               pendingUpdates = null;
+
+              // If a pane was collapsed, cancel the resize operation
+              if (collapsed) {
+                handleMouseUp();
+              }
             }
             rafId = null;
           });
@@ -222,23 +248,14 @@ export const useLayoutResizing = () => {
 
   const resetLayoutSizes = useCallback(
     (tabId: string) => {
-      setTabs((current) =>
-        current.map((tab) => {
-          if (tab.id !== tabId) {
-            return tab;
-          }
+      setTabs((tabs) => {
+        const tab = tabs.find(({ id }) => id === tabId);
+        if (!tab) {
+          return;
+        }
 
-          const cleanedLayout = stripLayoutSizes(tab.layout);
-          if (cleanedLayout === tab.layout) {
-            return tab;
-          }
-
-          return {
-            ...tab,
-            layout: cleanedLayout,
-          };
-        }),
-      );
+        stripLayoutSizes(tab.layout);
+      });
     },
     [setTabs],
   );
