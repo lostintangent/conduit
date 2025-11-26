@@ -29,6 +29,9 @@ type LayoutResizeUpdate = {
   pixelSize?: number;
 };
 
+const MIN_PANE_SIZE_PX = 200;
+const COLLAPSE_THRESHOLD_PX = 100;
+
 const layoutHasCustomSizes = (node: LayoutNode): boolean => {
   let hasCustomSize = false;
   walkLayout(node, ({ node: current }) => {
@@ -76,10 +79,12 @@ export const useLayoutResizing = () => {
   const [resizingNode, setResizingNode] = useState<string | null>(null);
 
   const applySizeUpdates = useCallback(
-    (tabId: string, updates: Map<string, LayoutResizeUpdate>) => {
+    (tabId: string, updates: Map<string, LayoutResizeUpdate>): boolean => {
       if (updates.size === 0) {
-        return;
+        return false;
       }
+
+      let didCollapse = false;
 
       setTabs((current) =>
         current.map((tab) => {
@@ -89,8 +94,15 @@ export const useLayoutResizing = () => {
 
           const updateNode = (node: LayoutNode): LayoutNode => {
             const pendingUpdate = updates.get(node.id);
+
+            // Only update size if pixelSize >= MIN_PANE_SIZE_PX or if no pixelSize is provided
+            const shouldUpdateSize =
+              pendingUpdate === undefined ||
+              pendingUpdate.pixelSize === undefined ||
+              pendingUpdate.pixelSize >= MIN_PANE_SIZE_PX;
+
             const baseNode =
-              pendingUpdate !== undefined
+              shouldUpdateSize && pendingUpdate !== undefined
                 ? { ...node, size: pendingUpdate.size }
                 : node;
 
@@ -118,9 +130,10 @@ export const useLayoutResizing = () => {
 
               if (
                 pendingUpdate.pixelSize !== undefined &&
-                pendingUpdate.pixelSize < 100
+                pendingUpdate.pixelSize < COLLAPSE_THRESHOLD_PX
               ) {
                 paneNode.collapsed = true;
+                didCollapse = true;
               }
 
               return paneNode;
@@ -135,6 +148,8 @@ export const useLayoutResizing = () => {
           };
         }),
       );
+
+      return didCollapse;
     },
     [setTabs],
   );
@@ -194,13 +209,40 @@ export const useLayoutResizing = () => {
             const leadingPixels = (clampedLeading / totalSize) * containerSize;
             const trailingPixels = containerSize - leadingPixels;
 
+            // Enforce minimum size of MIN_PANE_SIZE_PX, unless collapsing below COLLAPSE_THRESHOLD_PX
+            let finalLeading = clampedLeading;
+            let finalTrailing = clampedTrailing;
+            let finalLeadingPixels = leadingPixels;
+            let finalTrailingPixels = trailingPixels;
+
+            // If leading pane would be between COLLAPSE_THRESHOLD_PX and MIN_PANE_SIZE_PX, clamp it to MIN_PANE_SIZE_PX
+            if (
+              leadingPixels >= COLLAPSE_THRESHOLD_PX &&
+              leadingPixels < MIN_PANE_SIZE_PX
+            ) {
+              finalLeadingPixels = MIN_PANE_SIZE_PX;
+              finalLeading = (MIN_PANE_SIZE_PX / containerSize) * totalSize;
+              finalTrailing = totalSize - finalLeading;
+              finalTrailingPixels = containerSize - MIN_PANE_SIZE_PX;
+            }
+            // If trailing pane would be between COLLAPSE_THRESHOLD_PX and MIN_PANE_SIZE_PX, clamp it to MIN_PANE_SIZE_PX
+            else if (
+              trailingPixels >= COLLAPSE_THRESHOLD_PX &&
+              trailingPixels < MIN_PANE_SIZE_PX
+            ) {
+              finalTrailingPixels = MIN_PANE_SIZE_PX;
+              finalTrailing = (MIN_PANE_SIZE_PX / containerSize) * totalSize;
+              finalLeading = totalSize - finalTrailing;
+              finalLeadingPixels = containerSize - MIN_PANE_SIZE_PX;
+            }
+
             sizeUpdates.set(axis.leadingNodeId, {
-              size: clampedLeading,
-              pixelSize: leadingPixels,
+              size: finalLeading,
+              pixelSize: finalLeadingPixels,
             });
             sizeUpdates.set(axis.trailingNodeId, {
-              size: clampedTrailing,
-              pixelSize: trailingPixels,
+              size: finalTrailing,
+              pixelSize: finalTrailingPixels,
             });
           },
         );
@@ -210,8 +252,13 @@ export const useLayoutResizing = () => {
         if (rafId === null) {
           rafId = requestAnimationFrame(() => {
             if (pendingUpdates) {
-              applySizeUpdates(tabId, pendingUpdates);
+              const collapsed = applySizeUpdates(tabId, pendingUpdates);
               pendingUpdates = null;
+
+              // If a pane was collapsed, cancel the resize operation
+              if (collapsed) {
+                handleMouseUp();
+              }
             }
             rafId = null;
           });
