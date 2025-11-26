@@ -24,6 +24,11 @@ export type LayoutResizeStartConfig = {
   activeHandleId: string;
 };
 
+type LayoutResizeUpdate = {
+  size: number;
+  pixelSize?: number;
+};
+
 const layoutHasCustomSizes = (node: LayoutNode): boolean => {
   let hasCustomSize = false;
   walkLayout(node, ({ node: current }) => {
@@ -71,7 +76,7 @@ export const useLayoutResizing = () => {
   const [resizingNode, setResizingNode] = useState<string | null>(null);
 
   const applySizeUpdates = useCallback(
-    (tabId: string, updates: Map<string, number>) => {
+    (tabId: string, updates: Map<string, LayoutResizeUpdate>) => {
       if (updates.size === 0) {
         return;
       }
@@ -83,9 +88,11 @@ export const useLayoutResizing = () => {
           }
 
           const updateNode = (node: LayoutNode): LayoutNode => {
-            const pendingSize = updates.get(node.id);
+            const pendingUpdate = updates.get(node.id);
             const baseNode =
-              pendingSize !== undefined ? { ...node, size: pendingSize } : node;
+              pendingUpdate !== undefined
+                ? { ...node, size: pendingUpdate.size }
+                : node;
 
             if (baseNode.type === "split") {
               let childChanged = false;
@@ -100,6 +107,23 @@ export const useLayoutResizing = () => {
               if (childChanged) {
                 return { ...baseNode, children: newChildren };
               }
+            }
+
+            if (pendingUpdate && baseNode.type === "pane") {
+              const paneNode = { ...baseNode };
+
+              if (paneNode.collapsed) {
+                delete paneNode.collapsed;
+              }
+
+              if (
+                pendingUpdate.pixelSize !== undefined &&
+                pendingUpdate.pixelSize < 50
+              ) {
+                paneNode.collapsed = true;
+              }
+
+              return paneNode;
             }
 
             return baseNode;
@@ -137,10 +161,10 @@ export const useLayoutResizing = () => {
       }));
 
       let rafId: number | null = null;
-      let pendingUpdates: Map<string, number> | null = null;
+      let pendingUpdates: Map<string, LayoutResizeUpdate> | null = null;
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
-        const sizeUpdates = new Map<string, number>();
+        const sizeUpdates = new Map<string, LayoutResizeUpdate>();
 
         axisContexts.forEach(
           ({ axis, startPos, containerElement, totalSize }) => {
@@ -167,9 +191,17 @@ export const useLayoutResizing = () => {
               Math.min(totalSize - 0.1, rawLeading),
             );
             const clampedTrailing = totalSize - clampedLeading;
+            const leadingPixels = (clampedLeading / totalSize) * containerSize;
+            const trailingPixels = containerSize - leadingPixels;
 
-            sizeUpdates.set(axis.leadingNodeId, clampedLeading);
-            sizeUpdates.set(axis.trailingNodeId, clampedTrailing);
+            sizeUpdates.set(axis.leadingNodeId, {
+              size: clampedLeading,
+              pixelSize: leadingPixels,
+            });
+            sizeUpdates.set(axis.trailingNodeId, {
+              size: clampedTrailing,
+              pixelSize: trailingPixels,
+            });
           },
         );
 
