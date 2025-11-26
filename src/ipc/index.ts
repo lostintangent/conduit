@@ -7,6 +7,16 @@ import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { initializeFsHandlers } from "./fs";
 import { initializeFileWatcherHandlers } from "./fs/watcher";
 import {
+  initializeFileSystemV2Handlers,
+  cleanupFileSystemV2Handlers,
+  handleWindowClose as handleFsWindowClose,
+} from "./fsv2/main/handlers";
+import {
+  initializeGitV2Handlers,
+  cleanupGitV2Handlers,
+  handleGitWindowClose,
+} from "./gitv2/main/handlers";
+import {
   cleanupTerminalSessions,
   initializeTerminalHandlers,
 } from "./terminal";
@@ -54,12 +64,25 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeVMHandlers();
   initializeBrowserHandlers();
 
+  // Initialize v2 filesystem and git handlers
+  initializeFileSystemV2Handlers();
+  initializeGitV2Handlers();
+
   initializeUpdateHandlers(sendToRenderer, refreshMenu);
+
+  // Clean up providers when window closes
+  window.on("closed", () => {
+    const windowId = window.webContents.id;
+    handleFsWindowClose(windowId);
+    handleGitWindowClose(windowId);
+  });
 }
 
 export {
   cleanupTerminalSessions,
   cleanupUpdateHandlers,
+  cleanupFileSystemV2Handlers,
+  cleanupGitV2Handlers,
   initializeIpcHandlers,
   shutdownCliServer,
 };
