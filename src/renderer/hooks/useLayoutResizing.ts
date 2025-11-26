@@ -39,13 +39,13 @@ const layoutHasCustomSizes = (node: LayoutNode): boolean => {
   return hasCustomSize;
 };
 
-const stripLayoutSizesMutable = (node: LayoutNode): void => {
+const stripLayoutSizes = (node: LayoutNode): void => {
   if (node.size !== undefined) {
     delete node.size;
   }
 
   if (node.type === "split") {
-    node.children.forEach(stripLayoutSizesMutable);
+    node.children.forEach(stripLayoutSizes);
   }
 };
 
@@ -254,7 +254,7 @@ export const useLayoutResizing = () => {
           return;
         }
 
-        stripLayoutSizesMutable(tab.layout);
+        stripLayoutSizes(tab.layout);
       });
     },
     [setTabs],
