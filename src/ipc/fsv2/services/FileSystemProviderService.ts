@@ -255,6 +255,41 @@ export class FileSystemProviderService {
     return this.providers.size;
   }
 
+  /**
+   * Force dispose all providers immediately.
+   *
+   * This is primarily useful for testing or forced cleanup scenarios
+   * such as application shutdown.
+   */
+  forceDisposeAll(): void {
+    this.disposeAll();
+  }
+
+  /**
+   * Get statistics about active providers.
+   *
+   * Useful for debugging and monitoring.
+   *
+   * @returns Object containing provider statistics
+   */
+  getStats(): {
+    providers: Map<string, { refCount: number; hasPendingDispose: boolean }>;
+  } {
+    const stats = new Map<
+      string,
+      { refCount: number; hasPendingDispose: boolean }
+    >();
+
+    for (const [path, entry] of this.providers) {
+      stats.set(path, {
+        refCount: entry.refCount,
+        hasPendingDispose: entry.disposeTimer !== null,
+      });
+    }
+
+    return { providers: stats };
+  }
+
   // -------------------------------------------------------------------------
   // Internal Methods
   // -------------------------------------------------------------------------

@@ -396,6 +396,11 @@ export class ParcelFileWatcher {
     events: Array<{ type: "create" | "update" | "delete"; path: string }>,
   ): void {
     for (const event of events) {
+      // Double-check ignore patterns (parcel's ignore is best-effort)
+      if (this.shouldIgnore(event.path)) {
+        continue;
+      }
+
       switch (event.type) {
         case "create":
           this.handleCreate(event.path);
@@ -408,6 +413,60 @@ export class ParcelFileWatcher {
           break;
       }
     }
+  }
+
+  /**
+   * Check if a path matches any ignore pattern.
+   *
+   * Uses simple pattern matching for common glob patterns.
+   */
+  private shouldIgnore(filePath: string): boolean {
+    // Normalize path separators for consistent matching
+    const normalizedPath = filePath.replace(/\\/g, "/");
+
+    for (const pattern of this.ignored) {
+      if (this.matchPattern(normalizedPath, pattern)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Match a path against a glob-like pattern.
+   *
+   * Supports common patterns:
+   * - Double-star/name/double-star: contains /name/ anywhere
+   * - Double-star/*.ext: ends with .ext
+   * - Double-star/name: ends with /name or equals name
+   */
+  private matchPattern(filePath: string, pattern: string): boolean {
+    // Handle `**/dir/**` pattern (match path containing /dir/)
+    const dirMatch = pattern.match(/^\*\*\/(.+)\/\*\*$/);
+    if (dirMatch) {
+      const dirName = dirMatch[1];
+      return (
+        filePath.includes(`/${dirName}/`) ||
+        filePath.startsWith(`${dirName}/`) ||
+        filePath.includes(`/${dirName}`)
+      );
+    }
+
+    // Handle `**/*.ext` pattern (match files with extension)
+    const extMatch = pattern.match(/^\*\*\/\*(\.[^/]+)$/);
+    if (extMatch) {
+      return filePath.endsWith(extMatch[1]);
+    }
+
+    // Handle `**/name` pattern (match files/dirs named exactly)
+    const nameMatch = pattern.match(/^\*\*\/(.+)$/);
+    if (nameMatch) {
+      const name = nameMatch[1];
+      return filePath.endsWith(`/${name}`) || filePath === name;
+    }
+
+    // Fallback: check if pattern (as literal) is in path
+    return filePath.includes(pattern);
   }
 
   /**

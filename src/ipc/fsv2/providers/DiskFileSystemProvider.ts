@@ -202,6 +202,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    * Write content to a file.
    *
    * Creates parent directories if they don't exist.
+   * Updates the directory cache in-place for immediate consistency.
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     // Ensure parent directory exists
@@ -210,36 +211,96 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // Write the file
     await fs.writeFile(filePath, content);
+
+    // Update cache in-place: add/update the file entry in parent directory
+    const fileName = path.basename(filePath);
+    DirectoryCache.addEntry(parentDir, { name: fileName, type: "file" });
   }
 
   /**
    * Delete a file or directory.
+   *
+   * Updates the directory cache in-place for immediate consistency.
    */
   async delete(filePath: string, options?: DeleteOptions): Promise<void> {
+    // Check if it's a directory before deleting (for cache cleanup)
+    let isDirectory = false;
+    try {
+      const stats = await fs.stat(filePath);
+      isDirectory = stats.isDirectory();
+    } catch {
+      // Path might not exist, proceed with delete anyway
+    }
+
     await fs.rm(filePath, {
       recursive: options?.recursive ?? false,
       force: false,
     });
+
+    // Update cache in-place: remove the entry from parent directory
+    const parentDir = path.dirname(filePath);
+    const fileName = path.basename(filePath);
+    DirectoryCache.removeEntry(parentDir, fileName);
+
+    // If this was a directory, also remove its cache entry
+    if (isDirectory) {
+      DirectoryCache.delete(filePath);
+    }
   }
 
   /**
    * Rename or move a file/directory.
+   *
+   * Updates the directory cache in-place for immediate consistency.
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
+    // Get the type before rename (file or directory)
+    const stats = await fs.stat(oldPath);
+    const entryType = stats.isDirectory() ? "directory" : "file";
+
     // Ensure parent directory of new path exists
-    const parentDir = path.dirname(newPath);
-    await fs.mkdir(parentDir, { recursive: true });
+    const newParentDir = path.dirname(newPath);
+    await fs.mkdir(newParentDir, { recursive: true });
 
     await fs.rename(oldPath, newPath);
+
+    // Update cache in-place
+    const oldParentDir = path.dirname(oldPath);
+    const oldName = path.basename(oldPath);
+    const newName = path.basename(newPath);
+
+    // Remove from old location
+    DirectoryCache.removeEntry(oldParentDir, oldName);
+
+    // Add to new location
+    DirectoryCache.addEntry(newParentDir, { name: newName, type: entryType });
+
+    // If it was a directory, update its cache key
+    if (entryType === "directory") {
+      const oldCache = DirectoryCache.get(oldPath);
+      if (oldCache) {
+        DirectoryCache.set(newPath, oldCache.entries);
+        DirectoryCache.delete(oldPath);
+      }
+    }
   }
 
   /**
    * Create a directory.
    *
    * Creates parent directories if they don't exist (like `mkdir -p`).
+   * Updates the directory cache in-place for immediate consistency.
    */
   async createDirectory(dirPath: string): Promise<void> {
     await fs.mkdir(dirPath, { recursive: true });
+
+    // Update cache in-place: add the directory entry to parent
+    const parentDir = path.dirname(dirPath);
+    const dirName = path.basename(dirPath);
+    DirectoryCache.addEntry(parentDir, { name: dirName, type: "directory" });
+
+    // Initialize the new directory as empty in cache
+    DirectoryCache.set(dirPath, []);
   }
 
   /**

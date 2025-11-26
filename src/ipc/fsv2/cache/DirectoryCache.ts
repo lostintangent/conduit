@@ -207,6 +207,73 @@ class DirectoryCacheImpl {
   }
 
   // -------------------------------------------------------------------------
+  // In-Place Updates
+  // -------------------------------------------------------------------------
+
+  /**
+   * Add a single entry to a cached directory listing.
+   *
+   * If the directory is not cached, this is a no-op.
+   * If an entry with the same name already exists, it is replaced.
+   *
+   * @param dirPath - Absolute path to the directory
+   * @param entry - The entry to add
+   */
+  addEntry(dirPath: string, entry: DirectoryEntry): void {
+    const normalizedPath = this.normalizePath(dirPath);
+    const cached = this.cache.get(normalizedPath);
+
+    if (!cached) {
+      return; // Directory not cached, nothing to update
+    }
+
+    // Remove existing entry with same name if present
+    const entries = cached.entries.filter((e) => e.name !== entry.name);
+    entries.push(entry);
+
+    // Sort entries: directories first, then alphabetically
+    entries.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === "directory" ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    cached.entries = entries;
+    cached.version++;
+    cached.timestamp = Date.now();
+
+    this.notifyListeners(normalizedPath, cached);
+  }
+
+  /**
+   * Remove a single entry from a cached directory listing.
+   *
+   * If the directory is not cached or the entry doesn't exist, this is a no-op.
+   *
+   * @param dirPath - Absolute path to the directory
+   * @param entryName - Name of the entry to remove
+   */
+  removeEntry(dirPath: string, entryName: string): void {
+    const normalizedPath = this.normalizePath(dirPath);
+    const cached = this.cache.get(normalizedPath);
+
+    if (!cached) {
+      return; // Directory not cached, nothing to update
+    }
+
+    const originalLength = cached.entries.length;
+    cached.entries = cached.entries.filter((e) => e.name !== entryName);
+
+    // Only update version if something was actually removed
+    if (cached.entries.length !== originalLength) {
+      cached.version++;
+      cached.timestamp = Date.now();
+      this.notifyListeners(normalizedPath, cached);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Invalidation
   // -------------------------------------------------------------------------
 
