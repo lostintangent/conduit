@@ -853,4 +853,45 @@ describe("DiskFileSystemProvider", () => {
       expect(mockReaddir.mock.calls.length).toBeLessThanOrEqual(11);
     });
   });
+
+  // ===========================================================================
+  // Hidden File Filtering
+  // ===========================================================================
+
+  describe("hidden file filtering", () => {
+    it("should filter out .git directory", async () => {
+      mockReaddir.mockResolvedValue([
+        createMockDirent(".git", true),
+        createMockDirent("src", true),
+        createMockDirent("file.ts", false),
+      ]);
+
+      const entries = await provider.readDirectory("/test/project");
+
+      // .git should be filtered out
+      expect(entries).toEqual([
+        { name: "src", type: "directory" },
+        { name: "file.ts", type: "file" },
+      ]);
+    });
+
+    it("should filter out node_modules directory", async () => {
+      mockReaddir.mockResolvedValue([
+        createMockDirent("src", true),
+        createMockDirent("node_modules", true),
+        createMockDirent("file.ts", false),
+      ]);
+
+      const entries = await provider.readDirectory("/test/project");
+
+      // node_modules should be filtered out
+      expect(entries).toEqual([
+        { name: "src", type: "directory" },
+        { name: "file.ts", type: "file" },
+      ]);
+    });
+  });
+
+  // Note: Gitignore filtering tests require complex child_process mocking
+  // and are better tested through integration tests
 });

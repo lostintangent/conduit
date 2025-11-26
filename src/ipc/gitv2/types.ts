@@ -151,6 +151,26 @@ export interface GitBranch {
 
   /** Commits behind upstream (if tracking) */
   behind?: number;
+
+  /** Date of the last commit on this branch */
+  lastCommitDate?: Date;
+
+  /** Message of the last commit on this branch */
+  lastCommitMessage?: string;
+}
+
+/**
+ * Statistics about uncommitted changes.
+ */
+export interface GitDiffStats {
+  /** Total lines added */
+  added: number;
+
+  /** Total lines removed */
+  removed: number;
+
+  /** Number of files with changes */
+  files: number;
 }
 
 // ============================================================================
@@ -310,6 +330,53 @@ export interface GitProvider {
    * Check if there are commits not pushed to upstream.
    */
   hasUnpushedCommits(): Promise<boolean>;
+
+  /**
+   * Get files changed between current HEAD and a base branch.
+   *
+   * Useful for "compare to main" feature - shows all files
+   * in the current branch that differ from the base.
+   *
+   * @param baseBranch - Branch to compare against (e.g., 'main')
+   * @returns Array of relative file paths
+   */
+  getFilesChangedSinceBranch(baseBranch: string): Promise<string[]>;
+
+  /**
+   * Get diff statistics (lines added/removed).
+   *
+   * @returns Statistics about uncommitted changes
+   */
+  getDiffStats(): Promise<GitDiffStats>;
+
+  /**
+   * Get the most recently modified dirty file.
+   *
+   * Useful for auto-selecting a file when opening the editor.
+   *
+   * @returns Relative path from git root, or null if no dirty files
+   */
+  getMostRecentDirtyFile(): Promise<string | null>;
+
+  /**
+   * Get the most recently modified tracked file from git history.
+   *
+   * Fallback when there are no dirty files.
+   *
+   * @param commitLimit - Number of recent commits to check (default: 10)
+   * @returns Relative path from git root, or null if none found
+   */
+  getMostRecentTrackedFile(commitLimit?: number): Promise<string | null>;
+
+  /**
+   * Revert changes to files (discard local modifications).
+   *
+   * For staged files, unstages them first then reverts.
+   * For unstaged files, reverts directly.
+   *
+   * @param files - Relative paths from git root
+   */
+  revert(files: string[]): Promise<void>;
 
   // -------------------------------------------------------------------------
   // Operations

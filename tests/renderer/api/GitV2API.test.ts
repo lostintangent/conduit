@@ -20,6 +20,13 @@ const { mockGitv2 } = vi.hoisted(() => {
     getBranches: vi.fn(),
     checkout: vi.fn(),
     findRoot: vi.fn(),
+    // New comparison operations
+    getFilesChangedSinceBranch: vi.fn(),
+    getDiffStats: vi.fn(),
+    getMostRecentDirtyFile: vi.fn(),
+    getMostRecentTrackedFile: vi.fn(),
+    revert: vi.fn(),
+    // Subscriptions
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
     release: vi.fn(),
@@ -413,6 +420,49 @@ describe("GitV2API", () => {
 
       api.release();
     });
+
+    it("should deserialize lastCommitDate from timestamp", async () => {
+      const serializedBranches = [
+        {
+          name: "main",
+          isCurrent: true,
+          isRemote: false,
+          commit: "abc123",
+          lastCommitDate: 1700000000000,
+          lastCommitMessage: "Latest commit",
+        },
+      ];
+      mockGitv2.getBranches.mockResolvedValue(serializedBranches);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getBranches();
+
+      expect(result[0].lastCommitDate).toBeInstanceOf(Date);
+      expect(result[0].lastCommitDate!.getTime()).toBe(1700000000000);
+      expect(result[0].lastCommitMessage).toBe("Latest commit");
+
+      api.release();
+    });
+
+    it("should handle missing lastCommitDate", async () => {
+      const serializedBranches = [
+        {
+          name: "main",
+          isCurrent: true,
+          isRemote: false,
+          commit: "abc123",
+        },
+      ];
+      mockGitv2.getBranches.mockResolvedValue(serializedBranches);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getBranches();
+
+      expect(result[0].lastCommitDate).toBeUndefined();
+      expect(result[0].lastCommitMessage).toBeUndefined();
+
+      api.release();
+    });
   });
 
   describe("checkout", () => {
@@ -456,6 +506,182 @@ describe("GitV2API", () => {
       expect(mockGitv2.findRoot).toHaveBeenCalledTimes(1);
 
       api.release();
+    });
+  });
+
+  // ===========================================================================
+  // Comparison Operations
+  // ===========================================================================
+
+  describe("getFilesChangedSinceBranch", () => {
+    it("should return array of changed files", async () => {
+      const changedFiles = ["src/file1.ts", "src/file2.ts", "README.md"];
+      mockGitv2.getFilesChangedSinceBranch.mockResolvedValue(changedFiles);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getFilesChangedSinceBranch("main");
+
+      expect(mockGitv2.getFilesChangedSinceBranch).toHaveBeenCalledWith(
+        "/test/project",
+        "main",
+      );
+      expect(result).toEqual(changedFiles);
+
+      api.release();
+    });
+
+    it("should return empty array when no changes", async () => {
+      mockGitv2.getFilesChangedSinceBranch.mockResolvedValue([]);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getFilesChangedSinceBranch("main");
+
+      expect(result).toEqual([]);
+
+      api.release();
+    });
+
+    it("should throw if released", async () => {
+      const api = new GitV2API("/test/project");
+      api.release();
+
+      await expect(api.getFilesChangedSinceBranch("main")).rejects.toThrow(
+        "GitV2API has been released",
+      );
+    });
+  });
+
+  describe("getDiffStats", () => {
+    it("should return diff statistics", async () => {
+      const stats = { added: 100, removed: 50, files: 5 };
+      mockGitv2.getDiffStats.mockResolvedValue(stats);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getDiffStats();
+
+      expect(mockGitv2.getDiffStats).toHaveBeenCalledWith("/test/project");
+      expect(result).toEqual(stats);
+
+      api.release();
+    });
+
+    it("should return zero stats for clean repo", async () => {
+      const stats = { added: 0, removed: 0, files: 0 };
+      mockGitv2.getDiffStats.mockResolvedValue(stats);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getDiffStats();
+
+      expect(result.added).toBe(0);
+      expect(result.removed).toBe(0);
+      expect(result.files).toBe(0);
+
+      api.release();
+    });
+  });
+
+  describe("getMostRecentDirtyFile", () => {
+    it("should return most recent dirty file path", async () => {
+      mockGitv2.getMostRecentDirtyFile.mockResolvedValue("src/recent.ts");
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getMostRecentDirtyFile();
+
+      expect(mockGitv2.getMostRecentDirtyFile).toHaveBeenCalledWith(
+        "/test/project",
+      );
+      expect(result).toBe("src/recent.ts");
+
+      api.release();
+    });
+
+    it("should return null when no dirty files", async () => {
+      mockGitv2.getMostRecentDirtyFile.mockResolvedValue(null);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getMostRecentDirtyFile();
+
+      expect(result).toBeNull();
+
+      api.release();
+    });
+  });
+
+  describe("getMostRecentTrackedFile", () => {
+    it("should return most recent tracked file", async () => {
+      mockGitv2.getMostRecentTrackedFile.mockResolvedValue("src/index.ts");
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getMostRecentTrackedFile();
+
+      expect(mockGitv2.getMostRecentTrackedFile).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+      );
+      expect(result).toBe("src/index.ts");
+
+      api.release();
+    });
+
+    it("should pass commitLimit parameter", async () => {
+      mockGitv2.getMostRecentTrackedFile.mockResolvedValue("src/file.ts");
+
+      const api = new GitV2API("/test/project");
+      await api.getMostRecentTrackedFile(5);
+
+      expect(mockGitv2.getMostRecentTrackedFile).toHaveBeenCalledWith(
+        "/test/project",
+        5,
+      );
+
+      api.release();
+    });
+
+    it("should return null when no tracked files found", async () => {
+      mockGitv2.getMostRecentTrackedFile.mockResolvedValue(null);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getMostRecentTrackedFile();
+
+      expect(result).toBeNull();
+
+      api.release();
+    });
+  });
+
+  describe("revert", () => {
+    it("should revert specified files", async () => {
+      mockGitv2.revert.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.revert(["src/file1.ts", "src/file2.ts"]);
+
+      expect(mockGitv2.revert).toHaveBeenCalledWith("/test/project", [
+        "src/file1.ts",
+        "src/file2.ts",
+      ]);
+
+      api.release();
+    });
+
+    it("should handle empty files array", async () => {
+      mockGitv2.revert.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.revert([]);
+
+      expect(mockGitv2.revert).toHaveBeenCalledWith("/test/project", []);
+
+      api.release();
+    });
+
+    it("should throw if released", async () => {
+      const api = new GitV2API("/test/project");
+      api.release();
+
+      await expect(api.revert(["file.ts"])).rejects.toThrow(
+        "GitV2API has been released",
+      );
     });
   });
 

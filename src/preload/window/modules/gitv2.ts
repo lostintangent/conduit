@@ -59,6 +59,17 @@ export interface SerializedGitBranch {
   upstream?: string;
   ahead?: number;
   behind?: number;
+  lastCommitDate?: number;
+  lastCommitMessage?: string;
+}
+
+/**
+ * Serialized diff stats for IPC transport.
+ */
+export interface SerializedDiffStats {
+  added: number;
+  removed: number;
+  files: number;
 }
 
 // ============================================================================
@@ -261,6 +272,67 @@ export default {
    */
   checkout: (cwd: string, ref: string) =>
     ipcRenderer.invoke("git-v2:checkout", { cwd, ref }) as Promise<void>,
+
+  // ---------------------------------------------------------------------------
+  // Comparison Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get files changed between current HEAD and a base branch.
+   *
+   * @param cwd - Working directory
+   * @param baseBranch - Branch to compare against (e.g., 'main')
+   * @returns Array of relative file paths
+   */
+  getFilesChangedSinceBranch: (cwd: string, baseBranch: string) =>
+    ipcRenderer.invoke("git-v2:files-changed-since-branch", {
+      cwd,
+      baseBranch,
+    }) as Promise<string[]>,
+
+  /**
+   * Get diff statistics (lines added/removed).
+   *
+   * @param cwd - Working directory
+   * @returns Statistics about uncommitted changes
+   */
+  getDiffStats: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:diff-stats", {
+      cwd,
+    }) as Promise<SerializedDiffStats>,
+
+  /**
+   * Get the most recently modified dirty file.
+   *
+   * @param cwd - Working directory
+   * @returns Relative path from git root, or null if no dirty files
+   */
+  getMostRecentDirtyFile: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:most-recent-dirty-file", {
+      cwd,
+    }) as Promise<string | null>,
+
+  /**
+   * Get the most recently modified tracked file from git history.
+   *
+   * @param cwd - Working directory
+   * @param commitLimit - Number of recent commits to check (default: 10)
+   * @returns Relative path from git root, or null if none found
+   */
+  getMostRecentTrackedFile: (cwd: string, commitLimit?: number) =>
+    ipcRenderer.invoke("git-v2:most-recent-tracked-file", {
+      cwd,
+      commitLimit,
+    }) as Promise<string | null>,
+
+  /**
+   * Revert changes to files (discard local modifications).
+   *
+   * @param cwd - Working directory
+   * @param files - Relative paths from git root
+   */
+  revert: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("git-v2:revert", { cwd, files }) as Promise<void>,
 
   // ---------------------------------------------------------------------------
   // Utility

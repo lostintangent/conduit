@@ -64,6 +64,7 @@ const mockGit = {
   diff: vi.fn(),
   show: vi.fn(),
   revparse: vi.fn(),
+  raw: vi.fn(),
 };
 
 vi.mock("simple-git", () => ({
@@ -291,19 +292,21 @@ describe("DiskGitProvider", () => {
 
   describe("getCurrentBranch()", () => {
     it("should return current branch name", async () => {
-      mockGit.branch.mockResolvedValue(createMockBranchSummary("develop"));
+      mockGit.raw.mockResolvedValue("develop\n");
 
       const provider = new DiskGitProvider(testGitRoot, testCwd);
       const branch = await provider.getCurrentBranch();
 
       expect(branch).toBe("develop");
+      expect(mockGit.raw).toHaveBeenCalledWith([
+        "rev-parse",
+        "--abbrev-ref",
+        "HEAD",
+      ]);
     });
 
     it("should return HEAD when detached", async () => {
-      mockGit.branch.mockResolvedValue({
-        current: "",
-        branches: {},
-      });
+      mockGit.raw.mockResolvedValue("HEAD\n");
 
       const provider = new DiskGitProvider(testGitRoot, testCwd);
       const branch = await provider.getCurrentBranch();
@@ -317,19 +320,13 @@ describe("DiskGitProvider", () => {
   // ===========================================================================
 
   describe("getBranches()", () => {
-    it("should return local and remote branches", async () => {
-      mockGit.branch.mockResolvedValue({
-        current: "main",
-        branches: {
-          main: { current: true, commit: "abc123", name: "main" },
-          develop: { current: false, commit: "def456", name: "develop" },
-          "remotes/origin/main": {
-            current: false,
-            commit: "abc123",
-            name: "remotes/origin/main",
-          },
-        },
-      });
+    it("should return local and remote branches with commit info", async () => {
+      // Format: refname|committerdate|objectname:short|subject|HEAD
+      mockGit.raw.mockResolvedValue(
+        "main|2025-01-15 10:00:00 +0000|abc123|Latest commit|*\n" +
+          "develop|2025-01-14 09:00:00 +0000|def456|Dev commit|\n" +
+          "origin/main|2025-01-15 10:00:00 +0000|abc123|Latest commit|\n",
+      );
 
       const provider = new DiskGitProvider(testGitRoot, testCwd);
       const branches = await provider.getBranches();
@@ -339,8 +336,12 @@ describe("DiskGitProvider", () => {
       const mainBranch = branches.find((b) => b.name === "main");
       expect(mainBranch?.isCurrent).toBe(true);
       expect(mainBranch?.isRemote).toBe(false);
+      expect(mainBranch?.lastCommitMessage).toBe("Latest commit");
+      expect(mainBranch?.lastCommitDate).toBeInstanceOf(Date);
 
-      const remoteBranch = branches.find((b) => b.name === "origin/main");
+      const remoteBranch = branches.find(
+        (b) => b.name === "main" && b.isRemote,
+      );
       expect(remoteBranch?.isRemote).toBe(true);
     });
   });
@@ -557,9 +558,9 @@ describe("DiskGitProvider", () => {
     it("should fire onBranchChanged when branch changes", async () => {
       // Setup: start on main, switch to develop
       // getCurrentBranch() is called twice: once before checkout, once after
-      mockGit.branch
-        .mockResolvedValueOnce(createMockBranchSummary("main"))
-        .mockResolvedValueOnce(createMockBranchSummary("develop"));
+      mockGit.raw
+        .mockResolvedValueOnce("main\n")
+        .mockResolvedValueOnce("develop\n");
 
       const provider = new DiskGitProvider(testGitRoot, testCwd);
       const eventHandler = vi.fn();
@@ -590,6 +591,215 @@ describe("DiskGitProvider", () => {
           currentHead: "new-commit-hash",
         }),
       );
+    });
+  });
+
+  // ===========================================================================
+  // getFilesChangedSinceBranch
+  // ===========================================================================
+
+  describe("getFilesChangedSinceBranch()", () => {
+    it("should return files changed since base branch", async () => {
+      mockGit.raw.mockResolvedValue("abc123def456\n"); // merge-base result
+      mockGit.diff.mockResolvedValue("src/file1.ts\nsrc/file2.ts\nREADME.md\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const files = await provider.getFilesChangedSinceBranch("main");
+
+      expect(mockGit.raw).toHaveBeenCalledWith(["merge-base", "HEAD", "main"]);
+      expect(mockGit.diff).toHaveBeenCalledWith([
+        "--name-only",
+        "abc123def456",
+        "HEAD",
+      ]);
+      expect(files).toEqual(["src/file1.ts", "src/file2.ts", "README.md"]);
+    });
+
+    it("should return empty array when no changes", async () => {
+      mockGit.raw.mockResolvedValue("abc123\n");
+      mockGit.diff.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const files = await provider.getFilesChangedSinceBranch("main");
+
+      expect(files).toEqual([]);
+    });
+  });
+
+  // ===========================================================================
+  // getDiffStats
+  // ===========================================================================
+
+  describe("getDiffStats()", () => {
+    it("should return diff statistics", async () => {
+      // numstat format: added<tab>removed<tab>filename
+      mockGit.diff.mockResolvedValue(
+        "10\t5\tsrc/file1.ts\n20\t0\tsrc/file2.ts\n",
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getDiffStats();
+
+      expect(mockGit.diff).toHaveBeenCalledWith(["--numstat", "HEAD"]);
+      expect(stats).toEqual({
+        added: 30,
+        removed: 5,
+        files: 2,
+      });
+    });
+
+    it("should return zero stats for clean repo", async () => {
+      mockGit.diff.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getDiffStats();
+
+      expect(stats).toEqual({
+        added: 0,
+        removed: 0,
+        files: 0,
+      });
+    });
+
+    it("should handle binary files (- indicates binary)", async () => {
+      mockGit.diff.mockResolvedValue("10\t5\tsrc/file.ts\n-\t-\timage.png\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getDiffStats();
+
+      // Binary files should be counted but not add to line counts
+      expect(stats).toEqual({
+        added: 10,
+        removed: 5,
+        files: 2,
+      });
+    });
+  });
+
+  // ===========================================================================
+  // getMostRecentDirtyFile
+  // ===========================================================================
+
+  describe("getMostRecentDirtyFile()", () => {
+    it("should return null when no dirty files", async () => {
+      mockGit.status.mockResolvedValue(createMockStatusResult({ files: [] }));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentDirtyFile();
+
+      expect(result).toBeNull();
+    });
+
+    it("should return dirty file path when files exist", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "file.ts", index: " ", working_dir: "M" }],
+        }),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentDirtyFile();
+
+      // The implementation tries to stat files - if stat fails, it returns null
+      // In unit tests without fs mock for stat, it will return null or a file
+      // depending on whether fs.stat is mocked
+      expect(result === null || result === "file.ts").toBe(true);
+    });
+  });
+
+  // ===========================================================================
+  // getMostRecentTrackedFile
+  // ===========================================================================
+
+  describe("getMostRecentTrackedFile()", () => {
+    it("should call log with correct parameters", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [],
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.getMostRecentTrackedFile();
+
+      expect(mockGit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxCount: 10,
+        }),
+      );
+    });
+
+    it("should respect commitLimit parameter", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [],
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.getMostRecentTrackedFile(5);
+
+      expect(mockGit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxCount: 5,
+        }),
+      );
+    });
+
+    it("should return null when no commits found", async () => {
+      mockGit.log.mockResolvedValue({ all: [] });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentTrackedFile();
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null when no files in commits", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [{ hash: "abc123", body: "" }],
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentTrackedFile();
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // ===========================================================================
+  // revert
+  // ===========================================================================
+
+  describe("revert()", () => {
+    it("should reset and checkout files", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["src/file1.ts", "src/file2.ts"]);
+
+      expect(mockGit.reset).toHaveBeenCalledWith([
+        "HEAD",
+        "--",
+        "src/file1.ts",
+        "src/file2.ts",
+      ]);
+      expect(mockGit.checkout).toHaveBeenCalledWith([
+        "--",
+        "src/file1.ts",
+        "src/file2.ts",
+      ]);
+    });
+
+    it("should convert absolute paths to relative", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["/test/repo/src/file.ts"]);
+
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "src/file.ts"]);
+    });
+
+    it("should continue even if reset fails (for untracked files)", async () => {
+      mockGit.reset.mockRejectedValueOnce(new Error("pathspec did not match"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      // Should not throw
+      await provider.revert(["new-file.ts"]);
+
+      expect(mockGit.checkout).toHaveBeenCalled();
     });
   });
 

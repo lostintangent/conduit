@@ -89,6 +89,17 @@ interface SerializedGitBranch {
   upstream?: string;
   ahead?: number;
   behind?: number;
+  lastCommitDate?: number; // Timestamp instead of Date
+  lastCommitMessage?: string;
+}
+
+/**
+ * Serialized diff stats for IPC transport.
+ */
+interface SerializedDiffStats {
+  added: number;
+  removed: number;
+  files: number;
 }
 
 /**
@@ -177,6 +188,8 @@ function serializeGitBranch(branch: GitBranch): SerializedGitBranch {
     upstream: branch.upstream,
     ahead: branch.ahead,
     behind: branch.behind,
+    lastCommitDate: branch.lastCommitDate?.getTime(),
+    lastCommitMessage: branch.lastCommitMessage,
   };
 }
 
@@ -288,6 +301,112 @@ export function initializeGitV2Handlers(): void {
 
       try {
         return await provider.hasUnpushedCommits();
+      } finally {
+        releaseGitProvider(windowId, gitRoot);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "git-v2:files-changed-since-branch",
+    async (
+      event,
+      params: { cwd: string; baseBranch: string },
+    ): Promise<string[]> => {
+      const windowId = getWindowId(event);
+      const result = await getGitProvider(windowId, params.cwd);
+
+      if (!result) {
+        return [];
+      }
+
+      const { provider, gitRoot } = result;
+
+      try {
+        return await provider.getFilesChangedSinceBranch(params.baseBranch);
+      } finally {
+        releaseGitProvider(windowId, gitRoot);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "git-v2:diff-stats",
+    async (event, params: { cwd: string }): Promise<SerializedDiffStats> => {
+      const windowId = getWindowId(event);
+      const result = await getGitProvider(windowId, params.cwd);
+
+      if (!result) {
+        return { added: 0, removed: 0, files: 0 };
+      }
+
+      const { provider, gitRoot } = result;
+
+      try {
+        return await provider.getDiffStats();
+      } finally {
+        releaseGitProvider(windowId, gitRoot);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "git-v2:most-recent-dirty-file",
+    async (event, params: { cwd: string }): Promise<string | null> => {
+      const windowId = getWindowId(event);
+      const result = await getGitProvider(windowId, params.cwd);
+
+      if (!result) {
+        return null;
+      }
+
+      const { provider, gitRoot } = result;
+
+      try {
+        return await provider.getMostRecentDirtyFile();
+      } finally {
+        releaseGitProvider(windowId, gitRoot);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "git-v2:most-recent-tracked-file",
+    async (
+      event,
+      params: { cwd: string; commitLimit?: number },
+    ): Promise<string | null> => {
+      const windowId = getWindowId(event);
+      const result = await getGitProvider(windowId, params.cwd);
+
+      if (!result) {
+        return null;
+      }
+
+      const { provider, gitRoot } = result;
+
+      try {
+        return await provider.getMostRecentTrackedFile(params.commitLimit);
+      } finally {
+        releaseGitProvider(windowId, gitRoot);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "git-v2:revert",
+    async (event, params: { cwd: string; files: string[] }): Promise<void> => {
+      const windowId = getWindowId(event);
+      const result = await getGitProvider(windowId, params.cwd);
+
+      if (!result) {
+        throw new Error("Not a git repository");
+      }
+
+      const { provider, gitRoot } = result;
+
+      try {
+        await provider.revert(params.files);
       } finally {
         releaseGitProvider(windowId, gitRoot);
       }

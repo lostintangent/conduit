@@ -40,6 +40,7 @@ import type {
   GitFileStatus,
   GitCommit,
   GitBranch,
+  GitDiffStats,
   GitCommitOptions,
   GitStatusChangedEvent,
   GitBranchChangedEvent,
@@ -50,6 +51,7 @@ import type {
   SerializedGitStatus,
   SerializedGitCommit,
   SerializedGitBranch,
+  SerializedDiffStats,
   StatusChangedPayload,
   BranchChangedPayload,
   CommitCreatedPayload,
@@ -129,8 +131,6 @@ function deserializeGitCommit(serialized: SerializedGitCommit): GitCommit {
 
 /**
  * Convert serialized git branch to full GitBranch type.
- *
- * Currently no transformation needed, but keeping for consistency.
  */
 function deserializeGitBranch(serialized: SerializedGitBranch): GitBranch {
   return {
@@ -141,6 +141,10 @@ function deserializeGitBranch(serialized: SerializedGitBranch): GitBranch {
     upstream: serialized.upstream,
     ahead: serialized.ahead,
     behind: serialized.behind,
+    lastCommitDate: serialized.lastCommitDate
+      ? new Date(serialized.lastCommitDate)
+      : undefined,
+    lastCommitMessage: serialized.lastCommitMessage,
   };
 }
 
@@ -380,6 +384,75 @@ export class GitV2API {
 
     this.gitRoot = await window.conduit.gitv2.findRoot(this.cwd);
     return this.gitRoot;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Comparison Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get files changed between current HEAD and a base branch.
+   *
+   * Useful for "compare to main" feature - shows all files
+   * in the current branch that differ from the base.
+   *
+   * @param baseBranch - Branch to compare against (e.g., 'main')
+   * @returns Array of relative file paths
+   */
+  async getFilesChangedSinceBranch(baseBranch: string): Promise<string[]> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getFilesChangedSinceBranch(
+      this.cwd,
+      baseBranch,
+    );
+  }
+
+  /**
+   * Get diff statistics (lines added/removed).
+   *
+   * @returns Statistics about uncommitted changes
+   */
+  async getDiffStats(): Promise<GitDiffStats> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getDiffStats(this.cwd);
+  }
+
+  /**
+   * Get the most recently modified dirty file.
+   *
+   * Useful for auto-selecting a file when opening the editor.
+   *
+   * @returns Relative path from git root, or null if no dirty files
+   */
+  async getMostRecentDirtyFile(): Promise<string | null> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getMostRecentDirtyFile(this.cwd);
+  }
+
+  /**
+   * Get the most recently modified tracked file from git history.
+   *
+   * Fallback when there are no dirty files.
+   *
+   * @param commitLimit - Number of recent commits to check (default: 10)
+   * @returns Relative path from git root, or null if none found
+   */
+  async getMostRecentTrackedFile(commitLimit?: number): Promise<string | null> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getMostRecentTrackedFile(this.cwd, commitLimit);
+  }
+
+  /**
+   * Revert changes to files (discard local modifications).
+   *
+   * For staged files, unstages them first then reverts.
+   * For unstaged files, reverts directly.
+   *
+   * @param files - Relative paths from git root
+   */
+  async revert(files: string[]): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.revert(this.cwd, files);
   }
 
   // ---------------------------------------------------------------------------
