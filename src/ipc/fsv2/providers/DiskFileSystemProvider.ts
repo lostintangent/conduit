@@ -24,7 +24,7 @@
 
 import * as fs from "node:fs/promises";
 import * as fsSync from "node:fs";
-import * as path from "node:path";
+import * as nodePath from "node:path";
 import { spawn } from "node:child_process";
 
 import { EventEmitter } from "../utils/EventEmitter";
@@ -143,7 +143,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    * @param watcherOptions - Optional configuration for the file watcher
    */
   constructor(cwd: string, watcherOptions?: ParcelFileWatcherOptions) {
-    this.cwd = path.resolve(cwd);
+    this.cwd = nodePath.resolve(cwd);
 
     // Initialize watcher and wire up events
     this.watcher = new ParcelFileWatcher(this.cwd, watcherOptions);
@@ -178,7 +178,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    * 3. Emit event if entries changed
    */
   async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
-    const normalizedPath = path.resolve(dirPath);
+    const normalizedPath = nodePath.resolve(dirPath);
 
     // Check cache first
     const cached = DirectoryCache.get(normalizedPath);
@@ -216,14 +216,14 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     // Ensure parent directory exists
-    const parentDir = path.dirname(filePath);
+    const parentDir = nodePath.dirname(filePath);
     await fs.mkdir(parentDir, { recursive: true });
 
     // Write the file
     await fs.writeFile(filePath, content);
 
     // Update cache in-place: add/update the file entry in parent directory
-    const fileName = path.basename(filePath);
+    const fileName = nodePath.basename(filePath);
     DirectoryCache.addEntry(parentDir, { name: fileName, type: "file" });
   }
 
@@ -232,29 +232,29 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    *
    * Updates the directory cache in-place for immediate consistency.
    */
-  async delete(targetPath: string, options?: DeleteOptions): Promise<void> {
+  async delete(path: string, options?: DeleteOptions): Promise<void> {
     // Check if it's a directory before deleting (for cache cleanup)
     let isDirectory = false;
     try {
-      const stats = await fs.stat(targetPath);
+      const stats = await fs.stat(path);
       isDirectory = stats.isDirectory();
     } catch {
       // Path might not exist, proceed with delete anyway
     }
 
-    await fs.rm(targetPath, {
+    await fs.rm(path, {
       recursive: options?.recursive ?? false,
       force: false,
     });
 
     // Update cache in-place: remove the entry from parent directory
-    const parentDir = path.dirname(targetPath);
-    const fileName = path.basename(targetPath);
+    const parentDir = nodePath.dirname(path);
+    const fileName = nodePath.basename(path);
     DirectoryCache.removeEntry(parentDir, fileName);
 
     // If this was a directory, also remove its cache entry
     if (isDirectory) {
-      DirectoryCache.delete(targetPath);
+      DirectoryCache.delete(path);
     }
   }
 
@@ -269,15 +269,15 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     const entryType = stats.isDirectory() ? "directory" : "file";
 
     // Ensure parent directory of new path exists
-    const newParentDir = path.dirname(newPath);
+    const newParentDir = nodePath.dirname(newPath);
     await fs.mkdir(newParentDir, { recursive: true });
 
     await fs.rename(oldPath, newPath);
 
     // Update cache in-place
-    const oldParentDir = path.dirname(oldPath);
-    const oldName = path.basename(oldPath);
-    const newName = path.basename(newPath);
+    const oldParentDir = nodePath.dirname(oldPath);
+    const oldName = nodePath.basename(oldPath);
+    const newName = nodePath.basename(newPath);
 
     // Remove from old location
     DirectoryCache.removeEntry(oldParentDir, oldName);
@@ -305,8 +305,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     await fs.mkdir(dirPath, { recursive: true });
 
     // Update cache in-place: add the directory entry to parent
-    const parentDir = path.dirname(dirPath);
-    const dirName = path.basename(dirPath);
+    const parentDir = nodePath.dirname(dirPath);
+    const dirName = nodePath.basename(dirPath);
     DirectoryCache.addEntry(parentDir, { name: dirName, type: "directory" });
 
     // Initialize the new directory as empty in cache
@@ -316,9 +316,9 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   /**
    * Check if a path exists.
    */
-  async exists(targetPath: string): Promise<boolean> {
+  async exists(path: string): Promise<boolean> {
     try {
-      await fs.access(targetPath);
+      await fs.access(path);
       return true;
     } catch {
       return false;
@@ -383,7 +383,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   private setupWatcherEvents(): void {
     // File/directory created
     this.watcher.onCreated((event) => {
-      const parentDir = path.dirname(event.path);
+      const parentDir = nodePath.dirname(event.path);
       this.scheduleRefresh(parentDir);
     });
 
@@ -394,7 +394,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // File/directory deleted
     this.watcher.onDeleted((event) => {
-      const parentDir = path.dirname(event.path);
+      const parentDir = nodePath.dirname(event.path);
       this.scheduleRefresh(parentDir);
       this._onFileDeleted.fire(event);
 
@@ -405,8 +405,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     // File/directory renamed
     this.watcher.onRenamed((event) => {
       // Refresh both old and new parent directories
-      const oldParentDir = path.dirname(event.oldPath);
-      const newParentDir = path.dirname(event.newPath);
+      const oldParentDir = nodePath.dirname(event.oldPath);
+      const newParentDir = nodePath.dirname(event.newPath);
 
       this.scheduleRefresh(oldParentDir);
       if (oldParentDir !== newParentDir) {
@@ -625,7 +625,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     // Get directories that aren't already cached
     const directories = entries
       .filter((e) => e.type === "directory")
-      .map((e) => path.join(parentPath, e.name))
+      .map((e) => nodePath.join(parentPath, e.name))
       .filter((p) => !DirectoryCache.has(p));
 
     // Limit concurrent prefetches
@@ -734,8 +734,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     const pathsToCheck: Array<{ name: string; relativePath: string }> = [];
 
     for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
-      const relativePath = path.relative(gitRoot, fullPath);
+      const fullPath = nodePath.join(dirPath, entry.name);
+      const relativePath = nodePath.relative(gitRoot, fullPath);
 
       // Skip if outside git repo
       if (relativePath.startsWith("..")) {
@@ -788,7 +788,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
         // Update cache and results
         for (const { name, relativePath } of pathsToCheck) {
           // Normalize to forward slashes for comparison
-          const normalizedRelative = relativePath.split(path.sep).join("/");
+          const normalizedRelative = relativePath.split(nodePath.sep).join("/");
           const isIgnored = ignoredPaths.has(normalizedRelative);
           this.gitIgnoreCache.set(relativePath, isIgnored);
           if (isIgnored) {
@@ -801,7 +801,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
       // Write paths to stdin (one per line, forward slashes)
       const input = pathsToCheck
-        .map(({ relativePath }) => relativePath.split(path.sep).join("/"))
+        .map(({ relativePath }) => relativePath.split(nodePath.sep).join("/"))
         .join("\n");
       child.stdin.write(input);
       child.stdin.end();

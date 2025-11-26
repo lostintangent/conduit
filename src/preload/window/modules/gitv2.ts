@@ -185,10 +185,12 @@ export default {
    * @param staged - If true, show staged changes; if false, unstaged
    * @returns Unified diff string, or null if not a git repo
    */
-  getDiff: (cwd: string, filePath: string, staged?: boolean) =>
-    ipcRenderer.invoke("git-v2:diff", { cwd, filePath, staged }) as Promise<
-      string | null
-    >,
+  getFileDiff: (cwd: string, filePath: string, staged?: boolean) =>
+    ipcRenderer.invoke("git-v2:file-diff", {
+      cwd,
+      filePath,
+      staged,
+    }) as Promise<string | null>,
 
   /**
    * Get file content at a specific git ref.

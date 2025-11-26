@@ -287,9 +287,10 @@ export interface GitProvider {
   /**
    * Get status for a specific file.
    *
+   * @param filePath - Relative path from git root
    * @returns null if file has no changes (is clean)
    */
-  getFileStatus(path: string): Promise<GitFileStatus | null>;
+  getFileStatus(filePath: string): Promise<GitFileStatus | null>;
 
   /**
    * Get current branch name.
@@ -306,20 +307,22 @@ export interface GitProvider {
   /**
    * Get diff for a specific file.
    *
+   * @param filePath - Relative path from git root
    * @param staged - If true, show staged changes; if false, unstaged changes
    * @returns Unified diff string
    */
-  getFileDiff(path: string, staged?: boolean): Promise<string>;
+  getFileDiff(filePath: string, staged?: boolean): Promise<string>;
 
   /**
    * Get file content at a specific ref (commit, branch, tag).
    *
    * Useful for showing the "original" version in diff views.
    *
+   * @param filePath - Relative path from git root
    * @param ref - Git ref (e.g., 'HEAD', 'main', commit hash)
    * @throws If file doesn't exist at that ref
    */
-  getFileAtRef(path: string, ref: string): Promise<string>;
+  getFileAtRef(filePath: string, ref: string): Promise<string>;
 
   /**
    * Check if there are uncommitted changes.

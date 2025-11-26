@@ -32,6 +32,7 @@ import type {
   DirectoryEntry,
   FileStat,
   DeleteOptions,
+  Cleanup,
 } from "../../ipc/fsv2/types";
 import type {
   DirectoryListingChangedPayload,
@@ -66,10 +67,8 @@ export type FileDeletedCallback = (path: string) => void;
  */
 export type FileRenamedCallback = (oldPath: string, newPath: string) => void;
 
-/**
- * Cleanup function returned by event subscriptions.
- */
-export type Cleanup = () => void;
+// Re-export Cleanup from shared types for convenience
+export type { Cleanup };
 
 // ============================================================================
 // FileSystemV2API Class

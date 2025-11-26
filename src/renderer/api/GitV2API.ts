@@ -47,6 +47,7 @@ import type {
   GitCommitCreatedEvent,
   GitHeadChangedEvent,
 } from "../../ipc/gitv2/types";
+import type { Cleanup } from "../../ipc/fsv2/types";
 import type {
   SerializedGitStatus,
   SerializedGitCommit,
@@ -82,10 +83,8 @@ export type CommitCreatedCallback = (event: GitCommitCreatedEvent) => void;
  */
 export type HeadChangedCallback = (event: GitHeadChangedEvent) => void;
 
-/**
- * Cleanup function returned by event subscriptions.
- */
-export type Cleanup = () => void;
+// Re-export Cleanup from shared types for convenience
+export type { Cleanup };
 
 // ============================================================================
 // Deserialization Helpers
@@ -264,7 +263,7 @@ export class GitV2API {
     staged?: boolean,
   ): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getDiff(this.cwd, filePath, staged);
+    return window.conduit.gitv2.getFileDiff(this.cwd, filePath, staged);
   }
 
   /**

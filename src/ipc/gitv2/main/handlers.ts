@@ -11,7 +11,7 @@
  * IPC Channels:
  * - `git-v2:status` - Get git status
  * - `git-v2:file-status` - Get status for a specific file
- * - `git-v2:diff` - Get file diff
+ * - `git-v2:file-diff` - Get file diff
  * - `git-v2:file-at-ref` - Get file content at a specific ref
  * - `git-v2:stage` - Stage files
  * - `git-v2:unstage` - Unstage files
@@ -423,7 +423,7 @@ export function initializeGitV2Handlers(): void {
   // -------------------------------------------------------------------------
 
   ipcMain.handle(
-    "git-v2:diff",
+    "git-v2:file-diff",
     async (
       event,
       params: { cwd: string; filePath: string; staged?: boolean },

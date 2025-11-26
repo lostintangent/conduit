@@ -139,6 +139,14 @@ export interface Disposable {
 }
 
 /**
+ * Cleanup function returned by event subscriptions.
+ *
+ * Call this function to unsubscribe from events.
+ * This is a simpler alternative to Disposable for renderer-side callbacks.
+ */
+export type Cleanup = () => void;
+
+/**
  * Event subscription function type.
  *
  * Call with a listener to subscribe, returns a disposable to unsubscribe.
@@ -192,15 +200,15 @@ export interface FileSystemProvider {
    * Returns entries sorted: directories first, then files, alphabetically.
    * Results are cached and automatically invalidated when files change.
    *
-   * @throws If path is not a directory or does not exist
+   * @throws If dirPath is not a directory or does not exist
    */
-  readDirectory(path: string): Promise<DirectoryEntry[]>;
+  readDirectory(dirPath: string): Promise<DirectoryEntry[]>;
 
   /**
    * Read complete file contents.
-   * @throws If path is not a file or does not exist
+   * @throws If filePath is not a file or does not exist
    */
-  readFile(path: string): Promise<Uint8Array>;
+  readFile(filePath: string): Promise<Uint8Array>;
 
   /**
    * Write content to a file.
@@ -208,7 +216,7 @@ export interface FileSystemProvider {
    * Creates the file if it doesn't exist.
    * Creates parent directories if they don't exist.
    */
-  writeFile(path: string, content: Uint8Array): Promise<void>;
+  writeFile(filePath: string, content: Uint8Array): Promise<void>;
 
   /**
    * Delete a file or directory.
@@ -230,7 +238,7 @@ export interface FileSystemProvider {
    *
    * Creates parent directories if they don't exist (like `mkdir -p`).
    */
-  createDirectory(path: string): Promise<void>;
+  createDirectory(dirPath: string): Promise<void>;
 
   /**
    * Check if a path exists.

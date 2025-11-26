@@ -11,7 +11,7 @@ const { mockGitv2 } = vi.hoisted(() => {
     getFileStatus: vi.fn(),
     hasUncommittedChanges: vi.fn(),
     hasUnpushedCommits: vi.fn(),
-    getDiff: vi.fn(),
+    getFileDiff: vi.fn(),
     getFileAtRef: vi.fn(),
     stage: vi.fn(),
     unstage: vi.fn(),
@@ -234,12 +234,12 @@ describe("GitV2API", () => {
   describe("getFileDiff", () => {
     it("should return diff string", async () => {
       const diff = "@@ -1,3 +1,4 @@\n+new line\n content";
-      mockGitv2.getDiff.mockResolvedValue(diff);
+      mockGitv2.getFileDiff.mockResolvedValue(diff);
 
       const api = new GitV2API("/test/project");
       const result = await api.getFileDiff("src/file.ts");
 
-      expect(mockGitv2.getDiff).toHaveBeenCalledWith(
+      expect(mockGitv2.getFileDiff).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
         undefined,
@@ -250,12 +250,12 @@ describe("GitV2API", () => {
     });
 
     it("should pass staged flag", async () => {
-      mockGitv2.getDiff.mockResolvedValue("diff");
+      mockGitv2.getFileDiff.mockResolvedValue("diff");
 
       const api = new GitV2API("/test/project");
       await api.getFileDiff("src/file.ts", true);
 
-      expect(mockGitv2.getDiff).toHaveBeenCalledWith(
+      expect(mockGitv2.getFileDiff).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
         true,
