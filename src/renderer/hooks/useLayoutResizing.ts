@@ -118,7 +118,7 @@ export const useLayoutResizing = () => {
 
               if (
                 pendingUpdate.pixelSize !== undefined &&
-                pendingUpdate.pixelSize < 50
+                pendingUpdate.pixelSize < 100
               ) {
                 paneNode.collapsed = true;
               }
