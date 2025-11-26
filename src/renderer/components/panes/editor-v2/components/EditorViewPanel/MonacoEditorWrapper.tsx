@@ -1,0 +1,236 @@
+/**
+ * MonacoEditorWrapper - Wrapper for Monaco standalone editor.
+ *
+ * This component wraps a Monaco editor instance and integrates with the
+ * global registries (EditorRegistry, MonacoModelRegistry, ViewStateRegistry).
+ *
+ * Key responsibilities:
+ * - Gets/creates editor from EditorRegistry (portal pattern for reuse)
+ * - Gets model from MonacoModelRegistry via useMonacoModel hook
+ * - Saves/restores ViewState via ViewStateRegistry
+ * - Handles automatic layout on container resize
+ * - Configures editor options (theme, minimap, etc.)
+ *
+ * @example
+ * ```tsx
+ * <MonacoEditorWrapper
+ *   editorId="main-editor"
+ *   filePath="/path/to/file.ts"
+ *   cwd="/project"
+ *   theme="dark"
+ * />
+ * ```
+ */
+
+import { useEffect, useRef, useCallback } from "react";
+import * as monaco from "monaco-editor";
+import { useMonacoModel } from "../../hooks";
+import { EditorRegistry, ViewStateRegistry } from "../../registry";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface MonacoEditorWrapperProps {
+  /** Unique ID for this editor instance */
+  editorId: string;
+
+  /** Working directory for file operations */
+  cwd: string;
+
+  /** Absolute path to the file to edit */
+  filePath: string;
+
+  /** Monaco theme name */
+  theme?: string;
+
+  /** Whether the editor should be read-only */
+  readOnly?: boolean;
+
+  /** Callback when editor content changes */
+  onChange?: (value: string) => void;
+
+  /** Callback when editor is mounted/ready */
+  onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
+}
+
+// ============================================================================
+// Default Editor Options
+// ============================================================================
+
+/**
+ * Default Monaco editor options optimized for the application.
+ *
+ * These match the v1 editor configuration for consistency.
+ */
+const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions =
+  {
+    minimap: { enabled: false },
+    smoothScrolling: true,
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    fontSize: 13,
+    wordWrap: "on",
+    // Disable language features that cause issues with file:// URIs
+    occurrencesHighlight: "off",
+    selectionHighlight: false,
+    hover: { enabled: false },
+    parameterHints: { enabled: false },
+    quickSuggestions: false,
+    suggestOnTriggerCharacters: false,
+  };
+
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Monaco editor wrapper with registry integration.
+ *
+ * Manages the lifecycle of a Monaco editor instance, including:
+ * - Editor reuse via EditorRegistry (portal pattern)
+ * - Model management via MonacoModelRegistry
+ * - ViewState persistence via ViewStateRegistry
+ */
+export function MonacoEditorWrapper({
+  editorId,
+  cwd,
+  filePath,
+  theme = "vs-dark",
+  readOnly = false,
+  onChange,
+  onMount,
+}: MonacoEditorWrapperProps) {
+  // Refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const previousFilePathRef = useRef<string | null>(null);
+  const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
+
+  // Get model from registry via hook
+  const model = useMonacoModel(filePath, cwd);
+
+  // ---------------------------------------------------------------------------
+  // Editor Setup
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const editorRegistry = EditorRegistry.getInstance();
+    const viewStateRegistry = ViewStateRegistry.getInstance();
+
+    // Get or create editor
+    const editor = editorRegistry.getOrCreateEditor(editorId, container, {
+      ...DEFAULT_EDITOR_OPTIONS,
+      theme,
+      readOnly,
+    });
+
+    editorRef.current = editor;
+
+    // Call onMount callback
+    onMount?.(editor);
+
+    // Cleanup on unmount
+    return () => {
+      // Save ViewState before releasing
+      if (editorRef.current && previousFilePathRef.current) {
+        viewStateRegistry.save(editorId, previousFilePathRef.current, editor);
+      }
+
+      // Dispose content change listener
+      if (contentChangeDisposableRef.current) {
+        contentChangeDisposableRef.current.dispose();
+        contentChangeDisposableRef.current = null;
+      }
+
+      // Release editor (doesn't dispose, just marks as unused)
+      editorRegistry.releaseEditor(editorId);
+      editorRef.current = null;
+    };
+  }, [editorId, theme, readOnly, onMount]);
+
+  // ---------------------------------------------------------------------------
+  // Model Attachment
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !model) return;
+
+    const viewStateRegistry = ViewStateRegistry.getInstance();
+
+    // Save ViewState for previous file before switching
+    if (
+      previousFilePathRef.current &&
+      previousFilePathRef.current !== filePath
+    ) {
+      viewStateRegistry.save(editorId, previousFilePathRef.current, editor);
+    }
+
+    // Attach model to editor
+    editor.setModel(model);
+
+    // Restore ViewState for new file
+    viewStateRegistry.restore(editorId, filePath, editor);
+
+    // Update previous file path
+    previousFilePathRef.current = filePath;
+
+    // Set up content change listener for onChange callback
+    if (contentChangeDisposableRef.current) {
+      contentChangeDisposableRef.current.dispose();
+    }
+
+    if (onChange) {
+      contentChangeDisposableRef.current = model.onDidChangeContent(() => {
+        onChange(model.getValue());
+      });
+    }
+
+    return () => {
+      // Cleanup content change listener
+      if (contentChangeDisposableRef.current) {
+        contentChangeDisposableRef.current.dispose();
+        contentChangeDisposableRef.current = null;
+      }
+    };
+  }, [editorId, filePath, model, onChange]);
+
+  // ---------------------------------------------------------------------------
+  // Editor Options Update
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    editor.updateOptions({
+      theme,
+      readOnly,
+    });
+  }, [theme, readOnly]);
+
+  // ---------------------------------------------------------------------------
+  // Focus Handler
+  // ---------------------------------------------------------------------------
+
+  const handleContainerClick = useCallback(() => {
+    editorRef.current?.focus();
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  return (
+    <div
+      ref={containerRef}
+      className="h-full w-full"
+      onClick={handleContainerClick}
+      data-testid="monaco-editor-wrapper"
+    />
+  );
+}

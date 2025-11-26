@@ -9,7 +9,7 @@ import type { ModelStateEvent } from "../../../../src/renderer/components/panes/
 // ============================================================================
 
 const mockRegistry = {
-  getModelState: vi.fn(() => ({
+  getModelState: vi.fn((_uri?: string) => ({
     isDirty: false,
     isOrphaned: false,
     hasExternalChanges: false,

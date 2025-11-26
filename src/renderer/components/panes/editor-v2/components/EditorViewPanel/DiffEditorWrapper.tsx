@@ -1,0 +1,331 @@
+/**
+ * DiffEditorWrapper - Wrapper for Monaco diff editor.
+ *
+ * This component wraps a Monaco diff editor for side-by-side comparison.
+ * Unlike the regular editor, diff editors are NOT stored in the registry
+ * because they have simpler lifecycle requirements (cheaper to recreate).
+ *
+ * Key responsibilities:
+ * - Creates Monaco diff editor on mount
+ * - Uses useDiffContent hook to fetch original (git) and modified content
+ * - Original side is read-only (from git)
+ * - Modified side uses shared model from MonacoModelRegistry (editable)
+ * - Shows loading state while fetching content
+ * - Properly disposes on unmount
+ *
+ * @example
+ * ```tsx
+ * <DiffEditorWrapper
+ *   editorId="diff-editor"
+ *   filePath="/path/to/file.ts"
+ *   cwd="/project"
+ *   baseBranch="main"
+ * />
+ * ```
+ */
+
+import { useEffect, useRef, useCallback } from "react";
+import * as monaco from "monaco-editor";
+import { useDiffContent, useMonacoModel } from "../../hooks";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface DiffEditorWrapperProps {
+  /** Unique ID for this diff editor instance */
+  editorId: string;
+
+  /** Working directory for file and git operations */
+  cwd: string;
+
+  /** Absolute path to the file to diff */
+  filePath: string;
+
+  /** Git ref for the original content (default: 'HEAD') */
+  baseBranch?: string;
+
+  /** Monaco theme name */
+  theme?: string;
+
+  /** Whether the modified side should be read-only */
+  readOnly?: boolean;
+
+  /** Callback when modified content changes */
+  onChange?: (value: string) => void;
+
+  /** Callback when diff editor is mounted/ready */
+  onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
+}
+
+// ============================================================================
+// Default Diff Editor Options
+// ============================================================================
+
+/**
+ * Default Monaco diff editor options optimized for the application.
+ */
+const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptions =
+  {
+    renderSideBySide: true,
+    minimap: { enabled: false },
+    smoothScrolling: true,
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    fontSize: 13,
+    wordWrap: "on",
+    // Disable language features that cause issues
+    occurrencesHighlight: "off",
+    selectionHighlight: false,
+    hover: { enabled: false },
+    parameterHints: { enabled: false },
+    quickSuggestions: false,
+    suggestOnTriggerCharacters: false,
+  };
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Infer Monaco language ID from file path.
+ */
+function inferLanguageFromPath(filePath: string): string {
+  const extension = filePath.split(".").pop()?.toLowerCase() ?? "";
+
+  const languageMap: Record<string, string> = {
+    ts: "typescript",
+    tsx: "typescript",
+    js: "javascript",
+    jsx: "javascript",
+    json: "json",
+    md: "markdown",
+    css: "css",
+    scss: "scss",
+    html: "html",
+    xml: "xml",
+    yaml: "yaml",
+    yml: "yaml",
+    py: "python",
+    rb: "ruby",
+    go: "go",
+    rs: "rust",
+    java: "java",
+    c: "c",
+    cpp: "cpp",
+    h: "c",
+    hpp: "cpp",
+    sh: "shell",
+    bash: "shell",
+    sql: "sql",
+  };
+
+  return languageMap[extension] ?? "plaintext";
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Monaco diff editor wrapper with content loading.
+ *
+ * Creates a diff editor that compares:
+ * - Original: Content from git (HEAD or baseBranch)
+ * - Modified: Current working directory content (via MonacoModelRegistry)
+ */
+export function DiffEditorWrapper({
+  editorId,
+  cwd,
+  filePath,
+  baseBranch,
+  theme = "vs-dark",
+  readOnly = false,
+  onChange,
+  onMount,
+}: DiffEditorWrapperProps) {
+  // Refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(
+    null,
+  );
+  const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
+  const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
+
+  // Get diff content (original from git, modified from file system)
+  const diffContent = useDiffContent(filePath, baseBranch, cwd);
+
+  // Get the shared model for the modified side
+  const modifiedModel = useMonacoModel(filePath, cwd);
+
+  // Infer language from file path
+  const language = inferLanguageFromPath(filePath);
+
+  // ---------------------------------------------------------------------------
+  // Diff Editor Setup
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Create diff editor
+    const diffEditor = monaco.editor.createDiffEditor(container, {
+      ...DEFAULT_DIFF_OPTIONS,
+      theme,
+      readOnly,
+    });
+
+    diffEditorRef.current = diffEditor;
+
+    // Call onMount callback
+    onMount?.(diffEditor);
+
+    // Cleanup on unmount
+    return () => {
+      // Dispose content change listener
+      if (contentChangeDisposableRef.current) {
+        contentChangeDisposableRef.current.dispose();
+        contentChangeDisposableRef.current = null;
+      }
+
+      // Dispose original model (we own it)
+      if (originalModelRef.current) {
+        originalModelRef.current.dispose();
+        originalModelRef.current = null;
+      }
+
+      // Dispose diff editor
+      diffEditor.dispose();
+      diffEditorRef.current = null;
+    };
+  }, [theme, readOnly, onMount]);
+
+  // ---------------------------------------------------------------------------
+  // Model Setup
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const diffEditor = diffEditorRef.current;
+    if (!diffEditor) return;
+
+    // Need both original content and modified model to set up the diff
+    if (
+      diffContent.isLoading ||
+      diffContent.original === null ||
+      !modifiedModel
+    ) {
+      return;
+    }
+
+    // Create original model (read-only, we own this)
+    // Dispose previous if exists
+    if (originalModelRef.current) {
+      originalModelRef.current.dispose();
+    }
+
+    const originalUri = monaco.Uri.parse(`inmemory://original/${filePath}`);
+    originalModelRef.current = monaco.editor.createModel(
+      diffContent.original,
+      language,
+      originalUri,
+    );
+
+    // Set the diff models
+    diffEditor.setModel({
+      original: originalModelRef.current,
+      modified: modifiedModel,
+    });
+
+    // Set up content change listener for onChange callback
+    if (contentChangeDisposableRef.current) {
+      contentChangeDisposableRef.current.dispose();
+    }
+
+    if (onChange && !readOnly) {
+      contentChangeDisposableRef.current = modifiedModel.onDidChangeContent(
+        () => {
+          onChange(modifiedModel.getValue());
+        },
+      );
+    }
+
+    return () => {
+      // Cleanup content change listener
+      if (contentChangeDisposableRef.current) {
+        contentChangeDisposableRef.current.dispose();
+        contentChangeDisposableRef.current = null;
+      }
+    };
+  }, [
+    filePath,
+    language,
+    diffContent.isLoading,
+    diffContent.original,
+    modifiedModel,
+    onChange,
+    readOnly,
+  ]);
+
+  // ---------------------------------------------------------------------------
+  // Editor Options Update
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const diffEditor = diffEditorRef.current;
+    if (!diffEditor) return;
+
+    // Update theme globally (Monaco themes are global)
+    monaco.editor.setTheme(theme);
+
+    // Update editor-specific options
+    diffEditor.updateOptions({
+      readOnly,
+    });
+  }, [theme, readOnly]);
+
+  // ---------------------------------------------------------------------------
+  // Focus Handler
+  // ---------------------------------------------------------------------------
+
+  const handleContainerClick = useCallback(() => {
+    diffEditorRef.current?.getModifiedEditor().focus();
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  // Show loading state
+  if (diffContent.isLoading) {
+    return (
+      <div
+        className="flex h-full w-full items-center justify-center text-muted-foreground"
+        data-testid="diff-editor-loading"
+      >
+        Loading diff...
+      </div>
+    );
+  }
+
+  // Show error state
+  if (diffContent.error) {
+    return (
+      <div
+        className="flex h-full w-full items-center justify-center text-destructive"
+        data-testid="diff-editor-error"
+      >
+        {diffContent.error}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="h-full w-full"
+      onClick={handleContainerClick}
+      data-testid="diff-editor-wrapper"
+    />
+  );
+}
