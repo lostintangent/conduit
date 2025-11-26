@@ -1,10 +1,5 @@
 import { tabsAtom } from "@/store/atoms";
-import type {
-  LayoutNode,
-  LayoutPaneNode,
-  LayoutSplitNode,
-  SplitDirection,
-} from "@/types";
+import type { LayoutNode, SplitDirection } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import { useAtom } from "jotai";
 import { useCallback, useState } from "react";
@@ -44,34 +39,14 @@ const layoutHasCustomSizes = (node: LayoutNode): boolean => {
   return hasCustomSize;
 };
 
-const stripLayoutSizes = (node: LayoutNode): LayoutNode => {
+const stripLayoutSizesMutable = (node: LayoutNode): void => {
+  if (node.size !== undefined) {
+    delete node.size;
+  }
+
   if (node.type === "split") {
-    const cleanedChildren = node.children.map(stripLayoutSizes);
-    const hasChanged =
-      node.size !== undefined ||
-      cleanedChildren.some((child, index) => child !== node.children[index]);
-
-    if (!hasChanged) {
-      return node;
-    }
-
-    return {
-      id: node.id,
-      type: "split",
-      direction: node.direction,
-      children: cleanedChildren,
-    } as LayoutSplitNode;
+    node.children.forEach(stripLayoutSizesMutable);
   }
-
-  if (node.size === undefined) {
-    return node;
-  }
-
-  return {
-    id: node.id,
-    type: "pane",
-    paneId: node.paneId,
-  } as LayoutPaneNode;
 };
 
 export const useLayoutResizing = () => {
@@ -86,68 +61,40 @@ export const useLayoutResizing = () => {
 
       let didCollapse = false;
 
-      setTabs((current) =>
-        current.map((tab) => {
-          if (tab.id !== tabId) {
-            return tab;
+      setTabs((tabs) => {
+        const tab = tabs.find(({ id }) => id === tabId);
+        if (!tab) {
+          return;
+        }
+
+        walkLayout(tab.layout, ({ node }) => {
+          const pendingUpdate = updates.get(node.id);
+
+          // Only update size if pixelSize >= MIN_PANE_SIZE_PX or if no pixelSize is provided
+          const shouldUpdateSize =
+            pendingUpdate === undefined ||
+            pendingUpdate.pixelSize === undefined ||
+            pendingUpdate.pixelSize >= MIN_PANE_SIZE_PX;
+
+          if (shouldUpdateSize && pendingUpdate !== undefined) {
+            node.size = pendingUpdate.size;
           }
 
-          const updateNode = (node: LayoutNode): LayoutNode => {
-            const pendingUpdate = updates.get(node.id);
-
-            // Only update size if pixelSize >= MIN_PANE_SIZE_PX or if no pixelSize is provided
-            const shouldUpdateSize =
-              pendingUpdate === undefined ||
-              pendingUpdate.pixelSize === undefined ||
-              pendingUpdate.pixelSize >= MIN_PANE_SIZE_PX;
-
-            const baseNode =
-              shouldUpdateSize && pendingUpdate !== undefined
-                ? { ...node, size: pendingUpdate.size }
-                : node;
-
-            if (baseNode.type === "split") {
-              let childChanged = false;
-              const newChildren = baseNode.children.map((child) => {
-                const updatedChild = updateNode(child);
-                if (updatedChild !== child) {
-                  childChanged = true;
-                }
-                return updatedChild;
-              });
-
-              if (childChanged) {
-                return { ...baseNode, children: newChildren };
-              }
+          if (pendingUpdate && node.type === "pane") {
+            if (node.collapsed) {
+              delete node.collapsed;
             }
 
-            if (pendingUpdate && baseNode.type === "pane") {
-              const paneNode = { ...baseNode };
-
-              if (paneNode.collapsed) {
-                delete paneNode.collapsed;
-              }
-
-              if (
-                pendingUpdate.pixelSize !== undefined &&
-                pendingUpdate.pixelSize < COLLAPSE_THRESHOLD_PX
-              ) {
-                paneNode.collapsed = true;
-                didCollapse = true;
-              }
-
-              return paneNode;
+            if (
+              pendingUpdate.pixelSize !== undefined &&
+              pendingUpdate.pixelSize < COLLAPSE_THRESHOLD_PX
+            ) {
+              node.collapsed = true;
+              didCollapse = true;
             }
-
-            return baseNode;
-          };
-
-          return {
-            ...tab,
-            layout: updateNode(tab.layout),
-          };
-        }),
-      );
+          }
+        });
+      });
 
       return didCollapse;
     },
@@ -301,23 +248,14 @@ export const useLayoutResizing = () => {
 
   const resetLayoutSizes = useCallback(
     (tabId: string) => {
-      setTabs((current) =>
-        current.map((tab) => {
-          if (tab.id !== tabId) {
-            return tab;
-          }
+      setTabs((tabs) => {
+        const tab = tabs.find(({ id }) => id === tabId);
+        if (!tab) {
+          return;
+        }
 
-          const cleanedLayout = stripLayoutSizes(tab.layout);
-          if (cleanedLayout === tab.layout) {
-            return tab;
-          }
-
-          return {
-            ...tab,
-            layout: cleanedLayout,
-          };
-        }),
-      );
+        stripLayoutSizesMutable(tab.layout);
+      });
     },
     [setTabs],
   );
