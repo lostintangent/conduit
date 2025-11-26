@@ -7,8 +7,8 @@
 // FileSystem v2 Hook
 export { useFileSystemV2 } from "./useFileSystemV2";
 export type {
-  DirectoryChangedCallback,
-  FileChangedCallback,
+  DirectoryListingChangedCallback,
+  FileContentChangedCallback,
   FileDeletedCallback,
   FileRenamedCallback,
 } from "./useFileSystemV2";

@@ -18,8 +18,8 @@ const { mockFsv2 } = vi.hoisted(() => {
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
     release: vi.fn(),
-    onDirectoryChanged: vi.fn(() => vi.fn()),
-    onFileChanged: vi.fn(() => vi.fn()),
+    onDirectoryListingChanged: vi.fn(() => vi.fn()),
+    onFileContentChanged: vi.fn(() => vi.fn()),
     onFileDeleted: vi.fn(() => vi.fn()),
     onFileRenamed: vi.fn(() => vi.fn()),
   };
@@ -290,12 +290,15 @@ describe("FileSystemV2API", () => {
   // Event Subscriptions
   // ===========================================================================
 
-  describe("onDirectoryChanged", () => {
+  describe("onDirectoryListingChanged", () => {
     it("should subscribe to events", async () => {
       const api = new FileSystemV2API("/test/project");
       const callback = vi.fn();
 
-      const cleanup = api.onDirectoryChanged("/test/project/src", callback);
+      const cleanup = api.onDirectoryListingChanged(
+        "/test/project/src",
+        callback,
+      );
 
       // Should trigger IPC subscription
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -311,7 +314,7 @@ describe("FileSystemV2API", () => {
     it("should call callback when directory changes", async () => {
       // Capture the listener function
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryChanged.mockImplementation(
+      mockFsv2.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();
@@ -322,7 +325,7 @@ describe("FileSystemV2API", () => {
 
       // Re-setup to capture listener
       const callback = vi.fn();
-      api.onDirectoryChanged("/test/project/src", callback);
+      api.onDirectoryListingChanged("/test/project/src", callback);
 
       // Wait for subscription
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -345,7 +348,7 @@ describe("FileSystemV2API", () => {
 
     it("should filter events by subscription ID", async () => {
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryChanged.mockImplementation(
+      mockFsv2.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();
@@ -354,7 +357,7 @@ describe("FileSystemV2API", () => {
 
       const api = new FileSystemV2API("/test/project");
       const callback = vi.fn();
-      api.onDirectoryChanged("/test/project/src", callback);
+      api.onDirectoryListingChanged("/test/project/src", callback);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -373,10 +376,10 @@ describe("FileSystemV2API", () => {
     });
   });
 
-  describe("onAnyDirectoryChanged", () => {
+  describe("onAnyDirectoryListingChanged", () => {
     it("should receive events for any path", async () => {
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryChanged.mockImplementation(
+      mockFsv2.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();
@@ -385,7 +388,7 @@ describe("FileSystemV2API", () => {
 
       const api = new FileSystemV2API("/test/project");
       const callback = vi.fn();
-      api.onAnyDirectoryChanged(callback);
+      api.onAnyDirectoryListingChanged(callback);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -423,7 +426,7 @@ describe("FileSystemV2API", () => {
       const api = new FileSystemV2API("/test/project");
 
       // Trigger subscription
-      api.onDirectoryChanged("/test", vi.fn());
+      api.onDirectoryListingChanged("/test", vi.fn());
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       api.release();
@@ -488,7 +491,7 @@ describe("FileSystemV2API", () => {
 
     it("should isolate listener errors", async () => {
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryChanged.mockImplementation(
+      mockFsv2.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();
@@ -502,8 +505,8 @@ describe("FileSystemV2API", () => {
       });
       const goodCallback = vi.fn();
 
-      api.onDirectoryChanged("/test/project/src", badCallback);
-      api.onDirectoryChanged("/test/project/src", goodCallback);
+      api.onDirectoryListingChanged("/test/project/src", badCallback);
+      api.onDirectoryListingChanged("/test/project/src", goodCallback);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 

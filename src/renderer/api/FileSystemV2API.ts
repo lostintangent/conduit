@@ -19,8 +19,8 @@
  * const entries = await fs.readDirectory('/path/to/project/src');
  *
  * // Subscribe to changes
- * const cleanup = fs.onDirectoryChanged('/path/to/project/src', (entries) => {
- *   console.log('Directory changed:', entries.length, 'entries');
+ * const cleanup = fs.onDirectoryListingChanged('/path/to/project/src', (entries) => {
+ *   console.log('Directory listing changed:', entries.length, 'entries');
  * });
  *
  * // When done, release resources
@@ -34,8 +34,8 @@ import type {
   DeleteOptions,
 } from "../../ipc/fsv2/types";
 import type {
-  DirectoryChangedPayload,
-  FileChangedPayload,
+  DirectoryListingChangedPayload,
+  FileContentChangedPayload,
   FileDeletedPayload,
   FileRenamedPayload,
 } from "../../preload/window/modules/fsv2";
@@ -45,14 +45,16 @@ import type {
 // ============================================================================
 
 /**
- * Callback for directory change events.
+ * Callback for directory listing change events.
  */
-export type DirectoryChangedCallback = (entries: DirectoryEntry[]) => void;
+export type DirectoryListingChangedCallback = (
+  entries: DirectoryEntry[],
+) => void;
 
 /**
- * Callback for file change events.
+ * Callback for file content change events.
  */
-export type FileChangedCallback = (path: string) => void;
+export type FileContentChangedCallback = (path: string) => void;
 
 /**
  * Callback for file delete events.
@@ -86,12 +88,15 @@ export class FileSystemV2API {
   /** Active subscription ID, if subscribed to events */
   private subscriptionId: string | null = null;
 
-  /** Listeners registered for directory changes */
-  private directoryListeners: Map<string, Set<DirectoryChangedCallback>> =
-    new Map();
+  /** Listeners registered for directory listing changes */
+  private directoryListeners: Map<
+    string,
+    Set<DirectoryListingChangedCallback>
+  > = new Map();
 
-  /** Listeners registered for file changes */
-  private fileListeners: Map<string, Set<FileChangedCallback>> = new Map();
+  /** Listeners registered for file content changes */
+  private fileListeners: Map<string, Set<FileContentChangedCallback>> =
+    new Map();
 
   /** Listeners registered for file deletions */
   private deleteListeners: Map<string, Set<FileDeletedCallback>> = new Map();
@@ -103,7 +108,7 @@ export class FileSystemV2API {
   private globalDirectoryListeners: Set<
     (path: string, entries: DirectoryEntry[]) => void
   > = new Set();
-  private globalFileListeners: Set<FileChangedCallback> = new Set();
+  private globalFileListeners: Set<FileContentChangedCallback> = new Set();
   private globalDeleteListeners: Set<FileDeletedCallback> = new Set();
   private globalRenameListeners: Set<FileRenamedCallback> = new Set();
 
@@ -130,23 +135,23 @@ export class FileSystemV2API {
   /**
    * Read contents of a directory.
    *
-   * @param path - Absolute path to directory
+   * @param dirPath - Absolute path to directory
    * @returns Array of directory entries (sorted: directories first, then files)
    */
-  async readDirectory(path: string): Promise<DirectoryEntry[]> {
+  async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readDirectory(this.cwd, path);
+    return window.conduit.fsv2.readDirectory(this.cwd, dirPath);
   }
 
   /**
    * Read file contents as binary data.
    *
-   * @param path - Absolute path to file
+   * @param filePath - Absolute path to file
    * @returns File contents as Uint8Array
    */
-  async readFile(path: string): Promise<Uint8Array> {
+  async readFile(filePath: string): Promise<Uint8Array> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readFile(this.cwd, path);
+    return window.conduit.fsv2.readFile(this.cwd, filePath);
   }
 
   /**
@@ -154,11 +159,11 @@ export class FileSystemV2API {
    *
    * Convenience method that decodes the binary data as UTF-8.
    *
-   * @param path - Absolute path to file
+   * @param filePath - Absolute path to file
    * @returns File contents as string
    */
-  async readTextFile(path: string): Promise<string> {
-    const data = await this.readFile(path);
+  async readTextFile(filePath: string): Promise<string> {
+    const data = await this.readFile(filePath);
     return new TextDecoder().decode(data);
   }
 
@@ -194,12 +199,12 @@ export class FileSystemV2API {
    * Creates the file if it doesn't exist.
    * Creates parent directories if they don't exist.
    *
-   * @param path - Absolute path to file
+   * @param filePath - Absolute path to file
    * @param content - File contents as Uint8Array
    */
-  async writeFile(path: string, content: Uint8Array): Promise<void> {
+  async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.writeFile(this.cwd, path, content);
+    return window.conduit.fsv2.writeFile(this.cwd, filePath, content);
   }
 
   /**
@@ -207,12 +212,12 @@ export class FileSystemV2API {
    *
    * Convenience method that encodes the string as UTF-8.
    *
-   * @param path - Absolute path to file
+   * @param filePath - Absolute path to file
    * @param content - File contents as string
    */
-  async writeTextFile(path: string, content: string): Promise<void> {
+  async writeTextFile(filePath: string, content: string): Promise<void> {
     const data = new TextEncoder().encode(content);
-    return this.writeFile(path, data);
+    return this.writeFile(filePath, data);
   }
 
   /**
@@ -242,11 +247,11 @@ export class FileSystemV2API {
    *
    * Creates parent directories if they don't exist.
    *
-   * @param path - Absolute path to create
+   * @param dirPath - Absolute path to create
    */
-  async createDirectory(path: string): Promise<void> {
+  async createDirectory(dirPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.createDirectory(this.cwd, path);
+    return window.conduit.fsv2.createDirectory(this.cwd, dirPath);
   }
 
   // ---------------------------------------------------------------------------
@@ -254,15 +259,15 @@ export class FileSystemV2API {
   // ---------------------------------------------------------------------------
 
   /**
-   * Subscribe to directory content changes.
+   * Subscribe to directory listing changes.
    *
    * @param path - Directory path to watch
-   * @param callback - Function called when directory contents change
+   * @param callback - Function called when directory listing changes
    * @returns Cleanup function to unsubscribe
    */
-  onDirectoryChanged(
+  onDirectoryListingChanged(
     path: string,
-    callback: DirectoryChangedCallback,
+    callback: DirectoryListingChangedCallback,
   ): Cleanup {
     this.ensureNotReleased();
     this.ensureSubscribed();
@@ -283,12 +288,12 @@ export class FileSystemV2API {
   }
 
   /**
-   * Subscribe to all directory content changes (not filtered by path).
+   * Subscribe to all directory listing changes (not filtered by path).
    *
-   * @param callback - Function called when any directory changes
+   * @param callback - Function called when any directory listing changes
    * @returns Cleanup function to unsubscribe
    */
-  onAnyDirectoryChanged(
+  onAnyDirectoryListingChanged(
     callback: (path: string, entries: DirectoryEntry[]) => void,
   ): Cleanup {
     this.ensureNotReleased();
@@ -308,7 +313,10 @@ export class FileSystemV2API {
    * @param callback - Function called when file content changes
    * @returns Cleanup function to unsubscribe
    */
-  onFileChanged(path: string, callback: FileChangedCallback): Cleanup {
+  onFileContentChanged(
+    path: string,
+    callback: FileContentChangedCallback,
+  ): Cleanup {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
@@ -330,10 +338,10 @@ export class FileSystemV2API {
   /**
    * Subscribe to all file content changes (not filtered by path).
    *
-   * @param callback - Function called when any file changes
+   * @param callback - Function called when any file content changes
    * @returns Cleanup function to unsubscribe
    */
-  onAnyFileChanged(callback: FileChangedCallback): Cleanup {
+  onAnyFileContentChanged(callback: FileContentChangedCallback): Cleanup {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
@@ -492,10 +500,10 @@ export class FileSystemV2API {
    * Set up IPC event listeners.
    */
   private setupEventListeners(): void {
-    // Directory changes
+    // Directory listing changes
     this.ipcCleanups.push(
-      window.conduit.fsv2.onDirectoryChanged(
-        (payload: DirectoryChangedPayload) => {
+      window.conduit.fsv2.onDirectoryListingChanged(
+        (payload: DirectoryListingChangedPayload) => {
           if (payload.subscriptionId !== this.subscriptionId) {
             return;
           }
@@ -530,37 +538,42 @@ export class FileSystemV2API {
       ),
     );
 
-    // File changes
+    // File content changes
     this.ipcCleanups.push(
-      window.conduit.fsv2.onFileChanged((payload: FileChangedPayload) => {
-        if (payload.subscriptionId !== this.subscriptionId) {
-          return;
-        }
+      window.conduit.fsv2.onFileContentChanged(
+        (payload: FileContentChangedPayload) => {
+          if (payload.subscriptionId !== this.subscriptionId) {
+            return;
+          }
 
-        // Notify path-specific listeners
-        const listeners = this.fileListeners.get(payload.path);
-        if (listeners) {
-          for (const callback of listeners) {
+          // Notify path-specific listeners
+          const listeners = this.fileListeners.get(payload.path);
+          if (listeners) {
+            for (const callback of listeners) {
+              try {
+                callback(payload.path);
+              } catch (error) {
+                console.error(
+                  "[FileSystemV2API] Error in file listener:",
+                  error,
+                );
+              }
+            }
+          }
+
+          // Notify global listeners
+          for (const callback of this.globalFileListeners) {
             try {
               callback(payload.path);
             } catch (error) {
-              console.error("[FileSystemV2API] Error in file listener:", error);
+              console.error(
+                "[FileSystemV2API] Error in global file listener:",
+                error,
+              );
             }
           }
-        }
-
-        // Notify global listeners
-        for (const callback of this.globalFileListeners) {
-          try {
-            callback(payload.path);
-          } catch (error) {
-            console.error(
-              "[FileSystemV2API] Error in global file listener:",
-              error,
-            );
-          }
-        }
-      }),
+        },
+      ),
     );
 
     // File deletions

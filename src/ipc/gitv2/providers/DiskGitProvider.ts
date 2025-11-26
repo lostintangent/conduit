@@ -405,7 +405,7 @@ export class DiskGitProvider implements GitProvider {
    * Returns files that have been added, modified, or deleted
    * in the current branch compared to the base branch.
    */
-  async getFilesChangedSinceBranch(baseBranch: string): Promise<string[]> {
+  async getChangedFilesFromBranch(baseBranch: string): Promise<string[]> {
     try {
       // Get the merge base between current HEAD and base branch
       const mergeBase = await this.git.raw(["merge-base", "HEAD", baseBranch]);
@@ -431,9 +431,9 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Get diff statistics (lines added/removed).
+   * Get diff statistics for uncommitted changes (lines added/removed).
    */
-  async getDiffStats(): Promise<{
+  async getUncommittedDiffStats(): Promise<{
     added: number;
     removed: number;
     files: number;
@@ -505,11 +505,11 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Get the most recently modified tracked file from git history.
+   * Get the most recently modified file from recent commits.
    *
    * Fallback when there are no dirty files.
    */
-  async getMostRecentTrackedFile(commitLimit = 10): Promise<string | null> {
+  async getMostRecentCommittedFile(commitLimit = 10): Promise<string | null> {
     try {
       // Get files from recent commits
       const log = await this.git.log({
@@ -550,7 +550,7 @@ export class DiskGitProvider implements GitProvider {
       return mostRecent?.path ?? null;
     } catch (error) {
       console.error(
-        "[DiskGitProvider] Failed to get most recent tracked file:",
+        "[DiskGitProvider] Failed to get most recent committed file:",
         error,
       );
       return null;

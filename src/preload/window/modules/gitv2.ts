@@ -157,8 +157,10 @@ export default {
    * @param cwd - Working directory
    * @returns true if there are uncommitted changes
    */
-  isDirty: (cwd: string) =>
-    ipcRenderer.invoke("git-v2:is-dirty", { cwd }) as Promise<boolean>,
+  hasUncommittedChanges: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:has-uncommitted-changes", {
+      cwd,
+    }) as Promise<boolean>,
 
   /**
    * Check if repository has unpushed commits.
@@ -166,8 +168,10 @@ export default {
    * @param cwd - Working directory
    * @returns true if there are unpushed commits
    */
-  hasUnpushed: (cwd: string) =>
-    ipcRenderer.invoke("git-v2:has-unpushed", { cwd }) as Promise<boolean>,
+  hasUnpushedCommits: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:has-unpushed-commits", {
+      cwd,
+    }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
   // Diff Operations
@@ -284,20 +288,20 @@ export default {
    * @param baseBranch - Branch to compare against (e.g., 'main')
    * @returns Array of relative file paths
    */
-  getFilesChangedSinceBranch: (cwd: string, baseBranch: string) =>
-    ipcRenderer.invoke("git-v2:files-changed-since-branch", {
+  getChangedFilesFromBranch: (cwd: string, baseBranch: string) =>
+    ipcRenderer.invoke("git-v2:changed-files-from-branch", {
       cwd,
       baseBranch,
     }) as Promise<string[]>,
 
   /**
-   * Get diff statistics (lines added/removed).
+   * Get diff statistics for uncommitted changes (lines added/removed).
    *
    * @param cwd - Working directory
    * @returns Statistics about uncommitted changes
    */
-  getDiffStats: (cwd: string) =>
-    ipcRenderer.invoke("git-v2:diff-stats", {
+  getUncommittedDiffStats: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:uncommitted-diff-stats", {
       cwd,
     }) as Promise<SerializedDiffStats>,
 
@@ -313,14 +317,14 @@ export default {
     }) as Promise<string | null>,
 
   /**
-   * Get the most recently modified tracked file from git history.
+   * Get the most recently modified file from recent commits.
    *
    * @param cwd - Working directory
    * @param commitLimit - Number of recent commits to check (default: 10)
    * @returns Relative path from git root, or null if none found
    */
-  getMostRecentTrackedFile: (cwd: string, commitLimit?: number) =>
-    ipcRenderer.invoke("git-v2:most-recent-tracked-file", {
+  getMostRecentCommittedFile: (cwd: string, commitLimit?: number) =>
+    ipcRenderer.invoke("git-v2:most-recent-committed-file", {
       cwd,
       commitLimit,
     }) as Promise<string | null>,

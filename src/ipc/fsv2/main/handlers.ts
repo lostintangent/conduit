@@ -161,15 +161,12 @@ export function initializeFileSystemV2Handlers(): void {
 
   ipcMain.handle(
     "fs-v2:stat",
-    async (
-      event,
-      params: { cwd: string; filePath: string },
-    ): Promise<object> => {
+    async (event, params: { cwd: string; path: string }): Promise<object> => {
       const windowId = getWindowId(event);
       const provider = await getFileSystemProvider(windowId, params.cwd);
 
       try {
-        const stat = await provider.stat(params.filePath);
+        const stat = await provider.stat(params.path);
         return serializeFileStat(stat);
       } finally {
         releaseFileSystemProvider(windowId, params.cwd);
@@ -179,15 +176,12 @@ export function initializeFileSystemV2Handlers(): void {
 
   ipcMain.handle(
     "fs-v2:exists",
-    async (
-      event,
-      params: { cwd: string; filePath: string },
-    ): Promise<boolean> => {
+    async (event, params: { cwd: string; path: string }): Promise<boolean> => {
       const windowId = getWindowId(event);
       const provider = await getFileSystemProvider(windowId, params.cwd);
 
       try {
-        return await provider.exists(params.filePath);
+        return await provider.exists(params.path);
       } finally {
         releaseFileSystemProvider(windowId, params.cwd);
       }
@@ -219,13 +213,13 @@ export function initializeFileSystemV2Handlers(): void {
     "fs-v2:delete",
     async (
       event,
-      params: { cwd: string; filePath: string; options?: DeleteOptions },
+      params: { cwd: string; path: string; options?: DeleteOptions },
     ): Promise<void> => {
       const windowId = getWindowId(event);
       const provider = await getFileSystemProvider(windowId, params.cwd);
 
       try {
-        await provider.delete(params.filePath, params.options);
+        await provider.delete(params.path, params.options);
       } finally {
         releaseFileSystemProvider(windowId, params.cwd);
       }
@@ -291,7 +285,7 @@ export function initializeFileSystemV2Handlers(): void {
             return;
           }
 
-          sendToRenderer(event.sender, "fs-v2:directory-changed", {
+          sendToRenderer(event.sender, "fs-v2:directory-listing-changed", {
             subscriptionId,
             path: e.path,
             entries: serializeDirectoryEntries(e.entries),
@@ -306,7 +300,7 @@ export function initializeFileSystemV2Handlers(): void {
             return;
           }
 
-          sendToRenderer(event.sender, "fs-v2:file-changed", {
+          sendToRenderer(event.sender, "fs-v2:file-content-changed", {
             subscriptionId,
             path: e.path,
           });

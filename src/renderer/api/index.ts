@@ -21,8 +21,8 @@
 
 export { FileSystemV2API } from "./FileSystemV2API";
 export type {
-  DirectoryChangedCallback,
-  FileChangedCallback,
+  DirectoryListingChangedCallback,
+  FileContentChangedCallback,
   FileDeletedCallback,
   FileRenamedCallback,
   Cleanup as FileSystemCleanup,

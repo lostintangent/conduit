@@ -220,12 +220,12 @@ export class GitV2API {
   /**
    * Get status for a specific file.
    *
-   * @param path - Path to file (relative to git root)
+   * @param filePath - Path to file (relative to git root)
    * @returns File status, or null if file is clean
    */
-  async getFileStatus(path: string): Promise<GitFileStatus | null> {
+  async getFileStatus(filePath: string): Promise<GitFileStatus | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getFileStatus(this.cwd, path);
+    return window.conduit.gitv2.getFileStatus(this.cwd, filePath);
   }
 
   /**
@@ -233,9 +233,9 @@ export class GitV2API {
    *
    * @returns true if there are uncommitted changes
    */
-  async isDirty(): Promise<boolean> {
+  async hasUncommittedChanges(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.isDirty(this.cwd);
+    return window.conduit.gitv2.hasUncommittedChanges(this.cwd);
   }
 
   /**
@@ -245,7 +245,7 @@ export class GitV2API {
    */
   async hasUnpushedCommits(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.hasUnpushed(this.cwd);
+    return window.conduit.gitv2.hasUnpushedCommits(this.cwd);
   }
 
   // ---------------------------------------------------------------------------
@@ -255,13 +255,16 @@ export class GitV2API {
   /**
    * Get diff for a specific file.
    *
-   * @param path - Path to file
+   * @param filePath - Path to file
    * @param staged - If true, show staged changes; if false, unstaged
    * @returns Unified diff string, or null if not a git repo
    */
-  async getFileDiff(path: string, staged?: boolean): Promise<string | null> {
+  async getFileDiff(
+    filePath: string,
+    staged?: boolean,
+  ): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getDiff(this.cwd, path, staged);
+    return window.conduit.gitv2.getDiff(this.cwd, filePath, staged);
   }
 
   /**
@@ -269,13 +272,13 @@ export class GitV2API {
    *
    * Useful for showing the "original" version in diff views.
    *
-   * @param path - Path to file
+   * @param filePath - Path to file
    * @param ref - Git ref (commit hash, branch name, 'HEAD', etc.)
    * @returns File content, or null if not found
    */
-  async getFileAtRef(path: string, ref: string): Promise<string | null> {
+  async getFileAtRef(filePath: string, ref: string): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getFileAtRef(this.cwd, path, ref);
+    return window.conduit.gitv2.getFileAtRef(this.cwd, filePath, ref);
   }
 
   // ---------------------------------------------------------------------------
@@ -399,22 +402,19 @@ export class GitV2API {
    * @param baseBranch - Branch to compare against (e.g., 'main')
    * @returns Array of relative file paths
    */
-  async getFilesChangedSinceBranch(baseBranch: string): Promise<string[]> {
+  async getChangedFilesFromBranch(baseBranch: string): Promise<string[]> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getFilesChangedSinceBranch(
-      this.cwd,
-      baseBranch,
-    );
+    return window.conduit.gitv2.getChangedFilesFromBranch(this.cwd, baseBranch);
   }
 
   /**
-   * Get diff statistics (lines added/removed).
+   * Get diff statistics for uncommitted changes (lines added/removed).
    *
    * @returns Statistics about uncommitted changes
    */
-  async getDiffStats(): Promise<GitDiffStats> {
+  async getUncommittedDiffStats(): Promise<GitDiffStats> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getDiffStats(this.cwd);
+    return window.conduit.gitv2.getUncommittedDiffStats(this.cwd);
   }
 
   /**
@@ -430,16 +430,21 @@ export class GitV2API {
   }
 
   /**
-   * Get the most recently modified tracked file from git history.
+   * Get the most recently modified file from recent commits.
    *
    * Fallback when there are no dirty files.
    *
    * @param commitLimit - Number of recent commits to check (default: 10)
    * @returns Relative path from git root, or null if none found
    */
-  async getMostRecentTrackedFile(commitLimit?: number): Promise<string | null> {
+  async getMostRecentCommittedFile(
+    commitLimit?: number,
+  ): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getMostRecentTrackedFile(this.cwd, commitLimit);
+    return window.conduit.gitv2.getMostRecentCommittedFile(
+      this.cwd,
+      commitLimit,
+    );
   }
 
   /**

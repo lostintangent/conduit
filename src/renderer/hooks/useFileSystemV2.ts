@@ -18,7 +18,7 @@
  *     fs.readDirectory(projectPath).then(setEntries);
  *
  *     // Subscribe to changes
- *     const cleanup = fs.onDirectoryChanged(projectPath, setEntries);
+ *     const cleanup = fs.onDirectoryListingChanged(projectPath, setEntries);
  *     return cleanup;
  *   }, [fs, projectPath]);
  *
@@ -79,8 +79,8 @@ export function useFileSystemV2(cwd: string): FileSystemV2API {
  * Re-export types for convenience
  */
 export type {
-  DirectoryChangedCallback,
-  FileChangedCallback,
+  DirectoryListingChangedCallback,
+  FileContentChangedCallback,
   FileDeletedCallback,
   FileRenamedCallback,
   Cleanup,

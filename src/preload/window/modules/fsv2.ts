@@ -23,18 +23,18 @@ import type {
 // ============================================================================
 
 /**
- * Payload for directory changed events.
+ * Payload for directory listing changed events.
  */
-export interface DirectoryChangedPayload {
+export interface DirectoryListingChangedPayload {
   subscriptionId: string;
   path: string;
   entries: DirectoryEntry[];
 }
 
 /**
- * Payload for file changed events.
+ * Payload for file content changed events.
  */
-export interface FileChangedPayload {
+export interface FileContentChangedPayload {
   subscriptionId: string;
   path: string;
 }
@@ -95,21 +95,21 @@ export default {
    * Get file or directory metadata.
    *
    * @param cwd - Working directory (provider scope)
-   * @param filePath - Absolute path to file/directory
+   * @param path - Absolute path to file/directory
    * @returns File stats
    */
-  stat: (cwd: string, filePath: string) =>
-    ipcRenderer.invoke("fs-v2:stat", { cwd, filePath }) as Promise<FileStat>,
+  stat: (cwd: string, path: string) =>
+    ipcRenderer.invoke("fs-v2:stat", { cwd, path }) as Promise<FileStat>,
 
   /**
    * Check if a path exists.
    *
    * @param cwd - Working directory (provider scope)
-   * @param filePath - Absolute path to check
+   * @param path - Absolute path to check
    * @returns true if path exists
    */
-  exists: (cwd: string, filePath: string) =>
-    ipcRenderer.invoke("fs-v2:exists", { cwd, filePath }) as Promise<boolean>,
+  exists: (cwd: string, path: string) =>
+    ipcRenderer.invoke("fs-v2:exists", { cwd, path }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
   // Write Operations
@@ -136,13 +136,13 @@ export default {
    * Delete a file or directory.
    *
    * @param cwd - Working directory (provider scope)
-   * @param filePath - Absolute path to delete
+   * @param path - Absolute path to delete
    * @param options - Delete options (recursive for directories)
    */
-  delete: (cwd: string, filePath: string, options?: DeleteOptions) =>
+  delete: (cwd: string, path: string, options?: DeleteOptions) =>
     ipcRenderer.invoke("fs-v2:delete", {
       cwd,
-      filePath,
+      path,
       options,
     }) as Promise<void>,
 
@@ -218,25 +218,32 @@ export default {
   // ---------------------------------------------------------------------------
 
   /**
-   * Listen for directory content changes.
+   * Listen for directory listing changes.
    *
-   * @param listener - Callback for directory changed events
+   * @param listener - Callback for directory listing changed events
    * @returns Cleanup function to stop listening
    */
-  onDirectoryChanged: (listener: (payload: DirectoryChangedPayload) => void) =>
-    createEventListener<DirectoryChangedPayload>(
-      "fs-v2:directory-changed",
+  onDirectoryListingChanged: (
+    listener: (payload: DirectoryListingChangedPayload) => void,
+  ) =>
+    createEventListener<DirectoryListingChangedPayload>(
+      "fs-v2:directory-listing-changed",
       listener,
     ),
 
   /**
    * Listen for file content changes.
    *
-   * @param listener - Callback for file changed events
+   * @param listener - Callback for file content changed events
    * @returns Cleanup function to stop listening
    */
-  onFileChanged: (listener: (payload: FileChangedPayload) => void) =>
-    createEventListener<FileChangedPayload>("fs-v2:file-changed", listener),
+  onFileContentChanged: (
+    listener: (payload: FileContentChangedPayload) => void,
+  ) =>
+    createEventListener<FileContentChangedPayload>(
+      "fs-v2:file-content-changed",
+      listener,
+    ),
 
   /**
    * Listen for file deletions.

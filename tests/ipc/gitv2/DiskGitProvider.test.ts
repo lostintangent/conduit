@@ -595,16 +595,16 @@ describe("DiskGitProvider", () => {
   });
 
   // ===========================================================================
-  // getFilesChangedSinceBranch
+  // getChangedFilesFromBranch
   // ===========================================================================
 
-  describe("getFilesChangedSinceBranch()", () => {
-    it("should return files changed since base branch", async () => {
+  describe("getChangedFilesFromBranch()", () => {
+    it("should return files changed from base branch", async () => {
       mockGit.raw.mockResolvedValue("abc123def456\n"); // merge-base result
       mockGit.diff.mockResolvedValue("src/file1.ts\nsrc/file2.ts\nREADME.md\n");
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const files = await provider.getFilesChangedSinceBranch("main");
+      const files = await provider.getChangedFilesFromBranch("main");
 
       expect(mockGit.raw).toHaveBeenCalledWith(["merge-base", "HEAD", "main"]);
       expect(mockGit.diff).toHaveBeenCalledWith([
@@ -620,17 +620,17 @@ describe("DiskGitProvider", () => {
       mockGit.diff.mockResolvedValue("");
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const files = await provider.getFilesChangedSinceBranch("main");
+      const files = await provider.getChangedFilesFromBranch("main");
 
       expect(files).toEqual([]);
     });
   });
 
   // ===========================================================================
-  // getDiffStats
+  // getUncommittedDiffStats
   // ===========================================================================
 
-  describe("getDiffStats()", () => {
+  describe("getUncommittedDiffStats()", () => {
     it("should return diff statistics", async () => {
       // numstat format: added<tab>removed<tab>filename
       mockGit.diff.mockResolvedValue(
@@ -638,7 +638,7 @@ describe("DiskGitProvider", () => {
       );
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const stats = await provider.getDiffStats();
+      const stats = await provider.getUncommittedDiffStats();
 
       expect(mockGit.diff).toHaveBeenCalledWith(["--numstat", "HEAD"]);
       expect(stats).toEqual({
@@ -652,7 +652,7 @@ describe("DiskGitProvider", () => {
       mockGit.diff.mockResolvedValue("");
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const stats = await provider.getDiffStats();
+      const stats = await provider.getUncommittedDiffStats();
 
       expect(stats).toEqual({
         added: 0,
@@ -665,7 +665,7 @@ describe("DiskGitProvider", () => {
       mockGit.diff.mockResolvedValue("10\t5\tsrc/file.ts\n-\t-\timage.png\n");
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const stats = await provider.getDiffStats();
+      const stats = await provider.getUncommittedDiffStats();
 
       // Binary files should be counted but not add to line counts
       expect(stats).toEqual({
@@ -708,17 +708,17 @@ describe("DiskGitProvider", () => {
   });
 
   // ===========================================================================
-  // getMostRecentTrackedFile
+  // getMostRecentCommittedFile
   // ===========================================================================
 
-  describe("getMostRecentTrackedFile()", () => {
+  describe("getMostRecentCommittedFile()", () => {
     it("should call log with correct parameters", async () => {
       mockGit.log.mockResolvedValue({
         all: [],
       });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      await provider.getMostRecentTrackedFile();
+      await provider.getMostRecentCommittedFile();
 
       expect(mockGit.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -733,7 +733,7 @@ describe("DiskGitProvider", () => {
       });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      await provider.getMostRecentTrackedFile(5);
+      await provider.getMostRecentCommittedFile(5);
 
       expect(mockGit.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -746,7 +746,7 @@ describe("DiskGitProvider", () => {
       mockGit.log.mockResolvedValue({ all: [] });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const result = await provider.getMostRecentTrackedFile();
+      const result = await provider.getMostRecentCommittedFile();
 
       expect(result).toBeNull();
     });
@@ -757,7 +757,7 @@ describe("DiskGitProvider", () => {
       });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const result = await provider.getMostRecentTrackedFile();
+      const result = await provider.getMostRecentCommittedFile();
 
       expect(result).toBeNull();
     });

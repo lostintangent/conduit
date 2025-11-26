@@ -19,8 +19,13 @@
  * - `git-v2:branch` - Get current branch
  * - `git-v2:branches` - Get all branches
  * - `git-v2:checkout` - Checkout a branch or ref
- * - `git-v2:is-dirty` - Check if repo has uncommitted changes
- * - `git-v2:has-unpushed` - Check if repo has unpushed commits
+ * - `git-v2:has-uncommitted-changes` - Check if repo has uncommitted changes
+ * - `git-v2:has-unpushed-commits` - Check if repo has unpushed commits
+ * - `git-v2:changed-files-from-branch` - Get files changed from base branch
+ * - `git-v2:uncommitted-diff-stats` - Get diff stats for uncommitted changes
+ * - `git-v2:most-recent-dirty-file` - Get most recently modified dirty file
+ * - `git-v2:most-recent-committed-file` - Get most recently modified file from commits
+ * - `git-v2:revert` - Discard local file changes
  * - `git-v2:subscribe` - Subscribe to git events
  * - `git-v2:unsubscribe` - Unsubscribe from events
  * - `git-v2:release` - Release provider reference
@@ -268,7 +273,7 @@ export function initializeGitV2Handlers(): void {
   );
 
   ipcMain.handle(
-    "git-v2:is-dirty",
+    "git-v2:has-uncommitted-changes",
     async (event, params: { cwd: string }): Promise<boolean> => {
       const windowId = getWindowId(event);
       const result = await getGitProvider(windowId, params.cwd);
@@ -288,7 +293,7 @@ export function initializeGitV2Handlers(): void {
   );
 
   ipcMain.handle(
-    "git-v2:has-unpushed",
+    "git-v2:has-unpushed-commits",
     async (event, params: { cwd: string }): Promise<boolean> => {
       const windowId = getWindowId(event);
       const result = await getGitProvider(windowId, params.cwd);
@@ -308,7 +313,7 @@ export function initializeGitV2Handlers(): void {
   );
 
   ipcMain.handle(
-    "git-v2:files-changed-since-branch",
+    "git-v2:changed-files-from-branch",
     async (
       event,
       params: { cwd: string; baseBranch: string },
@@ -323,7 +328,7 @@ export function initializeGitV2Handlers(): void {
       const { provider, gitRoot } = result;
 
       try {
-        return await provider.getFilesChangedSinceBranch(params.baseBranch);
+        return await provider.getChangedFilesFromBranch(params.baseBranch);
       } finally {
         releaseGitProvider(windowId, gitRoot);
       }
@@ -331,7 +336,7 @@ export function initializeGitV2Handlers(): void {
   );
 
   ipcMain.handle(
-    "git-v2:diff-stats",
+    "git-v2:uncommitted-diff-stats",
     async (event, params: { cwd: string }): Promise<SerializedDiffStats> => {
       const windowId = getWindowId(event);
       const result = await getGitProvider(windowId, params.cwd);
@@ -343,7 +348,7 @@ export function initializeGitV2Handlers(): void {
       const { provider, gitRoot } = result;
 
       try {
-        return await provider.getDiffStats();
+        return await provider.getUncommittedDiffStats();
       } finally {
         releaseGitProvider(windowId, gitRoot);
       }
@@ -371,7 +376,7 @@ export function initializeGitV2Handlers(): void {
   );
 
   ipcMain.handle(
-    "git-v2:most-recent-tracked-file",
+    "git-v2:most-recent-committed-file",
     async (
       event,
       params: { cwd: string; commitLimit?: number },
@@ -386,7 +391,7 @@ export function initializeGitV2Handlers(): void {
       const { provider, gitRoot } = result;
 
       try {
-        return await provider.getMostRecentTrackedFile(params.commitLimit);
+        return await provider.getMostRecentCommittedFile(params.commitLimit);
       } finally {
         releaseGitProvider(windowId, gitRoot);
       }

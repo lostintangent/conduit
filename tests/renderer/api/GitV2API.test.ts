@@ -9,8 +9,8 @@ const { mockGitv2 } = vi.hoisted(() => {
   const gitv2 = {
     getStatus: vi.fn(),
     getFileStatus: vi.fn(),
-    isDirty: vi.fn(),
-    hasUnpushed: vi.fn(),
+    hasUncommittedChanges: vi.fn(),
+    hasUnpushedCommits: vi.fn(),
     getDiff: vi.fn(),
     getFileAtRef: vi.fn(),
     stage: vi.fn(),
@@ -21,10 +21,10 @@ const { mockGitv2 } = vi.hoisted(() => {
     checkout: vi.fn(),
     findRoot: vi.fn(),
     // New comparison operations
-    getFilesChangedSinceBranch: vi.fn(),
-    getDiffStats: vi.fn(),
+    getChangedFilesFromBranch: vi.fn(),
+    getUncommittedDiffStats: vi.fn(),
     getMostRecentDirtyFile: vi.fn(),
-    getMostRecentTrackedFile: vi.fn(),
+    getMostRecentCommittedFile: vi.fn(),
     revert: vi.fn(),
     // Subscriptions
     subscribe: vi.fn(),
@@ -184,24 +184,26 @@ describe("GitV2API", () => {
     });
   });
 
-  describe("isDirty", () => {
+  describe("hasUncommittedChanges", () => {
     it("should return true when dirty", async () => {
-      mockGitv2.isDirty.mockResolvedValue(true);
+      mockGitv2.hasUncommittedChanges.mockResolvedValue(true);
 
       const api = new GitV2API("/test/project");
-      const result = await api.isDirty();
+      const result = await api.hasUncommittedChanges();
 
-      expect(mockGitv2.isDirty).toHaveBeenCalledWith("/test/project");
+      expect(mockGitv2.hasUncommittedChanges).toHaveBeenCalledWith(
+        "/test/project",
+      );
       expect(result).toBe(true);
 
       api.release();
     });
 
     it("should return false when clean", async () => {
-      mockGitv2.isDirty.mockResolvedValue(false);
+      mockGitv2.hasUncommittedChanges.mockResolvedValue(false);
 
       const api = new GitV2API("/test/project");
-      const result = await api.isDirty();
+      const result = await api.hasUncommittedChanges();
 
       expect(result).toBe(false);
 
@@ -211,12 +213,14 @@ describe("GitV2API", () => {
 
   describe("hasUnpushedCommits", () => {
     it("should return correct value", async () => {
-      mockGitv2.hasUnpushed.mockResolvedValue(true);
+      mockGitv2.hasUnpushedCommits.mockResolvedValue(true);
 
       const api = new GitV2API("/test/project");
       const result = await api.hasUnpushedCommits();
 
-      expect(mockGitv2.hasUnpushed).toHaveBeenCalledWith("/test/project");
+      expect(mockGitv2.hasUnpushedCommits).toHaveBeenCalledWith(
+        "/test/project",
+      );
       expect(result).toBe(true);
 
       api.release();
@@ -513,15 +517,15 @@ describe("GitV2API", () => {
   // Comparison Operations
   // ===========================================================================
 
-  describe("getFilesChangedSinceBranch", () => {
+  describe("getChangedFilesFromBranch", () => {
     it("should return array of changed files", async () => {
       const changedFiles = ["src/file1.ts", "src/file2.ts", "README.md"];
-      mockGitv2.getFilesChangedSinceBranch.mockResolvedValue(changedFiles);
+      mockGitv2.getChangedFilesFromBranch.mockResolvedValue(changedFiles);
 
       const api = new GitV2API("/test/project");
-      const result = await api.getFilesChangedSinceBranch("main");
+      const result = await api.getChangedFilesFromBranch("main");
 
-      expect(mockGitv2.getFilesChangedSinceBranch).toHaveBeenCalledWith(
+      expect(mockGitv2.getChangedFilesFromBranch).toHaveBeenCalledWith(
         "/test/project",
         "main",
       );
@@ -531,10 +535,10 @@ describe("GitV2API", () => {
     });
 
     it("should return empty array when no changes", async () => {
-      mockGitv2.getFilesChangedSinceBranch.mockResolvedValue([]);
+      mockGitv2.getChangedFilesFromBranch.mockResolvedValue([]);
 
       const api = new GitV2API("/test/project");
-      const result = await api.getFilesChangedSinceBranch("main");
+      const result = await api.getChangedFilesFromBranch("main");
 
       expect(result).toEqual([]);
 
@@ -545,21 +549,23 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       api.release();
 
-      await expect(api.getFilesChangedSinceBranch("main")).rejects.toThrow(
+      await expect(api.getChangedFilesFromBranch("main")).rejects.toThrow(
         "GitV2API has been released",
       );
     });
   });
 
-  describe("getDiffStats", () => {
+  describe("getUncommittedDiffStats", () => {
     it("should return diff statistics", async () => {
       const stats = { added: 100, removed: 50, files: 5 };
-      mockGitv2.getDiffStats.mockResolvedValue(stats);
+      mockGitv2.getUncommittedDiffStats.mockResolvedValue(stats);
 
       const api = new GitV2API("/test/project");
-      const result = await api.getDiffStats();
+      const result = await api.getUncommittedDiffStats();
 
-      expect(mockGitv2.getDiffStats).toHaveBeenCalledWith("/test/project");
+      expect(mockGitv2.getUncommittedDiffStats).toHaveBeenCalledWith(
+        "/test/project",
+      );
       expect(result).toEqual(stats);
 
       api.release();
@@ -567,10 +573,10 @@ describe("GitV2API", () => {
 
     it("should return zero stats for clean repo", async () => {
       const stats = { added: 0, removed: 0, files: 0 };
-      mockGitv2.getDiffStats.mockResolvedValue(stats);
+      mockGitv2.getUncommittedDiffStats.mockResolvedValue(stats);
 
       const api = new GitV2API("/test/project");
-      const result = await api.getDiffStats();
+      const result = await api.getUncommittedDiffStats();
 
       expect(result.added).toBe(0);
       expect(result.removed).toBe(0);
@@ -607,14 +613,14 @@ describe("GitV2API", () => {
     });
   });
 
-  describe("getMostRecentTrackedFile", () => {
-    it("should return most recent tracked file", async () => {
-      mockGitv2.getMostRecentTrackedFile.mockResolvedValue("src/index.ts");
+  describe("getMostRecentCommittedFile", () => {
+    it("should return most recent committed file", async () => {
+      mockGitv2.getMostRecentCommittedFile.mockResolvedValue("src/index.ts");
 
       const api = new GitV2API("/test/project");
-      const result = await api.getMostRecentTrackedFile();
+      const result = await api.getMostRecentCommittedFile();
 
-      expect(mockGitv2.getMostRecentTrackedFile).toHaveBeenCalledWith(
+      expect(mockGitv2.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         undefined,
       );
@@ -624,12 +630,12 @@ describe("GitV2API", () => {
     });
 
     it("should pass commitLimit parameter", async () => {
-      mockGitv2.getMostRecentTrackedFile.mockResolvedValue("src/file.ts");
+      mockGitv2.getMostRecentCommittedFile.mockResolvedValue("src/file.ts");
 
       const api = new GitV2API("/test/project");
-      await api.getMostRecentTrackedFile(5);
+      await api.getMostRecentCommittedFile(5);
 
-      expect(mockGitv2.getMostRecentTrackedFile).toHaveBeenCalledWith(
+      expect(mockGitv2.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         5,
       );
@@ -637,11 +643,11 @@ describe("GitV2API", () => {
       api.release();
     });
 
-    it("should return null when no tracked files found", async () => {
-      mockGitv2.getMostRecentTrackedFile.mockResolvedValue(null);
+    it("should return null when no committed files found", async () => {
+      mockGitv2.getMostRecentCommittedFile.mockResolvedValue(null);
 
       const api = new GitV2API("/test/project");
-      const result = await api.getMostRecentTrackedFile();
+      const result = await api.getMostRecentCommittedFile();
 
       expect(result).toBeNull();
 
@@ -915,7 +921,7 @@ describe("GitV2API", () => {
 
       await expect(api.getStatus()).rejects.toThrow();
       await expect(api.getFileStatus("file.ts")).rejects.toThrow();
-      await expect(api.isDirty()).rejects.toThrow();
+      await expect(api.hasUncommittedChanges()).rejects.toThrow();
       await expect(api.stage([])).rejects.toThrow();
       await expect(api.commit("msg")).rejects.toThrow();
       await expect(api.checkout("ref")).rejects.toThrow();

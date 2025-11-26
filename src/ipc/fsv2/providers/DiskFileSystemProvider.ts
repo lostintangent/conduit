@@ -157,8 +157,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   /**
    * Get metadata for a file or directory.
    */
-  async stat(filePath: string): Promise<FileStat> {
-    const stats = await fs.stat(filePath);
+  async stat(path: string): Promise<FileStat> {
+    const stats = await fs.stat(path);
 
     return {
       type: stats.isDirectory() ? "directory" : "file",
@@ -232,29 +232,29 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    *
    * Updates the directory cache in-place for immediate consistency.
    */
-  async delete(filePath: string, options?: DeleteOptions): Promise<void> {
+  async delete(targetPath: string, options?: DeleteOptions): Promise<void> {
     // Check if it's a directory before deleting (for cache cleanup)
     let isDirectory = false;
     try {
-      const stats = await fs.stat(filePath);
+      const stats = await fs.stat(targetPath);
       isDirectory = stats.isDirectory();
     } catch {
       // Path might not exist, proceed with delete anyway
     }
 
-    await fs.rm(filePath, {
+    await fs.rm(targetPath, {
       recursive: options?.recursive ?? false,
       force: false,
     });
 
     // Update cache in-place: remove the entry from parent directory
-    const parentDir = path.dirname(filePath);
-    const fileName = path.basename(filePath);
+    const parentDir = path.dirname(targetPath);
+    const fileName = path.basename(targetPath);
     DirectoryCache.removeEntry(parentDir, fileName);
 
     // If this was a directory, also remove its cache entry
     if (isDirectory) {
-      DirectoryCache.delete(filePath);
+      DirectoryCache.delete(targetPath);
     }
   }
 
@@ -316,9 +316,9 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   /**
    * Check if a path exists.
    */
-  async exists(filePath: string): Promise<boolean> {
+  async exists(targetPath: string): Promise<boolean> {
     try {
-      await fs.access(filePath);
+      await fs.access(targetPath);
       return true;
     } catch {
       return false;
