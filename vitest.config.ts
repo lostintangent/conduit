@@ -26,6 +26,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src/renderer"),
       "@shared": path.resolve(__dirname, "./src/shared"),
+      // Mock monaco-editor in tests - it has complex exports that don't work in jsdom
+      "monaco-editor": path.resolve(__dirname, "./tests/setup/monaco-mock.ts"),
     },
   },
 });
