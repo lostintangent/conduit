@@ -1,0 +1,640 @@
+/**
+ * Git v2 Renderer API
+ *
+ * High-level API for git operations in the renderer process.
+ * Provides CWD-scoped operations with automatic subscription management.
+ *
+ * This class wraps the low-level IPC methods exposed by the preload script,
+ * adding:
+ * - Automatic subscription tracking and cleanup
+ * - Type deserialization (Map reconstruction, Date objects)
+ * - Type-safe event handlers
+ * - Reference lifecycle management
+ *
+ * Note: Git operations are repository-scoped internally. Multiple GitV2API
+ * instances for different CWDs within the same repository will share the
+ * same underlying provider in the main process.
+ *
+ * @example
+ * ```typescript
+ * // Create an instance for a project directory
+ * const git = new GitV2API('/path/to/project');
+ *
+ * // Get repository status
+ * const status = await git.getStatus();
+ * console.log('Branch:', status?.branch);
+ * console.log('Changed files:', status?.files.size);
+ *
+ * // Subscribe to status changes
+ * const cleanup = git.onStatusChanged((status) => {
+ *   console.log('Status changed:', status.files.size, 'files');
+ * });
+ *
+ * // When done, release resources
+ * git.release();
+ * ```
+ */
+
+import type {
+  GitStatus,
+  GitFileStatus,
+  GitCommit,
+  GitBranch,
+  GitCommitOptions,
+  GitStatusChangedEvent,
+  GitBranchChangedEvent,
+  GitCommitCreatedEvent,
+  GitHeadChangedEvent,
+} from "../../ipc/gitv2/types";
+import type {
+  SerializedGitStatus,
+  SerializedGitCommit,
+  SerializedGitBranch,
+  StatusChangedPayload,
+  BranchChangedPayload,
+  CommitCreatedPayload,
+  HeadChangedPayload,
+} from "../../preload/window/modules/gitv2";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Callback for status change events.
+ */
+export type StatusChangedCallback = (event: GitStatusChangedEvent) => void;
+
+/**
+ * Callback for branch change events.
+ */
+export type BranchChangedCallback = (event: GitBranchChangedEvent) => void;
+
+/**
+ * Callback for commit created events.
+ */
+export type CommitCreatedCallback = (event: GitCommitCreatedEvent) => void;
+
+/**
+ * Callback for HEAD change events.
+ */
+export type HeadChangedCallback = (event: GitHeadChangedEvent) => void;
+
+/**
+ * Cleanup function returned by event subscriptions.
+ */
+export type Cleanup = () => void;
+
+// ============================================================================
+// Deserialization Helpers
+// ============================================================================
+
+/**
+ * Convert serialized git status to full GitStatus type.
+ *
+ * Reconstructs the files Map from the plain object.
+ */
+function deserializeGitStatus(serialized: SerializedGitStatus): GitStatus {
+  const files = new Map<string, GitFileStatus>();
+
+  for (const [path, status] of Object.entries(serialized.files)) {
+    files.set(path, status);
+  }
+
+  return {
+    branch: serialized.branch,
+    upstream: serialized.upstream,
+    ahead: serialized.ahead,
+    behind: serialized.behind,
+    files,
+  };
+}
+
+/**
+ * Convert serialized git commit to full GitCommit type.
+ *
+ * Reconstructs the Date object from timestamp.
+ */
+function deserializeGitCommit(serialized: SerializedGitCommit): GitCommit {
+  return {
+    hash: serialized.hash,
+    shortHash: serialized.shortHash,
+    author: serialized.author,
+    email: serialized.email,
+    date: new Date(serialized.date),
+    message: serialized.message,
+    parents: serialized.parents,
+  };
+}
+
+/**
+ * Convert serialized git branch to full GitBranch type.
+ *
+ * Currently no transformation needed, but keeping for consistency.
+ */
+function deserializeGitBranch(serialized: SerializedGitBranch): GitBranch {
+  return {
+    name: serialized.name,
+    isCurrent: serialized.isCurrent,
+    isRemote: serialized.isRemote,
+    commit: serialized.commit,
+    upstream: serialized.upstream,
+    ahead: serialized.ahead,
+    behind: serialized.behind,
+  };
+}
+
+// ============================================================================
+// GitV2API Class
+// ============================================================================
+
+/**
+ * High-level git API for the renderer process.
+ *
+ * All operations are scoped to the CWD provided at construction.
+ * Manages subscriptions automatically and cleans up on release.
+ */
+export class GitV2API {
+  /** The working directory this API is scoped to */
+  readonly cwd: string;
+
+  /** The git root directory (resolved after first operation) */
+  private gitRoot: string | null = null;
+
+  /** Active subscription ID, if subscribed to events */
+  private subscriptionId: string | null = null;
+
+  /** Listeners registered for status changes */
+  private statusListeners: Set<StatusChangedCallback> = new Set();
+
+  /** Listeners registered for branch changes */
+  private branchListeners: Set<BranchChangedCallback> = new Set();
+
+  /** Listeners registered for commit creation */
+  private commitListeners: Set<CommitCreatedCallback> = new Set();
+
+  /** Listeners registered for HEAD changes */
+  private headListeners: Set<HeadChangedCallback> = new Set();
+
+  /** Cleanup functions for IPC event listeners */
+  private ipcCleanups: Cleanup[] = [];
+
+  /** Whether this instance has been released */
+  private released = false;
+
+  /**
+   * Create a new GitV2API instance.
+   *
+   * @param cwd - Working directory to scope operations to
+   */
+  constructor(cwd: string) {
+    this.cwd = cwd;
+    this.setupEventListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Status Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get complete repository status.
+   *
+   * @returns Git status with branch info and all changed files,
+   *          or null if not a git repository
+   */
+  async getStatus(): Promise<GitStatus | null> {
+    this.ensureNotReleased();
+    const serialized = await window.conduit.gitv2.getStatus(this.cwd);
+
+    if (!serialized) {
+      return null;
+    }
+
+    return deserializeGitStatus(serialized);
+  }
+
+  /**
+   * Get status for a specific file.
+   *
+   * @param path - Path to file (relative to git root)
+   * @returns File status, or null if file is clean
+   */
+  async getFileStatus(path: string): Promise<GitFileStatus | null> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getFileStatus(this.cwd, path);
+  }
+
+  /**
+   * Check if repository has uncommitted changes.
+   *
+   * @returns true if there are uncommitted changes
+   */
+  async isDirty(): Promise<boolean> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.isDirty(this.cwd);
+  }
+
+  /**
+   * Check if repository has unpushed commits.
+   *
+   * @returns true if there are unpushed commits
+   */
+  async hasUnpushedCommits(): Promise<boolean> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.hasUnpushed(this.cwd);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Diff Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get diff for a specific file.
+   *
+   * @param path - Path to file
+   * @param staged - If true, show staged changes; if false, unstaged
+   * @returns Unified diff string, or null if not a git repo
+   */
+  async getFileDiff(path: string, staged?: boolean): Promise<string | null> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getDiff(this.cwd, path, staged);
+  }
+
+  /**
+   * Get file content at a specific git ref.
+   *
+   * Useful for showing the "original" version in diff views.
+   *
+   * @param path - Path to file
+   * @param ref - Git ref (commit hash, branch name, 'HEAD', etc.)
+   * @returns File content, or null if not found
+   */
+  async getFileAtRef(path: string, ref: string): Promise<string | null> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getFileAtRef(this.cwd, path, ref);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Staging Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Stage files for commit.
+   *
+   * @param files - Paths to stage (relative to git root)
+   */
+  async stage(files: string[]): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.stage(this.cwd, files);
+  }
+
+  /**
+   * Unstage files (remove from index).
+   *
+   * @param files - Paths to unstage (relative to git root)
+   */
+  async unstage(files: string[]): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.unstage(this.cwd, files);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Commit Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Create a commit.
+   *
+   * @param message - Commit message
+   * @param options - Commit options (amend, signoff, etc.)
+   * @returns The created commit, or null if not a git repo
+   */
+  async commit(
+    message: string,
+    options?: GitCommitOptions,
+  ): Promise<GitCommit | null> {
+    this.ensureNotReleased();
+    const serialized = await window.conduit.gitv2.commit(
+      this.cwd,
+      message,
+      options,
+    );
+
+    if (!serialized) {
+      return null;
+    }
+
+    return deserializeGitCommit(serialized);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Branch Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get current branch name.
+   *
+   * @returns Branch name, 'HEAD' if detached, or null if not a git repo
+   */
+  async getCurrentBranch(): Promise<string | null> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getCurrentBranch(this.cwd);
+  }
+
+  /**
+   * Get all branches (local and remote).
+   *
+   * @returns Array of branches
+   */
+  async getBranches(): Promise<GitBranch[]> {
+    this.ensureNotReleased();
+    const serialized = await window.conduit.gitv2.getBranches(this.cwd);
+    return serialized.map(deserializeGitBranch);
+  }
+
+  /**
+   * Checkout a branch or ref.
+   *
+   * @param ref - Branch name, tag, or commit hash
+   */
+  async checkout(ref: string): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.checkout(this.cwd, ref);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utility
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Find the git root for the current CWD.
+   *
+   * @returns Git root path, or null if not a git repo
+   */
+  async findRoot(): Promise<string | null> {
+    this.ensureNotReleased();
+
+    if (this.gitRoot) {
+      return this.gitRoot;
+    }
+
+    this.gitRoot = await window.conduit.gitv2.findRoot(this.cwd);
+    return this.gitRoot;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Event Subscriptions
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Subscribe to git status changes.
+   *
+   * @param callback - Function called when status changes
+   * @returns Cleanup function to unsubscribe
+   */
+  onStatusChanged(callback: StatusChangedCallback): Cleanup {
+    this.ensureNotReleased();
+    this.ensureSubscribed();
+
+    this.statusListeners.add(callback);
+
+    return () => {
+      this.statusListeners.delete(callback);
+    };
+  }
+
+  /**
+   * Subscribe to branch changes.
+   *
+   * @param callback - Function called when branch changes
+   * @returns Cleanup function to unsubscribe
+   */
+  onBranchChanged(callback: BranchChangedCallback): Cleanup {
+    this.ensureNotReleased();
+    this.ensureSubscribed();
+
+    this.branchListeners.add(callback);
+
+    return () => {
+      this.branchListeners.delete(callback);
+    };
+  }
+
+  /**
+   * Subscribe to commit creation events.
+   *
+   * @param callback - Function called when a commit is created
+   * @returns Cleanup function to unsubscribe
+   */
+  onCommitCreated(callback: CommitCreatedCallback): Cleanup {
+    this.ensureNotReleased();
+    this.ensureSubscribed();
+
+    this.commitListeners.add(callback);
+
+    return () => {
+      this.commitListeners.delete(callback);
+    };
+  }
+
+  /**
+   * Subscribe to HEAD changes.
+   *
+   * @param callback - Function called when HEAD changes
+   * @returns Cleanup function to unsubscribe
+   */
+  onHeadChanged(callback: HeadChangedCallback): Cleanup {
+    this.ensureNotReleased();
+    this.ensureSubscribed();
+
+    this.headListeners.add(callback);
+
+    return () => {
+      this.headListeners.delete(callback);
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Release all resources held by this API instance.
+   *
+   * After calling this, the instance cannot be used.
+   * All event subscriptions are automatically cleaned up.
+   */
+  release(): void {
+    if (this.released) {
+      return;
+    }
+
+    this.released = true;
+
+    // Clean up IPC event listeners
+    for (const cleanup of this.ipcCleanups) {
+      cleanup();
+    }
+    this.ipcCleanups = [];
+
+    // Unsubscribe from main process
+    if (this.subscriptionId) {
+      window.conduit.gitv2.unsubscribe(this.subscriptionId).catch(() => {
+        // Ignore errors during cleanup
+      });
+      this.subscriptionId = null;
+    }
+
+    // Release provider reference
+    if (this.gitRoot) {
+      window.conduit.gitv2.release(this.gitRoot).catch(() => {
+        // Ignore errors during cleanup
+      });
+    }
+
+    // Clear all listeners
+    this.statusListeners.clear();
+    this.branchListeners.clear();
+    this.commitListeners.clear();
+    this.headListeners.clear();
+  }
+
+  /**
+   * Check if this instance has been released.
+   */
+  get isReleased(): boolean {
+    return this.released;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private Methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Set up IPC event listeners.
+   */
+  private setupEventListeners(): void {
+    // Status changes
+    this.ipcCleanups.push(
+      window.conduit.gitv2.onStatusChanged((payload: StatusChangedPayload) => {
+        if (payload.subscriptionId !== this.subscriptionId) {
+          return;
+        }
+
+        // Update cached git root
+        this.gitRoot = payload.gitRoot;
+
+        const event: GitStatusChangedEvent = {
+          status: deserializeGitStatus(payload.status),
+          added: payload.added,
+          modified: payload.modified,
+          removed: payload.removed,
+        };
+
+        for (const callback of this.statusListeners) {
+          try {
+            callback(event);
+          } catch (error) {
+            console.error("[GitV2API] Error in status listener:", error);
+          }
+        }
+      }),
+    );
+
+    // Branch changes
+    this.ipcCleanups.push(
+      window.conduit.gitv2.onBranchChanged((payload: BranchChangedPayload) => {
+        if (payload.subscriptionId !== this.subscriptionId) {
+          return;
+        }
+
+        const event: GitBranchChangedEvent = {
+          previousBranch: payload.previousBranch,
+          currentBranch: payload.currentBranch,
+        };
+
+        for (const callback of this.branchListeners) {
+          try {
+            callback(event);
+          } catch (error) {
+            console.error("[GitV2API] Error in branch listener:", error);
+          }
+        }
+      }),
+    );
+
+    // Commit creation
+    this.ipcCleanups.push(
+      window.conduit.gitv2.onCommitCreated((payload: CommitCreatedPayload) => {
+        if (payload.subscriptionId !== this.subscriptionId) {
+          return;
+        }
+
+        const event: GitCommitCreatedEvent = {
+          commit: deserializeGitCommit(payload.commit),
+        };
+
+        for (const callback of this.commitListeners) {
+          try {
+            callback(event);
+          } catch (error) {
+            console.error("[GitV2API] Error in commit listener:", error);
+          }
+        }
+      }),
+    );
+
+    // HEAD changes
+    this.ipcCleanups.push(
+      window.conduit.gitv2.onHeadChanged((payload: HeadChangedPayload) => {
+        if (payload.subscriptionId !== this.subscriptionId) {
+          return;
+        }
+
+        const event: GitHeadChangedEvent = {
+          previousHead: payload.previousHead,
+          currentHead: payload.currentHead,
+          isBranchSwitch: payload.isBranchSwitch,
+        };
+
+        for (const callback of this.headListeners) {
+          try {
+            callback(event);
+          } catch (error) {
+            console.error("[GitV2API] Error in head listener:", error);
+          }
+        }
+      }),
+    );
+  }
+
+  /**
+   * Ensure we have an active subscription to the main process.
+   */
+  private async ensureSubscribed(): Promise<void> {
+    if (this.subscriptionId) {
+      return;
+    }
+
+    const subscriptionId = await window.conduit.gitv2.subscribe(this.cwd);
+
+    if (!subscriptionId) {
+      // Not a git repository - subscriptions won't work
+      return;
+    }
+
+    this.subscriptionId = subscriptionId;
+
+    // Also resolve the git root while we're at it
+    this.gitRoot = await window.conduit.gitv2.findRoot(this.cwd);
+  }
+
+  /**
+   * Throw if this instance has been released.
+   */
+  private ensureNotReleased(): void {
+    if (this.released) {
+      throw new Error("GitV2API has been released and cannot be used");
+    }
+  }
+}
