@@ -143,20 +143,20 @@ export function getOrCreate(
     // We store the last known CWD to avoid redundant updates
     let lastKnownCwd: string | null = null;
     const osc7Disposable = terminal.parser.registerOscHandler(7, (data) => {
-      // data format: "file://hostname/path"
-      // Extract the path portion after "file://hostname"
-      const filePrefix = "file://";
-      if (data.startsWith(filePrefix)) {
-        // Find the first "/" after the hostname
-        const pathStart = data.indexOf("/", filePrefix.length);
-        if (pathStart !== -1) {
-          const rawPath = data.slice(pathStart);
+      // data format: "file://hostname/path" or "file:///path" (no hostname)
+      // Use URL parsing for robustness in handling edge cases
+      try {
+        const url = new URL(data);
+        if (url.protocol === "file:") {
+          const rawPath = url.pathname;
           const normalized = normalizeCwd(rawPath);
           if (normalized && normalized !== lastKnownCwd) {
             lastKnownCwd = normalized;
             updatePaneProperty(sessionId, { cwd: normalized });
           }
         }
+      } catch {
+        // Invalid URL format, skip this OSC 7 sequence
       }
       return true; // Indicate the OSC was handled
     });
@@ -199,9 +199,9 @@ export function getOrCreate(
         }
         writeBuffer = [];
         unsubData();
-        onDataDispose?.dispose();
-        osc7Disposable?.dispose();
-        onTitleChangeDisposable?.dispose();
+        onDataDispose.dispose();
+        osc7Disposable.dispose();
+        onTitleChangeDisposable.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
         inputHandlerRef.current = null;
