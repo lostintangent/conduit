@@ -710,9 +710,8 @@ export function registerTabEventHandlers() {
     return () => {};
   }
 
-  const unsubscribeTitle = api.onTitle(({ sessionId, title }) => {
-    updatePaneProperty(sessionId, { processTitle: title });
-  });
+  // Note: Terminal title updates are now handled directly by xterm's onTitleChange
+  // handler in xtermCache.ts, not via IPC
 
   const unsubscribeCwd = api.onCwd(({ sessionId, cwd }) => {
     updatePaneProperty(sessionId, { cwd });
@@ -746,7 +745,6 @@ export function registerTabEventHandlers() {
   );
 
   return () => {
-    unsubscribeTitle();
     unsubscribeCwd();
     unsubscribeExit();
     unsubscribeNewTab();

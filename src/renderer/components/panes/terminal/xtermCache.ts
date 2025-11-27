@@ -2,6 +2,7 @@ import {
   defaultFontFamily,
   defaultFontSize,
 } from "@/components/shell/TerminalFontSettingsDialog";
+import { updatePaneProperty } from "@/store/actions/pane";
 import { resolveColor } from "@/utils/theme";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
@@ -31,6 +32,31 @@ export type TerminalInstance = {
 
 const api = window.conduit;
 const store = new Map<string, TerminalInstance>();
+
+/**
+ * Normalize a CWD path extracted from an OSC 7 sequence.
+ * Decodes URL-encoded characters and removes any trailing BEL characters.
+ */
+function normalizeCwd(raw: string | null): string | null {
+  if (!raw) {
+    return null;
+  }
+
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    decoded = raw;
+  }
+
+  // Remove any trailing BEL characters and trim whitespace
+  const sanitized = decoded.split("\u0007").join("").trim();
+  if (!sanitized) {
+    return null;
+  }
+
+  return sanitized;
+}
 
 type GetOrCreateOptions = {
   onLinkClick?: (url: string) => void;
@@ -112,6 +138,37 @@ export function getOrCreate(
       inputHandlerRef.current?.(input);
     });
 
+    // Register OSC 7 handler for CWD changes
+    // OSC 7 format: ESC ] 7 ; file://hostname/path BEL
+    // We store the last known CWD to avoid redundant updates
+    let lastKnownCwd: string | null = null;
+    const osc7Disposable = terminal.parser.registerOscHandler(7, (data) => {
+      // data format: "file://hostname/path"
+      // Extract the path portion after "file://hostname"
+      const filePrefix = "file://";
+      if (data.startsWith(filePrefix)) {
+        // Find the first "/" after the hostname
+        const pathStart = data.indexOf("/", filePrefix.length);
+        if (pathStart !== -1) {
+          const rawPath = data.slice(pathStart);
+          const normalized = normalizeCwd(rawPath);
+          if (normalized && normalized !== lastKnownCwd) {
+            lastKnownCwd = normalized;
+            updatePaneProperty(sessionId, { cwd: normalized });
+          }
+        }
+      }
+      return true; // Indicate the OSC was handled
+    });
+
+    // Register onTitleChange handler for terminal title updates
+    // This is triggered by OSC 0, 1, or 2 sequences from the shell
+    const onTitleChangeDisposable = terminal.onTitleChange((title) => {
+      if (title) {
+        updatePaneProperty(sessionId, { processTitle: title });
+      }
+    });
+
     // TODO: Allow configuring this
     //terminal.onBell(() => bellAudio.play());
 
@@ -143,6 +200,8 @@ export function getOrCreate(
         writeBuffer = [];
         unsubData();
         onDataDispose?.dispose();
+        osc7Disposable?.dispose();
+        onTitleChangeDisposable?.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
         inputHandlerRef.current = null;

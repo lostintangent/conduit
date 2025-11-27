@@ -9,7 +9,7 @@ import {
   hasSSHKeys,
   setupSSHKeyInVM,
 } from "../../vm/ssh-keys";
-import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
+import { normalizeCwd, startCwdPolling } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
   CreateTerminalOptions,
@@ -271,7 +271,6 @@ function setupTerminalListeners(
     if (processName && processName !== terminal.lastProcessName) {
       const previousProcess = terminal.lastProcessName;
       terminal.lastProcessName = processName;
-      sendToRenderer("terminal:title", { sessionId: id, title: processName });
 
       // For cloud terminals, detect SSH disconnection via process change
       if (terminal.cloudEnvironment) {
@@ -310,11 +309,6 @@ function setupTerminalListeners(
           sendToRenderer("terminal:port-detected", { sessionId: id, port });
         }
       }
-    }
-
-    // Only consume OSC sequences for local sessions
-    if (!terminal.cloudEnvironment) {
-      consumeOscSequences(terminal, data, sendToRenderer);
     }
   });
 
@@ -363,11 +357,6 @@ function setupTerminalListeners(
 
   const title = describeProcess(terminal);
   terminal.lastProcessName = title;
-
-  sendToRenderer("terminal:title", {
-    sessionId: id,
-    title,
-  });
 
   sendToRenderer("terminal:cwd", {
     sessionId: id,

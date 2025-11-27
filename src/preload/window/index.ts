@@ -30,7 +30,6 @@ import type {
   TerminalPromptResponse,
   TerminalPromptStreamChunk,
   TerminalSSHStatePayload,
-  TerminalTitlePayload,
   TreeChangedEvent,
   UserSettings,
   VMInfo,
@@ -94,10 +93,6 @@ const conduitAPI = {
         listener(payload.data);
       }
     }),
-
-  // Notify when terminal title has changed
-  onTitle: (listener: (payload: TerminalTitlePayload) => void) =>
-    createEventListener("terminal:title", listener),
 
   // Notify when terminal's current working directory has changed
   onCwd: (listener: (payload: TerminalCwdPayload) => void) =>

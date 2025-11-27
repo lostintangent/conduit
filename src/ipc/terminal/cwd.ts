@@ -4,12 +4,6 @@ import path from "node:path";
 
 import type { SendToRendererFn, TerminalInstance } from "./types";
 
-// eslint-disable-next-line no-control-regex
-const OSC_CWD_PATTERN = new RegExp(
-  "\\u001b]7;file://[^/]*(/[^\\u0007]*)\\u0007",
-  "g",
-);
-
 export const normalizeCwd = (raw: string | null): string | null => {
   if (!raw) {
     return null;
@@ -87,57 +81,6 @@ const resolveProcessCwd = async (pid: number): Promise<string | null> => {
   }
 
   return null;
-};
-
-export const consumeOscSequences = (
-  session: TerminalInstance,
-  chunk: string,
-  sendToRenderer: SendToRendererFn,
-) => {
-  if (!chunk.includes("\u001b]7;")) {
-    session.scheduleCwdPoll?.(150);
-    if (session.oscBuffer.length > 2048) {
-      session.oscBuffer = session.oscBuffer.slice(-2048);
-    }
-    return;
-  }
-
-  // If we receive OSC sequences, the shell is responsive - resume polling if backed off
-  if (session.cwdPollBackedOff) {
-    console.log(
-      `[Terminal CWD] Resuming polling for session ${session.id} after receiving OSC sequence`,
-    );
-    session.cwdPollBackedOff = false;
-    session.cwdPollFailures = 0;
-    // Restart polling
-    if (!session.cwdPoller) {
-      startCwdPolling(session, sendToRenderer);
-    }
-  }
-
-  session.oscBuffer += chunk;
-
-  OSC_CWD_PATTERN.lastIndex = 0;
-  let match: RegExpExecArray | null = null;
-  let lastConsumedIndex = -1;
-
-  while ((match = OSC_CWD_PATTERN.exec(session.oscBuffer)) !== null) {
-    lastConsumedIndex = OSC_CWD_PATTERN.lastIndex;
-    const normalized = normalizeCwd(match[1] ?? null);
-    if (normalized && normalized !== session.cwd) {
-      session.cwd = normalized;
-      sendToRenderer("terminal:cwd", {
-        sessionId: session.id,
-        cwd: session.cwd,
-      });
-    }
-  }
-
-  if (lastConsumedIndex >= 0) {
-    session.oscBuffer = session.oscBuffer.slice(lastConsumedIndex);
-  } else if (session.oscBuffer.length > 2048) {
-    session.oscBuffer = session.oscBuffer.slice(-2048);
-  }
 };
 
 export const startCwdPolling = (
