@@ -34,9 +34,9 @@ const api = window.conduit;
 const store = new Map<string, TerminalInstance>();
 
 // Pattern to extract file path from OSC 7 file:// URL format
-// Format: file://hostname/path (hostname may be empty)
+// Format: file://hostname/path BEL (hostname may be empty)
 // eslint-disable-next-line no-control-regex
-const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)$/;
+const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)\u0007$/;
 
 type GetOrCreateOptions = {
   onLinkClick?: (url: string) => void;
@@ -123,18 +123,9 @@ export function getOrCreate(
     // We store the last known CWD to avoid redundant updates
     let lastKnownCwd: string | null = null;
     const osc7Disposable = terminal.parser.registerOscHandler(7, (data) => {
-      // Strip trailing BEL character if present and use regex to extract file path
-      const cleanData = data.replace(/\u0007$/, "");
-      const match = OSC_CWD_PATTERN.exec(cleanData);
+      const match = OSC_CWD_PATTERN.exec(data);
       if (match && match[1]) {
-        // Decode URL-encoded characters in the path
-        let cwd: string;
-        try {
-          cwd = decodeURIComponent(match[1]);
-        } catch {
-          cwd = match[1];
-        }
-
+        const cwd = match[1];
         if (cwd !== lastKnownCwd) {
           lastKnownCwd = cwd;
           updatePaneProperty(sessionId, { cwd });
