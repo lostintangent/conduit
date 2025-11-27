@@ -36,8 +36,19 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
   } else if (shellName === "bash") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
     args = ["-c", `source "${scriptPath}"; exec bash --rcfile ~/.bashrc -i`];
+  } else if (shellName === "fish") {
+    const scriptPath = path.join(shellIntegrationDir, "conduit.fish");
+    args = ["-c", `source "${scriptPath}"; exec fish`];
+  } else if (
+    shellName === "pwsh" ||
+    shellName === "pwsh.exe" ||
+    shellName === "powershell" ||
+    shellName === "powershell.exe"
+  ) {
+    const scriptPath = path.join(shellIntegrationDir, "conduit.ps1");
+    args = ["-NoExit", "-Command", `. "${scriptPath}"`];
   }
-  // For other shells (including PowerShell on Windows), just spawn normally
+  // For other shells, just spawn normally
 
   return spawn(shell, args, {
     name: "xterm-256color",
