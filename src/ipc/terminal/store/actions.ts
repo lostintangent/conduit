@@ -9,7 +9,6 @@ import {
   hasSSHKeys,
   setupSSHKeyInVM,
 } from "../../vm/ssh-keys";
-import { normalizeCwd } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
   CreateTerminalOptions,
@@ -178,7 +177,7 @@ export async function createTerminal(
     id,
     pty,
     lastProcessName: pty.process,
-    cwd: normalizeCwd(cwd),
+    cwd,
     isRendererReady: false,
     bufferedOutput: [],
   };

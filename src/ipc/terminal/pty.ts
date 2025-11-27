@@ -32,13 +32,9 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
 
   if (shellName === "zsh") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.zsh");
-    // Use ZDOTDIR to source our integration, then source user's .zshrc
-    env.CONDUIT_SHELL_INTEGRATION = scriptPath;
     args = ["-c", `source "${scriptPath}"; exec zsh -i`];
   } else if (shellName === "bash") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
-    // Use --rcfile to source both our integration and user's .bashrc
-    env.CONDUIT_SHELL_INTEGRATION = scriptPath;
     args = ["-c", `source "${scriptPath}"; exec bash --rcfile ~/.bashrc -i`];
   }
   // For other shells (including PowerShell on Windows), just spawn normally
