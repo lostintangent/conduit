@@ -9,7 +9,7 @@ import {
   hasSSHKeys,
   setupSSHKeyInVM,
 } from "../../vm/ssh-keys";
-import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
+import { normalizeCwd } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
   CreateTerminalOptions,
@@ -18,17 +18,6 @@ import type {
 } from "../types";
 
 const disposeSessionResources = (session: TerminalInstance) => {
-  session.oscBuffer = "";
-  if (session.cwdPoller) {
-    clearInterval(session.cwdPoller);
-    session.cwdPoller = undefined;
-  }
-  if (session.pendingCwdPoll) {
-    clearTimeout(session.pendingCwdPoll);
-    session.pendingCwdPoll = undefined;
-  }
-  session.isPollingCwd = false;
-  session.scheduleCwdPoll = undefined;
   session.bufferedOutput = [];
 };
 
@@ -145,13 +134,6 @@ export async function createTerminal(
         pty,
         lastProcessName: `VM ${vm.id}`,
         cwd: homeDirectory,
-        oscBuffer: "",
-        cwdPoller: undefined,
-        isPollingCwd: false,
-        pendingCwdPoll: undefined,
-        scheduleCwdPoll: undefined,
-        cwdPollFailures: 0,
-        cwdPollBackedOff: false,
         isRendererReady: false,
         bufferedOutput: [],
         cloudEnvironment: {
@@ -197,12 +179,6 @@ export async function createTerminal(
     pty,
     lastProcessName: pty.process,
     cwd: normalizeCwd(cwd),
-
-    oscBuffer: "",
-    isPollingCwd: false,
-    cwdPollFailures: 0,
-    cwdPollBackedOff: false,
-
     isRendererReady: false,
     bufferedOutput: [],
   };
@@ -311,11 +287,6 @@ function setupTerminalListeners(
         }
       }
     }
-
-    // Only consume OSC sequences for local sessions
-    if (!terminal.cloudEnvironment) {
-      consumeOscSequences(terminal, data, sendToRenderer);
-    }
   });
 
   pty.onExit(async ({ exitCode, signal }) => {
@@ -373,11 +344,6 @@ function setupTerminalListeners(
     sessionId: id,
     cwd: terminal.cwd,
   });
-
-  // Only start CWD polling for local sessions
-  if (!terminal.cloudEnvironment) {
-    startCwdPolling(terminal, sendToRenderer);
-  }
 }
 
 export async function killTerminal(terminalId: string) {

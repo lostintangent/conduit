@@ -13,6 +13,7 @@ import { broadcastTerminalInput } from "@/utils/terminalSync";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Keyboard } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { updatePaneProperty } from "@/store/actions/pane";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
@@ -213,6 +214,22 @@ export const TerminalPane = ({
     [],
   );
 
+  const handleCwdChange = useCallback(
+    (nextCwd: string | null) => {
+      if (nextCwd) {
+        updatePaneProperty(terminalId, { cwd: nextCwd });
+      }
+    },
+    [terminalId],
+  );
+
+  const handleTitleChange = useCallback(
+    (title: string) => {
+      updatePaneProperty(terminalId, { processTitle: title });
+    },
+    [terminalId],
+  );
+
   const showSearchWidget = useCallback(() => {
     const terminal = terminalRef.current?.terminal;
     const selection = terminal?.hasSelection()
@@ -406,7 +423,10 @@ export const TerminalPane = ({
 
     (async () => {
       const settings = await api.getSettings();
-      const terminal = getOrCreate(terminalId, settings);
+      const terminal = getOrCreate(terminalId, settings, {
+        onCwdChange: handleCwdChange,
+        onTitleChange: handleTitleChange,
+      });
       if (!mounted) return;
 
       terminalRef.current = terminal;
@@ -473,6 +493,8 @@ export const TerminalPane = ({
     isTabSynchronized,
     handleSynchronizedInput,
     fontSize,
+    handleCwdChange,
+    handleTitleChange,
   ]);
 
   useEffect(() => {

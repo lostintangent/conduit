@@ -8,6 +8,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
+import path from "node:path";
 
 import chimeUrl from "@/assets/chime.mp3";
 import { UserSettings } from "@shared/types";
@@ -24,6 +25,8 @@ export type TerminalInstance = {
   ready: boolean;
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
   setInputHandler: (handler: ((input: string) => void) | null) => void;
+  setCwdHandler: (handler: ((cwd: string | null) => void) | null) => void;
+  setTitleHandler: (handler: ((title: string) => void) | null) => void;
   markReady: () => void;
   resize: (cols: number, rows: number) => void;
   dispose: () => void;
@@ -35,6 +38,36 @@ const store = new Map<string, TerminalInstance>();
 type GetOrCreateOptions = {
   onLinkClick?: (url: string) => void;
   onInput?: (input: string) => void;
+  onCwdChange?: (cwd: string | null) => void;
+  onTitleChange?: (title: string) => void;
+};
+
+const normalizeCwd = (raw: string | null): string | null => {
+  if (!raw) {
+    return null;
+  }
+
+  const stripped = raw.replace(/^file:\/\//, "");
+  const slashIndex = stripped.indexOf("/");
+  const pathPortion = slashIndex >= 0 ? stripped.slice(slashIndex) : stripped;
+
+  let decoded = pathPortion;
+  try {
+    decoded = decodeURIComponent(pathPortion);
+  } catch {
+    decoded = pathPortion;
+  }
+
+  const sanitized = decoded.split("\u0007").join("").trim();
+  if (!sanitized) {
+    return null;
+  }
+
+  try {
+    return path.normalize(sanitized);
+  } catch {
+    return sanitized;
+  }
 };
 
 export function getOrCreate(
@@ -73,6 +106,12 @@ export function getOrCreate(
     const inputHandlerRef: { current: ((input: string) => void) | null } = {
       current: options.onInput ?? null,
     };
+    const cwdHandlerRef: { current: ((cwd: string | null) => void) | null } = {
+      current: options.onCwdChange ?? null,
+    };
+    const titleHandlerRef: { current: ((title: string) => void) | null } = {
+      current: options.onTitleChange ?? null,
+    };
 
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       const handler = linkHandlerRef.current;
@@ -87,6 +126,16 @@ export function getOrCreate(
     terminal.loadAddon(search);
     terminal.loadAddon(webLinksAddon);
     terminal.loadAddon(serializer);
+
+    const osc7Disposable = terminal.parser.registerOscHandler(7, (data) => {
+      const cwd = normalizeCwd(data ?? null);
+      cwdHandlerRef.current?.(cwd);
+      return false;
+    });
+
+    const titleDisposable = terminal.onTitleChange((title) => {
+      titleHandlerRef.current?.(title);
+    });
 
     // Batch writes with a small delay to prevent cursor flicker in TUIs
     let writeBuffer: string[] = [];
@@ -126,6 +175,12 @@ export function getOrCreate(
       setInputHandler: (handler) => {
         inputHandlerRef.current = handler;
       },
+      setCwdHandler: (handler) => {
+        cwdHandlerRef.current = handler;
+      },
+      setTitleHandler: (handler) => {
+        titleHandlerRef.current = handler;
+      },
       markReady: () => {
         if (newInstance.ready) return;
 
@@ -143,9 +198,13 @@ export function getOrCreate(
         writeBuffer = [];
         unsubData();
         onDataDispose?.dispose();
+        osc7Disposable.dispose();
+        titleDisposable.dispose();
         terminal.dispose();
         linkHandlerRef.current = null;
         inputHandlerRef.current = null;
+        cwdHandlerRef.current = null;
+        titleHandlerRef.current = null;
         newInstance.ready = false;
         serializer.dispose();
       },
@@ -159,6 +218,12 @@ export function getOrCreate(
     }
     if ("onInput" in options) {
       instance.setInputHandler(options.onInput ?? null);
+    }
+    if ("onCwdChange" in options) {
+      instance.setCwdHandler(options.onCwdChange ?? null);
+    }
+    if ("onTitleChange" in options) {
+      instance.setTitleHandler(options.onTitleChange ?? null);
     }
   }
 
