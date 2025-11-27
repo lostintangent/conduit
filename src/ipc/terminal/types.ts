@@ -13,15 +13,6 @@ export type TerminalInstance = {
 
   // VM metadata (only present for remote VM sessions)
   cloudEnvironment?: CloudEnvironment;
-
-  // Internal state for tracking CWD
-  oscBuffer: string;
-  cwdPoller?: NodeJS.Timeout;
-  isPollingCwd: boolean;
-  pendingCwdPoll?: NodeJS.Timeout;
-  scheduleCwdPoll?: (delay?: number) => void;
-  cwdPollFailures: number; // Consecutive polling failures
-  cwdPollBackedOff: boolean; // Whether we've stopped polling due to errors
 };
 
 export type CreateTerminalOptions = {

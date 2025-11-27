@@ -1,7 +1,20 @@
+import { app } from "electron";
 import { spawn } from "node-pty";
 import path from "node:path";
 import { getCliState } from "../cli";
 import { getCurrentUserSettings } from "../ui";
+
+/**
+ * Get the path to the shell integration scripts directory.
+ * In development, this is the source directory.
+ * In production, this is the extraResources directory.
+ */
+function getShellIntegrationPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "shell");
+  }
+  return path.join(__dirname, "shell");
+}
 
 export function spawnTerminalProcess(sessionId: string, cwd?: string) {
   const shell = resolveShell();
@@ -12,7 +25,25 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
     cwd = process.env.HOME ?? process.cwd();
   }
 
-  return spawn(shell, [], {
+  // Determine the shell integration script to source
+  const shellName = path.basename(shell);
+  const shellIntegrationDir = getShellIntegrationPath();
+  let args: string[] = [];
+
+  if (shellName === "zsh") {
+    const scriptPath = path.join(shellIntegrationDir, "conduit.zsh");
+    // Use ZDOTDIR to source our integration, then source user's .zshrc
+    env.CONDUIT_SHELL_INTEGRATION = scriptPath;
+    args = ["-c", `source "${scriptPath}"; exec zsh -i`];
+  } else if (shellName === "bash") {
+    const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
+    // Use --rcfile to source both our integration and user's .bashrc
+    env.CONDUIT_SHELL_INTEGRATION = scriptPath;
+    args = ["-c", `source "${scriptPath}"; exec bash --rcfile ~/.bashrc -i`];
+  }
+  // For other shells (including PowerShell on Windows), just spawn normally
+
+  return spawn(shell, args, {
     name: "xterm-256color",
     cols: 80,
     rows: 24,
