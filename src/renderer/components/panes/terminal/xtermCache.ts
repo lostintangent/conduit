@@ -33,30 +33,10 @@ export type TerminalInstance = {
 const api = window.conduit;
 const store = new Map<string, TerminalInstance>();
 
-/**
- * Normalize a CWD path extracted from an OSC 7 sequence.
- * Decodes URL-encoded characters and removes any trailing BEL characters.
- */
-function normalizeCwd(raw: string | null): string | null {
-  if (!raw) {
-    return null;
-  }
-
-  let decoded = raw;
-  try {
-    decoded = decodeURIComponent(raw);
-  } catch {
-    decoded = raw;
-  }
-
-  // Remove any trailing BEL characters and trim whitespace
-  const sanitized = decoded.split("\u0007").join("").trim();
-  if (!sanitized) {
-    return null;
-  }
-
-  return sanitized;
-}
+// Pattern to extract file path from OSC 7 file:// URL format
+// Format: file://hostname/path (hostname may be empty)
+// eslint-disable-next-line no-control-regex
+const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)$/;
 
 type GetOrCreateOptions = {
   onLinkClick?: (url: string) => void;
@@ -143,20 +123,22 @@ export function getOrCreate(
     // We store the last known CWD to avoid redundant updates
     let lastKnownCwd: string | null = null;
     const osc7Disposable = terminal.parser.registerOscHandler(7, (data) => {
-      // data format: "file://hostname/path" or "file:///path" (no hostname)
-      // Use URL parsing for robustness in handling edge cases
-      try {
-        const url = new URL(data);
-        if (url.protocol === "file:") {
-          const rawPath = url.pathname;
-          const normalized = normalizeCwd(rawPath);
-          if (normalized && normalized !== lastKnownCwd) {
-            lastKnownCwd = normalized;
-            updatePaneProperty(sessionId, { cwd: normalized });
-          }
+      // Strip trailing BEL character if present and use regex to extract file path
+      const cleanData = data.replace(/\u0007$/, "");
+      const match = OSC_CWD_PATTERN.exec(cleanData);
+      if (match && match[1]) {
+        // Decode URL-encoded characters in the path
+        let cwd: string;
+        try {
+          cwd = decodeURIComponent(match[1]);
+        } catch {
+          cwd = match[1];
         }
-      } catch {
-        // Invalid URL format, skip this OSC 7 sequence
+
+        if (cwd !== lastKnownCwd) {
+          lastKnownCwd = cwd;
+          updatePaneProperty(sessionId, { cwd });
+        }
       }
       return true; // Indicate the OSC was handled
     });

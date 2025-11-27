@@ -706,10 +706,6 @@ export async function duplicateTabIntoWorktree(
 }
 
 export function registerTabEventHandlers() {
-  if (!api) {
-    return () => {};
-  }
-
   // Note: Terminal title updates are now handled directly by xterm's onTitleChange
   // handler in xtermCache.ts, not via IPC
 
