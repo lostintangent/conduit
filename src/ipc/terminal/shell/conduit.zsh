@@ -5,4 +5,4 @@ __conduit_osc7() {
   printf '\e]7;file://%s%s\a' "${HOST}" "${PWD}"
 }
 
-precmd_functions+=(__conduit_osc7)
+add-zsh-hook precmd __conduit_osc7
