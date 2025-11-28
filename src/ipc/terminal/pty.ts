@@ -31,14 +31,17 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
   let args: string[] = [];
 
   if (shellName === "zsh") {
-    const scriptPath = path.join(shellIntegrationDir, "conduit.zsh");
-    args = ["-c", `source "${scriptPath}"; exec zsh -i`];
+    // Set ZDOTDIR to our shell integration directory so zsh loads our .zshrc
+    // which sources conduit.zsh (our integration that also sources user's .zshrc)
+    env.ZDOTDIR = shellIntegrationDir;
+    args = ["-i"];
   } else if (shellName === "bash") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
     args = ["--rcfile", scriptPath, "-i"];
   } else if (shellName === "fish") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.fish");
-    args = ["-c", `source "${scriptPath}"; exec fish`];
+    // Use -C to run commands on startup, fish will still load user config
+    args = ["-C", `source "${scriptPath}"`];
   } else if (
     shellName === "pwsh" ||
     shellName === "pwsh.exe" ||
