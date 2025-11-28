@@ -53,4 +53,6 @@ export {
   TreeResizer,
   MobileViewToggle,
   EditorToolbar,
+  ChangesReviewPane,
+  FileChangeDiff,
 } from "./components";

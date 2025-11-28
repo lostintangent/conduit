@@ -17,6 +17,10 @@
  * Phase 5 components:
  * - TreeResizer: Draggable divider for tree panel resizing
  * - MobileViewToggle: Floating toggle for mobile layout
+ *
+ * Phase 6 components:
+ * - ChangesReviewPane: Multi-file changes review with inline diffs
+ * - FileChangeDiff: Individual file diff with actions
  */
 
 // EditorViewPanel and related components
@@ -60,3 +64,10 @@ export type {
 // Layout components
 export { TreeResizer } from "./TreeResizer";
 export type { TreeResizerProps } from "./TreeResizer";
+
+// ChangesReviewPane components
+export { ChangesReviewPane, FileChangeDiff } from "./ChangesReviewPane";
+export type {
+  ChangesReviewPaneProps,
+  FileChangeDiffProps,
+} from "./ChangesReviewPane";
