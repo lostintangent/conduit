@@ -55,4 +55,7 @@ export {
   EditorToolbar,
   ChangesReviewPane,
   FileChangeDiff,
+  BranchSelector,
 } from "./components";
+
+export type { BranchSelectorProps } from "./components";

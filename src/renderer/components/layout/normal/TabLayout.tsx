@@ -7,7 +7,7 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
-import { EditorPane } from "@/components/panes/editor/EditorPane";
+import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import type {
@@ -466,7 +466,7 @@ export function TabLayout({
                 onContextMenu={onPaneContextMenu}
                 onMouseDown={onPaneActivate}
               >
-                <EditorPane
+                <EditorPaneSwitcher
                   key={pane.id}
                   paneId={pane.id}
                   cwd={pane.cwd}

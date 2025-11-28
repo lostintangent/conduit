@@ -23,11 +23,24 @@ export default defineConfig({
     reporters: ["default", "junit"],
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src/renderer"),
-      "@shared": path.resolve(__dirname, "./src/shared"),
+    alias: [
+      // Mock monaco-editor ESM submodules (CSS, language contributions, etc.)
+      // These must come before the main monaco-editor alias
+      {
+        find: /^monaco-editor\/esm\/.*/,
+        replacement: path.resolve(
+          __dirname,
+          "./tests/setup/monaco-esm-mock.ts",
+        ),
+      },
+      // Path aliases for source code
+      { find: "@", replacement: path.resolve(__dirname, "./src/renderer") },
+      { find: "@shared", replacement: path.resolve(__dirname, "./src/shared") },
       // Mock monaco-editor in tests - it has complex exports that don't work in jsdom
-      "monaco-editor": path.resolve(__dirname, "./tests/setup/monaco-mock.ts"),
-    },
+      {
+        find: "monaco-editor",
+        replacement: path.resolve(__dirname, "./tests/setup/monaco-mock.ts"),
+      },
+    ],
   },
 });

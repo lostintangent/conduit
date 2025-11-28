@@ -18,6 +18,7 @@ export const userSettingsAtom = atom<UserSettings>({
 
   // Editor settings
   useConduitAsEditor: true,
+  useEditorV2: false, // Feature flag for Editor v2 - off by default
 
   // Workspace settings
   autoSaveWorkspaces: true,

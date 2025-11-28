@@ -16,9 +16,11 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   autoSaveWorkspaces: true,
   useGradientBorders: true,
   useConduitAsEditor: true,
+  useEditorV2: false, // Feature flag for Editor v2 - disabled by default during testing
   theme: "dark",
   terminalPromptAgent: "copilot -p {arg}",
   terminalPromptBufferLines: 100,
+  quickTerminalMode: "fullscreen",
   agents: [
     {
       id: "copilot",
