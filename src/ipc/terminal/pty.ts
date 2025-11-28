@@ -35,16 +35,15 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
     if (env.ZDOTDIR) {
       env.CONDUIT_ORIG_ZDOTDIR = env.ZDOTDIR;
     }
-    // Set ZDOTDIR to our shell integration directory so zsh loads our .zshrc
-    // which sources conduit.zsh (our integration that also sources user's .zshrc)
+    // Set ZDOTDIR to our shell integration directory so zsh loads our .zshenv
+    // which restores the original ZDOTDIR and installs the OSC 7 hook
     env.ZDOTDIR = shellIntegrationDir;
-    args = ["-i"];
   } else if (shellName === "bash") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
     // Set ENV to point at our integration script and use --posix
     // Our script disables POSIX mode and sources user's config files
     env.ENV = scriptPath;
-    args = ["--posix", "-i"];
+    args = ["--posix"];
   } else if (
     shellName === "pwsh" ||
     shellName === "pwsh.exe" ||

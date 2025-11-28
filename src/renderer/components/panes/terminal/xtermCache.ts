@@ -36,7 +36,7 @@ const store = new Map<string, TerminalInstance>();
 // Pattern to extract file path from OSC 7 file:// URL format
 // Format: file://hostname/path BEL (hostname may be empty)
 // eslint-disable-next-line no-control-regex
-const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)\u0007$/;
+const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)\a$/;
 
 type GetOrCreateOptions = {
   onLinkClick?: (url: string) => void;
@@ -125,7 +125,13 @@ export function getOrCreate(
     const osc7Disposable = terminal.parser.registerOscHandler(7, (data) => {
       const match = OSC_CWD_PATTERN.exec(data);
       if (match && match[1]) {
-        const cwd = match[1];
+        // URL decode the path to handle special characters
+        let cwd: string;
+        try {
+          cwd = decodeURIComponent(match[1]);
+        } catch {
+          cwd = match[1];
+        }
         if (cwd !== lastKnownCwd) {
           lastKnownCwd = cwd;
           updatePaneProperty(sessionId, { cwd });
