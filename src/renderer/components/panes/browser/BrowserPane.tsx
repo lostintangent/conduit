@@ -4,6 +4,7 @@ import {
   applyWebviewScaling,
   calculateWebviewScale,
 } from "@/utils/preview-scaling";
+import useResizeObserver from "@react-hook/resize-observer";
 import type {
   ContextMenuParams,
   DidNavigateEvent,
@@ -13,7 +14,7 @@ import type {
 } from "electron";
 import { useAtomValue } from "jotai";
 import { Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserToolbar } from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
 
@@ -67,6 +68,84 @@ export function BrowserPane({
 
   const [consoleErrors, setConsoleErrors] = useState<ConsoleMessage[]>([]);
 
+  // Because the webview is absolutely positioned and scaled
+  // while in preview mode, we unfortunately need to implement
+  // the hover overlay again, since the webview will be on top of
+  // the pane's own hover detection.
+  const ensurePreviewOverlay = useCallback(() => {
+    if (!isInPreview || !isPreviewHoveredRef.current) {
+      if (previewOverlayRef.current) {
+        previewOverlayRef.current.remove();
+        previewOverlayRef.current = null;
+      }
+      return;
+    }
+
+    if (!previewOverlayRef.current) {
+      const overlay = document.createElement("div");
+      overlay.className =
+        "pointer-events-none bg-accent/30 backdrop-blur-[0.5px]";
+      overlay.style.position = "absolute";
+      overlay.style.zIndex = "10005";
+      overlay.style.pointerEvents = "none";
+
+      previewOverlayRef.current = overlay;
+      document.body.appendChild(overlay);
+    }
+  }, [isInPreview]);
+
+  const updatePosition = useCallback(() => {
+    const anchor = webviewAnchorRef.current;
+    const currentWebview = webviewRef.current;
+    if (!anchor || !currentWebview) {
+      return;
+    }
+
+    ensurePreviewOverlay();
+
+    // Set z-index based on preview mode
+    currentWebview.style.zIndex = isInPreview ? "10001" : "1";
+
+    // Schedule follow-up update in preview mode
+    if (isInPreview) {
+      requestAnimationFrame(updatePosition);
+    }
+
+    const rect = anchor.getBoundingClientRect();
+    const layoutWidth = anchor.offsetWidth || anchor.clientWidth || rect.width;
+    const layoutHeight =
+      anchor.offsetHeight || anchor.clientHeight || rect.height;
+
+    const scrollX = window.scrollX ?? window.pageXOffset;
+    const scrollY = window.scrollY ?? window.pageYOffset;
+    const top = rect.top + scrollY;
+    const left = rect.left + scrollX;
+
+    currentWebview.style.top = `${top}px`;
+    currentWebview.style.left = `${left}px`;
+
+    const scaling = calculateWebviewScale({
+      layoutWidth,
+      layoutHeight,
+      rectWidth: rect.width,
+      rectHeight: rect.height,
+    });
+
+    applyWebviewScaling(currentWebview, scaling);
+
+    const overlay = previewOverlayRef.current;
+    if (overlay) {
+      overlay.style.top = `${top}px`;
+      overlay.style.left = `${left}px`;
+      overlay.style.width = `${rect.width}px`;
+      overlay.style.height = `${rect.height}px`;
+      overlay.style.borderRadius = getComputedStyle(anchor).borderRadius ?? "";
+    }
+  }, [ensurePreviewOverlay, isInPreview]);
+
+  // Use resize observer hook to track anchor element size changes
+  useResizeObserver(webviewAnchorRef, updatePosition);
+
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
   useEffect(() => {
@@ -96,86 +175,6 @@ export function BrowserPane({
     webviewRef.current = webview;
     setCurrentUrl(url);
 
-    // Because the webview is absolutely positioned and scaled
-    // while in preview mode, we unfortunately need to implement
-    // the hover overlay again, since the webview will be on top of
-    // the pane's own hover detection.
-    const ensurePreviewOverlay = () => {
-      if (!isInPreview || !isPreviewHoveredRef.current) {
-        if (previewOverlayRef.current) {
-          previewOverlayRef.current.remove();
-          previewOverlayRef.current = null;
-        }
-        return;
-      }
-
-      if (!previewOverlayRef.current) {
-        const overlay = document.createElement("div");
-        overlay.className =
-          "pointer-events-none bg-accent/30 backdrop-blur-[0.5px]";
-        overlay.style.position = "absolute";
-        overlay.style.zIndex = "10005";
-        overlay.style.pointerEvents = "none";
-
-        previewOverlayRef.current = overlay;
-        document.body.appendChild(overlay);
-      }
-    };
-
-    const updatePosition = () => {
-      const anchor = webviewAnchorRef.current;
-      const currentWebview = webviewRef.current;
-      if (!anchor || !currentWebview) {
-        return;
-      }
-
-      ensurePreviewOverlay();
-
-      // Set z-index based on preview mode
-      currentWebview.style.zIndex = isInPreview ? "10001" : "1";
-
-      // Schedule follow-up update in preview mode
-      if (isInPreview) {
-        requestAnimationFrame(updatePosition);
-      }
-
-      const rect = anchor.getBoundingClientRect();
-      const layoutWidth =
-        anchor.offsetWidth || anchor.clientWidth || rect.width;
-      const layoutHeight =
-        anchor.offsetHeight || anchor.clientHeight || rect.height;
-
-      const scrollX = window.scrollX ?? window.pageXOffset;
-      const scrollY = window.scrollY ?? window.pageYOffset;
-      const top = rect.top + scrollY;
-      const left = rect.left + scrollX;
-
-      currentWebview.style.top = `${top}px`;
-      currentWebview.style.left = `${left}px`;
-
-      const scaling = calculateWebviewScale({
-        layoutWidth,
-        layoutHeight,
-        rectWidth: rect.width,
-        rectHeight: rect.height,
-      });
-
-      applyWebviewScaling(currentWebview, scaling);
-
-      const overlay = previewOverlayRef.current;
-      if (overlay) {
-        overlay.style.top = `${top}px`;
-        overlay.style.left = `${left}px`;
-        overlay.style.width = `${rect.width}px`;
-        overlay.style.height = `${rect.height}px`;
-        overlay.style.borderRadius =
-          getComputedStyle(anchor).borderRadius ?? "";
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(updatePosition);
-    resizeObserver.observe(webviewAnchorRef.current);
-
     updatePosition();
 
     window.addEventListener("scroll", updatePosition, true);
@@ -184,8 +183,6 @@ export function BrowserPane({
     return () => {
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
-
-      resizeObserver.disconnect();
 
       if (previewOverlayRef.current) {
         previewOverlayRef.current.remove();
@@ -200,7 +197,7 @@ export function BrowserPane({
         webviewRef.current = null;
       }
     };
-  }, [webviewAnchorRef]);
+  }, [paneId, updatePosition, url]);
 
   // Once we have a new or existing webview, we need to hook
   // up the event listeners to it (e.g. navigation, title change, etc)

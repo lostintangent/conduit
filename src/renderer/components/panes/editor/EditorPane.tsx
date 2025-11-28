@@ -58,6 +58,7 @@ import "monaco-editor/esm/vs/editor/contrib/find/browser/findWidget.css";
 // DO NOT import from 'monaco-editor/esm/vs/editor/editor.api' as it lacks language support
 import * as monaco from "monaco-editor";
 
+import useResizeObserver from "@react-hook/resize-observer";
 import path from "path-browserify";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -1054,25 +1055,9 @@ export function EditorPane({
   }, []);
 
   // ResizeObserver to track container width
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const width = entry.contentRect.width;
-        setContainerWidth(width);
-      }
-    });
-
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, []);
+  useResizeObserver(containerRef, (entry) => {
+    setContainerWidth(entry.contentRect.width);
+  });
 
   // Persist tree width to localStorage
   useEffect(() => {
