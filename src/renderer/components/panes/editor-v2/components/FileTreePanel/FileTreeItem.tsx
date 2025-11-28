@@ -64,6 +64,12 @@ export interface FileTreeItemProps {
 
   /** Children to render when expanded (for directories) */
   children?: React.ReactNode;
+
+  /**
+   * Custom display path to show instead of entry.name.
+   * Useful for branch comparison mode where we want to show the relative path.
+   */
+  displayPath?: string;
 }
 
 // ============================================================================
@@ -178,6 +184,7 @@ export const FileTreeItem = memo(function FileTreeItem({
   onSelect,
   onToggleExpand,
   children,
+  displayPath,
 }: FileTreeItemProps) {
   const isDirectory = entry.type === "directory";
 
@@ -246,8 +253,10 @@ export const FileTreeItem = memo(function FileTreeItem({
           )}
         />
 
-        {/* Name */}
-        <span className="flex-1 truncate text-sm">{entry.name}</span>
+        {/* Name - use displayPath if provided (for branch comparison mode) */}
+        <span className="flex-1 truncate text-sm">
+          {displayPath ?? entry.name}
+        </span>
 
         {/* Git status badge */}
         {gitStatus && <GitBadge status={gitStatus} />}

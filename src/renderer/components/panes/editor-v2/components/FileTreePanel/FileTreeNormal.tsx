@@ -6,13 +6,28 @@
  * - Real-time updates via FileSystemV2 events
  * - Git status badges via GitV2 API
  * - Keyboard navigation support
+ * - Branch comparison mode (shows only files changed from base branch)
+ *
+ * When `baseBranch` is provided, the tree switches to "comparison mode":
+ * - Shows only files that differ from the base branch
+ * - Displays a flat list instead of the full directory tree
+ * - Uses `gitApi.getChangedFilesFromBranch()` for the file list
  *
  * @example
  * ```tsx
+ * // Normal mode - full directory tree
  * <FileTreeNormal
  *   cwd="/project"
- *   selectedPath="/project/src/index.ts"
- *   onFileSelect={(path) => openFile(path)}
+ *   selectedFile={selectedFile}
+ *   onFileSelect={(file) => openFile(file)}
+ * />
+ *
+ * // Comparison mode - only changed files
+ * <FileTreeNormal
+ *   cwd="/project"
+ *   selectedFile={selectedFile}
+ *   onFileSelect={(file) => openFile(file)}
+ *   baseBranch="main"
  * />
  * ```
  */
@@ -101,6 +116,12 @@ export function FileTreeNormal({
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Branch comparison state
+  const [changedFilesFromBranch, setChangedFilesFromBranch] = useState<
+    string[]
+  >([]);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+
   // ---------------------------------------------------------------------------
   // Initial Load
   // ---------------------------------------------------------------------------
@@ -169,6 +190,45 @@ export function FileTreeNormal({
 
     return cleanup;
   }, [git]);
+
+  // ---------------------------------------------------------------------------
+  // Branch Comparison Load
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    // Only load comparison data when baseBranch is set
+    if (!baseBranch) {
+      setChangedFilesFromBranch([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadChangedFiles() {
+      setIsLoadingComparison(true);
+      try {
+        const files = await git.getChangedFilesFromBranch(baseBranch);
+        if (!cancelled) {
+          setChangedFilesFromBranch(files);
+        }
+      } catch (error) {
+        console.error("Failed to load changed files from branch:", error);
+        if (!cancelled) {
+          setChangedFilesFromBranch([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingComparison(false);
+        }
+      }
+    }
+
+    loadChangedFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [git, baseBranch]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -291,9 +351,72 @@ export function FileTreeNormal({
   );
 
   // ---------------------------------------------------------------------------
+  // Render Branch Comparison View
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Render flat list of changed files for branch comparison mode.
+   * Shows only files that differ from the base branch.
+   */
+  const renderBranchComparison = useCallback((): React.ReactNode => {
+    if (changedFilesFromBranch.length === 0) {
+      return (
+        <div
+          className="flex items-center justify-center h-full text-muted-foreground text-sm"
+          data-testid="branch-comparison-empty"
+        >
+          No changes from {baseBranch}
+        </div>
+      );
+    }
+
+    // Sort files alphabetically
+    const sortedFiles = [...changedFilesFromBranch].sort((a, b) =>
+      a.localeCompare(b),
+    );
+
+    return sortedFiles.map((relativePath) => {
+      const fullPath = joinPath(cwd, relativePath);
+      const name = relativePath.split("/").pop() ?? "";
+      const status = gitStatusMap.get(fullPath) ?? null;
+
+      // Create a synthetic DirectoryEntry for file display
+      const entry: DirectoryEntry = {
+        name,
+        type: "file",
+      };
+
+      return (
+        <FileTreeItem
+          key={fullPath}
+          entry={entry}
+          path={fullPath}
+          depth={0}
+          gitStatus={status}
+          isSelected={selectedFile?.path === fullPath}
+          isExpanded={false}
+          onSelect={handleSelect}
+          onToggleExpand={handleToggleExpand}
+          // Show relative path as label for better context
+          displayPath={relativePath}
+        />
+      );
+    });
+  }, [
+    changedFilesFromBranch,
+    baseBranch,
+    cwd,
+    gitStatusMap,
+    selectedFile?.path,
+    handleSelect,
+    handleToggleExpand,
+  ]);
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
+  // Loading state for initial load
   if (isLoading && !directoryCache[cwd]) {
     return (
       <div
@@ -305,6 +428,31 @@ export function FileTreeNormal({
     );
   }
 
+  // Loading state for branch comparison
+  if (baseBranch && isLoadingComparison) {
+    return (
+      <div
+        className="flex items-center justify-center h-full text-muted-foreground text-sm"
+        data-testid="branch-comparison-loading"
+      >
+        Loading changes from {baseBranch}...
+      </div>
+    );
+  }
+
+  // Branch comparison mode: show flat list of changed files
+  if (baseBranch) {
+    return (
+      <div
+        className="overflow-auto h-full text-sm"
+        data-testid="file-tree-branch-comparison"
+      >
+        {renderBranchComparison()}
+      </div>
+    );
+  }
+
+  // Normal mode: show directory tree
   return (
     <div
       className="overflow-auto h-full text-sm"

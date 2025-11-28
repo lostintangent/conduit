@@ -21,6 +21,9 @@
  * Phase 6 components:
  * - ChangesReviewPane: Multi-file changes review with inline diffs
  * - FileChangeDiff: Individual file diff with actions
+ *
+ * Phase 7 components:
+ * - BranchSelector: Dropdown for selecting comparison branch
  */
 
 // EditorViewPanel and related components
@@ -71,3 +74,7 @@ export type {
   ChangesReviewPaneProps,
   FileChangeDiffProps,
 } from "./ChangesReviewPane";
+
+// Branch comparison components
+export { BranchSelector } from "./BranchSelector";
+export type { BranchSelectorProps } from "./BranchSelector";
