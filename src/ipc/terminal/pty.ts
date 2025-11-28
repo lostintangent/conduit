@@ -31,6 +31,10 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
   let args: string[] = [];
 
   if (shellName === "zsh") {
+    // Save user's original ZDOTDIR (if set) so our script can source their config
+    if (env.ZDOTDIR) {
+      env.CONDUIT_ORIG_ZDOTDIR = env.ZDOTDIR;
+    }
     // Set ZDOTDIR to our shell integration directory so zsh loads our .zshrc
     // which sources conduit.zsh (our integration that also sources user's .zshrc)
     env.ZDOTDIR = shellIntegrationDir;
