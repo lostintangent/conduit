@@ -35,7 +35,7 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
     args = ["-c", `source "${scriptPath}"; exec zsh -i`];
   } else if (shellName === "bash") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
-    args = ["-c", `source "${scriptPath}"; exec bash --rcfile ~/.bashrc -i`];
+    args = ["--rcfile", scriptPath, "-i"];
   } else if (shellName === "fish") {
     const scriptPath = path.join(shellIntegrationDir, "conduit.fish");
     args = ["-c", `source "${scriptPath}"; exec fish`];
