@@ -45,10 +45,6 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
     // Our script disables POSIX mode and sources user's config files
     env.ENV = scriptPath;
     args = ["--posix", "-i"];
-  } else if (shellName === "fish") {
-    const scriptPath = path.join(shellIntegrationDir, "conduit.fish");
-    // Use -C to run commands on startup, fish will still load user config
-    args = ["-C", `source "${scriptPath}"`];
   } else if (
     shellName === "pwsh" ||
     shellName === "pwsh.exe" ||
