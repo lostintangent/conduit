@@ -353,6 +353,17 @@ export default {
   findRoot: (cwd: string) =>
     ipcRenderer.invoke("git-v2:find-root", { cwd }) as Promise<string | null>,
 
+  /**
+   * Check if git is available on the system.
+   *
+   * This checks if the git executable is installed and accessible.
+   * Result is cached on the main process side.
+   *
+   * @returns True if git is installed and accessible
+   */
+  isGitAvailable: () =>
+    ipcRenderer.invoke("git-v2:is-available") as Promise<boolean>,
+
   // ---------------------------------------------------------------------------
   // Subscriptions
   // ---------------------------------------------------------------------------

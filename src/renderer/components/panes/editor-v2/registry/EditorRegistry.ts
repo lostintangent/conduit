@@ -32,6 +32,7 @@
 
 import * as monaco from "monaco-editor";
 import type { EditorEntry, EditorMetadata } from "../types";
+import { EventEmitter } from "../utils/EventEmitter";
 
 // ============================================================================
 // Constants
@@ -56,6 +57,17 @@ export class EditorRegistry {
 
   private static instance: EditorRegistry | null = null;
 
+  /** Static event emitter for reset notifications (persists across resets) */
+  private static readonly _onReset = new EventEmitter<void>();
+
+  /**
+   * Event fired when the registry is reset.
+   *
+   * Components should subscribe to this event and reinitialize when fired.
+   * This is a static event that persists across instance resets.
+   */
+  static readonly onReset = EditorRegistry._onReset.event;
+
   /**
    * Get the singleton instance.
    */
@@ -69,9 +81,13 @@ export class EditorRegistry {
   /**
    * Reset the singleton instance (for testing only).
    *
-   * Disposes all editors and clears the singleton.
+   * Fires the onReset event before disposing so components can clean up.
+   * Then disposes all editors and clears the singleton.
    */
   static resetInstance(): void {
+    // Fire reset event BEFORE disposing so listeners can clean up
+    EditorRegistry._onReset.fire();
+
     if (EditorRegistry.instance) {
       EditorRegistry.instance.disposeAll();
       EditorRegistry.instance = null;

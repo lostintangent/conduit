@@ -22,8 +22,9 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { GitBranch, X, ChevronDown } from "lucide-react";
+import { GitBranch, X, ChevronDown, AlertCircle } from "lucide-react";
 import { useGitV2 } from "@/hooks/useGitV2";
+import { useGitAvailable } from "@/hooks/useGitAvailable";
 import type { GitBranch as GitBranchType } from "@/../../src/ipc/gitv2/types";
 import { cn } from "@/utils";
 
@@ -54,6 +55,8 @@ export function BranchSelector({
   baseBranch,
   onBaseBranchChange,
 }: BranchSelectorProps) {
+  const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
+    useGitAvailable();
   const git = useGitV2(cwd);
 
   // State
@@ -61,6 +64,7 @@ export function BranchSelector({
   const [currentBranch, setCurrentBranch] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGitError, setIsGitError] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Load Branches
@@ -70,7 +74,13 @@ export function BranchSelector({
     let cancelled = false;
 
     async function loadBranches() {
+      // Don't load if git is not available
+      if (!isGitAvailable || isCheckingGit) {
+        return;
+      }
+
       setIsLoading(true);
+      setIsGitError(false);
       try {
         const [branchList, current] = await Promise.all([
           git.getBranches(),
@@ -78,11 +88,19 @@ export function BranchSelector({
         ]);
 
         if (!cancelled) {
-          setBranches(branchList);
-          setCurrentBranch(current);
+          // If both are empty/null, likely not a git repo
+          if (branchList.length === 0 && current === null) {
+            setIsGitError(true);
+          } else {
+            setBranches(branchList);
+            setCurrentBranch(current);
+          }
         }
       } catch (error) {
         console.error("Failed to load branches:", error);
+        if (!cancelled) {
+          setIsGitError(true);
+        }
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -95,7 +113,7 @@ export function BranchSelector({
     return () => {
       cancelled = true;
     };
-  }, [git]);
+  }, [git, isGitAvailable, isCheckingGit]);
 
   // ---------------------------------------------------------------------------
   // Subscribe to Branch Changes
@@ -165,7 +183,35 @@ export function BranchSelector({
   // Render
   // ---------------------------------------------------------------------------
 
-  if (isLoading) {
+  // Git not installed - show disabled state
+  if (!isCheckingGit && !isGitAvailable) {
+    return (
+      <div
+        className="flex items-center gap-1 px-2 py-1 text-sm text-muted-foreground/50 cursor-not-allowed"
+        data-testid="branch-selector-git-unavailable"
+        title="Git is not installed"
+      >
+        <AlertCircle className="w-4 h-4" />
+        <span>Git unavailable</span>
+      </div>
+    );
+  }
+
+  // Not a git repo or error - show disabled state
+  if (isGitError) {
+    return (
+      <div
+        className="flex items-center gap-1 px-2 py-1 text-sm text-muted-foreground/50 cursor-not-allowed"
+        data-testid="branch-selector-not-repo"
+        title="Not a Git repository"
+      >
+        <GitBranch className="w-4 h-4" />
+        <span>No branches</span>
+      </div>
+    );
+  }
+
+  if (isLoading || isCheckingGit) {
     return (
       <div
         className="flex items-center gap-1 px-2 py-1 text-sm text-muted-foreground"

@@ -149,6 +149,17 @@ export class MonacoModelRegistry {
 
   private static instance: MonacoModelRegistry | null = null;
 
+  /** Static event emitter for reset notifications (persists across resets) */
+  private static readonly _onReset = new EventEmitter<void>();
+
+  /**
+   * Event fired when the registry is reset.
+   *
+   * Components should subscribe to this event and reinitialize when fired.
+   * This is a static event that persists across instance resets.
+   */
+  static readonly onReset = MonacoModelRegistry._onReset.event;
+
   /**
    * Get the singleton instance.
    */
@@ -162,9 +173,13 @@ export class MonacoModelRegistry {
   /**
    * Reset the singleton instance (for testing only).
    *
-   * Disposes all models and clears the singleton.
+   * Fires the onReset event before disposing so components can clean up.
+   * Then disposes all models and clears the singleton.
    */
   static resetInstance(): void {
+    // Fire reset event BEFORE disposing so listeners can clean up
+    MonacoModelRegistry._onReset.fire();
+
     if (MonacoModelRegistry.instance) {
       MonacoModelRegistry.instance.disposeAll();
       MonacoModelRegistry.instance = null;
@@ -543,10 +558,12 @@ export class MonacoModelRegistry {
       model,
       references: new Set(),
       cwd,
+      filePath,
       savedVersionId: model.getAlternativeVersionId(),
       isDirty: false,
       isOrphaned: false,
       hasExternalChanges: false,
+      isReloading: false,
       contentChangeDisposable: { dispose: () => {} },
       fileWatchDisposables: [],
     };
@@ -587,16 +604,20 @@ export class MonacoModelRegistry {
 
   /**
    * Set up file system event subscriptions for a model.
+   *
+   * Uses entry.filePath (instead of captured variable) so callbacks
+   * continue to work correctly after file rename.
    */
   private setupFileWatching(
     uri: string,
-    filePath: string,
+    _filePath: string,
     entry: ModelEntry,
     fsApi: FileSystemV2API,
   ): void {
     // Listen for file content changes
+    // Uses entry.filePath so it stays current after renames
     const contentCleanup = fsApi.onAnyFileContentChanged((changedPath) => {
-      if (changedPath === filePath) {
+      if (changedPath === entry.filePath) {
         this.handleExternalFileChange(uri, entry);
       }
     });
@@ -604,7 +625,7 @@ export class MonacoModelRegistry {
 
     // Listen for file deletion
     const deleteCleanup = fsApi.onAnyFileDeleted((deletedPath) => {
-      if (deletedPath === filePath) {
+      if (deletedPath === entry.filePath) {
         this.handleFileDeleted(uri, entry);
       }
     });
@@ -612,7 +633,7 @@ export class MonacoModelRegistry {
 
     // Listen for file rename
     const renameCleanup = fsApi.onAnyFileRenamed((oldPath, newPath) => {
-      if (oldPath === filePath) {
+      if (oldPath === entry.filePath) {
         this.handleFileRenamed(uri, oldPath, newPath, entry);
       }
     });
@@ -624,11 +645,20 @@ export class MonacoModelRegistry {
    *
    * - If model is NOT dirty: auto-reload
    * - If model IS dirty: mark as having external changes (conflict)
+   *
+   * Race condition protections:
+   * 1. `isReloading` prevents concurrent reload attempts
+   * 2. Re-check `isDirty` after async file read to catch edits during load
    */
   private async handleExternalFileChange(
     uri: string,
     entry: ModelEntry,
   ): Promise<void> {
+    // Skip if already reloading (prevents concurrent reload attempts)
+    if (entry.isReloading) {
+      return;
+    }
+
     if (entry.isDirty) {
       // Conflict: user has unsaved changes AND file changed externally
       entry.hasExternalChanges = true;
@@ -638,13 +668,26 @@ export class MonacoModelRegistry {
         hasConflict: true,
       });
     } else {
-      // No conflict: auto-reload
+      // No conflict at start: attempt auto-reload
+      entry.isReloading = true;
       try {
         const filePath = uriToPath(uri);
         const fsApi = this.getOrCreateFsApi(entry.cwd);
         const content = await fsApi.readTextFile(filePath);
 
-        // Update model content
+        // Re-check isDirty after async read - user may have typed while loading
+        if (entry.isDirty) {
+          // User started editing during reload - treat as conflict
+          entry.hasExternalChanges = true;
+          this._onModelStateChanged.fire({
+            type: "externalChange",
+            uri,
+            hasConflict: true,
+          });
+          return;
+        }
+
+        // Still clean - safe to auto-reload
         entry.model.setValue(content);
 
         // Update saved version (file on disk is now this content)
@@ -660,6 +703,8 @@ export class MonacoModelRegistry {
           `[MonacoModelRegistry] Failed to auto-reload ${uri}:`,
           error,
         );
+      } finally {
+        entry.isReloading = false;
       }
     }
   }
@@ -725,9 +770,9 @@ export class MonacoModelRegistry {
     // File is no longer orphaned (it was renamed, not deleted)
     entry.isOrphaned = false;
 
-    // Note: File watchers will need to be updated by the caller
-    // since the path changed. This is a simplification - in production
-    // you might want to re-setup watchers here.
+    // Update filePath so file watchers continue to work correctly
+    // (callbacks reference entry.filePath instead of a captured variable)
+    entry.filePath = newPath;
   }
 
   /**

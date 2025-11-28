@@ -52,6 +52,7 @@ import {
   releaseGitProvider,
   addGitSubscription,
 } from "../../fsv2/main/windowTracking";
+import { GitProviderService } from "../services/GitProviderService";
 
 // ============================================================================
 // Types
@@ -752,6 +753,14 @@ export function initializeGitV2Handlers(): void {
       return gitRoot;
     },
   );
+
+  // -------------------------------------------------------------------------
+  // Git Availability Check
+  // -------------------------------------------------------------------------
+
+  ipcMain.handle("git-v2:is-available", async (): Promise<boolean> => {
+    return GitProviderService.getInstance().isGitAvailable();
+  });
 }
 
 /**

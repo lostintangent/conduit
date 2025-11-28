@@ -503,11 +503,19 @@ describe("GitV2API", () => {
     it("should cache git root", async () => {
       const api = new GitV2API("/test/project");
 
+      // Wait a tick for the eager subscription to complete
+      // (constructor calls ensureSubscribed which also calls findRoot)
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Clear the call count from constructor's ensureSubscribed
+      mockGitv2.findRoot.mockClear();
+
+      // Now test caching - first call uses cache from constructor
       await api.findRoot();
       await api.findRoot();
 
-      // Should only call once
-      expect(mockGitv2.findRoot).toHaveBeenCalledTimes(1);
+      // Should not call again since it was already cached during construction
+      expect(mockGitv2.findRoot).toHaveBeenCalledTimes(0);
 
       api.release();
     });

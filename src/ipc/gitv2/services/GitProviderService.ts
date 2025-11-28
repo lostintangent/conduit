@@ -29,6 +29,7 @@
 
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { simpleGit } from "simple-git";
 import { DiskGitProvider } from "../providers/DiskGitProvider";
 
 // ============================================================================
@@ -120,6 +121,9 @@ export class GitProviderService {
 
   /** Map of git roots to provider entries */
   private providers = new Map<string, ProviderEntry>();
+
+  /** Cached result of git availability check */
+  private gitAvailableCache: boolean | undefined = undefined;
 
   /** Private constructor - use getInstance() */
   private constructor() {}
@@ -323,6 +327,30 @@ export class GitProviderService {
     }
 
     return { providers: stats };
+  }
+
+  /**
+   * Check if git is available on the system.
+   *
+   * Tests by running `git --version`. Result is cached for performance.
+   *
+   * @returns True if git is installed and accessible
+   */
+  async isGitAvailable(): Promise<boolean> {
+    // Use cached result if available
+    if (this.gitAvailableCache !== undefined) {
+      return this.gitAvailableCache;
+    }
+
+    try {
+      const git = simpleGit();
+      await git.version();
+      this.gitAvailableCache = true;
+      return true;
+    } catch {
+      this.gitAvailableCache = false;
+      return false;
+    }
   }
 
   // -------------------------------------------------------------------------

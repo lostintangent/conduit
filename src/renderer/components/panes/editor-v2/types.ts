@@ -153,6 +153,9 @@ export interface ModelEntry {
   /** Working directory this model belongs to */
   cwd: string;
 
+  /** Absolute file path (updated on rename to keep callbacks working) */
+  filePath: string;
+
   /** alternativeVersionId at the time of last save */
   savedVersionId: number;
 
@@ -164,6 +167,9 @@ export interface ModelEntry {
 
   /** File was modified externally while dirty */
   hasExternalChanges: boolean;
+
+  /** Whether an auto-reload is currently in progress */
+  isReloading: boolean;
 
   /** Subscription to model content changes */
   contentChangeDisposable: monaco.IDisposable;

@@ -27,8 +27,10 @@ import {
   ChevronRight,
   ChevronDown,
   File,
+  AlertCircle,
 } from "lucide-react";
 import { useGitV2 } from "@/hooks/useGitV2";
+import { useGitAvailable } from "@/hooks/useGitAvailable";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { Button } from "@/components/ui/button";
@@ -314,6 +316,8 @@ export function FileTreeChanges({
   selectedFile,
   onFileSelect,
 }: FileTreeChangesProps) {
+  const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
+    useGitAvailable();
   const git = useGitV2(cwd);
 
   // State
@@ -321,6 +325,7 @@ export function FileTreeChanges({
   const [stagedExpanded, setStagedExpanded] = useState(true);
   const [changesExpanded, setChangesExpanded] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [isNotGitRepo, setIsNotGitRepo] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Initial Load
@@ -330,14 +335,28 @@ export function FileTreeChanges({
     let cancelled = false;
 
     async function loadStatus() {
+      // Don't load if git is not available
+      if (!isGitAvailable || isCheckingGit) {
+        return;
+      }
+
       setIsLoading(true);
+      setIsNotGitRepo(false);
       try {
         const status = await git.getStatus();
         if (!cancelled) {
-          setGitStatus(status);
+          if (status === null) {
+            // null means not a git repository
+            setIsNotGitRepo(true);
+          } else {
+            setGitStatus(status);
+          }
         }
       } catch (error) {
         console.error("Failed to load git status:", error);
+        if (!cancelled) {
+          setIsNotGitRepo(true);
+        }
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -350,7 +369,7 @@ export function FileTreeChanges({
     return () => {
       cancelled = true;
     };
-  }, [git]);
+  }, [git, isGitAvailable, isCheckingGit]);
 
   // ---------------------------------------------------------------------------
   // Git Status Subscription
@@ -442,7 +461,40 @@ export function FileTreeChanges({
   // Render
   // ---------------------------------------------------------------------------
 
-  if (isLoading) {
+  // Git not installed
+  if (!isCheckingGit && !isGitAvailable) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2 px-4"
+        data-testid="file-tree-changes-git-unavailable"
+      >
+        <AlertCircle className="w-8 h-8 text-muted-foreground/60" />
+        <span className="text-center">Git is not installed</span>
+        <span className="text-xs text-center text-muted-foreground/70">
+          Install Git to track changes
+        </span>
+      </div>
+    );
+  }
+
+  // Not a git repository
+  if (isNotGitRepo) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2 px-4"
+        data-testid="file-tree-changes-not-repo"
+      >
+        <AlertCircle className="w-8 h-8 text-muted-foreground/60" />
+        <span className="text-center">Not a Git repository</span>
+        <span className="text-xs text-center text-muted-foreground/70">
+          Run &quot;git init&quot; to start tracking
+        </span>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading || isCheckingGit) {
     return (
       <div
         className="flex items-center justify-center h-full text-muted-foreground text-sm"

@@ -29,6 +29,7 @@ import { MonacoEditorWrapper } from "./MonacoEditorWrapper";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
+import { EditorErrorBoundary } from "../EditorErrorBoundary";
 
 // ============================================================================
 // Types
@@ -252,23 +253,27 @@ export function EditorViewPanel({
       {/* Editor content */}
       <div className="flex-1 min-h-0">
         {viewMode.type === "editor" && (
-          <MonacoEditorWrapper
-            editorId={editorId}
-            cwd={cwd}
-            filePath={filePath}
-            theme={theme}
-            onMount={handleEditorMount}
-          />
+          <EditorErrorBoundary filePath={filePath}>
+            <MonacoEditorWrapper
+              editorId={editorId}
+              cwd={cwd}
+              filePath={filePath}
+              theme={theme}
+              onMount={handleEditorMount}
+            />
+          </EditorErrorBoundary>
         )}
 
         {viewMode.type === "diff" && (
-          <DiffEditorWrapper
-            editorId={`${editorId}-diff`}
-            cwd={cwd}
-            filePath={filePath}
-            baseBranch={baseBranch}
-            theme={theme}
-          />
+          <EditorErrorBoundary filePath={filePath}>
+            <DiffEditorWrapper
+              editorId={`${editorId}-diff`}
+              cwd={cwd}
+              filePath={filePath}
+              baseBranch={baseBranch}
+              theme={theme}
+            />
+          </EditorErrorBoundary>
         )}
 
         {viewMode.type === "changesReview" && (

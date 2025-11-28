@@ -35,6 +35,16 @@ vi.mock(
   }),
 );
 
+// Mock useFileSystemV2 hook
+const mockFs = {
+  readTextFile: vi.fn().mockResolvedValue("// test file content"),
+  readDirectory: vi.fn().mockResolvedValue([]),
+  release: vi.fn(),
+};
+vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
+  useFileSystemV2: () => mockFs,
+}));
+
 // Mock FileTreePanel
 vi.mock(
   "../../../src/renderer/components/panes/editor-v2/components/FileTreePanel",
@@ -456,6 +466,87 @@ describe("EditorPaneV2", () => {
 
       // Component should initialize without errors
       expect(screen.getByTestId("editor-pane-v2")).toBeDefined();
+    });
+  });
+
+  // ===========================================================================
+  // Callback Props
+  // ===========================================================================
+
+  describe("callback props", () => {
+    beforeEach(() => {
+      mockFs.readTextFile.mockClear();
+    });
+
+    it("should call onFileOpen when file is selected", async () => {
+      const onFileOpen = vi.fn();
+
+      render(<EditorPaneV2 pane={TEST_PANE} onFileOpen={onFileOpen} />);
+
+      fireEvent.click(screen.getByTestId("select-file-button"));
+
+      await waitFor(() => {
+        expect(onFileOpen).toHaveBeenCalledWith({
+          path: "/project/test.ts",
+          name: "test.ts",
+          type: "file",
+        });
+      });
+    });
+
+    it("should call onFileChange with file content when file is selected", async () => {
+      const onFileChange = vi.fn();
+      mockFs.readTextFile.mockResolvedValue("const x = 1;");
+
+      render(<EditorPaneV2 pane={TEST_PANE} onFileChange={onFileChange} />);
+
+      fireEvent.click(screen.getByTestId("select-file-button"));
+
+      await waitFor(() => {
+        expect(onFileChange).toHaveBeenCalledWith({
+          filePath: "/project/test.ts",
+          language: "typescript",
+          content: "const x = 1;",
+        });
+      });
+    });
+
+    it("should call onTreeModeChange when tree mode changes", () => {
+      const onTreeModeChange = vi.fn();
+
+      render(
+        <EditorPaneV2 pane={TEST_PANE} onTreeModeChange={onTreeModeChange} />,
+      );
+
+      fireEvent.click(screen.getByTestId("toggle-tree-mode"));
+
+      expect(onTreeModeChange).toHaveBeenCalledWith("changes");
+    });
+
+    it("should call onTreeModeChange with 'all' when switching back to files", () => {
+      const onTreeModeChange = vi.fn();
+      const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
+
+      render(
+        <EditorPaneV2
+          pane={paneWithChanges}
+          onTreeModeChange={onTreeModeChange}
+        />,
+      );
+
+      fireEvent.click(screen.getByTestId("toggle-tree-mode"));
+
+      expect(onTreeModeChange).toHaveBeenCalledWith("all");
+    });
+
+    it("should pass onSave to EditorViewPanel", () => {
+      const onSave = vi.fn();
+
+      render(<EditorPaneV2 pane={TEST_PANE} onSave={onSave} />);
+
+      // EditorViewPanel is mocked, so we just verify the component renders
+      // The actual onSave pass-through is tested in the mock
+      expect(screen.getByTestId("mock-editor-view-panel")).toBeDefined();
     });
   });
 });

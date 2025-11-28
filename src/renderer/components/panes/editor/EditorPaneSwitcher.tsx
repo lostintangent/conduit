@@ -113,7 +113,17 @@ export function EditorPaneSwitcher({
       agentSessionId: agentSessionId ?? undefined,
     };
 
-    return <EditorPaneV2 pane={pane} />;
+    return (
+      <EditorPaneV2
+        pane={pane}
+        onFileChange={onFileChange}
+        onClearFile={onClearFile}
+        onCwdChange={onCwdChange}
+        onFileOpen={onFileOpen}
+        onTreeModeChange={onTreeModeChange}
+        onSave={onSave}
+      />
+    );
   }
 
   // Use legacy EditorPane (v1)

@@ -87,6 +87,9 @@ export class FileSystemV2API {
   /** Active subscription ID, if subscribed to events */
   private subscriptionId: string | null = null;
 
+  /** Pending subscription promise (to prevent duplicate subscription requests) */
+  private subscriptionPromise: Promise<void> | null = null;
+
   /** Listeners registered for directory listing changes */
   private directoryListeners: Map<
     string,
@@ -120,11 +123,16 @@ export class FileSystemV2API {
   /**
    * Create a new FileSystemV2API instance.
    *
+   * Eagerly subscribes to file system events to minimize the window
+   * for missed events between construction and first listener registration.
+   *
    * @param cwd - Working directory to scope operations to
    */
   constructor(cwd: string) {
     this.cwd = cwd;
     this.setupEventListeners();
+    // Eagerly subscribe to reduce race condition window
+    this.ensureSubscribed();
   }
 
   // ---------------------------------------------------------------------------
@@ -650,13 +658,32 @@ export class FileSystemV2API {
 
   /**
    * Ensure we have an active subscription to the main process.
+   *
+   * Uses a promise to prevent multiple concurrent subscription requests.
+   * If a subscription is already in progress, returns the existing promise.
    */
-  private async ensureSubscribed(): Promise<void> {
+  private ensureSubscribed(): void {
+    // Already subscribed
     if (this.subscriptionId) {
       return;
     }
 
-    this.subscriptionId = await window.conduit.fsv2.subscribe(this.cwd, "all");
+    // Subscription already in progress - don't start another
+    if (this.subscriptionPromise) {
+      return;
+    }
+
+    // Start subscription
+    this.subscriptionPromise = window.conduit.fsv2
+      .subscribe(this.cwd, "all")
+      .then((id: string) => {
+        this.subscriptionId = id;
+        this.subscriptionPromise = null;
+      })
+      .catch((error: unknown) => {
+        console.error("[FileSystemV2API] Failed to subscribe:", error);
+        this.subscriptionPromise = null;
+      });
   }
 
   /**

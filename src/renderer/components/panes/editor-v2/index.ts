@@ -15,7 +15,7 @@
 
 // Main orchestrator component
 export { EditorPaneV2 } from "./EditorPaneV2";
-export type { EditorPaneV2Props } from "./EditorPaneV2";
+export type { EditorPaneV2Props, FileChangeData } from "./EditorPaneV2";
 
 // Re-export types
 export type {

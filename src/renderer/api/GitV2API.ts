@@ -158,6 +158,35 @@ function deserializeGitBranch(serialized: SerializedGitBranch): GitBranch {
  * Manages subscriptions automatically and cleans up on release.
  */
 export class GitV2API {
+  // ---------------------------------------------------------------------------
+  // Static Methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Check if git is available on the system.
+   *
+   * This is a static method that doesn't require a GitV2API instance.
+   * The result is cached on the main process side for performance.
+   *
+   * @returns True if git is installed and accessible
+   *
+   * @example
+   * ```typescript
+   * if (await GitV2API.isGitAvailable()) {
+   *   // Git features are available
+   * } else {
+   *   // Show "Git not installed" message
+   * }
+   * ```
+   */
+  static async isGitAvailable(): Promise<boolean> {
+    return window.conduit.gitv2.isGitAvailable();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Instance Properties
+  // ---------------------------------------------------------------------------
+
   /** The working directory this API is scoped to */
   readonly cwd: string;
 
@@ -166,6 +195,9 @@ export class GitV2API {
 
   /** Active subscription ID, if subscribed to events */
   private subscriptionId: string | null = null;
+
+  /** Pending subscription promise (to prevent duplicate subscription requests) */
+  private subscriptionPromise: Promise<void> | null = null;
 
   /** Listeners registered for status changes */
   private statusListeners: Set<StatusChangedCallback> = new Set();
@@ -188,11 +220,16 @@ export class GitV2API {
   /**
    * Create a new GitV2API instance.
    *
+   * Eagerly subscribes to git events to minimize the window
+   * for missed events between construction and first listener registration.
+   *
    * @param cwd - Working directory to scope operations to
    */
   constructor(cwd: string) {
     this.cwd = cwd;
     this.setupEventListeners();
+    // Eagerly subscribe to reduce race condition window
+    this.ensureSubscribed();
   }
 
   // ---------------------------------------------------------------------------
@@ -687,23 +724,41 @@ export class GitV2API {
 
   /**
    * Ensure we have an active subscription to the main process.
+   *
+   * Uses a promise to prevent multiple concurrent subscription requests.
+   * If a subscription is already in progress, returns immediately.
    */
-  private async ensureSubscribed(): Promise<void> {
+  private ensureSubscribed(): void {
+    // Already subscribed
     if (this.subscriptionId) {
       return;
     }
 
-    const subscriptionId = await window.conduit.gitv2.subscribe(this.cwd);
-
-    if (!subscriptionId) {
-      // Not a git repository - subscriptions won't work
+    // Subscription already in progress - don't start another
+    if (this.subscriptionPromise) {
       return;
     }
 
-    this.subscriptionId = subscriptionId;
+    // Start subscription
+    this.subscriptionPromise = (async () => {
+      try {
+        const subscriptionId = await window.conduit.gitv2.subscribe(this.cwd);
 
-    // Also resolve the git root while we're at it
-    this.gitRoot = await window.conduit.gitv2.findRoot(this.cwd);
+        if (!subscriptionId) {
+          // Not a git repository - subscriptions won't work
+          return;
+        }
+
+        this.subscriptionId = subscriptionId;
+
+        // Also resolve the git root while we're at it
+        this.gitRoot = await window.conduit.gitv2.findRoot(this.cwd);
+      } catch (error) {
+        console.error("[GitV2API] Failed to subscribe:", error);
+      } finally {
+        this.subscriptionPromise = null;
+      }
+    })();
   }
 
   /**

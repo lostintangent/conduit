@@ -24,5 +24,9 @@ export type {
 } from "./useGitV2";
 export { GitV2API } from "./useGitV2";
 
+// Git availability hook
+export { useGitAvailable } from "./useGitAvailable";
+export type { UseGitAvailableResult } from "./useGitAvailable";
+
 // Common types
 export type { Cleanup } from "./useFileSystemV2";

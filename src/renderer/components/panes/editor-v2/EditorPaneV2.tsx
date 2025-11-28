@@ -29,15 +29,86 @@ import {
 } from "./components";
 import type { MobileView } from "./components";
 import { useResponsiveLayout, useEditorMode } from "./hooks";
+import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { cn } from "@/utils";
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Detect language from file path for callbacks.
+ */
+function detectLanguage(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+
+  const languageMap: Record<string, string> = {
+    ts: "typescript",
+    tsx: "typescript",
+    js: "javascript",
+    jsx: "javascript",
+    json: "json",
+    md: "markdown",
+    css: "css",
+    scss: "scss",
+    html: "html",
+    py: "python",
+    go: "go",
+    rs: "rust",
+    java: "java",
+    sh: "shell",
+  };
+
+  return languageMap[ext] ?? "plaintext";
+}
 
 // ============================================================================
 // Types
 // ============================================================================
 
+/**
+ * Callback payload when file changes (selection or content).
+ */
+export interface FileChangeData {
+  filePath: string;
+  language: string;
+  content: string;
+}
+
 export interface EditorPaneV2Props {
   /** Editor pane configuration */
   pane: EditorPaneType;
+
+  /**
+   * Callback fired when the selected file changes.
+   * Includes file path, detected language, and content.
+   */
+  onFileChange?: (fileData: FileChangeData) => void;
+
+  /**
+   * Callback fired when the file selection is cleared.
+   */
+  onClearFile?: () => void;
+
+  /**
+   * Callback fired when the working directory changes.
+   */
+  onCwdChange?: (cwd: string) => void;
+
+  /**
+   * Callback fired when a file is opened from the tree.
+   */
+  onFileOpen?: (node: FileNode) => void;
+
+  /**
+   * Callback fired when tree view mode changes.
+   */
+  onTreeModeChange?: (mode: "all" | "changes") => void;
+
+  /**
+   * Callback fired after a successful file save.
+   */
+  onSave?: () => void;
 }
 
 // ============================================================================
@@ -125,7 +196,15 @@ function persistTreeViewMode(mode: TreeViewMode): void {
  * Manages the layout, state, and coordination between the file tree
  * and editor panels.
  */
-export function EditorPaneV2({ pane }: EditorPaneV2Props) {
+export function EditorPaneV2({
+  pane,
+  onFileChange,
+  onClearFile,
+  onCwdChange: _onCwdChange, // Reserved for future cwd change support
+  onFileOpen,
+  onTreeModeChange,
+  onSave,
+}: EditorPaneV2Props) {
   const { cwd, filePath: initialFilePath, treeMode } = pane;
 
   // Refs
@@ -179,6 +258,9 @@ export function EditorPaneV2({ pane }: EditorPaneV2Props) {
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
+  // FileSystem API for reading file content (for callbacks)
+  const fs = useFileSystemV2(cwd);
+
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
@@ -187,7 +269,10 @@ export function EditorPaneV2({ pane }: EditorPaneV2Props) {
    * Handle file selection from tree.
    */
   const handleFileSelect = useCallback(
-    (file: FileNode) => {
+    async (file: FileNode) => {
+      // Track previous selection for onClearFile
+      const hadPreviousFile = selectedFile !== null;
+
       setSelectedFile(file);
 
       // In single layout, switch to editor view when file is selected
@@ -197,17 +282,47 @@ export function EditorPaneV2({ pane }: EditorPaneV2Props) {
 
       // Reset to editor mode for new file
       setViewMode({ type: "editor" });
+
+      // Notify parent of file open
+      onFileOpen?.(file);
+
+      // Load file content and notify parent
+      if (onFileChange && file.type === "file") {
+        try {
+          const content = await fs.readTextFile(file.path);
+          onFileChange({
+            filePath: file.path,
+            language: detectLanguage(file.path),
+            content,
+          });
+        } catch (error) {
+          console.error(
+            "[EditorPaneV2] Failed to read file for callback:",
+            error,
+          );
+        }
+      }
+
+      // If we had a previous file and now have a different one, that's not a "clear"
+      // onClearFile is for when selection is explicitly cleared (not just changed)
+      void hadPreviousFile; // Acknowledge unused variable
     },
-    [layout],
+    [layout, fs, onFileChange, onFileOpen, selectedFile],
   );
 
   /**
    * Handle tree view mode change (files/changes).
    */
-  const handleTreeViewModeChange = useCallback((mode: TreeViewMode) => {
-    setTreeViewMode(mode);
-    persistTreeViewMode(mode);
-  }, []);
+  const handleTreeViewModeChange = useCallback(
+    (mode: TreeViewMode) => {
+      setTreeViewMode(mode);
+      persistTreeViewMode(mode);
+
+      // Notify parent - map internal mode to external format
+      onTreeModeChange?.(mode === "changes" ? "changes" : "all");
+    },
+    [onTreeModeChange],
+  );
 
   /**
    * Handle tree width resize.
@@ -318,6 +433,7 @@ export function EditorPaneV2({ pane }: EditorPaneV2Props) {
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
           baseBranch={baseBranch ?? undefined}
+          onSave={onSave}
         />
       </div>
 
