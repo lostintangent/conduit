@@ -13,6 +13,10 @@
  * - FileTreeNormal: Normal directory tree view
  * - FileTreeChanges: Git changes view (staged/unstaged)
  * - FileTreeItem: Individual tree item component
+ *
+ * Phase 5 components:
+ * - TreeResizer: Draggable divider for tree panel resizing
+ * - MobileViewToggle: Floating toggle for mobile layout
  */
 
 // EditorViewPanel and related components
@@ -31,8 +35,12 @@ export type {
 } from "./EditorViewPanel";
 
 // Toolbar components
-export { EditorToolbar } from "./Toolbar";
-export type { EditorToolbarProps } from "./Toolbar";
+export { EditorToolbar, MobileViewToggle } from "./Toolbar";
+export type {
+  EditorToolbarProps,
+  MobileViewToggleProps,
+  MobileView,
+} from "./Toolbar";
 
 // FileTreePanel components
 export {
@@ -48,3 +56,7 @@ export type {
   FileTreeChangesProps,
   FileTreeItemProps,
 } from "./FileTreePanel";
+
+// Layout components
+export { TreeResizer } from "./TreeResizer";
+export type { TreeResizerProps } from "./TreeResizer";

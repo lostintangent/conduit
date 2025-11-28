@@ -1,0 +1,333 @@
+/**
+ * EditorPaneV2 - Main orchestrator for the Editor v2 system.
+ *
+ * This component ties together all the editor subsystems:
+ * - FileTreePanel for file navigation
+ * - EditorViewPanel for file editing
+ * - TreeResizer for panel resizing
+ * - MobileViewToggle for narrow viewport navigation
+ *
+ * It handles responsive layout switching between split and single modes,
+ * persists user preferences, and manages editor mode (normal vs diff).
+ *
+ * @example
+ * ```tsx
+ * <EditorPaneV2
+ *   pane={{ id: "editor-1", type: "editor", cwd: "/project" }}
+ * />
+ * ```
+ */
+
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import type { EditorPane as EditorPaneType } from "@/types";
+import type { FileNode, TreeViewMode, ViewMode } from "./types";
+import {
+  FileTreePanel,
+  EditorViewPanel,
+  TreeResizer,
+  MobileViewToggle,
+} from "./components";
+import type { MobileView } from "./components";
+import { useResponsiveLayout, useEditorMode } from "./hooks";
+import { cn } from "@/utils";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface EditorPaneV2Props {
+  /** Editor pane configuration */
+  pane: EditorPaneType;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Default tree panel width in pixels */
+const DEFAULT_TREE_WIDTH = 220;
+
+/** Minimum tree panel width in pixels */
+const MIN_TREE_WIDTH = 150;
+
+/** Maximum tree panel width in pixels */
+const MAX_TREE_WIDTH = 500;
+
+/** LocalStorage key prefix for persisted settings */
+const STORAGE_KEY_PREFIX = "editor-v2";
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Get persisted tree width from localStorage.
+ */
+function getPersistedTreeWidth(): number {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}:treeWidth`);
+    if (stored) {
+      const width = parseInt(stored, 10);
+      if (!isNaN(width) && width >= MIN_TREE_WIDTH && width <= MAX_TREE_WIDTH) {
+        return width;
+      }
+    }
+  } catch {
+    // localStorage not available
+  }
+  return DEFAULT_TREE_WIDTH;
+}
+
+/**
+ * Persist tree width to localStorage.
+ */
+function persistTreeWidth(width: number): void {
+  try {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}:treeWidth`, String(width));
+  } catch {
+    // localStorage not available
+  }
+}
+
+/**
+ * Get persisted tree view mode from localStorage.
+ */
+function getPersistedTreeViewMode(): TreeViewMode {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}:treeViewMode`);
+    if (stored === "files" || stored === "changes") {
+      return stored;
+    }
+  } catch {
+    // localStorage not available
+  }
+  return "files";
+}
+
+/**
+ * Persist tree view mode to localStorage.
+ */
+function persistTreeViewMode(mode: TreeViewMode): void {
+  try {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}:treeViewMode`, mode);
+  } catch {
+    // localStorage not available
+  }
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Main editor pane orchestrator.
+ *
+ * Manages the layout, state, and coordination between the file tree
+ * and editor panels.
+ */
+export function EditorPaneV2({ pane }: EditorPaneV2Props) {
+  const { cwd, filePath: initialFilePath, treeMode } = pane;
+
+  // Refs
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+
+  // Selected file state - initialized from pane config if provided
+  const [selectedFile, setSelectedFile] = useState<FileNode | null>(() => {
+    if (initialFilePath) {
+      const name = initialFilePath.split("/").pop() ?? "";
+      return { path: initialFilePath, name, type: "file" };
+    }
+    return null;
+  });
+
+  // Tree view mode (files or changes)
+  const [treeViewMode, setTreeViewMode] = useState<TreeViewMode>(() => {
+    // Prefer pane config, then localStorage
+    if (treeMode === "changes") return "changes";
+    if (treeMode === "all") return "files";
+    return getPersistedTreeViewMode();
+  });
+
+  // View mode for editor panel
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
+
+  // Base branch for comparison (null = compare against HEAD)
+  const [baseBranch, setBaseBranch] = useState<string | null>(
+    pane.agentBaseBranch ?? null,
+  );
+
+  // Tree panel width (persisted)
+  const [treeWidth, setTreeWidth] = useState<number>(getPersistedTreeWidth);
+
+  // Mobile view state (for single layout mode)
+  const [mobileView, setMobileView] = useState<MobileView>("tree");
+
+  // ---------------------------------------------------------------------------
+  // Hooks
+  // ---------------------------------------------------------------------------
+
+  // Responsive layout detection
+  const layout = useResponsiveLayout(containerRef);
+
+  // Editor mode management
+  const [editorMode, setEditorMode] = useEditorMode(selectedFile?.path ?? null);
+
+  // Generate stable editor ID from pane ID
+  const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
+
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle file selection from tree.
+   */
+  const handleFileSelect = useCallback(
+    (file: FileNode) => {
+      setSelectedFile(file);
+
+      // In single layout, switch to editor view when file is selected
+      if (layout === "single") {
+        setMobileView("editor");
+      }
+
+      // Reset to editor mode for new file
+      setViewMode({ type: "editor" });
+    },
+    [layout],
+  );
+
+  /**
+   * Handle tree view mode change (files/changes).
+   */
+  const handleTreeViewModeChange = useCallback((mode: TreeViewMode) => {
+    setTreeViewMode(mode);
+    persistTreeViewMode(mode);
+  }, []);
+
+  /**
+   * Handle tree width resize.
+   */
+  const handleTreeResize = useCallback((width: number) => {
+    setTreeWidth(width);
+    persistTreeWidth(width);
+  }, []);
+
+  /**
+   * Handle view mode change (editor/diff/changesReview).
+   */
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      setViewMode(mode);
+
+      // Sync with EditorModeRegistry
+      if (selectedFile?.path) {
+        if (mode.type === "diff") {
+          setEditorMode({ type: "diff", baseBranch: mode.baseBranch });
+        } else if (mode.type === "editor") {
+          setEditorMode({ type: "editor" });
+        }
+      }
+    },
+    [selectedFile?.path, setEditorMode],
+  );
+
+  /**
+   * Handle mobile view toggle.
+   */
+  const handleMobileViewChange = useCallback((view: MobileView) => {
+    setMobileView(view);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Effects
+  // ---------------------------------------------------------------------------
+
+  // Sync view mode when editor mode changes externally
+  useEffect(() => {
+    if (editorMode.type === "diff" && viewMode.type === "editor") {
+      setViewMode({
+        type: "diff",
+        filePath: selectedFile?.path ?? "",
+        baseBranch: editorMode.baseBranch,
+      });
+    }
+  }, [editorMode, viewMode.type, selectedFile?.path]);
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  // Determine if tree should be visible
+  const showTree = layout === "split" || mobileView === "tree";
+  const showEditor = layout === "split" || mobileView === "editor";
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex h-full w-full overflow-hidden"
+      data-testid="editor-pane-v2"
+    >
+      {/* File Tree Panel */}
+      <div
+        className={cn(
+          "flex-shrink-0 h-full overflow-hidden",
+          layout === "single" && !showTree && "hidden",
+        )}
+        style={{
+          width: layout === "split" ? treeWidth : "100%",
+        }}
+        data-testid="tree-container"
+      >
+        <FileTreePanel
+          cwd={cwd}
+          selectedFile={selectedFile}
+          onFileSelect={handleFileSelect}
+          treeViewMode={treeViewMode}
+          onTreeViewModeChange={handleTreeViewModeChange}
+          baseBranch={baseBranch ?? undefined}
+        />
+      </div>
+
+      {/* Tree Resizer (split mode only) */}
+      {layout === "split" && (
+        <TreeResizer
+          currentWidth={treeWidth}
+          onResize={handleTreeResize}
+          minWidth={MIN_TREE_WIDTH}
+          maxWidth={MAX_TREE_WIDTH}
+        />
+      )}
+
+      {/* Editor View Panel */}
+      <div
+        className={cn(
+          "flex-1 min-w-0 h-full overflow-hidden",
+          layout === "single" && !showEditor && "hidden",
+        )}
+        data-testid="editor-container"
+      >
+        <EditorViewPanel
+          editorId={editorId}
+          cwd={cwd}
+          selectedFile={selectedFile}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          baseBranch={baseBranch ?? undefined}
+        />
+      </div>
+
+      {/* Mobile View Toggle (single mode only) */}
+      {layout === "single" && (
+        <MobileViewToggle
+          activeView={mobileView}
+          onViewChange={handleMobileViewChange}
+        />
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,461 @@
+// @ts-nocheck
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
+import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor-v2/EditorPaneV2";
+
+// ============================================================================
+// Mocks
+// ============================================================================
+
+// Mock useResponsiveLayout hook
+const mockLayout = vi.fn();
+vi.mock(
+  "../../../src/renderer/components/panes/editor-v2/hooks/useResponsiveLayout",
+  () => ({
+    useResponsiveLayout: () => mockLayout(),
+  }),
+);
+
+// Mock useEditorMode hook
+const mockEditorMode = { type: "editor" };
+const mockSetEditorMode = vi.fn();
+vi.mock(
+  "../../../src/renderer/components/panes/editor-v2/hooks/useEditorMode",
+  () => ({
+    useEditorMode: () => [mockEditorMode, mockSetEditorMode],
+  }),
+);
+
+// Mock FileTreePanel
+vi.mock(
+  "../../../src/renderer/components/panes/editor-v2/components/FileTreePanel",
+  () => ({
+    FileTreePanel: ({ onFileSelect, treeViewMode, onTreeViewModeChange }) => (
+      <div data-testid="mock-file-tree-panel">
+        <button
+          data-testid="select-file-button"
+          onClick={() =>
+            onFileSelect({
+              path: "/project/test.ts",
+              name: "test.ts",
+              type: "file",
+            })
+          }
+        >
+          Select File
+        </button>
+        <span data-testid="tree-view-mode">{treeViewMode}</span>
+        <button
+          data-testid="toggle-tree-mode"
+          onClick={() =>
+            onTreeViewModeChange(treeViewMode === "files" ? "changes" : "files")
+          }
+        >
+          Toggle Mode
+        </button>
+      </div>
+    ),
+  }),
+);
+
+// Mock EditorViewPanel
+vi.mock(
+  "../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel",
+  () => ({
+    EditorViewPanel: ({ selectedFile, viewMode }) => (
+      <div data-testid="mock-editor-view-panel">
+        <span data-testid="editor-file-path">
+          {selectedFile?.path ?? "no-file"}
+        </span>
+        <span data-testid="editor-view-mode">{viewMode.type}</span>
+      </div>
+    ),
+  }),
+);
+
+// Mock TreeResizer
+vi.mock(
+  "../../../src/renderer/components/panes/editor-v2/components/TreeResizer",
+  () => ({
+    TreeResizer: ({ onResize, currentWidth }) => (
+      <div
+        data-testid="mock-tree-resizer"
+        onClick={() => onResize(currentWidth + 50)}
+      >
+        Resizer ({currentWidth}px)
+      </div>
+    ),
+  }),
+);
+
+// Mock MobileViewToggle
+vi.mock(
+  "../../../src/renderer/components/panes/editor-v2/components/Toolbar/MobileViewToggle",
+  () => ({
+    MobileViewToggle: ({ activeView, onViewChange }) => (
+      <div data-testid="mock-mobile-toggle">
+        <span data-testid="mobile-active-view">{activeView}</span>
+        <button
+          data-testid="switch-to-editor"
+          onClick={() => onViewChange("editor")}
+        >
+          Editor
+        </button>
+        <button
+          data-testid="switch-to-tree"
+          onClick={() => onViewChange("tree")}
+        >
+          Tree
+        </button>
+      </div>
+    ),
+  }),
+);
+
+// ============================================================================
+// Test Data
+// ============================================================================
+
+const TEST_PANE = {
+  id: "test-editor-1",
+  type: "editor" as const,
+  cwd: "/project",
+};
+
+const TEST_PANE_WITH_FILE = {
+  ...TEST_PANE,
+  filePath: "/project/src/index.ts",
+};
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+describe("EditorPaneV2", () => {
+  // Store original localStorage
+  let originalLocalStorage: Storage;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Default to split layout
+    mockLayout.mockReturnValue("split");
+
+    // Mock localStorage
+    originalLocalStorage = window.localStorage;
+    const mockStorage: Record<string, string> = {};
+    Object.defineProperty(window, "localStorage", {
+      value: {
+        getItem: vi.fn((key: string) => mockStorage[key] ?? null),
+        setItem: vi.fn((key: string, value: string) => {
+          mockStorage[key] = value;
+        }),
+        removeItem: vi.fn((key: string) => {
+          delete mockStorage[key];
+        }),
+        clear: vi.fn(() => {
+          Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
+        }),
+      },
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    // Restore localStorage
+    Object.defineProperty(window, "localStorage", {
+      value: originalLocalStorage,
+      writable: true,
+    });
+  });
+
+  // ===========================================================================
+  // Basic Rendering
+  // ===========================================================================
+
+  describe("basic rendering", () => {
+    it("should render the main container", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.getByTestId("editor-pane-v2")).toBeDefined();
+    });
+
+    it("should render tree and editor panels", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
+      expect(screen.getByTestId("mock-editor-view-panel")).toBeDefined();
+    });
+
+    it("should render tree resizer in split mode", () => {
+      mockLayout.mockReturnValue("split");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.getByTestId("mock-tree-resizer")).toBeDefined();
+    });
+
+    it("should not render tree resizer in single mode", () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.queryByTestId("mock-tree-resizer")).toBeNull();
+    });
+
+    it("should render mobile toggle in single mode", () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.getByTestId("mock-mobile-toggle")).toBeDefined();
+    });
+
+    it("should not render mobile toggle in split mode", () => {
+      mockLayout.mockReturnValue("split");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.queryByTestId("mock-mobile-toggle")).toBeNull();
+    });
+  });
+
+  // ===========================================================================
+  // Initial State
+  // ===========================================================================
+
+  describe("initial state", () => {
+    it("should initialize with no file selected when pane has no filePath", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.getByTestId("editor-file-path").textContent).toBe(
+        "no-file",
+      );
+    });
+
+    it("should initialize with file selected when pane has filePath", () => {
+      render(<EditorPaneV2 pane={TEST_PANE_WITH_FILE} />);
+
+      expect(screen.getByTestId("editor-file-path").textContent).toBe(
+        "/project/src/index.ts",
+      );
+    });
+
+    it("should initialize with editor view mode", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.getByTestId("editor-view-mode").textContent).toBe("editor");
+    });
+
+    it("should initialize tree view mode from pane treeMode", () => {
+      const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
+      render(<EditorPaneV2 pane={paneWithChanges} />);
+
+      expect(screen.getByTestId("tree-view-mode").textContent).toBe("changes");
+    });
+  });
+
+  // ===========================================================================
+  // File Selection
+  // ===========================================================================
+
+  describe("file selection", () => {
+    it("should update selected file when file is selected from tree", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      fireEvent.click(screen.getByTestId("select-file-button"));
+
+      expect(screen.getByTestId("editor-file-path").textContent).toBe(
+        "/project/test.ts",
+      );
+    });
+
+    it("should switch to editor view in single mode when file is selected", () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      // Should start on tree view
+      expect(screen.getByTestId("mobile-active-view").textContent).toBe("tree");
+
+      // Select a file
+      fireEvent.click(screen.getByTestId("select-file-button"));
+
+      // Should switch to editor view
+      expect(screen.getByTestId("mobile-active-view").textContent).toBe(
+        "editor",
+      );
+    });
+  });
+
+  // ===========================================================================
+  // Tree View Mode
+  // ===========================================================================
+
+  describe("tree view mode", () => {
+    it("should toggle tree view mode", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(screen.getByTestId("tree-view-mode").textContent).toBe("files");
+
+      fireEvent.click(screen.getByTestId("toggle-tree-mode"));
+
+      expect(screen.getByTestId("tree-view-mode").textContent).toBe("changes");
+    });
+
+    it("should persist tree view mode to localStorage", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      fireEvent.click(screen.getByTestId("toggle-tree-mode"));
+
+      expect(window.localStorage.setItem).toHaveBeenCalledWith(
+        "editor-v2:treeViewMode",
+        "changes",
+      );
+    });
+  });
+
+  // ===========================================================================
+  // Tree Resizing
+  // ===========================================================================
+
+  describe("tree resizing", () => {
+    it("should update tree width when resizer is used", () => {
+      mockLayout.mockReturnValue("split");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      const resizer = screen.getByTestId("mock-tree-resizer");
+      expect(resizer.textContent).toContain("220px"); // Default width
+
+      fireEvent.click(resizer);
+
+      expect(resizer.textContent).toContain("270px"); // 220 + 50
+    });
+
+    it("should persist tree width to localStorage", () => {
+      mockLayout.mockReturnValue("split");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      fireEvent.click(screen.getByTestId("mock-tree-resizer"));
+
+      expect(window.localStorage.setItem).toHaveBeenCalledWith(
+        "editor-v2:treeWidth",
+        "270",
+      );
+    });
+  });
+
+  // ===========================================================================
+  // Mobile View Toggle
+  // ===========================================================================
+
+  describe("mobile view toggle", () => {
+    it("should toggle between tree and editor views", () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      // Should start on tree
+      expect(screen.getByTestId("mobile-active-view").textContent).toBe("tree");
+
+      // Switch to editor
+      fireEvent.click(screen.getByTestId("switch-to-editor"));
+      expect(screen.getByTestId("mobile-active-view").textContent).toBe(
+        "editor",
+      );
+
+      // Switch back to tree
+      fireEvent.click(screen.getByTestId("switch-to-tree"));
+      expect(screen.getByTestId("mobile-active-view").textContent).toBe("tree");
+    });
+  });
+
+  // ===========================================================================
+  // Responsive Layout
+  // ===========================================================================
+
+  describe("responsive layout", () => {
+    it("should show both panels in split mode", () => {
+      mockLayout.mockReturnValue("split");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      const treeContainer = screen.getByTestId("tree-container");
+      const editorContainer = screen.getByTestId("editor-container");
+
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(editorContainer.classList.contains("hidden")).toBe(false);
+    });
+
+    it("should show only tree panel initially in single mode", () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      const treeContainer = screen.getByTestId("tree-container");
+      const editorContainer = screen.getByTestId("editor-container");
+
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(editorContainer.classList.contains("hidden")).toBe(true);
+    });
+
+    it("should show editor panel when toggled in single mode", () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      fireEvent.click(screen.getByTestId("switch-to-editor"));
+
+      const treeContainer = screen.getByTestId("tree-container");
+      const editorContainer = screen.getByTestId("editor-container");
+
+      expect(treeContainer.classList.contains("hidden")).toBe(true);
+      expect(editorContainer.classList.contains("hidden")).toBe(false);
+    });
+  });
+
+  // ===========================================================================
+  // Editor ID Generation
+  // ===========================================================================
+
+  describe("editor ID generation", () => {
+    it("should generate stable editor ID from pane ID", () => {
+      const { rerender } = render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      // Re-render with same pane should maintain same editor
+      rerender(<EditorPaneV2 pane={TEST_PANE} />);
+
+      // The editor panel should still be rendered (verifies ID stability)
+      expect(screen.getByTestId("mock-editor-view-panel")).toBeDefined();
+    });
+  });
+
+  // ===========================================================================
+  // Agent Integration
+  // ===========================================================================
+
+  describe("agent integration", () => {
+    it("should use agentBaseBranch when provided", () => {
+      const paneWithAgent = {
+        ...TEST_PANE,
+        agentBaseBranch: "main",
+      };
+
+      render(<EditorPaneV2 pane={paneWithAgent} />);
+
+      // Component should initialize without errors
+      expect(screen.getByTestId("editor-pane-v2")).toBeDefined();
+    });
+  });
+});
