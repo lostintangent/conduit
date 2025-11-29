@@ -18,3 +18,6 @@ export {
 } from "./MonacoModelRegistry";
 export { EditorModeRegistry } from "./EditorModeRegistry";
 export { ViewStateRegistry } from "./ViewStateRegistry";
+
+// Re-export FileTooLargeError for convenience
+export { FileTooLargeError } from "../types";

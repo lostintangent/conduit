@@ -52,7 +52,6 @@ import type {
   SerializedGitStatus,
   SerializedGitCommit,
   SerializedGitBranch,
-  SerializedDiffStats,
   StatusChangedPayload,
   BranchChangedPayload,
   CommitCreatedPayload,
@@ -199,6 +198,9 @@ export class GitV2API {
   /** Pending subscription promise (to prevent duplicate subscription requests) */
   private subscriptionPromise: Promise<void> | null = null;
 
+  /** Timestamp of last status update (for staleness tracking) */
+  private _lastStatusUpdate = 0;
+
   /** Listeners registered for status changes */
   private statusListeners: Set<StatusChangedCallback> = new Set();
 
@@ -250,7 +252,69 @@ export class GitV2API {
       return null;
     }
 
+    // Update timestamp when status is fetched
+    this._lastStatusUpdate = Date.now();
+
     return deserializeGitStatus(serialized);
+  }
+
+  /**
+   * Force refresh the status and notify all listeners.
+   *
+   * Use this when you suspect the cache might be stale,
+   * for example after external git operations.
+   *
+   * @returns The refreshed status, or null if not a git repository
+   */
+  async refreshStatus(): Promise<GitStatus | null> {
+    this.ensureNotReleased();
+
+    // Force a fresh status fetch
+    const status = await this.getStatus();
+
+    if (!status) {
+      return null;
+    }
+
+    // Manually fire status changed event for listeners
+    const event: GitStatusChangedEvent = {
+      status,
+      added: [],
+      modified: [],
+      removed: [],
+    };
+
+    for (const callback of this.statusListeners) {
+      try {
+        callback(event);
+      } catch (error) {
+        console.error("[GitV2API] Error in status listener:", error);
+      }
+    }
+
+    return status;
+  }
+
+  /**
+   * Get the timestamp of the last status update.
+   *
+   * Returns 0 if status has never been fetched.
+   */
+  get lastStatusUpdate(): number {
+    return this._lastStatusUpdate;
+  }
+
+  /**
+   * Check if the status cache appears stale.
+   *
+   * @param maxAgeMs - Maximum age in milliseconds before considering stale (default: 30 seconds)
+   * @returns True if status hasn't been updated within maxAgeMs
+   */
+  isStatusStale(maxAgeMs = 30000): boolean {
+    if (this._lastStatusUpdate === 0) {
+      return true; // Never updated
+    }
+    return Date.now() - this._lastStatusUpdate > maxAgeMs;
   }
 
   /**
@@ -637,6 +701,9 @@ export class GitV2API {
 
         // Update cached git root
         this.gitRoot = payload.gitRoot;
+
+        // Track when status was last updated
+        this._lastStatusUpdate = Date.now();
 
         const event: GitStatusChangedEvent = {
           status: deserializeGitStatus(payload.status),

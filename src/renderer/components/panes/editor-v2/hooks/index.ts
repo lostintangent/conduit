@@ -9,7 +9,7 @@
 export { useMonacoModel, pathToUri, uriToPath } from "./useMonacoModel";
 export { useModelState } from "./useModelState";
 export { useDiffContent } from "./useDiffContent";
-export type { DiffContent } from "./useDiffContent";
+export type { DiffContent, DiffError, DiffErrorType } from "./useDiffContent";
 export { useEditorMode } from "./useEditorMode";
 export type { UseEditorModeResult } from "./useEditorMode";
 export { useResponsiveLayout } from "./useResponsiveLayout";

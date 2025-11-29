@@ -53,12 +53,8 @@
 
 import * as monaco from "monaco-editor";
 import { FileSystemV2API } from "../../../../api/FileSystemV2API";
-import type {
-  Disposable,
-  ModelEntry,
-  ModelState,
-  ModelStateEvent,
-} from "../types";
+import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
+import { FileTooLargeError } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
 
 // ============================================================================
@@ -70,6 +66,31 @@ const DISPOSE_GRACE_PERIOD_MS = 5000;
 
 /** Default maximum number of models to keep (LRU eviction) */
 const DEFAULT_MAX_MODELS = 50;
+
+/** Default maximum file size in bytes (5 MB) */
+const DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+/** Warning threshold for file size (1 MB) - files above this show a warning */
+const WARNING_FILE_SIZE = 1 * 1024 * 1024;
+
+/** Enable debug mode via environment or global flag */
+const DEBUG_REFERENCE_TRACKING =
+  typeof window !== "undefined" &&
+  // @ts-expect-error - Debug flag set externally
+  (window.__MONACO_DEBUG_REFERENCES__ === true ||
+    process.env.NODE_ENV === "development");
+
+/**
+ * Reference tracking event for debugging.
+ */
+interface ReferenceEvent {
+  type: "add" | "remove";
+  uri: string;
+  editorId: string;
+  timestamp: number;
+  refCountAfter: number;
+  stackTrace?: string;
+}
 
 // ============================================================================
 // Helpers
@@ -193,6 +214,12 @@ export class MonacoModelRegistry {
   /** Map of URI to model entry */
   private models = new Map<string, ModelEntry>();
 
+  /** Map of URI to pending load promise (prevents concurrent loads) */
+  private loadingPromises = new Map<
+    string,
+    Promise<monaco.editor.ITextModel>
+  >();
+
   /** FileSystem APIs by CWD (for file watching) */
   private fsApis = new Map<string, FileSystemV2API>();
 
@@ -201,6 +228,18 @@ export class MonacoModelRegistry {
 
   /** Maximum number of models (for LRU eviction) */
   private maxModels: number = DEFAULT_MAX_MODELS;
+
+  /** Maximum file size in bytes */
+  private maxFileSize: number = DEFAULT_MAX_FILE_SIZE;
+
+  /** Approximate total memory used by all models (bytes) */
+  private totalMemoryUsage = 0;
+
+  /** Debug: History of reference events (only in debug mode) */
+  private referenceHistory: ReferenceEvent[] = [];
+
+  /** Debug: Maximum history entries to keep */
+  private readonly maxHistoryEntries = 1000;
 
   /** Private constructor - use getInstance() */
   private constructor() {}
@@ -252,13 +291,29 @@ export class MonacoModelRegistry {
       return existing.model;
     }
 
-    // Create new model
-    const model = await this.createModel(filePath, cwd);
+    // Check if a load is already in progress for this URI
+    const pendingLoad = this.loadingPromises.get(uri);
+    if (pendingLoad) {
+      // Return the existing promise - don't start a second load
+      return pendingLoad;
+    }
 
-    // Run LRU eviction if needed
-    this.evictLRU();
+    // Start loading and track the promise
+    const loadPromise = this.createModel(filePath, cwd)
+      .then((model) => {
+        // Run LRU eviction after successful load
+        this.evictLRU();
+        return model;
+      })
+      .finally(() => {
+        // Remove from loading map whether success or failure
+        this.loadingPromises.delete(uri);
+      });
 
-    return model;
+    // Track the loading promise before awaiting
+    this.loadingPromises.set(uri, loadPromise);
+
+    return loadPromise;
   }
 
   /**
@@ -286,6 +341,11 @@ export class MonacoModelRegistry {
     }
 
     entry.references.add(editorId);
+
+    // Debug tracking
+    if (DEBUG_REFERENCE_TRACKING) {
+      this.trackReferenceEvent("add", uri, editorId, entry.references.size);
+    }
   }
 
   /**
@@ -300,10 +360,21 @@ export class MonacoModelRegistry {
   removeReference(uri: string, editorId: string): void {
     const entry = this.models.get(uri);
     if (!entry) {
+      // Debug: Track orphan removeReference calls
+      if (DEBUG_REFERENCE_TRACKING) {
+        console.warn(
+          `[MonacoModelRegistry] removeReference: Model not found for URI ${uri} (editorId: ${editorId})`,
+        );
+      }
       return;
     }
 
     entry.references.delete(editorId);
+
+    // Debug tracking
+    if (DEBUG_REFERENCE_TRACKING) {
+      this.trackReferenceEvent("remove", uri, editorId, entry.references.size);
+    }
 
     // Start grace period if no more references
     if (entry.references.size === 0 && !entry.disposeTimer) {
@@ -475,6 +546,32 @@ export class MonacoModelRegistry {
   }
 
   /**
+   * Get the current maximum file size limit.
+   */
+  getMaxFileSize(): number {
+    return this.maxFileSize;
+  }
+
+  /**
+   * Set the maximum file size limit.
+   *
+   * @param size - Maximum file size in bytes
+   */
+  setMaxFileSize(size: number): void {
+    this.maxFileSize = size;
+  }
+
+  /**
+   * Get approximate total memory used by all models.
+   *
+   * This is a rough estimate based on content length in characters.
+   * Actual memory usage may vary due to string encoding and Monaco overhead.
+   */
+  getTotalMemoryUsage(): number {
+    return this.totalMemoryUsage;
+  }
+
+  /**
    * Dispose a specific model.
    *
    * @param uri - The model URI
@@ -484,6 +581,10 @@ export class MonacoModelRegistry {
     if (!entry) {
       return;
     }
+
+    // Update memory tracking
+    const contentLength = entry.model.getValue().length;
+    this.totalMemoryUsage = Math.max(0, this.totalMemoryUsage - contentLength);
 
     // Clear disposal timer
     if (entry.disposeTimer) {
@@ -511,6 +612,9 @@ export class MonacoModelRegistry {
    * Used during shutdown or testing cleanup.
    */
   disposeAll(): void {
+    // Clear any pending loading promises (they'll resolve but model won't be usable)
+    this.loadingPromises.clear();
+
     // Dispose all models
     for (const uri of this.models.keys()) {
       this.disposeModel(uri);
@@ -527,11 +631,116 @@ export class MonacoModelRegistry {
   }
 
   // ---------------------------------------------------------------------------
+  // Debug Methods (Development Only)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Track a reference event for debugging.
+   */
+  private trackReferenceEvent(
+    type: "add" | "remove",
+    uri: string,
+    editorId: string,
+    refCountAfter: number,
+  ): void {
+    const event: ReferenceEvent = {
+      type,
+      uri,
+      editorId,
+      timestamp: Date.now(),
+      refCountAfter,
+      stackTrace: new Error().stack,
+    };
+
+    this.referenceHistory.push(event);
+
+    // Trim history if too long
+    if (this.referenceHistory.length > this.maxHistoryEntries) {
+      this.referenceHistory = this.referenceHistory.slice(
+        -this.maxHistoryEntries,
+      );
+    }
+
+    // Log to console in debug mode
+    console.debug(
+      `[MonacoModelRegistry] ${type}Reference: ${uri} (editor: ${editorId}) -> refCount: ${refCountAfter}`,
+    );
+  }
+
+  /**
+   * Get reference history for debugging (development only).
+   *
+   * @param uri - Optional filter by URI
+   * @returns Array of reference events
+   */
+  getDebugReferenceHistory(uri?: string): ReferenceEvent[] {
+    if (uri) {
+      return this.referenceHistory.filter((e) => e.uri === uri);
+    }
+    return [...this.referenceHistory];
+  }
+
+  /**
+   * Check for potential reference leaks (development only).
+   *
+   * Returns models that have references but no recent "add" events,
+   * which could indicate orphaned references.
+   *
+   * @param maxAgeMs - Max age for "recent" events (default: 5 minutes)
+   * @returns Array of potentially leaked URIs with their reference counts
+   */
+  detectPotentialLeaks(maxAgeMs: number = 5 * 60 * 1000): Array<{
+    uri: string;
+    refCount: number;
+    lastEventAge: number;
+  }> {
+    const now = Date.now();
+    const potentialLeaks: Array<{
+      uri: string;
+      refCount: number;
+      lastEventAge: number;
+    }> = [];
+
+    for (const [uri, entry] of this.models) {
+      if (entry.references.size > 0) {
+        // Find the most recent event for this URI
+        const recentEvents = this.referenceHistory.filter(
+          (e) => e.uri === uri && now - e.timestamp < maxAgeMs,
+        );
+
+        if (recentEvents.length === 0) {
+          // No recent events for this model with references - potential leak
+          const lastEvent = this.referenceHistory
+            .filter((e) => e.uri === uri)
+            .pop();
+
+          potentialLeaks.push({
+            uri,
+            refCount: entry.references.size,
+            lastEventAge: lastEvent ? now - lastEvent.timestamp : Infinity,
+          });
+        }
+      }
+    }
+
+    return potentialLeaks;
+  }
+
+  /**
+   * Clear reference history (for testing).
+   */
+  clearDebugHistory(): void {
+    this.referenceHistory = [];
+  }
+
+  // ---------------------------------------------------------------------------
   // Internal Methods
   // ---------------------------------------------------------------------------
 
   /**
    * Create a new model and add it to the registry.
+   *
+   * @throws {FileTooLargeError} If the file exceeds the maximum size limit
    */
   private async createModel(
     filePath: string,
@@ -540,8 +749,29 @@ export class MonacoModelRegistry {
     const uri = pathToUri(filePath);
     const fsApi = this.getOrCreateFsApi(cwd);
 
+    // Check file size before reading content
+    const stats = await fsApi.stat(filePath);
+    const fileSize = stats.size;
+
+    // Reject files that exceed the maximum size limit
+    if (fileSize > this.maxFileSize) {
+      throw new FileTooLargeError(filePath, fileSize, this.maxFileSize);
+    }
+
+    // Warn about large files (above warning threshold but below max)
+    if (fileSize > WARNING_FILE_SIZE) {
+      this._onModelStateChanged.fire({
+        type: "fileSizeWarning",
+        uri,
+        fileSize,
+      });
+    }
+
     // Read file content
     const content = await fsApi.readTextFile(filePath);
+
+    // Update memory tracking
+    this.totalMemoryUsage += content.length;
 
     // Detect language
     const language = detectLanguage(filePath);

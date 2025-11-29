@@ -105,7 +105,29 @@ export type ModelStateEvent =
   | {
       type: "reloaded";
       uri: string;
+    }
+  | {
+      type: "fileSizeWarning";
+      uri: string;
+      /** File size in bytes */
+      fileSize: number;
     };
+
+/**
+ * Error thrown when a file exceeds the maximum size limit.
+ */
+export class FileTooLargeError extends Error {
+  constructor(
+    public readonly filePath: string,
+    public readonly fileSize: number,
+    public readonly maxFileSize: number,
+  ) {
+    super(
+      `File "${filePath}" (${(fileSize / 1024 / 1024).toFixed(2)} MB) exceeds maximum size limit (${(maxFileSize / 1024 / 1024).toFixed(2)} MB)`,
+    );
+    this.name = "FileTooLargeError";
+  }
+}
 
 // ============================================================================
 // Editor Registry Types

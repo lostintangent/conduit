@@ -28,6 +28,13 @@ import { useMonacoModel } from "../../hooks";
 import { EditorRegistry, ViewStateRegistry } from "../../registry";
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/** Debounce delay for ViewState saves (ms) */
+const VIEWSTATE_SAVE_DEBOUNCE_MS = 300;
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -106,9 +113,50 @@ export function MonacoEditorWrapper({
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const previousFilePathRef = useRef<string | null>(null);
   const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
+  const saveViewStateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Get model from registry via hook
   const model = useMonacoModel(filePath, cwd);
+
+  // ---------------------------------------------------------------------------
+  // ViewState Save Helper
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Save ViewState with optional debouncing.
+   * Immediate save clears any pending debounced save.
+   */
+  const saveViewState = useCallback(
+    (immediate = false) => {
+      const editor = editorRef.current;
+      const currentFilePath = previousFilePathRef.current;
+
+      if (!editor || !currentFilePath) return;
+
+      // Clear any pending debounced save
+      if (saveViewStateDebounceRef.current) {
+        clearTimeout(saveViewStateDebounceRef.current);
+        saveViewStateDebounceRef.current = null;
+      }
+
+      const doSave = () => {
+        const viewStateRegistry = ViewStateRegistry.getInstance();
+        viewStateRegistry.save(editorId, currentFilePath, editor);
+      };
+
+      if (immediate) {
+        doSave();
+      } else {
+        saveViewStateDebounceRef.current = setTimeout(
+          doSave,
+          VIEWSTATE_SAVE_DEBOUNCE_MS,
+        );
+      }
+    },
+    [editorId],
+  );
 
   // ---------------------------------------------------------------------------
   // Editor Setup
@@ -135,7 +183,13 @@ export function MonacoEditorWrapper({
 
     // Cleanup on unmount
     return () => {
-      // Save ViewState before releasing
+      // Clear any pending debounced save
+      if (saveViewStateDebounceRef.current) {
+        clearTimeout(saveViewStateDebounceRef.current);
+        saveViewStateDebounceRef.current = null;
+      }
+
+      // Save ViewState immediately before releasing
       if (editorRef.current && previousFilePathRef.current) {
         viewStateRegistry.save(editorId, previousFilePathRef.current, editor);
       }
@@ -212,6 +266,67 @@ export function MonacoEditorWrapper({
       readOnly,
     });
   }, [theme, readOnly]);
+
+  // ---------------------------------------------------------------------------
+  // ViewState Save on Blur
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    // Save ViewState when editor loses focus (debounced)
+    const blurDisposable = editor.onDidBlurEditorText(() => {
+      saveViewState(false); // debounced
+    });
+
+    return () => {
+      blurDisposable.dispose();
+    };
+  }, [saveViewState]);
+
+  // ---------------------------------------------------------------------------
+  // ViewState Save on Visibility Change
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    // Save ViewState when page becomes hidden (tab switch, minimize, etc.)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        saveViewState(true); // immediate - we might not get another chance
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [saveViewState]);
+
+  // ---------------------------------------------------------------------------
+  // ViewState Save on Page Unload
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    // Save ViewState before page closes
+    const handleBeforeUnload = () => {
+      // Immediate save - no time for debouncing
+      const editor = editorRef.current;
+      const currentFilePath = previousFilePathRef.current;
+
+      if (editor && currentFilePath) {
+        const viewStateRegistry = ViewStateRegistry.getInstance();
+        viewStateRegistry.save(editorId, currentFilePath, editor);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [editorId]);
 
   // ---------------------------------------------------------------------------
   // Focus Handler

@@ -31,8 +31,31 @@
  */
 
 import * as monaco from "monaco-editor";
-import type { EditorEntry, EditorMetadata } from "../types";
+import type { EditorMetadata } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
+
+/** Delay before unpinning an editor after it becomes hidden */
+const UNPIN_DELAY_MS = 1000;
+
+/**
+ * Extended editor entry with pinning support.
+ */
+interface EditorEntryInternal {
+  /** The Monaco editor instance */
+  editor: monaco.editor.IStandaloneCodeEditor;
+
+  /** The DOM container element the editor is rendered in */
+  container: HTMLElement;
+
+  /** Metadata for lifecycle management */
+  metadata: EditorMetadata;
+
+  /** If true, this editor cannot be evicted by LRU */
+  isPinned: boolean;
+
+  /** Timer for delayed unpin */
+  unpinTimer?: ReturnType<typeof setTimeout>;
+}
 
 // ============================================================================
 // Constants
@@ -99,7 +122,7 @@ export class EditorRegistry {
   // ---------------------------------------------------------------------------
 
   /** Map of editor ID to editor entry */
-  private editors = new Map<string, EditorEntry>();
+  private editors = new Map<string, EditorEntryInternal>();
 
   /** Maximum number of editors to keep (for LRU eviction) */
   private maxEditors: number = DEFAULT_MAX_EDITORS;
@@ -144,6 +167,9 @@ export class EditorRegistry {
       // Update last used timestamp
       existing.metadata.lastUsed = Date.now();
 
+      // Auto-pin when editor is retrieved (being actively used)
+      this.pinEditor(editorId);
+
       return existing.editor;
     }
 
@@ -166,13 +192,14 @@ export class EditorRegistry {
    * @param editorId - The editor ID to release
    */
   releaseEditor(editorId: string): void {
-    // Currently a no-op - editor stays in registry
-    // This method exists for API symmetry and future enhancements
-    // (e.g., could track active vs inactive editors)
     const entry = this.editors.get(editorId);
     if (entry) {
       // Update last used so it's not immediately evicted
       entry.metadata.lastUsed = Date.now();
+
+      // Unpin with delay - editor becomes eligible for LRU eviction
+      // The delay prevents thrashing during rapid tab switches
+      this.unpinEditor(editorId);
     }
   }
 
@@ -187,6 +214,11 @@ export class EditorRegistry {
     const entry = this.editors.get(editorId);
     if (!entry) {
       return;
+    }
+
+    // Clear any pending unpin timer
+    if (entry.unpinTimer) {
+      clearTimeout(entry.unpinTimer);
     }
 
     // Dispose the Monaco editor
@@ -246,6 +278,71 @@ export class EditorRegistry {
   }
 
   /**
+   * Pin an editor to prevent it from being evicted by LRU.
+   *
+   * Call this when an editor becomes visible/active. Pinned editors
+   * are protected from eviction until explicitly unpinned.
+   *
+   * @param editorId - The editor ID to pin
+   */
+  pinEditor(editorId: string): void {
+    const entry = this.editors.get(editorId);
+    if (!entry) {
+      return;
+    }
+
+    // Cancel any pending unpin
+    if (entry.unpinTimer) {
+      clearTimeout(entry.unpinTimer);
+      entry.unpinTimer = undefined;
+    }
+
+    entry.isPinned = true;
+  }
+
+  /**
+   * Unpin an editor after a delay, allowing it to be evicted by LRU.
+   *
+   * Call this when an editor becomes hidden/inactive. The unpin is delayed
+   * to avoid thrashing during rapid tab switching.
+   *
+   * @param editorId - The editor ID to unpin
+   * @param immediate - If true, unpin immediately without delay
+   */
+  unpinEditor(editorId: string, immediate = false): void {
+    const entry = this.editors.get(editorId);
+    if (!entry) {
+      return;
+    }
+
+    // Cancel any existing unpin timer
+    if (entry.unpinTimer) {
+      clearTimeout(entry.unpinTimer);
+      entry.unpinTimer = undefined;
+    }
+
+    if (immediate) {
+      entry.isPinned = false;
+    } else {
+      // Delay unpin to avoid thrashing during rapid tab switches
+      entry.unpinTimer = setTimeout(() => {
+        entry.isPinned = false;
+        entry.unpinTimer = undefined;
+      }, UNPIN_DELAY_MS);
+    }
+  }
+
+  /**
+   * Check if an editor is pinned.
+   *
+   * @param editorId - The editor ID
+   * @returns True if the editor is pinned
+   */
+  isPinned(editorId: string): boolean {
+    return this.editors.get(editorId)?.isPinned ?? false;
+  }
+
+  /**
    * Dispose all editors and clear the registry.
    *
    * Used during shutdown or testing cleanup.
@@ -253,6 +350,10 @@ export class EditorRegistry {
   disposeAll(): void {
     for (const [editorId, entry] of this.editors) {
       try {
+        // Clear any pending unpin timer
+        if (entry.unpinTimer) {
+          clearTimeout(entry.unpinTimer);
+        }
         entry.editor.dispose();
       } catch (error) {
         console.error(
@@ -283,13 +384,14 @@ export class EditorRegistry {
       ...options,
     });
 
-    const entry: EditorEntry = {
+    const entry: EditorEntryInternal = {
       editor,
       container,
       metadata: {
         createdAt: Date.now(),
         lastUsed: Date.now(),
       },
+      isPinned: true, // New editors start pinned (they're being actively used)
     };
 
     this.editors.set(editorId, entry);
@@ -304,7 +406,7 @@ export class EditorRegistry {
    * ViewState is saved before the move and restored after.
    */
   private moveEditorToContainer(
-    entry: EditorEntry,
+    entry: EditorEntryInternal,
     newContainer: HTMLElement,
   ): void {
     const { editor } = entry;
@@ -334,21 +436,31 @@ export class EditorRegistry {
   /**
    * Evict least-recently-used editors to stay within maxEditors limit.
    *
-   * Editors are sorted by lastUsed timestamp, and the oldest ones are disposed
-   * until we're at or below the limit.
+   * Pinned editors are protected from eviction. Remaining editors are sorted
+   * by lastUsed timestamp, and the oldest ones are disposed until we're at
+   * or below the limit.
    */
   private evictLRU(): void {
     if (this.editors.size <= this.maxEditors) {
       return;
     }
 
-    // Sort entries by lastUsed (oldest first)
-    const sorted = Array.from(this.editors.entries()).sort(
-      ([, a], [, b]) => a.metadata.lastUsed - b.metadata.lastUsed,
-    );
+    // Get non-pinned entries sorted by lastUsed (oldest first)
+    const candidates = Array.from(this.editors.entries())
+      .filter(([, entry]) => !entry.isPinned)
+      .sort(([, a], [, b]) => a.metadata.lastUsed - b.metadata.lastUsed);
 
-    // Dispose oldest editors until we're at the limit
-    const toDispose = sorted.slice(0, this.editors.size - this.maxEditors);
+    // Count how many we need to dispose
+    const pinnedCount = this.editors.size - candidates.length;
+    const targetSize = Math.max(this.maxEditors, pinnedCount); // Can't go below pinned count
+    const toDisposeCount = this.editors.size - targetSize;
+
+    if (toDisposeCount <= 0) {
+      return;
+    }
+
+    // Dispose oldest non-pinned editors
+    const toDispose = candidates.slice(0, toDisposeCount);
 
     for (const [editorId] of toDispose) {
       this.disposeEditor(editorId);

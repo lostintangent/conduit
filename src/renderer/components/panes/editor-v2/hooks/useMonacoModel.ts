@@ -67,6 +67,11 @@ export function useMonacoModel(
     const registry = MonacoModelRegistry.getInstance();
     const prevFilePath = prevFilePathRef.current;
 
+    // Track if this effect has been cleaned up (to handle async race conditions)
+    let cleanedUp = false;
+    // Track if we've added a reference (to know if cleanup needs to remove it)
+    let referenceAdded = false;
+
     // Release previous model reference if filePath changed
     if (prevFilePath !== null && prevFilePath !== filePath) {
       const prevUri = pathToUri(prevFilePath);
@@ -82,23 +87,31 @@ export function useMonacoModel(
       return;
     }
 
+    const uri = pathToUri(filePath);
+
     // Async function to get or create the model
     const loadModel = async () => {
       try {
-        const uri = pathToUri(filePath);
-
         // Get or create the model
         const newModel = await registry.getOrCreateModel(filePath, cwd);
 
+        // Check if cleanup was called while we were loading
+        if (cleanedUp) {
+          // Don't add reference - cleanup already ran
+          return;
+        }
+
         // Add reference for this editor
         registry.addReference(uri, editorId);
+        referenceAdded = true;
 
         // Only update state if still mounted and filePath hasn't changed
         if (isMountedRef.current && prevFilePathRef.current === filePath) {
           setModel(newModel);
-        } else if (prevFilePathRef.current !== filePath) {
-          // File changed while loading - release the reference we just added
+        } else {
+          // Either unmounted or file changed while loading - release the reference
           registry.removeReference(uri, editorId);
+          referenceAdded = false;
         }
       } catch (error) {
         console.error(`Failed to load model for ${filePath}:`, error);
@@ -112,8 +125,9 @@ export function useMonacoModel(
 
     // Cleanup: remove reference when unmounting or filePath changes
     return () => {
-      if (filePath !== null) {
-        const uri = pathToUri(filePath);
+      cleanedUp = true;
+      // Only remove reference if we added one
+      if (referenceAdded) {
         registry.removeReference(uri, editorId);
       }
     };
