@@ -403,17 +403,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "notify": {
             const matchingTab = findCallingTerminalTab();
-            const callingPane = matchingTab
-              ? Object.entries(matchingTab.panes).find(
-                  ([, pane]) =>
-                    pane.type === "terminal" && pane.sessionId === sessionId,
-                )
-              : null;
+            const callingPane = Object.entries(matchingTab.panes).find(
+              ([, pane]) =>
+                pane.type === "terminal" && pane.sessionId === sessionId,
+            );
 
             // Don't show button if calling terminal is already active
             const isAlreadyActive =
-              matchingTab &&
-              callingPane &&
               matchingTab.id === activeTab?.id &&
               callingPane[0] === activeTab?.activePaneId;
 
@@ -421,18 +417,17 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               kind: "info",
               message: args.text,
               persistent: true,
-              actions:
-                matchingTab && callingPane && !isAlreadyActive
-                  ? [
-                      {
-                        label: "Show terminal",
-                        onClick: () => {
-                          focusTab(matchingTab.id);
-                          activatePane(matchingTab.id, callingPane[0]);
-                        },
+              actions: !isAlreadyActive
+                ? [
+                    {
+                      label: "Show terminal",
+                      onClick: () => {
+                        focusTab(matchingTab.id);
+                        activatePane(matchingTab.id, callingPane[0]);
                       },
-                    ]
-                  : undefined,
+                    },
+                  ]
+                : undefined,
             });
 
             respondResult();
