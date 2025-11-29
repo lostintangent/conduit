@@ -49,6 +49,11 @@ export type PaneMoveTarget = (typeof PANE_MOVE_TARGETS)[number];
 export const PANE_SPLIT_TARGETS = ["left", "right", "top", "bottom"] as const;
 export type PaneSplitTarget = (typeof PANE_SPLIT_TARGETS)[number];
 
+export type OpenTabOptions = {
+  command?: string;
+  title?: string;
+};
+
 export type CliCommand =
   // Pane commands
   | DefineCommand<"pane-list", { paneType: PaneType }, Pane[]>
@@ -60,7 +65,7 @@ export type CliCommand =
   | DefineCommand<"pane-close", { closeTab: boolean }>
   | DefineCommand<"pane-focus">
   // Tab commands
-  | DefineCommand<"tab-new", { title?: string; command?: string }>
+  | DefineCommand<"tab-new", OpenTabOptions>
   | DefineCommand<"tab-duplicate">
   // Terminal commands
   | DefineCommand<"terminal-read", { sessionId: string }, string>

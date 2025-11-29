@@ -14,6 +14,7 @@ import type {
   WebViewPane,
 } from "@/types";
 import { generateId } from "@/utils/id";
+import type { OpenTabOptions } from "@shared/cli/types";
 import type { AgentSessionInfo, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import path from "path-browserify";
@@ -79,11 +80,6 @@ export function generateIncrementedTabTitle(
 
   return `${baseName} ${highestNumber}`;
 }
-
-export type OpenTabOptions = {
-  command?: string;
-  title?: string;
-};
 
 export async function openTab(
   options?: OpenTabOptions,
