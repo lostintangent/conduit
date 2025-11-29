@@ -30,5 +30,17 @@ export default function (program: Command): Command {
       "Simular press enter/return after sending the input",
     );
 
+  program
+    .cliCommand(
+      "notify",
+      async (request, messageParts: string[], { persistent }) => {
+        const message = messageParts.join(" ");
+        await request({ message, persistent: !!persistent });
+      },
+    )
+    .description("Display a notification")
+    .argument("<message...>", "The notification message to display")
+    .option("-p, --persistent", "Don't auto-hide the notification");
+
   return program;
 }

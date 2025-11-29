@@ -83,7 +83,9 @@ export type CliCommand =
   | DefineCommand<"browser-scroll", BrowserScrollArgs>
   | DefineCommand<"browser-wait", BrowserWaitArgs>
   // Editor commands
-  | DefineCommand<"editor-open", { cwd: string; filePath?: string }>;
+  | DefineCommand<"editor-open", { cwd: string; filePath?: string }>
+  // Notification commands
+  | DefineCommand<"notify", { message: string; persistent?: boolean }>;
 
 /* Response types (Renderer -> IPC -> CLI) */
 
