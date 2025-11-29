@@ -7,7 +7,7 @@ export default function (program: Command): Command {
     )
     .alias("new")
     .description("Open a new tab.")
-    .option("-t, --title <title>", "Optional title for the new tab")
+    .option("-t, --title <title>", "Title for the new tab")
     .option("-c, --command <command>", "Command to run in the new tab");
 
   program

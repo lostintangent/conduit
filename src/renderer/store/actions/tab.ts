@@ -80,8 +80,8 @@ export function generateIncrementedTabTitle(
   return `${baseName} ${highestNumber}`;
 }
 
-type OpenTabOptions = {
-  initialCommand?: string;
+export type OpenTabOptions = {
+  command?: string;
   title?: string;
 };
 
@@ -126,12 +126,12 @@ export async function openTab(
   ]);
   focusTab(tabId);
 
-  const initialCommand = options?.initialCommand;
-  if (initialCommand && initialCommand.length > 0) {
+  const command = options?.command;
+  if (command && command.length > 0) {
     const commandWithNewline =
-      initialCommand.endsWith("\n") || initialCommand.endsWith("\r")
-        ? initialCommand
-        : `${initialCommand}\n`;
+      command.endsWith("\n") || command.endsWith("\r")
+        ? command
+        : `${command}\n`;
 
     api.sendKeypress(result.sessionId, commandWithNewline);
   }
