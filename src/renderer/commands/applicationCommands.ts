@@ -48,6 +48,7 @@ import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
+  clonePane,
   closePane,
   movePane,
   openEditorPane,
@@ -476,16 +477,9 @@ export function registerApplicationCommands(
     },
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
-      if (!targetTabId) {
-        return;
-      }
-
       const targetTab =
         context.allTabs.find((tab) => tab.id === targetTabId) ??
         context.activeTab;
-      if (!targetTab) {
-        return;
-      }
 
       updateTabProperty(targetTabId, {
         synchronized: !targetTab.synchronized,
@@ -533,11 +527,9 @@ export function registerApplicationCommands(
       when: When.and(paneIsCollapsed.isFalse()),
     },
     run: (context, tabId?: string, paneId?: string) => {
-      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
-      if (targetTabId && targetPaneId) {
-        setPaneCollapsed(targetTabId, targetPaneId, true);
-      }
+      setPaneCollapsed(targetTabId, targetPaneId, true);
     },
   });
 
@@ -554,11 +546,9 @@ export function registerApplicationCommands(
       when: paneIsCollapsed.isTrue(),
     },
     run: (context, tabId?: string, paneId?: string) => {
-      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
-      if (targetTabId && targetPaneId) {
-        setPaneCollapsed(targetTabId, targetPaneId, false);
-      }
+      setPaneCollapsed(targetTabId, targetPaneId, false);
     },
   });
 
@@ -575,11 +565,9 @@ export function registerApplicationCommands(
       order: 1,
     },
     run: (context, tabId?: string, paneId?: string) => {
-      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
-      if (targetTabId && targetPaneId) {
-        closePane(targetTabId, targetPaneId);
-      }
+      closePane(targetTabId, targetPaneId);
     },
   });
 
@@ -907,6 +895,25 @@ export function registerApplicationCommands(
       if (targetTabId && targetPaneId) {
         movePaneToTab(targetTabId, targetPaneId);
       }
+    },
+  });
+
+  // Pane: Clone
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_CLONE,
+    title: "Clone Pane",
+    description: "Create a clone of the active pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 5,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      clonePane(targetTabId, targetPaneId);
     },
   });
 

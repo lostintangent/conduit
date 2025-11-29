@@ -207,10 +207,8 @@ export function setPaneCollapsed(
   // this function shouldn't be called directly from unguarded locations.
 
   store.set(tabsAtom, (tabs) => {
-    const tab = tabs.find(({ id }) => id === tabId);
-    const pane = tab.panes[paneId];
-
     // Find the layout node for the pane and update its collapsed state
+    const tab = tabs.find(({ id }) => id === tabId);
     walkLayout(tab.layout, ({ node, parent }) => {
       if (node.type === "pane" && node.paneId === paneId) {
         if (collapsed) {
@@ -235,6 +233,10 @@ export function setPaneCollapsed(
             }
           }
         } else {
+          // When expanding a collapsed pane, we
+          // remove the collapsed property, since
+          // that is the default state and doesn't
+          // need to be persisted to the workspace.
           delete node.collapsed;
 
           // Activate the pane when restoring it
@@ -855,6 +857,45 @@ export function openEditorPane(
   );
 }
 
+export function clonePane(
+  tabId: string,
+  paneId: string,
+  direction: SplitDirection = "row",
+  insertBefore = false,
+) {
+  // Note: This method is only expected to be called from the clone
+  // command, which is already guarded by checks for whether the pane
+  // can be cloned. So we're not repeating those checks here. That said,
+  store.set(tabsAtom, (tabs) => {
+    const tab = tabs.find(({ id }) => id === tabId);
+    const sourcePane = tab.panes[paneId];
+
+    const newPaneId = generateId();
+    const newPane: Pane = {
+      ...sourcePane,
+      id: newPaneId,
+    };
+
+    const newLayoutNode: LayoutNode = {
+      id: generateId(),
+      type: "pane",
+      paneId: newPaneId,
+    };
+
+    const { node: newLayout } = splitLayoutNode(
+      tab.layout,
+      paneId,
+      direction,
+      newLayoutNode,
+      insertBefore,
+    );
+
+    tab.panes[newPaneId] = newPane;
+    tab.layout = newLayout;
+    tab.activePaneId = newPaneId;
+  });
+}
+
 type RemovePaneOptions = {
   skipTerminalClose?: boolean;
 };
@@ -893,10 +934,27 @@ export function removePane(
       }
 
       if (pane.type === "terminal") {
-        if (!options.skipTerminalClose) {
+        // Check if there are other panes across all tabs sharing this session
+        const allTabs = store.get(tabsAtom);
+        const otherPanesWithSameSession = allTabs.flatMap((t) =>
+          Object.values(t.panes).filter(
+            (p) =>
+              p.id !== paneId &&
+              p.type === "terminal" &&
+              p.sessionId === pane.sessionId,
+          ),
+        );
+
+        // Only close the PTY if this is the last pane using this session
+        if (
+          otherPanesWithSameSession.length === 0 &&
+          !options.skipTerminalClose
+        ) {
           api.closeTerminal(pane.sessionId);
         }
-        disposeSession(pane.sessionId);
+
+        // Always dispose the xterm instance for this specific pane
+        disposeSession(paneId);
       }
 
       const newPanes = { ...tab.panes };

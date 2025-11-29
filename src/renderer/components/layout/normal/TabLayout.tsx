@@ -447,7 +447,7 @@ export function TabLayout({
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
             {pane.type === "terminal" ? (
               <TerminalPane
-                key={pane.sessionId}
+                key={pane.id}
                 terminalId={pane.sessionId}
                 paneId={pane.id}
                 tabId={tab.id}

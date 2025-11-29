@@ -28,8 +28,6 @@ import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker"
   },
 };
 
-console.log("[Monaco Workers] MonacoEnvironment configured");
-
 // Import from 'monaco-editor' (full bundle) NOT 'monaco-editor/esm/vs/editor/editor.api'
 // The full bundle automatically includes all language contributions
 import * as monaco from "monaco-editor";
@@ -75,10 +73,6 @@ export async function configureTsConfig(cwd: string, api: any): Promise<void> {
   // See the global configuration after monaco import
 }
 
-console.log(
-  "[Monaco Workers] Full monaco-editor bundle loaded with all languages",
-);
-
 // Disable TypeScript diagnostics globally to prevent errors with custom URIs
 // This must be done at initialization, not in configureTsConfig
 monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
@@ -91,8 +85,6 @@ monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
   noSyntaxValidation: true,
   noSuggestionDiagnostics: true,
 });
-
-console.log("[Monaco TypeScript] Diagnostics disabled globally");
 
 // Configure markdown language to support wrapping selections with markdown syntax
 monaco.languages.setLanguageConfiguration("markdown", {
@@ -120,13 +112,9 @@ monaco.languages.setLanguageConfiguration("markdown", {
   ],
 });
 
-console.log("[Monaco] Markdown language configuration enhanced");
-
 // Initialize Shiki for VS Code-quality syntax highlighting
 // Shiki will provide "dark-plus" and "light-plus" themes with proper markdown support
 async function initializeShiki() {
-  console.log("[Monaco Shiki] Initializing TextMate grammars...");
-
   try {
     // Create Shiki highlighter with themes and languages
     // Only include languages that are confirmed to exist in Shiki's bundle
@@ -191,8 +179,6 @@ async function initializeShiki() {
     // Wire Shiki to Monaco for rich syntax highlighting
     // This automatically registers all loaded themes with Monaco
     shikiToMonaco(highlighter, monaco);
-
-    console.log("[Monaco Shiki] TextMate grammars loaded successfully!");
 
     // Export highlighter for potential use elsewhere
     (window as any).shikiHighlighter = highlighter;

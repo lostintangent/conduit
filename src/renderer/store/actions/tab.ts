@@ -706,10 +706,6 @@ export async function duplicateTabIntoWorktree(
 }
 
 export function registerTabEventHandlers() {
-  if (!api) {
-    return () => {};
-  }
-
   const unsubscribeTitle = api.onTitle(({ sessionId, title }) => {
     updatePaneProperty(sessionId, { processTitle: title });
   });
