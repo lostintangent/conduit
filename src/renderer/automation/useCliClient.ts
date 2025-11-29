@@ -2,6 +2,9 @@ import { browserAutomate } from "@/automation/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
+import { enqueueNotification } from "@/store/actions/notifications";
+import { activatePane } from "@/store/actions/pane";
+import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
@@ -143,6 +146,18 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         }
 
         return matchingTab;
+      };
+
+      // Helper function to find the tab and pane containing the calling terminal
+      const findCallingTerminalTabAndPane = () => {
+        for (const tab of tabs) {
+          for (const [paneId, pane] of Object.entries(tab.panes)) {
+            if (pane.type === "terminal" && pane.sessionId === sessionId) {
+              return { tabId: tab.id, paneId };
+            }
+          }
+        }
+        return null;
       };
 
       try {
@@ -394,6 +409,32 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "tab-duplicate": {
             await duplicateTabCommand.execute();
+            respondResult();
+            break;
+          }
+
+          case "notify": {
+            const callingTerminal = findCallingTerminalTabAndPane();
+
+            enqueueNotification({
+              kind: "info",
+              message: args.text,
+              actions: callingTerminal
+                ? [
+                    {
+                      label: "Show terminal",
+                      onClick: () => {
+                        focusTab(callingTerminal.tabId);
+                        activatePane(
+                          callingTerminal.tabId,
+                          callingTerminal.paneId,
+                        );
+                      },
+                    },
+                  ]
+                : undefined,
+            });
+
             respondResult();
             break;
           }

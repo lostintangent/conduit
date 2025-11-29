@@ -30,5 +30,13 @@ export default function (program: Command): Command {
       "Simular press enter/return after sending the input",
     );
 
+  program
+    .cliCommand("notify", async (request, textParts: string[]) => {
+      const text = textParts.join(" ");
+      await request({ text });
+    })
+    .description("Display a notification with a button to show the terminal")
+    .argument("<text...>", "The notification text to display");
+
   return program;
 }
