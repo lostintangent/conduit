@@ -9,63 +9,127 @@ import { renderHook } from "@testing-library/react";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { mockGitv2, MockGitV2API } = vi.hoisted(() => {
-  // Mock window.conduit.gitv2
-  const gitv2 = {
-    getStatus: vi.fn(),
-    getFileStatus: vi.fn(),
-    isDirty: vi.fn(),
-    hasUnpushed: vi.fn(),
-    getDiff: vi.fn(),
-    getFileAtRef: vi.fn(),
-    stage: vi.fn(),
-    unstage: vi.fn(),
-    commit: vi.fn(),
-    getCurrentBranch: vi.fn(),
-    getBranches: vi.fn(),
-    checkout: vi.fn(),
-    findRoot: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    release: vi.fn(),
-    onStatusChanged: vi.fn(() => vi.fn()),
-    onBranchChanged: vi.fn(() => vi.fn()),
-    onCommitCreated: vi.fn(() => vi.fn()),
-    onHeadChanged: vi.fn(() => vi.fn()),
-  };
+const { mockGitv2, MockGitV2API, mockService, mockServiceInstance } =
+  vi.hoisted(() => {
+    // Mock window.conduit.gitv2
+    const gitv2 = {
+      getStatus: vi.fn(),
+      getFileStatus: vi.fn(),
+      isDirty: vi.fn(),
+      hasUnpushed: vi.fn(),
+      getDiff: vi.fn(),
+      getFileAtRef: vi.fn(),
+      stage: vi.fn(),
+      unstage: vi.fn(),
+      commit: vi.fn(),
+      getCurrentBranch: vi.fn(),
+      getBranches: vi.fn(),
+      checkout: vi.fn(),
+      findRoot: vi.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      release: vi.fn(),
+      onStatusChanged: vi.fn(() => vi.fn()),
+      onBranchChanged: vi.fn(() => vi.fn()),
+      onCommitCreated: vi.fn(() => vi.fn()),
+      onHeadChanged: vi.fn(() => vi.fn()),
+    };
 
-  // Set up window.conduit
-  (globalThis as any).window = (globalThis as any).window || {};
-  (globalThis as any).window.conduit = { gitv2 };
+    // Set up window.conduit
+    (globalThis as any).window = (globalThis as any).window || {};
+    (globalThis as any).window.conduit = { gitv2 };
 
-  // Create a mock class that tracks instances
-  class MockAPI {
-    readonly cwd: string;
-    private _released = false;
+    // Track API instances for verification
+    const instances = new Map<
+      string,
+      { cwd: string; released: boolean; refCount: number }
+    >();
 
-    constructor(cwd: string) {
-      this.cwd = cwd;
+    // Create a mock class that tracks instances
+    class MockAPI {
+      readonly cwd: string;
+      private _released = false;
+
+      constructor(cwd: string) {
+        this.cwd = cwd;
+      }
+
+      release(): void {
+        if (this._released) return;
+        this._released = true;
+        const entry = instances.get(this.cwd);
+        if (entry) {
+          entry.released = true;
+        }
+      }
+
+      get isReleased(): boolean {
+        return this._released;
+      }
     }
 
-    release(): void {
-      if (this._released) return;
-      this._released = true;
-    }
+    // Mock service instance
+    const serviceInstance = {
+      acquire: vi.fn((cwd: string) => {
+        let entry = instances.get(cwd);
+        if (!entry) {
+          const api = new MockAPI(cwd);
+          entry = { cwd, released: false, refCount: 0 };
+          instances.set(cwd, entry);
+          (entry as any).api = api;
+        }
+        entry.refCount++;
+        return (entry as any).api;
+      }),
+      release: vi.fn((cwd: string) => {
+        const entry = instances.get(cwd);
+        if (entry) {
+          entry.refCount--;
+        }
+      }),
+      getRefCount: vi.fn((cwd: string) => {
+        return instances.get(cwd)?.refCount ?? 0;
+      }),
+      hasInstance: vi.fn((cwd: string) => {
+        return instances.has(cwd);
+      }),
+      getStats: vi.fn(() => ({
+        instanceCount: instances.size,
+        totalRefCount: Array.from(instances.values()).reduce(
+          (sum, e) => sum + e.refCount,
+          0,
+        ),
+      })),
+    };
 
-    get isReleased(): boolean {
-      return this._released;
-    }
-  }
+    // Mock service class
+    const service = {
+      getInstance: vi.fn(() => serviceInstance),
+      resetInstance: vi.fn(() => {
+        instances.clear();
+      }),
+    };
 
-  return {
-    mockGitv2: gitv2,
-    MockGitV2API: MockAPI,
-  };
-});
+    return {
+      mockGitv2: gitv2,
+      MockGitV2API: MockAPI,
+      mockService: service,
+      mockServiceInstance: serviceInstance,
+      getInstances: () => instances,
+      clearInstances: () => {
+        instances.clear();
+      },
+    };
+  });
 
 // Mock the GitV2API class
 vi.mock("../../../src/renderer/api/GitV2API", () => ({
   GitV2API: MockGitV2API,
+}));
+
+// Mock the GitV2APIService
+vi.mock("../../../src/renderer/services/GitV2APIService", () => ({
+  GitV2APIService: mockService,
 }));
 
 // Import after mocks are set up
@@ -78,6 +142,7 @@ import { useGitV2 } from "../../../src/renderer/hooks/useGitV2";
 describe("useGitV2", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockService.resetInstance();
     // Reset window.conduit
     (globalThis as any).window.conduit = { gitv2: mockGitv2 };
   });
@@ -98,6 +163,12 @@ describe("useGitV2", () => {
       expect(result.current.cwd).toBe("/test/project");
     });
 
+    it("should acquire instance from service", () => {
+      renderHook(() => useGitV2("/test/project"));
+
+      expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/test/project");
+    });
+
     it("should return the same instance on re-renders with same cwd", () => {
       const { result, rerender } = renderHook(() => useGitV2("/test/project"));
 
@@ -106,6 +177,8 @@ describe("useGitV2", () => {
       const secondInstance = result.current;
 
       expect(firstInstance).toBe(secondInstance);
+      // Should only acquire once
+      expect(mockServiceInstance.acquire).toHaveBeenCalledTimes(1);
     });
 
     it("should not be released initially", () => {
@@ -135,17 +208,17 @@ describe("useGitV2", () => {
       expect(firstInstance).not.toBe(secondInstance);
     });
 
-    it("should release old instance when cwd changes", () => {
-      const { result, rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
+    it("should release old cwd via service when cwd changes", () => {
+      const { rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
         initialProps: { cwd: "/project/a" },
       });
 
-      const firstInstance = result.current;
-
       rerender({ cwd: "/project/b" });
 
-      // The old instance should be released
-      expect(firstInstance.isReleased).toBe(true);
+      // Service should have been called to release the old cwd
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/a");
+      // And acquire the new cwd
+      expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/project/b");
     });
 
     it("should keep same instance when cwd stays the same", () => {
@@ -159,7 +232,8 @@ describe("useGitV2", () => {
       rerender({ cwd: "/project/a" });
 
       expect(result.current).toBe(firstInstance);
-      expect(firstInstance.isReleased).toBe(false);
+      // Should not have released
+      expect(mockServiceInstance.release).not.toHaveBeenCalled();
     });
   });
 
@@ -168,42 +242,30 @@ describe("useGitV2", () => {
   // ===========================================================================
 
   describe("unmount cleanup", () => {
-    it("should release instance on unmount", () => {
-      const { result, unmount } = renderHook(() => useGitV2("/test/project"));
-
-      const instance = result.current;
-      expect(instance.isReleased).toBe(false);
+    it("should release via service on unmount", () => {
+      const { unmount } = renderHook(() => useGitV2("/test/project"));
 
       unmount();
 
-      expect(instance.isReleased).toBe(true);
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/test/project");
     });
 
     it("should handle multiple CWD changes then unmount", () => {
-      const { result, rerender, unmount } = renderHook(
-        ({ cwd }) => useGitV2(cwd),
-        {
-          initialProps: { cwd: "/project/a" },
-        },
-      );
-
-      const firstInstance = result.current;
+      const { rerender, unmount } = renderHook(({ cwd }) => useGitV2(cwd), {
+        initialProps: { cwd: "/project/a" },
+      });
 
       rerender({ cwd: "/project/b" });
-      const secondInstance = result.current;
-
       rerender({ cwd: "/project/c" });
-      const thirdInstance = result.current;
 
-      // First two should already be released from CWD changes
-      expect(firstInstance.isReleased).toBe(true);
-      expect(secondInstance.isReleased).toBe(true);
-      expect(thirdInstance.isReleased).toBe(false);
+      // First two should have been released from CWD changes
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/a");
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/b");
 
       unmount();
 
-      // Now all should be released
-      expect(thirdInstance.isReleased).toBe(true);
+      // The last cwd should be released on unmount
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/c");
     });
   });
 
@@ -229,28 +291,57 @@ describe("useGitV2", () => {
       );
     });
 
-    it("should handle rapid CWD changes", () => {
+    it("should normalize paths with trailing slashes", () => {
       const { result, rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
+        initialProps: { cwd: "/project/foo/" },
+      });
+
+      const firstInstance = result.current;
+
+      // Rerender with same path but without trailing slash
+      rerender({ cwd: "/project/foo" });
+
+      // Should be the same instance (no release/acquire)
+      expect(result.current).toBe(firstInstance);
+      expect(mockServiceInstance.release).not.toHaveBeenCalled();
+      expect(mockServiceInstance.acquire).toHaveBeenCalledTimes(1);
+    });
+
+    it("should normalize paths with multiple trailing slashes", () => {
+      const { result, rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
+        initialProps: { cwd: "/project/foo///" },
+      });
+
+      const firstInstance = result.current;
+
+      // Rerender with normalized path
+      rerender({ cwd: "/project/foo" });
+
+      // Should be the same instance
+      expect(result.current).toBe(firstInstance);
+      expect(mockServiceInstance.release).not.toHaveBeenCalled();
+    });
+
+    it("should handle rapid CWD changes", () => {
+      const { rerender, unmount } = renderHook(({ cwd }) => useGitV2(cwd), {
         initialProps: { cwd: "/project/1" },
       });
 
-      // Store references to actual instances (not snapshots)
-      type Instance = ReturnType<typeof useGitV2>;
-      const instances: Instance[] = [];
-      instances.push(result.current);
-
       for (let i = 2; i <= 10; i++) {
         rerender({ cwd: `/project/${i}` });
-        instances.push(result.current);
       }
 
-      // All previous instances should be released
-      for (let i = 0; i < instances.length - 1; i++) {
-        expect(instances[i].isReleased).toBe(true);
+      // All previous cwds should have been released
+      for (let i = 1; i < 10; i++) {
+        expect(mockServiceInstance.release).toHaveBeenCalledWith(
+          `/project/${i}`,
+        );
       }
 
-      // Current instance should not be released
-      expect(result.current.isReleased).toBe(false);
+      unmount();
+
+      // Final cwd should be released on unmount
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/10");
     });
   });
 });

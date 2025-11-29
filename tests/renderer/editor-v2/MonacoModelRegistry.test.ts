@@ -5,30 +5,76 @@ import * as monaco from "monaco-editor";
 // Mocks - Using vi.hoisted for proper module hoisting
 // ============================================================================
 
-const { mockFsApi } = vi.hoisted(() => {
-  const mockFsApi = {
-    stat: vi.fn(),
-    readTextFile: vi.fn(),
-    writeTextFile: vi.fn(),
-    onAnyFileContentChanged: vi.fn(() => vi.fn()),
-    onAnyFileDeleted: vi.fn(() => vi.fn()),
-    onAnyFileRenamed: vi.fn(() => vi.fn()),
-    release: vi.fn(),
-  };
+const { mockFsApi, MockFileSystemV2API, mockFsService, mockFsServiceInstance } =
+  vi.hoisted(() => {
+    const mockFsApi = {
+      stat: vi.fn(),
+      readTextFile: vi.fn(),
+      writeTextFile: vi.fn(),
+      onAnyFileContentChanged: vi.fn(() => vi.fn()),
+      onAnyFileDeleted: vi.fn(() => vi.fn()),
+      onAnyFileRenamed: vi.fn(() => vi.fn()),
+      release: vi.fn(),
+    };
 
-  return { mockFsApi };
-});
+    // Track API instances by cwd
+    const instances = new Map<string, any>();
+
+    // Mock FileSystemV2API class
+    class MockAPI {
+      cwd: string;
+      constructor(cwd: string) {
+        this.cwd = cwd;
+        // Copy all mock methods
+        Object.assign(this, mockFsApi);
+      }
+    }
+
+    // Mock service instance
+    const serviceInstance = {
+      acquire: vi.fn((cwd: string) => {
+        let api = instances.get(cwd);
+        if (!api) {
+          api = new MockAPI(cwd);
+          instances.set(cwd, api);
+        }
+        return api;
+      }),
+      release: vi.fn(),
+      getRefCount: vi.fn(() => 0),
+      hasInstance: vi.fn((cwd: string) => instances.has(cwd)),
+      getStats: vi.fn(() => ({
+        instanceCount: instances.size,
+        totalRefCount: 0,
+      })),
+    };
+
+    // Mock service class
+    const service = {
+      getInstance: vi.fn(() => serviceInstance),
+      resetInstance: vi.fn(() => {
+        instances.clear();
+      }),
+    };
+
+    return {
+      mockFsApi,
+      MockFileSystemV2API: MockAPI,
+      mockFsService: service,
+      mockFsServiceInstance: serviceInstance,
+      getInstances: () => instances,
+      clearInstances: () => instances.clear(),
+    };
+  });
 
 // Mock FileSystemV2API using the full source path
 vi.mock("../../../src/renderer/api/FileSystemV2API", () => ({
-  FileSystemV2API: class MockFileSystemV2API {
-    cwd: string;
-    constructor(cwd: string) {
-      this.cwd = cwd;
-      // Copy all mock methods
-      Object.assign(this, mockFsApi);
-    }
-  },
+  FileSystemV2API: MockFileSystemV2API,
+}));
+
+// Mock FileSystemV2APIService
+vi.mock("../../../src/renderer/services/FileSystemV2APIService", () => ({
+  FileSystemV2APIService: mockFsService,
 }));
 
 // Access the mock helpers from our global monaco mock
@@ -62,6 +108,7 @@ import {
 describe("MonacoModelRegistry", () => {
   beforeEach(() => {
     MonacoModelRegistry.resetInstance();
+    mockFsService.resetInstance();
     vi.clearAllMocks();
     monacoMock.__testHelpers.resetContentChangeHandler();
     monacoMock.__testHelpers.resetVersionCounter();
@@ -80,6 +127,7 @@ describe("MonacoModelRegistry", () => {
 
   afterEach(() => {
     MonacoModelRegistry.resetInstance();
+    mockFsService.resetInstance();
     vi.useRealTimers();
   });
 

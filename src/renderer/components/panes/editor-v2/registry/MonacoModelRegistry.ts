@@ -53,6 +53,7 @@
 
 import * as monaco from "monaco-editor";
 import { FileSystemV2API } from "../../../../api/FileSystemV2API";
+import { FileSystemV2APIService } from "../../../../services/FileSystemV2APIService";
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
@@ -676,9 +677,10 @@ export class MonacoModelRegistry {
       this.disposeModel(uri);
     }
 
-    // Release all filesystem APIs
-    for (const fsApi of this.fsApis.values()) {
-      fsApi.release();
+    // Release all filesystem APIs via service
+    const fsService = FileSystemV2APIService.getInstance();
+    for (const cwd of this.fsApis.keys()) {
+      fsService.release(cwd);
     }
     this.fsApis.clear();
 
@@ -1194,11 +1196,15 @@ export class MonacoModelRegistry {
 
   /**
    * Get or create a FileSystemV2API for a CWD.
+   *
+   * Uses FileSystemV2APIService to share instances with other components
+   * using the same cwd, reducing duplicate IPC subscriptions.
    */
   private getOrCreateFsApi(cwd: string): FileSystemV2API {
     let fsApi = this.fsApis.get(cwd);
     if (!fsApi) {
-      fsApi = new FileSystemV2API(cwd);
+      // Acquire from service (increments refCount)
+      fsApi = FileSystemV2APIService.getInstance().acquire(cwd);
       this.fsApis.set(cwd, fsApi);
     }
     return fsApi;

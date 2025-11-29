@@ -2,9 +2,8 @@
  * React Hook for Git v2 API
  *
  * Provides a convenient way to use the GitV2API in React components.
- * Handles lifecycle management automatically - creates API instance on mount
- * and releases it on unmount. Also handles CWD changes by releasing the old
- * instance and creating a new one.
+ * Uses GitV2APIService to share instances across components with the
+ * same cwd, reducing duplicate IPC subscriptions.
  *
  * @example
  * ```tsx
@@ -38,49 +37,63 @@
 
 import { useEffect, useRef } from "react";
 import { GitV2API } from "../api/GitV2API";
+import { GitV2APIService } from "../services/GitV2APIService";
 
 /**
- * Hook to create and manage a GitV2API instance.
+ * Normalize a path for consistent comparison.
+ * Removes trailing slashes to match service normalization.
+ */
+function normalizePath(path: string): string {
+  return path.replace(/\/+$/, "");
+}
+
+/**
+ * Hook to acquire a shared GitV2API instance.
  *
- * The returned API instance is stable for the same `cwd` value.
- * When `cwd` changes, the old instance is released and a new one is created.
- * On unmount, the instance is automatically released.
+ * The returned API instance is shared across all components using the same cwd.
+ * When cwd changes, the old reference is released and a new one is acquired.
+ * On unmount, the reference is released (instance may be kept alive by other users).
  *
  * @param cwd - Working directory to scope operations to
- * @returns GitV2API instance
+ * @returns GitV2API instance (shared)
  */
 export function useGitV2(cwd: string): GitV2API {
+  const service = GitV2APIService.getInstance();
+
+  // Normalize path to match service's normalization
+  const normalizedCwd = normalizePath(cwd);
+
   // Use ref to hold the API instance - avoids recreating on every render
   const apiRef = useRef<GitV2API | null>(null);
 
-  // Track the current CWD to detect changes
-  const cwdRef = useRef<string>(cwd);
+  // Track the CWD we acquired (for releasing the correct one)
+  const acquiredCwdRef = useRef<string | null>(null);
 
-  // Create initial instance or recreate if CWD changed
-  if (apiRef.current === null || cwdRef.current !== cwd) {
-    // Release previous instance if it exists
-    if (apiRef.current !== null) {
-      apiRef.current.release();
+  // Acquire instance or re-acquire if CWD changed
+  if (apiRef.current === null || acquiredCwdRef.current !== normalizedCwd) {
+    // Release previous reference if we had one
+    if (acquiredCwdRef.current !== null) {
+      service.release(acquiredCwdRef.current);
     }
 
-    // Create new instance
-    apiRef.current = new GitV2API(cwd);
-    cwdRef.current = cwd;
+    // Acquire new instance via service
+    apiRef.current = service.acquire(normalizedCwd);
+    acquiredCwdRef.current = normalizedCwd;
   }
 
   // Cleanup on unmount
   useEffect(() => {
-    // Return cleanup function
     return () => {
-      if (apiRef.current !== null) {
-        apiRef.current.release();
+      // Release our reference via service
+      if (acquiredCwdRef.current !== null) {
+        service.release(acquiredCwdRef.current);
+        acquiredCwdRef.current = null;
         apiRef.current = null;
       }
     };
   }, []); // Empty deps - only runs on unmount
 
   // Return the current API instance
-  // We know it's not null because we create it above if it is
   return apiRef.current;
 }
 
