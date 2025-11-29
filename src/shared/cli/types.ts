@@ -60,7 +60,7 @@ export type CliCommand =
   | DefineCommand<"pane-close", { closeTab: boolean }>
   | DefineCommand<"pane-focus">
   // Tab commands
-  | DefineCommand<"tab-new", { title?: string }>
+  | DefineCommand<"tab-new", { title?: string; command?: string }>
   | DefineCommand<"tab-duplicate">
   // Terminal commands
   | DefineCommand<"terminal-read", { sessionId: string }, string>

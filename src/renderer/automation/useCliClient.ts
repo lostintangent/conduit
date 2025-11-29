@@ -388,7 +388,10 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "tab-new": {
-            await openTab({ title: args?.title });
+            await openTab({
+              title: args?.title,
+              initialCommand: args?.command,
+            });
             respondResult();
             break;
           }
