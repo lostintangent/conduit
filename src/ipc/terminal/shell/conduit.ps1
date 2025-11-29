@@ -10,7 +10,7 @@ if (Test-Path Function:\prompt) {
   $script:originalPrompt = Get-Content Function:\prompt
 }
 
-function prompt {
+function global:prompt {
   __conduit_osc7
   if ($script:originalPrompt) {
     & $script:originalPrompt

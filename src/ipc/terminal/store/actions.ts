@@ -16,9 +16,7 @@ import type {
   TerminalInstance,
 } from "../types";
 
-const disposeSessionResources = (session: TerminalInstance) => {
-  session.bufferedOutput = [];
-};
+
 
 const describeProcess = (session: TerminalInstance) => {
   if (session.cloudEnvironment) {
@@ -288,7 +286,7 @@ function setupTerminalListeners(
   });
 
   pty.onExit(async ({ exitCode, signal }) => {
-    disposeSessionResources(terminal);
+    removeTerminal(id);
 
     // Clean up VM if this was a VM session
     if (terminal.cloudEnvironment) {
@@ -322,20 +320,6 @@ function setupTerminalListeners(
       signal: signal ?? null,
     });
 
-    setTimeout(() => {
-      const current = getTerminal(id);
-      if (current && current.pty === terminal.pty) {
-        removeTerminal(id);
-      }
-    }, 2000);
-  });
-
-  const title = describeProcess(terminal);
-  terminal.lastProcessName = title;
-
-  sendToRenderer("terminal:cwd", {
-    sessionId: id,
-    cwd: terminal.cwd,
   });
 }
 
@@ -370,7 +354,6 @@ export async function killTerminal(terminalId: string) {
   }
 
   removeTerminal(terminalId);
-  disposeSessionResources(terminal);
 
   try {
     terminal.pty.kill();

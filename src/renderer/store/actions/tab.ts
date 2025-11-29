@@ -706,10 +706,6 @@ export async function duplicateTabIntoWorktree(
 }
 
 export function registerTabEventHandlers() {
-  const unsubscribeCwd = api.onCwd(({ sessionId, cwd }) => {
-    updatePaneProperty(sessionId, { cwd });
-  });
-
   const unsubscribeExit = api.onExit(({ sessionId }) => {
     const tabs = store.get(tabsAtom);
 
@@ -738,7 +734,6 @@ export function registerTabEventHandlers() {
   );
 
   return () => {
-    unsubscribeCwd();
     unsubscribeExit();
     unsubscribeNewTab();
     unsubscribeOpenWorkspace();
