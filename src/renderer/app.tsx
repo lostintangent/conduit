@@ -251,10 +251,6 @@ export function App() {
   }, [tabs, openTab]);
 
   useEffect(() => {
-    const closeTerminalSession = (sessionId: string) => {
-      disposeSession(sessionId);
-    };
-
     const unsubscribeExit = api.onExit(({ sessionId }) => {
       // Handle quick pane exit
       setQuickPaneState((current) => {
@@ -266,7 +262,7 @@ export function App() {
           return current;
         }
 
-        closeTerminalSession(sessionId);
+        disposeSession(sessionId);
         return null;
       });
 
@@ -276,7 +272,7 @@ export function App() {
           return current;
         }
 
-        closeTerminalSession(sessionId);
+        disposeSession(sessionId);
         return null;
       });
     });

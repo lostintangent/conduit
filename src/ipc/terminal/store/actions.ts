@@ -48,12 +48,6 @@ export async function createTerminal(
   sendToRenderer: SendToRendererFn,
   options?: CreateTerminalOptions,
 ) {
-  console.log("[createTerminal] Function called with options:", {
-    isRemoteVM: options?.isRemoteVM,
-    existingVMId: options?.existingVMId,
-    hasGithubRepo: !!options?.githubRepo,
-  });
-
   const id = randomUUID();
 
   // Check if this should be a remote VM session

@@ -8,7 +8,7 @@ import registerTerminalCommands from "./commands/terminal";
 
 // Import the cliCommand extension to commander
 // that allows defining CLI command handlers
-// in a fully type manner.
+// in a fully type-safe manner.
 import "./ipc";
 
 const program = new Command(CLI_COMMAND_NAME).description(

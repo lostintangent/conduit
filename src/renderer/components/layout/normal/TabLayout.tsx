@@ -273,6 +273,7 @@ export function TabLayout({
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const activeTabId = activeTab?.id ?? null;
+
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
@@ -447,7 +448,7 @@ export function TabLayout({
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
             {pane.type === "terminal" ? (
               <TerminalPane
-                key={pane.sessionId}
+                key={pane.id}
                 terminalId={pane.sessionId}
                 paneId={pane.id}
                 tabId={tab.id}

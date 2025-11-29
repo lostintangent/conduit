@@ -169,10 +169,4 @@ export function registerDefaultPreCommands(): void {
   registry.register(verifyGitRepo);
   registry.register(createAgentSession);
   registry.register(detectGitHubRepoForCloud);
-
-  console.log("[PreCommands] Default pre-commands registered:", {
-    verifyGitRepo: verifyGitRepo.id,
-    createAgentSession: createAgentSession.id,
-    detectGitHubRepoForCloud: detectGitHubRepoForCloud.id,
-  });
 }
