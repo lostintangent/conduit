@@ -11,6 +11,7 @@ import type {
   BrowserTypeArgs,
   BrowserWaitArgs,
 } from "./browser";
+import type { NewTabOptions } from "@shared/types";
 
 export const CLI_COMMAND_NAME = "conduit";
 
@@ -60,7 +61,7 @@ export type CliCommand =
   | DefineCommand<"pane-close", { closeTab: boolean }>
   | DefineCommand<"pane-focus">
   // Tab commands
-  | DefineCommand<"tab-new">
+  | DefineCommand<"tab-new", NewTabOptions>
   | DefineCommand<"tab-duplicate">
   // Terminal commands
   | DefineCommand<"terminal-read", { sessionId: string }, string>

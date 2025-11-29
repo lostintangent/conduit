@@ -14,7 +14,7 @@ import type {
   WebViewPane,
 } from "@/types";
 import { generateId } from "@/utils/id";
-import type { AgentSessionInfo, Workspace } from "@shared/types";
+import type { AgentSessionInfo, NewTabOptions, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import path from "path-browserify";
 import { openWorkspace } from "./workspace";
@@ -81,7 +81,7 @@ export function generateIncrementedTabTitle(
 }
 
 export async function openTab(
-  initialCommand?: string,
+  options?: NewTabOptions,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   // Inherit CWD from the active tab's active pane
   const activeTab = store.get(activeTabAtom);
@@ -116,15 +116,17 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
+      title: options?.title,
     },
   ]);
   focusTab(tabId);
 
-  if (initialCommand && initialCommand.length > 0) {
+  const command = options?.command;
+  if (command && command.length > 0) {
     const commandWithNewline =
-      initialCommand.endsWith("\n") || initialCommand.endsWith("\r")
-        ? initialCommand
-        : `${initialCommand}\n`;
+      command.endsWith("\n") || command.endsWith("\r")
+        ? command
+        : `${command}\n`;
 
     api.sendKeypress(result.sessionId, commandWithNewline);
   }

@@ -2,6 +2,7 @@ import { browserAutomate } from "@/automation/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
+import { openTab } from "@/store/actions/tab";
 import {
   dismissNotification,
   enqueueNotification,
@@ -37,7 +38,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const focusPaneCommand = useCommand(ApplicationCommands.PANE_FOCUS);
   const closePaneCommand = useCommand(ApplicationCommands.PANE_CLOSE);
   const closeTabCommand = useCommand(ApplicationCommands.TAB_CLOSE);
-  const newTabCommand = useCommand(ApplicationCommands.TAB_NEW);
   const duplicateTabCommand = useCommand(ApplicationCommands.TAB_DUPLICATE);
 
   const splitLeftTerminalCommand = useCommand(
@@ -393,7 +393,10 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "tab-new": {
-            await newTabCommand.execute();
+            await openTab({
+              title: args?.title,
+              command: args?.command,
+            });
             respondResult();
             break;
           }
