@@ -1,6 +1,6 @@
 import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
-import type { Pane, Tab } from "@/types";
-import type { Workspace } from "@shared/types";
+import type { Pane, Tab, TerminalPane } from "@/types";
+import type { TerminalCreateResponse, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import { closeTab } from "./tab";
 
@@ -12,27 +12,52 @@ export async function openWorkspace(workspace: Workspace) {
     return;
   }
 
+  // Track mapping of old sessionIds to new terminal sessions.
+  // This allows cloned panes (which share the same sessionId) to be
+  // properly restored with a shared new terminal session.
+  const sessionMapping = new Map<string, TerminalCreateResponse>();
+
   const workspaceTabs: Tab[] = [];
   for (const workspaceTab of workspace.tabs) {
     const panes: Record<string, Pane> = {};
     for (const pane of workspaceTab.panes) {
       if (pane.type === "terminal") {
-        const result = await api.createTerminal(
-          pane.cwd ? { cwd: pane.cwd } : undefined,
-        );
+        const oldSessionId = pane.sessionId;
+
+        // Check if we've already created a terminal for this session
+        // (happens when restoring cloned panes that shared the same sessionId)
+        let result: TerminalCreateResponse;
+        const existingSession = oldSessionId
+          ? sessionMapping.get(oldSessionId)
+          : undefined;
+
+        if (existingSession) {
+          // Reuse the existing terminal session for cloned panes
+          result = existingSession;
+        } else {
+          // Create a new terminal session
+          result = await api.createTerminal(
+            pane.cwd ? { cwd: pane.cwd } : undefined,
+          );
+
+          // Track the mapping if the pane had a sessionId
+          if (oldSessionId) {
+            sessionMapping.set(oldSessionId, result);
+          }
+
+          // If a command was running, auto-run it (only for the first pane in a clone group)
+          if (pane.command?.trim().length > 0) {
+            const commandWithNewline = pane.command.endsWith("\n")
+              ? pane.command
+              : `${pane.command}\n`;
+            api.sendKeypress(result.sessionId, commandWithNewline);
+          }
+        }
 
         panes[pane.id] = {
-          ...(pane as Pane),
+          ...(pane as unknown as TerminalPane),
           ...result,
         };
-
-        // If a command was running, auto-run it
-        if (pane.command?.trim().length > 0) {
-          const commandWithNewline = pane.command.endsWith("\n")
-            ? pane.command
-            : `${pane.command}\n`;
-          api.sendKeypress(result.sessionId, commandWithNewline);
-        }
       } else {
         // For non-terminal panes, just restore as-is
         panes[pane.id] = {

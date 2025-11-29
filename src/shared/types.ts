@@ -62,7 +62,9 @@ export type Workspace = {
       type: "terminal" | "webview" | "editor";
       cwd?: string | null;
 
-      // For terminal panes - the command that was running
+      // For terminal panes - the session ID and command that was running
+      // Note: sessionId is used to track cloned panes (panes that share the same session)
+      sessionId?: string;
       command?: string | null;
 
       // For editor panes
