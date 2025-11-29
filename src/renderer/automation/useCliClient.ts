@@ -148,18 +148,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         return matchingTab;
       };
 
-      // Helper function to find the tab and pane containing the calling terminal
-      const findCallingTerminalTabAndPane = () => {
-        for (const tab of tabs) {
-          for (const [paneId, pane] of Object.entries(tab.panes)) {
-            if (pane.type === "terminal" && pane.sessionId === sessionId) {
-              return { tabId: tab.id, paneId };
-            }
-          }
-        }
-        return null;
-      };
-
       try {
         switch (name) {
           case "editor-open": {
@@ -414,25 +402,29 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "notify": {
-            const callingTerminal = findCallingTerminalTabAndPane();
+            const matchingTab = findCallingTerminalTab();
+            const callingPane = matchingTab
+              ? Object.entries(matchingTab.panes).find(
+                  ([, pane]) =>
+                    pane.type === "terminal" && pane.sessionId === sessionId,
+                )
+              : null;
 
             enqueueNotification({
               kind: "info",
               message: args.text,
-              actions: callingTerminal
-                ? [
-                    {
-                      label: "Show terminal",
-                      onClick: () => {
-                        focusTab(callingTerminal.tabId);
-                        activatePane(
-                          callingTerminal.tabId,
-                          callingTerminal.paneId,
-                        );
+              actions:
+                matchingTab && callingPane
+                  ? [
+                      {
+                        label: "Show terminal",
+                        onClick: () => {
+                          focusTab(matchingTab.id);
+                          activatePane(matchingTab.id, callingPane[0]);
+                        },
                       },
-                    },
-                  ]
-                : undefined,
+                    ]
+                  : undefined,
             });
 
             respondResult();

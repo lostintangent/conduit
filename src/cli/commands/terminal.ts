@@ -35,7 +35,7 @@ export default function (program: Command): Command {
       const text = textParts.join(" ");
       await request({ text });
     })
-    .description("Display a notification with a button to show the terminal")
+    .description("Display a notification")
     .argument("<text...>", "The notification text to display");
 
   return program;
