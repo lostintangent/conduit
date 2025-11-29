@@ -3,14 +3,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { exitFocusMode } from "@/store/actions/focusMode";
 import { activatePane } from "@/store/actions/pane";
-import { exitFocusMode, getAllPaneIds } from "@/store/actions/focusMode";
 import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
-import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { tabLabelsAtom } from "@/store/tabLabels";
+import { useAtomValue } from "jotai";
+import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FocusModeMiniMap } from "./FocusModeMiniMap";
 
 export function FocusModeIndicator() {
@@ -27,13 +27,6 @@ export function FocusModeIndicator() {
     }
     return tabs.findIndex((tab) => tab.id === activeTabId);
   }, [tabs, activeTabId]);
-
-  const activeTabPaneIds = useMemo(() => {
-    if (!activeTab) {
-      return [];
-    }
-    return getAllPaneIds(activeTab);
-  }, [activeTab]);
 
   const hasMultipleTabs = totalTabs > 1;
   const canGoPrev = hasMultipleTabs && activeTabIndex > 0;
@@ -86,13 +79,12 @@ export function FocusModeIndicator() {
 
     return (
       <FocusModeMiniMap
-        key={activeTabPaneIds.join("|")}
         layout={activeTab.layout}
         activePaneId={activeTab.activePaneId}
         onSelectPane={handleSelectPane}
       />
     );
-  }, [activeTab, activeTabPaneIds, handleSelectPane]);
+  }, [activeTab, handleSelectPane]);
 
   if (!activeTab) {
     return null;

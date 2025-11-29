@@ -60,6 +60,7 @@ export const ApplicationCommands = {
   PANE_SPLIT_RIGHT_EDITOR: "pane.splitRightEditor",
   PANE_SPLIT_TOP_EDITOR: "pane.splitTopEditor",
   PANE_SPLIT_BOTTOM_EDITOR: "pane.splitBottomEditor",
+  PANE_CLONE: "pane.clone",
 
   // Terminal commands
   TERMINAL_CREATE_CLOUD: "terminal.createCloud",

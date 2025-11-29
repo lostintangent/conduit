@@ -409,3 +409,8 @@ export type TerminalPromptStreamChunk = {
   data?: string;
   error?: string;
 };
+
+export type NewTabOptions = {
+  command?: string;
+  title?: string;
+};

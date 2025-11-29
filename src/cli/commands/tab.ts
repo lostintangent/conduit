@@ -1,7 +1,14 @@
 import { Command } from "commander";
 
 export default function (program: Command): Command {
-  program.cliCommand("tab-new").alias("new").description("Open a new tab.");
+  program
+    .cliCommand("tab-new", (request, { title, command }) =>
+      request({ title, command }),
+    )
+    .alias("new")
+    .description("Open a new tab.")
+    .option("-t, --title <title>", "Title for the new tab")
+    .option("-c, --command <command>", "Command to run in the new tab");
 
   program
     .cliCommand("tab-duplicate")

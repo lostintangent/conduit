@@ -2,6 +2,13 @@ import { browserAutomate } from "@/automation/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
+import { openTab } from "@/store/actions/tab";
+import {
+  dismissNotification,
+  enqueueNotification,
+} from "@/store/actions/notifications";
+import { activatePane } from "@/store/actions/pane";
+import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
@@ -31,7 +38,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const focusPaneCommand = useCommand(ApplicationCommands.PANE_FOCUS);
   const closePaneCommand = useCommand(ApplicationCommands.PANE_CLOSE);
   const closeTabCommand = useCommand(ApplicationCommands.TAB_CLOSE);
-  const newTabCommand = useCommand(ApplicationCommands.TAB_NEW);
   const duplicateTabCommand = useCommand(ApplicationCommands.TAB_DUPLICATE);
 
   const splitLeftTerminalCommand = useCommand(
@@ -387,13 +393,51 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "tab-new": {
-            await newTabCommand.execute();
+            await openTab({
+              title: args?.title,
+              command: args?.command,
+            });
             respondResult();
             break;
           }
 
           case "tab-duplicate": {
             await duplicateTabCommand.execute();
+            respondResult();
+            break;
+          }
+
+          case "notify": {
+            const matchingTab = findCallingTerminalTab();
+            const callingPane = Object.entries(matchingTab.panes).find(
+              ([, pane]) =>
+                pane.type === "terminal" && pane.sessionId === sessionId,
+            );
+
+            // Don't show button if calling terminal is already active
+            const isAlreadyActive =
+              matchingTab.id === activeTab?.id &&
+              callingPane[0] === activeTab?.activePaneId;
+
+            const notificationId = enqueueNotification({
+              kind: "info",
+              message: args.message,
+              persistent: args.persistent ?? false,
+              actions: !isAlreadyActive
+                ? [
+                    {
+                      label: "Focus terminal",
+                      onClick: () => {
+                        focusTab(matchingTab.id);
+                        activatePane(matchingTab.id, callingPane[0]);
+
+                        dismissNotification(notificationId);
+                      },
+                    },
+                  ]
+                : undefined,
+            });
+
             respondResult();
             break;
           }

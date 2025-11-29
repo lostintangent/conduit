@@ -18,7 +18,7 @@ import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
 import { PromptModeOverlay } from "./PromptModeOverlay";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
-import { attach, getOrCreate, getTerminalBuffer } from "./xtermCache";
+import { attach, getOrCreate, serializeSession } from "./xtermCache";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -121,8 +121,8 @@ const registerTerminalKeyHandler = ({
  * Terminal lifecycle overview:
  *
  * 1. React renders <TerminalPane/>.
- * 2. We call getOrCreate(terminalId) to reuse or construct an xterm instance and its addons
- *    (fit/search/weblinks). The instance keeps a Ready flag so we don’t re-signal readiness later.
+ * 2. We call getOrCreate(sessionId, paneId) to reuse or construct an xterm instance and its addons
+ *    (fit/search/weblinks). The instance keeps a ready flag so we don’t re-signal readiness later.
  * 3. attach(terminalId, container) mounts the xterm DOM into the pane.
  * 4. The fit controller owns a ResizeObserver and a single RAF-driven loop. It fits the terminal DOM
  *    to the container, resizes the PTY only when cols/rows change, and marks the session ready after
@@ -298,10 +298,9 @@ export const TerminalPane = ({
       terminal.writeln(`\r\n\x1b[36m❯ [${agentName}] ${prompt}\x1b[0m\r`);
 
       // Get terminal buffer
-      const buffer = getTerminalBuffer(
-        terminalId,
-        settings.terminalPromptBufferLines || 100,
-      );
+      const buffer = serializeSession(terminalId, {
+        scrollback: settings.terminalPromptBufferLines || 100,
+      });
 
       // Construct full prompt
       const fullPrompt = constructPrompt(prompt, buffer || "", cwd || null);
@@ -404,46 +403,43 @@ export const TerminalPane = ({
     let controller: ReturnType<typeof createFitController> | null = null;
     let detachKeyHandler: (() => void) | null = null;
 
-    (async () => {
-      const settings = await api.getSettings();
-      const terminal = getOrCreate(terminalId, settings);
-      if (!mounted) return;
+    const terminal = getOrCreate(terminalId, paneId, settings);
+    if (!mounted) return;
 
-      terminalRef.current = terminal;
+    terminalRef.current = terminal;
 
-      // Apply custom font size if provided
-      if (fontSize !== undefined) {
-        terminal.terminal.options.fontSize = fontSize;
-      }
+    // Apply custom font size if provided
+    if (fontSize !== undefined) {
+      terminal.terminal.options.fontSize = fontSize;
+    }
 
-      attach(terminalId, container);
+    attach(paneId, container);
 
-      controller = createFitController({
-        container,
-        entry: terminal,
-        setDimensions,
-      });
+    controller = createFitController({
+      container,
+      entry: terminal,
+      setDimensions,
+    });
 
-      // If font size was changed, trigger a fit after a short delay
-      // to ensure the terminal has rendered with the new font size
-      if (fontSize !== undefined) {
-        setTimeout(() => {
-          terminal.fit.fit();
-        }, 0);
-      }
+    // If font size was changed, trigger a fit after a short delay
+    // to ensure the terminal has rendered with the new font size
+    if (fontSize !== undefined) {
+      setTimeout(() => {
+        terminal.fit.fit();
+      }, 0);
+    }
 
-      detachKeyHandler = registerTerminalKeyHandler({
-        entry: terminal,
-        terminalId,
-        showSearchWidget,
-        togglePromptMode: handleTogglePromptMode,
-        getApplicationMode: () => applicationModeRef.current,
-        setNormalMode: () => setApplicationModeRef.current("normal"),
-        onSynchronizedInput: isTabSynchronized
-          ? handleSynchronizedInput
-          : undefined,
-      });
-    })();
+    detachKeyHandler = registerTerminalKeyHandler({
+      entry: terminal,
+      terminalId,
+      showSearchWidget,
+      togglePromptMode: handleTogglePromptMode,
+      getApplicationMode: () => applicationModeRef.current,
+      setNormalMode: () => setApplicationModeRef.current("normal"),
+      onSynchronizedInput: isTabSynchronized
+        ? handleSynchronizedInput
+        : undefined,
+    });
 
     return () => {
       mounted = false;
@@ -475,6 +471,8 @@ export const TerminalPane = ({
     fontSize,
   ]);
 
+  // Update the terminal's input handler whenever a
+  // tab's synchronization state changes.
   useEffect(() => {
     const terminal = terminalRef.current;
     if (!terminal) {
