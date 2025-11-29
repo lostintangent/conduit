@@ -2,6 +2,7 @@ import {
   defaultFontFamily,
   defaultFontSize,
 } from "@/components/shell/TerminalFontSettingsDialog";
+import { updatePaneProperty } from "@/store/actions/pane";
 import { resolveColor } from "@/utils/theme";
 import { UserSettings } from "@shared/types";
 import { FitAddon } from "@xterm/addon-fit";
@@ -28,6 +29,11 @@ export type xtermInstance = {
   resize: (cols: number, rows: number) => void;
   dispose: () => void;
 };
+
+// Pattern to extract file path from OSC 7 file:// URL format
+// Format: file://hostname/path BEL (hostname may be empty)
+// eslint-disable-next-line no-control-regex
+const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)$/;
 
 // Map of pane IDs to their xterm terminal instances, which allows
 // us to reuse terminal instances when panes are moved around.
@@ -184,6 +190,36 @@ export function getOrCreate(
       inputHandlerRef.current?.(input);
     });
 
+    // Register OSC 7 handler for CWD changes
+    // OSC 7 format: ESC ] 7 ; file://hostname/path BEL
+    // We store the last known CWD to avoid redundant updates
+    let lastKnownCwd: string | null = null;
+    const osc7Disposable = terminal.parser.registerOscHandler(7, (data) => {
+      const match = OSC_CWD_PATTERN.exec(data);
+      if (match && match[1]) {
+        // URL decode the path to handle special characters
+        let cwd: string;
+        try {
+          cwd = decodeURIComponent(match[1]);
+        } catch {
+          cwd = match[1];
+        }
+        if (cwd !== lastKnownCwd) {
+          lastKnownCwd = cwd;
+          updatePaneProperty(sessionId, { cwd });
+        }
+      }
+      return true; // Indicate the OSC was handled
+    });
+
+    // Register onTitleChange handler for terminal title updates
+    // This is triggered by OSC 0, 1, or 2 sequences from the shell
+    const onTitleChangeDisposable = terminal.onTitleChange((title) => {
+      if (title) {
+        updatePaneProperty(sessionId, { processTitle: title });
+      }
+    });
+
     const newInstance: xtermInstance = {
       terminal,
       fit,
@@ -204,7 +240,9 @@ export function getOrCreate(
       },
       resize: (cols, rows) => api.resize(sessionId, cols, rows),
       dispose: () => {
-        // Dispose the xterm instance and all its resources/addons
+        osc7Disposable.dispose();
+        onTitleChangeDisposable.dispose();
+
         terminal.dispose();
         onDataDispose.dispose();
 

@@ -23,14 +23,12 @@ import type {
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
   TerminalCreateResponse,
-  TerminalCwdPayload,
   TerminalDataPayload,
   TerminalExitPayload,
   TerminalPromptRequest,
   TerminalPromptResponse,
   TerminalPromptStreamChunk,
   TerminalSSHStatePayload,
-  TerminalTitlePayload,
   TreeChangedEvent,
   UserSettings,
   VMInfo,
@@ -94,14 +92,6 @@ const conduitAPI = {
         listener(payload.data);
       }
     }),
-
-  // Notify when terminal title has changed
-  onTitle: (listener: (payload: TerminalTitlePayload) => void) =>
-    createEventListener("terminal:title", listener),
-
-  // Notify when terminal's current working directory has changed
-  onCwd: (listener: (payload: TerminalCwdPayload) => void) =>
-    createEventListener("terminal:cwd", listener),
 
   // Notify when terminal has exited (e.g. user ran `exit` command or closed shell)
   onExit: (listener: (payload: TerminalExitPayload) => void) =>
