@@ -35,6 +35,7 @@ import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
+import { GitBadge } from "../shared";
 
 // ============================================================================
 // Types
@@ -49,93 +50,6 @@ export interface FileTreeChangesProps {
 
   /** Callback when a file is selected */
   onFileSelect: (file: FileNode) => void;
-}
-
-// ============================================================================
-// Git Status Badge
-// ============================================================================
-
-/**
- * Configuration for git status display.
- */
-interface StatusConfig {
-  letter: string;
-  colorClass: string;
-  label: string;
-}
-
-/**
- * Get display configuration for a git status.
- */
-function getStatusConfig(status: GitFileStatus): StatusConfig | null {
-  switch (status.status) {
-    case "modified":
-      return {
-        letter: "M",
-        colorClass: "bg-yellow-500",
-        label: status.staged ? "Modified (staged)" : "Modified",
-      };
-    case "added":
-      return {
-        letter: "A",
-        colorClass: "bg-green-500",
-        label: status.staged ? "Added (staged)" : "Added",
-      };
-    case "deleted":
-      return {
-        letter: "D",
-        colorClass: "bg-red-500",
-        label: status.staged ? "Deleted (staged)" : "Deleted",
-      };
-    case "renamed":
-      return {
-        letter: "R",
-        colorClass: "bg-blue-500",
-        label: "Renamed",
-      };
-    case "copied":
-      return {
-        letter: "C",
-        colorClass: "bg-blue-400",
-        label: "Copied",
-      };
-    case "untracked":
-      return {
-        letter: "U",
-        colorClass: "bg-gray-500",
-        label: "Untracked",
-      };
-    case "unmerged":
-      return {
-        letter: "!",
-        colorClass: "bg-orange-500",
-        label: "Conflict",
-      };
-    default:
-      return null;
-  }
-}
-
-/**
- * Small badge showing git status letter.
- */
-function GitBadge({ status }: { status: GitFileStatus }) {
-  const config = getStatusConfig(status);
-  if (!config) return null;
-
-  return (
-    <div
-      className={cn(
-        "flex-shrink-0 flex items-center justify-center",
-        "text-[10px] font-semibold leading-none",
-        "w-[14px] h-[14px] rounded-sm text-white",
-        config.colorClass,
-      )}
-      title={config.label}
-    >
-      {config.letter}
-    </div>
-  );
 }
 
 // ============================================================================

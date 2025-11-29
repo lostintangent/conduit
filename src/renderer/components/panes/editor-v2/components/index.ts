@@ -78,3 +78,7 @@ export type {
 // Branch comparison components
 export { BranchSelector } from "./BranchSelector";
 export type { BranchSelectorProps } from "./BranchSelector";
+
+// Shared components
+export { GitBadge, getStatusConfig } from "./shared";
+export type { GitBadgeProps } from "./shared";
