@@ -7,7 +7,7 @@ import {
   openWebViewPane,
   splitPane,
 } from "@/store/actions/pane";
-import { openTab, updateTabProperty } from "@/store/actions/tab";
+import { openTab } from "@/store/actions/tab";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { SplitDirection, TerminalPane } from "@/types";
 import type {
@@ -441,10 +441,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "tab-new": {
-            const result = await openTab();
-            if (result && args?.title) {
-              updateTabProperty(result.tabId, { title: args.title });
-            }
+            await openTab({ title: args?.title });
             respondResult();
             break;
           }

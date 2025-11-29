@@ -80,8 +80,13 @@ export function generateIncrementedTabTitle(
   return `${baseName} ${highestNumber}`;
 }
 
+type OpenTabOptions = {
+  initialCommand?: string;
+  title?: string;
+};
+
 export async function openTab(
-  initialCommand?: string,
+  options?: OpenTabOptions,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   // Inherit CWD from the active tab's active pane
   const activeTab = store.get(activeTabAtom);
@@ -116,10 +121,12 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
+      title: options?.title,
     },
   ]);
   focusTab(tabId);
 
+  const initialCommand = options?.initialCommand;
   if (initialCommand && initialCommand.length > 0) {
     const commandWithNewline =
       initialCommand.endsWith("\n") || initialCommand.endsWith("\r")
