@@ -410,11 +410,19 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
                 )
               : null;
 
+            // Don't show button if calling terminal is already active
+            const isAlreadyActive =
+              matchingTab &&
+              callingPane &&
+              matchingTab.id === activeTab?.id &&
+              callingPane[0] === activeTab?.activePaneId;
+
             enqueueNotification({
               kind: "info",
               message: args.text,
+              persistent: true,
               actions:
-                matchingTab && callingPane
+                matchingTab && callingPane && !isAlreadyActive
                   ? [
                       {
                         label: "Show terminal",
