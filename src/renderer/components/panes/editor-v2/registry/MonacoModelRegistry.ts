@@ -802,14 +802,40 @@ export class MonacoModelRegistry {
     }
 
     // Check file size before reading content
-    const stats = await fsApi.stat(filePath);
+    // Wrapped in try/catch to handle file system errors gracefully
+    let fileSize: number;
+    try {
+      const stats = await fsApi.stat(filePath);
+      fileSize = stats.size;
+    } catch (statError) {
+      // Handle specific file system errors
+      const errorMessage =
+        statError instanceof Error ? statError.message : String(statError);
+
+      // ENOENT - file not found (may have been deleted)
+      if (
+        errorMessage.includes("ENOENT") ||
+        errorMessage.includes("no such file")
+      ) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+
+      // EACCES - permission denied
+      if (
+        errorMessage.includes("EACCES") ||
+        errorMessage.includes("permission denied")
+      ) {
+        throw new Error(`Permission denied: ${filePath}`);
+      }
+
+      // Re-throw with context for other errors
+      throw new Error(`Failed to stat file "${filePath}": ${errorMessage}`);
+    }
 
     // Check abort after async operation
     if (signal.aborted) {
       throw new Error("Model load was aborted");
     }
-
-    const fileSize = stats.size;
 
     // Reject files that exceed the maximum size limit
     if (fileSize > this.maxFileSize) {
@@ -833,8 +859,19 @@ export class MonacoModelRegistry {
       throw new Error("Model load was aborted");
     }
 
+    // Re-check content size after read (file may have grown since stat)
+    // Use byte count estimate (content.length * 2 for UTF-16)
+    const actualContentBytes = content.length * 2;
+    if (actualContentBytes > this.maxFileSize) {
+      throw new FileTooLargeError(
+        filePath,
+        actualContentBytes,
+        this.maxFileSize,
+      );
+    }
+
     // Update memory tracking (use 2x for UTF-16 internal representation)
-    this.totalMemoryUsage += content.length * 2;
+    this.totalMemoryUsage += actualContentBytes;
 
     // Detect language
     const language = detectLanguage(filePath);

@@ -129,13 +129,16 @@ export function MonacoEditorWrapper({
   /**
    * Save ViewState with optional debouncing.
    * Immediate save clears any pending debounced save.
+   *
+   * To avoid stale closure issues:
+   * - Reads filePath from ref at execution time (not capture time)
+   * - Verifies filePath hasn't changed when debounced save fires
    */
   const saveViewState = useCallback(
     (immediate = false) => {
       const editor = editorRef.current;
-      const currentFilePath = previousFilePathRef.current;
 
-      if (!editor || !currentFilePath) return;
+      if (!editor) return;
 
       // Clear any pending debounced save
       if (saveViewStateDebounceRef.current) {
@@ -143,7 +146,20 @@ export function MonacoEditorWrapper({
         saveViewStateDebounceRef.current = null;
       }
 
+      // Capture the file path at the time of the call for comparison
+      const filePathAtCallTime = previousFilePathRef.current;
+      if (!filePathAtCallTime) return;
+
       const doSave = () => {
+        // Re-read the current file path at execution time
+        const currentFilePath = previousFilePathRef.current;
+
+        // Verify file hasn't changed since the save was scheduled
+        // This prevents saving ViewState for the wrong file after rapid switches
+        if (currentFilePath !== filePathAtCallTime) {
+          return;
+        }
+
         const viewStateRegistry = ViewStateRegistry.getInstance();
         viewStateRegistry.save(editorId, currentFilePath, editor);
       };
