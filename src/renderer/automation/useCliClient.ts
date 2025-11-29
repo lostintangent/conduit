@@ -2,9 +2,19 @@ import { browserAutomate } from "@/automation/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
+import {
+  openEditorPane,
+  openWebViewPane,
+  splitPane,
+} from "@/store/actions/pane";
+import { openTab, updateTabProperty } from "@/store/actions/tab";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
-import type { TerminalPane } from "@/types";
-import type { CliRequest, CliResponse } from "@shared/cli/types";
+import type { SplitDirection, TerminalPane } from "@/types";
+import type {
+  CliRequest,
+  CliResponse,
+  PaneSplitTarget,
+} from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
@@ -362,9 +372,58 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "pane-split": {
-            const targetCommand =
-              splitCommandMap[args.paneType][args.direction];
-            await targetCommand.execute();
+            // If cwd is provided and pane type is terminal or editor, use custom split logic
+            if (
+              args.cwd &&
+              (args.paneType === "terminal" || args.paneType === "editor")
+            ) {
+              const matchingTab = findCallingTerminalTab();
+              if (!matchingTab) {
+                respondError("Unable to find the calling terminal's tab.");
+                break;
+              }
+
+              // Map direction to split parameters
+              const directionMap: Record<
+                PaneSplitTarget,
+                { direction: SplitDirection; insertBefore: boolean }
+              > = {
+                left: { direction: "row", insertBefore: true },
+                right: { direction: "row", insertBefore: false },
+                top: { direction: "column", insertBefore: true },
+                bottom: { direction: "column", insertBefore: false },
+              };
+
+              const { direction, insertBefore } = directionMap[args.direction];
+
+              if (args.paneType === "terminal") {
+                await splitPane(
+                  matchingTab.id,
+                  matchingTab.activePaneId,
+                  direction,
+                  insertBefore,
+                  { terminalOptions: { cwd: args.cwd } },
+                );
+              } else if (args.paneType === "editor") {
+                openEditorPane(
+                  matchingTab.id,
+                  matchingTab.activePaneId,
+                  args.cwd,
+                  direction,
+                  insertBefore,
+                );
+              }
+            } else if (args.paneType === "browser" && args.cwd) {
+              // Ignore cwd for browser panes - just use the default command
+              const targetCommand =
+                splitCommandMap[args.paneType][args.direction];
+              await targetCommand.execute();
+            } else {
+              // Default behavior when no cwd or browser pane
+              const targetCommand =
+                splitCommandMap[args.paneType][args.direction];
+              await targetCommand.execute();
+            }
 
             respondResult();
             break;
@@ -387,7 +446,10 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "tab-new": {
-            await newTabCommand.execute();
+            const result = await openTab();
+            if (result && args?.title) {
+              updateTabProperty(result.tabId, { title: args.title });
+            }
             respondResult();
             break;
           }

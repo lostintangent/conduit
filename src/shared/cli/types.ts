@@ -55,12 +55,12 @@ export type CliCommand =
   | DefineCommand<"pane-move", { direction: PaneMoveTarget }>
   | DefineCommand<
       "pane-split",
-      { direction: PaneSplitTarget; paneType: PaneSplitType }
+      { direction: PaneSplitTarget; paneType: PaneSplitType; cwd?: string }
     >
   | DefineCommand<"pane-close", { closeTab: boolean }>
   | DefineCommand<"pane-focus">
   // Tab commands
-  | DefineCommand<"tab-new">
+  | DefineCommand<"tab-new", { title?: string }>
   | DefineCommand<"tab-duplicate">
   // Terminal commands
   | DefineCommand<"terminal-read", { sessionId: string }, string>
