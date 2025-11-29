@@ -156,7 +156,8 @@ export function DiffEditorWrapper({
   const diffContent = useDiffContent(filePath, baseBranch, cwd);
 
   // Get the shared model for the modified side
-  const modifiedModel = useMonacoModel(filePath, cwd);
+  // Pass editorId to ensure consistent reference counting with other registries
+  const modifiedModel = useMonacoModel(editorId, filePath, cwd);
 
   // Infer language from file path
   const language = inferLanguageFromPath(filePath);
@@ -315,7 +316,7 @@ export function DiffEditorWrapper({
         className="flex h-full w-full items-center justify-center text-destructive"
         data-testid="diff-editor-error"
       >
-        {diffContent.error}
+        {diffContent.error.message}
       </div>
     );
   }

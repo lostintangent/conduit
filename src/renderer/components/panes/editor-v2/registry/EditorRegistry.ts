@@ -34,8 +34,11 @@ import * as monaco from "monaco-editor";
 import type { EditorMetadata } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
 
-/** Delay before unpinning an editor after it becomes hidden */
-const UNPIN_DELAY_MS = 1000;
+/** Delay before unpinning an editor after it becomes hidden (aligned with model grace period) */
+const UNPIN_DELAY_MS = 5000;
+
+/** Maximum number of pinned editors to prevent unbounded memory growth */
+const DEFAULT_MAX_PINNED_EDITORS = 5;
 
 /**
  * Extended editor entry with pinning support.
@@ -126,6 +129,9 @@ export class EditorRegistry {
 
   /** Maximum number of editors to keep (for LRU eviction) */
   private maxEditors: number = DEFAULT_MAX_EDITORS;
+
+  /** Maximum number of pinned editors to prevent unbounded memory */
+  private maxPinnedEditors: number = DEFAULT_MAX_PINNED_EDITORS;
 
   /** Private constructor - use getInstance() */
   private constructor() {}
@@ -283,6 +289,9 @@ export class EditorRegistry {
    * Call this when an editor becomes visible/active. Pinned editors
    * are protected from eviction until explicitly unpinned.
    *
+   * If pinning would exceed maxPinnedEditors, the oldest pinned editors
+   * are automatically unpinned to make room.
+   *
    * @param editorId - The editor ID to pin
    */
   pinEditor(editorId: string): void {
@@ -297,7 +306,36 @@ export class EditorRegistry {
       entry.unpinTimer = undefined;
     }
 
+    // If already pinned, nothing more to do
+    if (entry.isPinned) {
+      return;
+    }
+
     entry.isPinned = true;
+
+    // Enforce pinned limit - unpin oldest pinned editors if we exceed the limit
+    this.enforcePinnedLimit();
+  }
+
+  /**
+   * Get the current number of pinned editors.
+   */
+  get pinnedCount(): number {
+    let count = 0;
+    for (const entry of this.editors.values()) {
+      if (entry.isPinned) count++;
+    }
+    return count;
+  }
+
+  /**
+   * Set the maximum number of pinned editors.
+   *
+   * @param max - Maximum pinned editors allowed
+   */
+  setMaxPinnedEditors(max: number): void {
+    this.maxPinnedEditors = max;
+    this.enforcePinnedLimit();
   }
 
   /**
@@ -451,11 +489,17 @@ export class EditorRegistry {
       .sort(([, a], [, b]) => a.metadata.lastUsed - b.metadata.lastUsed);
 
     // Count how many we need to dispose
-    const pinnedCount = this.editors.size - candidates.length;
-    const targetSize = Math.max(this.maxEditors, pinnedCount); // Can't go below pinned count
+    const currentPinnedCount = this.editors.size - candidates.length;
+    const targetSize = Math.max(this.maxEditors, currentPinnedCount); // Can't go below pinned count
     const toDisposeCount = this.editors.size - targetSize;
 
     if (toDisposeCount <= 0) {
+      // All editors are pinned and we can't evict - log warning
+      if (candidates.length === 0 && this.editors.size > this.maxEditors) {
+        console.warn(
+          `[EditorRegistry] Cannot evict: all ${this.editors.size} editors are pinned (max: ${this.maxEditors})`,
+        );
+      }
       return;
     }
 
@@ -465,5 +509,48 @@ export class EditorRegistry {
     for (const [editorId] of toDispose) {
       this.disposeEditor(editorId);
     }
+  }
+
+  /**
+   * Enforce the maximum pinned editors limit.
+   *
+   * When the number of pinned editors exceeds maxPinnedEditors,
+   * force-unpin the oldest pinned editors (by lastUsed timestamp)
+   * to bring the count back within limits. This prevents unbounded
+   * memory growth when users keep opening new tabs.
+   */
+  private enforcePinnedLimit(): void {
+    // Get all pinned editors sorted by lastUsed (oldest first)
+    const pinnedEditors = Array.from(this.editors.entries())
+      .filter(([, entry]) => entry.isPinned)
+      .sort(([, a], [, b]) => a.metadata.lastUsed - b.metadata.lastUsed);
+
+    const currentPinnedCount = pinnedEditors.length;
+    if (currentPinnedCount <= this.maxPinnedEditors) {
+      return;
+    }
+
+    // Calculate how many to unpin
+    const toUnpinCount = currentPinnedCount - this.maxPinnedEditors;
+
+    console.debug(
+      `[EditorRegistry] Pinned limit exceeded (${currentPinnedCount}/${this.maxPinnedEditors}), unpinning ${toUnpinCount} oldest editors`,
+    );
+
+    // Unpin the oldest editors immediately (no delay)
+    for (let i = 0; i < toUnpinCount; i++) {
+      const [editorId, entry] = pinnedEditors[i];
+
+      // Clear any pending unpin timer
+      if (entry.unpinTimer) {
+        clearTimeout(entry.unpinTimer);
+        entry.unpinTimer = undefined;
+      }
+
+      entry.isPinned = false;
+    }
+
+    // After unpinning, run LRU eviction to clean up if needed
+    this.evictLRU();
   }
 }

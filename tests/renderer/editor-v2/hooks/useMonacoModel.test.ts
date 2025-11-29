@@ -66,7 +66,7 @@ describe("useMonacoModel", () => {
   describe("basic functionality", () => {
     it("should return null initially while loading", async () => {
       const { result } = renderHook(() =>
-        useMonacoModel("/test/file.ts", "/test"),
+        useMonacoModel("editor-1", "/test/file.ts", "/test"),
       );
 
       // Initially null while async loading
@@ -80,7 +80,7 @@ describe("useMonacoModel", () => {
 
     it("should return model for valid file path", async () => {
       const { result } = renderHook(() =>
-        useMonacoModel("/test/file.ts", "/test"),
+        useMonacoModel("editor-1", "/test/file.ts", "/test"),
       );
 
       await waitFor(() => {
@@ -94,7 +94,9 @@ describe("useMonacoModel", () => {
     });
 
     it("should return null for null file path", () => {
-      const { result } = renderHook(() => useMonacoModel(null, "/test"));
+      const { result } = renderHook(() =>
+        useMonacoModel("editor-1", null, "/test"),
+      );
 
       expect(result.current).toBe(null);
       expect(mockRegistry.getOrCreateModel).not.toHaveBeenCalled();
@@ -106,20 +108,22 @@ describe("useMonacoModel", () => {
   // ===========================================================================
 
   describe("reference counting", () => {
-    it("should add reference on mount", async () => {
-      renderHook(() => useMonacoModel("/test/file.ts", "/test"));
+    it("should add reference on mount with provided editorId", async () => {
+      renderHook(() =>
+        useMonacoModel("my-editor-id", "/test/file.ts", "/test"),
+      );
 
       await waitFor(() => {
         expect(mockRegistry.addReference).toHaveBeenCalledWith(
           pathToUri("/test/file.ts"),
-          expect.any(String),
+          "my-editor-id",
         );
       });
     });
 
-    it("should remove reference on unmount", async () => {
+    it("should remove reference on unmount with same editorId", async () => {
       const { unmount } = renderHook(() =>
-        useMonacoModel("/test/file.ts", "/test"),
+        useMonacoModel("my-editor-id", "/test/file.ts", "/test"),
       );
 
       await waitFor(() => {
@@ -130,12 +134,14 @@ describe("useMonacoModel", () => {
 
       expect(mockRegistry.removeReference).toHaveBeenCalledWith(
         pathToUri("/test/file.ts"),
-        expect.any(String),
+        "my-editor-id",
       );
     });
 
     it("should not add/remove reference for null file path", () => {
-      const { unmount } = renderHook(() => useMonacoModel(null, "/test"));
+      const { unmount } = renderHook(() =>
+        useMonacoModel("editor-1", null, "/test"),
+      );
 
       expect(mockRegistry.addReference).not.toHaveBeenCalled();
 
@@ -152,8 +158,15 @@ describe("useMonacoModel", () => {
   describe("file path changes", () => {
     it("should handle file path change correctly", async () => {
       const { result, rerender } = renderHook(
-        ({ filePath, cwd }) => useMonacoModel(filePath, cwd),
-        { initialProps: { filePath: "/test/file1.ts", cwd: "/test" } },
+        ({ editorId, filePath, cwd }) =>
+          useMonacoModel(editorId, filePath, cwd),
+        {
+          initialProps: {
+            editorId: "editor-1",
+            filePath: "/test/file1.ts",
+            cwd: "/test",
+          },
+        },
       );
 
       await waitFor(() => {
@@ -163,12 +176,16 @@ describe("useMonacoModel", () => {
       const firstUri = pathToUri("/test/file1.ts");
 
       // Change to a different file
-      rerender({ filePath: "/test/file2.ts", cwd: "/test" });
+      rerender({
+        editorId: "editor-1",
+        filePath: "/test/file2.ts",
+        cwd: "/test",
+      });
 
       // Should remove reference from old file
       expect(mockRegistry.removeReference).toHaveBeenCalledWith(
         firstUri,
-        expect.any(String),
+        "editor-1",
       );
 
       // Should get/create model for new file
@@ -182,9 +199,11 @@ describe("useMonacoModel", () => {
 
     it("should handle change from file to null", async () => {
       const { result, rerender } = renderHook(
-        ({ filePath, cwd }) => useMonacoModel(filePath, cwd),
+        ({ editorId, filePath, cwd }) =>
+          useMonacoModel(editorId, filePath, cwd),
         {
           initialProps: {
+            editorId: "editor-1",
             filePath: "/test/file.ts" as string | null,
             cwd: "/test",
           },
@@ -196,12 +215,12 @@ describe("useMonacoModel", () => {
       });
 
       // Change to null
-      rerender({ filePath: null, cwd: "/test" });
+      rerender({ editorId: "editor-1", filePath: null, cwd: "/test" });
 
       // Should remove reference
       expect(mockRegistry.removeReference).toHaveBeenCalledWith(
         pathToUri("/test/file.ts"),
-        expect.any(String),
+        "editor-1",
       );
 
       // Model should be null
@@ -210,15 +229,26 @@ describe("useMonacoModel", () => {
 
     it("should handle change from null to file", async () => {
       const { result, rerender } = renderHook(
-        ({ filePath, cwd }) => useMonacoModel(filePath, cwd),
-        { initialProps: { filePath: null as string | null, cwd: "/test" } },
+        ({ editorId, filePath, cwd }) =>
+          useMonacoModel(editorId, filePath, cwd),
+        {
+          initialProps: {
+            editorId: "editor-1",
+            filePath: null as string | null,
+            cwd: "/test",
+          },
+        },
       );
 
       expect(result.current).toBe(null);
       expect(mockRegistry.getOrCreateModel).not.toHaveBeenCalled();
 
       // Change to a file
-      rerender({ filePath: "/test/file.ts", cwd: "/test" });
+      rerender({
+        editorId: "editor-1",
+        filePath: "/test/file.ts",
+        cwd: "/test",
+      });
 
       await waitFor(() => {
         expect(result.current).toBe(mockModel);
@@ -247,7 +277,7 @@ describe("useMonacoModel", () => {
         .mockImplementation(() => {});
 
       const { result } = renderHook(() =>
-        useMonacoModel("/test/nonexistent.ts", "/test"),
+        useMonacoModel("editor-1", "/test/nonexistent.ts", "/test"),
       );
 
       await waitFor(() => {
@@ -261,31 +291,31 @@ describe("useMonacoModel", () => {
   });
 
   // ===========================================================================
-  // Stable Editor ID
+  // Editor ID Consistency
   // ===========================================================================
 
-  describe("stable editor ID", () => {
-    it("should use same editor ID across re-renders", async () => {
+  describe("editor ID consistency", () => {
+    it("should use provided editorId for all operations", async () => {
       const { rerender } = renderHook(() =>
-        useMonacoModel("/test/file.ts", "/test"),
+        useMonacoModel("consistent-editor-id", "/test/file.ts", "/test"),
       );
 
       await waitFor(() => {
         expect(mockRegistry.addReference).toHaveBeenCalled();
       });
 
-      const firstEditorId = mockRegistry.addReference.mock.calls[0][1];
+      // Verify the provided editorId was used
+      expect(mockRegistry.addReference).toHaveBeenCalledWith(
+        pathToUri("/test/file.ts"),
+        "consistent-editor-id",
+      );
 
       // Re-render with same props
       rerender();
 
-      // Should use the same editor ID
+      // Should still use the same editor ID
       // (addReference should only be called once for the same file)
       expect(mockRegistry.addReference).toHaveBeenCalledTimes(1);
-      expect(mockRegistry.addReference).toHaveBeenCalledWith(
-        expect.any(String),
-        firstEditorId,
-      );
     });
   });
 });

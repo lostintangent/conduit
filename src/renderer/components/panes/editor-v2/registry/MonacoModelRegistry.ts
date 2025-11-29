@@ -214,11 +214,23 @@ export class MonacoModelRegistry {
   /** Map of URI to model entry */
   private models = new Map<string, ModelEntry>();
 
-  /** Map of URI to pending load promise (prevents concurrent loads) */
+  /**
+   * Map of model key to pending load promise (prevents concurrent loads).
+   * Key format: `${cwd}:${uri}` to handle same file path in different cwds.
+   */
   private loadingPromises = new Map<
     string,
     Promise<monaco.editor.ITextModel>
   >();
+
+  /**
+   * Map of model key to AbortController for canceling in-flight loads.
+   * Used by disposeAll() to abort pending loads cleanly.
+   */
+  private loadingAbortControllers = new Map<string, AbortController>();
+
+  /** Flag to prevent new loads after disposal has started */
+  private isDisposing = false;
 
   /** FileSystem APIs by CWD (for file watching) */
   private fsApis = new Map<string, FileSystemV2API>();
@@ -278,6 +290,11 @@ export class MonacoModelRegistry {
     filePath: string,
     cwd: string,
   ): Promise<monaco.editor.ITextModel> {
+    // Prevent new loads during disposal
+    if (this.isDisposing) {
+      throw new Error("Registry is being disposed, cannot create new models");
+    }
+
     const uri = pathToUri(filePath);
     const existing = this.models.get(uri);
 
@@ -291,15 +308,23 @@ export class MonacoModelRegistry {
       return existing.model;
     }
 
-    // Check if a load is already in progress for this URI
-    const pendingLoad = this.loadingPromises.get(uri);
+    // Key includes cwd to prevent incorrect deduplication when same
+    // relative path exists in different working directories
+    const loadingKey = `${cwd}:${uri}`;
+
+    // Check if a load is already in progress for this URI+cwd
+    const pendingLoad = this.loadingPromises.get(loadingKey);
     if (pendingLoad) {
       // Return the existing promise - don't start a second load
       return pendingLoad;
     }
 
+    // Create AbortController for this load
+    const abortController = new AbortController();
+    this.loadingAbortControllers.set(loadingKey, abortController);
+
     // Start loading and track the promise
-    const loadPromise = this.createModel(filePath, cwd)
+    const loadPromise = this.createModel(filePath, cwd, abortController.signal)
       .then((model) => {
         // Run LRU eviction after successful load
         this.evictLRU();
@@ -307,11 +332,12 @@ export class MonacoModelRegistry {
       })
       .finally(() => {
         // Remove from loading map whether success or failure
-        this.loadingPromises.delete(uri);
+        this.loadingPromises.delete(loadingKey);
+        this.loadingAbortControllers.delete(loadingKey);
       });
 
     // Track the loading promise before awaiting
-    this.loadingPromises.set(uri, loadPromise);
+    this.loadingPromises.set(loadingKey, loadPromise);
 
     return loadPromise;
   }
@@ -582,8 +608,8 @@ export class MonacoModelRegistry {
       return;
     }
 
-    // Update memory tracking
-    const contentLength = entry.model.getValue().length;
+    // Update memory tracking (use 2x for UTF-16 internal representation)
+    const contentLength = entry.model.getValue().length * 2;
     this.totalMemoryUsage = Math.max(0, this.totalMemoryUsage - contentLength);
 
     // Clear disposal timer
@@ -610,9 +636,24 @@ export class MonacoModelRegistry {
    * Dispose all models and clean up.
    *
    * Used during shutdown or testing cleanup.
+   * Aborts all in-flight loads to prevent models being created after disposal.
    */
   disposeAll(): void {
-    // Clear any pending loading promises (they'll resolve but model won't be usable)
+    // Set disposing flag to prevent new loads
+    this.isDisposing = true;
+
+    // Abort all in-flight loads
+    for (const [key, controller] of this.loadingAbortControllers) {
+      try {
+        controller.abort();
+      } catch (error) {
+        console.error(
+          `[MonacoModelRegistry] Error aborting load for ${key}:`,
+          error,
+        );
+      }
+    }
+    this.loadingAbortControllers.clear();
     this.loadingPromises.clear();
 
     // Dispose all models
@@ -628,6 +669,9 @@ export class MonacoModelRegistry {
 
     // Dispose event emitter
     this._onModelStateChanged.dispose();
+
+    // Reset disposing flag (in case instance is reused)
+    this.isDisposing = false;
   }
 
   // ---------------------------------------------------------------------------
@@ -740,17 +784,31 @@ export class MonacoModelRegistry {
   /**
    * Create a new model and add it to the registry.
    *
+   * @param signal - AbortSignal to cancel the load operation
    * @throws {FileTooLargeError} If the file exceeds the maximum size limit
+   * @throws {Error} If the load was aborted
    */
   private async createModel(
     filePath: string,
     cwd: string,
+    signal: AbortSignal,
   ): Promise<monaco.editor.ITextModel> {
     const uri = pathToUri(filePath);
     const fsApi = this.getOrCreateFsApi(cwd);
 
+    // Check if already aborted
+    if (signal.aborted) {
+      throw new Error("Model load was aborted");
+    }
+
     // Check file size before reading content
     const stats = await fsApi.stat(filePath);
+
+    // Check abort after async operation
+    if (signal.aborted) {
+      throw new Error("Model load was aborted");
+    }
+
     const fileSize = stats.size;
 
     // Reject files that exceed the maximum size limit
@@ -770,8 +828,13 @@ export class MonacoModelRegistry {
     // Read file content
     const content = await fsApi.readTextFile(filePath);
 
-    // Update memory tracking
-    this.totalMemoryUsage += content.length;
+    // Check abort after async operation
+    if (signal.aborted) {
+      throw new Error("Model load was aborted");
+    }
+
+    // Update memory tracking (use 2x for UTF-16 internal representation)
+    this.totalMemoryUsage += content.length * 2;
 
     // Detect language
     const language = detectLanguage(filePath);

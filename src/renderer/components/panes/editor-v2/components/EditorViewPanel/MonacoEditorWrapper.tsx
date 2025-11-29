@@ -118,7 +118,9 @@ export function MonacoEditorWrapper({
   );
 
   // Get model from registry via hook
-  const model = useMonacoModel(filePath, cwd);
+  // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
+  // as EditorRegistry for proper lifecycle coordination
+  const model = useMonacoModel(editorId, filePath, cwd);
 
   // ---------------------------------------------------------------------------
   // ViewState Save Helper

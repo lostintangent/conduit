@@ -7,8 +7,8 @@
  *
  * @example
  * ```tsx
- * function Editor({ filePath, cwd }: Props) {
- *   const model = useMonacoModel(filePath, cwd);
+ * function Editor({ editorId, filePath, cwd }: Props) {
+ *   const model = useMonacoModel(editorId, filePath, cwd);
  *
  *   useEffect(() => {
  *     if (model) {
@@ -21,7 +21,7 @@
  * ```
  */
 
-import { useEffect, useRef, useState, useId } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as monaco from "monaco-editor";
 import { MonacoModelRegistry, pathToUri } from "../registry";
 
@@ -34,18 +34,19 @@ import { MonacoModelRegistry, pathToUri } from "../registry";
  * - Version-based dirty tracking
  * - External change detection
  *
+ * IMPORTANT: The editorId MUST be the same ID used for EditorRegistry
+ * to ensure proper coordination between model and editor lifecycles.
+ *
+ * @param editorId - Unique editor ID (must match EditorRegistry ID)
  * @param filePath - Absolute path to the file, or null for no model
  * @param cwd - Working directory for file operations
  * @returns The Monaco text model, or null if filePath is null or loading
  */
 export function useMonacoModel(
+  editorId: string,
   filePath: string | null,
   cwd: string,
 ): monaco.editor.ITextModel | null {
-  // Generate stable editor ID for reference counting
-  // useId() provides a stable ID across renders for this component instance
-  const editorId = useId();
-
   // State for the model - starts as null
   const [model, setModel] = useState<monaco.editor.ITextModel | null>(null);
 
