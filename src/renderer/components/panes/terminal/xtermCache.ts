@@ -36,7 +36,7 @@ const store = new Map<string, TerminalInstance>();
 // Pattern to extract file path from OSC 7 file:// URL format
 // Format: file://hostname/path BEL (hostname may be empty)
 // eslint-disable-next-line no-control-regex
-const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)\a$/;
+const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)\x07$/;
 
 type GetOrCreateOptions = {
   onLinkClick?: (url: string) => void;
