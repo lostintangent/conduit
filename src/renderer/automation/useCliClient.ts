@@ -32,7 +32,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const focusPaneCommand = useCommand(ApplicationCommands.PANE_FOCUS);
   const closePaneCommand = useCommand(ApplicationCommands.PANE_CLOSE);
   const closeTabCommand = useCommand(ApplicationCommands.TAB_CLOSE);
-  const newTabCommand = useCommand(ApplicationCommands.TAB_NEW);
   const duplicateTabCommand = useCommand(ApplicationCommands.TAB_DUPLICATE);
 
   const splitLeftTerminalCommand = useCommand(
