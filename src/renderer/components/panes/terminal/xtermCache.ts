@@ -33,7 +33,7 @@ export type xtermInstance = {
 // Pattern to extract file path from OSC 7 file:// URL format
 // Format: file://hostname/path BEL (hostname may be empty)
 // eslint-disable-next-line no-control-regex
-const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)\x07$/;
+const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)$/;
 
 // Map of pane IDs to their xterm terminal instances, which allows
 // us to reuse terminal instances when panes are moved around.
@@ -239,6 +239,10 @@ export function getOrCreate(
         api.markTerminalReady(sessionId);
       },
       resize: (cols, rows) => api.resize(sessionId, cols, rows),
+      dispose: () => {
+        osc7Disposable.dispose();
+        onTitleChangeDisposable.dispose();
+
         terminal.dispose();
         onDataDispose.dispose();
 

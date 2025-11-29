@@ -13,7 +13,7 @@ function getShellIntegrationPath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "shell");
   }
-  return path.join(__dirname, "shell");
+  return path.join(__dirname, "../../src/ipc/terminal/shell");
 }
 
 export function spawnTerminalProcess(sessionId: string, cwd?: string) {
