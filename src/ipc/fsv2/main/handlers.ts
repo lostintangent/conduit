@@ -5,7 +5,14 @@
  * to renderer processes. It handles:
  * - Request/response operations (readDirectory, readFile, etc.)
  * - Event subscriptions (directory changes, file changes)
- * - Provider lifecycle management (acquire/release)
+ * - Provider lifecycle management via FileSystemProviderService
+ *
+ * Architecture:
+ * - One-shot operations (read, write, etc.) acquire a provider, perform the
+ *   operation, and release immediately. The service's grace period ensures
+ *   efficient reuse without resource leaks.
+ * - Subscriptions hold a provider reference until explicitly unsubscribed
+ *   or the window closes.
  *
  * IPC Channels:
  * - `fs-v2:read-directory` - Read directory contents
@@ -16,23 +23,15 @@
  * - `fs-v2:create-directory` - Create directory
  * - `fs-v2:stat` - Get file/directory stats
  * - `fs-v2:exists` - Check if path exists
- * - `fs-v2:search` - Search for files
  * - `fs-v2:subscribe` - Subscribe to provider events
  * - `fs-v2:unsubscribe` - Unsubscribe from events
- * - `fs-v2:release` - Release provider reference
  *
  * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import type { DiskFileSystemProvider } from "../providers/DiskFileSystemProvider";
 import type { DirectoryEntry, FileStat, DeleteOptions } from "../types";
-import {
-  getFileSystemProvider,
-  releaseFileSystemProvider,
-  addFileSystemSubscription,
-  cleanupWindow,
-} from "./windowTracking";
+import { FileSystemProviderService } from "../services/FileSystemProviderService";
 
 // ============================================================================
 // Types
@@ -80,8 +79,6 @@ function generateSubscriptionId(): string {
 
 /**
  * Serialize a FileStat for IPC transport.
- *
- * FileStat already uses timestamps (numbers), so no conversion needed.
  */
 function serializeFileStat(stat: FileStat): object {
   return stat;
@@ -89,8 +86,6 @@ function serializeFileStat(stat: FileStat): object {
 
 /**
  * Serialize directory entries for IPC transport.
- *
- * DirectoryEntry is already plain data, no conversion needed.
  */
 function serializeDirectoryEntries(entries: DirectoryEntry[]): object[] {
   return entries;
@@ -109,6 +104,13 @@ function sendToRenderer(
   }
 }
 
+/**
+ * Get the filesystem provider service singleton.
+ */
+function getService(): FileSystemProviderService {
+  return FileSystemProviderService.getInstance();
+}
+
 // ============================================================================
 // IPC Handlers
 // ============================================================================
@@ -119,25 +121,22 @@ function sendToRenderer(
  * Call this during main process initialization.
  */
 export function initializeFileSystemV2Handlers(): void {
+  const service = getService();
+
   // -------------------------------------------------------------------------
   // Read Operations
   // -------------------------------------------------------------------------
 
   ipcMain.handle(
     "fs-v2:read-directory",
-    async (
-      event,
-      params: { cwd: string; dirPath: string },
-    ): Promise<object[]> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+    async (_, params: { cwd: string; dirPath: string }): Promise<object[]> => {
+      const provider = await service.getProvider(params.cwd);
 
       try {
         const entries = await provider.readDirectory(params.dirPath);
         return serializeDirectoryEntries(entries);
       } finally {
-        // Release the temporary reference (we acquired one just for this call)
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
@@ -145,45 +144,42 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:read-file",
     async (
-      event,
+      _,
       params: { cwd: string; filePath: string },
     ): Promise<Uint8Array> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+      const provider = await service.getProvider(params.cwd);
 
       try {
         return await provider.readFile(params.filePath);
       } finally {
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
 
   ipcMain.handle(
     "fs-v2:stat",
-    async (event, params: { cwd: string; path: string }): Promise<object> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+    async (_, params: { cwd: string; path: string }): Promise<object> => {
+      const provider = await service.getProvider(params.cwd);
 
       try {
         const stat = await provider.stat(params.path);
         return serializeFileStat(stat);
       } finally {
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
 
   ipcMain.handle(
     "fs-v2:exists",
-    async (event, params: { cwd: string; path: string }): Promise<boolean> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+    async (_, params: { cwd: string; path: string }): Promise<boolean> => {
+      const provider = await service.getProvider(params.cwd);
 
       try {
         return await provider.exists(params.path);
       } finally {
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
@@ -195,16 +191,15 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:write-file",
     async (
-      event,
+      _,
       params: { cwd: string; filePath: string; content: Uint8Array },
     ): Promise<void> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+      const provider = await service.getProvider(params.cwd);
 
       try {
         await provider.writeFile(params.filePath, params.content);
       } finally {
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
@@ -212,16 +207,15 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:delete",
     async (
-      event,
+      _,
       params: { cwd: string; path: string; options?: DeleteOptions },
     ): Promise<void> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+      const provider = await service.getProvider(params.cwd);
 
       try {
         await provider.delete(params.path, params.options);
       } finally {
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
@@ -229,30 +223,28 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:rename",
     async (
-      event,
+      _,
       params: { cwd: string; oldPath: string; newPath: string },
     ): Promise<void> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+      const provider = await service.getProvider(params.cwd);
 
       try {
         await provider.rename(params.oldPath, params.newPath);
       } finally {
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
 
   ipcMain.handle(
     "fs-v2:create-directory",
-    async (event, params: { cwd: string; dirPath: string }): Promise<void> => {
-      const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+    async (_, params: { cwd: string; dirPath: string }): Promise<void> => {
+      const provider = await service.getProvider(params.cwd);
 
       try {
         await provider.createDirectory(params.dirPath);
       } finally {
-        releaseFileSystemProvider(windowId, params.cwd);
+        service.releaseProvider(params.cwd);
       }
     },
   );
@@ -272,7 +264,7 @@ export function initializeFileSystemV2Handlers(): void {
       },
     ): Promise<string> => {
       const windowId = getWindowId(event);
-      const provider = await getFileSystemProvider(windowId, params.cwd);
+      const provider = await service.getProvider(params.cwd);
       const subscriptionId = generateSubscriptionId();
 
       const disposables: Array<{ dispose: () => void }> = [];
@@ -333,11 +325,12 @@ export function initializeFileSystemV2Handlers(): void {
         disposables.push(subRenamed);
       }
 
-      // Create combined dispose function
+      // Create combined dispose function that also releases the provider
       const dispose = () => {
         for (const d of disposables) {
           d.dispose();
         }
+        service.releaseProvider(params.cwd);
       };
 
       // Track the subscription
@@ -351,12 +344,6 @@ export function initializeFileSystemV2Handlers(): void {
       };
 
       subscriptions.set(subscriptionId, subscription);
-
-      // Register cleanup with window tracking
-      addFileSystemSubscription(windowId, params.cwd, () => {
-        subscriptions.delete(subscriptionId);
-        dispose();
-      });
 
       // Clean up if window is destroyed
       event.sender.once("destroyed", () => {
@@ -378,20 +365,7 @@ export function initializeFileSystemV2Handlers(): void {
       if (subscription) {
         subscription.dispose();
         subscriptions.delete(params.subscriptionId);
-        releaseFileSystemProvider(subscription.windowId, subscription.cwd);
       }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // Provider Lifecycle
-  // -------------------------------------------------------------------------
-
-  ipcMain.handle(
-    "fs-v2:release",
-    async (event, params: { cwd: string }): Promise<void> => {
-      const windowId = getWindowId(event);
-      releaseFileSystemProvider(windowId, params.cwd);
     },
   );
 }
@@ -417,7 +391,8 @@ export function cleanupFileSystemV2Handlers(): void {
 /**
  * Handle window close event.
  *
- * This should be called when a window closes to clean up its providers.
+ * Cleans up all subscriptions for the closing window.
+ * Provider lifecycle is managed by the service's grace period.
  *
  * @param windowId - The ID of the window that closed
  */
@@ -433,7 +408,4 @@ export function handleWindowClose(windowId: number): void {
       subscriptions.delete(id);
     }
   }
-
-  // Clean up window tracking
-  cleanupWindow(windowId);
 }

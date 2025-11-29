@@ -8,6 +8,13 @@
  * - Branch operations
  * - Event subscriptions for status/branch changes
  *
+ * Architecture:
+ * - One-shot operations acquire a provider, perform the operation, and
+ *   release immediately. The service's grace period ensures efficient
+ *   reuse without resource leaks.
+ * - Subscriptions hold a provider reference until explicitly unsubscribed
+ *   or the window closes.
+ *
  * IPC Channels:
  * - `git-v2:status` - Get git status
  * - `git-v2:file-status` - Get status for a specific file
@@ -28,7 +35,6 @@
  * - `git-v2:revert` - Discard local file changes
  * - `git-v2:subscribe` - Subscribe to git events
  * - `git-v2:unsubscribe` - Unsubscribe from events
- * - `git-v2:release` - Release provider reference
  *
  * Map Serialization:
  * Git status contains a Map<string, GitFileStatus>. Since Maps can't be
@@ -39,7 +45,6 @@
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import type { DiskGitProvider } from "../providers/DiskGitProvider";
 import type {
   GitStatus,
   GitFileStatus,
@@ -47,11 +52,6 @@ import type {
   GitBranch,
   GitCommitOptions,
 } from "../types";
-import {
-  getGitProvider,
-  releaseGitProvider,
-  addGitSubscription,
-} from "../../fsv2/main/windowTracking";
 import { GitProviderService } from "../services/GitProviderService";
 
 // ============================================================================
@@ -212,6 +212,13 @@ function sendToRenderer(
   }
 }
 
+/**
+ * Get the git provider service singleton.
+ */
+function getService(): GitProviderService {
+  return GitProviderService.getInstance();
+}
+
 // ============================================================================
 // IPC Handlers
 // ============================================================================
@@ -222,30 +229,28 @@ function sendToRenderer(
  * Call this during main process initialization.
  */
 export function initializeGitV2Handlers(): void {
+  const service = getService();
+
   // -------------------------------------------------------------------------
   // Status Operations
   // -------------------------------------------------------------------------
 
   ipcMain.handle(
     "git-v2:status",
-    async (
-      event,
-      params: { cwd: string },
-    ): Promise<SerializedGitStatus | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return null; // Not a git repository
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string }): Promise<SerializedGitStatus | null> => {
+      let gitRoot: string | undefined;
 
       try {
-        const status = await provider.getStatus();
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        const status = await result.provider.getStatus();
         return serializeGitStatus(status);
+      } catch {
+        return null; // Not a git repository
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
@@ -253,62 +258,59 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:file-status",
     async (
-      event,
+      _,
       params: { cwd: string; filePath: string },
     ): Promise<GitFileStatus | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return null;
-      }
-
-      const { provider, gitRoot } = result;
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getFileStatus(params.filePath);
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getFileStatus(params.filePath);
+      } catch {
+        return null;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:has-uncommitted-changes",
-    async (event, params: { cwd: string }): Promise<boolean> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return false;
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string }): Promise<boolean> => {
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.hasUncommittedChanges();
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.hasUncommittedChanges();
+      } catch {
+        return false;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:has-unpushed-commits",
-    async (event, params: { cwd: string }): Promise<boolean> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return false;
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string }): Promise<boolean> => {
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.hasUnpushedCommits();
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.hasUnpushedCommits();
+      } catch {
+        return false;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
@@ -316,62 +318,61 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:changed-files-from-branch",
     async (
-      event,
+      _,
       params: { cwd: string; baseBranch: string },
     ): Promise<string[]> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return [];
-      }
-
-      const { provider, gitRoot } = result;
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getChangedFilesFromBranch(params.baseBranch);
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getChangedFilesFromBranch(
+          params.baseBranch,
+        );
+      } catch {
+        return [];
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:uncommitted-diff-stats",
-    async (event, params: { cwd: string }): Promise<SerializedDiffStats> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return { added: 0, removed: 0, files: 0 };
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string }): Promise<SerializedDiffStats> => {
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getUncommittedDiffStats();
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getUncommittedDiffStats();
+      } catch {
+        return { added: 0, removed: 0, files: 0 };
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:most-recent-dirty-file",
-    async (event, params: { cwd: string }): Promise<string | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return null;
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string }): Promise<string | null> => {
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getMostRecentDirtyFile();
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getMostRecentDirtyFile();
+      } catch {
+        return null;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
@@ -379,42 +380,36 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:most-recent-committed-file",
     async (
-      event,
+      _,
       params: { cwd: string; commitLimit?: number },
     ): Promise<string | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return null;
-      }
-
-      const { provider, gitRoot } = result;
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getMostRecentCommittedFile(params.commitLimit);
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getMostRecentCommittedFile(
+          params.commitLimit,
+        );
+      } catch {
+        return null;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:revert",
-    async (event, params: { cwd: string; files: string[] }): Promise<void> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        throw new Error("Not a git repository");
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string; files: string[] }): Promise<void> => {
+      const { provider, gitRoot } = await service.getProvider(params.cwd);
 
       try {
         await provider.revert(params.files);
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        service.releaseProvider(gitRoot);
       }
     },
   );
@@ -426,22 +421,24 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:file-diff",
     async (
-      event,
+      _,
       params: { cwd: string; filePath: string; staged?: boolean },
     ): Promise<string | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return null;
-      }
-
-      const { provider, gitRoot } = result;
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getFileDiff(params.filePath, params.staged);
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getFileDiff(
+          params.filePath,
+          params.staged,
+        );
+      } catch {
+        return null;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
@@ -449,22 +446,21 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:file-at-ref",
     async (
-      event,
+      _,
       params: { cwd: string; filePath: string; ref: string },
     ): Promise<string | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return null;
-      }
-
-      const { provider, gitRoot } = result;
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getFileAtRef(params.filePath, params.ref);
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getFileAtRef(params.filePath, params.ref);
+      } catch {
+        return null;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
@@ -475,40 +471,26 @@ export function initializeGitV2Handlers(): void {
 
   ipcMain.handle(
     "git-v2:stage",
-    async (event, params: { cwd: string; files: string[] }): Promise<void> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        throw new Error("Not a git repository");
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string; files: string[] }): Promise<void> => {
+      const { provider, gitRoot } = await service.getProvider(params.cwd);
 
       try {
         await provider.stage(params.files);
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        service.releaseProvider(gitRoot);
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:unstage",
-    async (event, params: { cwd: string; files: string[] }): Promise<void> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        throw new Error("Not a git repository");
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string; files: string[] }): Promise<void> => {
+      const { provider, gitRoot } = await service.getProvider(params.cwd);
 
       try {
         await provider.unstage(params.files);
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        service.releaseProvider(gitRoot);
       }
     },
   );
@@ -520,23 +502,16 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:commit",
     async (
-      event,
+      _,
       params: { cwd: string; message: string; options?: GitCommitOptions },
-    ): Promise<SerializedGitCommit | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        throw new Error("Not a git repository");
-      }
-
-      const { provider, gitRoot } = result;
+    ): Promise<SerializedGitCommit> => {
+      const { provider, gitRoot } = await service.getProvider(params.cwd);
 
       try {
         const commit = await provider.commit(params.message, params.options);
         return serializeGitCommit(commit);
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        service.releaseProvider(gitRoot);
       }
     },
   );
@@ -547,61 +522,52 @@ export function initializeGitV2Handlers(): void {
 
   ipcMain.handle(
     "git-v2:branch",
-    async (event, params: { cwd: string }): Promise<string | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return null;
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string }): Promise<string | null> => {
+      let gitRoot: string | undefined;
 
       try {
-        return await provider.getCurrentBranch();
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        return await result.provider.getCurrentBranch();
+      } catch {
+        return null;
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:branches",
-    async (event, params: { cwd: string }): Promise<SerializedGitBranch[]> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        return [];
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string }): Promise<SerializedGitBranch[]> => {
+      let gitRoot: string | undefined;
 
       try {
-        const branches = await provider.getBranches();
+        const result = await service.getProvider(params.cwd);
+        gitRoot = result.gitRoot;
+        const branches = await result.provider.getBranches();
         return branches.map(serializeGitBranch);
+      } catch {
+        return [];
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        if (gitRoot) {
+          service.releaseProvider(gitRoot);
+        }
       }
     },
   );
 
   ipcMain.handle(
     "git-v2:checkout",
-    async (event, params: { cwd: string; ref: string }): Promise<void> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
-        throw new Error("Not a git repository");
-      }
-
-      const { provider, gitRoot } = result;
+    async (_, params: { cwd: string; ref: string }): Promise<void> => {
+      const { provider, gitRoot } = await service.getProvider(params.cwd);
 
       try {
         await provider.checkout(params.ref);
       } finally {
-        releaseGitProvider(windowId, gitRoot);
+        service.releaseProvider(gitRoot);
       }
     },
   );
@@ -614,13 +580,17 @@ export function initializeGitV2Handlers(): void {
     "git-v2:subscribe",
     async (event, params: { cwd: string }): Promise<string | null> => {
       const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
 
-      if (!result) {
+      let provider: Awaited<ReturnType<typeof service.getProvider>>["provider"];
+      let gitRoot: string;
+
+      try {
+        const result = await service.getProvider(params.cwd);
+        provider = result.provider;
+        gitRoot = result.gitRoot;
+      } catch {
         return null; // Not a git repository
       }
-
-      const { provider, gitRoot } = result;
       const subscriptionId = generateSubscriptionId();
 
       const disposables: Array<{ dispose: () => void }> = [];
@@ -671,11 +641,12 @@ export function initializeGitV2Handlers(): void {
       });
       disposables.push(headSub);
 
-      // Create combined dispose function
+      // Create combined dispose function that also releases the provider
       const dispose = () => {
         for (const d of disposables) {
           d.dispose();
         }
+        service.releaseProvider(gitRoot);
       };
 
       // Track the subscription
@@ -687,12 +658,6 @@ export function initializeGitV2Handlers(): void {
       };
 
       subscriptions.set(subscriptionId, subscription);
-
-      // Register cleanup with window tracking
-      addGitSubscription(windowId, gitRoot, () => {
-        subscriptions.delete(subscriptionId);
-        dispose();
-      });
 
       // Clean up if window is destroyed
       event.sender.once("destroyed", () => {
@@ -714,20 +679,7 @@ export function initializeGitV2Handlers(): void {
       if (subscription) {
         subscription.dispose();
         subscriptions.delete(params.subscriptionId);
-        releaseGitProvider(subscription.windowId, subscription.gitRoot);
       }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // Provider Lifecycle
-  // -------------------------------------------------------------------------
-
-  ipcMain.handle(
-    "git-v2:release",
-    async (event, params: { gitRoot: string }): Promise<void> => {
-      const windowId = getWindowId(event);
-      releaseGitProvider(windowId, params.gitRoot);
     },
   );
 
@@ -737,20 +689,15 @@ export function initializeGitV2Handlers(): void {
 
   ipcMain.handle(
     "git-v2:find-root",
-    async (event, params: { cwd: string }): Promise<string | null> => {
-      const windowId = getWindowId(event);
-      const result = await getGitProvider(windowId, params.cwd);
-
-      if (!result) {
+    async (_, params: { cwd: string }): Promise<string | null> => {
+      try {
+        const { gitRoot } = await service.getProvider(params.cwd);
+        // Immediately release since we just wanted to find the root
+        service.releaseProvider(gitRoot);
+        return gitRoot;
+      } catch {
         return null;
       }
-
-      const { gitRoot } = result;
-
-      // Immediately release since we just wanted to find the root
-      releaseGitProvider(windowId, gitRoot);
-
-      return gitRoot;
     },
   );
 
@@ -759,7 +706,7 @@ export function initializeGitV2Handlers(): void {
   // -------------------------------------------------------------------------
 
   ipcMain.handle("git-v2:is-available", async (): Promise<boolean> => {
-    return GitProviderService.getInstance().isGitAvailable();
+    return service.isGitAvailable();
   });
 }
 
@@ -784,7 +731,8 @@ export function cleanupGitV2Handlers(): void {
 /**
  * Handle window close event.
  *
- * This should be called when a window closes to clean up its subscriptions.
+ * Cleans up all subscriptions for the closing window.
+ * Provider lifecycle is managed by the service's grace period.
  *
  * @param windowId - The ID of the window that closed
  */
