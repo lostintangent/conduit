@@ -56,6 +56,7 @@ import { FileSystemV2API } from "../../../../api/FileSystemV2API";
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
+import { ViewStateRegistry } from "./ViewStateRegistry";
 
 // ============================================================================
 // Constants
@@ -477,14 +478,25 @@ export class MonacoModelRegistry {
     }
 
     const filePath = uriToPath(uri);
+
+    // IMPORTANT: Capture both content AND version at the same time to avoid
+    // race conditions if user edits during the async save operation.
     const content = entry.model.getValue();
+    const versionAtSave = entry.model.getAlternativeVersionId();
+
     const fsApi = this.getOrCreateFsApi(entry.cwd);
 
     await fsApi.writeTextFile(filePath, content);
 
-    // Update saved version
-    entry.savedVersionId = entry.model.getAlternativeVersionId();
-    entry.isDirty = false;
+    // Update saved version to the version we captured, not current model version.
+    // This correctly handles the case where user edits during the save.
+    entry.savedVersionId = versionAtSave;
+
+    // Recalculate dirty state: model is dirty if current version differs
+    // from what we just saved (handles edits during save)
+    const currentVersion = entry.model.getAlternativeVersionId();
+    const isDirty = currentVersion !== versionAtSave;
+    entry.isDirty = isDirty;
     entry.hasExternalChanges = false;
     entry.isOrphaned = false; // File now exists (we just wrote it)
 
@@ -493,11 +505,11 @@ export class MonacoModelRegistry {
       uri,
     });
 
-    // Also fire dirty event since isDirty changed
+    // Also fire dirty event to update UI
     this._onModelStateChanged.fire({
       type: "dirty",
       uri,
-      isDirty: false,
+      isDirty,
     });
   }
 
@@ -1068,7 +1080,7 @@ export class MonacoModelRegistry {
    */
   private handleFileRenamed(
     oldUri: string,
-    _oldPath: string,
+    oldPath: string,
     newPath: string,
     entry: ModelEntry,
   ): void {
@@ -1079,9 +1091,15 @@ export class MonacoModelRegistry {
     // 2. Copy content and state
     // 3. Dispose the old model
     // 4. Update registry mapping
+    // 5. Migrate ViewState for all editors
+    // 6. Fire rename event
 
     const content = entry.model.getValue();
     const language = detectLanguage(newPath);
+
+    // Track dirty state before creating new model
+    // (new model starts clean, we need to preserve dirty state)
+    const wasDirty = entry.isDirty;
 
     // Create new model
     const newModel = monaco.editor.createModel(
@@ -1093,6 +1111,20 @@ export class MonacoModelRegistry {
     // Update entry
     const oldModel = entry.model;
     entry.model = newModel;
+
+    // IMPORTANT: Reset savedVersionId to the new model's version since:
+    // - If file wasn't dirty, new model matches disk (version is saved)
+    // - If file was dirty, we preserve dirty state below
+    // The new model starts at version 1, so savedVersionId should also be 1
+    // unless the model was dirty (then we need to indicate changes exist)
+    if (wasDirty) {
+      // Model was dirty - set savedVersionId to 0 so isDirty calculation works
+      // (currentVersion 1 !== savedVersionId 0 → dirty = true)
+      entry.savedVersionId = 0;
+    } else {
+      // Model was clean - new content matches what's on disk
+      entry.savedVersionId = newModel.getAlternativeVersionId();
+    }
 
     // Set up new content change listener
     entry.contentChangeDisposable.dispose();
@@ -1113,6 +1145,21 @@ export class MonacoModelRegistry {
     // Update filePath so file watchers continue to work correctly
     // (callbacks reference entry.filePath instead of a captured variable)
     entry.filePath = newPath;
+
+    // Migrate ViewState from old path to new path for all editors
+    // This preserves scroll position, cursor, etc. across renames
+    ViewStateRegistry.getInstance().migrateFile(
+      oldPath,
+      newPath,
+      entry.references,
+    );
+
+    // Fire rename event so UI can update (tabs, file tree, etc.)
+    this._onModelStateChanged.fire({
+      type: "renamed",
+      oldUri,
+      newUri,
+    });
   }
 
   /**

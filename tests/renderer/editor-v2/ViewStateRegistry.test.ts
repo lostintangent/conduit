@@ -319,6 +319,85 @@ describe("ViewStateRegistry", () => {
   // Per (Editor, File) Isolation
   // ===========================================================================
 
+  // ===========================================================================
+  // migrateFile
+  // ===========================================================================
+
+  describe("migrateFile", () => {
+    it("should migrate ViewState from old path to new path for specified editors", () => {
+      const registry = ViewStateRegistry.getInstance();
+      const editor = createMockEditor() as any;
+      editor.saveViewState.mockReturnValue(createMockViewState(500));
+
+      // Save state for specific editors
+      registry.save("editor-1", "/test/old.ts", editor);
+      registry.save("editor-2", "/test/old.ts", editor);
+      registry.save("editor-3", "/test/old.ts", editor);
+
+      // Migrate only editor-1 and editor-2
+      registry.migrateFile("/test/old.ts", "/test/new.ts", [
+        "editor-1",
+        "editor-2",
+      ]);
+
+      // Check migration happened for specified editors
+      expect(registry.has("editor-1", "/test/new.ts")).toBe(true);
+      expect(registry.has("editor-2", "/test/new.ts")).toBe(true);
+      expect(registry.has("editor-1", "/test/old.ts")).toBe(false);
+      expect(registry.has("editor-2", "/test/old.ts")).toBe(false);
+
+      // editor-3 should still have old path
+      expect(registry.has("editor-3", "/test/old.ts")).toBe(true);
+      expect(registry.has("editor-3", "/test/new.ts")).toBe(false);
+    });
+
+    it("should migrate ViewState for all editors when no editorIds specified", () => {
+      const registry = ViewStateRegistry.getInstance();
+      const editor = createMockEditor() as any;
+      editor.saveViewState.mockReturnValue(createMockViewState(500));
+
+      // Save state for multiple editors
+      registry.save("editor-1", "/test/old.ts", editor);
+      registry.save("editor-2", "/test/old.ts", editor);
+      registry.save("editor-1", "/test/other.ts", editor);
+
+      // Migrate all editors
+      registry.migrateFile("/test/old.ts", "/test/new.ts");
+
+      // All editors should be migrated
+      expect(registry.has("editor-1", "/test/new.ts")).toBe(true);
+      expect(registry.has("editor-2", "/test/new.ts")).toBe(true);
+      expect(registry.has("editor-1", "/test/old.ts")).toBe(false);
+      expect(registry.has("editor-2", "/test/old.ts")).toBe(false);
+
+      // Other file should be unaffected
+      expect(registry.has("editor-1", "/test/other.ts")).toBe(true);
+    });
+
+    it("should preserve ViewState content during migration", () => {
+      const registry = ViewStateRegistry.getInstance();
+      const editor = createMockEditor() as any;
+      editor.saveViewState.mockReturnValue(createMockViewState(999));
+
+      registry.save("editor-1", "/test/old.ts", editor);
+      registry.migrateFile("/test/old.ts", "/test/new.ts");
+
+      const state = registry.get("editor-1", "/test/new.ts");
+      expect(state?.viewState?.scrollTop).toBe(999);
+    });
+
+    it("should handle migration when no ViewState exists", () => {
+      const registry = ViewStateRegistry.getInstance();
+
+      // Should not throw
+      expect(() => {
+        registry.migrateFile("/test/nonexistent.ts", "/test/new.ts");
+      }).not.toThrow();
+
+      expect(registry.stateCount).toBe(0);
+    });
+  });
+
   describe("per (editor, file) isolation", () => {
     it("should store different ViewStates for same file in different editors", () => {
       const registry = ViewStateRegistry.getInstance();

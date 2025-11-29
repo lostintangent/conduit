@@ -111,6 +111,13 @@ export type ModelStateEvent =
       uri: string;
       /** File size in bytes */
       fileSize: number;
+    }
+  | {
+      type: "renamed";
+      /** Old URI before rename */
+      oldUri: string;
+      /** New URI after rename */
+      newUri: string;
     };
 
 /**

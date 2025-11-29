@@ -27,6 +27,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import * as monaco from "monaco-editor";
 import { useDiffContent, useMonacoModel } from "../../hooks";
+import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 
 // ============================================================================
 // Types
@@ -184,6 +185,17 @@ export function DiffEditorWrapper({
 
     // Cleanup on unmount
     return () => {
+      // Save ViewState before disposing so it can be restored later
+      // Use a diff-prefixed ID to distinguish from regular editor ViewState
+      const modifiedEditor = diffEditor.getModifiedEditor();
+      if (modifiedEditor) {
+        ViewStateRegistry.getInstance().save(
+          `diff-modified-${editorId}`,
+          filePath,
+          modifiedEditor,
+        );
+      }
+
       // Dispose content change listener
       if (contentChangeDisposableRef.current) {
         contentChangeDisposableRef.current.dispose();
@@ -200,7 +212,7 @@ export function DiffEditorWrapper({
       diffEditor.dispose();
       diffEditorRef.current = null;
     };
-  }, [theme, readOnly, onMount]);
+  }, [theme, readOnly, onMount, editorId, filePath]);
 
   // ---------------------------------------------------------------------------
   // Model Setup
@@ -237,6 +249,16 @@ export function DiffEditorWrapper({
       original: originalModelRef.current,
       modified: modifiedModel,
     });
+
+    // Restore ViewState for the modified editor (scroll position, cursor, etc.)
+    const modifiedEditor = diffEditor.getModifiedEditor();
+    if (modifiedEditor) {
+      ViewStateRegistry.getInstance().restore(
+        `diff-modified-${editorId}`,
+        filePath,
+        modifiedEditor,
+      );
+    }
 
     // Set up content change listener for onChange callback
     if (contentChangeDisposableRef.current) {

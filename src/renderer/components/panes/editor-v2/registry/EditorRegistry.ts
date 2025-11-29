@@ -33,6 +33,7 @@
 import * as monaco from "monaco-editor";
 import type { EditorMetadata } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
+import { ViewStateRegistry } from "./ViewStateRegistry";
 
 /** Delay before unpinning an editor after it becomes hidden (aligned with model grace period) */
 const UNPIN_DELAY_MS = 5000;
@@ -230,6 +231,10 @@ export class EditorRegistry {
     if (entry.unpinTimer) {
       clearTimeout(entry.unpinTimer);
     }
+
+    // Clear ViewState for this editor (cross-registry cleanup)
+    // This prevents memory leaks when editors are disposed via LRU eviction
+    ViewStateRegistry.getInstance().clearEditor(editorId);
 
     // Dispose the Monaco editor
     entry.editor.dispose();

@@ -284,6 +284,56 @@ export class ViewStateRegistry {
   }
 
   /**
+   * Migrate ViewState from one file path to another.
+   *
+   * Call this when a file is renamed. All ViewState entries for the old path
+   * are moved to the new path, preserving scroll position, cursor, etc.
+   *
+   * @param oldPath - The old file path
+   * @param newPath - The new file path
+   * @param editorIds - Optional: only migrate for specific editor IDs
+   */
+  migrateFile(
+    oldPath: string,
+    newPath: string,
+    editorIds?: Iterable<string>,
+  ): void {
+    if (editorIds) {
+      // Migrate only specified editors
+      for (const editorId of editorIds) {
+        const oldKey = makeKey(editorId, oldPath);
+        const entry = this.states.get(oldKey);
+        if (entry) {
+          const newKey = makeKey(editorId, newPath);
+          this.states.set(newKey, { ...entry, lastUsed: Date.now() });
+          this.states.delete(oldKey);
+        }
+      }
+    } else {
+      // Migrate all editors that have state for the old path
+      const oldSuffix = `::${oldPath}`;
+      const keysToMigrate: string[] = [];
+
+      for (const key of this.states.keys()) {
+        if (key.endsWith(oldSuffix)) {
+          keysToMigrate.push(key);
+        }
+      }
+
+      for (const oldKey of keysToMigrate) {
+        const entry = this.states.get(oldKey);
+        if (entry) {
+          // Extract editorId from old key
+          const editorId = oldKey.slice(0, -oldSuffix.length);
+          const newKey = makeKey(editorId, newPath);
+          this.states.set(newKey, { ...entry, lastUsed: Date.now() });
+          this.states.delete(oldKey);
+        }
+      }
+    }
+  }
+
+  /**
    * Get the number of stored ViewStates.
    */
   get stateCount(): number {
