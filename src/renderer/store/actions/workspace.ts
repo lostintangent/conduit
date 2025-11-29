@@ -1,5 +1,5 @@
 import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
-import type { Pane, Tab, TerminalPane } from "@/types";
+import type { Pane, Tab } from "@/types";
 import type { TerminalCreateResponse, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import { closeTab } from "./tab";
@@ -55,8 +55,12 @@ export async function openWorkspace(workspace: Workspace) {
         }
 
         panes[pane.id] = {
-          ...(pane as unknown as TerminalPane),
-          ...result,
+          id: pane.id,
+          type: "terminal" as const,
+          sessionId: result.sessionId,
+          cwd: result.cwd ?? pane.cwd ?? null,
+          processTitle: result.title,
+          vmMetadata: result.vmMetadata,
         };
       } else {
         // For non-terminal panes, just restore as-is
