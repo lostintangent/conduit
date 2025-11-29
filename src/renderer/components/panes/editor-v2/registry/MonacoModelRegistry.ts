@@ -246,9 +246,6 @@ export class MonacoModelRegistry {
   /** Maximum file size in bytes */
   private maxFileSize: number = DEFAULT_MAX_FILE_SIZE;
 
-  /** Approximate total memory used by all models (bytes) */
-  private totalMemoryUsage = 0;
-
   /** Debug: History of reference events (only in debug mode) */
   private referenceHistory: ReferenceEvent[] = [];
 
@@ -604,16 +601,6 @@ export class MonacoModelRegistry {
   }
 
   /**
-   * Get approximate total memory used by all models.
-   *
-   * This is a rough estimate based on content length in characters.
-   * Actual memory usage may vary due to string encoding and Monaco overhead.
-   */
-  getTotalMemoryUsage(): number {
-    return this.totalMemoryUsage;
-  }
-
-  /**
    * Dispose a specific model.
    *
    * @param uri - The model URI
@@ -623,10 +610,6 @@ export class MonacoModelRegistry {
     if (!entry) {
       return;
     }
-
-    // Update memory tracking (use 2x for UTF-16 internal representation)
-    const contentLength = entry.model.getValue().length * 2;
-    this.totalMemoryUsage = Math.max(0, this.totalMemoryUsage - contentLength);
 
     // Clear disposal timer
     if (entry.disposeTimer) {
@@ -886,9 +869,6 @@ export class MonacoModelRegistry {
         this.maxFileSize,
       );
     }
-
-    // Update memory tracking (use 2x for UTF-16 internal representation)
-    this.totalMemoryUsage += actualContentBytes;
 
     // Detect language
     const language = detectLanguage(filePath);
