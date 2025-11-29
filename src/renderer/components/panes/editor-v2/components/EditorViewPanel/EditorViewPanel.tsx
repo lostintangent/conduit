@@ -117,15 +117,12 @@ export function EditorViewPanel({
     (editor: monaco.editor.IStandaloneCodeEditor) => {
       editorRef.current = editor;
 
-      // Set up undo/redo state tracking
+      // Set up undo/redo state tracking using Monaco's built-in methods
       const model = editor.getModel();
       if (model) {
         const updateUndoRedoState = () => {
-          const versionId = model.getAlternativeVersionId();
-          // Simple heuristic: can undo if not at initial version
-          // In a real implementation, we'd track the initial version ID
-          setCanUndo(versionId > 1);
-          setCanRedo(false); // Would need more tracking for accurate redo state
+          setCanUndo(model.canUndo());
+          setCanRedo(model.canRedo());
         };
 
         // Initial state
@@ -158,14 +155,14 @@ export function EditorViewPanel({
    * Handle undo action.
    */
   const handleUndo = useCallback(() => {
-    editorRef.current?.trigger("editor", "undo", null);
+    editorRef.current?.getModel()?.undo();
   }, []);
 
   /**
    * Handle redo action.
    */
   const handleRedo = useCallback(() => {
-    editorRef.current?.trigger("editor", "redo", null);
+    editorRef.current?.getModel()?.redo();
   }, []);
 
   /**

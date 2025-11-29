@@ -306,6 +306,9 @@ export class MonacoModelRegistry {
         existing.disposeTimer = undefined;
       }
 
+      // Update lastUsed timestamp for LRU tracking
+      existing.lastUsed = Date.now();
+
       return existing.model;
     }
 
@@ -908,6 +911,7 @@ export class MonacoModelRegistry {
       isReloading: false,
       contentChangeDisposable: { dispose: () => {} },
       fileWatchDisposables: [],
+      lastUsed: Date.now(),
     };
 
     // Set up content change listener for dirty tracking
@@ -1066,6 +1070,10 @@ export class MonacoModelRegistry {
    */
   private handleFileDeleted(uri: string, entry: ModelEntry): void {
     entry.isOrphaned = true;
+
+    // Clear ViewState for this file across all editors
+    ViewStateRegistry.getInstance().clearFile(entry.filePath);
+
     this._onModelStateChanged.fire({
       type: "orphaned",
       uri,
@@ -1200,16 +1208,17 @@ export class MonacoModelRegistry {
    * Evict least-recently-used models to stay within maxModels limit.
    *
    * NEVER evicts dirty models - user's unsaved work is protected.
+   * Prefers evicting models with zero references, sorted by lastUsed (oldest first).
    */
   private evictLRU(): void {
     if (this.models.size <= this.maxModels) {
       return;
     }
 
-    // Get non-dirty models sorted by reference count, then we could add lastUsed tracking
-    // For simplicity, evict models with zero references first
+    // Get non-dirty models with zero references, sorted by lastUsed (oldest first)
     const candidates = Array.from(this.models.entries())
       .filter(([, entry]) => !entry.isDirty && entry.references.size === 0)
+      .sort(([, a], [, b]) => a.lastUsed - b.lastUsed)
       .map(([uri]) => uri);
 
     // Dispose candidates until we're at the limit

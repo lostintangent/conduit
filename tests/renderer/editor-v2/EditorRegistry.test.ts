@@ -222,20 +222,20 @@ describe("EditorRegistry", () => {
     it("should evict oldest editors when exceeding max", () => {
       const registry = EditorRegistry.getInstance();
       registry.setMaxEditors(2);
-      // Must also set maxPinnedEditors low enough to allow eviction
-      // (editors start pinned, and pinned editors can't be evicted)
-      registry.setMaxPinnedEditors(1);
 
       const container1 = document.createElement("div");
       const container2 = document.createElement("div");
       const container3 = document.createElement("div");
 
       // Create 3 editors when max is 2
+      // Release editors after creation so they're eligible for eviction
       const editor1 = registry.getOrCreateEditor("editor-1", container1);
+      registry.releaseEditor("editor-1");
       registry.getOrCreateEditor("editor-2", container2);
+      registry.releaseEditor("editor-2");
       registry.getOrCreateEditor("editor-3", container3);
 
-      // editor-1 should have been evicted (oldest)
+      // editor-1 should have been evicted (oldest, not in use)
       expect(registry.editorCount).toBe(2);
       expect(registry.hasEditor("editor-1")).toBe(false);
       expect(editor1.dispose).toHaveBeenCalled();
@@ -245,8 +245,6 @@ describe("EditorRegistry", () => {
       vi.useFakeTimers();
       const registry = EditorRegistry.getInstance();
       registry.setMaxEditors(2);
-      // Must also set maxPinnedEditors low enough to allow eviction
-      registry.setMaxPinnedEditors(1);
 
       const container1 = document.createElement("div");
       const container2 = document.createElement("div");
@@ -254,14 +252,17 @@ describe("EditorRegistry", () => {
 
       // Create editor-1 at t=0
       registry.getOrCreateEditor("editor-1", container1);
+      registry.releaseEditor("editor-1");
 
       // Create editor-2 at t=100
       vi.advanceTimersByTime(100);
       registry.getOrCreateEditor("editor-2", container2);
+      registry.releaseEditor("editor-2");
 
       // Touch editor-1 at t=200 to make it more recent than editor-2
       vi.advanceTimersByTime(100);
       registry.getOrCreateEditor("editor-1", container1);
+      registry.releaseEditor("editor-1");
 
       // Now create editor-3 at t=300, should evict editor-2 (least recent)
       vi.advanceTimersByTime(100);
@@ -272,6 +273,26 @@ describe("EditorRegistry", () => {
       expect(registry.hasEditor("editor-3")).toBe(true);
 
       vi.useRealTimers();
+    });
+
+    it("should not evict editors that are in use", () => {
+      const registry = EditorRegistry.getInstance();
+      registry.setMaxEditors(2);
+
+      const container1 = document.createElement("div");
+      const container2 = document.createElement("div");
+      const container3 = document.createElement("div");
+
+      // Create editors but keep them in use (don't release)
+      const editor1 = registry.getOrCreateEditor("editor-1", container1);
+      const editor2 = registry.getOrCreateEditor("editor-2", container2);
+      const editor3 = registry.getOrCreateEditor("editor-3", container3);
+
+      // All 3 should be kept because they're in use
+      expect(registry.editorCount).toBe(3);
+      expect(editor1.dispose).not.toHaveBeenCalled();
+      expect(editor2.dispose).not.toHaveBeenCalled();
+      expect(editor3.dispose).not.toHaveBeenCalled();
     });
   });
 

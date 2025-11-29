@@ -208,6 +208,9 @@ export interface ModelEntry {
 
   /** Timer for grace period before disposal */
   disposeTimer?: ReturnType<typeof setTimeout>;
+
+  /** Timestamp when model was last accessed (for LRU eviction) */
+  lastUsed: number;
 }
 
 // ============================================================================
