@@ -130,7 +130,6 @@ export async function createTerminal(
         id,
         pty,
         lastProcessName: `VM ${vm.id}`,
-        cwd: homeDirectory,
         isRendererReady: false,
         bufferedOutput: [],
         cloudEnvironment: {
@@ -175,7 +174,6 @@ export async function createTerminal(
     id,
     pty,
     lastProcessName: pty.process,
-    cwd,
     isRendererReady: false,
     bufferedOutput: [],
   };
