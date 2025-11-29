@@ -234,8 +234,20 @@ export function initializeGitV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Status Operations
+  //
+  // All status operations follow the pattern:
+  // 1. Acquire provider from service (increments refCount, resolves git root)
+  // 2. Perform operation
+  // 3. Release provider in finally block (decrements refCount)
+  //
+  // Operations that query repository state return null or default values on error.
   // -------------------------------------------------------------------------
 
+  /**
+   * Get full repository status.
+   * Returns branch info, upstream tracking, and status for all modified files.
+   * Returns null if path is not in a git repository.
+   */
   ipcMain.handle(
     "git-v2:status",
     async (_, params: { cwd: string }): Promise<SerializedGitStatus | null> => {
@@ -256,6 +268,10 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Get status for a specific file.
+   * Returns the file's index and working tree status, or null if not found.
+   */
   ipcMain.handle(
     "git-v2:file-status",
     async (
@@ -278,6 +294,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Check if repository has uncommitted changes.
+   * Returns true if there are staged or unstaged modifications.
+   * Returns false on error (e.g., not a git repository).
+   */
   ipcMain.handle(
     "git-v2:has-uncommitted-changes",
     async (_, params: { cwd: string }): Promise<boolean> => {
@@ -297,6 +318,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Check if repository has unpushed commits.
+   * Returns true if local branch is ahead of its upstream.
+   * Returns false on error or if no upstream is configured.
+   */
   ipcMain.handle(
     "git-v2:has-unpushed-commits",
     async (_, params: { cwd: string }): Promise<boolean> => {
@@ -316,6 +342,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Get list of files changed compared to a base branch.
+   * Useful for showing only files modified in a feature branch.
+   * Returns empty array on error.
+   */
   ipcMain.handle(
     "git-v2:changed-files-from-branch",
     async (
@@ -340,6 +371,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Get aggregate diff statistics for all uncommitted changes.
+   * Returns counts of lines added, removed, and files changed.
+   * Returns zeros on error.
+   */
   ipcMain.handle(
     "git-v2:uncommitted-diff-stats",
     async (_, params: { cwd: string }): Promise<SerializedDiffStats> => {
@@ -359,6 +395,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Get the most recently modified file with uncommitted changes.
+   * Used for auto-open functionality to open a relevant file on editor mount.
+   * Returns null if no dirty files or on error.
+   */
   ipcMain.handle(
     "git-v2:most-recent-dirty-file",
     async (_, params: { cwd: string }): Promise<string | null> => {
@@ -378,6 +419,12 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Get the most recently modified file from recent commits.
+   * Used as fallback for auto-open when no dirty files exist.
+   * Searches the specified number of recent commits for file modifications.
+   * Returns null if no files found or on error.
+   */
   ipcMain.handle(
     "git-v2:most-recent-committed-file",
     async (
@@ -402,6 +449,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Discard local changes to specified files.
+   * Reverts files to their state in HEAD.
+   * Throws on error (e.g., file not found, not in repository).
+   */
   ipcMain.handle(
     "git-v2:revert",
     async (_, params: { cwd: string; files: string[] }): Promise<void> => {
@@ -417,8 +469,15 @@ export function initializeGitV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Diff Operations
+  //
+  // Operations for retrieving file content differences and historical versions.
   // -------------------------------------------------------------------------
 
+  /**
+   * Get unified diff for a specific file.
+   * Can retrieve staged or unstaged diff based on the staged parameter.
+   * Returns null if file has no changes or on error.
+   */
   ipcMain.handle(
     "git-v2:file-diff",
     async (
@@ -444,6 +503,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Get file content at a specific git reference (commit, branch, tag).
+   * Used for displaying historical versions in diff views.
+   * Returns null if file doesn't exist at that ref or on error.
+   */
   ipcMain.handle(
     "git-v2:file-at-ref",
     async (
@@ -468,8 +532,16 @@ export function initializeGitV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Staging Operations
+  //
+  // Operations for managing the git staging area (index).
+  // These modify repository state and may trigger status change events.
   // -------------------------------------------------------------------------
 
+  /**
+   * Stage files for the next commit.
+   * Adds files to the git index.
+   * Triggers status change events for subscribers.
+   */
   ipcMain.handle(
     "git-v2:stage",
     async (_, params: { cwd: string; files: string[] }): Promise<void> => {
@@ -483,6 +555,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Unstage files from the index.
+   * Removes files from staging while preserving working directory changes.
+   * Triggers status change events for subscribers.
+   */
   ipcMain.handle(
     "git-v2:unstage",
     async (_, params: { cwd: string; files: string[] }): Promise<void> => {
@@ -498,8 +575,17 @@ export function initializeGitV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Commit Operations
+  //
+  // Operations for creating git commits.
+  // These modify repository history and trigger commit/status events.
   // -------------------------------------------------------------------------
 
+  /**
+   * Create a new commit with staged changes.
+   * Commits all staged files with the provided message.
+   * Returns the created commit metadata.
+   * Triggers commit created and status change events.
+   */
   ipcMain.handle(
     "git-v2:commit",
     async (
@@ -519,8 +605,15 @@ export function initializeGitV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Branch Operations
+  //
+  // Operations for querying and switching branches.
+  // Checkout operations may trigger branch and HEAD change events.
   // -------------------------------------------------------------------------
 
+  /**
+   * Get the current branch name.
+   * Returns null if in detached HEAD state or on error.
+   */
   ipcMain.handle(
     "git-v2:branch",
     async (_, params: { cwd: string }): Promise<string | null> => {
@@ -540,6 +633,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Get all local and remote branches.
+   * Returns branch metadata including current status, upstream tracking, and commit info.
+   * Returns empty array on error.
+   */
   ipcMain.handle(
     "git-v2:branches",
     async (_, params: { cwd: string }): Promise<SerializedGitBranch[]> => {
@@ -560,6 +658,11 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Checkout a branch, tag, or commit.
+   * Switches the working directory to the specified ref.
+   * Triggers branch change and HEAD change events for subscribers.
+   */
   ipcMain.handle(
     "git-v2:checkout",
     async (_, params: { cwd: string; ref: string }): Promise<void> => {
@@ -575,8 +678,23 @@ export function initializeGitV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Event Subscriptions
+  //
+  // Subscriptions hold a provider reference until explicitly unsubscribed
+  // or the window closes. Events are forwarded to the renderer via IPC.
+  //
+  // Event types subscribed:
+  // - onStatusChanged: File status changes (modified, staged, etc.)
+  // - onBranchChanged: Current branch switches
+  // - onCommitCreated: New commit creation
+  // - onHeadChanged: HEAD reference changes
   // -------------------------------------------------------------------------
 
+  /**
+   * Subscribe to all git repository events.
+   * Returns a subscription ID for later unsubscription.
+   * Returns null if path is not in a git repository.
+   * Events are sent to renderer via git-v2:* channels.
+   */
   ipcMain.handle(
     "git-v2:subscribe",
     async (event, params: { cwd: string }): Promise<string | null> => {
@@ -673,6 +791,10 @@ export function initializeGitV2Handlers(): void {
     },
   );
 
+  /**
+   * Unsubscribe from git events.
+   * Disposes event listeners and releases the provider reference.
+   */
   ipcMain.handle(
     "git-v2:unsubscribe",
     async (_, params: { subscriptionId: string }): Promise<void> => {
@@ -686,8 +808,15 @@ export function initializeGitV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Utility
+  //
+  // Helper operations for git repository discovery and availability checks.
   // -------------------------------------------------------------------------
 
+  /**
+   * Find the git root directory for a given path.
+   * Traverses parent directories to find .git folder.
+   * Returns null if not in a git repository.
+   */
   ipcMain.handle(
     "git-v2:find-root",
     async (_, params: { cwd: string }): Promise<string | null> => {
@@ -706,14 +835,26 @@ export function initializeGitV2Handlers(): void {
   // Git Availability Check
   // -------------------------------------------------------------------------
 
+  /**
+   * Check if git is available on the system.
+   * Verifies that the git executable can be found and executed.
+   * Returns false if git is not installed or not in PATH.
+   */
   ipcMain.handle("git-v2:is-available", async (): Promise<boolean> => {
     return service.isGitAvailable();
   });
 
   // -------------------------------------------------------------------------
   // Lifecycle
+  //
+  // Explicit lifecycle management for renderer-side cleanup.
   // -------------------------------------------------------------------------
 
+  /**
+   * Explicitly release a provider reference.
+   * Called by renderer when GitV2API is released.
+   * Provider may be disposed after grace period if no other references exist.
+   */
   ipcMain.handle(
     "git-v2:release",
     async (_, params: { gitRoot: string }): Promise<void> => {

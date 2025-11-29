@@ -1,15 +1,44 @@
 /**
  * FileSystemV2APIService - Shared instance management for FileSystemV2API.
  *
- * This service ensures that components sharing the same cwd reuse a single
- * FileSystemV2API instance, reducing duplicate IPC subscriptions.
+ * This singleton service ensures that React components sharing the same working
+ * directory (cwd) reuse a single FileSystemV2API instance. This is critical for:
  *
- * Pattern:
- * - Call `acquire(cwd)` to get an instance and increment refCount
- * - Call `release(cwd)` when done to decrement refCount
- * - Instance is disposed after grace period when refCount reaches 0
+ * - **Reduced IPC Overhead**: One subscription per cwd, not per component
+ * - **Consistent State**: All components see the same file system events
+ * - **Memory Efficiency**: Shared instances are properly disposed when unused
  *
- * This mirrors the backend FileSystemProviderService pattern for consistency.
+ * Design Decisions:
+ *
+ * 1. **Reference Counting**: Each `acquire()` increments refCount, each `release()`
+ *    decrements it. This tracks how many components are using each instance.
+ *
+ * 2. **Grace Period**: When refCount reaches 0, we wait 5 seconds before disposal.
+ *    This prevents thrashing during rapid component mount/unmount cycles (e.g.,
+ *    tab switching). If re-acquired during grace period, disposal is cancelled.
+ *
+ * 3. **Path Normalization**: Trailing slashes are removed so "/project" and
+ *    "/project/" map to the same instance.
+ *
+ * Usage:
+ * ```typescript
+ * // In a React hook or component
+ * const service = FileSystemV2APIService.getInstance();
+ *
+ * // Acquire instance (refCount: 0 → 1)
+ * const api = service.acquire('/path/to/project');
+ *
+ * // Use the API
+ * const files = await api.readDirectory('/path/to/project/src');
+ *
+ * // Release when done (refCount: 1 → 0, starts grace period)
+ * service.release('/path/to/project');
+ *
+ * // After 5 seconds with no re-acquire, instance is disposed
+ * ```
+ *
+ * @see FileSystemProviderService - Backend equivalent with same pattern
+ * @see useFileSystemV2 - React hook that wraps this service
  */
 
 import { FileSystemV2API } from "../api/FileSystemV2API";
@@ -18,14 +47,22 @@ import { FileSystemV2API } from "../api/FileSystemV2API";
 // Types
 // ============================================================================
 
+/**
+ * Internal tracking for a managed FileSystemV2API instance.
+ *
+ * Each unique cwd gets one ManagedInstance that tracks:
+ * - The actual API instance
+ * - How many components are currently using it (refCount)
+ * - Whether it's scheduled for disposal (disposeTimer)
+ */
 interface ManagedInstance {
-  /** The API instance */
+  /** The FileSystemV2API instance for this cwd */
   api: FileSystemV2API;
 
-  /** Number of active references */
+  /** Number of active references (components using this instance) */
   refCount: number;
 
-  /** Timer for grace period disposal */
+  /** Timer for grace period disposal (set when refCount reaches 0) */
   disposeTimer?: ReturnType<typeof setTimeout>;
 }
 

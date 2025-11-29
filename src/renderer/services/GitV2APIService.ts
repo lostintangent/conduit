@@ -1,15 +1,52 @@
 /**
  * GitV2APIService - Shared instance management for GitV2API.
  *
- * This service ensures that components sharing the same cwd reuse a single
- * GitV2API instance, reducing duplicate IPC subscriptions.
+ * This singleton service ensures that React components sharing the same working
+ * directory (cwd) reuse a single GitV2API instance. This is critical for:
  *
- * Pattern:
- * - Call `acquire(cwd)` to get an instance and increment refCount
- * - Call `release(cwd)` when done to decrement refCount
- * - Instance is disposed after grace period when refCount reaches 0
+ * - **Reduced IPC Overhead**: One git subscription per cwd, not per component
+ * - **Consistent State**: All components see the same git status events
+ * - **Memory Efficiency**: Shared instances are properly disposed when unused
  *
- * This mirrors the backend GitProviderService pattern for consistency.
+ * Design Decisions:
+ *
+ * 1. **Reference Counting**: Each `acquire()` increments refCount, each `release()`
+ *    decrements it. This tracks how many components are using each instance.
+ *
+ * 2. **Grace Period**: When refCount reaches 0, we wait 5 seconds before disposal.
+ *    This prevents thrashing during rapid component mount/unmount cycles (e.g.,
+ *    tab switching). If re-acquired during grace period, disposal is cancelled.
+ *
+ * 3. **Path Normalization**: Trailing slashes are removed so "/project" and
+ *    "/project/" map to the same instance.
+ *
+ * 4. **CWD vs Git Root**: Instances are keyed by cwd (the directory passed to
+ *    acquire), but the underlying GitV2API may resolve to the git root. This
+ *    means "/project/src" and "/project" could share the same git repository
+ *    but will have separate API instances.
+ *
+ * Usage:
+ * ```typescript
+ * // In a React hook or component
+ * const service = GitV2APIService.getInstance();
+ *
+ * // Acquire instance (refCount: 0 → 1)
+ * const api = service.acquire('/path/to/project');
+ *
+ * // Use the API
+ * const status = await api.getStatus();
+ * const cleanup = api.onStatusChanged((event) => {
+ *   console.log('Git status changed:', event.status);
+ * });
+ *
+ * // Release when done (refCount: 1 → 0, starts grace period)
+ * service.release('/path/to/project');
+ *
+ * // After 5 seconds with no re-acquire, instance is disposed
+ * ```
+ *
+ * @see GitProviderService - Backend equivalent with same pattern
+ * @see useGitV2 - React hook that wraps this service
  */
 
 import { GitV2API } from "../api/GitV2API";
@@ -18,14 +55,22 @@ import { GitV2API } from "../api/GitV2API";
 // Types
 // ============================================================================
 
+/**
+ * Internal tracking for a managed GitV2API instance.
+ *
+ * Each unique cwd gets one ManagedInstance that tracks:
+ * - The actual API instance
+ * - How many components are currently using it (refCount)
+ * - Whether it's scheduled for disposal (disposeTimer)
+ */
 interface ManagedInstance {
-  /** The API instance */
+  /** The GitV2API instance for this cwd */
   api: GitV2API;
 
-  /** Number of active references */
+  /** Number of active references (components using this instance) */
   refCount: number;
 
-  /** Timer for grace period disposal */
+  /** Timer for grace period disposal (set when refCount reaches 0) */
   disposeTimer?: ReturnType<typeof setTimeout>;
 }
 

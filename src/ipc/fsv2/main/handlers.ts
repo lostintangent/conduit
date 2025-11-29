@@ -126,8 +126,19 @@ export function initializeFileSystemV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Read Operations
+  //
+  // All read operations follow the pattern:
+  // 1. Acquire provider from service (increments refCount)
+  // 2. Perform operation
+  // 3. Release provider in finally block (decrements refCount)
+  //
+  // Errors propagate to renderer as rejected promises.
   // -------------------------------------------------------------------------
 
+  /**
+   * Read directory contents.
+   * Returns array of DirectoryEntry objects with name, type, and path.
+   */
   ipcMain.handle(
     "fs-v2:read-directory",
     async (_, params: { cwd: string; dirPath: string }): Promise<object[]> => {
@@ -142,6 +153,10 @@ export function initializeFileSystemV2Handlers(): void {
     },
   );
 
+  /**
+   * Read file contents as binary data.
+   * Returns Uint8Array that can be decoded to text on renderer side.
+   */
   ipcMain.handle(
     "fs-v2:read-file",
     async (
@@ -158,6 +173,10 @@ export function initializeFileSystemV2Handlers(): void {
     },
   );
 
+  /**
+   * Get file or directory stats (size, timestamps, type).
+   * Returns FileStat object with metadata.
+   */
   ipcMain.handle(
     "fs-v2:stat",
     async (_, params: { cwd: string; path: string }): Promise<object> => {
@@ -172,6 +191,10 @@ export function initializeFileSystemV2Handlers(): void {
     },
   );
 
+  /**
+   * Check if a path exists on the filesystem.
+   * Returns true if file or directory exists, false otherwise.
+   */
   ipcMain.handle(
     "fs-v2:exists",
     async (_, params: { cwd: string; path: string }): Promise<boolean> => {
@@ -187,8 +210,16 @@ export function initializeFileSystemV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Write Operations
+  //
+  // Write operations may trigger file system events that propagate to
+  // subscribed renderers via the event subscription system.
   // -------------------------------------------------------------------------
 
+  /**
+   * Write binary content to a file.
+   * Creates parent directories if they don't exist.
+   * Triggers file content change events for subscribers.
+   */
   ipcMain.handle(
     "fs-v2:write-file",
     async (
@@ -205,6 +236,11 @@ export function initializeFileSystemV2Handlers(): void {
     },
   );
 
+  /**
+   * Delete a file or directory.
+   * Options can specify recursive deletion for directories.
+   * Triggers file deleted events for subscribers.
+   */
   ipcMain.handle(
     "fs-v2:delete",
     async (
@@ -221,6 +257,10 @@ export function initializeFileSystemV2Handlers(): void {
     },
   );
 
+  /**
+   * Rename or move a file or directory.
+   * Triggers file renamed events for subscribers.
+   */
   ipcMain.handle(
     "fs-v2:rename",
     async (
@@ -237,6 +277,11 @@ export function initializeFileSystemV2Handlers(): void {
     },
   );
 
+  /**
+   * Create a directory.
+   * Creates parent directories if they don't exist.
+   * Triggers directory listing change events for parent directory.
+   */
   ipcMain.handle(
     "fs-v2:create-directory",
     async (_, params: { cwd: string; dirPath: string }): Promise<void> => {
@@ -252,8 +297,23 @@ export function initializeFileSystemV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Event Subscriptions
+  //
+  // Subscriptions hold a provider reference until explicitly unsubscribed
+  // or the window closes. Events are forwarded to the renderer via IPC.
+  //
+  // Subscription types:
+  // - "directory": Directory listing changes only
+  // - "file": File content/rename/delete changes only
+  // - "all": Both directory and file changes
+  //
+  // Optional path parameter filters events to a specific path or subtree.
   // -------------------------------------------------------------------------
 
+  /**
+   * Subscribe to filesystem events.
+   * Returns a subscription ID that can be used to unsubscribe.
+   * Events are sent to renderer via fs-v2:* channels.
+   */
   ipcMain.handle(
     "fs-v2:subscribe",
     async (
@@ -359,6 +419,10 @@ export function initializeFileSystemV2Handlers(): void {
     },
   );
 
+  /**
+   * Unsubscribe from filesystem events.
+   * Disposes event listeners and releases the provider reference.
+   */
   ipcMain.handle(
     "fs-v2:unsubscribe",
     async (_, params: { subscriptionId: string }): Promise<void> => {
@@ -372,8 +436,15 @@ export function initializeFileSystemV2Handlers(): void {
 
   // -------------------------------------------------------------------------
   // Lifecycle
+  //
+  // Explicit lifecycle management for renderer-side cleanup.
   // -------------------------------------------------------------------------
 
+  /**
+   * Explicitly release a provider reference.
+   * Called by renderer when FileSystemV2API is released.
+   * Provider may be disposed after grace period if no other references exist.
+   */
   ipcMain.handle(
     "fs-v2:release",
     async (_, params: { cwd: string }): Promise<void> => {

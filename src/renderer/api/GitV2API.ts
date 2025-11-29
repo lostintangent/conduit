@@ -246,6 +246,7 @@ export class GitV2API {
    *
    * @returns Git status with branch info and all changed files,
    *          or null if not a git repository
+   * @throws {Error} If the API has been released
    */
   async getStatus(): Promise<GitStatus | null> {
     this.ensureNotReleased();
@@ -272,6 +273,7 @@ export class GitV2API {
    * multiple IPC calls.
    *
    * @returns The refreshed status, or null if not a git repository
+   * @throws {Error} If the API has been released
    */
   async refreshStatus(): Promise<GitStatus | null> {
     this.ensureNotReleased();
@@ -351,6 +353,7 @@ export class GitV2API {
    *
    * @param filePath - Path to file (relative to git root)
    * @returns File status, or null if file is clean
+   * @throws {Error} If the API has been released
    */
   async getFileStatus(filePath: string): Promise<GitFileStatus | null> {
     this.ensureNotReleased();
@@ -361,6 +364,7 @@ export class GitV2API {
    * Check if repository has uncommitted changes.
    *
    * @returns true if there are uncommitted changes
+   * @throws {Error} If the API has been released
    */
   async hasUncommittedChanges(): Promise<boolean> {
     this.ensureNotReleased();
@@ -371,6 +375,7 @@ export class GitV2API {
    * Check if repository has unpushed commits.
    *
    * @returns true if there are unpushed commits
+   * @throws {Error} If the API has been released
    */
   async hasUnpushedCommits(): Promise<boolean> {
     this.ensureNotReleased();
@@ -387,6 +392,7 @@ export class GitV2API {
    * @param filePath - Path to file
    * @param staged - If true, show staged changes; if false, unstaged
    * @returns Unified diff string, or null if not a git repo
+   * @throws {Error} If the API has been released
    */
   async getFileDiff(
     filePath: string,
@@ -404,6 +410,7 @@ export class GitV2API {
    * @param filePath - Path to file
    * @param ref - Git ref (commit hash, branch name, 'HEAD', etc.)
    * @returns File content, or null if not found
+   * @throws {Error} If the API has been released
    */
   async getFileAtRef(filePath: string, ref: string): Promise<string | null> {
     this.ensureNotReleased();
@@ -418,6 +425,8 @@ export class GitV2API {
    * Stage files for commit.
    *
    * @param files - Paths to stage (relative to git root)
+   * @throws {Error} If the API has been released
+   * @throws {Error} If staging fails (file not found, etc.)
    */
   async stage(files: string[]): Promise<void> {
     this.ensureNotReleased();
@@ -428,6 +437,8 @@ export class GitV2API {
    * Unstage files (remove from index).
    *
    * @param files - Paths to unstage (relative to git root)
+   * @throws {Error} If the API has been released
+   * @throws {Error} If unstaging fails
    */
   async unstage(files: string[]): Promise<void> {
     this.ensureNotReleased();
@@ -444,6 +455,8 @@ export class GitV2API {
    * @param message - Commit message
    * @param options - Commit options (amend, signoff, etc.)
    * @returns The created commit, or null if not a git repo
+   * @throws {Error} If the API has been released
+   * @throws {Error} If commit fails (no staged changes, etc.)
    */
   async commit(
     message: string,
@@ -471,6 +484,7 @@ export class GitV2API {
    * Get current branch name.
    *
    * @returns Branch name, 'HEAD' if detached, or null if not a git repo
+   * @throws {Error} If the API has been released
    */
   async getCurrentBranch(): Promise<string | null> {
     this.ensureNotReleased();
@@ -481,6 +495,7 @@ export class GitV2API {
    * Get all branches (local and remote).
    *
    * @returns Array of branches
+   * @throws {Error} If the API has been released
    */
   async getBranches(): Promise<GitBranch[]> {
     this.ensureNotReleased();
@@ -492,6 +507,8 @@ export class GitV2API {
    * Checkout a branch or ref.
    *
    * @param ref - Branch name, tag, or commit hash
+   * @throws {Error} If the API has been released
+   * @throws {Error} If checkout fails (uncommitted changes, invalid ref, etc.)
    */
   async checkout(ref: string): Promise<void> {
     this.ensureNotReleased();
@@ -506,6 +523,7 @@ export class GitV2API {
    * Find the git root for the current CWD.
    *
    * @returns Git root path, or null if not a git repo
+   * @throws {Error} If the API has been released
    */
   async findRoot(): Promise<string | null> {
     this.ensureNotReleased();
@@ -530,6 +548,7 @@ export class GitV2API {
    *
    * @param baseBranch - Branch to compare against (e.g., 'main')
    * @returns Array of relative file paths
+   * @throws {Error} If the API has been released
    */
   async getChangedFilesFromBranch(baseBranch: string): Promise<string[]> {
     this.ensureNotReleased();
@@ -540,6 +559,7 @@ export class GitV2API {
    * Get diff statistics for uncommitted changes (lines added/removed).
    *
    * @returns Statistics about uncommitted changes
+   * @throws {Error} If the API has been released
    */
   async getUncommittedDiffStats(): Promise<GitDiffStats> {
     this.ensureNotReleased();
@@ -552,6 +572,7 @@ export class GitV2API {
    * Useful for auto-selecting a file when opening the editor.
    *
    * @returns Relative path from git root, or null if no dirty files
+   * @throws {Error} If the API has been released
    */
   async getMostRecentDirtyFile(): Promise<string | null> {
     this.ensureNotReleased();
@@ -565,6 +586,7 @@ export class GitV2API {
    *
    * @param commitLimit - Number of recent commits to check (default: 10)
    * @returns Relative path from git root, or null if none found
+   * @throws {Error} If the API has been released
    */
   async getMostRecentCommittedFile(
     commitLimit?: number,
@@ -583,6 +605,8 @@ export class GitV2API {
    * For unstaged files, reverts directly.
    *
    * @param files - Relative paths from git root
+   * @throws {Error} If the API has been released
+   * @throws {Error} If revert fails (file not found, etc.)
    */
   async revert(files: string[]): Promise<void> {
     this.ensureNotReleased();
@@ -598,6 +622,7 @@ export class GitV2API {
    *
    * @param callback - Function called when status changes
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onStatusChanged(callback: StatusChangedCallback): Cleanup {
     this.ensureNotReleased();
@@ -615,6 +640,7 @@ export class GitV2API {
    *
    * @param callback - Function called when branch changes
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onBranchChanged(callback: BranchChangedCallback): Cleanup {
     this.ensureNotReleased();
@@ -632,6 +658,7 @@ export class GitV2API {
    *
    * @param callback - Function called when a commit is created
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onCommitCreated(callback: CommitCreatedCallback): Cleanup {
     this.ensureNotReleased();
@@ -649,6 +676,7 @@ export class GitV2API {
    *
    * @param callback - Function called when HEAD changes
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onHeadChanged(callback: HeadChangedCallback): Cleanup {
     this.ensureNotReleased();

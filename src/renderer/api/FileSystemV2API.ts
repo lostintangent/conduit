@@ -144,6 +144,8 @@ export class FileSystemV2API {
    *
    * @param dirPath - Absolute path to directory
    * @returns Array of directory entries (sorted: directories first, then files)
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the directory does not exist or is not accessible
    */
   async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
     this.ensureNotReleased();
@@ -155,6 +157,8 @@ export class FileSystemV2API {
    *
    * @param filePath - Absolute path to file
    * @returns File contents as Uint8Array
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the file does not exist or is not accessible
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     this.ensureNotReleased();
@@ -168,6 +172,8 @@ export class FileSystemV2API {
    *
    * @param filePath - Absolute path to file
    * @returns File contents as string
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the file does not exist or is not accessible
    */
   async readTextFile(filePath: string): Promise<string> {
     const data = await this.readFile(filePath);
@@ -179,6 +185,8 @@ export class FileSystemV2API {
    *
    * @param path - Absolute path to file/directory
    * @returns File stats
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the path does not exist or is not accessible
    */
   async stat(path: string): Promise<FileStat> {
     this.ensureNotReleased();
@@ -190,6 +198,7 @@ export class FileSystemV2API {
    *
    * @param path - Absolute path to check
    * @returns true if path exists
+   * @throws {Error} If the API has been released
    */
   async exists(path: string): Promise<boolean> {
     this.ensureNotReleased();
@@ -208,6 +217,8 @@ export class FileSystemV2API {
    *
    * @param filePath - Absolute path to file
    * @param content - File contents as Uint8Array
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the write fails (permission denied, disk full, etc.)
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     this.ensureNotReleased();
@@ -221,6 +232,8 @@ export class FileSystemV2API {
    *
    * @param filePath - Absolute path to file
    * @param content - File contents as string
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the write fails (permission denied, disk full, etc.)
    */
   async writeTextFile(filePath: string, content: string): Promise<void> {
     const data = new TextEncoder().encode(content);
@@ -232,6 +245,8 @@ export class FileSystemV2API {
    *
    * @param path - Absolute path to delete
    * @param options - Delete options (recursive for directories)
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the path does not exist or cannot be deleted
    */
   async delete(path: string, options?: DeleteOptions): Promise<void> {
     this.ensureNotReleased();
@@ -243,6 +258,8 @@ export class FileSystemV2API {
    *
    * @param oldPath - Current absolute path
    * @param newPath - New absolute path
+   * @throws {Error} If the API has been released
+   * @throws {Error} If the source does not exist or rename fails
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
     this.ensureNotReleased();
@@ -255,6 +272,8 @@ export class FileSystemV2API {
    * Creates parent directories if they don't exist.
    *
    * @param dirPath - Absolute path to create
+   * @throws {Error} If the API has been released
+   * @throws {Error} If directory creation fails (permission denied, etc.)
    */
   async createDirectory(dirPath: string): Promise<void> {
     this.ensureNotReleased();
@@ -271,6 +290,7 @@ export class FileSystemV2API {
    * @param path - Directory path to watch
    * @param callback - Function called when directory listing changes
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onDirectoryListingChanged(
     path: string,
@@ -299,6 +319,7 @@ export class FileSystemV2API {
    *
    * @param callback - Function called when any directory listing changes
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onAnyDirectoryListingChanged(
     callback: (path: string, entries: DirectoryEntry[]) => void,
@@ -319,6 +340,7 @@ export class FileSystemV2API {
    * @param path - File path to watch
    * @param callback - Function called when file content changes
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onFileContentChanged(
     path: string,
@@ -347,6 +369,7 @@ export class FileSystemV2API {
    *
    * @param callback - Function called when any file content changes
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onAnyFileContentChanged(callback: FileContentChangedCallback): Cleanup {
     this.ensureNotReleased();
@@ -365,6 +388,7 @@ export class FileSystemV2API {
    * @param path - File path to watch
    * @param callback - Function called when file is deleted
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onFileDeleted(path: string, callback: FileDeletedCallback): Cleanup {
     this.ensureNotReleased();
@@ -390,6 +414,7 @@ export class FileSystemV2API {
    *
    * @param callback - Function called when any file is deleted
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onAnyFileDeleted(callback: FileDeletedCallback): Cleanup {
     this.ensureNotReleased();
@@ -408,6 +433,7 @@ export class FileSystemV2API {
    * @param path - Original file path to watch
    * @param callback - Function called when file is renamed
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onFileRenamed(path: string, callback: FileRenamedCallback): Cleanup {
     this.ensureNotReleased();
@@ -433,6 +459,7 @@ export class FileSystemV2API {
    *
    * @param callback - Function called when any file is renamed
    * @returns Cleanup function to unsubscribe
+   * @throws {Error} If the API has been released
    */
   onAnyFileRenamed(callback: FileRenamedCallback): Cleanup {
     this.ensureNotReleased();
