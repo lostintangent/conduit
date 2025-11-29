@@ -14,8 +14,7 @@ import type {
   WebViewPane,
 } from "@/types";
 import { generateId } from "@/utils/id";
-import type { OpenTabOptions } from "@shared/cli/types";
-import type { AgentSessionInfo, Workspace } from "@shared/types";
+import type { AgentSessionInfo, NewTabOptions, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import path from "path-browserify";
 import { openWorkspace } from "./workspace";
@@ -82,7 +81,7 @@ export function generateIncrementedTabTitle(
 }
 
 export async function openTab(
-  options?: OpenTabOptions,
+  options?: NewTabOptions,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   // Inherit CWD from the active tab's active pane
   const activeTab = store.get(activeTabAtom);
