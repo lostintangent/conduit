@@ -413,13 +413,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
                   insertBefore,
                 );
               }
-            } else if (args.paneType === "browser" && args.cwd) {
-              // Ignore cwd for browser panes - just use the default command
-              const targetCommand =
-                splitCommandMap[args.paneType][args.direction];
-              await targetCommand.execute();
             } else {
-              // Default behavior when no cwd or browser pane
+              // Default behavior: use command (cwd is ignored for browser panes)
               const targetCommand =
                 splitCommandMap[args.paneType][args.direction];
               await targetCommand.execute();
