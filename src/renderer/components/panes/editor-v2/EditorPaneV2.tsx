@@ -278,6 +278,75 @@ export function EditorPaneV2({
     return cleanup;
   }, [git]);
 
+  // Track if auto-open has been attempted (ref to avoid re-triggering effect)
+  const autoOpenAttemptedRef = useRef(false);
+
+  // Auto-open most recently modified file on mount (dirty files first, then committed)
+  useEffect(() => {
+    // Only attempt once per component instance
+    if (autoOpenAttemptedRef.current) {
+      return;
+    }
+    autoOpenAttemptedRef.current = true;
+
+    const sessionKey = `editor-v2-auto-opened-${pane.id}`;
+
+    // Only run once per session
+    const hasAutoOpened = sessionStorage.getItem(sessionKey);
+    if (hasAutoOpened) {
+      return;
+    }
+
+    // Don't auto-open if a file is already selected
+    if (selectedFile || initialFilePath) {
+      sessionStorage.setItem(sessionKey, "true");
+      return;
+    }
+
+    let cancelled = false;
+
+    const autoOpenFile = async () => {
+      try {
+        // Try dirty files first (most recently modified uncommitted changes)
+        let relativePath = await git.getMostRecentDirtyFile();
+
+        // Fall back to recently committed files
+        if (!relativePath) {
+          relativePath = await git.getMostRecentCommittedFile(10);
+        }
+
+        if (!relativePath || cancelled) {
+          return;
+        }
+
+        // Convert relative path to absolute path
+        const fullPath = cwd.endsWith("/")
+          ? `${cwd}${relativePath}`
+          : `${cwd}/${relativePath}`;
+        const name = relativePath.split("/").pop() ?? relativePath;
+
+        // Create file node and select it
+        const fileNode: FileNode = {
+          path: fullPath,
+          name,
+          type: "file",
+        };
+
+        setSelectedFile(fileNode);
+        sessionStorage.setItem(sessionKey, "true");
+      } catch (error) {
+        // Silently fail - not critical if auto-open doesn't work
+        console.debug("[EditorPaneV2] Auto-open failed:", error);
+      }
+    };
+
+    autoOpenFile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pane.id, selectedFile, initialFilePath, cwd, git]);
+
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 

@@ -35,6 +35,7 @@
  * - `git-v2:revert` - Discard local file changes
  * - `git-v2:subscribe` - Subscribe to git events
  * - `git-v2:unsubscribe` - Unsubscribe from events
+ * - `git-v2:release` - Release a provider reference
  *
  * Map Serialization:
  * Git status contains a Map<string, GitFileStatus>. Since Maps can't be
@@ -708,6 +709,17 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle("git-v2:is-available", async (): Promise<boolean> => {
     return service.isGitAvailable();
   });
+
+  // -------------------------------------------------------------------------
+  // Lifecycle
+  // -------------------------------------------------------------------------
+
+  ipcMain.handle(
+    "git-v2:release",
+    async (_, params: { gitRoot: string }): Promise<void> => {
+      service.releaseProvider(params.gitRoot);
+    },
+  );
 }
 
 /**

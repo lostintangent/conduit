@@ -25,6 +25,7 @@
  * - `fs-v2:exists` - Check if path exists
  * - `fs-v2:subscribe` - Subscribe to provider events
  * - `fs-v2:unsubscribe` - Unsubscribe from events
+ * - `fs-v2:release` - Release a provider reference
  *
  * @see docs/architecture/filesystem-provider-design-narrative.md
  */
@@ -366,6 +367,17 @@ export function initializeFileSystemV2Handlers(): void {
         subscription.dispose();
         subscriptions.delete(params.subscriptionId);
       }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Lifecycle
+  // -------------------------------------------------------------------------
+
+  ipcMain.handle(
+    "fs-v2:release",
+    async (_, params: { cwd: string }): Promise<void> => {
+      service.releaseProvider(params.cwd);
     },
   );
 }
