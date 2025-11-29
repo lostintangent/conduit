@@ -18,7 +18,7 @@
  * ```
  */
 
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import type { EditorPane as EditorPaneType } from "@/types";
 import type { FileNode, TreeViewMode, ViewMode } from "./types";
 import {
@@ -28,8 +28,9 @@ import {
   MobileViewToggle,
 } from "./components";
 import type { MobileView } from "./components";
-import { useResponsiveLayout, useEditorMode } from "./hooks";
+import { useResponsiveLayout } from "./hooks";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
+import { useGitV2 } from "@/hooks/useGitV2";
 import { cn } from "@/utils";
 
 // ============================================================================
@@ -252,8 +253,30 @@ export function EditorPaneV2({
   // Responsive layout detection
   const layout = useResponsiveLayout(containerRef);
 
-  // Editor mode management
-  const [editorMode, setEditorMode] = useEditorMode(selectedFile?.path ?? null);
+  // Git API for checking file status
+  const git = useGitV2(cwd);
+
+  // Git status state - tracks which files have changes
+  const [gitChangedFiles, setGitChangedFiles] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  // Load git status and subscribe to changes
+  useEffect(() => {
+    // Load initial status
+    git.getStatus().then((status) => {
+      if (status?.files) {
+        setGitChangedFiles(new Set(status.files.keys()));
+      }
+    });
+
+    // Subscribe to status changes
+    const cleanup = git.onStatusChanged((event) => {
+      setGitChangedFiles(new Set(event.status.files.keys()));
+    });
+
+    return cleanup;
+  }, [git]);
 
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
@@ -280,8 +303,16 @@ export function EditorPaneV2({
         setMobileView("editor");
       }
 
-      // Reset to editor mode for new file
-      setViewMode({ type: "editor" });
+      // Set initial view mode based on git status - files with changes open in diff
+      if (gitChangedFiles.has(file.path)) {
+        setViewMode({
+          type: "diff",
+          filePath: file.path,
+          baseBranch: baseBranch ?? undefined,
+        });
+      } else {
+        setViewMode({ type: "editor" });
+      }
 
       // Notify parent of file open
       onFileOpen?.(file);
@@ -307,7 +338,15 @@ export function EditorPaneV2({
       // onClearFile is for when selection is explicitly cleared (not just changed)
       void hadPreviousFile; // Acknowledge unused variable
     },
-    [layout, fs, onFileChange, onFileOpen, selectedFile],
+    [
+      layout,
+      fs,
+      onFileChange,
+      onFileOpen,
+      selectedFile,
+      gitChangedFiles,
+      baseBranch,
+    ],
   );
 
   /**
@@ -335,21 +374,9 @@ export function EditorPaneV2({
   /**
    * Handle view mode change (editor/diff/changesReview).
    */
-  const handleViewModeChange = useCallback(
-    (mode: ViewMode) => {
-      setViewMode(mode);
-
-      // Sync with EditorModeRegistry
-      if (selectedFile?.path) {
-        if (mode.type === "diff") {
-          setEditorMode({ type: "diff", baseBranch: mode.baseBranch });
-        } else if (mode.type === "editor") {
-          setEditorMode({ type: "editor" });
-        }
-      }
-    },
-    [selectedFile?.path, setEditorMode],
-  );
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+  }, []);
 
   /**
    * Handle mobile view toggle.
@@ -357,21 +384,6 @@ export function EditorPaneV2({
   const handleMobileViewChange = useCallback((view: MobileView) => {
     setMobileView(view);
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Effects
-  // ---------------------------------------------------------------------------
-
-  // Sync view mode when editor mode changes externally
-  useEffect(() => {
-    if (editorMode.type === "diff" && viewMode.type === "editor") {
-      setViewMode({
-        type: "diff",
-        filePath: selectedFile?.path ?? "",
-        baseBranch: editorMode.baseBranch,
-      });
-    }
-  }, [editorMode, viewMode.type, selectedFile?.path]);
 
   // ---------------------------------------------------------------------------
   // Render

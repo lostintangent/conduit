@@ -25,16 +25,6 @@ vi.mock(
   }),
 );
 
-// Mock useEditorMode hook
-const mockEditorMode = { type: "editor" };
-const mockSetEditorMode = vi.fn();
-vi.mock(
-  "../../../src/renderer/components/panes/editor-v2/hooks/useEditorMode",
-  () => ({
-    useEditorMode: () => [mockEditorMode, mockSetEditorMode],
-  }),
-);
-
 // Mock useFileSystemV2 hook
 const mockFs = {
   readTextFile: vi.fn().mockResolvedValue("// test file content"),
@@ -43,6 +33,16 @@ const mockFs = {
 };
 vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFs,
+}));
+
+// Mock useGitV2 hook - returns git API with empty status
+const mockGit = {
+  getStatus: vi.fn().mockResolvedValue({ files: new Map() }),
+  onStatusChanged: vi.fn().mockReturnValue(() => {}),
+  release: vi.fn(),
+};
+vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
+  useGitV2: () => mockGit,
 }));
 
 // Mock FileTreePanel
@@ -547,6 +547,66 @@ describe("EditorPaneV2", () => {
       // EditorViewPanel is mocked, so we just verify the component renders
       // The actual onSave pass-through is tested in the mock
       expect(screen.getByTestId("mock-editor-view-panel")).toBeDefined();
+    });
+  });
+
+  // ===========================================================================
+  // Git-Derived Editor Mode
+  // ===========================================================================
+
+  describe("git-derived editor mode", () => {
+    beforeEach(() => {
+      mockGit.getStatus.mockClear();
+      mockGit.onStatusChanged.mockClear();
+    });
+
+    it("should fetch git status on mount", async () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      await waitFor(() => {
+        expect(mockGit.getStatus).toHaveBeenCalled();
+      });
+    });
+
+    it("should subscribe to git status changes", () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      expect(mockGit.onStatusChanged).toHaveBeenCalled();
+    });
+
+    it("should unsubscribe from git status on unmount", () => {
+      const cleanup = vi.fn();
+      mockGit.onStatusChanged.mockReturnValue(cleanup);
+
+      const { unmount } = render(<EditorPaneV2 pane={TEST_PANE} />);
+      unmount();
+
+      expect(cleanup).toHaveBeenCalled();
+    });
+
+    it("should derive editor mode from git status", async () => {
+      // Set up git status with a changed file
+      const changedFiles = new Map([
+        ["/project/test.ts", { status: "modified", staged: false }],
+      ]);
+      mockGit.getStatus.mockResolvedValue({ files: changedFiles });
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      // Wait for git status to load
+      await waitFor(() => {
+        expect(mockGit.getStatus).toHaveBeenCalled();
+      });
+
+      // Select the file that has changes
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("select-file-button"));
+      });
+
+      // Mode should switch to diff for file with changes
+      await waitFor(() => {
+        expect(screen.getByTestId("editor-view-mode").textContent).toBe("diff");
+      });
     });
   });
 });

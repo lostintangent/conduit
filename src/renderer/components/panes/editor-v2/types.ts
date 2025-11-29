@@ -44,20 +44,6 @@ export type EditorMode =
   | { type: "editor" }
   | { type: "diff"; baseBranch?: string };
 
-/**
- * Event fired when a file's editor mode changes.
- */
-export interface EditorModeChangedEvent {
-  /** Path of the file whose mode changed */
-  filePath: string;
-
-  /** Previous mode (undefined if file was not tracked) */
-  oldMode: EditorMode | undefined;
-
-  /** New mode */
-  newMode: EditorMode;
-}
-
 // ============================================================================
 // Model State Types
 // ============================================================================

@@ -32,18 +32,16 @@ export {
   useMonacoModel,
   useModelState,
   useDiffContent,
-  useEditorMode,
   useResponsiveLayout,
 } from "./hooks";
 
-export type { DiffContent, UseEditorModeResult, LayoutMode } from "./hooks";
+export type { DiffContent, LayoutMode } from "./hooks";
 
 // Re-export registries
 export {
   EditorRegistry,
   MonacoModelRegistry,
   ViewStateRegistry,
-  EditorModeRegistry,
 } from "./registry";
 
 // Re-export components for advanced usage
