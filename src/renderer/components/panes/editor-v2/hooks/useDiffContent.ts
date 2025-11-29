@@ -163,44 +163,26 @@ function isBinaryContent(content: string): boolean {
 
 /**
  * Create a DiffError from an error object and context.
+ *
+ * Uses a priority-ordered approach to classify errors:
+ * 1. Binary file detection (most specific)
+ * 2. Git ref/revision not found
+ * 3. File not committed yet
+ * 4. File not tracked in git
+ * 5. Unknown error (fallback with original message)
+ *
+ * The order matters because some error messages may match multiple patterns.
  */
 function createDiffError(
   error: unknown,
   ref: string,
   filePath: string,
 ): DiffError {
-  const errorMsg = error instanceof Error ? error.message.toLowerCase() : "";
+  const originalMessage =
+    error instanceof Error ? error.message : String(error);
+  const errorMsg = originalMessage.toLowerCase();
 
-  // Detect specific error types based on error message patterns
-  if (
-    errorMsg.includes("does not exist") ||
-    errorMsg.includes("path") ||
-    errorMsg.includes("not found")
-  ) {
-    // Check if it's a ref issue or file issue
-    if (
-      errorMsg.includes("revision") ||
-      errorMsg.includes("ref") ||
-      errorMsg.includes("branch")
-    ) {
-      return {
-        type: "ref_not_found",
-        message: `Git ref "${ref}" not found`,
-      };
-    }
-    return {
-      type: "not_tracked",
-      message: `File "${filePath}" is not tracked in git at ${ref}`,
-    };
-  }
-
-  if (errorMsg.includes("fatal") && errorMsg.includes("exists on disk")) {
-    return {
-      type: "not_committed",
-      message: `File "${filePath}" has no committed version yet`,
-    };
-  }
-
+  // Priority 1: Binary file (most specific)
   if (errorMsg.includes("binary")) {
     return {
       type: "binary_file",
@@ -208,11 +190,53 @@ function createDiffError(
     };
   }
 
-  // Unknown error
+  // Priority 2: Git ref/revision not found
+  // Common git error patterns:
+  // - "fatal: bad revision 'nonexistent'"
+  // - "unknown revision or path not in the working tree"
+  // - "ambiguous argument 'nonexistent': unknown revision"
+  if (
+    (errorMsg.includes("bad revision") ||
+      errorMsg.includes("unknown revision") ||
+      errorMsg.includes("ambiguous argument")) &&
+    !errorMsg.includes("exists in index")
+  ) {
+    return {
+      type: "ref_not_found",
+      message: `Git ref "${ref}" not found`,
+    };
+  }
+
+  // Priority 3: File exists but has no committed version
+  // Git error: "fatal: path 'file' exists on disk, but not in 'HEAD'"
+  if (errorMsg.includes("exists on disk") && errorMsg.includes("fatal")) {
+    return {
+      type: "not_committed",
+      message: `File "${filePath}" has no committed version yet`,
+    };
+  }
+
+  // Priority 4: File not tracked in git
+  // Common git error patterns:
+  // - "fatal: path 'file' does not exist in 'HEAD'"
+  // - "error: pathspec 'file' did not match any file(s)"
+  // - "fatal: Path 'file' does not exist"
+  if (
+    errorMsg.includes("does not exist") ||
+    errorMsg.includes("did not match") ||
+    (errorMsg.includes("pathspec") && errorMsg.includes("error"))
+  ) {
+    return {
+      type: "not_tracked",
+      message: `File "${filePath}" is not tracked in git at ${ref}`,
+    };
+  }
+
+  // Priority 5: Unknown error - preserve the original error message
+  // This ensures we don't lose important debugging information
   return {
     type: "unknown",
-    message:
-      error instanceof Error ? error.message : "Failed to load diff content",
+    message: originalMessage || "Failed to load diff content",
   };
 }
 

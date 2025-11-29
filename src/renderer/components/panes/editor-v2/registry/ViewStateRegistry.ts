@@ -17,6 +17,13 @@
  * The key insight is that ViewState is per (editor, file) pair, not just per file.
  * Two editors showing the same file can have different scroll positions.
  *
+ * Memory Management:
+ *
+ * To prevent unbounded memory growth, this registry implements LRU eviction:
+ * - Entries are evicted when the registry exceeds maxEntries (default: 200)
+ * - Eviction is based on lastUsed timestamp (least recently used first)
+ * - Setting/getting a ViewState updates its lastUsed timestamp
+ *
  * Usage:
  * ```typescript
  * const registry = ViewStateRegistry.getInstance();
@@ -37,6 +44,19 @@
 import type * as monaco from "monaco-editor";
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Default maximum number of ViewState entries to keep.
+ *
+ * ViewState objects are relatively small (a few KB each at most), so we can
+ * keep more of them than models. 200 entries is a reasonable balance between
+ * memory usage and user experience (fewer cache misses).
+ */
+const DEFAULT_MAX_ENTRIES = 200;
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -49,6 +69,17 @@ import type * as monaco from "monaco-editor";
 interface ViewStateKey {
   editorId: string;
   filePath: string;
+}
+
+/**
+ * Internal entry that wraps ViewState with metadata for LRU eviction.
+ */
+interface ViewStateEntry {
+  /** The Monaco ViewState object */
+  viewState: monaco.editor.ICodeEditorViewState;
+
+  /** Timestamp of last access (get or set) for LRU eviction */
+  lastUsed: number;
 }
 
 /**
@@ -99,8 +130,11 @@ export class ViewStateRegistry {
   // Internal State
   // ---------------------------------------------------------------------------
 
-  /** Map of (editorId::filePath) to ViewState */
-  private states = new Map<string, monaco.editor.ICodeEditorViewState>();
+  /** Map of (editorId::filePath) to ViewStateEntry (includes lastUsed for LRU) */
+  private states = new Map<string, ViewStateEntry>();
+
+  /** Maximum number of entries (for LRU eviction) */
+  private maxEntries: number = DEFAULT_MAX_ENTRIES;
 
   /** Private constructor - use getInstance() */
   private constructor() {}
@@ -113,6 +147,7 @@ export class ViewStateRegistry {
    * Save the current ViewState from an editor.
    *
    * Call this before switching to a different file in the editor.
+   * Updates the lastUsed timestamp and may trigger LRU eviction.
    *
    * @param editorId - The editor's unique identifier
    * @param filePath - The file path whose ViewState we're saving
@@ -127,7 +162,13 @@ export class ViewStateRegistry {
 
     if (viewState) {
       const key = makeKey(editorId, filePath);
-      this.states.set(key, viewState);
+      this.states.set(key, {
+        viewState,
+        lastUsed: Date.now(),
+      });
+
+      // Evict LRU entries if over limit
+      this.evictLRU();
     }
   }
 
@@ -136,6 +177,7 @@ export class ViewStateRegistry {
    *
    * Call this after switching back to a file in the editor.
    * If no ViewState is saved, this is a no-op.
+   * Updates the lastUsed timestamp on successful restore.
    *
    * @param editorId - The editor's unique identifier
    * @param filePath - The file path whose ViewState we're restoring
@@ -148,10 +190,12 @@ export class ViewStateRegistry {
     editor: monaco.editor.IStandaloneCodeEditor,
   ): boolean {
     const key = makeKey(editorId, filePath);
-    const viewState = this.states.get(key);
+    const entry = this.states.get(key);
 
-    if (viewState) {
-      editor.restoreViewState(viewState);
+    if (entry) {
+      editor.restoreViewState(entry.viewState);
+      // Update lastUsed timestamp on access
+      entry.lastUsed = Date.now();
       return true;
     }
 
@@ -160,6 +204,8 @@ export class ViewStateRegistry {
 
   /**
    * Get saved ViewState without restoring it.
+   *
+   * Updates the lastUsed timestamp on access (for LRU purposes).
    *
    * @param editorId - The editor's unique identifier
    * @param filePath - The file path
@@ -170,7 +216,15 @@ export class ViewStateRegistry {
     filePath: string,
   ): monaco.editor.ICodeEditorViewState | undefined {
     const key = makeKey(editorId, filePath);
-    return this.states.get(key);
+    const entry = this.states.get(key);
+
+    if (entry) {
+      // Update lastUsed timestamp on access
+      entry.lastUsed = Date.now();
+      return entry.viewState;
+    }
+
+    return undefined;
   }
 
   /**
@@ -237,11 +291,60 @@ export class ViewStateRegistry {
   }
 
   /**
+   * Get the maximum number of entries before LRU eviction.
+   */
+  getMaxEntries(): number {
+    return this.maxEntries;
+  }
+
+  /**
+   * Set the maximum number of entries before LRU eviction.
+   *
+   * Immediately triggers eviction if current count exceeds new limit.
+   *
+   * @param max - Maximum entries to keep
+   */
+  setMaxEntries(max: number): void {
+    this.maxEntries = max;
+    this.evictLRU();
+  }
+
+  /**
    * Clear all saved ViewStates.
    *
    * Used during cleanup or testing.
    */
   clearAll(): void {
     this.states.clear();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private Methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Evict least-recently-used entries to stay within maxEntries limit.
+   *
+   * Sorts entries by lastUsed timestamp and removes the oldest ones
+   * until we're at or below the limit.
+   */
+  private evictLRU(): void {
+    if (this.states.size <= this.maxEntries) {
+      return;
+    }
+
+    // Get entries sorted by lastUsed (oldest first)
+    const sortedEntries = Array.from(this.states.entries()).sort(
+      ([, a], [, b]) => a.lastUsed - b.lastUsed,
+    );
+
+    // Calculate how many to remove
+    const toRemove = this.states.size - this.maxEntries;
+
+    // Remove oldest entries
+    for (let i = 0; i < toRemove; i++) {
+      const [key] = sortedEntries[i];
+      this.states.delete(key);
+    }
   }
 }

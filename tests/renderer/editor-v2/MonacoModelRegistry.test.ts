@@ -7,6 +7,7 @@ import * as monaco from "monaco-editor";
 
 const { mockFsApi } = vi.hoisted(() => {
   const mockFsApi = {
+    stat: vi.fn(),
     readTextFile: vi.fn(),
     writeTextFile: vi.fn(),
     onAnyFileContentChanged: vi.fn(() => vi.fn()),
@@ -66,6 +67,7 @@ describe("MonacoModelRegistry", () => {
     monacoMock.__testHelpers.resetVersionCounter();
 
     // Default mock behavior
+    mockFsApi.stat.mockResolvedValue({ size: 100 }); // Default small file size
     mockFsApi.readTextFile.mockResolvedValue("file content");
     mockFsApi.writeTextFile.mockResolvedValue(undefined);
 

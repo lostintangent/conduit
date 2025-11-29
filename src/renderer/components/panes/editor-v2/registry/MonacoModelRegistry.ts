@@ -935,20 +935,27 @@ export class MonacoModelRegistry {
   /**
    * Set up file system event subscriptions for a model.
    *
-   * Uses entry.filePath (instead of captured variable) so callbacks
-   * continue to work correctly after file rename.
+   * IMPORTANT: All callbacks derive the current URI from entry.filePath
+   * instead of capturing the initial URI in a closure. This ensures
+   * callbacks continue to work correctly after file renames.
+   *
+   * After a rename:
+   * 1. handleFileRenamed updates entry.filePath to the new path
+   * 2. Registry mapping is updated with the new URI
+   * 3. Subsequent events use entry.filePath to derive the current URI
    */
   private setupFileWatching(
-    uri: string,
+    _uri: string,
     _filePath: string,
     entry: ModelEntry,
     fsApi: FileSystemV2API,
   ): void {
     // Listen for file content changes
-    // Uses entry.filePath so it stays current after renames
+    // Derives URI from entry.filePath at call time to handle renames
     const contentCleanup = fsApi.onAnyFileContentChanged((changedPath) => {
       if (changedPath === entry.filePath) {
-        this.handleExternalFileChange(uri, entry);
+        const currentUri = pathToUri(entry.filePath);
+        this.handleExternalFileChange(currentUri, entry);
       }
     });
     entry.fileWatchDisposables.push({ dispose: contentCleanup });
@@ -956,15 +963,18 @@ export class MonacoModelRegistry {
     // Listen for file deletion
     const deleteCleanup = fsApi.onAnyFileDeleted((deletedPath) => {
       if (deletedPath === entry.filePath) {
-        this.handleFileDeleted(uri, entry);
+        const currentUri = pathToUri(entry.filePath);
+        this.handleFileDeleted(currentUri, entry);
       }
     });
     entry.fileWatchDisposables.push({ dispose: deleteCleanup });
 
     // Listen for file rename
+    // Derives URI at call time so multiple renames work correctly
     const renameCleanup = fsApi.onAnyFileRenamed((oldPath, newPath) => {
       if (oldPath === entry.filePath) {
-        this.handleFileRenamed(uri, oldPath, newPath, entry);
+        const currentUri = pathToUri(entry.filePath);
+        this.handleFileRenamed(currentUri, oldPath, newPath, entry);
       }
     });
     entry.fileWatchDisposables.push({ dispose: renameCleanup });
@@ -1001,9 +1011,9 @@ export class MonacoModelRegistry {
       // No conflict at start: attempt auto-reload
       entry.isReloading = true;
       try {
-        const filePath = uriToPath(uri);
+        // Use entry.filePath directly for consistency (avoids uri conversion)
         const fsApi = this.getOrCreateFsApi(entry.cwd);
-        const content = await fsApi.readTextFile(filePath);
+        const content = await fsApi.readTextFile(entry.filePath);
 
         // Re-check isDirty after async read - user may have typed while loading
         if (entry.isDirty) {

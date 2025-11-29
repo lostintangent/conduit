@@ -198,6 +198,9 @@ export class GitV2API {
   /** Pending subscription promise (to prevent duplicate subscription requests) */
   private subscriptionPromise: Promise<void> | null = null;
 
+  /** Pending refresh promise (to deduplicate concurrent refresh calls) */
+  private refreshPromise: Promise<GitStatus | null> | null = null;
+
   /** Timestamp of last status update (for staleness tracking) */
   private _lastStatusUpdate = 0;
 
@@ -264,11 +267,37 @@ export class GitV2API {
    * Use this when you suspect the cache might be stale,
    * for example after external git operations.
    *
+   * Concurrent calls are deduplicated - if a refresh is already in progress,
+   * subsequent calls will return the same promise instead of triggering
+   * multiple IPC calls.
+   *
    * @returns The refreshed status, or null if not a git repository
    */
   async refreshStatus(): Promise<GitStatus | null> {
     this.ensureNotReleased();
 
+    // Deduplicate concurrent refresh calls
+    // If a refresh is already in progress, return the existing promise
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    // Start a new refresh and track the promise
+    this.refreshPromise = this.doRefreshStatus();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      // Clear the promise so future calls can refresh again
+      this.refreshPromise = null;
+    }
+  }
+
+  /**
+   * Internal implementation of status refresh.
+   * Separated to allow deduplication in refreshStatus().
+   */
+  private async doRefreshStatus(): Promise<GitStatus | null> {
     // Force a fresh status fetch
     const status = await this.getStatus();
 
