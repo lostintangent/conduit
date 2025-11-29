@@ -979,22 +979,14 @@ export async function deleteAgentSession(
 }
 
 export function activatePane(tabId: string, paneId: string) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
+  store.set(tabsAtom, (tabs) => {
+    const tab = tabs.find(({ id }) => id === tabId);
+    if (!tab || tab.activePaneId === paneId) {
+      return tabs;
+    }
 
-      if (tab.activePaneId === paneId) {
-        return tab;
-      }
-
-      return {
-        ...tab,
-        activePaneId: paneId,
-      };
-    }),
-  );
+    tab.activePaneId = paneId;
+  });
 }
 
 export function closePane(tabId: string, paneId: string) {

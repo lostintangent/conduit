@@ -85,7 +85,7 @@ export type CliCommand =
   // Editor commands
   | DefineCommand<"editor-open", { cwd: string; filePath?: string }>
   // Notification commands
-  | DefineCommand<"notify", { text: string }>;
+  | DefineCommand<"notify", { message: string; persistent?: boolean }>;
 
 /* Response types (Renderer -> IPC -> CLI) */
 

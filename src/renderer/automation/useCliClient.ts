@@ -2,7 +2,10 @@ import { browserAutomate } from "@/automation/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
-import { enqueueNotification } from "@/store/actions/notifications";
+import {
+  dismissNotification,
+  enqueueNotification,
+} from "@/store/actions/notifications";
 import { activatePane } from "@/store/actions/pane";
 import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
@@ -413,17 +416,19 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               matchingTab.id === activeTab?.id &&
               callingPane[0] === activeTab?.activePaneId;
 
-            enqueueNotification({
+            const notificationId = enqueueNotification({
               kind: "info",
-              message: args.text,
-              persistent: true,
+              message: args.message,
+              persistent: args.persistent ?? false,
               actions: !isAlreadyActive
                 ? [
                     {
-                      label: "Show terminal",
+                      label: "Focus terminal",
                       onClick: () => {
                         focusTab(matchingTab.id);
                         activatePane(matchingTab.id, callingPane[0]);
+
+                        dismissNotification(notificationId);
                       },
                     },
                   ]
