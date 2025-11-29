@@ -146,6 +146,13 @@ function isBinaryContent(content: string): boolean {
       return true;
     }
 
+    // Control characters 0x0B (VT) and 0x0C (FF)
+    // We allow 0x09 (TAB), 0x0A (LF), and 0x0D (CR) as they're common in text
+    // But VT and FF are rarely used in modern text files
+    if (charCode === 0x0b || charCode === 0x0c) {
+      return true;
+    }
+
     // Control characters 0x0E-0x1A (SO, SI, DLE, DC1-4, NAK, SYN, ETB, CAN, EM, SUB)
     // Skip 0x1B (ESC) as it's used for ANSI escape codes
     if (charCode >= 0x0e && charCode <= 0x1a) {

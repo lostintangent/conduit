@@ -182,6 +182,10 @@ export class EditorRegistry {
     // Create new editor
     const editor = this.createEditor(editorId, container, options);
 
+    // Enforce pinned limit - new editors start pinned, so we need to
+    // unpin oldest if we exceed the limit
+    this.enforcePinnedLimit();
+
     // Run LRU eviction if needed
     this.evictLRU();
 

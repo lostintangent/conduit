@@ -222,6 +222,9 @@ describe("EditorRegistry", () => {
     it("should evict oldest editors when exceeding max", () => {
       const registry = EditorRegistry.getInstance();
       registry.setMaxEditors(2);
+      // Must also set maxPinnedEditors low enough to allow eviction
+      // (editors start pinned, and pinned editors can't be evicted)
+      registry.setMaxPinnedEditors(1);
 
       const container1 = document.createElement("div");
       const container2 = document.createElement("div");
@@ -242,6 +245,8 @@ describe("EditorRegistry", () => {
       vi.useFakeTimers();
       const registry = EditorRegistry.getInstance();
       registry.setMaxEditors(2);
+      // Must also set maxPinnedEditors low enough to allow eviction
+      registry.setMaxPinnedEditors(1);
 
       const container1 = document.createElement("div");
       const container2 = document.createElement("div");
