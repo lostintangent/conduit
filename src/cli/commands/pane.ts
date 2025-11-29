@@ -21,8 +21,8 @@ export default function (program: Command): Command {
     );
 
   program
-    .cliCommand("pane-split", (request, direction, { type, cwd }) =>
-      request({ direction, paneType: type, cwd }),
+    .cliCommand("pane-split", (request, direction, { type }) =>
+      request({ direction, paneType: type }),
     )
     .alias("split")
     .description("Split the active pane in the requested direction.")
@@ -35,10 +35,6 @@ export default function (program: Command): Command {
       new Option("-t, --type <paneType>", "Type of pane to open")
         .choices(PANE_SPLIT_TYPES)
         .default("terminal"),
-    )
-    .option(
-      "-c, --cwd <cwd>",
-      "Working directory for the new pane (only applies to terminal and editor panes)",
     );
 
   program
