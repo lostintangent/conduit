@@ -1,7 +1,4 @@
-# Conduit shell integration for zsh
-# This file is loaded when ZDOTDIR points to this directory
-
-# Guard so we don't recurse
+# Ensure this script is only sourced once
 if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
   export CONDUIT_ZSHENV_DONE=1
 
@@ -17,11 +14,11 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
     . "${ZDOTDIR:-$HOME}/.zshenv"
   fi
 
-  # Install OSC 7 hook for CWD reporting
   __conduit_osc7() {
     printf '\e]7;file://%s%s\a' "${HOST}" "${PWD}"
   }
 
+  # Register hooks to run before each prompt and on directory change
   autoload -Uz add-zsh-hook
   add-zsh-hook precmd __conduit_osc7
   add-zsh-hook chpwd __conduit_osc7

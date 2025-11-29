@@ -1,9 +1,3 @@
-# Conduit shell integration for PowerShell
-# This script emits OSC 7 sequences to report the current working directory
-
-# Cache for deduping
-$script:Conduit_LastPath = $null
-
 function global:Write-Osc7Cwd {
     $p = $ExecutionContext.SessionState.Path.CurrentLocation
     if ($p.Provider.Name -ne 'FileSystem') { return }
@@ -15,10 +9,6 @@ function global:Write-Osc7Cwd {
     $hostName = $env:HOSTNAME
     if (-not $hostName) { $hostName = $env:COMPUTERNAME }
     if (-not $hostName) { $hostName = 'localhost' }
-
-    # Only emit if path changed
-    if ($providerPath -eq $script:Conduit_LastPath) { return }
-    $script:Conduit_LastPath = $providerPath
 
     $esc = [char]27
     # ESC ] 7 ; file://host/path ESC \

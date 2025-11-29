@@ -39,21 +39,19 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
     // which restores the original ZDOTDIR and installs the OSC 7 hook
     env.ZDOTDIR = shellIntegrationDir;
   } else if (shellName === "bash") {
+    // Force bash to load our integration script via --rcfile
     const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
-    // Set ENV to point at our integration script and use --posix
-    // Our script disables POSIX mode and sources user's config files
-    env.ENV = scriptPath;
-    args = ["--posix"];
+    args = ["--rcfile", scriptPath];
   } else if (
     shellName === "pwsh" ||
     shellName === "pwsh.exe" ||
     shellName === "powershell" ||
     shellName === "powershell.exe"
   ) {
+    // Note: Test if this actually works
     const scriptPath = path.join(shellIntegrationDir, "conduit.ps1");
     args = ["-NoExit", "-Command", `. "${scriptPath}"`];
   }
-  // For other shells, just spawn normally
 
   return spawn(shell, args, {
     name: "xterm-256color",
