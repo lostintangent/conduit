@@ -14,3 +14,9 @@ export { useResponsiveLayout } from "./useResponsiveLayout";
 export type { LayoutMode } from "./useResponsiveLayout";
 export { useEditorActions } from "./useEditorActions";
 export type { EditorActions } from "./useEditorActions";
+export { useGitOperations } from "./useGitOperations";
+export type {
+  GitOperationsState,
+  GitOperations,
+  UseGitOperationsResult,
+} from "./useGitOperations";

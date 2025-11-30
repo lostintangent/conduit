@@ -82,3 +82,7 @@ export type { BranchSelectorProps } from "./BranchSelector";
 // Shared components
 export { GitBadge, getStatusConfig } from "./shared";
 export type { GitBadgeProps } from "./shared";
+
+// Git operations components
+export { GitOperationsToolbar } from "./GitOperationsToolbar";
+export type { GitOperationsToolbarProps } from "./GitOperationsToolbar";

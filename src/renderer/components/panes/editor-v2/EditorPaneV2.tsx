@@ -204,6 +204,38 @@ export function EditorPaneV2({
     () => new Set(),
   );
 
+  // Current branch name
+  const [currentBranch, setCurrentBranch] = useState<string | null>(null);
+
+  // Staged count and change detection for git toolbar
+  const [stagedCount, setStagedCount] = useState(0);
+  const [hasUncommittedChanges, setHasUncommittedChanges] = useState(false);
+
+  // Helper to update git status state
+  const updateGitStatusState = useCallback(
+    (status: { files: Map<string, { staged?: boolean }> } | null) => {
+      if (!status?.files) {
+        setGitChangedFiles(new Set());
+        setStagedCount(0);
+        setHasUncommittedChanges(false);
+        return;
+      }
+
+      setGitChangedFiles(new Set(status.files.keys()));
+
+      // Count staged files
+      let staged = 0;
+      for (const fileStatus of status.files.values()) {
+        if (fileStatus.staged) {
+          staged++;
+        }
+      }
+      setStagedCount(staged);
+      setHasUncommittedChanges(status.files.size > 0);
+    },
+    [],
+  );
+
   // Load git status and subscribe to changes
   useEffect(() => {
     let cancelled = false;
@@ -212,8 +244,8 @@ export function EditorPaneV2({
     git
       .getStatus()
       .then((status) => {
-        if (!cancelled && status?.files) {
-          setGitChangedFiles(new Set(status.files.keys()));
+        if (!cancelled) {
+          updateGitStatusState(status);
         }
       })
       .catch((error) => {
@@ -221,18 +253,38 @@ export function EditorPaneV2({
         console.error("[EditorPaneV2] Failed to load git status:", error);
       });
 
+    // Load current branch
+    git
+      .getCurrentBranch()
+      .then((branch) => {
+        if (!cancelled) {
+          setCurrentBranch(branch);
+        }
+      })
+      .catch((error) => {
+        console.error("[EditorPaneV2] Failed to load current branch:", error);
+      });
+
     // Subscribe to status changes
-    const cleanup = git.onStatusChanged((event) => {
+    const statusCleanup = git.onStatusChanged((event) => {
       if (!cancelled) {
-        setGitChangedFiles(new Set(event.status.files.keys()));
+        updateGitStatusState(event.status);
+      }
+    });
+
+    // Subscribe to branch changes
+    const branchCleanup = git.onBranchChanged((event) => {
+      if (!cancelled) {
+        setCurrentBranch(event.currentBranch);
       }
     });
 
     return () => {
       cancelled = true;
-      cleanup();
+      statusCleanup();
+      branchCleanup();
     };
-  }, [git]);
+  }, [git, updateGitStatusState]);
 
   // Track if auto-open has been attempted (ref to avoid re-triggering effect)
   const autoOpenAttemptedRef = useRef(false);
@@ -392,6 +444,13 @@ export function EditorPaneV2({
   }, []);
 
   /**
+   * Handle base branch change for comparison mode.
+   */
+  const handleBaseBranchChange = useCallback((branch: string | null) => {
+    setBaseBranch(branch);
+  }, []);
+
+  /**
    * Handle panel view toggle (for single-column layout).
    */
   const handlePanelViewChange = useCallback((view: PanelView) => {
@@ -494,6 +553,10 @@ export function EditorPaneV2({
           treeViewMode={treeViewMode}
           onTreeViewModeChange={handleTreeViewModeChange}
           baseBranch={baseBranch ?? undefined}
+          onBaseBranchChange={handleBaseBranchChange}
+          currentBranch={currentBranch}
+          stagedCount={stagedCount}
+          hasUncommittedChanges={hasUncommittedChanges}
         />
       </div>
 

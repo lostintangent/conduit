@@ -179,6 +179,17 @@ export function BranchSelector({
     setIsOpen(false);
   }, []);
 
+  /**
+   * Handle keyboard events for the dropdown.
+   * - Escape: close dropdown
+   */
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setIsOpen(false);
+    }
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -280,6 +291,7 @@ export function BranchSelector({
               "bg-popover border border-border rounded-md shadow-md",
               "py-1",
             )}
+            onKeyDown={handleKeyDown}
             data-testid="branch-selector-dropdown"
           >
             {/* Local Branches */}

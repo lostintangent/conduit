@@ -29,6 +29,8 @@ import {
   ChevronRight,
   GitCommit,
   ChevronsUpDown,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import { useGitV2 } from "@/hooks/useGitV2";
@@ -183,6 +185,7 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   // Section expansion state
   const [stagedExpanded, setStagedExpanded] = useState(true);
@@ -293,9 +296,13 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
   const handleCommit = useCallback(
     async (message: string) => {
       setIsCommitting(true);
+      setCommitError(null);
       try {
         await git.commit(message);
       } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        setCommitError(`Failed to commit: ${errorMessage}`);
         console.error("Failed to commit:", error);
       } finally {
         setIsCommitting(false);
@@ -303,6 +310,10 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
     },
     [git],
   );
+
+  const handleDismissError = useCallback(() => {
+    setCommitError(null);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -338,6 +349,29 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
       className="flex flex-col h-full overflow-hidden"
       data-testid="changes-review-pane"
     >
+      {/* Error Banner */}
+      {commitError && (
+        <div
+          className={cn(
+            "flex items-center gap-2 px-3 py-2",
+            "bg-destructive/10 text-destructive text-sm",
+            "border-b border-destructive/20",
+          )}
+          data-testid="commit-error-banner"
+        >
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1">{commitError}</span>
+          <button
+            className="p-1 hover:bg-destructive/20 rounded transition-colors"
+            onClick={handleDismissError}
+            title="Dismiss"
+            data-testid="dismiss-error"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
         <span className="text-sm font-medium">Changes Review</span>

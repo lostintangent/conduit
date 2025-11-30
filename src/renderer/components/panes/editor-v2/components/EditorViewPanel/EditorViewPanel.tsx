@@ -32,6 +32,7 @@ import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
+import { ChangesReviewPane } from "../ChangesReviewPane";
 
 // ============================================================================
 // Types
@@ -257,9 +258,7 @@ export function EditorViewPanel({
         )}
 
         {viewMode.type === "changesReview" && (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            Changes review mode (coming in Phase 4+)
-          </div>
+          <ChangesReviewPane cwd={cwd} baseBranch={baseBranch} />
         )}
       </div>
     </div>

@@ -6,6 +6,7 @@
  * - Changes: Git changes view (FileTreeChanges)
  *
  * Both views are kept mounted but hidden to preserve state when switching.
+ * When in changes mode, a GitOperationsToolbar is shown for commit operations.
  *
  * @example
  * ```tsx
@@ -15,6 +16,9 @@
  *   onFileSelect={(file) => openFile(file)}
  *   treeViewMode="files"
  *   onTreeViewModeChange={(mode) => setTreeViewMode(mode)}
+ *   currentBranch="main"
+ *   stagedCount={3}
+ *   hasUncommittedChanges={true}
  * />
  * ```
  */
@@ -24,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import type { FileNode, TreeViewMode } from "../../types";
 import { FileTreeNormal } from "./FileTreeNormal";
 import { FileTreeChanges } from "./FileTreeChanges";
+import { GitOperationsToolbar } from "../GitOperationsToolbar";
 import { cn } from "@/utils";
 
 // ============================================================================
@@ -48,6 +53,21 @@ export interface FileTreePanelProps {
 
   /** Git ref for branch comparison (optional) */
   baseBranch?: string;
+
+  /** Callback when base branch changes */
+  onBaseBranchChange?: (branch: string | null) => void;
+
+  /** Current branch name (for display) */
+  currentBranch?: string | null;
+
+  /** Number of staged files */
+  stagedCount?: number;
+
+  /** Whether there are any uncommitted changes */
+  hasUncommittedChanges?: boolean;
+
+  /** Callback fired after successful commit */
+  onCommitSuccess?: () => void;
 }
 
 // ============================================================================
@@ -64,6 +84,11 @@ export function FileTreePanel({
   treeViewMode,
   onTreeViewModeChange,
   baseBranch,
+  onBaseBranchChange,
+  currentBranch,
+  stagedCount = 0,
+  hasUncommittedChanges = false,
+  onCommitSuccess,
 }: FileTreePanelProps) {
   return (
     <div className="flex flex-col h-full" data-testid="file-tree-panel">
@@ -100,6 +125,19 @@ export function FileTreePanel({
           </span>
         )}
       </div>
+
+      {/* Git Operations Toolbar - shown only in changes mode */}
+      {treeViewMode === "changes" && onBaseBranchChange && (
+        <GitOperationsToolbar
+          cwd={cwd}
+          currentBranch={currentBranch ?? null}
+          baseBranch={baseBranch ?? null}
+          onBaseBranchChange={onBaseBranchChange}
+          stagedCount={stagedCount}
+          hasUncommittedChanges={hasUncommittedChanges}
+          onCommitSuccess={onCommitSuccess}
+        />
+      )}
 
       {/* Tree content - both mounted, visibility toggled */}
       <div className="flex-1 min-h-0 relative">
