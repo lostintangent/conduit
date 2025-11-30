@@ -17,30 +17,66 @@ export async function openWorkspace(workspace: Workspace) {
   const workspaceTabs: Tab[] = [];
   for (const workspaceTab of workspace.tabs) {
     const panes: Record<string, Pane> = {};
-    for (const pane of workspaceTab.panes) {
-      if (pane.type === "terminal") {
-        const result = await api.createTerminal(
+    const terminalSessions = new Map<
+      string,
+      Awaited<ReturnType<typeof api.createTerminal>>
+    >();
+    const restoreTerminalPane = async (
+      pane: Workspace["tabs"][number]["panes"][number],
+    ) => {
+      const sourcePaneId = pane.sourcePaneId ?? pane.id;
+      let session = terminalSessions.get(sourcePaneId);
+
+      if (!session) {
+        session = await api.createTerminal(
           pane.cwd ? { cwd: pane.cwd } : undefined,
         );
 
-        panes[pane.id] = {
-          ...(pane as Pane),
-          ...result,
-        };
+        if (!session) {
+          return;
+        }
 
-        // If a command was running, auto-run it
-        if (pane.command?.trim().length > 0) {
+        terminalSessions.set(sourcePaneId, session);
+
+        if (!pane.sourcePaneId && pane.command?.trim().length > 0) {
           const commandWithNewline = pane.command.endsWith("\n")
             ? pane.command
             : `${pane.command}\n`;
-          api.sendKeypress(result.sessionId, commandWithNewline);
+          api.sendKeypress(session.sessionId, commandWithNewline);
         }
-      } else {
-        // For non-terminal panes, just restore as-is
+      }
+
+      panes[pane.id] = {
+        ...(pane as Pane),
+        ...session,
+      };
+    };
+
+    for (const pane of workspaceTab.panes) {
+      if (pane.type !== "terminal") {
         panes[pane.id] = {
           ...(pane as Pane),
         };
       }
+    }
+
+    const terminalPanes = workspaceTab.panes.filter(
+      (
+        pane,
+      ): pane is Workspace["tabs"][number]["panes"][number] & {
+        type: "terminal";
+      } => pane.type === "terminal",
+    );
+
+    const normalTerminals = terminalPanes.filter((pane) => !pane.sourcePaneId);
+    const clonedTerminals = terminalPanes.filter((pane) => !!pane.sourcePaneId);
+
+    for (const pane of normalTerminals) {
+      await restoreTerminalPane(pane);
+    }
+
+    for (const pane of clonedTerminals) {
+      await restoreTerminalPane(pane);
     }
 
     // Only create the tab if we successfully restored at least one pane

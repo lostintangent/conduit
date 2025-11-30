@@ -141,8 +141,11 @@ export function QuickDialog({
         <div className="flex flex-1 w-full h-full min-h-0 min-w-0 overflow-hidden">
           {currentDescriptor.type === "terminal" && (
             <TerminalPane
-              terminalId={currentDescriptor.sessionId}
-              paneId={quickPaneId}
+              pane={{
+                ...currentDescriptor,
+                id: quickPaneId,
+                type: "terminal",
+              }}
               isActive
             />
           )}

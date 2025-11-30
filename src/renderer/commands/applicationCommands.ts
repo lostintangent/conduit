@@ -48,7 +48,7 @@ import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
-  clonePane,
+  cloneTerminalPane,
   closePane,
   movePane,
   openEditorPane,
@@ -901,19 +901,20 @@ export function registerApplicationCommands(
   // Pane: Clone
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_CLONE,
-    title: "Clone Pane",
-    description: "Create a clone of the active pane",
+    title: "Clone Terminal",
+    description: "Create a clone of the active terminal",
     category: "Pane",
-    when: paneActionsEnabled,
+    when: When.and(paneActionsEnabled, activePaneType.equals("terminal")),
     menu: {
       id: MenuId.PaneContext,
       group: "2_split",
+      when: activePaneType.equals("terminal"),
       order: 5,
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
-      clonePane(targetTabId, targetPaneId);
+      cloneTerminalPane(targetTabId, targetPaneId);
     },
   });
 
