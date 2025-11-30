@@ -126,95 +126,6 @@ const MIN_TREE_WIDTH = 150;
 /** Maximum tree panel width in pixels */
 const MAX_TREE_WIDTH = 500;
 
-/** LocalStorage key prefix for persisted settings */
-const STORAGE_KEY_PREFIX = "editor-v2";
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Get persisted tree width from localStorage.
- */
-function getPersistedTreeWidth(): number {
-  try {
-    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}:treeWidth`);
-    if (stored) {
-      const width = parseInt(stored, 10);
-      if (!isNaN(width) && width >= MIN_TREE_WIDTH && width <= MAX_TREE_WIDTH) {
-        return width;
-      }
-    }
-  } catch {
-    // localStorage not available
-  }
-  return DEFAULT_TREE_WIDTH;
-}
-
-/**
- * Persist tree width to localStorage.
- */
-function persistTreeWidth(width: number): void {
-  try {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}:treeWidth`, String(width));
-  } catch {
-    // localStorage not available
-  }
-}
-
-/**
- * Get persisted tree view mode from localStorage.
- */
-function getPersistedTreeViewMode(): TreeViewMode {
-  try {
-    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}:treeViewMode`);
-    if (stored === "files" || stored === "changes") {
-      return stored;
-    }
-  } catch {
-    // localStorage not available
-  }
-  return "files";
-}
-
-/**
- * Persist tree view mode to localStorage.
- */
-function persistTreeViewMode(mode: TreeViewMode): void {
-  try {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}:treeViewMode`, mode);
-  } catch {
-    // localStorage not available
-  }
-}
-
-/**
- * Get persisted tree collapsed state from localStorage.
- */
-function getPersistedTreeCollapsed(): boolean {
-  try {
-    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}:treeCollapsed`);
-    return stored === "true";
-  } catch {
-    // localStorage not available
-  }
-  return false;
-}
-
-/**
- * Persist tree collapsed state to localStorage.
- */
-function persistTreeCollapsed(collapsed: boolean): void {
-  try {
-    localStorage.setItem(
-      `${STORAGE_KEY_PREFIX}:treeCollapsed`,
-      String(collapsed),
-    );
-  } catch {
-    // localStorage not available
-  }
-}
-
 // ============================================================================
 // Component
 // ============================================================================
@@ -244,10 +155,19 @@ export function EditorPaneV2({
   // State
   // ---------------------------------------------------------------------------
 
-  // Tree collapsed state (persisted) - only applies in split layout
-  const [isTreeCollapsed, setIsTreeCollapsed] = useState<boolean>(
-    getPersistedTreeCollapsed,
-  );
+  // Tree panel width
+  const [treeWidth, setTreeWidth] = useState(DEFAULT_TREE_WIDTH);
+
+  // Tree view mode (files or changes)
+  // Prefer pane config if provided
+  const [treeViewMode, setTreeViewMode] = useState<TreeViewMode>(() => {
+    if (treeMode === "changes") return "changes";
+    if (treeMode === "all") return "files";
+    return "files";
+  });
+
+  // Tree collapsed state (only applies in split layout)
+  const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
 
   // Selected file state - initialized from pane config if provided
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(() => {
@@ -258,14 +178,6 @@ export function EditorPaneV2({
     return null;
   });
 
-  // Tree view mode (files or changes)
-  const [treeViewMode, setTreeViewMode] = useState<TreeViewMode>(() => {
-    // Prefer pane config, then localStorage
-    if (treeMode === "changes") return "changes";
-    if (treeMode === "all") return "files";
-    return getPersistedTreeViewMode();
-  });
-
   // View mode for editor panel
   const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
 
@@ -273,9 +185,6 @@ export function EditorPaneV2({
   const [baseBranch, setBaseBranch] = useState<string | null>(
     pane.agentBaseBranch ?? null,
   );
-
-  // Tree panel width (persisted)
-  const [treeWidth, setTreeWidth] = useState<number>(getPersistedTreeWidth);
 
   // Panel view state (for single-column layout mode)
   const [panelView, setPanelView] = useState<PanelView>("tree");
@@ -471,7 +380,6 @@ export function EditorPaneV2({
   const handleTreeViewModeChange = useCallback(
     (mode: TreeViewMode) => {
       setTreeViewMode(mode);
-      persistTreeViewMode(mode);
 
       // Notify parent - map internal mode to external format
       onTreeModeChange?.(mode === "changes" ? "changes" : "all");
@@ -484,7 +392,6 @@ export function EditorPaneV2({
    */
   const handleTreeResize = useCallback((width: number) => {
     setTreeWidth(width);
-    persistTreeWidth(width);
   }, []);
 
   /**
@@ -506,11 +413,7 @@ export function EditorPaneV2({
    * Only effective in split layout mode.
    */
   const handleToggleTree = useCallback(() => {
-    setIsTreeCollapsed((prev) => {
-      const next = !prev;
-      persistTreeCollapsed(next);
-      return next;
-    });
+    setIsTreeCollapsed((prev) => !prev);
   }, []);
 
   /**
@@ -521,7 +424,6 @@ export function EditorPaneV2({
     // Ensure tree is visible first
     if (isTreeCollapsed) {
       setIsTreeCollapsed(false);
-      persistTreeCollapsed(false);
     }
 
     // Focus the tree panel container (allows keyboard navigation)
