@@ -19,7 +19,7 @@ export type AutomationElementDescriptor = {
 };
 
 export type BrowserQueryArgs = {
-  paneId: string;
+  paneId?: string;
   selector?: string;
   contextHandle?: string;
   text?: string;
@@ -32,41 +32,41 @@ export type BrowserQueryArgs = {
 export type BrowserQueryResult = AutomationElementDescriptor[];
 
 export type BrowserClickArgs = {
-  paneId: string;
   handle: string;
+  paneId?: string;
   button?: "left" | "middle" | "right";
   clicks?: number;
   offset?: { x?: number; y?: number };
 };
 
 export type BrowserHoverArgs = {
-  paneId: string;
   handle: string;
+  paneId?: string;
   offset?: { x?: number; y?: number };
 };
 
 export type BrowserFocusArgs = {
-  paneId: string;
   handle: string;
+  paneId?: string;
   scroll?: boolean;
 };
 
 export type BrowserTypeArgs = {
-  paneId: string;
   handle: string;
   text: string;
+  paneId?: string;
   submit?: boolean;
   delay?: number;
   replace?: boolean;
 };
 
 export type BrowserKeysArgs = {
-  paneId: string;
   keys: string[];
+  paneId?: string;
 };
 
 export type BrowserScrollArgs = {
-  paneId: string;
+  paneId?: string;
   handle?: string;
   x?: number;
   y?: number;
@@ -75,13 +75,12 @@ export type BrowserScrollArgs = {
 };
 
 export type BrowserWaitArgs = {
-  paneId: string;
+  paneId?: string;
   state?: "domcontentloaded" | "networkidle";
   selector?: string;
   timeout?: number;
 };
 
 export type BrowserCaptureArgs = {
-  paneId: string;
-  handle?: string;
+  paneId?: string;
 };

@@ -71,10 +71,10 @@ export type CliCommand =
     >
   // Browser commands
   | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
-  | DefineCommand<"browser-navigate", { paneId: string; url: string }>
-  | DefineCommand<"browser-back", { paneId: string }>
-  | DefineCommand<"browser-forward", { paneId: string }>
-  | DefineCommand<"browser-refresh", { paneId: string }>
+  | DefineCommand<"browser-navigate", { paneId?: string; url: string }>
+  | DefineCommand<"browser-back", { paneId?: string }>
+  | DefineCommand<"browser-forward", { paneId?: string }>
+  | DefineCommand<"browser-refresh", { paneId?: string }>
   | DefineCommand<"browser-query", BrowserQueryArgs, BrowserQueryResult>
   | DefineCommand<"browser-click", BrowserClickArgs>
   | DefineCommand<"browser-hover", BrowserHoverArgs>

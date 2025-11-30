@@ -83,8 +83,13 @@ export async function browserAutomate<T extends AutomationCommand["command"]>(
   command: T,
   payload: ExtractCommand<T>["args"],
 ): Promise<ExtractCommand<T>["result"]> {
-  const webview = getWebview(payload.paneId);
   const { paneId, ...rest } = payload;
+
+  if (!paneId) {
+    throw new Error("Browser pane ID is required.");
+  }
+
+  const webview = getWebview(paneId);
 
   return sendAutomationCommand<ExtractCommand<T>["result"]>(
     webview,
