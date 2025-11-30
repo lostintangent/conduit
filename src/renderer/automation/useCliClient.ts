@@ -119,20 +119,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       const respondResult = (result?: any) => respond({ result });
       const respondError = (error: string) => respond({ error });
 
-      // Helper function to execute a webview action
-      const executeWebviewAction = (
-        paneId: string,
-        action: (webview: WebviewTag) => void,
-      ) => {
-        const webview = document.getElementById(paneId) as WebviewTag;
-        if (!webview) {
-          respondError(`Browser pane ${paneId} not found.`);
-          return;
-        }
-        action(webview);
-        respondResult();
-      };
-
       // Helper function to find the tab containing the calling terminal
       const findCallingTerminalTab = () => {
         let matchingTab = tabs.find((tab) =>
@@ -149,6 +135,77 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         }
 
         return matchingTab;
+      };
+
+      const resolveBrowserPane = (paneId?: string) => {
+        const findBrowserPane = () => {
+          const matchingTab = findCallingTerminalTab();
+
+          if (!matchingTab) {
+            respondError("Unable to find the calling terminal's tab.");
+            return null;
+          }
+
+          const browserPane = Object.entries(matchingTab.panes).find(
+            ([, pane]) => pane.type === "webview",
+          );
+
+          if (!browserPane) {
+            respondError("No browser pane found in the calling tab.");
+            return null;
+          }
+
+          return browserPane[0];
+        };
+
+        const resolvedPaneId = paneId ?? findBrowserPane();
+
+        if (!resolvedPaneId) {
+          return null;
+        }
+
+        const webview = document.getElementById(resolvedPaneId) as WebviewTag;
+        if (!webview) {
+          respondError(`Browser pane ${resolvedPaneId} not found.`);
+          return null;
+        }
+
+        return { paneId: resolvedPaneId, webview } as const;
+      };
+
+      // Helper function to execute a webview action
+      const executeWebviewAction = (
+        paneId: string | undefined,
+        action: (webview: WebviewTag) => void,
+      ) => {
+        const resolvedPane = resolveBrowserPane(paneId);
+
+        if (!resolvedPane) {
+          return;
+        }
+
+        action(resolvedPane.webview);
+        respondResult();
+      };
+
+      const automateBrowser = async <
+        T extends Parameters<typeof browserAutomate>[0],
+      >(
+        command: T,
+        args: Parameters<typeof browserAutomate<T>>[1],
+      ) => {
+        const resolvedPane = resolveBrowserPane(args?.paneId);
+
+        if (!resolvedPane) {
+          return { success: false } as const;
+        }
+
+        const result = await browserAutomate(command, {
+          ...args,
+          paneId: resolvedPane.paneId,
+        } as Parameters<typeof browserAutomate<T>>[1]);
+
+        return { success: true as const, result };
       };
 
       try {
@@ -218,8 +275,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "browser-capture": {
-            const webview = document.getElementById(args?.paneId) as WebviewTag;
-            const webContentsId = webview.getWebContentsId();
+            const resolvedPane = resolveBrowserPane(args?.paneId);
+
+            if (!resolvedPane) {
+              break;
+            }
+
+            const webContentsId = resolvedPane.webview.getWebContentsId();
 
             // Note that when trying to capture the page from the renderer, Chrome
             // kept throwing exceptions that I couldn't figure out. So we're currently
@@ -234,49 +296,90 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "browser-query": {
-            const results = await browserAutomate("query", args);
-            respondResult(results);
+            const automationResult = await automateBrowser("query", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
+            respondResult(automationResult.result);
             break;
           }
 
           case "browser-click": {
-            await browserAutomate("click", args);
+            const automationResult = await automateBrowser("click", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
             respondResult();
             break;
           }
 
           case "browser-hover": {
-            await browserAutomate("hover", args);
+            const automationResult = await automateBrowser("hover", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
             respondResult();
             break;
           }
 
           case "browser-focus": {
-            await browserAutomate("focus", args);
+            const automationResult = await automateBrowser("focus", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
             respondResult();
+
             break;
           }
 
           case "browser-type": {
-            await browserAutomate("type", args);
+            const automationResult = await automateBrowser("type", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
             respondResult();
             break;
           }
 
           case "browser-keys": {
-            await browserAutomate("keys", args);
+            const automationResult = await automateBrowser("keys", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
             respondResult();
             break;
           }
 
           case "browser-scroll": {
-            await browserAutomate("scroll", args);
+            const automationResult = await automateBrowser("scroll", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
             respondResult();
             break;
           }
 
           case "browser-wait": {
-            await browserAutomate("waitFor", args);
+            const automationResult = await automateBrowser("waitFor", args);
+
+            if (!automationResult.success) {
+              break;
+            }
+
             respondResult();
             break;
           }

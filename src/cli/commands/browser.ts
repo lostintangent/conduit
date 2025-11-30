@@ -9,7 +9,7 @@ export default function (program: Command): Command {
     })
     .alias("capture")
     .description("Capture a screenshot of a browser pane")
-    .argument("<paneId>", "The browser pane to capture")
+    .argument("[paneId]", "The browser pane to capture")
     .option("-h, --handle <handle>", "Element handle to crop to");
 
   program
@@ -18,26 +18,26 @@ export default function (program: Command): Command {
     )
     .alias("navigate")
     .description("Navigate a browser pane to a specific URL")
-    .argument("<paneId>", "The browser pane to navigate")
+    .argument("[paneId]", "The browser pane to navigate")
     .argument("<url>", "The URL to navigate to");
 
   program
     .cliCommand("browser-back", (request, paneId) => request({ paneId }))
     .alias("back")
     .description("Navigate a browser pane back in its history")
-    .argument("<paneId>", "The browser pane to navigate");
+    .argument("[paneId]", "The browser pane to navigate");
 
   program
     .cliCommand("browser-forward", (request, paneId) => request({ paneId }))
     .alias("forward")
     .description("Navigate a browser pane forward in its history")
-    .argument("<paneId>", "The browser pane to navigate");
+    .argument("[paneId]", "The browser pane to navigate");
 
   program
     .cliCommand("browser-refresh", (request, paneId) => request({ paneId }))
     .alias("refresh")
     .description("Refresh a browser pane")
-    .argument("<paneId>", "The browser pane to refresh");
+    .argument("[paneId]", "The browser pane to refresh");
 
   program
     .cliCommand(
@@ -60,7 +60,7 @@ export default function (program: Command): Command {
       },
     )
     .description("Query for elements inside a browser pane")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("[selector]", "CSS selector to match")
     .option("-c, --context <handle>", "Parent element handle")
     .option(
@@ -90,7 +90,7 @@ export default function (program: Command): Command {
       }),
     )
     .description("Click an element in a browser pane")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("<handle>", "Handle of the element to click")
     .addOption(
       new Option("-b, --button <button>", "Mouse button")
@@ -119,7 +119,7 @@ export default function (program: Command): Command {
       }),
     )
     .description("Hover over an element in a browser pane")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("<handle>", "Handle of the element to hover")
     .option("--offset-x <x>", "X offset from element top-left", (value) =>
       parseInt(value, 10),
@@ -133,7 +133,7 @@ export default function (program: Command): Command {
       request({ paneId, handle, scroll: options.scroll }),
     )
     .description("Focus an element in a browser pane")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("<handle>", "Handle of the element to focus")
     .option(
       "--no-scroll",
@@ -152,7 +152,7 @@ export default function (program: Command): Command {
       }),
     )
     .description("Type text into an element")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("<handle>", "Handle of the element to type into")
     .argument("<text>", "Text to type")
     .option("-s, --submit", "Submit with Enter after typing")
@@ -166,7 +166,7 @@ export default function (program: Command): Command {
       request({ paneId, keys }),
     )
     .description("Send raw key presses to the active element")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("<keys...>", "Keys or chords to send (e.g. Enter, Meta+R)");
 
   program
@@ -181,7 +181,7 @@ export default function (program: Command): Command {
       }),
     )
     .description("Scroll the page or a specific element")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("[handle]", "Handle of the element to scroll")
     .option("-x, --x <pixels>", "Horizontal scroll delta", (value) =>
       parseInt(value, 10),
@@ -207,7 +207,7 @@ export default function (program: Command): Command {
       }),
     )
     .description("Wait for a selector or page state")
-    .argument("<paneId>", "Target browser pane")
+    .argument("[paneId]", "Target browser pane")
     .argument("[selector]", "Optional selector to wait for")
     .option("-s, --state <state>", "Load state to wait for", [
       "domcontentloaded",
