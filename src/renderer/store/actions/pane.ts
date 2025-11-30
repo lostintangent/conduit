@@ -874,7 +874,7 @@ export function cloneTerminalPane(
     const newPane: TerminalPane = {
       ...sourcePane,
       id: newPaneId,
-      originalPaneId: sourcePane.originalPaneId ?? paneId,
+      sourcePaneId: sourcePane.sourcePaneId ?? paneId,
     };
 
     const newLayoutNode: LayoutNode = {
