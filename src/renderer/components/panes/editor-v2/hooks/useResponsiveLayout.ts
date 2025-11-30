@@ -108,7 +108,9 @@ export function useResponsiveLayout(
       }
       observer.disconnect();
     };
-  }, [containerRef, breakpoint]);
+    // Note: containerRef is intentionally omitted - refs are stable objects
+    // and we read .current synchronously at effect start
+  }, [breakpoint]);
 
   return layout;
 }

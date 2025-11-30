@@ -263,19 +263,32 @@ export function EditorPaneV2({
 
   // Load git status and subscribe to changes
   useEffect(() => {
+    let cancelled = false;
+
     // Load initial status
-    git.getStatus().then((status) => {
-      if (status?.files) {
-        setGitChangedFiles(new Set(status.files.keys()));
-      }
-    });
+    git
+      .getStatus()
+      .then((status) => {
+        if (!cancelled && status?.files) {
+          setGitChangedFiles(new Set(status.files.keys()));
+        }
+      })
+      .catch((error) => {
+        // Log error but don't crash - git status is non-critical
+        console.error("[EditorPaneV2] Failed to load git status:", error);
+      });
 
     // Subscribe to status changes
     const cleanup = git.onStatusChanged((event) => {
-      setGitChangedFiles(new Set(event.status.files.keys()));
+      if (!cancelled) {
+        setGitChangedFiles(new Set(event.status.files.keys()));
+      }
     });
 
-    return cleanup;
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
   }, [git]);
 
   // Track if auto-open has been attempted (ref to avoid re-triggering effect)

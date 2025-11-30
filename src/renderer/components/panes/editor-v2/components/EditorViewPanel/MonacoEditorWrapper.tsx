@@ -117,6 +117,19 @@ export function MonacoEditorWrapper({
     null,
   );
 
+  // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
+  const onMountRef = useRef(onMount);
+  const onChangeRef = useRef(onChange);
+
+  // Sync callback refs with latest values
+  useEffect(() => {
+    onMountRef.current = onMount;
+  }, [onMount]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   // Get model from registry via hook
   // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
   // as EditorRegistry for proper lifecycle coordination
@@ -196,8 +209,8 @@ export function MonacoEditorWrapper({
 
     editorRef.current = editor;
 
-    // Call onMount callback
-    onMount?.(editor);
+    // Call onMount callback via ref to avoid dependency
+    onMountRef.current?.(editor);
 
     // Cleanup on unmount
     return () => {
@@ -222,7 +235,8 @@ export function MonacoEditorWrapper({
       editorRegistry.releaseEditor(editorId);
       editorRef.current = null;
     };
-  }, [editorId, theme, readOnly, onMount]);
+    // Note: onMount handled via ref to avoid editor recreation when callback changes
+  }, [editorId, theme, readOnly]);
 
   // ---------------------------------------------------------------------------
   // Model Attachment
@@ -256,11 +270,10 @@ export function MonacoEditorWrapper({
       contentChangeDisposableRef.current.dispose();
     }
 
-    if (onChange) {
-      contentChangeDisposableRef.current = model.onDidChangeContent(() => {
-        onChange(model.getValue());
-      });
-    }
+    // Use ref to always call latest onChange without effect dependency
+    contentChangeDisposableRef.current = model.onDidChangeContent(() => {
+      onChangeRef.current?.(model.getValue());
+    });
 
     return () => {
       // Cleanup content change listener
@@ -269,7 +282,8 @@ export function MonacoEditorWrapper({
         contentChangeDisposableRef.current = null;
       }
     };
-  }, [editorId, filePath, model, onChange]);
+    // Note: onChange handled via ref to avoid listener re-setup when callback changes
+  }, [editorId, filePath, model]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update

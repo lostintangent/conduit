@@ -152,6 +152,24 @@ export function DiffEditorWrapper({
   );
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
+  const currentFilePathRef = useRef<string>(filePath);
+
+  // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
+  const onMountRef = useRef(onMount);
+  const onChangeRef = useRef(onChange);
+
+  // Sync refs with latest values
+  useEffect(() => {
+    currentFilePathRef.current = filePath;
+  }, [filePath]);
+
+  useEffect(() => {
+    onMountRef.current = onMount;
+  }, [onMount]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   // Get diff content (original from git, modified from file system)
   const diffContent = useDiffContent(filePath, baseBranch, cwd);
@@ -180,18 +198,19 @@ export function DiffEditorWrapper({
 
     diffEditorRef.current = diffEditor;
 
-    // Call onMount callback
-    onMount?.(diffEditor);
+    // Call onMount callback via ref to avoid dependency
+    onMountRef.current?.(diffEditor);
 
     // Cleanup on unmount
     return () => {
       // Save ViewState before disposing so it can be restored later
       // Use a diff-prefixed ID to distinguish from regular editor ViewState
+      // Use ref to get current filePath at cleanup time
       const modifiedEditor = diffEditor.getModifiedEditor();
-      if (modifiedEditor) {
+      if (modifiedEditor && currentFilePathRef.current) {
         ViewStateRegistry.getInstance().save(
           `diff-modified-${editorId}`,
-          filePath,
+          currentFilePathRef.current,
           modifiedEditor,
         );
       }
@@ -212,7 +231,8 @@ export function DiffEditorWrapper({
       diffEditor.dispose();
       diffEditorRef.current = null;
     };
-  }, [theme, readOnly, onMount, editorId, filePath]);
+    // Note: onMount handled via ref, filePath via ref for cleanup
+  }, [theme, readOnly, editorId]);
 
   // ---------------------------------------------------------------------------
   // Model Setup
@@ -265,10 +285,11 @@ export function DiffEditorWrapper({
       contentChangeDisposableRef.current.dispose();
     }
 
-    if (onChange && !readOnly) {
+    // Use ref to always call latest onChange without effect dependency
+    if (!readOnly) {
       contentChangeDisposableRef.current = modifiedModel.onDidChangeContent(
         () => {
-          onChange(modifiedModel.getValue());
+          onChangeRef.current?.(modifiedModel.getValue());
         },
       );
     }
@@ -280,13 +301,14 @@ export function DiffEditorWrapper({
         contentChangeDisposableRef.current = null;
       }
     };
+    // Note: onChange handled via ref to avoid listener re-setup when callback changes
   }, [
+    editorId,
     filePath,
     language,
     diffContent.isLoading,
     diffContent.original,
     modifiedModel,
-    onChange,
     readOnly,
   ]);
 
