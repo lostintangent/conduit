@@ -2,29 +2,32 @@ import { Command } from "commander";
 
 export default function (program: Command): Command {
   program
-    .cliCommand("terminal-read", async (request, sessionId) => {
-      const contents = await request({ sessionId });
+    .cliCommand("terminal-read", async (request, options) => {
+      const contents = await request({ paneId: options.pane });
       process.stdout.write(contents);
     })
     .alias("read")
-    .description("Read the contents of a terminal session")
-    .argument("<sessionId>", "The terminal session to read");
+    .description("Read the contents of a terminal pane")
+    .option(
+      "-p, --pane <pane>",
+      "The ID of the pane to read (use '*' to read all terminals in the tab)",
+    );
 
   program
     .cliCommand(
       "terminal-write",
-      async (request, sessionId, inputParts: string[], { enter }) => {
+      async (request, inputParts: string[], { pane, enter }) => {
         const input = inputParts.join(" ");
-        await request({ sessionId, input, enter: !!enter });
+        await request({ paneId: pane, input, enter: !!enter });
       },
     )
     .alias("write")
-    .description("Send input to a terminal session")
-    .argument(
-      "<sessionId>",
-      "The terminal session to write to (use '*' for all terminals in the tab)",
-    )
+    .description("Send input to a terminal pane")
     .argument("<input...>", "Input to send to the terminal")
+    .option(
+      "-p, --pane <pane>",
+      "The ID of the pane to write to (use '*' for all terminals in the tab)",
+    )
     .option(
       "-e, --enter",
       "Simular press enter/return after sending the input",

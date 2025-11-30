@@ -174,6 +174,56 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         return { paneId: resolvedPaneId, webview } as const;
       };
 
+      // Helper function to resolve terminal pane(s) to session ID(s)
+      const resolveTerminalSessions = (paneId?: string): string[] | null => {
+        const matchingTab = findCallingTerminalTab();
+
+        if (!matchingTab) {
+          respondError("Unable to find the calling terminal's tab.");
+          return null;
+        }
+
+        // Get all terminal panes except the calling terminal
+        const getOtherTerminalPanes = () =>
+          Object.entries(matchingTab.panes).filter(
+            ([, pane]) =>
+              pane.type === "terminal" && pane.sessionId !== sessionId,
+          ) as [string, TerminalPane][];
+
+        if (paneId === "*") {
+          // Get all terminal panes in the tab, excluding the caller
+          const terminalPanes = getOtherTerminalPanes();
+
+          if (terminalPanes.length === 0) {
+            respondError("No other terminals found in the tab.");
+            return null;
+          }
+
+          return terminalPanes.map(([, pane]) => pane.sessionId);
+        }
+
+        if (paneId) {
+          // Specific pane ID provided
+          const pane = matchingTab.panes[paneId];
+          if (!pane || pane.type !== "terminal") {
+            respondError(`Terminal pane ${paneId} not found.`);
+            return null;
+          }
+
+          return [pane.sessionId];
+        }
+
+        // Default: find first terminal pane that isn't the calling pane
+        const terminalPanes = getOtherTerminalPanes();
+
+        if (terminalPanes.length === 0) {
+          respondError("No other terminals found in the tab.");
+          return null;
+        }
+
+        return [terminalPanes[0][1].sessionId];
+      };
+
       // Helper function to execute a webview action
       const executeWebviewAction = (
         paneId: string | undefined,
@@ -262,11 +312,37 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "terminal-read": {
-            const serialized = serializeSession(args.sessionId);
+            const targetSessionIds = resolveTerminalSessions(args?.paneId);
+
+            if (!targetSessionIds) {
+              break;
+            }
+
+            // For paneId="*", concatenate all terminal buffers
+            if (args?.paneId === "*") {
+              const results: string[] = [];
+              for (const targetSessionId of targetSessionIds) {
+                const serialized = serializeSession(targetSessionId);
+                if (serialized !== null) {
+                  results.push(serialized);
+                }
+              }
+
+              if (results.length === 0) {
+                respondError("Unable to read terminal buffers.");
+                break;
+              }
+
+              respondResult(results.join("\n---\n"));
+              break;
+            }
+
+            // Single terminal case
+            const serialized = serializeSession(targetSessionIds[0]);
 
             if (serialized === null) {
               respondError(
-                `Unable to read terminal buffer; session ${args.sessionId} is not active.`,
+                `Unable to read terminal buffer; terminal is not active.`,
               );
               break;
             }
@@ -410,37 +486,13 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "terminal-write": {
-            // Determine target session IDs based on wildcard or specific session
-            let targetSessionIds: string[];
+            const targetSessionIds = resolveTerminalSessions(args?.paneId);
 
-            if (args.sessionId === "*") {
-              // Find the tab containing the calling terminal
-              const matchingTab = findCallingTerminalTab();
-
-              if (!matchingTab) {
-                respondError("Unable to find the calling terminal's tab.");
-                break;
-              }
-
-              // Get all terminal panes in the tab, excluding the caller
-              targetSessionIds = Object.values(matchingTab.panes)
-                .filter(
-                  (pane) =>
-                    pane.type === "terminal" && pane.sessionId !== sessionId,
-                )
-                .map((pane) => (pane as TerminalPane).sessionId);
-
-              if (targetSessionIds.length === 0) {
-                respondError("No other terminals found in the tab.");
-                break;
-              }
-            } else {
-              // Single terminal case
-              targetSessionIds = [args.sessionId];
+            if (!targetSessionIds) {
+              break;
             }
 
             // Send input to all target terminals
-            let successCount = 0;
             for (const targetSessionId of targetSessionIds) {
               // Send the input text
               window.conduit.sendKeypress(targetSessionId, args.input);
@@ -450,13 +502,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
                 await new Promise((resolve) => setTimeout(resolve, 50));
                 window.conduit.sendKeypress(targetSessionId, "\r");
               }
-
-              successCount++;
-            }
-
-            if (successCount === 0) {
-              respondError("Unable to write to terminal.");
-              break;
             }
 
             respondResult();
