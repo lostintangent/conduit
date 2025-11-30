@@ -87,7 +87,7 @@ async function serializePane(
   terminalSessions: Map<string, TerminalInstance>,
 ): Promise<SerializedPane> {
   if (pane.type === "terminal") {
-    if (pane.originalPaneId && pane.originalPaneId !== pane.id) {
+    if (pane.originalPaneId) {
       return pane;
     }
 
