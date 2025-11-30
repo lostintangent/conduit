@@ -12,3 +12,5 @@ export { useDiffContent } from "./useDiffContent";
 export type { DiffContent, DiffError, DiffErrorType } from "./useDiffContent";
 export { useResponsiveLayout } from "./useResponsiveLayout";
 export type { LayoutMode } from "./useResponsiveLayout";
+export { useEditorActions } from "./useEditorActions";
+export type { EditorActions } from "./useEditorActions";

@@ -4,6 +4,7 @@
  * Provides:
  * - Save button (enabled when dirty)
  * - Undo/Redo buttons
+ * - Find button
  * - Editor/Diff mode toggle
  * - Dirty indicator
  *
@@ -16,13 +17,14 @@
  *   onSave={handleSave}
  *   onUndo={handleUndo}
  *   onRedo={handleRedo}
+ *   onFind={handleFind}
  *   canUndo={true}
  *   canRedo={false}
  * />
  * ```
  */
 
-import { Save, Undo, Redo, Code, GitCompare } from "lucide-react";
+import { Save, Undo, Redo, Search, Code, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { ViewMode, ModelState } from "../../types";
@@ -50,6 +52,9 @@ export interface EditorToolbarProps {
   /** Handler for redo action */
   onRedo: () => void;
 
+  /** Handler for find action (optional) */
+  onFind?: () => void;
+
   /** Whether undo is available */
   canUndo?: boolean;
 
@@ -74,6 +79,7 @@ export function EditorToolbar({
   onSave,
   onUndo,
   onRedo,
+  onFind,
   canUndo = false,
   canRedo = false,
   filePath,
@@ -149,6 +155,20 @@ export function EditorToolbar({
       >
         <Redo className="h-4 w-4" />
       </Button>
+
+      {/* Find button */}
+      {onFind && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onFind}
+          className="h-7 px-2"
+          title="Find (Cmd+F)"
+          data-testid="find-button"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
+      )}
 
       <Separator orientation="vertical" className="h-4 mx-1" />
 

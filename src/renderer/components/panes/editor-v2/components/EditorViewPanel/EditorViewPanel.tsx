@@ -7,6 +7,8 @@
  * - ExternalChangeWarning (for conflict detection)
  * - EditorToolbar (for actions and mode switching)
  *
+ * Uses useEditorActions hook for toolbar action wiring and state management.
+ *
  * @example
  * ```tsx
  * <EditorViewPanel
@@ -23,7 +25,7 @@
 import { useCallback, useState, useRef } from "react";
 import * as monaco from "monaco-editor";
 import type { ViewMode, FileNode, ModelState } from "../../types";
-import { useModelState } from "../../hooks";
+import { useModelState, useEditorActions } from "../../hooks";
 import { MonacoModelRegistry, pathToUri } from "../../registry";
 import { MonacoEditorWrapper } from "./MonacoEditorWrapper";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
@@ -83,14 +85,10 @@ export function EditorViewPanel({
   theme = "vs-dark",
   onSave,
 }: EditorViewPanelProps) {
-  // Track undo/redo state
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-
   // Track if warning was dismissed
   const [warningDismissed, setWarningDismissed] = useState(false);
 
-  // Editor ref for undo/redo operations
+  // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Get file path from selected file
@@ -107,37 +105,11 @@ export function EditorViewPanel({
   }
 
   // ---------------------------------------------------------------------------
-  // Handlers
+  // Save Handler (for useEditorActions)
   // ---------------------------------------------------------------------------
 
   /**
-   * Handle editor mount to track undo/redo state.
-   */
-  const handleEditorMount = useCallback(
-    (editor: monaco.editor.IStandaloneCodeEditor) => {
-      editorRef.current = editor;
-
-      // Set up undo/redo state tracking using Monaco's built-in methods
-      const model = editor.getModel();
-      if (model) {
-        const updateUndoRedoState = () => {
-          setCanUndo(model.canUndo());
-          setCanRedo(model.canRedo());
-        };
-
-        // Initial state
-        updateUndoRedoState();
-
-        // Listen for content changes
-        const disposable = model.onDidChangeContent(updateUndoRedoState);
-        return () => disposable.dispose();
-      }
-    },
-    [],
-  );
-
-  /**
-   * Handle save action.
+   * Handle save action - saves the model and notifies parent.
    */
   const handleSave = useCallback(async () => {
     if (!filePath) return;
@@ -151,19 +123,29 @@ export function EditorViewPanel({
     }
   }, [filePath, onSave]);
 
-  /**
-   * Handle undo action.
-   */
-  const handleUndo = useCallback(() => {
-    editorRef.current?.getModel()?.undo();
-  }, []);
+  // ---------------------------------------------------------------------------
+  // Editor Actions Hook
+  // ---------------------------------------------------------------------------
 
   /**
-   * Handle redo action.
+   * Get editor actions from hook - provides undo/redo/find and state tracking.
+   * The hook properly manages subscriptions to model changes for canUndo/canRedo.
    */
-  const handleRedo = useCallback(() => {
-    editorRef.current?.getModel()?.redo();
-  }, []);
+  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle editor mount - store ref for actions hook.
+   */
+  const handleEditorMount = useCallback(
+    (editor: monaco.editor.IStandaloneCodeEditor) => {
+      editorRef.current = editor;
+    },
+    [],
+  );
 
   /**
    * Handle reload from disk.
@@ -239,11 +221,12 @@ export function EditorViewPanel({
         viewMode={viewMode}
         modelState={effectiveModelState}
         onViewModeChange={onViewModeChange}
-        onSave={handleSave}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        canUndo={canUndo}
-        canRedo={canRedo}
+        onSave={editorActions.save}
+        onUndo={editorActions.undo}
+        onRedo={editorActions.redo}
+        onFind={editorActions.find}
+        canUndo={editorActions.canUndo}
+        canRedo={editorActions.canRedo}
         filePath={filePath}
       />
 

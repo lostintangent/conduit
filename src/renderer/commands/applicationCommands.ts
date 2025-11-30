@@ -38,6 +38,7 @@ import {
   handleShowCommandPalette,
   handleTerminate,
   handleToggleDesignMode,
+  invokeEditorCommand,
 } from "@/commands/handlers";
 import {
   registerMenuContextBuilder,
@@ -1221,6 +1222,44 @@ export function registerApplicationCommands(
     when: isInAgentSession.isTrue(),
     run: (context) => {
       void handleTerminate(context.activeTab);
+    },
+  });
+
+  // ============================================================================
+  // Editor Commands
+  // ============================================================================
+
+  // Editor: Toggle Sidebar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.EDITOR_TOGGLE_SIDEBAR,
+    title: "Toggle File Tree",
+    description: "Show or hide the file tree sidebar in the editor",
+    category: "Editor",
+    keybinding: {
+      key: "Cmd+B",
+    },
+    when: activePaneType.equals("editor"),
+    run: (context) => {
+      if (context.activePaneId) {
+        invokeEditorCommand(context.activePaneId, "toggleSidebar");
+      }
+    },
+  });
+
+  // Editor: Focus Sidebar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.EDITOR_FOCUS_SIDEBAR,
+    title: "Focus File Tree",
+    description: "Show and focus the file tree sidebar in the editor",
+    category: "Editor",
+    keybinding: {
+      key: "Cmd+Shift+E",
+    },
+    when: activePaneType.equals("editor"),
+    run: (context) => {
+      if (context.activePaneId) {
+        invokeEditorCommand(context.activePaneId, "focusSidebar");
+      }
     },
   });
 }

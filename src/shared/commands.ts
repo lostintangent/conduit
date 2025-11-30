@@ -69,4 +69,8 @@ export const ApplicationCommands = {
   AGENT_MANAGE_SESSIONS: "agent.manageSessions",
   AGENT_MERGE_AND_CLOSE: "agent.mergeAndClose",
   AGENT_TERMINATE: "agent.terminate",
+
+  // Editor commands
+  EDITOR_TOGGLE_SIDEBAR: "editor.toggleSidebar",
+  EDITOR_FOCUS_SIDEBAR: "editor.focusSidebar",
 } as const;

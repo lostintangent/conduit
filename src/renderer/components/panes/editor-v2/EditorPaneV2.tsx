@@ -31,6 +31,7 @@ import type { PanelView } from "./components";
 import { useResponsiveLayout } from "./hooks";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
+import { registerEditorHandlers } from "@/commands/handlers";
 import { cn } from "@/utils";
 
 // ============================================================================
@@ -187,6 +188,33 @@ function persistTreeViewMode(mode: TreeViewMode): void {
   }
 }
 
+/**
+ * Get persisted tree collapsed state from localStorage.
+ */
+function getPersistedTreeCollapsed(): boolean {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}:treeCollapsed`);
+    return stored === "true";
+  } catch {
+    // localStorage not available
+  }
+  return false;
+}
+
+/**
+ * Persist tree collapsed state to localStorage.
+ */
+function persistTreeCollapsed(collapsed: boolean): void {
+  try {
+    localStorage.setItem(
+      `${STORAGE_KEY_PREFIX}:treeCollapsed`,
+      String(collapsed),
+    );
+  } catch {
+    // localStorage not available
+  }
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -210,10 +238,16 @@ export function EditorPaneV2({
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
+  const treePanelRef = useRef<HTMLDivElement>(null);
 
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
+
+  // Tree collapsed state (persisted) - only applies in split layout
+  const [isTreeCollapsed, setIsTreeCollapsed] = useState<boolean>(
+    getPersistedTreeCollapsed,
+  );
 
   // Selected file state - initialized from pane config if provided
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(() => {
@@ -467,12 +501,74 @@ export function EditorPaneV2({
     setPanelView(view);
   }, []);
 
+  /**
+   * Toggle tree panel collapsed state.
+   * Only effective in split layout mode.
+   */
+  const handleToggleTree = useCallback(() => {
+    setIsTreeCollapsed((prev) => {
+      const next = !prev;
+      persistTreeCollapsed(next);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Focus the tree panel and ensure it's visible.
+   * Expands the tree if collapsed, then focuses the first focusable element.
+   */
+  const handleFocusTree = useCallback(() => {
+    // Ensure tree is visible first
+    if (isTreeCollapsed) {
+      setIsTreeCollapsed(false);
+      persistTreeCollapsed(false);
+    }
+
+    // Focus the tree panel container (allows keyboard navigation)
+    // Use requestAnimationFrame to ensure DOM has updated after expansion
+    requestAnimationFrame(() => {
+      const treePanel = treePanelRef.current;
+      if (treePanel) {
+        // Try to focus the first focusable element within the tree
+        const focusable = treePanel.querySelector<HTMLElement>(
+          'button, [tabindex]:not([tabindex="-1"]), input',
+        );
+        if (focusable) {
+          focusable.focus();
+        } else {
+          // Fall back to focusing the panel itself
+          treePanel.focus();
+        }
+      }
+    });
+  }, [isTreeCollapsed]);
+
+  // ---------------------------------------------------------------------------
+  // Command Registration
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Register editor command handlers with the command system.
+   * This allows keyboard shortcuts (Cmd+B, Cmd+Shift+E) to control this pane.
+   */
+  useEffect(() => {
+    const cleanup = registerEditorHandlers(pane.id, {
+      toggleSidebar: handleToggleTree,
+      focusSidebar: handleFocusTree,
+    });
+
+    return cleanup;
+  }, [pane.id, handleToggleTree, handleFocusTree]);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
-  // Determine if tree should be visible
-  const showTree = layout === "split" || panelView === "tree";
+  // Determine visibility for each panel
+  // In single layout: show based on panelView toggle
+  // In split layout: tree can be collapsed via keyboard shortcut
+  const showTree =
+    layout === "single" ? panelView === "tree" : !isTreeCollapsed;
   const showEditor = layout === "split" || panelView === "editor";
 
   return (
@@ -481,16 +577,23 @@ export function EditorPaneV2({
       className="flex h-full w-full overflow-hidden"
       data-testid="editor-pane-v2"
     >
-      {/* File Tree Panel */}
+      {/* File Tree Panel
+       * IMPORTANT: We use CSS visibility (display: none + width: 0) instead of
+       * conditional rendering to preserve the tree's scroll position, expanded
+       * folders, and other DOM state when collapsed.
+       */}
       <div
+        ref={treePanelRef}
         className={cn(
-          "flex-shrink-0 h-full overflow-hidden",
-          layout === "single" && !showTree && "hidden",
+          "flex-shrink-0 h-full overflow-hidden transition-[width] duration-150",
+          !showTree && "hidden",
         )}
         style={{
-          width: layout === "split" ? treeWidth : "100%",
+          width: showTree ? (layout === "split" ? treeWidth : "100%") : 0,
         }}
         data-testid="tree-container"
+        data-collapsed={!showTree}
+        tabIndex={-1}
       >
         <FileTreePanel
           cwd={cwd}
@@ -502,8 +605,8 @@ export function EditorPaneV2({
         />
       </div>
 
-      {/* Tree Resizer (split mode only) */}
-      {layout === "split" && (
+      {/* Tree Resizer (split mode only, hidden when tree is collapsed) */}
+      {layout === "split" && showTree && (
         <TreeResizer
           currentWidth={treeWidth}
           onResize={handleTreeResize}
