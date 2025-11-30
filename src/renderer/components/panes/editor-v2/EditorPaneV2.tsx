@@ -245,17 +245,8 @@ export function EditorPaneV2({
     }
     autoOpenAttemptedRef.current = true;
 
-    const sessionKey = `editor-v2-auto-opened-${pane.id}`;
-
-    // Only run once per session
-    const hasAutoOpened = sessionStorage.getItem(sessionKey);
-    if (hasAutoOpened) {
-      return;
-    }
-
     // Don't auto-open if a file is already selected
     if (selectedFile || initialFilePath) {
-      sessionStorage.setItem(sessionKey, "true");
       return;
     }
 
@@ -289,7 +280,6 @@ export function EditorPaneV2({
         };
 
         setSelectedFile(fileNode);
-        sessionStorage.setItem(sessionKey, "true");
       } catch (error) {
         // Silently fail - not critical if auto-open doesn't work
         console.debug("[EditorPaneV2] Auto-open failed:", error);
@@ -301,7 +291,7 @@ export function EditorPaneV2({
     return () => {
       cancelled = true;
     };
-  }, [pane.id, selectedFile, initialFilePath, cwd, git]);
+  }, [selectedFile, initialFilePath, cwd, git]);
 
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
