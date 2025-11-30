@@ -4,6 +4,7 @@ import {
   removePane,
   updatePaneProperty,
 } from "@/store/actions/pane";
+import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type {
   EditorPane,
@@ -309,59 +310,50 @@ export function unlockTab(tabId: string) {
 
 type CloseTabOptions = {
   force?: boolean;
+  openReplacement?: boolean;
 };
 
 export function closeTab(tabId: string, options: CloseTabOptions = {}) {
-  const { force = false } = options;
+  const { force = false, openReplacement = true } = options;
   const targetTab = store.get(tabsAtom).find((tab) => tab.id === tabId);
   if (!targetTab || (targetTab.locked && !force)) {
     return;
   }
 
   const sessionsToClose: string[] = [];
+  const panesToDispose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
   const previousActiveTabId = store.get(activeTabIdAtom);
   let nextActiveTabId: string | null | undefined = undefined;
 
   store.set(tabsAtom, (current) => {
-    const next: Tab[] = [];
-    let removedTabIndex = -1;
+    const removedTabIndex = current.findIndex((tab) => tab.id === tabId);
+    const [removedTab] = current.splice(removedTabIndex, 1);
 
-    current.forEach((tab, index) => {
-      if (tab.id === tabId) {
-        removedTabIndex = index;
-        Object.values(tab.panes).forEach((pane) => {
-          // Collect pane IDs for DOM cleanup
-          paneIdsToCleanup.push(pane.id);
+    Object.values(removedTab.panes).forEach((pane) => {
+      // Collect pane IDs for DOM cleanup
+      paneIdsToCleanup.push(pane.id);
 
-          if (pane.type === "terminal") {
-            sessionsToClose.push(pane.sessionId);
-          }
-        });
-        return;
+      if (pane.type === "terminal") {
+        panesToDispose.push(pane.id);
+        sessionsToClose.push(pane.sessionId);
       }
-
-      next.push(tab);
     });
 
-    if (removedTabIndex === -1) {
-      return current;
-    }
-
-    if (next.length === 0) {
-      shouldOpenReplacement = true;
+    if (current.length === 0) {
+      shouldOpenReplacement = openReplacement;
       nextActiveTabId = null;
-      return [];
+      return;
     }
 
     if (previousActiveTabId === tabId) {
       const targetIndex =
-        removedTabIndex >= next.length ? next.length - 1 : removedTabIndex;
-      nextActiveTabId = next[targetIndex]?.id ?? null;
+        removedTabIndex >= current.length
+          ? current.length - 1
+          : removedTabIndex;
+      nextActiveTabId = current[targetIndex]?.id ?? null;
     }
-
-    return next;
   });
 
   if (nextActiveTabId !== undefined) {
@@ -376,6 +368,7 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
     }
   });
 
+  panesToDispose.forEach((paneId) => disposeSession(paneId));
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
 
   if (shouldOpenReplacement) {
