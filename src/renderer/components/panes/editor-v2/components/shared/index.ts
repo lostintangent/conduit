@@ -6,4 +6,5 @@
  */
 
 export { GitBadge, getStatusConfig } from "./GitBadge";
-export type { GitBadgeProps } from "./GitBadge";
+export type { GitBadgeProps, StatusConfig } from "./GitBadge";
+export { aggregateFolderStatus } from "./gitFolderAggregation";

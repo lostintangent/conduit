@@ -4,7 +4,8 @@
  * Renders a file or directory with:
  * - Appropriate icon (file or folder)
  * - Name with indentation based on depth
- * - Git status badge (if applicable)
+ * - Git status badge (letter for files, dot for folders)
+ * - Text coloring based on git status (files only)
  * - Selection highlighting
  * - Expand/collapse for directories
  *
@@ -13,6 +14,7 @@
  * <FileTreeItem
  *   entry={{ name: "index.ts", type: "file" }}
  *   path="/project/src/index.ts"
+ *   relativePath="src/index.ts"
  *   depth={1}
  *   gitStatus={{ status: "modified", staged: false, path: "src/index.ts" }}
  *   isSelected={true}
@@ -21,18 +23,18 @@
  * ```
  */
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 import {
   ChevronRight,
   ChevronDown,
-  File,
+  FileText,
   Folder,
   FolderOpen,
 } from "lucide-react";
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { cn } from "@/utils";
-import { GitBadge } from "../shared";
+import { GitBadge, getStatusConfig, aggregateFolderStatus } from "../shared";
 
 // ============================================================================
 // Types
@@ -45,11 +47,17 @@ export interface FileTreeItemProps {
   /** Full absolute path to the item */
   path: string;
 
+  /** Relative path from cwd (for folder aggregation) */
+  relativePath?: string;
+
   /** Nesting depth for indentation (0 = root level) */
   depth: number;
 
   /** Git status for this file (null if unchanged) */
   gitStatus: GitFileStatus | null;
+
+  /** Git status map for folder aggregation (relative paths) */
+  gitStatusMap?: Map<string, GitFileStatus> | null;
 
   /** Whether this item is currently selected */
   isSelected: boolean;
@@ -85,8 +93,10 @@ export interface FileTreeItemProps {
 export const FileTreeItem = memo(function FileTreeItem({
   entry,
   path,
+  relativePath,
   depth,
   gitStatus,
+  gitStatusMap,
   isSelected,
   isExpanded = false,
   onSelect,
@@ -96,82 +106,108 @@ export const FileTreeItem = memo(function FileTreeItem({
 }: FileTreeItemProps) {
   const isDirectory = entry.type === "directory";
 
-  // Handle click on the item
-  const handleClick = useCallback(
+  // Handle click on the item row
+  // - For directories: toggle expand/collapse (like v1)
+  // - For files: select the file
+  const handleRowClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      onSelect(path, entry.type);
+      if (isDirectory) {
+        onToggleExpand?.(path);
+      } else {
+        onSelect(path, entry.type);
+      }
     },
-    [path, entry.type, onSelect],
+    [path, entry.type, isDirectory, onSelect, onToggleExpand],
   );
-
-  // Handle click on the expand/collapse chevron
-  const handleToggleExpand = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onToggleExpand?.(path);
-    },
-    [path, onToggleExpand],
-  );
-
-  // Calculate indentation padding (16px per level)
-  const paddingLeft = depth * 16 + 4;
 
   // Choose appropriate icon
-  const Icon = isDirectory ? (isExpanded ? FolderOpen : Folder) : File;
+  const Icon = isDirectory ? (isExpanded ? FolderOpen : Folder) : FileText;
+
+  // Depth is no longer used for padding - indentation comes from nested ul elements
+  void depth;
+
+  // ---------------------------------------------------------------------------
+  // Git Status Styling
+  // ---------------------------------------------------------------------------
+
+  // For files: get text color class from git status
+  const fileStatusConfig = useMemo(() => {
+    if (isDirectory || !gitStatus) return null;
+    return getStatusConfig(gitStatus);
+  }, [isDirectory, gitStatus]);
+
+  // For directories: compute aggregated status from children
+  const folderStatus = useMemo(() => {
+    if (!isDirectory || !gitStatusMap || !relativePath) return null;
+    return aggregateFolderStatus(gitStatusMap, relativePath);
+  }, [isDirectory, gitStatusMap, relativePath]);
+
+  // Text color: files get colored based on git status, folders stay default
+  const textColorClass = fileStatusConfig?.textColorClass ?? "text-foreground";
+  const iconColorClass = fileStatusConfig?.textColorClass ?? "text-foreground";
 
   return (
-    <div data-testid="file-tree-item">
+    <li data-testid="file-tree-item">
       {/* Item row */}
       <div
+        role="button"
+        tabIndex={0}
         className={cn(
-          "flex items-center gap-1 py-0.5 px-1 cursor-pointer rounded-sm",
-          "hover:bg-accent/50 transition-colors",
-          isSelected && "bg-accent text-accent-foreground",
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+          "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+          isSelected
+            ? "bg-accent/20 hover:bg-accent/25"
+            : "hover:bg-foreground/10",
         )}
-        style={{ paddingLeft }}
-        onClick={handleClick}
+        onClick={handleRowClick}
         data-testid={`tree-item-${entry.name}`}
         data-path={path}
         data-type={entry.type}
       >
         {/* Expand/collapse chevron for directories */}
         {isDirectory ? (
-          <button
-            className="flex-shrink-0 w-4 h-4 flex items-center justify-center hover:bg-accent rounded"
-            onClick={handleToggleExpand}
-            data-testid="toggle-expand"
-          >
+          <span className="flex-shrink-0 flex items-center justify-center">
             {isExpanded ? (
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className="text-foreground" size={12} />
             ) : (
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRight className="text-foreground" size={12} />
             )}
-          </button>
+          </span>
         ) : (
           // Spacer for files to align with directories
-          <div className="w-4" />
+          <div style={{ width: 12 }} />
         )}
 
-        {/* Icon */}
-        <Icon
-          className={cn(
-            "flex-shrink-0 w-4 h-4",
-            isDirectory ? "text-blue-400" : "text-muted-foreground",
-          )}
-        />
+        {/* Icon - colored for files with git status */}
+        <Icon className={cn("flex-shrink-0", iconColorClass)} size={12} />
 
-        {/* Name - use displayPath if provided (for branch comparison mode) */}
-        <span className="flex-1 truncate text-sm">
+        {/* Name - colored for files with git status */}
+        <span
+          className={cn("min-w-0 flex-1 truncate", textColorClass)}
+          title={displayPath ?? entry.name}
+        >
           {displayPath ?? entry.name}
         </span>
 
-        {/* Git status badge */}
-        {gitStatus && <GitBadge status={gitStatus} />}
+        {/* Git status badge: letter for files, dot for folders */}
+        {gitStatus && !isDirectory && <GitBadge status={gitStatus} />}
+        {isDirectory && folderStatus && (
+          <div
+            className={cn(
+              "flex-shrink-0 w-1.5 h-1.5 rounded-full",
+              folderStatus.colorClass,
+            )}
+            title={folderStatus.label}
+            data-testid="git-badge-folder"
+          />
+        )}
       </div>
 
-      {/* Children (expanded directory contents) */}
-      {isDirectory && isExpanded && children}
-    </div>
+      {/* Children (expanded directory contents) - with vertical connecting line */}
+      {isDirectory && isExpanded && (
+        <ul className="mt-0.5 border-l border-border pl-2">{children}</ul>
+      )}
+    </li>
   );
 });

@@ -1,26 +1,13 @@
 /**
  * FileTreeToolbar - Header toolbar for the file tree with navigation and controls.
  *
- * Provides:
- * - Current directory display (last 2 path segments, full path in tooltip)
- * - Navigate up button (disabled at filesystem root)
- * - Collapse toggle button (only in split layout mode)
- *
- * @example
- * ```tsx
- * <FileTreeToolbar
- *   cwd="/Users/dev/project/src"
- *   canNavigateUp={true}
- *   onNavigateUp={handleNavigateUp}
- *   isCollapsed={false}
- *   onToggleCollapse={handleToggle}
- *   showCollapseButton={true}
- * />
- * ```
+ * Styled to match v1's tree header:
+ * - px-3 py-1.5 bg-elevated text-[13px]
+ * - p-1 rounded hover:bg-white/10 buttons
+ * - size={14} icons
  */
 
-import { FolderUp, PanelLeftClose, PanelLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FolderUp, PanelLeftClose } from "lucide-react";
 
 // ============================================================================
 // Types
@@ -53,19 +40,9 @@ export interface FileTreeToolbarProps {
 /**
  * Format directory path for display.
  * Shows the last 2 segments of the path for context.
- *
- * @example
- * formatDisplayPath("/Users/dev/project/src/components")
- * // Returns "src/components"
- *
- * formatDisplayPath("/Users/dev/project")
- * // Returns "project"
  */
 function formatDisplayPath(cwd: string): string {
-  // Remove trailing slash if present
   const normalized = cwd.endsWith("/") ? cwd.slice(0, -1) : cwd;
-
-  // Split into segments
   const segments = normalized.split("/").filter(Boolean);
 
   if (segments.length === 0) {
@@ -76,7 +53,6 @@ function formatDisplayPath(cwd: string): string {
     return segments[0];
   }
 
-  // Return last 2 segments
   return segments.slice(-2).join("/");
 }
 
@@ -84,15 +60,12 @@ function formatDisplayPath(cwd: string): string {
  * Check if a path is at the filesystem root.
  */
 function isAtRoot(cwd: string): boolean {
-  // Normalize the path
   const normalized = cwd.endsWith("/") ? cwd.slice(0, -1) : cwd;
 
-  // Unix root
   if (normalized === "" || normalized === "/") {
     return true;
   }
 
-  // Windows root (e.g., "C:" or "C:\")
   if (/^[A-Za-z]:$/.test(normalized) || /^[A-Za-z]:\\?$/.test(normalized)) {
     return true;
   }
@@ -106,6 +79,7 @@ function isAtRoot(cwd: string): boolean {
 
 /**
  * File tree header toolbar with navigation and collapse controls.
+ * Styled to match v1's header.
  */
 export function FileTreeToolbar({
   cwd,
@@ -117,54 +91,55 @@ export function FileTreeToolbar({
 }: FileTreeToolbarProps) {
   const displayPath = formatDisplayPath(cwd);
   const isRoot = isAtRoot(cwd);
-
-  // Disable navigate up if at root or explicitly disabled
   const canGoUp = canNavigateUp && !isRoot;
+
+  // Suppress unused variable warning
+  void isCollapsed;
+
+  // Common button class matching v1
+  const buttonClass =
+    "p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed";
 
   return (
     <div
-      className="flex items-center gap-1 px-2 py-1 border-b border-border bg-muted/30"
+      className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-border"
       data-testid="file-tree-toolbar"
     >
-      {/* Navigate Up Button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 w-6 p-0"
-        onClick={onNavigateUp}
-        disabled={!canGoUp}
-        title={canGoUp ? "Navigate to parent directory" : "Already at root"}
-        data-testid="navigate-up-button"
-      >
-        <FolderUp className="h-4 w-4" />
-      </Button>
+      {/* Left side: collapse button + path */}
+      <div className="flex items-center gap-2 truncate">
+        {/* Collapse button (split mode only) */}
+        {showCollapseButton && onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className={buttonClass}
+            title="Collapse tree"
+            data-testid="collapse-toggle-button"
+          >
+            <PanelLeftClose size={14} />
+          </button>
+        )}
 
-      {/* Current Directory Display */}
-      <span
-        className="flex-1 text-xs text-foreground/80 truncate min-w-0"
-        title={cwd}
-        data-testid="current-directory"
-      >
-        {displayPath}
-      </span>
+        {/* Current directory */}
+        <span className="truncate" title={cwd} data-testid="current-directory">
+          {displayPath}
+        </span>
+      </div>
 
-      {/* Collapse Toggle Button (split mode only) */}
-      {showCollapseButton && onToggleCollapse && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0"
-          onClick={onToggleCollapse}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          data-testid="collapse-toggle-button"
-        >
-          {isCollapsed ? (
-            <PanelLeft className="h-4 w-4" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4" />
-          )}
-        </Button>
-      )}
+      {/* Right side: navigate up button */}
+      <div className="flex items-center gap-1 shrink-0">
+        {canGoUp && (
+          <button
+            type="button"
+            onClick={onNavigateUp}
+            className={buttonClass}
+            title="Go up one directory"
+            data-testid="navigate-up-button"
+          >
+            <FolderUp size={14} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

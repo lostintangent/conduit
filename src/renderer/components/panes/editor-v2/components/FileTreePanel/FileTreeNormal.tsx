@@ -279,7 +279,7 @@ export function FileTreeNormal({
   );
 
   // ---------------------------------------------------------------------------
-  // Git Status Map
+  // Git Status Maps
   // ---------------------------------------------------------------------------
 
   /**
@@ -295,6 +295,14 @@ export function FileTreeNormal({
     }
     return map;
   }, [gitStatus, cwd]);
+
+  /**
+   * Map of relative paths to git status for folder aggregation.
+   */
+  const relativeGitStatusMap = useMemo(() => {
+    if (!gitStatus?.files) return null;
+    return gitStatus.files;
+  }, [gitStatus]);
 
   // ---------------------------------------------------------------------------
   // Render Tree
@@ -320,14 +328,17 @@ export function FileTreeNormal({
         const entryPath = joinPath(dirPath, entry.name);
         const isExpanded = expandedPaths.has(entryPath);
         const status = gitStatusMap.get(entryPath) ?? null;
+        const relativePath = getRelativePath(entryPath, cwd);
 
         return (
           <FileTreeItem
             key={entryPath}
             entry={entry}
             path={entryPath}
+            relativePath={relativePath}
             depth={depth}
             gitStatus={status}
+            gitStatusMap={relativeGitStatusMap}
             isSelected={selectedFile?.path === entryPath}
             isExpanded={isExpanded}
             onSelect={handleSelect}
@@ -344,9 +355,11 @@ export function FileTreeNormal({
       directoryCache,
       expandedPaths,
       gitStatusMap,
+      relativeGitStatusMap,
       selectedFile?.path,
       handleSelect,
       handleToggleExpand,
+      cwd,
     ],
   );
 
@@ -391,8 +404,10 @@ export function FileTreeNormal({
           key={fullPath}
           entry={entry}
           path={fullPath}
+          relativePath={relativePath}
           depth={0}
           gitStatus={status}
+          gitStatusMap={relativeGitStatusMap}
           isSelected={selectedFile?.path === fullPath}
           isExpanded={false}
           onSelect={handleSelect}
@@ -407,6 +422,7 @@ export function FileTreeNormal({
     baseBranch,
     cwd,
     gitStatusMap,
+    relativeGitStatusMap,
     selectedFile?.path,
     handleSelect,
     handleToggleExpand,
@@ -443,22 +459,22 @@ export function FileTreeNormal({
   // Branch comparison mode: show flat list of changed files
   if (baseBranch) {
     return (
-      <div
-        className="overflow-auto h-full text-sm"
+      <nav
+        className="overflow-auto h-full px-3 text-[13px] text-white/80"
         data-testid="file-tree-branch-comparison"
       >
-        {renderBranchComparison()}
-      </div>
+        <ul className="space-y-0.5">{renderBranchComparison()}</ul>
+      </nav>
     );
   }
 
   // Normal mode: show directory tree
   return (
-    <div
-      className="overflow-auto h-full text-sm"
+    <nav
+      className="overflow-auto h-full px-3 text-[13px] text-white/80"
       data-testid="file-tree-normal"
     >
-      {renderDirectory(cwd, 0)}
-    </div>
+      <ul className="space-y-0.5">{renderDirectory(cwd, 0)}</ul>
+    </nav>
   );
 }

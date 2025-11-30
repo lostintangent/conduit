@@ -22,7 +22,7 @@
  * ```
  */
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useMemo } from "react";
 import * as monaco from "monaco-editor";
 import type { ViewMode, FileNode, ModelState } from "../../types";
 import { useModelState, useEditorActions } from "../../hooks";
@@ -62,6 +62,18 @@ export interface EditorViewPanelProps {
 
   /** Callback when file is saved */
   onSave?: () => void;
+
+  /** Whether to show the back button (for single-column layout) */
+  showBackButton?: boolean;
+
+  /** Handler for back button click (navigate to tree view) */
+  onBack?: () => void;
+
+  /** Whether to show the expand tree button (when tree is collapsed in split mode) */
+  showExpandTreeButton?: boolean;
+
+  /** Handler for expand tree button click */
+  onExpandTree?: () => void;
 }
 
 // ============================================================================
@@ -85,6 +97,10 @@ export function EditorViewPanel({
   baseBranch = "HEAD",
   theme = "vs-dark",
   onSave,
+  showBackButton = false,
+  onBack,
+  showExpandTreeButton = false,
+  onExpandTree,
 }: EditorViewPanelProps) {
   // Track if warning was dismissed
   const [warningDismissed, setWarningDismissed] = useState(false);
@@ -94,6 +110,28 @@ export function EditorViewPanel({
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
+
+  // Calculate display path relative to cwd (like v1)
+  const displayFilePath = useMemo(() => {
+    if (!filePath) {
+      return "";
+    }
+
+    const normalizedFilePath = filePath.replace(/\\/g, "/");
+    const normalizedCwd = cwd.replace(/\\/g, "/");
+
+    const cwdWithSlash = normalizedCwd.endsWith("/")
+      ? normalizedCwd
+      : `${normalizedCwd}/`;
+
+    // If file is under cwd, show relative path
+    if (normalizedFilePath.startsWith(cwdWithSlash)) {
+      return normalizedFilePath.slice(cwdWithSlash.length);
+    }
+
+    // Otherwise show full path
+    return filePath;
+  }, [filePath, cwd]);
 
   // Get model state for the current file
   const modelState = useModelState(filePath);
@@ -178,7 +216,7 @@ export function EditorViewPanel({
   if (!selectedFile || !filePath) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center text-muted-foreground"
+        className="flex h-full w-full items-center justify-center bg-background text-muted-foreground"
         data-testid="editor-empty-state"
       >
         Select a file to edit
@@ -201,7 +239,7 @@ export function EditorViewPanel({
 
   return (
     <div
-      className="flex flex-col h-full w-full"
+      className="flex flex-col h-full w-full bg-background"
       data-testid="editor-view-panel"
     >
       {/* External change warning */}
@@ -229,6 +267,11 @@ export function EditorViewPanel({
         canUndo={editorActions.canUndo}
         canRedo={editorActions.canRedo}
         filePath={filePath}
+        displayPath={displayFilePath}
+        showBackButton={showBackButton}
+        onBack={onBack}
+        showExpandTreeButton={showExpandTreeButton}
+        onExpandTree={onExpandTree}
       />
 
       {/* Editor content */}

@@ -4,9 +4,15 @@
  * Provides a vertical handle that users can drag to resize the file tree
  * panel width. Includes visual feedback on hover and during drag.
  *
+ * Uses the same approach as v1 EditorPane:
+ * - Always-visible 1px border
+ * - Wider interactive area that highlights on hover/drag
+ * - Position-based width calculation (not delta-based)
+ *
  * @example
  * ```tsx
  * <TreeResizer
+ *   currentWidth={treeWidth}
  *   onResize={(width) => setTreeWidth(width)}
  *   minWidth={150}
  *   maxWidth={500}
@@ -14,25 +20,30 @@
  * ```
  */
 
-import { useCallback, useRef, useEffect, useState } from "react";
-import { cn } from "@/utils";
+import { useCallback, useEffect, useState } from "react";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface TreeResizerProps {
+  /** Current tree width */
+  currentWidth: number;
+
   /** Callback when tree width changes during drag */
   onResize: (width: number) => void;
-
-  /** Current tree width (for drag calculations) */
-  currentWidth: number;
 
   /** Minimum tree width (default: 150) */
   minWidth?: number;
 
   /** Maximum tree width (default: 500) */
   maxWidth?: number;
+
+  /** Callback when resize starts (for disabling transitions) */
+  onResizeStart?: () => void;
+
+  /** Callback when resize ends */
+  onResizeEnd?: () => void;
 }
 
 // ============================================================================
@@ -46,66 +57,67 @@ export interface TreeResizerProps {
  * Shows visual feedback when hovered or being dragged.
  */
 export function TreeResizer({
-  onResize,
   currentWidth,
+  onResize,
   minWidth = 150,
   maxWidth = 500,
+  onResizeStart,
+  onResizeEnd,
 }: TreeResizerProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartXRef = useRef<number>(0);
-  const dragStartWidthRef = useRef<number>(0);
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Prevent unused variable warning - currentWidth is used by parent for positioning
+  void currentWidth;
 
   // ---------------------------------------------------------------------------
-  // Drag Handlers
+  // Resize Handlers
   // ---------------------------------------------------------------------------
 
   /**
-   * Handle mouse move during drag.
-   */
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      const deltaX = e.clientX - dragStartXRef.current;
-      const newWidth = dragStartWidthRef.current + deltaX;
-
-      // Clamp to min/max bounds
-      const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
-      onResize(clampedWidth);
-    },
-    [minWidth, maxWidth, onResize],
-  );
-
-  /**
-   * Handle mouse up to end drag.
-   */
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  /**
-   * Handle mouse down to start drag.
+   * Handle mouse down to start resize.
    */
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      setIsDragging(true);
-      dragStartXRef.current = e.clientX;
-      dragStartWidthRef.current = currentWidth;
+      setIsResizing(true);
+      onResizeStart?.();
     },
-    [currentWidth],
+    [onResizeStart],
   );
 
-  // ---------------------------------------------------------------------------
-  // Global Mouse Event Listeners
-  // ---------------------------------------------------------------------------
-
+  /**
+   * Effect to handle mouse move and mouse up during resize.
+   * Uses document-level listeners for smooth dragging even when cursor
+   * leaves the handle area.
+   */
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isResizing) return;
 
-    // Add global listeners during drag
+    const handleMouseMove = (e: MouseEvent) => {
+      // Find the editor pane container to calculate position relative to it
+      const container = document.querySelector(
+        '[data-testid="editor-pane-v2"]',
+      );
+      if (!container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const newWidth = e.clientX - containerRect.left;
+
+      // Clamp to min/max bounds
+      const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+      onResize(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      onResizeEnd?.();
+    };
+
+    // Add global listeners
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
 
-    // Set cursor on body during drag
+    // Set cursor on body during resize for consistent feedback
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
 
@@ -115,30 +127,29 @@ export function TreeResizer({
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isResizing, minWidth, maxWidth, onResize, onResizeEnd]);
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
+  // Resize handle highlight class (matches v1 pane resize behavior)
+  const handleClass = isResizing
+    ? "bg-accent"
+    : "bg-transparent hover:bg-accent";
+
   return (
     <div
-      className={cn(
-        "flex-shrink-0 w-1 cursor-col-resize group",
-        "hover:bg-primary/20 transition-colors",
-        isDragging && "bg-primary/40",
-      )}
-      onMouseDown={handleMouseDown}
+      className="relative flex items-center justify-center w-px"
       data-testid="tree-resizer"
     >
-      {/* Visual handle indicator */}
+      {/* Always-visible thin border */}
+      <div className="absolute w-px h-full bg-border" />
+
+      {/* Wider interactive handle that highlights on hover/drag */}
       <div
-        className={cn(
-          "h-full w-full",
-          "border-l border-border",
-          "group-hover:border-primary/50",
-          isDragging && "border-primary",
-        )}
+        className={`w-1 absolute h-full cursor-col-resize transition-colors z-10 ${handleClass}`}
+        onMouseDown={handleMouseDown}
       />
     </div>
   );

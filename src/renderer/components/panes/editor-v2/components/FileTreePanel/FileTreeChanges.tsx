@@ -26,16 +26,15 @@ import {
   RotateCcw,
   ChevronRight,
   ChevronDown,
-  File,
+  FileText,
   AlertCircle,
 } from "lucide-react";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
-import { GitBadge } from "../shared";
+import { GitBadge, getStatusConfig } from "../shared";
 
 // ============================================================================
 // Types
@@ -97,76 +96,110 @@ function ChangeItem({
 }: ChangeItemProps) {
   const fileName = path.split("/").pop() ?? path;
 
+  // Get text color class from git status
+  const statusConfig = getStatusConfig(status);
+  const textColorClass = statusConfig?.textColorClass ?? "text-foreground";
+  const iconColorClass = statusConfig?.textColorClass ?? "text-foreground";
+
   return (
-    <div
-      className={cn(
-        "group flex items-center gap-1 py-0.5 px-2 cursor-pointer rounded-sm",
-        "hover:bg-accent/50 transition-colors",
-        isSelected && "bg-accent text-accent-foreground",
-      )}
-      onClick={onSelect}
-      data-testid={`change-item-${fileName}`}
-      data-path={path}
-    >
-      {/* File icon */}
-      <File className="flex-shrink-0 w-4 h-4 text-muted-foreground" />
-
-      {/* File name */}
-      <span className="flex-1 truncate text-sm" title={path}>
-        {fileName}
-      </span>
-
-      {/* Git status badge */}
-      <GitBadge status={status} />
-
-      {/* Action buttons (visible on hover) */}
-      <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        {isStaged ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 w-5 p-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onUnstage();
-            }}
-            title="Unstage"
-            data-testid="unstage-button"
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
-        ) : (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStage();
-              }}
-              title="Stage"
-              data-testid="stage-button"
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRevert();
-              }}
-              title="Discard Changes"
-              data-testid="revert-button"
-            >
-              <RotateCcw className="h-3 w-3" />
-            </Button>
-          </>
+    <li>
+      <button
+        type="button"
+        className={cn(
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+          "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+          isSelected
+            ? "bg-accent/20 hover:bg-accent/25"
+            : "hover:bg-foreground/10",
         )}
-      </div>
-    </div>
+        onClick={onSelect}
+        data-testid={`change-item-${fileName}`}
+        data-path={path}
+      >
+        {/* File icon - colored based on git status */}
+        <FileText className={cn("flex-shrink-0", iconColorClass)} size={12} />
+
+        {/* File name - colored based on git status */}
+        <span
+          className={cn("min-w-0 flex-1 truncate", textColorClass)}
+          title={path}
+        >
+          {fileName}
+        </span>
+
+        {/* Git status badge */}
+        <GitBadge status={status} />
+
+        {/* Action buttons (visible on hover) */}
+        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+          {isStaged ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnstage();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onUnstage();
+                }
+              }}
+              className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+              title="Unstage"
+              data-testid="unstage-button"
+            >
+              <Minus size={12} />
+            </div>
+          ) : (
+            <>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStage();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onStage();
+                  }
+                }}
+                className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+                title="Stage changes"
+                data-testid="stage-button"
+              >
+                <Plus size={12} />
+              </div>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRevert();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRevert();
+                  }
+                }}
+                className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+                title="Discard changes"
+                data-testid="revert-button"
+              >
+                <RotateCcw size={12} />
+              </div>
+            </>
+          )}
+        </div>
+      </button>
+    </li>
   );
 }
 
@@ -201,19 +234,20 @@ function Section({
   return (
     <div data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <button
-        className="flex items-center gap-1 w-full py-1 px-2 hover:bg-accent/30 rounded-sm text-sm font-medium"
+        type="button"
+        className="flex items-center gap-1.5 w-full py-1 px-1.5 hover:bg-foreground/10 rounded-md text-[13px] font-medium text-foreground transition cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
         onClick={onToggle}
         data-testid="section-toggle"
       >
         {isExpanded ? (
-          <ChevronDown className="w-4 h-4" />
+          <ChevronDown className="text-foreground" size={12} />
         ) : (
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="text-foreground" size={12} />
         )}
         <span>{title}</span>
-        <span className="text-muted-foreground ml-1">({count})</span>
+        <span className="text-foreground/50 ml-1">({count})</span>
       </button>
-      {isExpanded && <div className="ml-2">{children}</div>}
+      {isExpanded && <ul className="space-y-0.5 ml-2">{children}</ul>}
     </div>
   );
 }
@@ -440,8 +474,8 @@ export function FileTreeChanges({
     : null;
 
   return (
-    <div
-      className="overflow-auto h-full text-sm"
+    <nav
+      className="overflow-auto h-full px-3 text-[13px] text-white/80"
       data-testid="file-tree-changes"
     >
       {/* Staged Changes Section */}
@@ -493,6 +527,6 @@ export function FileTreeChanges({
           ))}
         </Section>
       )}
-    </div>
+    </nav>
   );
 }

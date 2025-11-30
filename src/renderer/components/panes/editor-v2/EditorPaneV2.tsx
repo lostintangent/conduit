@@ -442,8 +442,8 @@ export function EditorPaneV2({
         setViewMode({ type: "editor" });
       }
 
-      // Notify parent of file open
-      onFileOpen?.(file);
+      // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
+      // File selection within the editor just updates selectedFile state
 
       // Load file content and notify parent
       if (onFileChange && file.type === "file") {
@@ -466,15 +466,7 @@ export function EditorPaneV2({
       // onClearFile is for when selection is explicitly cleared (not just changed)
       void hadPreviousFile; // Acknowledge unused variable
     },
-    [
-      layout,
-      fs,
-      onFileChange,
-      onFileOpen,
-      selectedFile,
-      gitChangedFiles,
-      baseBranch,
-    ],
+    [layout, fs, onFileChange, selectedFile, gitChangedFiles, baseBranch],
   );
 
   /**
@@ -610,7 +602,7 @@ export function EditorPaneV2({
   return (
     <div
       ref={containerRef}
-      className="flex h-full w-full overflow-hidden"
+      className="relative flex h-full w-full overflow-hidden bg-background"
       data-testid="editor-pane-v2"
     >
       {/* File Tree Panel
@@ -622,7 +614,6 @@ export function EditorPaneV2({
         ref={treePanelRef}
         className={cn(
           "flex-shrink-0 h-full overflow-hidden",
-          "transition-[width] duration-150 motion-reduce:transition-none",
           !showTree && "hidden",
         )}
         style={{
@@ -677,6 +668,10 @@ export function EditorPaneV2({
           onViewModeChange={handleViewModeChange}
           baseBranch={baseBranch ?? undefined}
           onSave={onSave}
+          showBackButton={layout === "single"}
+          onBack={() => setPanelView("tree")}
+          showExpandTreeButton={layout === "split" && isTreeCollapsed}
+          onExpandTree={() => setIsTreeCollapsed(false)}
         />
       </div>
 
@@ -686,6 +681,17 @@ export function EditorPaneV2({
           activeView={panelView}
           onViewChange={handlePanelViewChange}
         />
+      )}
+
+      {/* v2 Indicator Badge (development only) */}
+      {import.meta.env.DEV && (
+        <div
+          className="absolute bottom-1 left-1 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-blue-500/80 text-white rounded"
+          title="Editor v2 is active"
+          data-testid="v2-indicator"
+        >
+          v2
+        </div>
       )}
     </div>
   );

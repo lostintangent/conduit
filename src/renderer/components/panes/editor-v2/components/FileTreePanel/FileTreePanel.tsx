@@ -24,7 +24,6 @@
  */
 
 import { Files, GitBranch } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { FileNode, TreeViewMode } from "../../types";
 import { FileTreeToolbar } from "./FileTreeToolbar";
 import { FileTreeNormal } from "./FileTreeNormal";
@@ -121,7 +120,10 @@ export function FileTreePanel({
   };
 
   return (
-    <div className="flex flex-col h-full" data-testid="file-tree-panel">
+    <div
+      className="flex flex-col h-full bg-background"
+      data-testid="file-tree-panel"
+    >
       {/* Navigation Toolbar */}
       {onNavigateUp && (
         <FileTreeToolbar
@@ -134,35 +136,33 @@ export function FileTreePanel({
         />
       )}
 
-      {/* Header with view mode toggle */}
-      <div className="flex items-center gap-1 px-2 py-1 border-b border-border">
-        <Button
-          variant={treeViewMode === "files" ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 px-2 gap-1"
+      {/* Header with view mode toggle - styled to match v1 */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-elevated text-[13px] border-b border-border">
+        <button
+          type="button"
           onClick={() => onTreeViewModeChange("files")}
+          className={`p-1 rounded hover:bg-white/10 transition-colors shrink-0 flex items-center gap-1 ${treeViewMode === "files" ? "bg-white/10" : ""}`}
           title="File Explorer"
           data-testid="files-mode-button"
         >
-          <Files className="h-4 w-4" />
-          <span className="text-xs">Files</span>
-        </Button>
+          <Files size={14} />
+          <span>Files</span>
+        </button>
 
-        <Button
-          variant={treeViewMode === "changes" ? "secondary" : "ghost"}
-          size="sm"
-          className="h-7 px-2 gap-1"
+        <button
+          type="button"
           onClick={() => onTreeViewModeChange("changes")}
+          className={`p-1 rounded hover:bg-white/10 transition-colors shrink-0 flex items-center gap-1 ${treeViewMode === "changes" ? "bg-white/10" : ""}`}
           title="Source Control"
           data-testid="changes-mode-button"
         >
-          <GitBranch className="h-4 w-4" />
-          <span className="text-xs">Changes</span>
-        </Button>
+          <GitBranch size={14} />
+          <span>Changes</span>
+        </button>
 
         {/* Branch comparison indicator */}
         {baseBranch && (
-          <span className="ml-auto text-xs text-muted-foreground truncate">
+          <span className="ml-auto text-muted-foreground truncate">
             vs {baseBranch}
           </span>
         )}
