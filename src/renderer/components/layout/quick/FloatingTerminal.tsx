@@ -206,8 +206,13 @@ export function FloatingTerminal({
         </div>
         <div className="flex-1 min-h-0 overflow-hidden px-0.5">
           <TerminalPane
-            terminalId={terminalId}
-            paneId={paneId}
+            pane={{
+              id: paneId,
+              type: "terminal",
+              sessionId: terminalId,
+              cwd,
+              processTitle: "",
+            }}
             isActive
             fontSize={11}
           />

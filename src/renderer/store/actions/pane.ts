@@ -874,6 +874,7 @@ export function clonePane(
     const newPane: Pane = {
       ...sourcePane,
       id: newPaneId,
+      originalPaneId: sourcePane.originalPaneId ?? paneId,
     };
 
     const newLayoutNode: LayoutNode = {

@@ -229,6 +229,7 @@ export async function openTabFromPaneDescriptor(
       cwd: terminalDescriptor.cwd,
       processTitle: terminalDescriptor.processTitle,
       vmMetadata: terminalDescriptor.vmMetadata,
+      originalPaneId: terminalDescriptor.originalPaneId,
     };
   } else if (descriptor.type === "editor") {
     const editorDescriptor = descriptor as Omit<EditorPane, "id">;
@@ -242,6 +243,7 @@ export async function openTabFromPaneDescriptor(
       agentBaseBranch: editorDescriptor.agentBaseBranch,
       agentRepoRoot: editorDescriptor.agentRepoRoot,
       agentWorktreePath: editorDescriptor.agentWorktreePath,
+      originalPaneId: editorDescriptor.originalPaneId,
     };
   } else if (descriptor.type === "webview") {
     const webviewDescriptor = descriptor as Omit<WebViewPane, "id">;
@@ -250,6 +252,7 @@ export async function openTabFromPaneDescriptor(
       type: "webview",
       url: webviewDescriptor.url,
       title: webviewDescriptor.title,
+      originalPaneId: webviewDescriptor.originalPaneId,
     };
   }
 
@@ -560,6 +563,7 @@ export async function duplicateTab(
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         filePath: translatedFilePath,
+        originalPaneId: sourcePane.originalPaneId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
@@ -572,6 +576,7 @@ export async function duplicateTab(
         type: "webview",
         url: sourcePane.url,
         title: sourcePane.title,
+        originalPaneId: sourcePane.originalPaneId,
       };
     }
   }
