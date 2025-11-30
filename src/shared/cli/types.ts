@@ -64,10 +64,10 @@ export type CliCommand =
   | DefineCommand<"tab-new", NewTabOptions>
   | DefineCommand<"tab-duplicate">
   // Terminal commands
-  | DefineCommand<"terminal-read", { sessionId: string }, string>
+  | DefineCommand<"terminal-read", { paneId?: string; all?: boolean }, string>
   | DefineCommand<
       "terminal-write",
-      { sessionId: string; input: string; enter?: boolean }
+      { paneId?: string; all?: boolean; input: string; enter?: boolean }
     >
   // Browser commands
   | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
