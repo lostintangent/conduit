@@ -175,7 +175,10 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       };
 
       // Helper function to resolve terminal pane(s) to session ID(s)
-      const resolveTerminalSessions = (paneId?: string): string[] | null => {
+      const resolveTerminalSessions = (
+        paneId?: string,
+        all?: boolean,
+      ): string[] | null => {
         const matchingTab = findCallingTerminalTab();
 
         if (!matchingTab) {
@@ -190,8 +193,11 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
               pane.type === "terminal" && pane.sessionId !== sessionId,
           ) as [string, TerminalPane][];
 
-        if (paneId === "*") {
-          // Get all terminal panes in the tab, excluding the caller
+        // Check if the calling terminal is the floating terminal
+        const isFloatingTerminal = floatingTerminal?.terminalId === sessionId;
+
+        // --all takes precedence, or default to all if floating terminal with no pane specified
+        if (all || (isFloatingTerminal && !paneId)) {
           const terminalPanes = getOtherTerminalPanes();
 
           if (terminalPanes.length === 0) {
@@ -312,14 +318,17 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "terminal-read": {
-            const targetSessionIds = resolveTerminalSessions(args?.paneId);
+            const targetSessionIds = resolveTerminalSessions(
+              args?.paneId,
+              args?.all,
+            );
 
             if (!targetSessionIds) {
               break;
             }
 
-            // For paneId="*", concatenate all terminal buffers
-            if (args?.paneId === "*") {
+            // For multiple terminals, concatenate all terminal buffers
+            if (targetSessionIds.length > 1) {
               const results: string[] = [];
               for (const targetSessionId of targetSessionIds) {
                 const serialized = serializeSession(targetSessionId);
@@ -486,7 +495,10 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           }
 
           case "terminal-write": {
-            const targetSessionIds = resolveTerminalSessions(args?.paneId);
+            const targetSessionIds = resolveTerminalSessions(
+              args?.paneId,
+              args?.all,
+            );
 
             if (!targetSessionIds) {
               break;
