@@ -32,37 +32,37 @@ export type BrowserQueryArgs = {
 export type BrowserQueryResult = AutomationElementDescriptor[];
 
 export type BrowserClickArgs = {
-  paneId?: string;
   handle: string;
+  paneId?: string;
   button?: "left" | "middle" | "right";
   clicks?: number;
   offset?: { x?: number; y?: number };
 };
 
 export type BrowserHoverArgs = {
-  paneId?: string;
   handle: string;
+  paneId?: string;
   offset?: { x?: number; y?: number };
 };
 
 export type BrowserFocusArgs = {
-  paneId?: string;
   handle: string;
+  paneId?: string;
   scroll?: boolean;
 };
 
 export type BrowserTypeArgs = {
-  paneId?: string;
   handle: string;
   text: string;
+  paneId?: string;
   submit?: boolean;
   delay?: number;
   replace?: boolean;
 };
 
 export type BrowserKeysArgs = {
-  paneId?: string;
   keys: string[];
+  paneId?: string;
 };
 
 export type BrowserScrollArgs = {
@@ -83,5 +83,4 @@ export type BrowserWaitArgs = {
 
 export type BrowserCaptureArgs = {
   paneId?: string;
-  handle?: string;
 };
