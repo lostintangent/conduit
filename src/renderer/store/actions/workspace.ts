@@ -38,8 +38,7 @@ export async function openWorkspace(workspace: Workspace) {
 
         terminalSessions.set(originalPaneId, session);
 
-        const isOriginalPane = !pane.originalPaneId;
-        if (isOriginalPane && pane.command?.trim().length > 0) {
+        if (!pane.originalPaneId && pane.command?.trim().length > 0) {
           const commandWithNewline = pane.command.endsWith("\n")
             ? pane.command
             : `${pane.command}\n`;
