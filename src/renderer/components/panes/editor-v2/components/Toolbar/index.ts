@@ -5,5 +5,8 @@
 export { EditorToolbar } from "./EditorToolbar";
 export type { EditorToolbarProps } from "./EditorToolbar";
 
-export { MobileViewToggle } from "./MobileViewToggle";
-export type { MobileViewToggleProps, MobileView } from "./MobileViewToggle";
+export { PanelViewPortToggle } from "./PanelViewPortToggle";
+export type {
+  PanelViewPortToggleProps,
+  PanelView,
+} from "./PanelViewPortToggle";

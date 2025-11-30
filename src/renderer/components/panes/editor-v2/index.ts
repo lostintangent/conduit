@@ -49,7 +49,7 @@ export {
   EditorViewPanel,
   FileTreePanel,
   TreeResizer,
-  MobileViewToggle,
+  PanelViewPortToggle,
   EditorToolbar,
   ChangesReviewPane,
   FileChangeDiff,

@@ -1,12 +1,13 @@
 /**
- * MobileViewToggle - Floating toggle for mobile/narrow layouts.
+ * PanelViewPortToggle - Floating toggle for narrow viewport layouts.
  *
- * When the editor pane is too narrow for split view, this component
- * provides a floating toggle to switch between file tree and editor views.
+ * When the editor pane is too narrow for split view (based on container width,
+ * not window size), this component provides a floating toggle to switch between
+ * file tree and editor views.
  *
  * @example
  * ```tsx
- * <MobileViewToggle
+ * <PanelViewPortToggle
  *   activeView="editor"
  *   onViewChange={(view) => setActiveView(view)}
  * />
@@ -22,16 +23,16 @@ import { cn } from "@/utils";
 // ============================================================================
 
 /**
- * The current active view in mobile/single layout mode.
+ * The current active view in single-column layout mode.
  */
-export type MobileView = "tree" | "editor";
+export type PanelView = "tree" | "editor";
 
-export interface MobileViewToggleProps {
+export interface PanelViewPortToggleProps {
   /** Currently active view */
-  activeView: MobileView;
+  activeView: PanelView;
 
   /** Callback when view is changed */
-  onViewChange: (view: MobileView) => void;
+  onViewChange: (view: PanelView) => void;
 }
 
 // ============================================================================
@@ -41,13 +42,13 @@ export interface MobileViewToggleProps {
 /**
  * Floating toggle buttons for switching between tree and editor views.
  *
- * Positioned at the bottom center of the container. Only rendered in
- * single/mobile layout mode.
+ * Positioned at the bottom center of the container. Only rendered when
+ * the pane is in single-column layout mode (narrow viewport).
  */
-export function MobileViewToggle({
+export function PanelViewPortToggle({
   activeView,
   onViewChange,
-}: MobileViewToggleProps) {
+}: PanelViewPortToggleProps) {
   return (
     <div
       className={cn(
@@ -56,7 +57,7 @@ export function MobileViewToggle({
         "bg-background/95 backdrop-blur-sm",
         "border border-border rounded-lg shadow-lg",
       )}
-      data-testid="mobile-view-toggle"
+      data-testid="panel-viewport-toggle"
     >
       <Button
         variant={activeView === "tree" ? "secondary" : "ghost"}
@@ -64,7 +65,7 @@ export function MobileViewToggle({
         className="h-8 px-3 gap-2"
         onClick={() => onViewChange("tree")}
         title="File Explorer"
-        data-testid="mobile-toggle-tree"
+        data-testid="panel-toggle-tree"
       >
         <FolderTree className="h-4 w-4" />
         <span className="text-xs">Files</span>
@@ -76,7 +77,7 @@ export function MobileViewToggle({
         className="h-8 px-3 gap-2"
         onClick={() => onViewChange("editor")}
         title="Editor"
-        data-testid="mobile-toggle-editor"
+        data-testid="panel-toggle-editor"
       >
         <Code className="h-4 w-4" />
         <span className="text-xs">Editor</span>

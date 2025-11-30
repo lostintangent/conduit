@@ -5,7 +5,7 @@
  * - FileTreePanel for file navigation
  * - EditorViewPanel for file editing
  * - TreeResizer for panel resizing
- * - MobileViewToggle for narrow viewport navigation
+ * - PanelViewPortToggle for narrow viewport navigation
  *
  * It handles responsive layout switching between split and single modes,
  * persists user preferences, and manages editor mode (normal vs diff).
@@ -25,9 +25,9 @@ import {
   FileTreePanel,
   EditorViewPanel,
   TreeResizer,
-  MobileViewToggle,
+  PanelViewPortToggle,
 } from "./components";
-import type { MobileView } from "./components";
+import type { PanelView } from "./components";
 import { useResponsiveLayout } from "./hooks";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
@@ -243,8 +243,8 @@ export function EditorPaneV2({
   // Tree panel width (persisted)
   const [treeWidth, setTreeWidth] = useState<number>(getPersistedTreeWidth);
 
-  // Mobile view state (for single layout mode)
-  const [mobileView, setMobileView] = useState<MobileView>("tree");
+  // Panel view state (for single-column layout mode)
+  const [panelView, setPanelView] = useState<PanelView>("tree");
 
   // ---------------------------------------------------------------------------
   // Hooks
@@ -382,7 +382,7 @@ export function EditorPaneV2({
 
       // In single layout, switch to editor view when file is selected
       if (layout === "single") {
-        setMobileView("editor");
+        setPanelView("editor");
       }
 
       // Set initial view mode based on git status - files with changes open in diff
@@ -461,10 +461,10 @@ export function EditorPaneV2({
   }, []);
 
   /**
-   * Handle mobile view toggle.
+   * Handle panel view toggle (for single-column layout).
    */
-  const handleMobileViewChange = useCallback((view: MobileView) => {
-    setMobileView(view);
+  const handlePanelViewChange = useCallback((view: PanelView) => {
+    setPanelView(view);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -472,8 +472,8 @@ export function EditorPaneV2({
   // ---------------------------------------------------------------------------
 
   // Determine if tree should be visible
-  const showTree = layout === "split" || mobileView === "tree";
-  const showEditor = layout === "split" || mobileView === "editor";
+  const showTree = layout === "split" || panelView === "tree";
+  const showEditor = layout === "split" || panelView === "editor";
 
   return (
     <div
@@ -531,11 +531,11 @@ export function EditorPaneV2({
         />
       </div>
 
-      {/* Mobile View Toggle (single mode only) */}
+      {/* Panel View Toggle (single-column layout only) */}
       {layout === "single" && (
-        <MobileViewToggle
-          activeView={mobileView}
-          onViewChange={handleMobileViewChange}
+        <PanelViewPortToggle
+          activeView={panelView}
+          onViewChange={handlePanelViewChange}
         />
       )}
     </div>

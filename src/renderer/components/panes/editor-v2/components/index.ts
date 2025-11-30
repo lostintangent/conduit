@@ -16,7 +16,7 @@
  *
  * Phase 5 components:
  * - TreeResizer: Draggable divider for tree panel resizing
- * - MobileViewToggle: Floating toggle for mobile layout
+ * - PanelViewPortToggle: Floating toggle for narrow viewport layout
  *
  * Phase 6 components:
  * - ChangesReviewPane: Multi-file changes review with inline diffs
@@ -42,11 +42,11 @@ export type {
 } from "./EditorViewPanel";
 
 // Toolbar components
-export { EditorToolbar, MobileViewToggle } from "./Toolbar";
+export { EditorToolbar, PanelViewPortToggle } from "./Toolbar";
 export type {
   EditorToolbarProps,
-  MobileViewToggleProps,
-  MobileView,
+  PanelViewPortToggleProps,
+  PanelView,
 } from "./Toolbar";
 
 // FileTreePanel components

@@ -107,13 +107,13 @@ vi.mock(
   }),
 );
 
-// Mock MobileViewToggle
+// Mock PanelViewPortToggle
 vi.mock(
-  "../../../src/renderer/components/panes/editor-v2/components/Toolbar/MobileViewToggle",
+  "../../../src/renderer/components/panes/editor-v2/components/Toolbar/PanelViewPortToggle",
   () => ({
-    MobileViewToggle: ({ activeView, onViewChange }) => (
-      <div data-testid="mock-mobile-toggle">
-        <span data-testid="mobile-active-view">{activeView}</span>
+    PanelViewPortToggle: ({ activeView, onViewChange }) => (
+      <div data-testid="mock-panel-toggle">
+        <span data-testid="panel-active-view">{activeView}</span>
         <button
           data-testid="switch-to-editor"
           onClick={() => onViewChange("editor")}
@@ -227,7 +227,7 @@ describe("EditorPaneV2", () => {
 
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
-      expect(screen.getByTestId("mock-mobile-toggle")).toBeDefined();
+      expect(screen.getByTestId("mock-panel-toggle")).toBeDefined();
     });
 
     it("should not render mobile toggle in split mode", () => {
@@ -235,7 +235,7 @@ describe("EditorPaneV2", () => {
 
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
-      expect(screen.queryByTestId("mock-mobile-toggle")).toBeNull();
+      expect(screen.queryByTestId("mock-panel-toggle")).toBeNull();
     });
   });
 
@@ -295,13 +295,13 @@ describe("EditorPaneV2", () => {
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
       // Should start on tree view
-      expect(screen.getByTestId("mobile-active-view").textContent).toBe("tree");
+      expect(screen.getByTestId("panel-active-view").textContent).toBe("tree");
 
       // Select a file
       fireEvent.click(screen.getByTestId("select-file-button"));
 
       // Should switch to editor view
-      expect(screen.getByTestId("mobile-active-view").textContent).toBe(
+      expect(screen.getByTestId("panel-active-view").textContent).toBe(
         "editor",
       );
     });
@@ -377,17 +377,17 @@ describe("EditorPaneV2", () => {
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
       // Should start on tree
-      expect(screen.getByTestId("mobile-active-view").textContent).toBe("tree");
+      expect(screen.getByTestId("panel-active-view").textContent).toBe("tree");
 
       // Switch to editor
       fireEvent.click(screen.getByTestId("switch-to-editor"));
-      expect(screen.getByTestId("mobile-active-view").textContent).toBe(
+      expect(screen.getByTestId("panel-active-view").textContent).toBe(
         "editor",
       );
 
       // Switch back to tree
       fireEvent.click(screen.getByTestId("switch-to-tree"));
-      expect(screen.getByTestId("mobile-active-view").textContent).toBe("tree");
+      expect(screen.getByTestId("panel-active-view").textContent).toBe("tree");
     });
   });
 
