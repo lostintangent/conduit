@@ -24,8 +24,8 @@ export async function openWorkspace(workspace: Workspace) {
     const restoreTerminalPane = async (
       pane: Workspace["tabs"][number]["panes"][number],
     ) => {
-      const originalPaneId = pane.originalPaneId ?? pane.id;
-      let session = terminalSessions.get(originalPaneId);
+      const sourcePaneId = pane.sourcePaneId ?? pane.id;
+      let session = terminalSessions.get(sourcePaneId);
 
       if (!session) {
         session = await api.createTerminal(
@@ -36,9 +36,9 @@ export async function openWorkspace(workspace: Workspace) {
           return;
         }
 
-        terminalSessions.set(originalPaneId, session);
+        terminalSessions.set(sourcePaneId, session);
 
-        if (!pane.originalPaneId && pane.command?.trim().length > 0) {
+        if (!pane.sourcePaneId && pane.command?.trim().length > 0) {
           const commandWithNewline = pane.command.endsWith("\n")
             ? pane.command
             : `${pane.command}\n`;
@@ -68,14 +68,10 @@ export async function openWorkspace(workspace: Workspace) {
       } => pane.type === "terminal",
     );
 
-    const originalTerminals = terminalPanes.filter(
-      (pane) => !pane.originalPaneId,
-    );
-    const clonedTerminals = terminalPanes.filter(
-      (pane) => !!pane.originalPaneId,
-    );
+    const normalTerminals = terminalPanes.filter((pane) => !pane.sourcePaneId);
+    const clonedTerminals = terminalPanes.filter((pane) => !!pane.sourcePaneId);
 
-    for (const pane of originalTerminals) {
+    for (const pane of normalTerminals) {
       await restoreTerminalPane(pane);
     }
 

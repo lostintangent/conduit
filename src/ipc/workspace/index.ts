@@ -86,7 +86,7 @@ async function serializePane(
   pane: TabPane,
   terminalSessions: Map<string, TerminalInstance>,
 ): Promise<SerializedPane> {
-  if (pane.type === "terminal" && !pane.originalPaneId) {
+  if (pane.type === "terminal" && !pane.sourcePaneId) {
     const terminalSession = terminalSessions.get(pane.sessionId);
     const capturedCommand = terminalSession
       ? await captureTerminalCommand(terminalSession)

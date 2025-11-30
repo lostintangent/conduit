@@ -29,7 +29,7 @@ export type TerminalPane = {
   sessionId: string;
   cwd: string | null;
   processTitle: string;
-  originalPaneId?: string;
+  sourcePaneId?: string;
 
   vmMetadata?: VMMetadata;
 
