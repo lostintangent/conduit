@@ -857,7 +857,7 @@ export function openEditorPane(
   );
 }
 
-export function clonePane(
+export function cloneTerminalPane(
   tabId: string,
   paneId: string,
   direction: SplitDirection = "row",
@@ -868,14 +868,10 @@ export function clonePane(
   // can be cloned. So we're not repeating those checks here. That said,
   store.set(tabsAtom, (tabs) => {
     const tab = tabs.find(({ id }) => id === tabId);
-    const sourcePane = tab.panes[paneId];
-
-    if (sourcePane.type !== "terminal") {
-      return tab;
-    }
+    const sourcePane = tab.panes[paneId] as TerminalPane;
 
     const newPaneId = generateId();
-    const newPane: Pane = {
+    const newPane: TerminalPane = {
       ...sourcePane,
       id: newPaneId,
       originalPaneId: sourcePane.originalPaneId ?? paneId,

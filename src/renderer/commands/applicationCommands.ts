@@ -48,7 +48,7 @@ import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
-  clonePane,
+  cloneTerminalPane,
   closePane,
   movePane,
   openEditorPane,
@@ -908,12 +908,13 @@ export function registerApplicationCommands(
     menu: {
       id: MenuId.PaneContext,
       group: "2_split",
+      when: activePaneType.equals("terminal"),
       order: 5,
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
-      clonePane(targetTabId, targetPaneId);
+      cloneTerminalPane(targetTabId, targetPaneId);
     },
   });
 

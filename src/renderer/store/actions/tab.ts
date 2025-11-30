@@ -1,19 +1,8 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
-import {
-  detachPane,
-  removePane,
-  updatePaneProperty,
-} from "@/store/actions/pane";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
+import { detachPane, removePane } from "@/store/actions/pane";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import type {
-  EditorPane,
-  LayoutNode,
-  Pane,
-  Tab,
-  TerminalPane,
-  WebViewPane,
-} from "@/types";
+import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import { generateId } from "@/utils/id";
 import type { AgentSessionInfo, NewTabOptions, Workspace } from "@shared/types";
 import { getDefaultStore } from "jotai";
@@ -217,48 +206,12 @@ export async function openTabFromPaneDescriptor(
   descriptor: PaneDescriptor,
 ): Promise<{ tabId: string; paneId: string } | null> {
   const paneId = generateId();
+  const newPane = {
+    id: paneId,
+    ...descriptor,
+  };
 
-  let paneState: Pane | null = null;
-
-  if (descriptor.type === "terminal") {
-    const terminalDescriptor = descriptor as Omit<TerminalPane, "id">;
-    paneState = {
-      id: paneId,
-      type: "terminal",
-      sessionId: terminalDescriptor.sessionId,
-      cwd: terminalDescriptor.cwd,
-      processTitle: terminalDescriptor.processTitle,
-      vmMetadata: terminalDescriptor.vmMetadata,
-      originalPaneId: terminalDescriptor.originalPaneId,
-    };
-  } else if (descriptor.type === "editor") {
-    const editorDescriptor = descriptor as Omit<EditorPane, "id">;
-    paneState = {
-      id: paneId,
-      type: "editor",
-      cwd: editorDescriptor.cwd,
-      filePath: editorDescriptor.filePath,
-      agentSessionId: editorDescriptor.agentSessionId,
-      agentBranchName: editorDescriptor.agentBranchName,
-      agentBaseBranch: editorDescriptor.agentBaseBranch,
-      agentRepoRoot: editorDescriptor.agentRepoRoot,
-      agentWorktreePath: editorDescriptor.agentWorktreePath,
-    };
-  } else if (descriptor.type === "webview") {
-    const webviewDescriptor = descriptor as Omit<WebViewPane, "id">;
-    paneState = {
-      id: paneId,
-      type: "webview",
-      url: webviewDescriptor.url,
-      title: webviewDescriptor.title,
-    };
-  }
-
-  if (!paneState) {
-    return null;
-  }
-
-  return createTabWithPane(paneState);
+  return createTabWithPane(newPane as Pane);
 }
 
 export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
