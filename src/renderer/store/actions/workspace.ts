@@ -8,6 +8,8 @@ const api = window.conduit;
 const store = getDefaultStore();
 
 export async function openWorkspace(workspace: Workspace) {
+  await closeWorkspace({ openReplacement: false });
+
   if (!workspace.tabs || workspace.tabs.length === 0) {
     return;
   }
@@ -59,7 +61,15 @@ export async function openWorkspace(workspace: Workspace) {
   }
 }
 
-export async function closeWorkspace() {
+type CloseWorkspaceOptions = {
+  openReplacement?: boolean;
+};
+
+export async function closeWorkspace(options: CloseWorkspaceOptions = {}) {
+  const { openReplacement = true } = options;
+
   store.set(workspaceNameAtom, null);
-  store.get(tabsAtom).forEach((tab) => closeTab(tab.id, { force: true }));
+  store
+    .get(tabsAtom)
+    .forEach((tab) => closeTab(tab.id, { force: true, openReplacement }));
 }
