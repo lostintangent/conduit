@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { BrowserPage } from "@shared/types";
+import { normalizeUrl } from "@/utils/browser";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";
@@ -90,22 +91,8 @@ export function BrowserToolbar({
       return;
     }
 
-    let targetUrl = inputUrl.trim();
+    const targetUrl = normalizeUrl(inputUrl);
     if (targetUrl.length === 0) return;
-
-    // If it contains spaces, treat as a search query
-    if (targetUrl.includes(" ")) {
-      targetUrl = `https://www.bing.com/search?q=${encodeURIComponent(targetUrl)}`;
-    } else if (!targetUrl.match(/^http(s)?:\/\//i)) {
-      // Add protocol if missing
-      const lowerTarget = targetUrl.toLowerCase();
-      const host = lowerTarget.split("/")[0];
-
-      const isLocalhost = host === "localhost" || host.startsWith("localhost:");
-
-      const protocol = isLocalhost ? "http" : "https";
-      targetUrl = `${protocol}://${targetUrl}`;
-    }
 
     addUrlToHistory(targetUrl);
     closeDropdowns();

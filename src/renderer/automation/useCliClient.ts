@@ -13,6 +13,7 @@ import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
 import type { TerminalPane } from "@/types";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
+import { normalizeUrl } from "@/utils/browser";
 import type { WebviewTag } from "electron";
 import { useAtomValue } from "jotai";
 import { useEffect, useEffectEvent } from "react";
@@ -386,7 +387,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
           case "browser-navigate": {
             executeWebviewAction(args?.paneId, (webview) =>
-              webview.loadURL(args.url),
+              webview.loadURL(normalizeUrl(args.url)),
             );
             break;
           }
