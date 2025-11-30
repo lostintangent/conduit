@@ -901,10 +901,10 @@ export function registerApplicationCommands(
   // Pane: Clone
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_CLONE,
-    title: "Clone Pane",
-    description: "Create a clone of the active pane",
+    title: "Clone Terminal",
+    description: "Create a clone of the active terminal",
     category: "Pane",
-    when: paneActionsEnabled,
+    when: When.and(paneActionsEnabled, activePaneType.equals("terminal")),
     menu: {
       id: MenuId.PaneContext,
       group: "2_split",

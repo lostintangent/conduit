@@ -1,7 +1,6 @@
 import type { VMMetadata } from "@shared/types";
 
 type Identifiable = { id: string };
-type PaneBase = Identifiable & { originalPaneId?: string };
 type Resizable = { size?: number };
 
 /* Layout tree types */
@@ -30,6 +29,7 @@ export type TerminalPane = {
   sessionId: string;
   cwd: string | null;
   processTitle: string;
+  originalPaneId?: string;
 
   vmMetadata?: VMMetadata;
 
@@ -38,7 +38,7 @@ export type TerminalPane = {
   agentBaseBranch?: string | null;
   agentRepoRoot?: string;
   agentWorktreePath?: string;
-} & PaneBase;
+} & Identifiable;
 
 export type WebViewPane = {
   type: "webview";
@@ -46,7 +46,7 @@ export type WebViewPane = {
   title?: string;
 
   devToolsForPane?: string;
-} & PaneBase;
+} & Identifiable;
 
 export type EditorTreeMode = "all" | "changes";
 export type EditorPane = {
@@ -60,7 +60,7 @@ export type EditorPane = {
   agentBaseBranch?: string | null;
   agentRepoRoot?: string;
   agentWorktreePath?: string;
-} & PaneBase;
+} & Identifiable;
 
 export type Pane = TerminalPane | WebViewPane | EditorPane;
 

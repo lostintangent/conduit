@@ -870,6 +870,10 @@ export function clonePane(
     const tab = tabs.find(({ id }) => id === tabId);
     const sourcePane = tab.panes[paneId];
 
+    if (sourcePane.type !== "terminal") {
+      return tab;
+    }
+
     const newPaneId = generateId();
     const newPane: Pane = {
       ...sourcePane,
