@@ -64,6 +64,64 @@ function detectLanguage(filePath: string): string {
   return languageMap[ext] ?? "plaintext";
 }
 
+/**
+ * Compute the parent directory of a given path.
+ * Returns null if already at filesystem root.
+ */
+function getParentDirectory(path: string): string | null {
+  // Normalize: remove trailing slash
+  const normalized = path.endsWith("/") ? path.slice(0, -1) : path;
+
+  // Check for root paths
+  if (normalized === "" || normalized === "/") {
+    return null;
+  }
+
+  // Windows root check (e.g., "C:" or "C:\")
+  if (/^[A-Za-z]:$/.test(normalized) || /^[A-Za-z]:\\?$/.test(normalized)) {
+    return null;
+  }
+
+  // Find last separator
+  const lastSlash = normalized.lastIndexOf("/");
+
+  if (lastSlash === -1) {
+    // No slash found - Windows root like "C:\folder"
+    const backslashIndex = normalized.lastIndexOf("\\");
+    if (backslashIndex <= 2) {
+      // At or near root
+      return normalized.slice(0, backslashIndex + 1) || null;
+    }
+    return normalized.slice(0, backslashIndex);
+  }
+
+  if (lastSlash === 0) {
+    // Root directory (Unix)
+    return "/";
+  }
+
+  return normalized.slice(0, lastSlash);
+}
+
+/**
+ * Check if a path is at the filesystem root.
+ */
+function isAtFilesystemRoot(path: string): boolean {
+  const normalized = path.endsWith("/") ? path.slice(0, -1) : path;
+
+  // Unix root
+  if (normalized === "" || normalized === "/") {
+    return true;
+  }
+
+  // Windows root
+  if (/^[A-Za-z]:$/.test(normalized) || /^[A-Za-z]:\\?$/.test(normalized)) {
+    return true;
+  }
+
+  return false;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -140,12 +198,12 @@ export function EditorPaneV2({
   pane,
   onFileChange,
   onClearFile,
-  onCwdChange: _onCwdChange, // Reserved for future cwd change support
+  onCwdChange,
   onFileOpen,
   onTreeModeChange,
   onSave,
 }: EditorPaneV2Props) {
-  const { cwd, filePath: initialFilePath, treeMode } = pane;
+  const { cwd: initialCwd, filePath: initialFilePath, treeMode } = pane;
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -154,6 +212,9 @@ export function EditorPaneV2({
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
+
+  // Current working directory (can change via navigation)
+  const [currentCwd, setCurrentCwd] = useState(initialCwd);
 
   // Tree panel width
   const [treeWidth, setTreeWidth] = useState(DEFAULT_TREE_WIDTH);
@@ -197,7 +258,7 @@ export function EditorPaneV2({
   const layout = useResponsiveLayout(containerRef);
 
   // Git API for checking file status
-  const git = useGitV2(cwd);
+  const git = useGitV2(currentCwd);
 
   // Git status state - tracks which files have changes
   const [gitChangedFiles, setGitChangedFiles] = useState<Set<string>>(
@@ -319,9 +380,9 @@ export function EditorPaneV2({
         }
 
         // Convert relative path to absolute path
-        const fullPath = cwd.endsWith("/")
-          ? `${cwd}${relativePath}`
-          : `${cwd}/${relativePath}`;
+        const fullPath = currentCwd.endsWith("/")
+          ? `${currentCwd}${relativePath}`
+          : `${currentCwd}/${relativePath}`;
         const name = relativePath.split("/").pop() ?? relativePath;
 
         // Create file node and select it
@@ -343,13 +404,13 @@ export function EditorPaneV2({
     return () => {
       cancelled = true;
     };
-  }, [selectedFile, initialFilePath, cwd, git]);
+  }, [selectedFile, initialFilePath, currentCwd, git]);
 
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
   // FileSystem API for reading file content (for callbacks)
-  const fs = useFileSystemV2(cwd);
+  const fs = useFileSystemV2(currentCwd);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -451,6 +512,30 @@ export function EditorPaneV2({
   }, []);
 
   /**
+   * Handle navigation to parent directory.
+   * Clears the selected file and updates the working directory.
+   */
+  const handleNavigateUp = useCallback(() => {
+    const parentDir = getParentDirectory(currentCwd);
+    if (!parentDir) return;
+
+    // Clear selected file when navigating
+    setSelectedFile(null);
+    onClearFile?.();
+
+    // Update current working directory
+    setCurrentCwd(parentDir);
+
+    // Notify parent of cwd change
+    onCwdChange?.(parentDir);
+  }, [currentCwd, onClearFile, onCwdChange]);
+
+  /**
+   * Whether navigation up is possible.
+   */
+  const canNavigateUp = !isAtFilesystemRoot(currentCwd);
+
+  /**
    * Handle panel view toggle (for single-column layout).
    */
   const handlePanelViewChange = useCallback((view: PanelView) => {
@@ -536,7 +621,8 @@ export function EditorPaneV2({
       <div
         ref={treePanelRef}
         className={cn(
-          "flex-shrink-0 h-full overflow-hidden transition-[width] duration-150",
+          "flex-shrink-0 h-full overflow-hidden",
+          "transition-[width] duration-150 motion-reduce:transition-none",
           !showTree && "hidden",
         )}
         style={{
@@ -547,7 +633,7 @@ export function EditorPaneV2({
         tabIndex={-1}
       >
         <FileTreePanel
-          cwd={cwd}
+          cwd={currentCwd}
           selectedFile={selectedFile}
           onFileSelect={handleFileSelect}
           treeViewMode={treeViewMode}
@@ -557,6 +643,11 @@ export function EditorPaneV2({
           currentBranch={currentBranch}
           stagedCount={stagedCount}
           hasUncommittedChanges={hasUncommittedChanges}
+          canNavigateUp={canNavigateUp}
+          onNavigateUp={handleNavigateUp}
+          isTreeCollapsed={isTreeCollapsed}
+          onToggleCollapse={handleToggleTree}
+          showCollapseButton={layout === "split"}
         />
       </div>
 
@@ -580,7 +671,7 @@ export function EditorPaneV2({
       >
         <EditorViewPanel
           editorId={editorId}
-          cwd={cwd}
+          cwd={currentCwd}
           selectedFile={selectedFile}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}

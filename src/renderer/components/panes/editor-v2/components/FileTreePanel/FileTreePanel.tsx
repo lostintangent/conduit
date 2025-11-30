@@ -26,6 +26,7 @@
 import { Files, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { FileNode, TreeViewMode } from "../../types";
+import { FileTreeToolbar } from "./FileTreeToolbar";
 import { FileTreeNormal } from "./FileTreeNormal";
 import { FileTreeChanges } from "./FileTreeChanges";
 import { GitOperationsToolbar } from "../GitOperationsToolbar";
@@ -68,6 +69,25 @@ export interface FileTreePanelProps {
 
   /** Callback fired after successful commit */
   onCommitSuccess?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Navigation Props (Phase 4)
+  // ---------------------------------------------------------------------------
+
+  /** Whether navigation to parent directory is possible */
+  canNavigateUp?: boolean;
+
+  /** Callback when navigate up button is clicked */
+  onNavigateUp?: () => void;
+
+  /** Whether the tree panel is collapsed (for collapse toggle button state) */
+  isTreeCollapsed?: boolean;
+
+  /** Callback when collapse toggle is clicked */
+  onToggleCollapse?: () => void;
+
+  /** Whether to show the collapse button (only in split layout mode) */
+  showCollapseButton?: boolean;
 }
 
 // ============================================================================
@@ -89,9 +109,31 @@ export function FileTreePanel({
   stagedCount = 0,
   hasUncommittedChanges = false,
   onCommitSuccess,
+  canNavigateUp = false,
+  onNavigateUp,
+  isTreeCollapsed = false,
+  onToggleCollapse,
+  showCollapseButton = false,
 }: FileTreePanelProps) {
+  // Handle navigate up - only call if handler is provided
+  const handleNavigateUp = () => {
+    onNavigateUp?.();
+  };
+
   return (
     <div className="flex flex-col h-full" data-testid="file-tree-panel">
+      {/* Navigation Toolbar */}
+      {onNavigateUp && (
+        <FileTreeToolbar
+          cwd={cwd}
+          canNavigateUp={canNavigateUp}
+          onNavigateUp={handleNavigateUp}
+          isCollapsed={isTreeCollapsed}
+          onToggleCollapse={onToggleCollapse}
+          showCollapseButton={showCollapseButton}
+        />
+      )}
+
       {/* Header with view mode toggle */}
       <div className="flex items-center gap-1 px-2 py-1 border-b border-border">
         <Button
