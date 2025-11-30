@@ -15,10 +15,9 @@ import type {
   WebViewPane,
 } from "@/types";
 import { generateId } from "@/utils/id";
-import type { AgentSessionInfo, NewTabOptions, Workspace } from "@shared/types";
+import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
 import { getDefaultStore } from "jotai";
 import path from "path-browserify";
-import { openWorkspace } from "./workspace";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -724,13 +723,8 @@ export function registerTabEventHandlers() {
     void openTab();
   });
 
-  const unsubscribeOpenWorkspace = api.onOpenWorkspaceRequest(
-    (workspace: Workspace) => openWorkspace(workspace),
-  );
-
   return () => {
     unsubscribeExit();
     unsubscribeNewTab();
-    unsubscribeOpenWorkspace();
   };
 }
