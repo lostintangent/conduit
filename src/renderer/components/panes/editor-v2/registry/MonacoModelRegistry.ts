@@ -533,14 +533,28 @@ export class MonacoModelRegistry {
 
     const content = await fsApi.readTextFile(filePath);
 
-    // Update model content (this will trigger onDidChangeContent)
-    entry.model.setValue(content);
+    // Set isReloading to skip dirty detection during setValue()
+    // (setValue triggers onDidChangeContent synchronously)
+    entry.isReloading = true;
+    try {
+      // Update model content
+      entry.model.setValue(content);
 
-    // Reset state
-    entry.savedVersionId = entry.model.getAlternativeVersionId();
-    entry.isDirty = false;
-    entry.hasExternalChanges = false;
-    entry.isOrphaned = false;
+      // Reset state
+      entry.savedVersionId = entry.model.getAlternativeVersionId();
+      entry.isDirty = false;
+      entry.hasExternalChanges = false;
+      entry.isOrphaned = false;
+    } finally {
+      entry.isReloading = false;
+    }
+
+    // Fire dirty event to update UI (model is now clean)
+    this._onModelStateChanged.fire({
+      type: "dirty",
+      uri,
+      isDirty: false,
+    });
 
     this._onModelStateChanged.fire({
       type: "reloaded",
@@ -552,6 +566,8 @@ export class MonacoModelRegistry {
    * Clear the external changes flag without reloading.
    *
    * Use this when the user chooses "Keep My Changes" in the conflict UI.
+   * The file content still differs from disk, but the user has acknowledged
+   * this and chosen to continue editing.
    *
    * @param uri - The model URI
    */
@@ -559,7 +575,13 @@ export class MonacoModelRegistry {
     const entry = this.models.get(uri);
     if (entry && entry.hasExternalChanges) {
       entry.hasExternalChanges = false;
-      // Note: File is still different on disk, but user acknowledged it
+
+      // Fire event so UI updates
+      this._onModelStateChanged.fire({
+        type: "externalChange",
+        uri,
+        hasConflict: false,
+      });
     }
   }
 
@@ -873,12 +895,19 @@ export class MonacoModelRegistry {
     // Detect language
     const language = detectLanguage(filePath);
 
-    // Create Monaco model
-    const model = monaco.editor.createModel(
-      content,
-      language,
-      monaco.Uri.parse(uri),
-    );
+    // Check for pre-existing Monaco model (can happen during HMR when our
+    // registry resets but Monaco's internal model registry persists)
+    const monacoUri = monaco.Uri.parse(uri);
+    let model = monaco.editor.getModel(monacoUri);
+
+    if (model && !model.isDisposed()) {
+      // Reuse existing model but update content to match disk
+      // This handles the HMR case where the model has stale/dirty content
+      model.setValue(content);
+    } else {
+      // Create new Monaco model
+      model = monaco.editor.createModel(content, language, monacoUri);
+    }
 
     // Create entry
     const entry: ModelEntry = {

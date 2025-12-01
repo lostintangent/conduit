@@ -22,7 +22,7 @@
  * ```
  */
 
-import { useCallback, useState, useRef, useMemo } from "react";
+import { useCallback, useRef, useMemo } from "react";
 import * as monaco from "monaco-editor";
 import type { ViewMode, FileNode, ModelState } from "../../types";
 import { useModelState, useEditorActions } from "../../hooks";
@@ -102,9 +102,6 @@ export function EditorViewPanel({
   showExpandTreeButton = false,
   onExpandTree,
 }: EditorViewPanelProps) {
-  // Track if warning was dismissed
-  const [warningDismissed, setWarningDismissed] = useState(false);
-
   // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
@@ -135,13 +132,6 @@ export function EditorViewPanel({
 
   // Get model state for the current file
   const modelState = useModelState(filePath);
-
-  // Reset warning dismissed state when file changes
-  const previousFilePathRef = useRef<string | null>(null);
-  if (previousFilePathRef.current !== filePath) {
-    previousFilePathRef.current = filePath;
-    setWarningDismissed(false);
-  }
 
   // ---------------------------------------------------------------------------
   // Save Handler (for useEditorActions)
@@ -188,6 +178,7 @@ export function EditorViewPanel({
 
   /**
    * Handle reload from disk.
+   * Discards local changes and loads current disk content.
    */
   const handleReload = useCallback(async () => {
     if (!filePath) return;
@@ -195,18 +186,21 @@ export function EditorViewPanel({
     try {
       const registry = MonacoModelRegistry.getInstance();
       await registry.reloadModel(pathToUri(filePath));
-      setWarningDismissed(true);
     } catch (error) {
       console.error("Failed to reload file:", error);
     }
   }, [filePath]);
 
   /**
-   * Handle keep changes (dismiss warning).
+   * Handle keep changes - user acknowledges external changes but wants to keep editing.
+   * Clears the hasExternalChanges flag so the warning disappears.
    */
   const handleKeepChanges = useCallback(() => {
-    setWarningDismissed(true);
-  }, []);
+    if (!filePath) return;
+
+    const registry = MonacoModelRegistry.getInstance();
+    registry.clearExternalChanges(pathToUri(filePath));
+  }, [filePath]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -224,11 +218,10 @@ export function EditorViewPanel({
     );
   }
 
-  // Determine if we should show the warning
+  // Show warning when there's a conflict (external changes while dirty) or file was deleted
+  // The warning hides automatically when the user takes action (reload, save, keep changes)
   const shouldShowWarning =
-    !warningDismissed &&
-    modelState &&
-    (modelState.isOrphaned || modelState.hasExternalChanges);
+    modelState && (modelState.isOrphaned || modelState.hasExternalChanges);
 
   // Build effective model state for toolbar
   const effectiveModelState: ModelState = modelState ?? {
@@ -242,19 +235,6 @@ export function EditorViewPanel({
       className="flex flex-col h-full w-full bg-background"
       data-testid="editor-view-panel"
     >
-      {/* External change warning */}
-      {shouldShowWarning && modelState && (
-        <ExternalChangeWarning
-          filePath={filePath}
-          isOrphaned={modelState.isOrphaned}
-          hasExternalChanges={modelState.hasExternalChanges}
-          isDirty={modelState.isDirty}
-          onReload={handleReload}
-          onKeepChanges={handleKeepChanges}
-          onSave={handleSave}
-        />
-      )}
-
       {/* Toolbar */}
       <EditorToolbar
         viewMode={viewMode}
@@ -273,6 +253,19 @@ export function EditorViewPanel({
         showExpandTreeButton={showExpandTreeButton}
         onExpandTree={onExpandTree}
       />
+
+      {/* External change warning */}
+      {shouldShowWarning && modelState && (
+        <ExternalChangeWarning
+          filePath={filePath}
+          isOrphaned={modelState.isOrphaned}
+          hasExternalChanges={modelState.hasExternalChanges}
+          isDirty={modelState.isDirty}
+          onReload={handleReload}
+          onKeepChanges={handleKeepChanges}
+          onSave={handleSave}
+        />
+      )}
 
       {/* Editor content */}
       <div className="flex-1 min-h-0">
