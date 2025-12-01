@@ -47,6 +47,9 @@ export const paneHandlers: Partial<HandlerMap> = {
     } else if (args.paneId) {
       // Close the specified pane
       const callingTab = context.findCallingTerminalTab();
+      if (!callingTab.panes[args.paneId]) {
+        throw new Error(`Pane "${args.paneId}" not found in the current tab`);
+      }
       closePane(callingTab.id, args.paneId);
     } else {
       // Close the calling pane (default behavior)
