@@ -12,7 +12,7 @@ export type HandlerContext = {
   sessionId: string;
   activeTab?: Tab;
   tabs: Tab[];
-  floatingTerminal?: { terminalId: string };
+  hyperTerminal?: { terminalId: string };
   suppressResponse: () => void;
   findCallingTerminalTab: () => Tab;
   resolveTerminalSessions: (paneId?: string, all?: boolean) => string[];

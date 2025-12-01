@@ -2,12 +2,10 @@ import { useAtomValue } from "jotai";
 import type { LucideIcon } from "lucide-react";
 import {
   Bot,
-  Fullscreen,
   Keyboard,
   Monitor,
   Moon,
   Palette,
-  PictureInPicture2,
   Settings,
   Sun,
 } from "lucide-react";
@@ -43,13 +41,6 @@ const themeOptions = new Map<ThemeMode, LucideIcon>([
   ["system", Monitor],
 ]);
 
-const quickTerminalModeOptions = new Map<"fullscreen" | "floating", LucideIcon>(
-  [
-    ["fullscreen", Fullscreen],
-    ["floating", PictureInPicture2],
-  ],
-);
-
 type SettingsMenuProps = {
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
   onOpenTerminalFontSettings: () => void;
@@ -66,7 +57,6 @@ export function SettingsMenu({
     useGradientBorders,
     useConduitAsEditor,
     theme,
-    quickTerminalMode = "floating",
   } = useAtomValue(userSettingsAtom);
 
   const CurrentThemeIcon = themeOptions.get(theme);
@@ -120,30 +110,6 @@ export function SettingsMenu({
                 </span>
               </DropdownMenuItem>
             ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
-        {/* Quick terminal mode selection submenu */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>Quick terminal mode</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            {Array.from(quickTerminalModeOptions.entries()).map(
-              ([value, Icon]) => (
-                <DropdownMenuItem
-                  key={value}
-                  onClick={() => onUpdateSettings({ quickTerminalMode: value })}
-                  className={cn(
-                    "flex items-center justify-between gap-2",
-                    value === quickTerminalMode && "magic",
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <Icon className="w-4 h-4" />
-                    {capitalize(value)}
-                  </span>
-                </DropdownMenuItem>
-              ),
-            )}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 

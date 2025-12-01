@@ -32,7 +32,6 @@ export type UserSettings = {
 
   // Terminal settings
   showTerminalRuler: boolean;
-  quickTerminalMode: "fullscreen" | "floating";
   terminalPromptAgent?: string; // Deprecated: kept for backward compatibility
   terminalPromptBufferLines?: number;
   agents?: AgentConfig[];

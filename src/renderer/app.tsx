@@ -6,7 +6,7 @@ import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { TabsOverview } from "@/components/layout/overview/TabsOverview";
-import { FloatingTerminal } from "@/components/layout/quick/FloatingTerminal";
+import { HyperTerminal } from "@/components/layout/quick/HyperTerminal";
 import {
   QuickDialog,
   type PaneDescriptor,
@@ -56,7 +56,7 @@ import {
 import {
   activeTabAtom,
   applicationModeAtom,
-  floatingTerminalAtom,
+  hyperTerminalAtom,
   keybindingsAtom,
   tabsAtom,
 } from "@/store/atoms";
@@ -73,7 +73,7 @@ export function App() {
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setKeybindings = useSetAtom(keybindingsAtom);
-  const [floatingTerminal, setFloatingTerminal] = useAtom(floatingTerminalAtom);
+  const [hyperTerminal, setHyperTerminal] = useAtom(hyperTerminalAtom);
 
   const {
     tabPosition,
@@ -267,7 +267,7 @@ export function App() {
       });
 
       // Handle floating terminal exit
-      setFloatingTerminal((current) => {
+      setHyperTerminal((current) => {
         if (!current || current.terminalId !== sessionId) {
           return current;
         }
@@ -727,24 +727,24 @@ export function App() {
 
         current.onClose?.();
 
-        setFloatingTerminal({ terminalId, paneId, cwd });
+        setHyperTerminal({ terminalId, paneId, cwd });
 
         return null;
       });
     },
-    [setFloatingTerminal],
+    [setHyperTerminal],
   );
 
-  const handleOpenFloatingTerminal = useCallback(
+  const handleOpenHyperTerminal = useCallback(
     (terminalId: string, paneId: string, cwd: string | null) => {
       // Directly open terminal in floating overlay.
-      setFloatingTerminal({ terminalId, paneId, cwd });
+      setHyperTerminal({ terminalId, paneId, cwd });
     },
-    [setFloatingTerminal],
+    [setHyperTerminal],
   );
 
-  const handleCloseFloatingTerminal = useCallback(() => {
-    setFloatingTerminal((current) => {
+  const handleCloseHyperTerminal = useCallback(() => {
+    setHyperTerminal((current) => {
       if (!current) {
         return current;
       }
@@ -754,25 +754,25 @@ export function App() {
 
       return null;
     });
-  }, [setFloatingTerminal]);
+  }, [setHyperTerminal]);
 
-  const handleMaximizeFloatingTerminal = useCallback(
+  const handleMaximizeHyperTerminal = useCallback(
     (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay back to quick dialog.
-      setFloatingTerminal(null);
+      setHyperTerminal(null);
       setQuickPaneState({
         type: "terminal",
         sessionId: terminalId,
         cwd,
       });
     },
-    [setFloatingTerminal, setQuickPaneState],
+    [setHyperTerminal, setQuickPaneState],
   );
 
-  const handleOpenFloatingTerminalAsTab = useCallback(
+  const handleOpenHyperTerminalAsTab = useCallback(
     async (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay to new tab.
-      setFloatingTerminal(null);
+      setHyperTerminal(null);
 
       const { openTabFromExistingSession } = await import(
         "@/store/actions/tab"
@@ -782,7 +782,7 @@ export function App() {
         cwd,
       });
     },
-    [setFloatingTerminal],
+    [setHyperTerminal],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -801,7 +801,7 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenFloatingTerminal={handleOpenFloatingTerminal}
+            onOpenHyperTerminal={handleOpenHyperTerminal}
             position={tabPosition}
           />
         )}
@@ -813,7 +813,7 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenFloatingTerminal={handleOpenFloatingTerminal}
+                onOpenHyperTerminal={handleOpenHyperTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -853,7 +853,7 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenFloatingTerminal={handleOpenFloatingTerminal}
+            onOpenHyperTerminal={handleOpenHyperTerminal}
             position={tabPosition}
           />
         )}
@@ -865,7 +865,7 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenFloatingTerminal={handleOpenFloatingTerminal}
+                onOpenHyperTerminal={handleOpenHyperTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -908,22 +908,22 @@ export function App() {
         />
       )}
 
-      {floatingTerminal && (
-        <FloatingTerminal
-          terminalId={floatingTerminal.terminalId}
-          paneId={floatingTerminal.paneId}
-          cwd={floatingTerminal.cwd}
-          onClose={handleCloseFloatingTerminal}
+      {hyperTerminal && (
+        <HyperTerminal
+          terminalId={hyperTerminal.terminalId}
+          paneId={hyperTerminal.paneId}
+          cwd={hyperTerminal.cwd}
+          onClose={handleCloseHyperTerminal}
           onMaximize={() =>
-            handleMaximizeFloatingTerminal(
-              floatingTerminal.terminalId,
-              floatingTerminal.cwd,
+            handleMaximizeHyperTerminal(
+              hyperTerminal.terminalId,
+              hyperTerminal.cwd,
             )
           }
           onOpenAsTab={() =>
-            handleOpenFloatingTerminalAsTab(
-              floatingTerminal.terminalId,
-              floatingTerminal.cwd,
+            handleOpenHyperTerminalAsTab(
+              hyperTerminal.terminalId,
+              hyperTerminal.cwd,
             )
           }
         />

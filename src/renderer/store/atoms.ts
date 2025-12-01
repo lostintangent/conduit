@@ -14,7 +14,6 @@ export const userSettingsAtom = atom<UserSettings>({
 
   // Terminal settings
   showTerminalRuler: true,
-  quickTerminalMode: "floating",
 
   // Editor settings
   useConduitAsEditor: true,
@@ -73,7 +72,7 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  */
 export const paneActionsAtom = atom<Action[]>([]);
 
-export const floatingTerminalAtom = atom<{
+export const hyperTerminalAtom = atom<{
   terminalId: string;
   paneId: string;
   cwd: string | null;

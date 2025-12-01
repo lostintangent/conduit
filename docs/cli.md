@@ -369,7 +369,7 @@ const findCallingTerminalTab = () => {
 
   // 2. If not found in any tab, check if it's the floating terminal
   if (!matchingTab) {
-    if (floatingTerminal?.terminalId === sessionId) {
+    if (hyperTerminal?.terminalId === sessionId) {
       matchingTab = activeTab; // Use the currently active tab
     }
   }
@@ -516,7 +516,7 @@ The renderer process uses React hooks and Jotai atoms to access:
 
 - `tabsAtom` - All tab configurations
 - `activeTabAtom` - Currently active tab
-- `floatingTerminalAtom` - Floating terminal state
+- `hyperTerminalAtom` - Floating terminal state
 
 This state is used to resolve the target tab and execute commands in the appropriate context.
 

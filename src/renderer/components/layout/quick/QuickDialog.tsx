@@ -206,7 +206,7 @@ export function QuickDialog({
                       <PictureInPicture2 size={16} />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Floating Terminal</TooltipContent>
+                  <TooltipContent>Hyper Terminal</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
