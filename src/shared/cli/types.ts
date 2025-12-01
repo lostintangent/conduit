@@ -95,3 +95,15 @@ export type CliResponse<T = undefined> = {
   result?: T;
   error?: string;
 };
+
+/* Type utilities for extracting command args and results */
+
+export type CliCommandArgs<Name extends CliCommand["name"]> = Extract<
+  CliCommand,
+  { name: Name }
+>["args"];
+
+export type CliCommandResult<Name extends CliCommand["name"]> =
+  Extract<CliCommand, { name: Name }> extends DefineCommand<any, any, infer R>
+    ? R
+    : void;
