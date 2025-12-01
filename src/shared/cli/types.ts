@@ -1,17 +1,17 @@
 import { Pane } from "@/types";
+import type { NewTabOptions } from "@shared/types";
 import type {
   BrowserCaptureArgs,
   BrowserClickArgs,
+  BrowserElementDescriptor,
   BrowserFocusArgs,
   BrowserHoverArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
-  BrowserQueryResult,
   BrowserScrollArgs,
   BrowserTypeArgs,
   BrowserWaitArgs,
 } from "./browser";
-import type { NewTabOptions } from "@shared/types";
 
 export const CLI_COMMAND_NAME = "conduit";
 
@@ -77,7 +77,7 @@ export type CliCommand =
   | DefineCommand<"browser-back", { paneId?: string }>
   | DefineCommand<"browser-forward", { paneId?: string }>
   | DefineCommand<"browser-refresh", { paneId?: string }>
-  | DefineCommand<"browser-query", BrowserQueryArgs, BrowserQueryResult>
+  | DefineCommand<"browser-query", BrowserQueryArgs, BrowserElementDescriptor[]>
   | DefineCommand<"browser-click", BrowserClickArgs>
   | DefineCommand<"browser-hover", BrowserHoverArgs>
   | DefineCommand<"browser-focus", BrowserFocusArgs>

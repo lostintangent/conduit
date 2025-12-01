@@ -1,143 +1,34 @@
 import type {
-  AutomationElementDescriptor,
   BrowserClickArgs,
+  BrowserElementDescriptor,
   BrowserFocusArgs,
   BrowserHoverArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
-  BrowserQueryResult,
   BrowserScrollArgs,
   BrowserTypeArgs,
   BrowserWaitArgs,
 } from "@shared/cli/browser";
 import { handles } from "./handlesRegistry";
+import { describeElement } from "./selectors";
 
-const cssEscape = (str: string): string => {
-  if (typeof CSS !== "undefined" && CSS.escape) {
-    return CSS.escape(str);
-  }
-  return str.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^{`{|}~]/g, "\\$&");
-};
-
-const computeActions = (element: Element): string[] => {
-  const actions: string[] = [];
-  const tag = element.tagName?.toLowerCase();
-  const type = element.getAttribute("type") ?? undefined;
-
-  if (typeof (element as HTMLElement).click === "function") {
-    actions.push("clickable");
-  }
-
-  if (
-    tag === "input" ||
-    tag === "textarea" ||
-    (element as HTMLElement).isContentEditable
-  ) {
-    actions.push("typeable");
-  }
-
-  if (tag === "a" || type === "submit" || type === "button") {
-    actions.push("navigates");
-  }
-
-  return actions;
-};
-
-const describeAttributes = (element: Element): Record<string, string> => {
-  const attributes: Record<string, string> = {};
-  for (const attr of element.getAttributeNames()) {
-    attributes[attr] = element.getAttribute(attr) ?? "";
-  }
-  return attributes;
-};
-
-const toSelector = (element: Element): string => {
-  const parts: string[] = [];
-  let node: Element | null = element;
-  while (node && node.nodeType === Node.ELEMENT_NODE && parts.length < 5) {
-    let selector = node.nodeName.toLowerCase() ?? "";
-    if (node.id) {
-      selector += "#" + cssEscape(node.id);
-      parts.unshift(selector);
-      break;
-    }
-
-    if (node.classList?.length) {
-      selector +=
-        "." +
-        Array.from(node.classList)
-          .map((cls) => cssEscape(cls))
-          .join(".");
-    }
-
-    const parent = node.parentElement;
-    if (parent) {
-      const siblings = Array.from(parent.children).filter(
-        (child) => child.tagName === node.tagName,
-      );
-      if (siblings.length > 1) {
-        const index = siblings.indexOf(node) + 1;
-        selector += ":nth-of-type(" + index + ")";
-      }
-    }
-
-    parts.unshift(selector);
-    node = parent;
-  }
-
-  return parts.join(" > ");
-};
-
-const describeElement = (
-  element: Element | null,
-): AutomationElementDescriptor | null => {
-  if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
-
-  const rect = element.getBoundingClientRect();
-  const visible = rect.width > 0 && rect.height > 0;
-  const handle = handles.register(element);
-  const textValue =
-    "value" in element &&
-    typeof (element as HTMLInputElement).value === "string"
-      ? (element as HTMLInputElement).value
-      : (element.textContent ?? "");
-
-  return {
-    handle,
-    tag: element.tagName?.toLowerCase?.() ?? "",
-    text: textValue?.slice(0, 500) ?? "",
-    name: element.getAttribute("aria-label") ?? undefined,
-    role: element.getAttribute("role") ?? undefined,
-    attributes: describeAttributes(element),
-    actions: computeActions(element),
-    boundingBox: {
-      x: rect.left + window.scrollX,
-      y: rect.top + window.scrollY,
-      width: rect.width,
-      height: rect.height,
-    },
-    selector: toSelector(element),
-    visible,
-  };
-};
-
-const waitForSelector = (selector: string, timeout?: number) =>
-  new Promise<boolean>((resolve, reject) => {
+function waitForSelector(selector: string, timeout?: number): Promise<boolean> {
+  return new Promise<boolean>((resolve, reject) => {
     const existing = document.querySelector(selector);
     if (existing) {
       resolve(true);
       return;
     }
 
-    const timer = setTimeout(() => {
+    const timeoutTimer = setTimeout(() => {
       observer.disconnect();
-      reject(new Error("ERR_TIMEOUT"));
+      reject(new Error("Wait for selector timeout"));
     }, timeout ?? 5000);
 
     const observer = new MutationObserver(() => {
       const node = document.querySelector(selector);
       if (node) {
-        clearTimeout(timer);
+        clearTimeout(timeoutTimer);
         observer.disconnect();
         resolve(true);
       }
@@ -149,26 +40,27 @@ const waitForSelector = (selector: string, timeout?: number) =>
       attributes: true,
     });
   });
+}
 
-const scrollElementIntoView = (element: Element) => {
+function scrollElementIntoView(element: Element) {
   if (typeof (element as HTMLElement).scrollIntoView === "function") {
     (element as HTMLElement).scrollIntoView({
       block: "center",
       behavior: "instant",
     });
   }
-};
+}
 
-const dispatchMouseEvent = (
+function dispatchMouseEvent(
   element: Element,
   type: string,
   init: MouseEventInit,
-) => {
+) {
   element.dispatchEvent(new MouseEvent(type, init));
-};
+}
 
 export const automation = {
-  async query(payload?: BrowserQueryArgs): Promise<BrowserQueryResult> {
+  async query(payload?: BrowserQueryArgs): Promise<BrowserElementDescriptor[]> {
     const {
       selector = "*",
       contextHandle,
@@ -183,9 +75,9 @@ export const automation = {
       ? handles.resolve(contextHandle)
       : document.documentElement;
 
-    const runQuery = (): BrowserQueryResult => {
+    const runQuery = (): BrowserElementDescriptor[] => {
       if (dumpTree) {
-        const tree: Array<AutomationElementDescriptor | null> = [];
+        const tree: Array<BrowserElementDescriptor | null> = [];
         const walker = document.createTreeWalker(
           document.body ?? document.documentElement,
           NodeFilter.SHOW_ELEMENT,
@@ -195,7 +87,7 @@ export const automation = {
           tree.push(describeElement(current as Element));
           current = walker.nextNode();
         }
-        return tree.filter(Boolean) as AutomationElementDescriptor[];
+        return tree.filter(Boolean) as BrowserElementDescriptor[];
       }
 
       const matches = Array.from(root.querySelectorAll(selector)).filter(
@@ -221,12 +113,12 @@ export const automation = {
       return matches
         .slice(0, maxResults)
         .map((node) => describeElement(node))
-        .filter(Boolean) as AutomationElementDescriptor[];
+        .filter(Boolean) as BrowserElementDescriptor[];
     };
 
     if (timeout) {
       return Promise.race([
-        new Promise<BrowserQueryResult>((_, reject) =>
+        new Promise<BrowserElementDescriptor[]>((_, reject) =>
           setTimeout(() => reject(new Error("ERR_TIMEOUT")), timeout),
         ),
         Promise.resolve(runQuery()),
@@ -234,10 +126,6 @@ export const automation = {
     }
 
     return runQuery();
-  },
-
-  describe(payload: { handle: string }) {
-    return describeElement(handles.resolve(payload.handle));
   },
 
   click(payload: BrowserClickArgs) {

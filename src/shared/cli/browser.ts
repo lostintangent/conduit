@@ -5,14 +5,13 @@ export type AutomationBoundingBox = {
   height: number;
 };
 
-export type AutomationElementDescriptor = {
+export type BrowserElementDescriptor = {
   handle: string;
   tag: string;
   text?: string;
   name?: string;
   role?: string;
   attributes: Record<string, string>;
-  actions: string[];
   boundingBox: AutomationBoundingBox;
   selector?: string;
   visible: boolean;
@@ -28,8 +27,6 @@ export type BrowserQueryArgs = {
   timeout?: number;
   dumpTree?: boolean;
 };
-
-export type BrowserQueryResult = AutomationElementDescriptor[];
 
 export type BrowserClickArgs = {
   handle: string;
@@ -100,26 +97,30 @@ export type BrowserAutomationAction =
  * Shared between renderer and preload webview.
  */
 export type BrowserAutomationCommand =
-  | { command: "query"; args: BrowserQueryArgs; result: BrowserQueryResult }
+  | {
+      command: "query";
+      args: BrowserQueryArgs;
+      result: BrowserElementDescriptor[];
+    }
   | {
       command: "click";
       args: BrowserClickArgs;
-      result: AutomationElementDescriptor;
+      result: BrowserElementDescriptor;
     }
   | {
       command: "hover";
       args: BrowserHoverArgs;
-      result: AutomationElementDescriptor;
+      result: BrowserElementDescriptor;
     }
   | {
       command: "focus";
       args: BrowserFocusArgs;
-      result: AutomationElementDescriptor;
+      result: BrowserElementDescriptor;
     }
   | {
       command: "type";
       args: BrowserTypeArgs;
-      result: AutomationElementDescriptor;
+      result: BrowserElementDescriptor;
     }
   | { command: "keys"; args: BrowserKeysArgs; result: boolean }
   | { command: "scroll"; args: BrowserScrollArgs; result: boolean }
