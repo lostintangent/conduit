@@ -29,7 +29,7 @@ import {
   PanelViewPortToggle,
 } from "./components";
 import type { PanelView } from "./components";
-import { useResponsiveLayout } from "./hooks";
+import { useResponsiveLayout, useEditorTheme } from "./hooks";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { registerEditorHandlers } from "@/commands/handlers";
@@ -205,6 +205,9 @@ export function EditorPaneV2({
   onSave,
 }: EditorPaneV2Props) {
   const { cwd: initialCwd, filePath: initialFilePath, treeMode } = pane;
+
+  // Get editor theme from user settings
+  const editorTheme = useEditorTheme();
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -797,6 +800,7 @@ export function EditorPaneV2({
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
           baseBranch={baseBranch ?? undefined}
+          theme={editorTheme}
           onSave={onSave}
           showBackButton={layout === "single"}
           onBack={() => setPanelView("tree")}

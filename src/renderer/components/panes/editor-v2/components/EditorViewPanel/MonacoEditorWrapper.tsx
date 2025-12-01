@@ -293,8 +293,11 @@ export function MonacoEditorWrapper({
     const editor = editorRef.current;
     if (!editor) return;
 
+    // Update theme globally (Monaco themes are global)
+    monaco.editor.setTheme(theme);
+
+    // Update editor-specific options
     editor.updateOptions({
-      theme,
       readOnly,
     });
   }, [theme, readOnly]);

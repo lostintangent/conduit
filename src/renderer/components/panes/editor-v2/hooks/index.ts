@@ -20,3 +20,4 @@ export type {
   GitOperations,
   UseGitOperationsResult,
 } from "./useGitOperations";
+export { useEditorTheme } from "./useEditorTheme";
