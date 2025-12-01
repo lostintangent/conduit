@@ -9,7 +9,7 @@ import type { browserAutomate } from "@/cli/browser";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
-import { openTab } from "@/store/actions/tab";
+import { openTab, updateTabProperty } from "@/store/actions/tab";
 import {
   dismissNotification,
   enqueueNotification,
@@ -339,6 +339,28 @@ const handlerMap: HandlerMap = {
 
   "tab-duplicate": async (_args, context) => {
     await context.duplicateTabCommand.execute();
+    context.respondResult();
+  },
+
+  "tab-lock": (_args, context) => {
+    if (!context.activeTab) {
+      context.respondError("No active tab found.");
+      return;
+    }
+    updateTabProperty(context.activeTab.id, {
+      locked: !context.activeTab.locked,
+    });
+    context.respondResult();
+  },
+
+  "tab-synchronize": (_args, context) => {
+    if (!context.activeTab) {
+      context.respondError("No active tab found.");
+      return;
+    }
+    updateTabProperty(context.activeTab.id, {
+      synchronized: !context.activeTab.synchronized,
+    });
     context.respondResult();
   },
 
