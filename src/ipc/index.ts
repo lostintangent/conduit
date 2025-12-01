@@ -71,8 +71,9 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeUpdateHandlers(sendToRenderer, refreshMenu);
 
   // Clean up providers when window closes
+  // Capture windowId now since webContents won't be accessible in "closed" event
+  const windowId = window.webContents.id;
   window.on("closed", () => {
-    const windowId = window.webContents.id;
     handleFsWindowClose(windowId);
     handleGitWindowClose(windowId);
   });

@@ -73,15 +73,30 @@ async function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.on("will-navigate", (e) => e.preventDefault());
 
+  // Track whether we're in the process of closing to avoid duplicate close handling
+  let isClosing = false;
+
   mainWindow.on("close", (event) => {
+    // If already closing, don't prevent the close
+    if (isClosing) {
+      return;
+    }
+
     // Prevent the window from closing immediately
     // so that we can give the renderer time to save state
     event.preventDefault();
+    isClosing = true;
 
     // Notify the renderer to save state, and give
     // it 1s to do so before forcing the close.
-    mainWindow.webContents.send("app:before-close");
-    setTimeout(() => mainWindow?.destroy(), 1000);
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("app:before-close");
+    }
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.destroy();
+      }
+    }, 1000);
   });
 
   // Whenever the window is closed, clean up
