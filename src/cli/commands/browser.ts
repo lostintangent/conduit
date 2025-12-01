@@ -1,50 +1,100 @@
 import type { BrowserQueryResult } from "@shared/cli/browser";
+import type { CliCommand } from "@shared/cli/types";
 import { Command, Option } from "commander";
 
+// Extract browser command names that can be registered with the simple pane helper
+type SimpleBrowserCommandName = Extract<
+  CliCommand,
+  { name: `browser-${string}` } & { args?: { paneId?: string } }
+>["name"];
+
+type BrowserCommand<
+  Name extends SimpleBrowserCommandName = SimpleBrowserCommandName,
+> = {
+  name: Name;
+  alias?: string;
+  description: string;
+  argument?: [string, string];
+  paneDescription: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  action: (request: any, ...args: any[]) => void | Promise<void>;
+};
+
+const parseInteger = (value: string) => parseInt(value, 10);
+
+const offsetOptions = [
+  new Option("--offset-x <x>", "X offset from element top-left").argParser(
+    parseInteger,
+  ),
+  new Option("--offset-y <y>", "Y offset from element top-left").argParser(
+    parseInteger,
+  ),
+];
+
+function registerPaneCommands<Name extends SimpleBrowserCommandName>(
+  program: Command,
+  commands: BrowserCommand<Name>[],
+) {
+  for (const command of commands) {
+    const cliCommand = program
+      .cliCommand(command.name, command.action)
+      .description(command.description)
+      .paneOption(command.paneDescription);
+
+    if (command.alias) {
+      cliCommand.alias(command.alias);
+    }
+
+    if (command.argument) {
+      cliCommand.argument(...command.argument);
+    }
+  }
+}
+
 export default function (program: Command): Command {
-  program
-    .cliCommand("browser-capture", async (request, options) => {
-      const filePath = await request({
-        paneId: options.pane,
-      });
-      process.stdout.write(`Screenshot saved to: ${filePath}\n`);
-    })
-    .alias("capture")
-    .description("Capture a screenshot of a browser pane")
-    .option("-p, --pane <pane>", "The ID of the pane to capture");
-
-  program
-    .cliCommand("browser-navigate", (request, url, options) =>
-      request({ paneId: options.pane, url }),
-    )
-    .alias("navigate")
-    .description("Navigate a browser pane to a specific URL")
-    .argument("<url>", "The URL to navigate to")
-    .option("-p, --pane <pane>", "The ID of the pane to navigate");
-
-  program
-    .cliCommand("browser-back", (request, options) =>
-      request({ paneId: options.pane }),
-    )
-    .alias("back")
-    .description("Navigate a browser pane back in its history")
-    .option("-p, --pane <pane>", "The ID of the pane to navigate");
-
-  program
-    .cliCommand("browser-forward", (request, options) =>
-      request({ paneId: options.pane }),
-    )
-    .alias("forward")
-    .description("Navigate a browser pane forward in its history")
-    .option("-p, --pane <pane>", "The ID of the pane to navigate");
-
-  program
-    .cliCommand("browser-refresh", (request, options) =>
-      request({ paneId: options.pane }),
-    )
-    .alias("refresh")
-    .description("Refresh a browser pane")
-    .option("-p, --pane <pane>", "The ID of the pane to refresh");
+  registerPaneCommands(program, [
+    {
+      name: "browser-capture",
+      alias: "capture",
+      description: "Capture a screenshot of a browser pane",
+      paneDescription: "The ID of the pane to capture",
+      action: async (request, options) => {
+        const filePath = await request({
+          paneId: options.pane,
+        });
+        process.stdout.write(`Screenshot saved to: ${filePath}\n`);
+      },
+    },
+    {
+      name: "browser-navigate",
+      alias: "navigate",
+      description: "Navigate a browser pane to a specific URL",
+      paneDescription: "The ID of the pane to navigate",
+      argument: ["<url>", "The URL to navigate to"],
+      action: (request, url, options) => request({ paneId: options.pane, url }),
+    },
+    {
+      name: "browser-back",
+      alias: "back",
+      description: "Navigate a browser pane back in its history",
+      paneDescription: "The ID of the pane to navigate",
+      action: (request, options) => request({ paneId: options.pane }),
+    },
+    {
+      name: "browser-forward",
+      alias: "forward",
+      description: "Navigate a browser pane forward in its history",
+      paneDescription: "The ID of the pane to navigate",
+      action: (request, options) => request({ paneId: options.pane }),
+    },
+    {
+      name: "browser-refresh",
+      alias: "refresh",
+      description: "Refresh a browser pane",
+      paneDescription: "The ID of the pane to refresh",
+      action: (request, options) => request({ paneId: options.pane }),
+    },
+  ]);
 
   program
     .cliCommand(
@@ -68,19 +118,19 @@ export default function (program: Command): Command {
     )
     .description("Query for elements inside a browser pane")
     .argument("[selector]", "CSS selector to match")
-    .option("-p, --pane <pane>", "The ID of the pane to query")
+    .paneOption("The ID of the pane to query")
     .option("-c, --context <handle>", "Parent element handle")
     .option(
       "-t, --text <text>",
       "Filter elements whose text includes the value",
     )
     .option("-r, --role <role>", "ARIA role to filter by")
-    .option("-m, --max-results <count>", "Maximum number of results", (value) =>
-      parseInt(value, 10),
+    .option(
+      "-m, --max-results <count>",
+      "Maximum number of results",
+      parseInteger,
     )
-    .option("--timeout <ms>", "Timeout for query", (value) =>
-      parseInt(value, 10),
-    )
+    .option("--timeout <ms>", "Timeout for query", parseInteger)
     .option("--dump-tree", "Return a compact accessibility tree snapshot");
 
   program
@@ -98,21 +148,15 @@ export default function (program: Command): Command {
     )
     .description("Click an element in a browser pane")
     .argument("<handle>", "Handle of the element to click")
-    .option("-p, --pane <pane>", "The ID of the pane to click in")
+    .paneOption("The ID of the pane to click in")
     .addOption(
       new Option("-b, --button <button>", "Mouse button")
         .choices(["left", "middle", "right"])
         .default("left"),
     )
-    .option("-c, --clicks <count>", "Number of clicks", (value) =>
-      parseInt(value, 10),
-    )
-    .option("--offset-x <x>", "X offset from element top-left", (value) =>
-      parseInt(value, 10),
-    )
-    .option("--offset-y <y>", "Y offset from element top-left", (value) =>
-      parseInt(value, 10),
-    );
+    .option("-c, --clicks <count>", "Number of clicks", parseInteger)
+    .addOption(offsetOptions[0])
+    .addOption(offsetOptions[1]);
 
   program
     .cliCommand("browser-hover", (request, handle, options) =>
@@ -127,13 +171,9 @@ export default function (program: Command): Command {
     )
     .description("Hover over an element in a browser pane")
     .argument("<handle>", "Handle of the element to hover")
-    .option("-p, --pane <pane>", "The ID of the pane to hover in")
-    .option("--offset-x <x>", "X offset from element top-left", (value) =>
-      parseInt(value, 10),
-    )
-    .option("--offset-y <y>", "Y offset from element top-left", (value) =>
-      parseInt(value, 10),
-    );
+    .paneOption("The ID of the pane to hover in")
+    .addOption(offsetOptions[0])
+    .addOption(offsetOptions[1]);
 
   program
     .cliCommand("browser-focus", (request, handle, options) =>
@@ -141,7 +181,7 @@ export default function (program: Command): Command {
     )
     .description("Focus an element in a browser pane")
     .argument("<handle>", "Handle of the element to focus")
-    .option("-p, --pane <pane>", "The ID of the pane to focus in")
+    .paneOption("The ID of the pane to focus in")
     .option(
       "--no-scroll",
       "Do not scroll the element into view before focusing",
@@ -161,11 +201,9 @@ export default function (program: Command): Command {
     .description("Type text into an element")
     .argument("<handle>", "Handle of the element to type into")
     .argument("<text>", "Text to type")
-    .option("-p, --pane <pane>", "The ID of the pane to type in")
+    .paneOption("The ID of the pane to type in")
     .option("-s, --submit", "Submit with Enter after typing")
-    .option("-d, --delay <ms>", "Delay between keystrokes", (value) =>
-      parseInt(value, 10),
-    )
+    .option("-d, --delay <ms>", "Delay between keystrokes", parseInteger)
     .option("-r, --replace", "Replace existing value instead of appending");
 
   program
@@ -174,7 +212,7 @@ export default function (program: Command): Command {
     )
     .description("Send raw key presses to the active element")
     .argument("<keys...>", "Keys or chords to send (e.g. Enter, Meta+R)")
-    .option("-p, --pane <pane>", "The ID of the pane to send keys to");
+    .paneOption("The ID of the pane to send keys to");
 
   program
     .cliCommand("browser-scroll", (request, handle, options) =>
@@ -189,13 +227,9 @@ export default function (program: Command): Command {
     )
     .description("Scroll the page or a specific element")
     .argument("[handle]", "Handle of the element to scroll")
-    .option("-p, --pane <pane>", "The ID of the pane to scroll")
-    .option("-x, --x <pixels>", "Horizontal scroll delta", (value) =>
-      parseInt(value, 10),
-    )
-    .option("-y, --y <pixels>", "Vertical scroll delta", (value) =>
-      parseInt(value, 10),
-    )
+    .paneOption("The ID of the pane to scroll")
+    .option("-x, --x <pixels>", "Horizontal scroll delta", parseInteger)
+    .option("-y, --y <pixels>", "Vertical scroll delta", parseInteger)
     .option("-d, --direction <direction>", "Direction to scroll", [
       "up",
       "down",
@@ -215,14 +249,12 @@ export default function (program: Command): Command {
     )
     .description("Wait for a selector or page state")
     .argument("[selector]", "Optional selector to wait for")
-    .option("-p, --pane <pane>", "The ID of the pane to wait on")
+    .paneOption("The ID of the pane to wait on")
     .option("-s, --state <state>", "Load state to wait for", [
       "domcontentloaded",
       "networkidle",
     ])
-    .option("--timeout <ms>", "Timeout before failing", (value) =>
-      parseInt(value, 10),
-    );
+    .option("--timeout <ms>", "Timeout before failing", parseInteger);
 
   return program;
 }

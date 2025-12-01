@@ -38,10 +38,19 @@ function cliCommand<Name extends CliCommand["name"]>(
   );
 }
 
+function paneOption(
+  this: Command,
+  description = "The ID of the pane to target",
+): Command {
+  return this.option("-p, --pane <pane>", description);
+}
+
 declare module "commander" {
   interface Command {
     cliCommand: typeof cliCommand;
+    paneOption: typeof paneOption;
   }
 }
 
 Command.prototype.cliCommand = cliCommand;
+Command.prototype.paneOption = paneOption;
