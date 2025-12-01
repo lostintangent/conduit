@@ -8,10 +8,6 @@ export const terminalHandlers: Partial<HandlerMap> = {
       args?.all,
     );
 
-    if (!targetSessionIds) {
-      return;
-    }
-
     if (targetSessionIds.length > 1) {
       const results: string[] = [];
       for (const targetSessionId of targetSessionIds) {
@@ -22,24 +18,21 @@ export const terminalHandlers: Partial<HandlerMap> = {
       }
 
       if (results.length === 0) {
-        context.respondError("Unable to read terminal buffers.");
-        return;
+        throw new Error("Unable to read terminal buffers.");
       }
 
-      context.respondResult(results.join("\n---\n"));
-      return;
+      return results.join("\n---\n");
     }
 
     const serialized = serializeSession(targetSessionIds[0]);
 
     if (serialized === null) {
-      context.respondError(
+      throw new Error(
         "Unable to read terminal buffer; terminal is not active.",
       );
-      return;
     }
 
-    context.respondResult(serialized);
+    return serialized;
   },
 
   "terminal-write": async (args, context) => {
@@ -47,10 +40,6 @@ export const terminalHandlers: Partial<HandlerMap> = {
       args?.paneId,
       args?.all,
     );
-
-    if (!targetSessionIds) {
-      return;
-    }
 
     for (const targetSessionId of targetSessionIds) {
       window.conduit.sendKeypress(targetSessionId, args.input);

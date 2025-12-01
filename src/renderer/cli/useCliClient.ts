@@ -90,17 +90,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
   const handleCliRequest = useEffectEvent(
     async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
-      let hasResponded = false;
+      let isDeferred = false;
 
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) => {
-        hasResponded = true;
         cli.respondToRequest<T>({
           requestId,
           ...response,
         });
       };
 
-      const respondResult = (result?: any) => respond({ result });
+      const respondResult = (result?: unknown) => respond({ result });
       const respondError = (error: string) => respond({ error });
 
       const resolutionContext = {
@@ -108,8 +107,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         sessionId,
         floatingTerminal,
         activeTab,
-        respondResult,
-        respondError,
       } as const;
 
       const handler = handlerMap[name];
@@ -119,6 +116,11 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         return;
       }
 
+      const deferResponse = () => {
+        isDeferred = true;
+        return respondResult;
+      };
+
       const context: HandlerContext = {
         onOpenFile,
         requestId,
@@ -126,8 +128,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         activeTab,
         tabs,
         floatingTerminal,
-        respondResult,
-        respondError,
+        deferResponse,
         findCallingTerminalTab: () => findCallingTerminalTab(resolutionContext),
         resolveTerminalSessions: (paneId?: string, all?: boolean) =>
           resolveTerminalSessions(resolutionContext, paneId, all),
@@ -151,10 +152,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           context,
         );
 
-        // Auto-respond if handler hasn't already responded
-        // and didn't return false (which signals deferred response handling)
-        if (!hasResponded && result !== false) {
-          respondResult();
+        if (!isDeferred) {
+          respondResult(result);
         }
       } catch (error) {
         respondError((error as Error).message);

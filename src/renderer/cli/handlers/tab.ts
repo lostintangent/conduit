@@ -15,21 +15,11 @@ export const tabHandlers: Partial<HandlerMap> = {
 
   "tab-lock": (_args, context) => {
     const tab = context.findCallingTerminalTab();
-    if (!tab) {
-      context.respondError("Unable to find the calling tab.");
-      return;
-    }
-
     updateTabProperty(tab.id, { locked: !tab.locked });
   },
 
   "tab-synchronize": (_args, context) => {
     const tab = context.findCallingTerminalTab();
-    if (!tab) {
-      context.respondError("Unable to find the calling tab.");
-      return;
-    }
-
     updateTabProperty(tab.id, { synchronized: !tab.synchronized });
   },
 };

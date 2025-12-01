@@ -9,19 +9,15 @@ const automationHandlers = BROWSER_AUTOMATION_COMMANDS.reduce<
   Partial<HandlerMap>
 >((handlers, command) => {
   handlers[command.name] = async (args, context) => {
-    const automationResult = await context.automateBrowser(
+    const result = await context.automateBrowser(
       command.automation,
       args as Parameters<
         typeof context.automateBrowser<BrowserAutomationAction>
       >[1],
     );
 
-    if (!automationResult.success) {
-      return;
-    }
-
     if (command.respondWithResult) {
-      context.respondResult(automationResult.result);
+      return result;
     }
   };
 
@@ -33,20 +29,14 @@ export const browserHandlers: Partial<HandlerMap> = {
 
   "browser-capture": async (args, context) => {
     const resolvedPane = context.resolveBrowserPane(args?.paneId);
-
-    if (!resolvedPane) {
-      return;
-    }
-
     const webContentsId = resolvedPane.webview.getWebContentsId();
+
+    context.deferResponse();
 
     await window.conduit.cli.completeCaptureBrowserRequest({
       requestId: context.requestId,
       webContentsId,
     });
-
-    // Return false to indicate response is handled by completeCaptureBrowserRequest
-    return false;
   },
 
   "browser-navigate": (args, context) => {
