@@ -1,4 +1,4 @@
-import { useCliClient } from "@/automation/useCliClient";
+import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { usePaneActionsSystem } from "@/commands/paneActions";

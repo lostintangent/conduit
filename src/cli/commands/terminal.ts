@@ -11,7 +11,7 @@ export default function (program: Command): Command {
     })
     .alias("read")
     .description("Read the contents of a terminal pane")
-    .option("-p, --pane <pane>", "The ID of the pane to read")
+    .paneOption("The ID of the pane to read")
     .option("-a, --all", "Read from all terminals in the tab");
 
   program
@@ -25,7 +25,7 @@ export default function (program: Command): Command {
     .alias("write")
     .description("Send input to a terminal pane")
     .argument("<input...>", "Input to send to the terminal")
-    .option("-p, --pane <pane>", "The ID of the pane to write to")
+    .paneOption("The ID of the pane to write to")
     .option("-a, --all", "Write to all terminals in the tab")
     .option(
       "-e, --enter",
