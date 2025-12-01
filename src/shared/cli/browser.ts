@@ -126,14 +126,14 @@ export type BrowserAutomationCommand =
   | { command: "waitFor"; args: BrowserWaitArgs; result: boolean };
 
 /**
- * Utility type to extract a specific command variant from BrowserAutomationCommand.
+ * Utility type to extract args for a specific browser automation command.
  */
-export type ExtractBrowserAutomationCommand<
+export type BrowserAutomationArgs<
   T extends BrowserAutomationCommand["command"],
 > = Extract<BrowserAutomationCommand, { command: T }>;
 
 /**
- * IPC payload sent from renderer to preload webview to invoke an automation command.
+ * IPC request sent from renderer to preload webview to invoke an automation command.
  */
 export type BrowserAutomationRequest<
   T extends
@@ -141,18 +141,18 @@ export type BrowserAutomationRequest<
 > = {
   requestId: string;
   command: T;
-  args: ExtractBrowserAutomationCommand<T>["args"];
+  args: BrowserAutomationArgs<T>["args"];
 };
 
 /**
- * IPC payload sent from preload webview back to renderer with the automation result.
+ * IPC response sent from preload webview back to renderer with the automation result.
  */
 export type BrowserAutomationResponse<
   T extends
     BrowserAutomationCommand["command"] = BrowserAutomationCommand["command"],
 > = {
   requestId: string;
-  result?: ExtractBrowserAutomationCommand<T>["result"];
+  result?: BrowserAutomationArgs<T>["result"];
   error?: string;
 };
 

@@ -6,9 +6,9 @@ import type {
 import automation from "./api/automation";
 
 ipcRenderer.on(
-  "automation:invoke",
-  async (_, payload: BrowserAutomationRequest) => {
-    const { requestId, command, args } = payload ?? {};
+  "browser:request",
+  async (_, request: BrowserAutomationRequest) => {
+    const { requestId, command, args } = request ?? {};
     if (!requestId || !command || !(command in automation)) {
       return;
     }
@@ -16,13 +16,13 @@ ipcRenderer.on(
     try {
       const result = await automation[command](args as never);
       const response: BrowserAutomationResponse = { requestId, result };
-      ipcRenderer.sendToHost("automation:result", response);
+      ipcRenderer.sendToHost("browser:response", response);
     } catch (error: unknown) {
       const response: BrowserAutomationResponse = {
         requestId,
         error: error instanceof Error ? error.message : String(error),
       };
-      ipcRenderer.sendToHost("automation:result", response);
+      ipcRenderer.sendToHost("browser:response", response);
     }
   },
 );

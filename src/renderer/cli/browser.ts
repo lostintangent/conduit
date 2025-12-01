@@ -1,8 +1,8 @@
 import type {
+  BrowserAutomationArgs,
   BrowserAutomationCommand,
   BrowserAutomationRequest,
   BrowserAutomationResponse,
-  ExtractBrowserAutomationCommand,
 } from "@shared/cli/browser";
 import type { WebviewTag } from "electron";
 
@@ -17,35 +17,35 @@ function getWebview(paneId: string) {
 function sendAutomationCommand<T extends BrowserAutomationCommand["command"]>(
   webview: WebviewTag,
   command: T,
-  args: Omit<ExtractBrowserAutomationCommand<T>["args"], "paneId">,
-): Promise<ExtractBrowserAutomationCommand<T>["result"]> {
+  args: Omit<BrowserAutomationArgs<T>["args"], "paneId">,
+): Promise<BrowserAutomationArgs<T>["result"]> {
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   return new Promise((resolve, reject) => {
     const handleMessage = (
       event: Electron.IpcMessageEvent & { channel: string },
     ) => {
-      if (event.channel !== "automation:result") return;
-      const payload = event.args?.[0] as
+      if (event.channel !== "browser:response") return;
+      const response = event.args?.[0] as
         | BrowserAutomationResponse<T>
         | undefined;
-      if (!payload || payload.requestId !== requestId) return;
+      if (!response || response.requestId !== requestId) return;
 
       webview.removeEventListener("ipc-message", handleMessage as any);
-      if (payload.error) {
-        reject(new Error(payload.error));
+      if (response.error) {
+        reject(new Error(response.error));
         return;
       }
-      resolve(payload.result as ExtractBrowserAutomationCommand<T>["result"]);
+      resolve(response.result as BrowserAutomationArgs<T>["result"]);
     };
 
     webview.addEventListener("ipc-message", handleMessage as any);
-    const invokePayload: BrowserAutomationRequest<T> = {
+    const request: BrowserAutomationRequest<T> = {
       requestId,
       command,
-      args: args as ExtractBrowserAutomationCommand<T>["args"],
+      args: args as BrowserAutomationArgs<T>["args"],
     };
-    webview.send("automation:invoke", invokePayload);
+    webview.send("browser:request", request);
   });
 }
 
@@ -53,9 +53,9 @@ export async function browserAutomate<
   T extends BrowserAutomationCommand["command"],
 >(
   command: T,
-  payload: ExtractBrowserAutomationCommand<T>["args"],
-): Promise<ExtractBrowserAutomationCommand<T>["result"]> {
-  const { paneId, ...rest } = payload;
+  request: BrowserAutomationArgs<T>["args"],
+): Promise<BrowserAutomationArgs<T>["result"]> {
+  const { paneId, ...rest } = request;
 
   if (!paneId) {
     throw new Error("Browser pane ID is required.");
