@@ -5,14 +5,10 @@ import {
   resolveBrowserPane,
   resolveTerminalSessions,
 } from "@/cli/utils";
-import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { useCommand } from "@/commands/hooks/useCommand";
+import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
-import type {
-  CliCommandArgs,
-  CliRequest,
-  CliResponse,
-} from "@shared/cli/types";
+import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
 import { useEffect, useEffectEvent } from "react";
@@ -24,10 +20,16 @@ import {
 
 const { cli } = window.conduit;
 
-type CommandConfig<T extends string> = Record<T, ApplicationCommands>;
+type CommandConfig<T extends string> = Record<
+  T,
+  (typeof ApplicationCommands)[keyof typeof ApplicationCommands]
+>;
 
 function useCommandMap<T extends string>(commands: CommandConfig<T>) {
-  const entries = Object.entries(commands) as [T, ApplicationCommands][];
+  const entries = Object.entries(commands) as [
+    T,
+    (typeof ApplicationCommands)[keyof typeof ApplicationCommands],
+  ][];
 
   return Object.fromEntries(
     entries.map(([key, command]) => [key, useCommand(command)]),
@@ -146,10 +148,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       };
 
       try {
-        const result = await handler(
-          args as CliCommandArgs<typeof name>,
-          context,
-        );
+        const result = await handler(args as any, context);
 
         if (!isResponseSuppressed) {
           respondResult(result);
