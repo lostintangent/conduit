@@ -29,7 +29,7 @@ export default function (program: Command): Command {
     .option("-a, --all", "Write to all terminals in the tab")
     .option(
       "-e, --enter",
-      "Simular press enter/return after sending the input",
+      "Simulate pressing enter/return after sending the input",
     );
 
   program

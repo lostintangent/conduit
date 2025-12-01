@@ -1,12 +1,22 @@
 import type { BrowserQueryResult } from "@shared/cli/browser";
+import type { CliCommand } from "@shared/cli/types";
 import { Command, Option } from "commander";
 
-type BrowserCommand = {
-  name: string;
+// Extract browser command names that can be registered with the simple pane helper
+type SimpleBrowserCommandName = Extract<
+  CliCommand,
+  { name: `browser-${string}` } & { args?: { paneId?: string } }
+>["name"];
+
+type BrowserCommand<
+  Name extends SimpleBrowserCommandName = SimpleBrowserCommandName,
+> = {
+  name: Name;
   alias?: string;
   description: string;
   argument?: [string, string];
   paneDescription: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   action: (request: any, ...args: any[]) => void | Promise<void>;
 };
 
@@ -21,7 +31,10 @@ const offsetOptions = [
   ),
 ];
 
-function registerPaneCommands(program: Command, commands: BrowserCommand[]) {
+function registerPaneCommands<Name extends SimpleBrowserCommandName>(
+  program: Command,
+  commands: BrowserCommand<Name>[],
+) {
   for (const command of commands) {
     const cliCommand = program
       .cliCommand(command.name, command.action)
