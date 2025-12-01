@@ -1,7 +1,4 @@
-import type {
-  BrowserAutomationOption,
-  BrowserQueryResult,
-} from "@shared/cli/browser";
+import type { BrowserAutomationOption } from "@shared/cli/browser";
 import { BROWSER_AUTOMATION_COMMANDS } from "@shared/cli/browser";
 import { Command, Option } from "commander";
 
@@ -84,12 +81,10 @@ export default function (program: Command): Command {
       .cliCommand(command.name, async (request, ...rawArgs) => {
         const options = rawArgs.pop();
         const commandArgs = command.buildArgs(rawArgs, options);
-        const result = await request(commandArgs);
 
-        if (command.respondWithResult) {
-          process.stdout.write(
-            JSON.stringify(result as BrowserQueryResult, null, 2) + "\n",
-          );
+        const result = await request(commandArgs);
+        if (result) {
+          process.stdout.write(JSON.stringify(result, null, 2) + "\n");
         }
       })
       .description(command.description)

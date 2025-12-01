@@ -119,7 +119,6 @@ export type BrowserAutomationCommandDefinition = {
   paneDescription: string;
   options?: BrowserAutomationOption[];
   automation: BrowserAutomationAction;
-  respondWithResult?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   buildArgs: (args: any[], options: any) => object;
 };
@@ -157,7 +156,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
         },
       ],
       automation: "query",
-      respondWithResult: true,
       buildArgs: ([selector], options) => ({
         paneId: options.pane,
         selector,
