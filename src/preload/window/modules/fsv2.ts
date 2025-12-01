@@ -203,16 +203,6 @@ export default {
       subscriptionId,
     }) as Promise<void>,
 
-  /**
-   * Release provider reference.
-   *
-   * Call this when done using the provider to allow cleanup.
-   *
-   * @param cwd - Working directory to release
-   */
-  release: (cwd: string) =>
-    ipcRenderer.invoke("fs-v2:release", { cwd }) as Promise<void>,
-
   // ---------------------------------------------------------------------------
   // Event Listeners
   // ---------------------------------------------------------------------------

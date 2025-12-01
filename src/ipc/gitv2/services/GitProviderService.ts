@@ -11,6 +11,8 @@
  * 2. **Git Root Discovery**: Automatically finds the repository root
  * 3. **Reference Counting**: Tracks how many consumers use each provider
  * 4. **Grace Period**: 5-second delay before disposing unused providers
+ * 5. **File Change Notifications**: Receives file change events from
+ *    FileSystemProviderService and triggers status refreshes
  *
  * Usage Pattern:
  * ```typescript
@@ -122,6 +124,12 @@ export class GitProviderService {
   /** Map of git roots to provider entries */
   private providers = new Map<string, ProviderEntry>();
 
+  /** Map of pending provider creation promises to prevent race conditions */
+  private pendingCreations = new Map<
+    string,
+    Promise<{ provider: DiskGitProvider; gitRoot: string }>
+  >();
+
   /** Cached result of git availability check */
   private gitAvailableCache: boolean | undefined = undefined;
 
@@ -153,8 +161,9 @@ export class GitProviderService {
     }
 
     const normalizedRoot = this.normalizePath(gitRoot);
-    const existing = this.providers.get(normalizedRoot);
 
+    // Check if provider already exists
+    const existing = this.providers.get(normalizedRoot);
     if (existing) {
       // Cancel any pending disposal
       if (existing.disposeTimer) {
@@ -168,6 +177,38 @@ export class GitProviderService {
       return { provider: existing.provider, gitRoot: normalizedRoot };
     }
 
+    // Check if creation is already in progress (prevent race condition)
+    const pendingCreation = this.pendingCreations.get(normalizedRoot);
+    if (pendingCreation) {
+      // Wait for the pending creation to complete, then increment refCount
+      const result = await pendingCreation;
+      const entry = this.providers.get(normalizedRoot);
+      if (entry) {
+        entry.refCount++;
+      }
+      return result;
+    }
+
+    // Create the provider with race condition protection
+    const creationPromise = this.createProvider(normalizedRoot, cwd);
+    this.pendingCreations.set(normalizedRoot, creationPromise);
+
+    try {
+      const result = await creationPromise;
+      return result;
+    } finally {
+      this.pendingCreations.delete(normalizedRoot);
+    }
+  }
+
+  /**
+   * Internal method to create a new provider.
+   * Separated to support the pending creations pattern.
+   */
+  private async createProvider(
+    normalizedRoot: string,
+    cwd: string,
+  ): Promise<{ provider: DiskGitProvider; gitRoot: string }> {
     // Create new provider
     const provider = new DiskGitProvider(normalizedRoot, cwd);
 
@@ -286,6 +327,49 @@ export class GitProviderService {
   }
 
   /**
+   * Get an existing provider without incrementing reference count.
+   *
+   * Use this for operations that rely on an active subscription holding
+   * the provider reference. Returns null if no provider exists.
+   *
+   * @param gitRoot - The git repository root path
+   * @returns The provider if it exists, null otherwise
+   */
+  getExistingProvider(gitRoot: string): DiskGitProvider | null {
+    const normalizedRoot = this.normalizePath(gitRoot);
+    return this.providers.get(normalizedRoot)?.provider ?? null;
+  }
+
+  /**
+   * Get an existing provider by cwd without incrementing reference count.
+   *
+   * Finds the git root for the cwd and returns the provider if one exists.
+   * Use this for operations that rely on an active subscription holding
+   * the provider reference.
+   *
+   * @param cwd - The working directory (any directory within a git repo)
+   * @returns The provider and git root if they exist, null otherwise
+   */
+  async getExistingProviderByCwd(
+    cwd: string,
+  ): Promise<{ provider: DiskGitProvider; gitRoot: string } | null> {
+    const gitRoot = await this.findGitRoot(cwd);
+
+    if (!gitRoot) {
+      return null;
+    }
+
+    const normalizedRoot = this.normalizePath(gitRoot);
+    const entry = this.providers.get(normalizedRoot);
+
+    if (!entry) {
+      return null;
+    }
+
+    return { provider: entry.provider, gitRoot: normalizedRoot };
+  }
+
+  /**
    * Get the number of active providers.
    *
    * @returns The count of providers currently managed by this service
@@ -327,6 +411,32 @@ export class GitProviderService {
     }
 
     return { providers: stats };
+  }
+
+  /**
+   * Notify that a file has changed in the working directory.
+   *
+   * This is called by FileSystemProviderService when files are modified.
+   * If the file is within a git repository with an active provider,
+   * it will trigger a status refresh.
+   *
+   * @param filePath - The absolute path to the changed file
+   */
+  async notifyFileChanged(filePath: string): Promise<void> {
+    const gitRoot = await this.findGitRoot(filePath);
+
+    if (!gitRoot) {
+      // File is not in a git repository
+      return;
+    }
+
+    const normalizedRoot = this.normalizePath(gitRoot);
+    const entry = this.providers.get(normalizedRoot);
+
+    if (entry) {
+      // Provider exists for this repo, trigger status refresh
+      entry.provider.triggerStatusRefresh();
+    }
   }
 
   /**

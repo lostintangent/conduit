@@ -9,11 +9,12 @@
  * - Event subscriptions for status/branch changes
  *
  * Architecture:
- * - One-shot operations acquire a provider, perform the operation, and
- *   release immediately. The service's grace period ensures efficient
- *   reuse without resource leaks.
- * - Subscriptions hold a provider reference until explicitly unsubscribed
- *   or the window closes.
+ * - Subscriptions own the provider lifecycle - they acquire a provider
+ *   reference on subscribe and release it on unsubscribe/window close.
+ * - One-shot operations (status, diff, etc.) use the existing provider
+ *   without reference counting. This requires an active subscription or
+ *   a FileSystemProvider holding a reference (for the same git root).
+ * - This design eliminates race conditions and simplifies the code.
  *
  * IPC Channels:
  * - `git-v2:status` - Get git status
@@ -35,7 +36,6 @@
  * - `git-v2:revert` - Discard local file changes
  * - `git-v2:subscribe` - Subscribe to git events
  * - `git-v2:unsubscribe` - Unsubscribe from events
- * - `git-v2:release` - Release a provider reference
  *
  * Map Serialization:
  * Git status contains a Map<string, GitFileStatus>. Since Maps can't be
@@ -220,6 +220,30 @@ function getService(): GitProviderService {
   return GitProviderService.getInstance();
 }
 
+/**
+ * Get the existing provider for a cwd, returning null if none exists.
+ *
+ * Operations use this to access the provider held by an active subscription
+ * or FileSystemProvider. Returns null for non-git directories or when no
+ * provider exists.
+ */
+async function getExistingProvider(cwd: string) {
+  return getService().getExistingProviderByCwd(cwd);
+}
+
+/**
+ * Get the existing provider for a cwd, throwing if none exists.
+ *
+ * Use this for operations that require an active provider.
+ */
+async function requireProvider(cwd: string) {
+  const result = await getExistingProvider(cwd);
+  if (!result) {
+    throw new Error(`No active git provider for: ${cwd}`);
+  }
+  return result;
+}
+
 // ============================================================================
 // IPC Handlers
 // ============================================================================
@@ -235,36 +259,26 @@ export function initializeGitV2Handlers(): void {
   // -------------------------------------------------------------------------
   // Status Operations
   //
-  // All status operations follow the pattern:
-  // 1. Acquire provider from service (increments refCount, resolves git root)
-  // 2. Perform operation
-  // 3. Release provider in finally block (decrements refCount)
-  //
-  // Operations that query repository state return null or default values on error.
+  // All operations use the existing provider held by an active subscription
+  // or FileSystemProvider. No reference counting needed - subscription owns
+  // the lifecycle. Operations return null or default values if no provider
+  // exists or on error.
   // -------------------------------------------------------------------------
 
   /**
    * Get full repository status.
    * Returns branch info, upstream tracking, and status for all modified files.
-   * Returns null if path is not in a git repository.
+   * Returns null if path is not in a git repository or no active provider.
    */
   ipcMain.handle(
     "git-v2:status",
     async (_, params: { cwd: string }): Promise<SerializedGitStatus | null> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        const status = await result.provider.getStatus();
-        return serializeGitStatus(status);
-      } catch {
-        return null; // Not a git repository
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
+        return null;
       }
+      const status = await result.provider.getStatus();
+      return serializeGitStatus(status);
     },
   );
 
@@ -278,74 +292,50 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; filePath: string },
     ): Promise<GitFileStatus | null> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getFileStatus(params.filePath);
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return null;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getFileStatus(params.filePath);
     },
   );
 
   /**
    * Check if repository has uncommitted changes.
    * Returns true if there are staged or unstaged modifications.
-   * Returns false on error (e.g., not a git repository).
+   * Returns false if no active provider.
    */
   ipcMain.handle(
     "git-v2:has-uncommitted-changes",
     async (_, params: { cwd: string }): Promise<boolean> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.hasUncommittedChanges();
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return false;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.hasUncommittedChanges();
     },
   );
 
   /**
    * Check if repository has unpushed commits.
    * Returns true if local branch is ahead of its upstream.
-   * Returns false on error or if no upstream is configured.
+   * Returns false if no active provider or no upstream is configured.
    */
   ipcMain.handle(
     "git-v2:has-unpushed-commits",
     async (_, params: { cwd: string }): Promise<boolean> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.hasUnpushedCommits();
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return false;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.hasUnpushedCommits();
     },
   );
 
   /**
    * Get list of files changed compared to a base branch.
    * Useful for showing only files modified in a feature branch.
-   * Returns empty array on error.
+   * Returns empty array if no active provider.
    */
   ipcMain.handle(
     "git-v2:changed-files-from-branch",
@@ -353,69 +343,43 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; baseBranch: string },
     ): Promise<string[]> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getChangedFilesFromBranch(
-          params.baseBranch,
-        );
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return [];
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getChangedFilesFromBranch(params.baseBranch);
     },
   );
 
   /**
    * Get aggregate diff statistics for all uncommitted changes.
    * Returns counts of lines added, removed, and files changed.
-   * Returns zeros on error.
+   * Returns zeros if no active provider.
    */
   ipcMain.handle(
     "git-v2:uncommitted-diff-stats",
     async (_, params: { cwd: string }): Promise<SerializedDiffStats> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getUncommittedDiffStats();
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return { added: 0, removed: 0, files: 0 };
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getUncommittedDiffStats();
     },
   );
 
   /**
    * Get the most recently modified file with uncommitted changes.
    * Used for auto-open functionality to open a relevant file on editor mount.
-   * Returns null if no dirty files or on error.
+   * Returns null if no dirty files or no active provider.
    */
   ipcMain.handle(
     "git-v2:most-recent-dirty-file",
     async (_, params: { cwd: string }): Promise<string | null> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getMostRecentDirtyFile();
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return null;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getMostRecentDirtyFile();
     },
   );
 
@@ -423,7 +387,7 @@ export function initializeGitV2Handlers(): void {
    * Get the most recently modified file from recent commits.
    * Used as fallback for auto-open when no dirty files exist.
    * Searches the specified number of recent commits for file modifications.
-   * Returns null if no files found or on error.
+   * Returns null if no files found or no active provider.
    */
   ipcMain.handle(
     "git-v2:most-recent-committed-file",
@@ -431,39 +395,24 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; commitLimit?: number },
     ): Promise<string | null> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getMostRecentCommittedFile(
-          params.commitLimit,
-        );
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return null;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getMostRecentCommittedFile(params.commitLimit);
     },
   );
 
   /**
    * Discard local changes to specified files.
    * Reverts files to their state in HEAD.
-   * Throws on error (e.g., file not found, not in repository).
+   * Throws if no active provider or on git error.
    */
   ipcMain.handle(
     "git-v2:revert",
     async (_, params: { cwd: string; files: string[] }): Promise<void> => {
-      const { provider, gitRoot } = await service.getProvider(params.cwd);
-
-      try {
-        await provider.revert(params.files);
-      } finally {
-        service.releaseProvider(gitRoot);
-      }
+      const { provider } = await requireProvider(params.cwd);
+      await provider.revert(params.files);
     },
   );
 
@@ -476,7 +425,7 @@ export function initializeGitV2Handlers(): void {
   /**
    * Get unified diff for a specific file.
    * Can retrieve staged or unstaged diff based on the staged parameter.
-   * Returns null if file has no changes or on error.
+   * Returns null if file has no changes or no active provider.
    */
   ipcMain.handle(
     "git-v2:file-diff",
@@ -484,29 +433,18 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; filePath: string; staged?: boolean },
     ): Promise<string | null> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getFileDiff(
-          params.filePath,
-          params.staged,
-        );
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return null;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getFileDiff(params.filePath, params.staged);
     },
   );
 
   /**
    * Get file content at a specific git reference (commit, branch, tag).
    * Used for displaying historical versions in diff views.
-   * Returns null if file doesn't exist at that ref or on error.
+   * Returns null if file doesn't exist at that ref or no active provider.
    */
   ipcMain.handle(
     "git-v2:file-at-ref",
@@ -514,19 +452,11 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; filePath: string; ref: string },
     ): Promise<string | null> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getFileAtRef(params.filePath, params.ref);
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return null;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getFileAtRef(params.filePath, params.ref);
     },
   );
 
@@ -545,13 +475,8 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:stage",
     async (_, params: { cwd: string; files: string[] }): Promise<void> => {
-      const { provider, gitRoot } = await service.getProvider(params.cwd);
-
-      try {
-        await provider.stage(params.files);
-      } finally {
-        service.releaseProvider(gitRoot);
-      }
+      const { provider } = await requireProvider(params.cwd);
+      await provider.stage(params.files);
     },
   );
 
@@ -563,13 +488,8 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:unstage",
     async (_, params: { cwd: string; files: string[] }): Promise<void> => {
-      const { provider, gitRoot } = await service.getProvider(params.cwd);
-
-      try {
-        await provider.unstage(params.files);
-      } finally {
-        service.releaseProvider(gitRoot);
-      }
+      const { provider } = await requireProvider(params.cwd);
+      await provider.unstage(params.files);
     },
   );
 
@@ -592,14 +512,9 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; message: string; options?: GitCommitOptions },
     ): Promise<SerializedGitCommit> => {
-      const { provider, gitRoot } = await service.getProvider(params.cwd);
-
-      try {
-        const commit = await provider.commit(params.message, params.options);
-        return serializeGitCommit(commit);
-      } finally {
-        service.releaseProvider(gitRoot);
-      }
+      const { provider } = await requireProvider(params.cwd);
+      const commit = await provider.commit(params.message, params.options);
+      return serializeGitCommit(commit);
     },
   );
 
@@ -612,49 +527,33 @@ export function initializeGitV2Handlers(): void {
 
   /**
    * Get the current branch name.
-   * Returns null if in detached HEAD state or on error.
+   * Returns null if in detached HEAD state or no active provider.
    */
   ipcMain.handle(
     "git-v2:branch",
     async (_, params: { cwd: string }): Promise<string | null> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        return await result.provider.getCurrentBranch();
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return null;
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      return result.provider.getCurrentBranch();
     },
   );
 
   /**
    * Get all local and remote branches.
    * Returns branch metadata including current status, upstream tracking, and commit info.
-   * Returns empty array on error.
+   * Returns empty array if no active provider.
    */
   ipcMain.handle(
     "git-v2:branches",
     async (_, params: { cwd: string }): Promise<SerializedGitBranch[]> => {
-      let gitRoot: string | undefined;
-
-      try {
-        const result = await service.getProvider(params.cwd);
-        gitRoot = result.gitRoot;
-        const branches = await result.provider.getBranches();
-        return branches.map(serializeGitBranch);
-      } catch {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
         return [];
-      } finally {
-        if (gitRoot) {
-          service.releaseProvider(gitRoot);
-        }
       }
+      const branches = await result.provider.getBranches();
+      return branches.map(serializeGitBranch);
     },
   );
 
@@ -666,13 +565,8 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:checkout",
     async (_, params: { cwd: string; ref: string }): Promise<void> => {
-      const { provider, gitRoot } = await service.getProvider(params.cwd);
-
-      try {
-        await provider.checkout(params.ref);
-      } finally {
-        service.releaseProvider(gitRoot);
-      }
+      const { provider } = await requireProvider(params.cwd);
+      await provider.checkout(params.ref);
     },
   );
 
@@ -820,14 +714,7 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle(
     "git-v2:find-root",
     async (_, params: { cwd: string }): Promise<string | null> => {
-      try {
-        const { gitRoot } = await service.getProvider(params.cwd);
-        // Immediately release since we just wanted to find the root
-        service.releaseProvider(gitRoot);
-        return gitRoot;
-      } catch {
-        return null;
-      }
+      return service.findGitRoot(params.cwd);
     },
   );
 
@@ -843,24 +730,6 @@ export function initializeGitV2Handlers(): void {
   ipcMain.handle("git-v2:is-available", async (): Promise<boolean> => {
     return service.isGitAvailable();
   });
-
-  // -------------------------------------------------------------------------
-  // Lifecycle
-  //
-  // Explicit lifecycle management for renderer-side cleanup.
-  // -------------------------------------------------------------------------
-
-  /**
-   * Explicitly release a provider reference.
-   * Called by renderer when GitV2API is released.
-   * Provider may be disposed after grace period if no other references exist.
-   */
-  ipcMain.handle(
-    "git-v2:release",
-    async (_, params: { gitRoot: string }): Promise<void> => {
-      service.releaseProvider(params.gitRoot);
-    },
-  );
 }
 
 /**

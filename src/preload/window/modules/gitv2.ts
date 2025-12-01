@@ -387,14 +387,6 @@ export default {
       subscriptionId,
     }) as Promise<void>,
 
-  /**
-   * Release provider reference.
-   *
-   * @param gitRoot - Git root path to release
-   */
-  release: (gitRoot: string) =>
-    ipcRenderer.invoke("git-v2:release", { gitRoot }) as Promise<void>,
-
   // ---------------------------------------------------------------------------
   // Event Listeners
   // ---------------------------------------------------------------------------

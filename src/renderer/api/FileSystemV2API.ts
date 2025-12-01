@@ -495,18 +495,13 @@ export class FileSystemV2API {
     }
     this.ipcCleanups = [];
 
-    // Unsubscribe from main process
+    // Unsubscribe from main process (this also releases the provider reference)
     if (this.subscriptionId) {
       window.conduit.fsv2.unsubscribe(this.subscriptionId).catch(() => {
         // Ignore errors during cleanup
       });
       this.subscriptionId = null;
     }
-
-    // Release provider reference
-    window.conduit.fsv2.release(this.cwd).catch(() => {
-      // Ignore errors during cleanup
-    });
 
     // Clear all listeners
     this.directoryListeners.clear();

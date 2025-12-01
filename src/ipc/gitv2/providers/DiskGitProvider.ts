@@ -240,6 +240,16 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
+   * Trigger a status refresh.
+   *
+   * This is called when working directory files change (detected by FileSystemV2).
+   * Uses the same debouncing as internal .git directory changes.
+   */
+  triggerStatusRefresh(): void {
+    this.scheduleStatusRefresh();
+  }
+
+  /**
    * Clean up all resources.
    */
   dispose(): void {

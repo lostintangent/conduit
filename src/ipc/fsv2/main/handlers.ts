@@ -8,11 +8,13 @@
  * - Provider lifecycle management via FileSystemProviderService
  *
  * Architecture:
- * - One-shot operations (read, write, etc.) acquire a provider, perform the
- *   operation, and release immediately. The service's grace period ensures
- *   efficient reuse without resource leaks.
- * - Subscriptions hold a provider reference until explicitly unsubscribed
- *   or the window closes.
+ * - Subscriptions own the provider lifecycle - they acquire a provider
+ *   reference on subscribe and release it on unsubscribe/window close.
+ * - One-shot operations (read, write, etc.) prefer using an existing provider
+ *   from an active subscription (no refCount change). If no subscription
+ *   exists, they temporarily acquire a provider and release after the operation.
+ * - This hybrid approach ensures operations work standalone while optimizing
+ *   for the common case of having an active subscription.
  *
  * IPC Channels:
  * - `fs-v2:read-directory` - Read directory contents
@@ -25,7 +27,6 @@
  * - `fs-v2:exists` - Check if path exists
  * - `fs-v2:subscribe` - Subscribe to provider events
  * - `fs-v2:unsubscribe` - Unsubscribe from events
- * - `fs-v2:release` - Release a provider reference
  *
  * @see docs/architecture/filesystem-provider-design-narrative.md
  */
@@ -112,6 +113,43 @@ function getService(): FileSystemProviderService {
   return FileSystemProviderService.getInstance();
 }
 
+/**
+ * Result from getOrAcquireProvider - includes whether we need to release.
+ */
+interface ProviderHandle {
+  provider: ReturnType<FileSystemProviderService["getExistingProvider"]>;
+  needsRelease: boolean;
+}
+
+/**
+ * Get a provider for an operation.
+ *
+ * If an active subscription exists, uses that provider without touching refCount.
+ * Otherwise, temporarily acquires a provider which must be released after use.
+ */
+async function getOrAcquireProvider(cwd: string): Promise<ProviderHandle> {
+  const service = getService();
+
+  // First try existing provider (from an active subscription)
+  const existing = service.getExistingProvider(cwd);
+  if (existing) {
+    return { provider: existing, needsRelease: false };
+  }
+
+  // No active subscription - acquire temporarily
+  const provider = await service.getProvider(cwd);
+  return { provider, needsRelease: true };
+}
+
+/**
+ * Release a provider if it was temporarily acquired.
+ */
+function releaseIfNeeded(cwd: string, handle: ProviderHandle): void {
+  if (handle.needsRelease) {
+    getService().releaseProvider(cwd);
+  }
+}
+
 // ============================================================================
 // IPC Handlers
 // ============================================================================
@@ -127,12 +165,8 @@ export function initializeFileSystemV2Handlers(): void {
   // -------------------------------------------------------------------------
   // Read Operations
   //
-  // All read operations follow the pattern:
-  // 1. Acquire provider from service (increments refCount)
-  // 2. Perform operation
-  // 3. Release provider in finally block (decrements refCount)
-  //
-  // Errors propagate to renderer as rejected promises.
+  // Operations prefer using an existing provider from an active subscription.
+  // If no subscription exists, they temporarily acquire a provider.
   // -------------------------------------------------------------------------
 
   /**
@@ -142,13 +176,12 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:read-directory",
     async (_, params: { cwd: string; dirPath: string }): Promise<object[]> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        const entries = await provider.readDirectory(params.dirPath);
+        const entries = await handle.provider.readDirectory(params.dirPath);
         return serializeDirectoryEntries(entries);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -163,12 +196,11 @@ export function initializeFileSystemV2Handlers(): void {
       _,
       params: { cwd: string; filePath: string },
     ): Promise<Uint8Array> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        return await provider.readFile(params.filePath);
+        return await handle.provider.readFile(params.filePath);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -180,13 +212,12 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:stat",
     async (_, params: { cwd: string; path: string }): Promise<object> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        const stat = await provider.stat(params.path);
+        const stat = await handle.provider.stat(params.path);
         return serializeFileStat(stat);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -198,12 +229,11 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:exists",
     async (_, params: { cwd: string; path: string }): Promise<boolean> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        return await provider.exists(params.path);
+        return await handle.provider.exists(params.path);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -226,12 +256,11 @@ export function initializeFileSystemV2Handlers(): void {
       _,
       params: { cwd: string; filePath: string; content: Uint8Array },
     ): Promise<void> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        await provider.writeFile(params.filePath, params.content);
+        await handle.provider.writeFile(params.filePath, params.content);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -247,12 +276,11 @@ export function initializeFileSystemV2Handlers(): void {
       _,
       params: { cwd: string; path: string; options?: DeleteOptions },
     ): Promise<void> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        await provider.delete(params.path, params.options);
+        await handle.provider.delete(params.path, params.options);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -267,12 +295,11 @@ export function initializeFileSystemV2Handlers(): void {
       _,
       params: { cwd: string; oldPath: string; newPath: string },
     ): Promise<void> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        await provider.rename(params.oldPath, params.newPath);
+        await handle.provider.rename(params.oldPath, params.newPath);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -285,12 +312,11 @@ export function initializeFileSystemV2Handlers(): void {
   ipcMain.handle(
     "fs-v2:create-directory",
     async (_, params: { cwd: string; dirPath: string }): Promise<void> => {
-      const provider = await service.getProvider(params.cwd);
-
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
-        await provider.createDirectory(params.dirPath);
+        await handle.provider.createDirectory(params.dirPath);
       } finally {
-        service.releaseProvider(params.cwd);
+        releaseIfNeeded(params.cwd, handle);
       }
     },
   );
@@ -431,24 +457,6 @@ export function initializeFileSystemV2Handlers(): void {
         subscription.dispose();
         subscriptions.delete(params.subscriptionId);
       }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // Lifecycle
-  //
-  // Explicit lifecycle management for renderer-side cleanup.
-  // -------------------------------------------------------------------------
-
-  /**
-   * Explicitly release a provider reference.
-   * Called by renderer when FileSystemV2API is released.
-   * Provider may be disposed after grace period if no other references exist.
-   */
-  ipcMain.handle(
-    "fs-v2:release",
-    async (_, params: { cwd: string }): Promise<void> => {
-      service.releaseProvider(params.cwd);
     },
   );
 }

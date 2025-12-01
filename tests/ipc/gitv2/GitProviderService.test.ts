@@ -452,6 +452,79 @@ describe("GitProviderService", () => {
   });
 
   // ===========================================================================
+  // getExistingProvider
+  // ===========================================================================
+
+  describe("getExistingProvider()", () => {
+    it("should return null for unknown git roots", () => {
+      const service = GitProviderService.getInstance();
+
+      expect(service.getExistingProvider("/unknown/repo")).toBeNull();
+    });
+
+    it("should return provider without incrementing refCount", async () => {
+      setupGitRootMock(["/test/repo"]);
+      const service = GitProviderService.getInstance();
+      const gitRoot = path.resolve("/test/repo");
+
+      const { provider: originalProvider } =
+        await service.getProvider("/test/repo");
+      expect(service.getRefCount(gitRoot)).toBe(1);
+
+      const existingProvider = service.getExistingProvider(gitRoot);
+
+      expect(existingProvider).toBe(originalProvider);
+      expect(service.getRefCount(gitRoot)).toBe(1); // RefCount should not change
+    });
+  });
+
+  // ===========================================================================
+  // getExistingProviderByCwd
+  // ===========================================================================
+
+  describe("getExistingProviderByCwd()", () => {
+    it("should return null for paths not in a git repo", async () => {
+      vi.mocked(fs.promises.access).mockRejectedValue(new Error("ENOENT"));
+
+      const service = GitProviderService.getInstance();
+      const result = await service.getExistingProviderByCwd("/not/a/repo");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null if no provider exists for the git root", async () => {
+      setupGitRootMock(["/test/repo"]);
+      const service = GitProviderService.getInstance();
+
+      // Don't create a provider first
+      const result = await service.getExistingProviderByCwd("/test/repo/src");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return provider and git root without incrementing refCount", async () => {
+      setupGitRootMock(["/test/repo"]);
+      const service = GitProviderService.getInstance();
+      const gitRoot = path.resolve("/test/repo");
+
+      // Create a provider first
+      const { provider: originalProvider } =
+        await service.getProvider("/test/repo");
+      expect(service.getRefCount(gitRoot)).toBe(1);
+
+      // Get existing provider via cwd
+      const result = await service.getExistingProviderByCwd(
+        "/test/repo/src/components",
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.provider).toBe(originalProvider);
+      expect(result!.gitRoot).toBe(gitRoot);
+      expect(service.getRefCount(gitRoot)).toBe(1); // RefCount should not change
+    });
+  });
+
+  // ===========================================================================
   // resetInstance
   // ===========================================================================
 

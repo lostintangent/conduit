@@ -237,6 +237,32 @@ export class GitV2API {
     this.ensureSubscribed();
   }
 
+  /**
+   * Wait for the API to be ready (subscription established).
+   *
+   * Use this before calling operations that require an active subscription.
+   * Returns immediately if already subscribed or if not a git repository.
+   *
+   * @example
+   * ```typescript
+   * const git = new GitV2API('/path/to/project');
+   * await git.whenReady();
+   * // Now safe to call operations that require subscription
+   * const dirtyFile = await git.getMostRecentDirtyFile();
+   * ```
+   */
+  async whenReady(): Promise<void> {
+    // If already subscribed, nothing to wait for
+    if (this.subscriptionId) {
+      return;
+    }
+
+    // If subscription is in progress, wait for it
+    if (this.subscriptionPromise) {
+      await this.subscriptionPromise;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Status Operations
   // ---------------------------------------------------------------------------
@@ -712,19 +738,12 @@ export class GitV2API {
     }
     this.ipcCleanups = [];
 
-    // Unsubscribe from main process
+    // Unsubscribe from main process (this also releases the provider reference)
     if (this.subscriptionId) {
       window.conduit.gitv2.unsubscribe(this.subscriptionId).catch(() => {
         // Ignore errors during cleanup
       });
       this.subscriptionId = null;
-    }
-
-    // Release provider reference
-    if (this.gitRoot) {
-      window.conduit.gitv2.release(this.gitRoot).catch(() => {
-        // Ignore errors during cleanup
-      });
     }
 
     // Clear all listeners

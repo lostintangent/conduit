@@ -448,7 +448,7 @@ export class ParcelFileWatcher {
       return (
         filePath.includes(`/${dirName}/`) ||
         filePath.startsWith(`${dirName}/`) ||
-        filePath.includes(`/${dirName}`)
+        filePath.endsWith(`/${dirName}`)
       );
     }
 

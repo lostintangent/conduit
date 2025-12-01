@@ -17,7 +17,6 @@ const { mockFsv2 } = vi.hoisted(() => {
     createDirectory: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
-    release: vi.fn(),
     onDirectoryListingChanged: vi.fn(() => vi.fn()),
     onFileContentChanged: vi.fn(() => vi.fn()),
     onFileDeleted: vi.fn(() => vi.fn()),
@@ -50,7 +49,6 @@ describe("FileSystemV2API", () => {
     // Reset mock implementations
     mockFsv2.subscribe.mockResolvedValue("test-sub-id");
     mockFsv2.unsubscribe.mockResolvedValue(undefined);
-    mockFsv2.release.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -437,24 +435,22 @@ describe("FileSystemV2API", () => {
       expect(mockFsv2.unsubscribe).toHaveBeenCalledWith("test-sub-id");
     });
 
-    it("should release provider reference", async () => {
+    it("should be idempotent", async () => {
       const api = new FileSystemV2API("/test/project");
-      api.release();
 
+      // Trigger subscription
+      api.onDirectoryListingChanged("/test", vi.fn());
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(mockFsv2.release).toHaveBeenCalledWith("/test/project");
-    });
-
-    it("should be idempotent", () => {
-      const api = new FileSystemV2API("/test/project");
-
       api.release();
       api.release();
       api.release();
 
-      // Should only call release once
-      expect(mockFsv2.release).toHaveBeenCalledTimes(1);
+      // Wait for async cleanup
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Should only call unsubscribe once
+      expect(mockFsv2.unsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it("should prevent further operations", async () => {

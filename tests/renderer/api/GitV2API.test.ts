@@ -29,7 +29,6 @@ const { mockGitv2 } = vi.hoisted(() => {
     // Subscriptions
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
-    release: vi.fn(),
     onStatusChanged: vi.fn(() => vi.fn()),
     onBranchChanged: vi.fn(() => vi.fn()),
     onCommitCreated: vi.fn(() => vi.fn()),
@@ -63,7 +62,6 @@ describe("GitV2API", () => {
     mockGitv2.subscribe.mockResolvedValue("test-sub-id");
     mockGitv2.findRoot.mockResolvedValue("/test/repo");
     mockGitv2.unsubscribe.mockResolvedValue(undefined);
-    mockGitv2.release.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -899,19 +897,6 @@ describe("GitV2API", () => {
       expect(mockGitv2.unsubscribe).toHaveBeenCalledWith("test-sub-id");
     });
 
-    it("should release provider reference", async () => {
-      const api = new GitV2API("/test/project");
-
-      // Trigger finding git root
-      await api.findRoot();
-
-      api.release();
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      expect(mockGitv2.release).toHaveBeenCalledWith("/test/repo");
-    });
-
     it("should be idempotent", () => {
       const api = new GitV2API("/test/project");
 
@@ -933,6 +918,67 @@ describe("GitV2API", () => {
       await expect(api.stage([])).rejects.toThrow();
       await expect(api.commit("msg")).rejects.toThrow();
       await expect(api.checkout("ref")).rejects.toThrow();
+    });
+  });
+
+  // ===========================================================================
+  // whenReady
+  // ===========================================================================
+
+  describe("whenReady", () => {
+    it("should resolve immediately when already subscribed", async () => {
+      const api = new GitV2API("/test/project");
+
+      // Wait for initial subscription to complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // whenReady should resolve immediately
+      await api.whenReady();
+
+      api.release();
+    });
+
+    it("should wait for pending subscription to complete", async () => {
+      // Set up a delayed subscription
+      let resolveSubscription: ((value: string) => void) | null = null;
+      mockGitv2.subscribe.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSubscription = resolve;
+          }),
+      );
+
+      const api = new GitV2API("/test/project");
+
+      // whenReady should be waiting
+      let ready = false;
+      const readyPromise = api.whenReady().then(() => {
+        ready = true;
+      });
+
+      // Should not be ready yet
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(ready).toBe(false);
+
+      // Complete the subscription
+      resolveSubscription!("test-sub-id");
+
+      // Now it should complete
+      await readyPromise;
+      expect(ready).toBe(true);
+
+      api.release();
+    });
+
+    it("should resolve when subscription returns null (non-git repo)", async () => {
+      mockGitv2.subscribe.mockResolvedValue(null);
+
+      const api = new GitV2API("/not/a/repo");
+
+      // Should resolve even though there's no subscription
+      await api.whenReady();
+
+      api.release();
     });
   });
 

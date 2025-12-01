@@ -914,8 +914,15 @@ export class MonacoModelRegistry {
    * Handle model content changes (user edits).
    *
    * Updates dirty state based on version comparison.
+   * Skips dirty detection during external reload to prevent race condition
+   * where setValue() triggers this handler before savedVersionId is updated.
    */
   private handleContentChange(uri: string, entry: ModelEntry): void {
+    // Skip dirty detection during reload - savedVersionId will be updated after setValue()
+    if (entry.isReloading) {
+      return;
+    }
+
     const currentVersion = entry.model.getAlternativeVersionId();
     const wasDirty = entry.isDirty;
     const isDirty = currentVersion !== entry.savedVersionId;

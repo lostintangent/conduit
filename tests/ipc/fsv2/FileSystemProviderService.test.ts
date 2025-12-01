@@ -388,6 +388,85 @@ describe("FileSystemProviderService", () => {
   });
 
   // ===========================================================================
+  // getExistingProvider
+  // ===========================================================================
+
+  describe("getExistingProvider()", () => {
+    it("should return null for unknown paths", () => {
+      const service = FileSystemProviderService.getInstance();
+
+      const result = service.getExistingProvider("/unknown/path");
+
+      expect(result).toBeNull();
+    });
+
+    it("should return provider without incrementing refCount", async () => {
+      const service = FileSystemProviderService.getInstance();
+
+      // Create provider via getProvider (subscription pattern)
+      await service.getProvider("/test/project");
+      expect(service.getRefCount("/test/project")).toBe(1);
+
+      // Get existing provider (operation pattern)
+      const provider = service.getExistingProvider("/test/project");
+
+      expect(provider).toBeDefined();
+      expect(provider).not.toBeNull();
+      expect(service.getRefCount("/test/project")).toBe(1); // Still 1, not 2
+    });
+
+    it("should return same instance as getProvider", async () => {
+      const service = FileSystemProviderService.getInstance();
+
+      const provider1 = await service.getProvider("/test/project");
+      const provider2 = service.getExistingProvider("/test/project");
+
+      expect(provider2).toBe(provider1);
+    });
+
+    it("should work during grace period", async () => {
+      const service = FileSystemProviderService.getInstance();
+
+      const provider = await service.getProvider("/test/project");
+      service.releaseProvider("/test/project");
+
+      // During grace period, provider should still be accessible
+      await vi.advanceTimersByTimeAsync(3000);
+
+      const existingProvider = service.getExistingProvider("/test/project");
+
+      expect(existingProvider).toBe(provider);
+    });
+
+    it("should return null after grace period expires", async () => {
+      const service = FileSystemProviderService.getInstance();
+
+      await service.getProvider("/test/project");
+      service.releaseProvider("/test/project");
+
+      // After grace period
+      await vi.advanceTimersByTimeAsync(5000);
+
+      const result = service.getExistingProvider("/test/project");
+
+      expect(result).toBeNull();
+    });
+
+    it("should normalize paths", async () => {
+      const service = FileSystemProviderService.getInstance();
+
+      await service.getProvider("/test/project");
+
+      // Various path formats should work
+      expect(service.getExistingProvider("/test/project")).not.toBeNull();
+      expect(service.getExistingProvider("/test/project/")).not.toBeNull();
+      expect(
+        service.getExistingProvider("/test/../test/project"),
+      ).not.toBeNull();
+    });
+  });
+
+  // ===========================================================================
   // getRefCount
   // ===========================================================================
 

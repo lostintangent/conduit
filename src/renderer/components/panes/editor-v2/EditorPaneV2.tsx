@@ -404,6 +404,9 @@ export function EditorPaneV2({
 
     const autoOpenFile = async () => {
       try {
+        // Wait for git subscription to be ready before querying
+        await git.whenReady();
+
         // Try dirty files first (most recently modified uncommitted changes)
         let relativePath = await git.getMostRecentDirtyFile();
 

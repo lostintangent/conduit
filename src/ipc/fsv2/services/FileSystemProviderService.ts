@@ -17,6 +17,10 @@
  * 4. **Path Normalization**: All paths are normalized to ensure consistent
  *    provider lookup regardless of how the path is specified.
  *
+ * 5. **Git Integration**: When a provider is created for a directory within
+ *    a git repository, it automatically acquires a GitProvider reference.
+ *    This ensures git status updates are triggered when files change.
+ *
  * Usage Pattern:
  * ```typescript
  * const service = FileSystemProviderService.getInstance();
@@ -36,6 +40,7 @@
 
 import * as path from "node:path";
 import { DiskFileSystemProvider } from "../providers/DiskFileSystemProvider";
+import { GitProviderService } from "../../gitv2/services/GitProviderService";
 
 // ============================================================================
 // Constants
@@ -60,6 +65,12 @@ interface ProviderEntry {
 
   /** Pending disposal timer (set when refCount reaches 0) */
   disposeTimer?: NodeJS.Timeout;
+
+  /** Disposable for the file content change subscription */
+  fileChangeDisposable?: { dispose: () => void };
+
+  /** Git root for this cwd (if in a git repo) */
+  gitRoot?: string;
 }
 
 // ============================================================================
@@ -127,6 +138,16 @@ export class FileSystemProviderService {
   /** Map of normalized paths to provider entries */
   private providers = new Map<string, ProviderEntry>();
 
+  /**
+   * Map of pending provider creation promises to prevent race conditions.
+   *
+   * Even with simplified lifecycle (only subscriptions create providers),
+   * concurrent subscriptions for the same cwd can still occur (multiple
+   * windows, fast component remounts). This ensures only one provider
+   * is created per cwd.
+   */
+  private pendingCreations = new Map<string, Promise<DiskFileSystemProvider>>();
+
   /** Private constructor - use getInstance() */
   private constructor() {}
 
@@ -136,6 +157,10 @@ export class FileSystemProviderService {
 
   /**
    * Get a filesystem provider for the specified directory.
+   *
+   * This method is used by subscriptions to acquire provider references.
+   * Operations use `getExistingProvider()` instead since they rely on
+   * an active subscription holding the provider reference.
    *
    * If a provider already exists for this path, the reference count is
    * incremented and the existing provider is returned. If a provider is
@@ -147,8 +172,9 @@ export class FileSystemProviderService {
    */
   async getProvider(cwd: string): Promise<DiskFileSystemProvider> {
     const normalizedPath = this.normalizePath(cwd);
-    const existing = this.providers.get(normalizedPath);
 
+    // Check if provider already exists
+    const existing = this.providers.get(normalizedPath);
     if (existing) {
       // Cancel any pending disposal
       if (existing.disposeTimer) {
@@ -162,16 +188,70 @@ export class FileSystemProviderService {
       return existing.provider;
     }
 
+    // Check if creation is already in progress (prevent race condition)
+    const pendingCreation = this.pendingCreations.get(normalizedPath);
+    if (pendingCreation) {
+      // Wait for the pending creation to complete, then increment refCount
+      const provider = await pendingCreation;
+      const entry = this.providers.get(normalizedPath);
+      if (entry) {
+        entry.refCount++;
+      }
+      return provider;
+    }
+
+    // Create the provider with race condition protection
+    const creationPromise = this.createProvider(normalizedPath);
+    this.pendingCreations.set(normalizedPath, creationPromise);
+
+    try {
+      const provider = await creationPromise;
+      return provider;
+    } finally {
+      this.pendingCreations.delete(normalizedPath);
+    }
+  }
+
+  /**
+   * Internal method to create a new provider.
+   * Separated to support the pending creations pattern.
+   */
+  private async createProvider(
+    normalizedPath: string,
+  ): Promise<DiskFileSystemProvider> {
     // Create new provider
     const provider = new DiskFileSystemProvider(normalizedPath);
 
     // Start watching for file changes
     await provider.startWatching();
 
+    // Subscribe to file content changes to notify GitProviderService
+    const fileChangeDisposable = provider.onFileContentChanged((event) => {
+      // Notify git service about the file change (async, fire-and-forget)
+      GitProviderService.getInstance()
+        .notifyFileChanged(event.path)
+        .catch(() => {
+          // Silently ignore errors - git notification is best-effort
+        });
+    });
+
+    // If this cwd is in a git repo, acquire a GitProvider reference
+    // This ensures the GitProvider exists to receive file change notifications
+    let gitRoot: string | undefined;
+    try {
+      const gitService = GitProviderService.getInstance();
+      const gitResult = await gitService.getProvider(normalizedPath);
+      gitRoot = gitResult.gitRoot;
+    } catch {
+      // Not in a git repo - no git integration needed
+    }
+
     // Store entry with initial refCount of 1
     this.providers.set(normalizedPath, {
       provider,
       refCount: 1,
+      fileChangeDisposable,
+      gitRoot,
     });
 
     return provider;
@@ -247,6 +327,20 @@ export class FileSystemProviderService {
   }
 
   /**
+   * Get an existing provider without incrementing reference count.
+   *
+   * Use this for operations that rely on an active subscription holding
+   * the provider reference. Returns null if no provider exists.
+   *
+   * @param cwd - The working directory path
+   * @returns The provider if it exists, null otherwise
+   */
+  getExistingProvider(cwd: string): DiskFileSystemProvider | null {
+    const normalizedPath = this.normalizePath(cwd);
+    return this.providers.get(normalizedPath)?.provider ?? null;
+  }
+
+  /**
    * Get the number of active providers.
    *
    * @returns The count of providers currently managed by this service
@@ -318,6 +412,16 @@ export class FileSystemProviderService {
       clearTimeout(entry.disposeTimer);
     }
 
+    // Clean up file change subscription
+    if (entry.fileChangeDisposable) {
+      entry.fileChangeDisposable.dispose();
+    }
+
+    // Release GitProvider reference if we held one
+    if (entry.gitRoot) {
+      GitProviderService.getInstance().releaseProvider(entry.gitRoot);
+    }
+
     // Remove from map
     this.providers.delete(normalizedPath);
 
@@ -333,6 +437,16 @@ export class FileSystemProviderService {
       // Clear any pending timer
       if (entry.disposeTimer) {
         clearTimeout(entry.disposeTimer);
+      }
+
+      // Clean up file change subscription
+      if (entry.fileChangeDisposable) {
+        entry.fileChangeDisposable.dispose();
+      }
+
+      // Release GitProvider reference if we held one
+      if (entry.gitRoot) {
+        GitProviderService.getInstance().releaseProvider(entry.gitRoot);
       }
 
       // Dispose provider (fire-and-forget since we're shutting down)
