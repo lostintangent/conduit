@@ -1,6 +1,6 @@
-import type { HandlerSubset } from "./types";
+import type { HandlerMap } from "./types";
 
-export const paneHandlers: HandlerSubset = {
+export const paneHandlers: Partial<HandlerMap> = {
   "pane-list": (args, context) => {
     const matchingTab = context.findCallingTerminalTab();
 

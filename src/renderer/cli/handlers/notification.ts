@@ -1,4 +1,4 @@
-import type { HandlerSubset } from "./types";
+import type { HandlerMap } from "./types";
 import {
   dismissNotification,
   enqueueNotification,
@@ -6,7 +6,7 @@ import {
 import { activatePane } from "@/store/actions/pane";
 import { focusTab } from "@/store/actions/tab";
 
-export const notificationHandlers: HandlerSubset = {
+export const notificationHandlers: Partial<HandlerMap> = {
   notify: (args, context) => {
     const matchingTab = context.findCallingTerminalTab();
 

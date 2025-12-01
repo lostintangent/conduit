@@ -1,9 +1,9 @@
-import type { HandlerSubset } from "./types";
+import type { HandlerMap } from "./types";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
 
-export const editorHandlers: HandlerSubset = {
+export const editorHandlers: Partial<HandlerMap> = {
   "editor-open": (args, context) => {
     const commandArgs = args ?? { cwd: "" };
     const isCommitMessageRequest = commandArgs.filePath?.endsWith(

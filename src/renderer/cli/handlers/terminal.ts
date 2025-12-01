@@ -1,7 +1,7 @@
-import type { HandlerSubset } from "./types";
+import type { HandlerMap } from "./types";
 import { serializeSession } from "@/components/panes/terminal/xtermCache";
 
-export const terminalHandlers: HandlerSubset = {
+export const terminalHandlers: Partial<HandlerMap> = {
   "terminal-read": async (args, context) => {
     const targetSessionIds = context.resolveTerminalSessions(
       args?.paneId,

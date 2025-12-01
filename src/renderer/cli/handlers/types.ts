@@ -56,10 +56,6 @@ export type CliHandler<Name extends CliCommand["name"]> = (
   context: HandlerContext,
 ) => Promise<void> | void;
 
-export type HandlerSubset = {
-  [Name in CliCommand["name"]]?: CliHandler<Name>;
-};
-
 export type HandlerMap = {
   [Name in CliCommand["name"]]: CliHandler<Name>;
 };
