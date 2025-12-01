@@ -58,7 +58,7 @@ export type CliCommand =
       "pane-split",
       { direction: PaneSplitTarget; paneType: PaneSplitType }
     >
-  | DefineCommand<"pane-close", { closeTab: boolean }>
+  | DefineCommand<"pane-close", { closeTab: boolean; paneId?: string }>
   | DefineCommand<"pane-focus">
   // Tab commands
   | DefineCommand<"tab-new", NewTabOptions>

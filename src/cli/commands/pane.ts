@@ -48,12 +48,13 @@ export default function (program: Command): Command {
     );
 
   program
-    .cliCommand("pane-close", (request, { closeTab }) =>
-      request({ closeTab: Boolean(closeTab) }),
+    .cliCommand("pane-close", (request, { closeTab, pane }) =>
+      request({ closeTab: Boolean(closeTab), paneId: pane }),
     )
     .alias("close")
     .description("Close the active pane or tab.")
-    .option("-t, --tab", "Close the active tab instead of the pane.");
+    .option("-t, --tab", "Close the active tab instead of the pane.")
+    .paneOption("The ID of the pane to close");
 
   program
     .cliCommand("pane-focus")
