@@ -16,11 +16,12 @@ export const editorHandlers: Partial<HandlerMap> = {
     };
 
     if (isCommitMessageRequest) {
-      descriptor.isLocked = true;
-      descriptor.closeOnSave = true;
-      descriptor.onClose = context.respondResult;
-    } else {
-      context.respondResult();
+      return new Promise<void>((resolve) => {
+        descriptor.isLocked = true;
+        descriptor.closeOnSave = true;
+        descriptor.onClose = resolve;
+        context.onOpenFile(descriptor);
+      });
     }
 
     context.onOpenFile(descriptor);

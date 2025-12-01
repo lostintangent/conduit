@@ -4,11 +4,6 @@ export const paneHandlers: Partial<HandlerMap> = {
   "pane-list": (args, context) => {
     const matchingTab = context.findCallingTerminalTab();
 
-    if (!matchingTab) {
-      context.respondError("Unable to find the calling terminal's tab.");
-      return;
-    }
-
     const panes = Object.values(matchingTab.panes)
       .filter(
         (pane) =>
@@ -27,27 +22,22 @@ export const paneHandlers: Partial<HandlerMap> = {
       })
       .map((pane) => ({ ...pane }));
 
-    context.respondResult(panes);
+    return panes;
   },
 
   "pane-move": async (args, context) => {
     const targetCommand = context.moveCommandMap[args.direction];
     await targetCommand.execute();
-
-    context.respondResult();
   },
 
   "pane-split": async (args, context) => {
     const targetCommand =
       context.splitCommandMap[args.paneType][args.direction];
     await targetCommand.execute();
-
-    context.respondResult();
   },
 
   "pane-focus": async (_args, context) => {
     await context.focusPaneCommand.execute();
-    context.respondResult();
   },
 
   "pane-close": async (args, context) => {
@@ -55,7 +45,5 @@ export const paneHandlers: Partial<HandlerMap> = {
       ? context.closeTabCommand
       : context.closePaneCommand;
     await targetCommand.execute();
-
-    context.respondResult();
   },
 };

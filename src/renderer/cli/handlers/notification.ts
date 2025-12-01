@@ -10,19 +10,13 @@ export const notificationHandlers: Partial<HandlerMap> = {
   notify: (args, context) => {
     const matchingTab = context.findCallingTerminalTab();
 
-    if (!matchingTab) {
-      context.respondError("Unable to find the calling terminal's tab.");
-      return;
-    }
-
     const callingPane = Object.entries(matchingTab.panes).find(
       ([, pane]) =>
         pane.type === "terminal" && pane.sessionId === context.sessionId,
     );
 
     if (!callingPane) {
-      context.respondError("Unable to find the calling terminal's pane.");
-      return;
+      throw new Error("Unable to find the calling terminal's pane.");
     }
 
     const isAlreadyActive =
@@ -47,7 +41,5 @@ export const notificationHandlers: Partial<HandlerMap> = {
           ]
         : undefined,
     });
-
-    context.respondResult();
   },
 };

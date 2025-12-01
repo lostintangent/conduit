@@ -5,29 +5,16 @@ import {
   type BrowserAutomationAction,
 } from "@shared/cli/browser";
 
-type AutomationCommandName =
-  (typeof BROWSER_AUTOMATION_COMMANDS)[number]["name"];
-
 const automationHandlers = BROWSER_AUTOMATION_COMMANDS.reduce<
   Partial<HandlerMap>
 >((handlers, command) => {
   handlers[command.name] = async (args, context) => {
-    const automationResult = await context.automateBrowser(
+    return context.automateBrowser(
       command.automation,
       args as Parameters<
         typeof context.automateBrowser<BrowserAutomationAction>
       >[1],
     );
-
-    if (!automationResult.success) {
-      return;
-    }
-
-    if (command.respondWithResult) {
-      context.respondResult(automationResult.result);
-    } else {
-      context.respondResult();
-    }
   };
 
   return handlers;
@@ -38,12 +25,9 @@ export const browserHandlers: Partial<HandlerMap> = {
 
   "browser-capture": async (args, context) => {
     const resolvedPane = context.resolveBrowserPane(args?.paneId);
-
-    if (!resolvedPane) {
-      return;
-    }
-
     const webContentsId = resolvedPane.webview.getWebContentsId();
+
+    context.suppressResponse();
 
     await window.conduit.cli.completeCaptureBrowserRequest({
       requestId: context.requestId,

@@ -13,13 +13,13 @@ export type HandlerContext = {
   activeTab?: Tab;
   tabs: Tab[];
   floatingTerminal?: { terminalId: string };
-  respondResult: (result?: unknown) => void;
-  respondError: (message: string) => void;
-  findCallingTerminalTab: () => Tab | null;
-  resolveTerminalSessions: (paneId?: string, all?: boolean) => string[] | null;
-  resolveBrowserPane: (
-    paneId?: string,
-  ) => { paneId: string; webview: Electron.WebviewTag } | null;
+  suppressResponse: () => void;
+  findCallingTerminalTab: () => Tab;
+  resolveTerminalSessions: (paneId?: string, all?: boolean) => string[];
+  resolveBrowserPane: (paneId?: string) => {
+    paneId: string;
+    webview: Electron.WebviewTag;
+  };
   executeWebviewAction: (
     paneId: string | undefined,
     action: (webview: Electron.WebviewTag) => void,
@@ -27,7 +27,7 @@ export type HandlerContext = {
   automateBrowser: <T extends Parameters<typeof browserAutomate>[0]>(
     command: T,
     args: Parameters<typeof browserAutomate<T>>[1],
-  ) => Promise<{ success: boolean; result?: unknown }>;
+  ) => Promise<unknown>;
   moveCommandMap: {
     left: ReturnTypeUseCommand;
     right: ReturnTypeUseCommand;
@@ -49,7 +49,7 @@ export type HandlerContext = {
 export type CliHandler<Name extends CliCommand["name"]> = (
   args: CliCommandArgs<Name>,
   context: HandlerContext,
-) => Promise<void> | void;
+) => Promise<unknown> | unknown;
 
 export type HandlerMap = {
   [Name in CliCommand["name"]]: CliHandler<Name>;

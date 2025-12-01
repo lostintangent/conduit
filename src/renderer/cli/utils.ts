@@ -2,12 +2,7 @@ import { browserAutomate } from "@/cli/browser";
 import type { Tab, TerminalPane } from "@/types";
 import type { WebviewTag } from "electron";
 
-type CliResponders = {
-  respondResult: (result?: unknown) => void;
-  respondError: (message: string) => void;
-};
-
-export type PaneResolutionContext = CliResponders & {
+export type PaneResolutionContext = {
   tabs: Tab[];
   sessionId: string;
   activeTab?: Tab;
@@ -19,7 +14,7 @@ export function findCallingTerminalTab({
   sessionId,
   floatingTerminal,
   activeTab,
-}: PaneResolutionContext): Tab | null {
+}: PaneResolutionContext): Tab {
   let matchingTab = tabs.find((tab) =>
     Object.values(tab.panes).some(
       (pane) => pane.type === "terminal" && pane.sessionId === sessionId,
@@ -27,31 +22,29 @@ export function findCallingTerminalTab({
   );
 
   if (!matchingTab && floatingTerminal?.terminalId === sessionId) {
-    matchingTab = activeTab ?? null;
+    matchingTab = activeTab ?? undefined;
   }
 
-  return matchingTab ?? null;
+  if (!matchingTab) {
+    throw new Error("Unable to find the calling terminal's tab.");
+  }
+
+  return matchingTab;
 }
 
 export function resolveBrowserPane(
   context: PaneResolutionContext,
   paneId?: string,
-): { paneId: string; webview: WebviewTag } | null {
+): { paneId: string; webview: WebviewTag } {
   const findBrowserPane = () => {
     const matchingTab = findCallingTerminalTab(context);
-
-    if (!matchingTab) {
-      context.respondError("Unable to find the calling terminal's tab.");
-      return null;
-    }
 
     const browserPane = Object.entries(matchingTab.panes).find(
       ([, pane]) => pane.type === "webview",
     );
 
     if (!browserPane) {
-      context.respondError("No browser pane found in the calling tab.");
-      return null;
+      throw new Error("No browser pane found in the calling tab.");
     }
 
     return browserPane[0];
@@ -59,15 +52,10 @@ export function resolveBrowserPane(
 
   const resolvedPaneId = paneId ?? findBrowserPane();
 
-  if (!resolvedPaneId) {
-    return null;
-  }
-
   const webview = document.getElementById(resolvedPaneId) as WebviewTag | null;
 
   if (!webview) {
-    context.respondError(`Browser pane ${resolvedPaneId} not found.`);
-    return null;
+    throw new Error(`Browser pane ${resolvedPaneId} not found.`);
   }
 
   return { paneId: resolvedPaneId, webview } as const;
@@ -77,14 +65,9 @@ export function resolveTerminalSessions(
   context: PaneResolutionContext,
   paneId?: string,
   all?: boolean,
-): string[] | null {
+): string[] {
   const { sessionId, floatingTerminal } = context;
   const matchingTab = findCallingTerminalTab(context);
-
-  if (!matchingTab) {
-    context.respondError("Unable to find the calling terminal's tab.");
-    return null;
-  }
 
   const getOtherTerminalPanes = () =>
     Object.entries(matchingTab.panes).filter(
@@ -97,8 +80,7 @@ export function resolveTerminalSessions(
     const terminalPanes = getOtherTerminalPanes();
 
     if (terminalPanes.length === 0) {
-      context.respondError("No other terminals found in the tab.");
-      return null;
+      throw new Error("No other terminals found in the tab.");
     }
 
     return terminalPanes.map(([, pane]) => pane.sessionId);
@@ -107,8 +89,7 @@ export function resolveTerminalSessions(
   if (paneId) {
     const pane = matchingTab.panes[paneId];
     if (!pane || pane.type !== "terminal") {
-      context.respondError(`Terminal pane ${paneId} not found.`);
-      return null;
+      throw new Error(`Terminal pane ${paneId} not found.`);
     }
 
     return [pane.sessionId];
@@ -117,8 +98,7 @@ export function resolveTerminalSessions(
   const terminalPanes = getOtherTerminalPanes();
 
   if (terminalPanes.length === 0) {
-    context.respondError("No other terminals found in the tab.");
-    return null;
+    throw new Error("No other terminals found in the tab.");
   }
 
   return [terminalPanes[0][1].sessionId];
@@ -133,16 +113,12 @@ export async function automateBrowser<T extends BrowserAutomationCommand>(
 ) {
   const resolvedPane = resolveBrowserPane(context, args?.paneId);
 
-  if (!resolvedPane) {
-    return { success: false } as const;
-  }
-
   const result = await browserAutomate(command, {
     ...args,
     paneId: resolvedPane.paneId,
   } as Parameters<typeof browserAutomate<T>>[1]);
 
-  return { success: true as const, result };
+  return result;
 }
 
 export function executeWebviewAction(
@@ -151,11 +127,5 @@ export function executeWebviewAction(
   action: (webview: WebviewTag) => void,
 ) {
   const resolvedPane = resolveBrowserPane(context, paneId);
-
-  if (!resolvedPane) {
-    return;
-  }
-
   action(resolvedPane.webview);
-  context.respondResult();
 }

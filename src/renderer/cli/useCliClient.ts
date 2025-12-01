@@ -90,13 +90,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
   const handleCliRequest = useEffectEvent(
     async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
-      const respond = <T>(response: Omit<CliResponse<T>, "requestId">) =>
+      let isResponseSuppressed = false;
+
+      const respond = <T>(response: Omit<CliResponse<T>, "requestId">) => {
         cli.respondToRequest<T>({
           requestId,
           ...response,
         });
+      };
 
-      const respondResult = (result?: any) => respond({ result });
+      const respondResult = (result?: unknown) => respond({ result });
       const respondError = (error: string) => respond({ error });
 
       const resolutionContext = {
@@ -104,8 +107,6 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         sessionId,
         floatingTerminal,
         activeTab,
-        respondResult,
-        respondError,
       } as const;
 
       const handler = handlerMap[name];
@@ -115,6 +116,10 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         return;
       }
 
+      const suppressResponse = () => {
+        isResponseSuppressed = true;
+      };
+
       const context: HandlerContext = {
         onOpenFile,
         requestId,
@@ -122,8 +127,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         activeTab,
         tabs,
         floatingTerminal,
-        respondResult,
-        respondError,
+        suppressResponse,
         findCallingTerminalTab: () => findCallingTerminalTab(resolutionContext),
         resolveTerminalSessions: (paneId?: string, all?: boolean) =>
           resolveTerminalSessions(resolutionContext, paneId, all),
@@ -142,9 +146,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       };
 
       try {
-        await handler(args as CliCommandArgs<typeof name>, context);
-      } catch (error) {
-        respondError((error as Error).message);
+        const result = await handler(
+          args as CliCommandArgs<typeof name>,
+          context,
+        );
+
+        if (!isResponseSuppressed) {
+          respondResult(result);
+        }
+      } catch ({ message }) {
+        respondError(message);
       }
     },
   );
