@@ -1,7 +1,7 @@
-import type { HandlerSubset } from "./types";
+import type { HandlerMap } from "./types";
 import { openTab } from "@/store/actions/tab";
 
-export const tabHandlers: HandlerSubset = {
+export const tabHandlers: Partial<HandlerMap> = {
   "tab-new": async (args, context) => {
     await openTab({
       title: args?.title,

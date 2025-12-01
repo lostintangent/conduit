@@ -8,13 +8,16 @@ import {
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { useCommand } from "@/commands/hooks/useCommand";
 import { activeTabAtom, floatingTerminalAtom, tabsAtom } from "@/store/atoms";
-import type { CliRequest, CliResponse } from "@shared/cli/types";
+import type {
+  CliCommandArgs,
+  CliRequest,
+  CliResponse,
+} from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
 import { useEffect, useEffectEvent } from "react";
 import {
   handlerMap,
-  type HandlerArgs,
   type HandlerContext,
   type ReturnTypeUseCommand,
 } from "./handlers";
@@ -139,7 +142,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       };
 
       try {
-        await handler(args as HandlerArgs<typeof name>, context);
+        await handler(args as CliCommandArgs<typeof name>, context);
       } catch (error) {
         respondError((error as Error).message);
       }

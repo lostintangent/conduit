@@ -2,14 +2,9 @@ import type { browserAutomate } from "@/cli/browser";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import type { useCommand } from "@/commands/hooks/useCommand";
 import type { Tab } from "@/types";
-import type { CliCommand } from "@shared/cli/types";
+import type { CliCommand, CliCommandArgs } from "@shared/cli/types";
 
 export type ReturnTypeUseCommand = ReturnType<typeof useCommand>;
-
-export type HandlerArgs<Name extends CliCommand["name"]> = Extract<
-  CliCommand,
-  { name: Name }
->["args"];
 
 export type HandlerContext = {
   onOpenFile: (descriptor: QuickPaneDescriptor) => void;
@@ -52,13 +47,9 @@ export type HandlerContext = {
 };
 
 export type CliHandler<Name extends CliCommand["name"]> = (
-  args: HandlerArgs<Name>,
+  args: CliCommandArgs<Name>,
   context: HandlerContext,
 ) => Promise<void> | void;
-
-export type HandlerSubset = {
-  [Name in CliCommand["name"]]?: CliHandler<Name>;
-};
 
 export type HandlerMap = {
   [Name in CliCommand["name"]]: CliHandler<Name>;

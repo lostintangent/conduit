@@ -1,5 +1,5 @@
 import { normalizeUrl } from "@/utils/browser";
-import type { HandlerSubset } from "./types";
+import type { HandlerMap } from "./types";
 import {
   BROWSER_AUTOMATION_COMMANDS,
   type BrowserAutomationAction,
@@ -8,33 +8,32 @@ import {
 type AutomationCommandName =
   (typeof BROWSER_AUTOMATION_COMMANDS)[number]["name"];
 
-const automationHandlers = BROWSER_AUTOMATION_COMMANDS.reduce<HandlerSubset>(
-  (handlers, command) => {
-    handlers[command.name] = async (args, context) => {
-      const automationResult = await context.automateBrowser(
-        command.automation,
-        args as Parameters<
-          typeof context.automateBrowser<BrowserAutomationAction>
-        >[1],
-      );
+const automationHandlers = BROWSER_AUTOMATION_COMMANDS.reduce<
+  Partial<HandlerMap>
+>((handlers, command) => {
+  handlers[command.name] = async (args, context) => {
+    const automationResult = await context.automateBrowser(
+      command.automation,
+      args as Parameters<
+        typeof context.automateBrowser<BrowserAutomationAction>
+      >[1],
+    );
 
-      if (!automationResult.success) {
-        return;
-      }
+    if (!automationResult.success) {
+      return;
+    }
 
-      if (command.respondWithResult) {
-        context.respondResult(automationResult.result);
-      } else {
-        context.respondResult();
-      }
-    };
+    if (command.respondWithResult) {
+      context.respondResult(automationResult.result);
+    } else {
+      context.respondResult();
+    }
+  };
 
-    return handlers;
-  },
-  {},
-);
+  return handlers;
+}, {});
 
-export const browserHandlers: HandlerSubset = {
+export const browserHandlers: Partial<HandlerMap> = {
   ...automationHandlers,
 
   "browser-capture": async (args, context) => {
