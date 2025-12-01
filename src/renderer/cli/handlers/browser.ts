@@ -9,16 +9,12 @@ const automationHandlers = BROWSER_AUTOMATION_COMMANDS.reduce<
   Partial<HandlerMap>
 >((handlers, command) => {
   handlers[command.name] = async (args, context) => {
-    const result = await context.automateBrowser(
+    return context.automateBrowser(
       command.automation,
       args as Parameters<
         typeof context.automateBrowser<BrowserAutomationAction>
       >[1],
     );
-
-    if (command.respondWithResult) {
-      return result;
-    }
   };
 
   return handlers;

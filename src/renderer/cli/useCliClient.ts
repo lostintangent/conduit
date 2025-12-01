@@ -90,7 +90,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
   const handleCliRequest = useEffectEvent(
     async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
-      let isDeferred = false;
+      let isResponseSuppressed = false;
 
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) => {
         cli.respondToRequest<T>({
@@ -117,7 +117,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       }
 
       const suppressResponse = () => {
-        isDeferred = true;
+        isResponseSuppressed = true;
       };
 
       const context: HandlerContext = {
@@ -151,11 +151,11 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
           context,
         );
 
-        if (!isDeferred) {
+        if (!isResponseSuppressed) {
           respondResult(result);
         }
-      } catch (error) {
-        respondError((error as Error).message);
+      } catch ({ message }) {
+        respondError(message);
       }
     },
   );
