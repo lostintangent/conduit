@@ -1,14 +1,8 @@
 import type {
-  AutomationElementDescriptor,
-  BrowserClickArgs,
-  BrowserFocusArgs,
-  BrowserHoverArgs,
-  BrowserKeysArgs,
-  BrowserQueryArgs,
-  BrowserQueryResult,
-  BrowserScrollArgs,
-  BrowserTypeArgs,
-  BrowserWaitArgs,
+  BrowserAutomationArgs,
+  BrowserAutomationCommand,
+  BrowserAutomationRequest,
+  BrowserAutomationResponse,
 } from "@shared/cli/browser";
 import type { WebviewTag } from "electron";
 
@@ -20,70 +14,48 @@ function getWebview(paneId: string) {
   return webview;
 }
 
-function sendAutomationCommand<T>(
+function sendAutomationCommand<T extends BrowserAutomationCommand["command"]>(
   webview: WebviewTag,
-  command: string,
-  args: Record<string, unknown>,
-): Promise<T> {
+  command: T,
+  args: Omit<BrowserAutomationArgs<T>["args"], "paneId">,
+): Promise<BrowserAutomationArgs<T>["result"]> {
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-  return new Promise<T>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const handleMessage = (
       event: Electron.IpcMessageEvent & { channel: string },
     ) => {
-      if (event.channel !== "automation:result") return;
-      const payload = event.args?.[0];
-      if (!payload || payload.id !== requestId) return;
+      if (event.channel !== "browser:response") return;
+      const response = event.args?.[0] as
+        | BrowserAutomationResponse<T>
+        | undefined;
+      if (!response || response.requestId !== requestId) return;
 
       webview.removeEventListener("ipc-message", handleMessage as any);
-      if (payload.error) {
-        reject(new Error(payload.error));
+      if (response.error) {
+        reject(new Error(response.error));
         return;
       }
-      resolve(payload.result as T);
+      resolve(response.result as BrowserAutomationArgs<T>["result"]);
     };
 
     webview.addEventListener("ipc-message", handleMessage as any);
-    webview.send("automation:invoke", { id: requestId, command, args });
+    const request: BrowserAutomationRequest<T> = {
+      requestId,
+      command,
+      args: args as BrowserAutomationArgs<T>["args"],
+    };
+    webview.send("browser:request", request);
   });
 }
 
-type AutomationCommand =
-  | { command: "query"; args: BrowserQueryArgs; result: BrowserQueryResult }
-  | {
-      command: "click";
-      args: BrowserClickArgs;
-      result: AutomationElementDescriptor;
-    }
-  | {
-      command: "hover";
-      args: BrowserHoverArgs;
-      result: AutomationElementDescriptor;
-    }
-  | {
-      command: "focus";
-      args: BrowserFocusArgs;
-      result: AutomationElementDescriptor;
-    }
-  | {
-      command: "type";
-      args: BrowserTypeArgs;
-      result: AutomationElementDescriptor;
-    }
-  | { command: "keys"; args: BrowserKeysArgs; result: boolean }
-  | { command: "scroll"; args: BrowserScrollArgs; result: boolean }
-  | { command: "waitFor"; args: BrowserWaitArgs; result: boolean };
-
-type ExtractCommand<T extends AutomationCommand["command"]> = Extract<
-  AutomationCommand,
-  { command: T }
->;
-
-export async function browserAutomate<T extends AutomationCommand["command"]>(
+export async function browserAutomate<
+  T extends BrowserAutomationCommand["command"],
+>(
   command: T,
-  payload: ExtractCommand<T>["args"],
-): Promise<ExtractCommand<T>["result"]> {
-  const { paneId, ...rest } = payload;
+  request: BrowserAutomationArgs<T>["args"],
+): Promise<BrowserAutomationArgs<T>["result"]> {
+  const { paneId, ...rest } = request;
 
   if (!paneId) {
     throw new Error("Browser pane ID is required.");
@@ -91,9 +63,5 @@ export async function browserAutomate<T extends AutomationCommand["command"]>(
 
   const webview = getWebview(paneId);
 
-  return sendAutomationCommand<ExtractCommand<T>["result"]>(
-    webview,
-    command,
-    rest,
-  );
+  return sendAutomationCommand(webview, command, rest);
 }

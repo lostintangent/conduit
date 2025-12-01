@@ -95,6 +95,67 @@ export type BrowserAutomationAction =
   | "scroll"
   | "waitFor";
 
+/**
+ * Command-to-args-to-result mapping for browser automation.
+ * Shared between renderer and preload webview.
+ */
+export type BrowserAutomationCommand =
+  | { command: "query"; args: BrowserQueryArgs; result: BrowserQueryResult }
+  | {
+      command: "click";
+      args: BrowserClickArgs;
+      result: AutomationElementDescriptor;
+    }
+  | {
+      command: "hover";
+      args: BrowserHoverArgs;
+      result: AutomationElementDescriptor;
+    }
+  | {
+      command: "focus";
+      args: BrowserFocusArgs;
+      result: AutomationElementDescriptor;
+    }
+  | {
+      command: "type";
+      args: BrowserTypeArgs;
+      result: AutomationElementDescriptor;
+    }
+  | { command: "keys"; args: BrowserKeysArgs; result: boolean }
+  | { command: "scroll"; args: BrowserScrollArgs; result: boolean }
+  | { command: "waitFor"; args: BrowserWaitArgs; result: boolean };
+
+/**
+ * Utility type to extract args for a specific browser automation command.
+ */
+export type BrowserAutomationArgs<
+  T extends BrowserAutomationCommand["command"],
+> = Extract<BrowserAutomationCommand, { command: T }>;
+
+/**
+ * IPC request sent from renderer to preload webview to invoke an automation command.
+ */
+export type BrowserAutomationRequest<
+  T extends
+    BrowserAutomationCommand["command"] = BrowserAutomationCommand["command"],
+> = {
+  requestId: string;
+  command: T;
+  args: BrowserAutomationArgs<T>["args"];
+};
+
+/**
+ * IPC response sent from preload webview back to renderer with the automation result.
+ */
+export type BrowserAutomationResponse<
+  T extends
+    BrowserAutomationCommand["command"] = BrowserAutomationCommand["command"],
+> = {
+  requestId: string;
+  result?: BrowserAutomationArgs<T>["result"];
+  error?: string;
+};
+
 export type BrowserAutomationOption = {
   flags: string;
   description: string;
