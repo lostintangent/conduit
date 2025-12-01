@@ -31,7 +31,7 @@ export const browserHandlers: Partial<HandlerMap> = {
     const resolvedPane = context.resolveBrowserPane(args?.paneId);
     const webContentsId = resolvedPane.webview.getWebContentsId();
 
-    context.deferResponse();
+    context.suppressResponse();
 
     await window.conduit.cli.completeCaptureBrowserRequest({
       requestId: context.requestId,

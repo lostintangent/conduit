@@ -116,9 +116,8 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         return;
       }
 
-      const deferResponse = () => {
+      const suppressResponse = () => {
         isDeferred = true;
-        return respondResult;
       };
 
       const context: HandlerContext = {
@@ -128,7 +127,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         activeTab,
         tabs,
         floatingTerminal,
-        deferResponse,
+        suppressResponse,
         findCallingTerminalTab: () => findCallingTerminalTab(resolutionContext),
         resolveTerminalSessions: (paneId?: string, all?: boolean) =>
           resolveTerminalSessions(resolutionContext, paneId, all),

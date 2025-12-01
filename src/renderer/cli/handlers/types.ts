@@ -13,7 +13,7 @@ export type HandlerContext = {
   activeTab?: Tab;
   tabs: Tab[];
   floatingTerminal?: { terminalId: string };
-  deferResponse: () => (result?: unknown) => void;
+  suppressResponse: () => void;
   findCallingTerminalTab: () => Tab;
   resolveTerminalSessions: (paneId?: string, all?: boolean) => string[];
   resolveBrowserPane: (paneId?: string) => {
