@@ -2,10 +2,7 @@ import type {
   BrowserAutomationOption,
   BrowserQueryResult,
 } from "@shared/cli/browser";
-import {
-  BROWSER_AUTOMATION_COMMANDS,
-  SIMPLE_BROWSER_COMMANDS,
-} from "@shared/cli/browser";
+import { BROWSER_AUTOMATION_COMMANDS } from "@shared/cli/browser";
 import { Command, Option } from "commander";
 
 const parseInteger = (value: string) => parseInt(value, 10);
@@ -40,28 +37,47 @@ function applyOption(cliCommand: Command, option: BrowserAutomationOption) {
 }
 
 export default function (program: Command): Command {
-  for (const command of SIMPLE_BROWSER_COMMANDS) {
-    const cliCommand = program
-      .cliCommand(command.name, async (request, ...rawArgs) => {
-        const options = rawArgs.pop();
-        const commandArgs = command.buildArgs(rawArgs, options);
-        const result = await request(commandArgs);
+  program
+    .cliCommand("browser-capture", async (request, options) => {
+      const filePath = await request({ paneId: options.pane });
+      process.stdout.write(`Screenshot saved to: ${filePath}\n`);
+    })
+    .alias("capture")
+    .description("Capture a screenshot of a browser pane")
+    .paneOption("The ID of the pane to capture");
 
-        if (command.respondWithResult && command.formatResult) {
-          process.stdout.write(command.formatResult(result));
-        }
-      })
-      .description(command.description)
-      .paneOption(command.paneDescription);
+  program
+    .cliCommand("browser-navigate", (request, url, options) =>
+      request({ paneId: options.pane, url }),
+    )
+    .alias("navigate")
+    .description("Navigate a browser pane to a specific URL")
+    .argument("<url>", "The URL to navigate to")
+    .paneOption("The ID of the pane to navigate");
 
-    if (command.alias) {
-      cliCommand.alias(command.alias);
-    }
+  program
+    .cliCommand("browser-back", (request, options) =>
+      request({ paneId: options.pane }),
+    )
+    .alias("back")
+    .description("Navigate a browser pane back in its history")
+    .paneOption("The ID of the pane to navigate");
 
-    if (command.argument) {
-      cliCommand.argument(...command.argument);
-    }
-  }
+  program
+    .cliCommand("browser-forward", (request, options) =>
+      request({ paneId: options.pane }),
+    )
+    .alias("forward")
+    .description("Navigate a browser pane forward in its history")
+    .paneOption("The ID of the pane to navigate");
+
+  program
+    .cliCommand("browser-refresh", (request, options) =>
+      request({ paneId: options.pane }),
+    )
+    .alias("refresh")
+    .description("Refresh a browser pane")
+    .paneOption("The ID of the pane to refresh");
 
   for (const command of BROWSER_AUTOMATION_COMMANDS) {
     const cliCommand = program
