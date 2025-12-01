@@ -128,7 +128,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
   [
     {
       name: "browser-query",
-      alias: "query",
       description: "Query for elements inside a browser pane",
       arguments: [["[selector]", "CSS selector to match"]],
       paneDescription: "The ID of the pane to query",
@@ -172,7 +171,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
     {
       name: "browser-click",
-      alias: "click",
       description: "Click an element in a browser pane",
       arguments: [["<handle>", "Handle of the element to click"]],
       paneDescription: "The ID of the pane to click in",
@@ -213,7 +211,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
     {
       name: "browser-hover",
-      alias: "hover",
       description: "Hover over an element in a browser pane",
       arguments: [["<handle>", "Handle of the element to hover"]],
       paneDescription: "The ID of the pane to hover in",
@@ -241,7 +238,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
     {
       name: "browser-focus",
-      alias: "focus",
       description: "Focus an element in a browser pane",
       arguments: [["<handle>", "Handle of the element to focus"]],
       paneDescription: "The ID of the pane to focus in",
@@ -260,7 +256,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
     {
       name: "browser-type",
-      alias: "type",
       description: "Type text into an element",
       arguments: [
         ["<handle>", "Handle of the element to type into"],
@@ -294,7 +289,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
     {
       name: "browser-keys",
-      alias: "keys",
       description: "Send raw key presses to the active element",
       arguments: [["<keys...>", "Keys or chords to send (e.g. Enter, Meta+R)"]],
       paneDescription: "The ID of the pane to send keys to",
@@ -306,7 +300,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
     {
       name: "browser-scroll",
-      alias: "scroll",
       description: "Scroll the page or a specific element",
       arguments: [["[handle]", "Handle of the element to scroll"]],
       paneDescription: "The ID of the pane to scroll",
@@ -343,7 +336,6 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
     {
       name: "browser-wait",
-      alias: "wait",
       description: "Wait for a selector or page state",
       arguments: [["[selector]", "Optional selector to wait for"]],
       paneDescription: "The ID of the pane to wait on",
