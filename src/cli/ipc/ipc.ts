@@ -3,10 +3,10 @@ import net from "node:net";
 import { processCliMessage } from "../../shared/cli/protocol";
 import type {
   CliCommand,
+  CliCommandArgs,
   CliRequest,
   CliResponse,
 } from "../../shared/cli/types";
-import type { ExtractArgs } from "./index";
 
 // When the main process spawns a terminal, it will expose
 // the ID of the session, and the socket path of the CLI server.
@@ -23,7 +23,7 @@ const sessionId = process.env.CONDUIT_SESSION_ID;
 export async function sendCliCommand<
   Name extends CliCommand["name"],
   Result = undefined,
->(name: Name, args?: ExtractArgs<Name>) {
+>(name: Name, args?: CliCommandArgs<Name>) {
   // Build the CLI request message.
   const command = { name, args } as CliCommand;
   const request = JSON.stringify({
