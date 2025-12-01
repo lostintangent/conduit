@@ -1,6 +1,6 @@
 import type { browserAutomate } from "@/cli/browser";
-import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import type { useCommand } from "@/commands/hooks/useCommand";
+import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import type { Tab } from "@/types";
 import type { CliCommand, CliCommandArgs } from "@shared/cli/types";
 

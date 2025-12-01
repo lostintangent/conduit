@@ -49,6 +49,7 @@ import {
   MoreHorizontal,
   PlusSquare,
   SquareDashedMousePointer,
+  SquareTerminal,
   Terminal,
   Zap,
 } from "lucide-react";
@@ -685,7 +686,7 @@ export const TabStrip = ({
                   aria-label="Open hyper terminal"
                   onClick={handleOpenHyperTerminal}
                 >
-                  <Zap size={18} />
+                  <SquareTerminal size={18} />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Open hyper terminal</TooltipContent>
