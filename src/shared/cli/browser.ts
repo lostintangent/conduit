@@ -99,7 +99,7 @@ export type BrowserAutomationAction =
  * Command-to-args-to-result mapping for browser automation.
  * Shared between renderer and preload webview.
  */
-export type AutomationCommand =
+export type BrowserAutomationCommand =
   | { command: "query"; args: BrowserQueryArgs; result: BrowserQueryResult }
   | {
       command: "click";
@@ -126,30 +126,33 @@ export type AutomationCommand =
   | { command: "waitFor"; args: BrowserWaitArgs; result: boolean };
 
 /**
- * Utility type to extract a specific command variant from AutomationCommand.
+ * Utility type to extract a specific command variant from BrowserAutomationCommand.
  */
-export type ExtractAutomationCommand<T extends AutomationCommand["command"]> =
-  Extract<AutomationCommand, { command: T }>;
+export type ExtractBrowserAutomationCommand<
+  T extends BrowserAutomationCommand["command"],
+> = Extract<BrowserAutomationCommand, { command: T }>;
 
 /**
  * IPC payload sent from renderer to preload webview to invoke an automation command.
  */
-export type AutomationInvokePayload<
-  T extends AutomationCommand["command"] = AutomationCommand["command"],
+export type BrowserAutomationRequest<
+  T extends
+    BrowserAutomationCommand["command"] = BrowserAutomationCommand["command"],
 > = {
-  id: string;
+  requestId: string;
   command: T;
-  args: ExtractAutomationCommand<T>["args"];
+  args: ExtractBrowserAutomationCommand<T>["args"];
 };
 
 /**
  * IPC payload sent from preload webview back to renderer with the automation result.
  */
-export type AutomationResultPayload<
-  T extends AutomationCommand["command"] = AutomationCommand["command"],
+export type BrowserAutomationResponse<
+  T extends
+    BrowserAutomationCommand["command"] = BrowserAutomationCommand["command"],
 > = {
-  id: string;
-  result?: ExtractAutomationCommand<T>["result"];
+  requestId: string;
+  result?: ExtractBrowserAutomationCommand<T>["result"];
   error?: string;
 };
 

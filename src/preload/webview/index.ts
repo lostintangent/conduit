@@ -1,25 +1,25 @@
 import { ipcRenderer } from "electron";
 import type {
-  AutomationInvokePayload,
-  AutomationResultPayload,
+  BrowserAutomationRequest,
+  BrowserAutomationResponse,
 } from "@shared/cli/browser";
 import automation from "./api/automation";
 
 ipcRenderer.on(
   "automation:invoke",
-  async (_, payload: AutomationInvokePayload) => {
-    const { id, command, args } = payload ?? {};
-    if (!id || !command || !(command in automation)) {
+  async (_, payload: BrowserAutomationRequest) => {
+    const { requestId, command, args } = payload ?? {};
+    if (!requestId || !command || !(command in automation)) {
       return;
     }
 
     try {
       const result = await automation[command](args as never);
-      const response: AutomationResultPayload = { id, result };
+      const response: BrowserAutomationResponse = { requestId, result };
       ipcRenderer.sendToHost("automation:result", response);
     } catch (error: unknown) {
-      const response: AutomationResultPayload = {
-        id,
+      const response: BrowserAutomationResponse = {
+        requestId,
         error: error instanceof Error ? error.message : String(error),
       };
       ipcRenderer.sendToHost("automation:result", response);
