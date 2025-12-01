@@ -1,10 +1,5 @@
 import type { HandlerMap } from "./types";
-import {
-  openTab,
-  lockTab,
-  unlockTab,
-  updateTabProperty,
-} from "@/store/actions/tab";
+import { openTab, updateTabProperty } from "@/store/actions/tab";
 
 export const tabHandlers: Partial<HandlerMap> = {
   "tab-new": async (args, context) => {
@@ -27,11 +22,7 @@ export const tabHandlers: Partial<HandlerMap> = {
       return;
     }
 
-    if (tab.locked) {
-      unlockTab(tab.id);
-    } else {
-      lockTab(tab.id);
-    }
+    updateTabProperty(tab.id, { locked: !tab.locked });
     context.respondResult();
   },
 
