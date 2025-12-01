@@ -33,21 +33,16 @@ export const paneHandlers: Partial<HandlerMap> = {
   "pane-move": async (args, context) => {
     const targetCommand = context.moveCommandMap[args.direction];
     await targetCommand.execute();
-
-    context.respondResult();
   },
 
   "pane-split": async (args, context) => {
     const targetCommand =
       context.splitCommandMap[args.paneType][args.direction];
     await targetCommand.execute();
-
-    context.respondResult();
   },
 
   "pane-focus": async (_args, context) => {
     await context.focusPaneCommand.execute();
-    context.respondResult();
   },
 
   "pane-close": async (args, context) => {
@@ -55,7 +50,5 @@ export const paneHandlers: Partial<HandlerMap> = {
       ? context.closeTabCommand
       : context.closePaneCommand;
     await targetCommand.execute();
-
-    context.respondResult();
   },
 };

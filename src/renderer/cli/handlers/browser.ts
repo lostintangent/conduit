@@ -5,9 +5,6 @@ import {
   type BrowserAutomationAction,
 } from "@shared/cli/browser";
 
-type AutomationCommandName =
-  (typeof BROWSER_AUTOMATION_COMMANDS)[number]["name"];
-
 const automationHandlers = BROWSER_AUTOMATION_COMMANDS.reduce<
   Partial<HandlerMap>
 >((handlers, command) => {
@@ -25,8 +22,6 @@ const automationHandlers = BROWSER_AUTOMATION_COMMANDS.reduce<
 
     if (command.respondWithResult) {
       context.respondResult(automationResult.result);
-    } else {
-      context.respondResult();
     }
   };
 
@@ -49,6 +44,9 @@ export const browserHandlers: Partial<HandlerMap> = {
       requestId: context.requestId,
       webContentsId,
     });
+
+    // Return false to indicate response is handled by completeCaptureBrowserRequest
+    return false;
   },
 
   "browser-navigate": (args, context) => {

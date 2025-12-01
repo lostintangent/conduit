@@ -19,8 +19,9 @@ export const editorHandlers: Partial<HandlerMap> = {
       descriptor.isLocked = true;
       descriptor.closeOnSave = true;
       descriptor.onClose = context.respondResult;
-    } else {
-      context.respondResult();
+      context.onOpenFile(descriptor);
+      // Return false to indicate response is deferred to onClose
+      return false;
     }
 
     context.onOpenFile(descriptor);

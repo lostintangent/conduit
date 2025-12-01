@@ -49,7 +49,7 @@ export type HandlerContext = {
 export type CliHandler<Name extends CliCommand["name"]> = (
   args: CliCommandArgs<Name>,
   context: HandlerContext,
-) => Promise<void> | void;
+) => Promise<unknown> | unknown;
 
 export type HandlerMap = {
   [Name in CliCommand["name"]]: CliHandler<Name>;

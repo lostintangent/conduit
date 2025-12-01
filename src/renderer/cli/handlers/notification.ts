@@ -47,7 +47,5 @@ export const notificationHandlers: Partial<HandlerMap> = {
           ]
         : undefined,
     });
-
-    context.respondResult();
   },
 };

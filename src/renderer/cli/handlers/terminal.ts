@@ -60,7 +60,5 @@ export const terminalHandlers: Partial<HandlerMap> = {
         window.conduit.sendKeypress(targetSessionId, "\r");
       }
     }
-
-    context.respondResult();
   },
 };

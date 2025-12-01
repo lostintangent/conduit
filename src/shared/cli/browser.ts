@@ -368,3 +368,70 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
       }),
     },
   ];
+
+export type SimpleBrowserCommandDefinition = {
+  name:
+    | "browser-capture"
+    | "browser-navigate"
+    | "browser-back"
+    | "browser-forward"
+    | "browser-refresh";
+  alias?: string;
+  description: string;
+  argument?: [string, string];
+  paneDescription: string;
+  respondWithResult?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  buildArgs: (args: any[], options: any) => object;
+};
+
+export const SIMPLE_BROWSER_COMMANDS: SimpleBrowserCommandDefinition[] = [
+  {
+    name: "browser-capture",
+    alias: "capture",
+    description: "Capture a screenshot of a browser pane",
+    paneDescription: "The ID of the pane to capture",
+    respondWithResult: true,
+    buildArgs: (_args, options) => ({
+      paneId: options.pane,
+    }),
+  },
+  {
+    name: "browser-navigate",
+    alias: "navigate",
+    description: "Navigate a browser pane to a specific URL",
+    argument: ["<url>", "The URL to navigate to"],
+    paneDescription: "The ID of the pane to navigate",
+    buildArgs: ([url], options) => ({
+      paneId: options.pane,
+      url,
+    }),
+  },
+  {
+    name: "browser-back",
+    alias: "back",
+    description: "Navigate a browser pane back in its history",
+    paneDescription: "The ID of the pane to navigate",
+    buildArgs: (_args, options) => ({
+      paneId: options.pane,
+    }),
+  },
+  {
+    name: "browser-forward",
+    alias: "forward",
+    description: "Navigate a browser pane forward in its history",
+    paneDescription: "The ID of the pane to navigate",
+    buildArgs: (_args, options) => ({
+      paneId: options.pane,
+    }),
+  },
+  {
+    name: "browser-refresh",
+    alias: "refresh",
+    description: "Refresh a browser pane",
+    paneDescription: "The ID of the pane to refresh",
+    buildArgs: (_args, options) => ({
+      paneId: options.pane,
+    }),
+  },
+];

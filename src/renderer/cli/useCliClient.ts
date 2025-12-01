@@ -90,11 +90,15 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
 
   const handleCliRequest = useEffectEvent(
     async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
-      const respond = <T>(response: Omit<CliResponse<T>, "requestId">) =>
+      let hasResponded = false;
+
+      const respond = <T>(response: Omit<CliResponse<T>, "requestId">) => {
+        hasResponded = true;
         cli.respondToRequest<T>({
           requestId,
           ...response,
         });
+      };
 
       const respondResult = (result?: any) => respond({ result });
       const respondError = (error: string) => respond({ error });
@@ -142,7 +146,16 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       };
 
       try {
-        await handler(args as CliCommandArgs<typeof name>, context);
+        const result = await handler(
+          args as CliCommandArgs<typeof name>,
+          context,
+        );
+
+        // Auto-respond if handler hasn't already responded
+        // and didn't return false (which signals deferred response handling)
+        if (!hasResponded && result !== false) {
+          respondResult();
+        }
       } catch (error) {
         respondError((error as Error).message);
       }
