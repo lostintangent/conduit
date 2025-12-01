@@ -382,6 +382,8 @@ export type SimpleBrowserCommandDefinition = {
   paneDescription: string;
   respondWithResult?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  formatResult?: (result: any) => string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   buildArgs: (args: any[], options: any) => object;
 };
 
@@ -392,6 +394,7 @@ export const SIMPLE_BROWSER_COMMANDS: SimpleBrowserCommandDefinition[] = [
     description: "Capture a screenshot of a browser pane",
     paneDescription: "The ID of the pane to capture",
     respondWithResult: true,
+    formatResult: (filePath) => `Screenshot saved to: ${filePath}\n`,
     buildArgs: (_args, options) => ({
       paneId: options.pane,
     }),

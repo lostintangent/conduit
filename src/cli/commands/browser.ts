@@ -47,8 +47,8 @@ export default function (program: Command): Command {
         const commandArgs = command.buildArgs(rawArgs, options);
         const result = await request(commandArgs);
 
-        if (command.respondWithResult) {
-          process.stdout.write(`Screenshot saved to: ${result}\n`);
+        if (command.respondWithResult && command.formatResult) {
+          process.stdout.write(command.formatResult(result));
         }
       })
       .description(command.description)
