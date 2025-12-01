@@ -6,7 +6,7 @@
  * - Changes: Git changes view (FileTreeChanges)
  *
  * Both views are kept mounted but hidden to preserve state when switching.
- * When in changes mode, a GitOperationsToolbar is shown for commit operations.
+ * Uses GitBranchToolbar for branch comparison, git status, and operations.
  *
  * @example
  * ```tsx
@@ -17,18 +17,18 @@
  *   treeViewMode="files"
  *   onTreeViewModeChange={(mode) => setTreeViewMode(mode)}
  *   currentBranch="main"
+ *   gitStatus={gitStatus}
  *   stagedCount={3}
- *   hasUncommittedChanges={true}
  * />
  * ```
  */
 
-import { Files, GitBranch } from "lucide-react";
+import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode, TreeViewMode } from "../../types";
 import { FileTreeToolbar } from "./FileTreeToolbar";
 import { FileTreeNormal } from "./FileTreeNormal";
 import { FileTreeChanges } from "./FileTreeChanges";
-import { GitOperationsToolbar } from "../GitOperationsToolbar";
+import { GitBranchToolbar } from "./GitBranchToolbar";
 import { cn } from "@/utils";
 
 // ============================================================================
@@ -51,26 +51,67 @@ export interface FileTreePanelProps {
   /** Callback when view mode changes */
   onTreeViewModeChange: (mode: TreeViewMode) => void;
 
-  /** Git ref for branch comparison (optional) */
-  baseBranch?: string;
-
-  /** Callback when base branch changes */
-  onBaseBranchChange?: (branch: string | null) => void;
+  // ---------------------------------------------------------------------------
+  // Git Branch Props
+  // ---------------------------------------------------------------------------
 
   /** Current branch name (for display) */
   currentBranch?: string | null;
 
+  /** Git ref for branch comparison (optional) */
+  baseBranch?: string | null;
+
+  /** Git status map (relative paths to status) */
+  gitStatus?: Map<string, GitFileStatus> | null;
+
+  /** Number of changed files */
+  changedFilesCount?: number;
+
+  /** Callback to open branch picker */
+  onOpenBranchPicker?: () => void;
+
+  /** Whether changes review mode is active */
+  isReviewModeActive?: boolean;
+
+  // ---------------------------------------------------------------------------
+  // Git Operations Props
+  // ---------------------------------------------------------------------------
+
   /** Number of staged files */
   stagedCount?: number;
 
-  /** Whether there are any uncommitted changes */
-  hasUncommittedChanges?: boolean;
+  /** Callback for pull action */
+  onPull?: () => void;
 
-  /** Callback fired after successful commit */
-  onCommitSuccess?: () => void;
+  /** Callback for push action */
+  onPush?: () => void;
+
+  /** Whether pull is in progress */
+  isPulling?: boolean;
+
+  /** Whether push is in progress */
+  isPushing?: boolean;
+
+  /** Whether the branch has an upstream configured */
+  hasUpstream?: boolean;
+
+  /** Current commit message */
+  commitMessage?: string;
+
+  /** Callback when commit message changes */
+  onCommitMessageChange?: (message: string) => void;
+
+  /** Callback for commit action */
+  onCommit?: () => void;
+
+  /** Whether commit is in progress */
+  isCommitting?: boolean;
+
+  /** Callback for review changes action */
+  onReviewChanges?: () => void;
 
   // ---------------------------------------------------------------------------
-  // Navigation Props (Phase 4)
+  // Navigation Props
   // ---------------------------------------------------------------------------
 
   /** Whether navigation to parent directory is possible */
@@ -87,6 +128,19 @@ export interface FileTreePanelProps {
 
   /** Whether to show the collapse button (only in split layout mode) */
   showCollapseButton?: boolean;
+
+  /** Callback when "change to this directory" is clicked on a folder */
+  onDirectoryChange?: (path: string) => void;
+
+  // ---------------------------------------------------------------------------
+  // Changes View Mode Props
+  // ---------------------------------------------------------------------------
+
+  /** Current view mode for changes list (flat or nested) */
+  changesViewMode?: "flat" | "nested";
+
+  /** Callback when changes view mode changes */
+  onChangesViewModeChange?: (mode: "flat" | "nested") => void;
 }
 
 // ============================================================================
@@ -102,22 +156,57 @@ export function FileTreePanel({
   onFileSelect,
   treeViewMode,
   onTreeViewModeChange,
-  baseBranch,
-  onBaseBranchChange,
+  // Git Branch Props
   currentBranch,
+  baseBranch,
+  gitStatus,
+  changedFilesCount = 0,
+  onOpenBranchPicker,
+  isReviewModeActive = false,
+  // Git Operations Props
   stagedCount = 0,
-  hasUncommittedChanges = false,
-  onCommitSuccess,
+  onPull,
+  onPush,
+  isPulling = false,
+  isPushing = false,
+  hasUpstream = true,
+  commitMessage = "",
+  onCommitMessageChange,
+  onCommit,
+  isCommitting = false,
+  onReviewChanges,
+  // Navigation Props
   canNavigateUp = false,
   onNavigateUp,
   isTreeCollapsed = false,
   onToggleCollapse,
   showCollapseButton = false,
+  onDirectoryChange,
+  // Changes View Mode Props
+  changesViewMode = "flat",
+  onChangesViewModeChange,
 }: FileTreePanelProps) {
-  // Handle navigate up - only call if handler is provided
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle navigate up - only call if handler is provided.
+   */
   const handleNavigateUp = () => {
     onNavigateUp?.();
   };
+
+  /**
+   * Handle filter toggle - switches between files and changes view.
+   */
+  const handleFilterToggle = () => {
+    onTreeViewModeChange(treeViewMode === "changes" ? "files" : "changes");
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
     <div
@@ -136,50 +225,30 @@ export function FileTreePanel({
         />
       )}
 
-      {/* Header with view mode toggle - styled to match v1 */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-elevated text-[13px] border-b border-border">
-        <button
-          type="button"
-          onClick={() => onTreeViewModeChange("files")}
-          className={`p-1 rounded hover:bg-white/10 transition-colors shrink-0 flex items-center gap-1 ${treeViewMode === "files" ? "bg-white/10" : ""}`}
-          title="File Explorer"
-          data-testid="files-mode-button"
-        >
-          <Files size={14} />
-          <span>Files</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onTreeViewModeChange("changes")}
-          className={`p-1 rounded hover:bg-white/10 transition-colors shrink-0 flex items-center gap-1 ${treeViewMode === "changes" ? "bg-white/10" : ""}`}
-          title="Source Control"
-          data-testid="changes-mode-button"
-        >
-          <GitBranch size={14} />
-          <span>Changes</span>
-        </button>
-
-        {/* Branch comparison indicator */}
-        {baseBranch && (
-          <span className="ml-auto text-muted-foreground truncate">
-            vs {baseBranch}
-          </span>
-        )}
-      </div>
-
-      {/* Git Operations Toolbar - shown only in changes mode */}
-      {treeViewMode === "changes" && onBaseBranchChange && (
-        <GitOperationsToolbar
-          cwd={cwd}
-          currentBranch={currentBranch ?? null}
-          baseBranch={baseBranch ?? null}
-          onBaseBranchChange={onBaseBranchChange}
-          stagedCount={stagedCount}
-          hasUncommittedChanges={hasUncommittedChanges}
-          onCommitSuccess={onCommitSuccess}
-        />
-      )}
+      {/* Git Branch Toolbar */}
+      <GitBranchToolbar
+        currentBranch={currentBranch ?? null}
+        baseBranch={baseBranch ?? null}
+        showOnlyChangedFiles={treeViewMode === "changes"}
+        isReviewModeActive={isReviewModeActive}
+        changedFilesCount={changedFilesCount}
+        gitStatus={gitStatus}
+        onFilterToggle={handleFilterToggle}
+        onOpenBranchPicker={onOpenBranchPicker}
+        onPull={onPull}
+        onPush={onPush}
+        isPulling={isPulling}
+        isPushing={isPushing}
+        hasUpstream={hasUpstream}
+        commitMessage={commitMessage}
+        onCommitMessageChange={onCommitMessageChange}
+        onCommit={onCommit}
+        hasStagedFiles={stagedCount > 0}
+        isCommitting={isCommitting}
+        onReviewChanges={onReviewChanges}
+        changesViewMode={changesViewMode}
+        onChangesViewModeChange={onChangesViewModeChange}
+      />
 
       {/* Tree content - both mounted, visibility toggled */}
       <div className="flex-1 min-h-0 relative">
@@ -194,7 +263,8 @@ export function FileTreePanel({
             cwd={cwd}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
-            baseBranch={baseBranch}
+            baseBranch={baseBranch ?? undefined}
+            onDirectoryChange={onDirectoryChange}
           />
         </div>
 
@@ -209,6 +279,7 @@ export function FileTreePanel({
             cwd={cwd}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
+            viewMode={changesViewMode}
           />
         </div>
       </div>

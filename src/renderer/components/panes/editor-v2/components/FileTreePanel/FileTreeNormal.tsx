@@ -56,6 +56,9 @@ export interface FileTreeNormalProps {
 
   /** Git ref for comparison (affects which files show as changed) */
   baseBranch?: string;
+
+  /** Callback when "change to this directory" is clicked */
+  onDirectoryChange?: (path: string) => void;
 }
 
 /**
@@ -103,6 +106,7 @@ export function FileTreeNormal({
   selectedFile,
   onFileSelect,
   baseBranch,
+  onDirectoryChange,
 }: FileTreeNormalProps) {
   // APIs
   const fs = useFileSystemV2(cwd);
@@ -343,6 +347,7 @@ export function FileTreeNormal({
             isExpanded={isExpanded}
             onSelect={handleSelect}
             onToggleExpand={handleToggleExpand}
+            onDirectoryChange={onDirectoryChange}
           >
             {entry.type === "directory" &&
               isExpanded &&
@@ -359,6 +364,7 @@ export function FileTreeNormal({
       selectedFile?.path,
       handleSelect,
       handleToggleExpand,
+      onDirectoryChange,
       cwd,
     ],
   );

@@ -21,6 +21,7 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import type { EditorPane as EditorPaneType } from "@/types";
 import type { FileNode, TreeViewMode, ViewMode } from "./types";
+import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import {
   FileTreePanel,
   EditorViewPanel,
@@ -242,6 +243,11 @@ export function EditorPaneV2({
   // View mode for editor panel
   const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
 
+  // Changes view mode (flat or nested) for FileTreeChanges
+  const [changesViewMode, setChangesViewMode] = useState<"flat" | "nested">(
+    "flat",
+  );
+
   // Base branch for comparison (null = compare against HEAD)
   const [baseBranch, setBaseBranch] = useState<string | null>(
     pane.agentBaseBranch ?? null,
@@ -260,6 +266,15 @@ export function EditorPaneV2({
   // Git API for checking file status
   const git = useGitV2(currentCwd);
 
+  // ---------------------------------------------------------------------------
+  // Git State
+  // ---------------------------------------------------------------------------
+
+  // Full git status map (for GitBranchToolbar)
+  const [gitStatus, setGitStatus] = useState<Map<string, GitFileStatus> | null>(
+    null,
+  );
+
   // Git status state - tracks which files have changes
   const [gitChangedFiles, setGitChangedFiles] = useState<Set<string>>(
     () => new Set(),
@@ -270,18 +285,28 @@ export function EditorPaneV2({
 
   // Staged count and change detection for git toolbar
   const [stagedCount, setStagedCount] = useState(0);
-  const [hasUncommittedChanges, setHasUncommittedChanges] = useState(false);
+
+  // Commit message state
+  const [commitMessage, setCommitMessage] = useState("");
+
+  // Git operation states
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [hasUpstream, setHasUpstream] = useState(true);
 
   // Helper to update git status state
   const updateGitStatusState = useCallback(
-    (status: { files: Map<string, { staged?: boolean }> } | null) => {
+    (status: { files: Map<string, GitFileStatus> } | null) => {
       if (!status?.files) {
+        setGitStatus(null);
         setGitChangedFiles(new Set());
         setStagedCount(0);
-        setHasUncommittedChanges(false);
         return;
       }
 
+      // Store full status map for GitBranchToolbar
+      setGitStatus(status.files);
       setGitChangedFiles(new Set(status.files.keys()));
 
       // Count staged files
@@ -292,7 +317,6 @@ export function EditorPaneV2({
         }
       }
       setStagedCount(staged);
-      setHasUncommittedChanges(status.files.size > 0);
     },
     [],
   );
@@ -324,6 +348,19 @@ export function EditorPaneV2({
       })
       .catch((error) => {
         console.error("[EditorPaneV2] Failed to load current branch:", error);
+      });
+
+    // Load upstream status
+    git
+      .getStatus()
+      .then((status) => {
+        if (!cancelled && status) {
+          // Check if upstream is configured
+          setHasUpstream(!!status.upstream);
+        }
+      })
+      .catch((error) => {
+        console.error("[EditorPaneV2] Failed to load upstream status:", error);
       });
 
     // Subscribe to status changes
@@ -523,6 +560,63 @@ export function EditorPaneV2({
   }, [currentCwd, onClearFile, onCwdChange]);
 
   /**
+   * Handle commit action.
+   */
+  const handleCommit = useCallback(async () => {
+    if (!commitMessage.trim() || stagedCount === 0) return;
+
+    setIsCommitting(true);
+    try {
+      await git.commit(commitMessage.trim());
+      setCommitMessage("");
+    } catch (error) {
+      console.error("[EditorPaneV2] Commit failed:", error);
+    } finally {
+      setIsCommitting(false);
+    }
+  }, [commitMessage, stagedCount, git]);
+
+  /**
+   * Handle pull action.
+   */
+  const handlePull = useCallback(async () => {
+    if (isPulling || isPushing || isCommitting) return;
+
+    setIsPulling(true);
+    try {
+      await window.conduit.gitPull(currentCwd, false);
+    } catch (error) {
+      console.error("[EditorPaneV2] Pull failed:", error);
+    } finally {
+      setIsPulling(false);
+    }
+  }, [currentCwd, isPulling, isPushing, isCommitting]);
+
+  /**
+   * Handle push action (or publish if no upstream).
+   */
+  const handlePush = useCallback(async () => {
+    if (isPulling || isPushing || isCommitting) return;
+
+    setIsPushing(true);
+    try {
+      const isPublishing = !hasUpstream;
+      await window.conduit.gitPush(currentCwd, false, isPublishing);
+
+      if (isPublishing) {
+        setHasUpstream(true);
+      }
+    } catch (error) {
+      console.error(
+        `[EditorPaneV2] ${hasUpstream ? "Push" : "Publish"} failed:`,
+        error,
+      );
+    } finally {
+      setIsPushing(false);
+    }
+  }, [currentCwd, hasUpstream, isPulling, isPushing, isCommitting]);
+
+  /**
    * Whether navigation up is possible.
    */
   const canNavigateUp = !isAtFilesystemRoot(currentCwd);
@@ -541,6 +635,25 @@ export function EditorPaneV2({
   const handleToggleTree = useCallback(() => {
     setIsTreeCollapsed((prev) => !prev);
   }, []);
+
+  /**
+   * Handle changing the current working directory to a specific folder.
+   * Similar to navigateUp but navigates to the clicked directory instead.
+   */
+  const handleDirectoryChange = useCallback(
+    (path: string) => {
+      // Clear selected file when changing directory
+      setSelectedFile(null);
+      onClearFile?.();
+
+      // Update current working directory
+      setCurrentCwd(path);
+
+      // Notify parent of cwd change
+      onCwdChange?.(path);
+    },
+    [onClearFile, onCwdChange],
+  );
 
   /**
    * Focus the tree panel and ensure it's visible.
@@ -629,16 +742,30 @@ export function EditorPaneV2({
           onFileSelect={handleFileSelect}
           treeViewMode={treeViewMode}
           onTreeViewModeChange={handleTreeViewModeChange}
-          baseBranch={baseBranch ?? undefined}
-          onBaseBranchChange={handleBaseBranchChange}
+          // Git Branch Props
           currentBranch={currentBranch}
           stagedCount={stagedCount}
-          hasUncommittedChanges={hasUncommittedChanges}
+          onPull={handlePull}
+          onPush={handlePush}
+          isPulling={isPulling}
+          isPushing={isPushing}
+          hasUpstream={hasUpstream}
+          commitMessage={commitMessage}
+          onCommitMessageChange={setCommitMessage}
+          onCommit={handleCommit}
+          isCommitting={isCommitting}
+          // Navigation Props
           canNavigateUp={canNavigateUp}
           onNavigateUp={handleNavigateUp}
           isTreeCollapsed={isTreeCollapsed}
           onToggleCollapse={handleToggleTree}
           showCollapseButton={layout === "split"}
+          baseBranch={baseBranch}
+          gitStatus={gitStatus}
+          changedFilesCount={gitChangedFiles.size}
+          onDirectoryChange={handleDirectoryChange}
+          changesViewMode={changesViewMode}
+          onChangesViewModeChange={setChangesViewMode}
         />
       </div>
 

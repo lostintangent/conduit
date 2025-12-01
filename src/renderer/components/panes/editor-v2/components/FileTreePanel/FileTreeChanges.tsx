@@ -5,6 +5,10 @@
  * - Staged Changes section
  * - Changes (unstaged) section
  *
+ * Supports two view modes:
+ * - Flat: Shows files in a flat list with folder path as subtext
+ * - Nested: Shows files nested within their folder hierarchy
+ *
  * Each file has inline action buttons for:
  * - Stage / Unstage
  * - Revert (discard changes)
@@ -19,7 +23,7 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Plus,
   Minus,
@@ -28,6 +32,8 @@ import {
   ChevronDown,
   FileText,
   AlertCircle,
+  Folder,
+  FolderOpen,
 } from "lucide-react";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
@@ -49,52 +55,246 @@ export interface FileTreeChangesProps {
 
   /** Callback when a file is selected */
   onFileSelect: (file: FileNode) => void;
+
+  /** View mode for changes list (flat or nested) - controlled by parent */
+  viewMode?: "flat" | "nested";
+}
+
+/** A file entry with its status */
+interface FileEntry {
+  path: string;
+  name: string;
+  status: GitFileStatus;
+}
+
+/** A folder node in the nested tree */
+interface FolderNode {
+  name: string;
+  path: string;
+  files: FileEntry[];
+  folders: Map<string, FolderNode>;
 }
 
 // ============================================================================
-// Change Item Component
+// Utility Functions
 // ============================================================================
 
-interface ChangeItemProps {
-  /** File path (relative) */
-  path: string;
+/**
+ * Get the directory path from a file path.
+ * Returns empty string for root-level files.
+ */
+function getDirectoryPath(filePath: string): string {
+  const lastSlash = filePath.lastIndexOf("/");
+  return lastSlash === -1 ? "" : filePath.slice(0, lastSlash);
+}
 
-  /** Working directory */
-  cwd: string;
+/**
+ * Build a nested tree structure from a flat list of file paths.
+ * Groups files by their directory hierarchy.
+ */
+function buildFolderTree(
+  files: Array<[string, GitFileStatus]>,
+): Map<string, FolderNode> {
+  const rootFolders = new Map<string, FolderNode>();
 
-  /** Git status for this file */
-  status: GitFileStatus;
+  for (const [path, status] of files) {
+    const parts = path.split("/");
+    const fileName = parts.pop()!;
 
-  /** Whether this item is selected */
-  isSelected: boolean;
+    // Navigate/create folder structure
+    let currentLevel = rootFolders;
+    let currentPath = "";
 
+    for (const folderName of parts) {
+      currentPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+
+      if (!currentLevel.has(folderName)) {
+        currentLevel.set(folderName, {
+          name: folderName,
+          path: currentPath,
+          files: [],
+          folders: new Map(),
+        });
+      }
+
+      const folder = currentLevel.get(folderName)!;
+      currentLevel = folder.folders;
+    }
+
+    // Add file to appropriate location
+    if (parts.length === 0) {
+      // Root level file - create a virtual "root" folder
+      if (!rootFolders.has("")) {
+        rootFolders.set("", {
+          name: "",
+          path: "",
+          files: [],
+          folders: new Map(),
+        });
+      }
+      rootFolders.get("")!.files.push({ path, name: fileName, status });
+    } else {
+      // Navigate back to the correct folder and add file
+      let targetLevel = rootFolders;
+      for (const folderName of parts) {
+        targetLevel = targetLevel.get(folderName)!.folders;
+      }
+      // Go up one level to get the parent folder
+      let parentLevel = rootFolders;
+      for (let i = 0; i < parts.length - 1; i++) {
+        parentLevel = parentLevel.get(parts[i])!.folders;
+      }
+      const parentFolder = parentLevel.get(parts[parts.length - 1])!;
+      parentFolder.files.push({ path, name: fileName, status });
+    }
+  }
+
+  return rootFolders;
+}
+
+// ============================================================================
+// Action Buttons Component
+// ============================================================================
+
+interface ActionButtonsProps {
   /** Whether file is staged */
   isStaged: boolean;
-
-  /** Callback when file is clicked */
-  onSelect: () => void;
-
+  /** Whether file can be reverted (false for untracked files) */
+  canRevert: boolean;
   /** Callback to stage file */
   onStage: () => void;
-
   /** Callback to unstage file */
   onUnstage: () => void;
-
   /** Callback to revert file */
   onRevert: () => void;
 }
 
-function ChangeItem({
+/**
+ * Inline action buttons for stage/unstage/revert operations.
+ * Visible on hover.
+ */
+function ActionButtons({
+  isStaged,
+  canRevert,
+  onStage,
+  onUnstage,
+  onRevert,
+}: ActionButtonsProps) {
+  return (
+    <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+      {isStaged ? (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnstage();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              onUnstage();
+            }
+          }}
+          className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+          title="Unstage"
+          data-testid="unstage-button"
+        >
+          <Minus size={12} />
+        </div>
+      ) : (
+        <>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              onStage();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onStage();
+              }
+            }}
+            className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+            title="Stage changes"
+            data-testid="stage-button"
+          >
+            <Plus size={12} />
+          </div>
+          {canRevert && (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRevert();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRevert();
+                }
+              }}
+              className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+              title="Discard changes"
+              data-testid="revert-button"
+            >
+              <RotateCcw size={12} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Flat View Change Item Component
+// ============================================================================
+
+interface FlatChangeItemProps {
+  /** File path (relative) */
+  path: string;
+  /** Git status for this file */
+  status: GitFileStatus;
+  /** Whether this item is selected */
+  isSelected: boolean;
+  /** Whether file is staged */
+  isStaged: boolean;
+  /** Whether file can be reverted (false for untracked files) */
+  canRevert: boolean;
+  /** Callback when file is clicked */
+  onSelect: () => void;
+  /** Callback to stage file */
+  onStage: () => void;
+  /** Callback to unstage file */
+  onUnstage: () => void;
+  /** Callback to revert file */
+  onRevert: () => void;
+}
+
+/**
+ * Change item for flat view mode.
+ * Shows file name with folder path as subtext.
+ */
+function FlatChangeItem({
   path,
   status,
   isSelected,
   isStaged,
+  canRevert,
   onSelect,
   onStage,
   onUnstage,
   onRevert,
-}: ChangeItemProps) {
+}: FlatChangeItemProps) {
   const fileName = path.split("/").pop() ?? path;
+  const folderPath = getDirectoryPath(path);
 
   // Get text color class from git status
   const statusConfig = getStatusConfig(status);
@@ -119,86 +319,237 @@ function ChangeItem({
         {/* File icon - colored based on git status */}
         <FileText className={cn("flex-shrink-0", iconColorClass)} size={12} />
 
+        {/* File name and folder path */}
+        <div className="min-w-0 flex-1 flex items-baseline gap-1.5 truncate">
+          <span className={cn("truncate", textColorClass)} title={path}>
+            {fileName}
+          </span>
+          {folderPath && (
+            <span
+              className="text-[11px] text-foreground/40 truncate"
+              title={folderPath}
+            >
+              {folderPath}
+            </span>
+          )}
+        </div>
+
+        {/* Action buttons (visible on hover) */}
+        <ActionButtons
+          isStaged={isStaged}
+          canRevert={canRevert}
+          onStage={onStage}
+          onUnstage={onUnstage}
+          onRevert={onRevert}
+        />
+
+        {/* Git status badge - always rightmost */}
+        <GitBadge status={status} />
+      </button>
+    </li>
+  );
+}
+
+// ============================================================================
+// Nested View Components
+// ============================================================================
+
+interface NestedFileItemProps {
+  /** File entry */
+  file: FileEntry;
+  /** Whether this item is selected */
+  isSelected: boolean;
+  /** Whether file is staged */
+  isStaged: boolean;
+  /** Whether file can be reverted (false for untracked files) */
+  canRevert: boolean;
+  /** Callback when file is clicked */
+  onSelect: () => void;
+  /** Callback to stage file */
+  onStage: () => void;
+  /** Callback to unstage file */
+  onUnstage: () => void;
+  /** Callback to revert file */
+  onRevert: () => void;
+}
+
+/**
+ * File item for nested view mode.
+ * Shows just the file name (folder context provided by parent).
+ */
+function NestedFileItem({
+  file,
+  isSelected,
+  isStaged,
+  canRevert,
+  onSelect,
+  onStage,
+  onUnstage,
+  onRevert,
+}: NestedFileItemProps) {
+  // Get text color class from git status
+  const statusConfig = getStatusConfig(file.status);
+  const textColorClass = statusConfig?.textColorClass ?? "text-foreground";
+  const iconColorClass = statusConfig?.textColorClass ?? "text-foreground";
+
+  return (
+    <li>
+      <button
+        type="button"
+        className={cn(
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+          "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+          isSelected
+            ? "bg-accent/20 hover:bg-accent/25"
+            : "hover:bg-foreground/10",
+        )}
+        onClick={onSelect}
+        data-testid={`nested-file-${file.name}`}
+        data-path={file.path}
+      >
+        {/* Spacer to align with folder chevrons */}
+        <div style={{ width: 12 }} />
+
+        {/* File icon - colored based on git status */}
+        <FileText className={cn("flex-shrink-0", iconColorClass)} size={12} />
+
         {/* File name - colored based on git status */}
         <span
           className={cn("min-w-0 flex-1 truncate", textColorClass)}
-          title={path}
+          title={file.path}
         >
-          {fileName}
+          {file.name}
         </span>
 
-        {/* Git status badge */}
-        <GitBadge status={status} />
-
         {/* Action buttons (visible on hover) */}
-        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          {isStaged ? (
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onUnstage();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onUnstage();
-                }
-              }}
-              className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
-              title="Unstage"
-              data-testid="unstage-button"
-            >
-              <Minus size={12} />
-            </div>
-          ) : (
-            <>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStage();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onStage();
-                  }
-                }}
-                className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
-                title="Stage changes"
-                data-testid="stage-button"
-              >
-                <Plus size={12} />
-              </div>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRevert();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRevert();
-                  }
-                }}
-                className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
-                title="Discard changes"
-                data-testid="revert-button"
-              >
-                <RotateCcw size={12} />
-              </div>
-            </>
-          )}
-        </div>
+        <ActionButtons
+          isStaged={isStaged}
+          canRevert={canRevert}
+          onStage={onStage}
+          onUnstage={onUnstage}
+          onRevert={onRevert}
+        />
+
+        {/* Git status badge - always rightmost */}
+        <GitBadge status={file.status} />
       </button>
+    </li>
+  );
+}
+
+interface NestedFolderItemProps {
+  /** Folder node */
+  folder: FolderNode;
+  /** Set of expanded folder paths */
+  expandedFolders: Set<string>;
+  /** Toggle folder expansion */
+  onToggleFolder: (path: string) => void;
+  /** Selected file path (relative) */
+  selectedPath: string | null;
+  /** Whether files in this folder are staged */
+  isStaged: boolean;
+  /** Callback when file is clicked */
+  onFileSelect: (path: string) => void;
+  /** Callback to stage file */
+  onStage: (path: string) => void;
+  /** Callback to unstage file */
+  onUnstage: (path: string) => void;
+  /** Callback to revert file */
+  onRevert: (path: string) => void;
+}
+
+/**
+ * Folder item for nested view mode.
+ * Shows folder with expandable children.
+ */
+function NestedFolderItem({
+  folder,
+  expandedFolders,
+  onToggleFolder,
+  selectedPath,
+  isStaged,
+  onFileSelect,
+  onStage,
+  onUnstage,
+  onRevert,
+}: NestedFolderItemProps) {
+  const isExpanded = expandedFolders.has(folder.path);
+  const FolderIcon = isExpanded ? FolderOpen : Folder;
+
+  // Sort files and subfolders
+  const sortedFiles = [...folder.files].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  const sortedFolders = [...folder.folders.values()].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+
+  return (
+    <li data-testid={`nested-folder-${folder.name}`}>
+      {/* Folder row */}
+      <button
+        type="button"
+        className={cn(
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+          "hover:bg-foreground/10",
+          "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+        )}
+        onClick={() => onToggleFolder(folder.path)}
+        data-testid={`folder-toggle-${folder.name}`}
+      >
+        {/* Expand/collapse chevron */}
+        <span className="flex-shrink-0 flex items-center justify-center">
+          {isExpanded ? (
+            <ChevronDown className="text-foreground" size={12} />
+          ) : (
+            <ChevronRight className="text-foreground" size={12} />
+          )}
+        </span>
+
+        {/* Folder icon */}
+        <FolderIcon className="flex-shrink-0 text-foreground" size={12} />
+
+        {/* Folder name */}
+        <span className="min-w-0 flex-1 truncate text-foreground">
+          {folder.name}
+        </span>
+      </button>
+
+      {/* Children (when expanded) */}
+      {isExpanded && (
+        <ul className="mt-0.5 border-l border-border pl-2 space-y-0.5">
+          {/* Subfolders first */}
+          {sortedFolders.map((subfolder) => (
+            <NestedFolderItem
+              key={subfolder.path}
+              folder={subfolder}
+              expandedFolders={expandedFolders}
+              onToggleFolder={onToggleFolder}
+              selectedPath={selectedPath}
+              isStaged={isStaged}
+              onFileSelect={onFileSelect}
+              onStage={onStage}
+              onUnstage={onUnstage}
+              onRevert={onRevert}
+            />
+          ))}
+
+          {/* Then files */}
+          {sortedFiles.map((file) => (
+            <NestedFileItem
+              key={file.path}
+              file={file}
+              isSelected={selectedPath === file.path}
+              isStaged={isStaged}
+              canRevert={file.status.status !== "untracked"}
+              onSelect={() => onFileSelect(file.path)}
+              onStage={() => onStage(file.path)}
+              onUnstage={() => onUnstage(file.path)}
+              onRevert={() => onRevert(file.path)}
+            />
+          ))}
+        </ul>
+      )}
     </li>
   );
 }
@@ -210,20 +561,19 @@ function ChangeItem({
 interface SectionProps {
   /** Section title */
   title: string;
-
   /** Number of items in section */
   count: number;
-
   /** Whether section is expanded */
   isExpanded: boolean;
-
   /** Toggle expansion */
   onToggle: () => void;
-
   /** Children to render when expanded */
   children: React.ReactNode;
 }
 
+/**
+ * Collapsible section for grouping changes.
+ */
 function Section({
   title,
   count,
@@ -253,37 +603,98 @@ function Section({
 }
 
 // ============================================================================
-// Component
+// Custom Hook: useChangesViewState
 // ============================================================================
 
 /**
- * Git changes view showing modified files grouped by staging status.
+ * Hook to manage changes view state including section expansion
+ * and folder expansion for nested view.
  */
-export function FileTreeChanges({
-  cwd,
-  selectedFile,
-  onFileSelect,
-}: FileTreeChangesProps) {
+function useChangesViewState() {
+  const [stagedExpanded, setStagedExpanded] = useState(true);
+  const [changesExpanded, setChangesExpanded] = useState(true);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  /**
+   * Toggle a folder's expansion state.
+   */
+  const toggleFolder = useCallback((path: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  /**
+   * Expand all folders that contain files.
+   * Called when switching to nested view to auto-expand.
+   */
+  const expandAllFolders = useCallback(
+    (files: Array<[string, GitFileStatus]>) => {
+      const folders = new Set<string>();
+      for (const [path] of files) {
+        const parts = path.split("/");
+        let currentPath = "";
+        for (let i = 0; i < parts.length - 1; i++) {
+          currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+          folders.add(currentPath);
+        }
+      }
+      setExpandedFolders(folders);
+    },
+    [],
+  );
+
+  return {
+    stagedExpanded,
+    setStagedExpanded,
+    changesExpanded,
+    setChangesExpanded,
+    expandedFolders,
+    toggleFolder,
+    expandAllFolders,
+  };
+}
+
+/**
+ * Optimistic update types for immediate UI feedback.
+ */
+interface OptimisticUpdate {
+  path: string;
+  action: "stage" | "unstage";
+  timestamp: number;
+}
+
+/**
+ * Hook to manage git status loading, subscriptions, and optimistic updates.
+ * Optimistic updates provide immediate UI feedback while git operations complete.
+ */
+function useGitStatus(cwd: string) {
   const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
     useGitAvailable();
   const git = useGitV2(cwd);
 
-  // State
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
-  const [stagedExpanded, setStagedExpanded] = useState(true);
-  const [changesExpanded, setChangesExpanded] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isNotGitRepo, setIsNotGitRepo] = useState(false);
 
-  // ---------------------------------------------------------------------------
-  // Initial Load
-  // ---------------------------------------------------------------------------
+  // Optimistic updates for immediate UI feedback
+  const [optimisticUpdates, setOptimisticUpdates] = useState<
+    OptimisticUpdate[]
+  >([]);
 
+  // Initial load
   useEffect(() => {
     let cancelled = false;
 
     async function loadStatus() {
-      // Don't load if git is not available
       if (!isGitAvailable || isCheckingGit) {
         return;
       }
@@ -294,7 +705,6 @@ export function FileTreeChanges({
         const status = await git.getStatus();
         if (!cancelled) {
           if (status === null) {
-            // null means not a git repository
             setIsNotGitRepo(true);
           } else {
             setGitStatus(status);
@@ -319,17 +729,119 @@ export function FileTreeChanges({
     };
   }, [git, isGitAvailable, isCheckingGit]);
 
-  // ---------------------------------------------------------------------------
-  // Git Status Subscription
-  // ---------------------------------------------------------------------------
-
+  // Subscribe to status changes and clear optimistic updates
   useEffect(() => {
     const cleanup = git.onStatusChanged((event) => {
       setGitStatus(event.status);
+      // Clear all optimistic updates when real status arrives
+      setOptimisticUpdates([]);
     });
 
     return cleanup;
   }, [git]);
+
+  /**
+   * Apply an optimistic update for immediate UI feedback.
+   */
+  const applyOptimisticUpdate = useCallback(
+    (path: string, action: "stage" | "unstage") => {
+      setOptimisticUpdates((prev) => [
+        ...prev.filter((u) => u.path !== path), // Remove any existing update for this path
+        { path, action, timestamp: Date.now() },
+      ]);
+    },
+    [],
+  );
+
+  /**
+   * Revert an optimistic update (on failure).
+   */
+  const revertOptimisticUpdate = useCallback((path: string) => {
+    setOptimisticUpdates((prev) => prev.filter((u) => u.path !== path));
+  }, []);
+
+  /**
+   * Get the effective git status with optimistic updates applied.
+   * This merges the real git status with any pending optimistic updates.
+   */
+  const effectiveGitStatus = useMemo((): GitStatus | null => {
+    if (!gitStatus || optimisticUpdates.length === 0) {
+      return gitStatus;
+    }
+
+    // Clone the files map with optimistic updates applied
+    const newFiles = new Map(gitStatus.files);
+
+    for (const update of optimisticUpdates) {
+      const currentStatus = newFiles.get(update.path);
+      if (currentStatus) {
+        // Create a new status with the staged flag flipped
+        newFiles.set(update.path, {
+          ...currentStatus,
+          staged: update.action === "stage",
+        });
+      }
+    }
+
+    return {
+      ...gitStatus,
+      files: newFiles,
+    };
+  }, [gitStatus, optimisticUpdates]);
+
+  return {
+    git,
+    gitStatus: effectiveGitStatus,
+    isLoading,
+    isNotGitRepo,
+    isGitAvailable,
+    isCheckingGit,
+    applyOptimisticUpdate,
+    revertOptimisticUpdate,
+  };
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+/**
+ * Git changes view showing modified files grouped by staging status.
+ *
+ * Supports two view modes:
+ * - Flat: Files listed with folder path as subtext
+ * - Nested: Files organized in expandable folder hierarchy
+ */
+export function FileTreeChanges({
+  cwd,
+  selectedFile,
+  onFileSelect,
+  viewMode = "flat",
+}: FileTreeChangesProps) {
+  // ---------------------------------------------------------------------------
+  // Hooks
+  // ---------------------------------------------------------------------------
+
+  const {
+    git,
+    gitStatus,
+    isLoading,
+    isNotGitRepo,
+    isGitAvailable,
+    isCheckingGit,
+    applyOptimisticUpdate,
+    revertOptimisticUpdate,
+  } = useGitStatus(cwd);
+
+  const {
+    stagedExpanded,
+    setStagedExpanded,
+    changesExpanded,
+    setChangesExpanded,
+    expandedFolders,
+    toggleFolder,
+    expandAllFolders,
+  } = useChangesViewState();
 
   // ---------------------------------------------------------------------------
   // Computed Values
@@ -359,6 +871,16 @@ export function FileTreeChanges({
     return { stagedFiles: staged, unstagedFiles: unstaged };
   }, [gitStatus]);
 
+  /**
+   * Build folder trees for nested view.
+   */
+  const { stagedTree, unstagedTree } = useMemo(() => {
+    return {
+      stagedTree: buildFolderTree(stagedFiles),
+      unstagedTree: buildFolderTree(unstagedFiles),
+    };
+  }, [stagedFiles, unstagedFiles]);
+
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
@@ -373,25 +895,31 @@ export function FileTreeChanges({
   );
 
   const handleStage = useCallback(
-    async (path: string) => {
-      try {
-        await git.stage([path]);
-      } catch (error) {
+    (path: string) => {
+      // Apply optimistic update immediately for instant UI feedback
+      applyOptimisticUpdate(path, "stage");
+      // Fire and forget - don't await, let the status subscription handle confirmation
+      git.stage([path]).catch((error) => {
         console.error("Failed to stage file:", error);
-      }
+        // Revert optimistic update on failure
+        revertOptimisticUpdate(path);
+      });
     },
-    [git],
+    [git, applyOptimisticUpdate, revertOptimisticUpdate],
   );
 
   const handleUnstage = useCallback(
-    async (path: string) => {
-      try {
-        await git.unstage([path]);
-      } catch (error) {
+    (path: string) => {
+      // Apply optimistic update immediately for instant UI feedback
+      applyOptimisticUpdate(path, "unstage");
+      // Fire and forget - don't await, let the status subscription handle confirmation
+      git.unstage([path]).catch((error) => {
         console.error("Failed to unstage file:", error);
-      }
+        // Revert optimistic update on failure
+        revertOptimisticUpdate(path);
+      });
     },
-    [git],
+    [git, applyOptimisticUpdate, revertOptimisticUpdate],
   );
 
   const handleRevert = useCallback(
@@ -404,6 +932,100 @@ export function FileTreeChanges({
     },
     [git],
   );
+
+  /**
+   * Auto-expand folders when switching to nested view.
+   * Only runs when viewMode changes, not on every file change.
+   */
+  const prevViewModeRef = useRef(viewMode);
+  useEffect(() => {
+    // Only expand when transitioning TO nested view
+    if (viewMode === "nested" && prevViewModeRef.current !== "nested") {
+      expandAllFolders([...stagedFiles, ...unstagedFiles]);
+    }
+    prevViewModeRef.current = viewMode;
+  }, [viewMode, expandAllFolders, stagedFiles, unstagedFiles]);
+
+  // ---------------------------------------------------------------------------
+  // Render Helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Render files in flat view mode.
+   */
+  const renderFlatFiles = (
+    files: Array<[string, GitFileStatus]>,
+    isStaged: boolean,
+  ) => {
+    return files.map(([path, status]) => (
+      <FlatChangeItem
+        key={path}
+        path={path}
+        status={status}
+        isSelected={selectedRelativePath === path}
+        isStaged={isStaged}
+        canRevert={status.status !== "untracked"}
+        onSelect={() => handleSelect(path)}
+        onStage={() => handleStage(path)}
+        onUnstage={() => handleUnstage(path)}
+        onRevert={() => handleRevert(path)}
+      />
+    ));
+  };
+
+  /**
+   * Render files in nested view mode.
+   */
+  const renderNestedFiles = (
+    tree: Map<string, FolderNode>,
+    isStaged: boolean,
+  ) => {
+    // Get root-level files (if any)
+    const rootFolder = tree.get("");
+    const rootFiles = rootFolder?.files ?? [];
+
+    // Get top-level folders (excluding the virtual root)
+    const folders = [...tree.values()]
+      .filter((f) => f.name !== "")
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return (
+      <>
+        {/* Folders first */}
+        {folders.map((folder) => (
+          <NestedFolderItem
+            key={folder.path}
+            folder={folder}
+            expandedFolders={expandedFolders}
+            onToggleFolder={toggleFolder}
+            selectedPath={selectedRelativePath}
+            isStaged={isStaged}
+            onFileSelect={handleSelect}
+            onStage={handleStage}
+            onUnstage={handleUnstage}
+            onRevert={handleRevert}
+          />
+        ))}
+
+        {/* Root-level files */}
+        {rootFiles
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((file) => (
+            <NestedFileItem
+              key={file.path}
+              file={file}
+              isSelected={selectedRelativePath === file.path}
+              isStaged={isStaged}
+              canRevert={file.status.status !== "untracked"}
+              onSelect={() => handleSelect(file.path)}
+              onStage={() => handleStage(file.path)}
+              onUnstage={() => handleUnstage(file.path)}
+              onRevert={() => handleRevert(file.path)}
+            />
+          ))}
+      </>
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // Render
@@ -474,59 +1096,37 @@ export function FileTreeChanges({
     : null;
 
   return (
-    <nav
-      className="overflow-auto h-full px-3 text-[13px] text-white/80"
-      data-testid="file-tree-changes"
-    >
-      {/* Staged Changes Section */}
-      {stagedFiles.length > 0 && (
-        <Section
-          title="Staged Changes"
-          count={stagedFiles.length}
-          isExpanded={stagedExpanded}
-          onToggle={() => setStagedExpanded(!stagedExpanded)}
-        >
-          {stagedFiles.map(([path, status]) => (
-            <ChangeItem
-              key={path}
-              path={path}
-              cwd={cwd}
-              status={status}
-              isSelected={selectedRelativePath === path}
-              isStaged={true}
-              onSelect={() => handleSelect(path)}
-              onStage={() => handleStage(path)}
-              onUnstage={() => handleUnstage(path)}
-              onRevert={() => handleRevert(path)}
-            />
-          ))}
-        </Section>
-      )}
+    <div className="flex flex-col h-full" data-testid="file-tree-changes">
+      {/* Changes content */}
+      <nav className="overflow-auto flex-1 h-full px-3 text-[13px] text-white/80">
+        {/* Staged Changes Section */}
+        {stagedFiles.length > 0 && (
+          <Section
+            title="Staged Changes"
+            count={stagedFiles.length}
+            isExpanded={stagedExpanded}
+            onToggle={() => setStagedExpanded(!stagedExpanded)}
+          >
+            {viewMode === "flat"
+              ? renderFlatFiles(stagedFiles, true)
+              : renderNestedFiles(stagedTree, true)}
+          </Section>
+        )}
 
-      {/* Unstaged Changes Section */}
-      {unstagedFiles.length > 0 && (
-        <Section
-          title="Changes"
-          count={unstagedFiles.length}
-          isExpanded={changesExpanded}
-          onToggle={() => setChangesExpanded(!changesExpanded)}
-        >
-          {unstagedFiles.map(([path, status]) => (
-            <ChangeItem
-              key={path}
-              path={path}
-              cwd={cwd}
-              status={status}
-              isSelected={selectedRelativePath === path}
-              isStaged={false}
-              onSelect={() => handleSelect(path)}
-              onStage={() => handleStage(path)}
-              onUnstage={() => handleUnstage(path)}
-              onRevert={() => handleRevert(path)}
-            />
-          ))}
-        </Section>
-      )}
-    </nav>
+        {/* Unstaged Changes Section */}
+        {unstagedFiles.length > 0 && (
+          <Section
+            title="Changes"
+            count={unstagedFiles.length}
+            isExpanded={changesExpanded}
+            onToggle={() => setChangesExpanded(!changesExpanded)}
+          >
+            {viewMode === "flat"
+              ? renderFlatFiles(unstagedFiles, false)
+              : renderNestedFiles(unstagedTree, false)}
+          </Section>
+        )}
+      </nav>
+    </div>
   );
 }

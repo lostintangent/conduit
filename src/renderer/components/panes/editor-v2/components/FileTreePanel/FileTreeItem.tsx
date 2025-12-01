@@ -30,6 +30,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  FolderInput,
 } from "lucide-react";
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
@@ -71,6 +72,9 @@ export interface FileTreeItemProps {
   /** Callback when directory expand/collapse is toggled */
   onToggleExpand?: (path: string) => void;
 
+  /** Callback when "change to this directory" is clicked */
+  onDirectoryChange?: (path: string) => void;
+
   /** Children to render when expanded (for directories) */
   children?: React.ReactNode;
 
@@ -101,6 +105,7 @@ export const FileTreeItem = memo(function FileTreeItem({
   isExpanded = false,
   onSelect,
   onToggleExpand,
+  onDirectoryChange,
   children,
   displayPath,
 }: FileTreeItemProps) {
@@ -119,6 +124,15 @@ export const FileTreeItem = memo(function FileTreeItem({
       }
     },
     [path, entry.type, isDirectory, onSelect, onToggleExpand],
+  );
+
+  // Handle "change to this directory" click
+  const handleChangeCwd = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDirectoryChange?.(path);
+    },
+    [path, onDirectoryChange],
   );
 
   // Choose appropriate icon
@@ -190,18 +204,34 @@ export const FileTreeItem = memo(function FileTreeItem({
           {displayPath ?? entry.name}
         </span>
 
-        {/* Git status badge: letter for files, dot for folders */}
-        {gitStatus && !isDirectory && <GitBadge status={gitStatus} />}
-        {isDirectory && folderStatus && (
-          <div
-            className={cn(
-              "flex-shrink-0 w-1.5 h-1.5 rounded-full",
-              folderStatus.colorClass,
-            )}
-            title={folderStatus.label}
-            data-testid="git-badge-folder"
-          />
-        )}
+        {/* Action buttons container */}
+        <div className="shrink-0 flex items-center gap-1">
+          {/* Change to this directory button (directories only, on hover) */}
+          {isDirectory && onDirectoryChange && (
+            <button
+              type="button"
+              onClick={handleChangeCwd}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+              title="Change to this directory"
+              data-testid="change-directory-button"
+            >
+              <FolderInput size={12} />
+            </button>
+          )}
+
+          {/* Git status badge: letter for files, dot for folders */}
+          {gitStatus && !isDirectory && <GitBadge status={gitStatus} />}
+          {isDirectory && folderStatus && (
+            <div
+              className={cn(
+                "flex-shrink-0 w-1.5 h-1.5 rounded-full",
+                folderStatus.colorClass,
+              )}
+              title={folderStatus.label}
+              data-testid="git-badge-folder"
+            />
+          )}
+        </div>
       </div>
 
       {/* Children (expanded directory contents) - with vertical connecting line */}
