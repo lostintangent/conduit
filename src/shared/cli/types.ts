@@ -63,6 +63,8 @@ export type CliCommand =
   // Tab commands
   | DefineCommand<"tab-new", NewTabOptions>
   | DefineCommand<"tab-duplicate">
+  | DefineCommand<"tab-lock">
+  | DefineCommand<"tab-synchronize">
   // Terminal commands
   | DefineCommand<"terminal-read", { paneId?: string; all?: boolean }, string>
   | DefineCommand<

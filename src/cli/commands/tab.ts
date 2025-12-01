@@ -15,5 +15,15 @@ export default function (program: Command): Command {
     .alias("duplicate")
     .description("Duplicate the active tab.");
 
+  program
+    .cliCommand("tab-lock")
+    .alias("lock")
+    .description("Toggle the locked state of the active tab.");
+
+  program
+    .cliCommand("tab-synchronize")
+    .alias("synchronize")
+    .description("Toggle the synchronized state of the active tab.");
+
   return program;
 }
