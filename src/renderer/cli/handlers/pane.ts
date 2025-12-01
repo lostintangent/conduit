@@ -1,3 +1,4 @@
+import { closePane } from "@/store/actions/pane";
 import type { HandlerMap } from "./types";
 
 export const paneHandlers: Partial<HandlerMap> = {
@@ -41,9 +42,15 @@ export const paneHandlers: Partial<HandlerMap> = {
   },
 
   "pane-close": async (args, context) => {
-    const targetCommand = args.closeTab
-      ? context.closeTabCommand
-      : context.closePaneCommand;
-    await targetCommand.execute();
+    if (args.closeTab) {
+      await context.closeTabCommand.execute();
+    } else if (args.paneId) {
+      // Close the specified pane
+      const callingTab = context.findCallingTerminalTab();
+      closePane(callingTab.id, args.paneId);
+    } else {
+      // Close the calling pane (default behavior)
+      await context.closePaneCommand.execute();
+    }
   },
 };
