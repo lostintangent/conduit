@@ -35,16 +35,18 @@ function isAppVisible(): boolean {
  * Shows a system-level notification using the browser's Notification API.
  */
 function showSystemNotification(message: string, details?: string): void {
+  const body = details ? `${message}\n${details}` : message;
+
+  const createNotification = () => {
+    new window.Notification("Conduit", { body });
+  };
+
   if (window.Notification.permission === "granted") {
-    new window.Notification("Conduit", {
-      body: details ? `${message}\n${details}` : message,
-    });
+    createNotification();
   } else if (window.Notification.permission !== "denied") {
     window.Notification.requestPermission().then((permission) => {
       if (permission === "granted") {
-        new window.Notification("Conduit", {
-          body: details ? `${message}\n${details}` : message,
-        });
+        createNotification();
       }
     });
   }
