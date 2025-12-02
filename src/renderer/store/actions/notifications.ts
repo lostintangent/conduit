@@ -1,4 +1,4 @@
-import { Notification as AppNotification } from "@/types";
+import { Notification } from "@/types";
 import { generateId } from "@/utils/id";
 import { getDefaultStore } from "jotai";
 import { notificationsAtom } from "../atoms";
@@ -33,21 +33,16 @@ function isAppVisible(): boolean {
 
 /**
  * Shows a system-level notification using the browser's Notification API.
- * Falls back to in-app notification if system notifications are not available.
  */
 function showSystemNotification(message: string, details?: string): void {
-  if (!("Notification" in window)) {
-    return;
-  }
-
-  if (Notification.permission === "granted") {
-    new Notification("Conduit", {
+  if (window.Notification.permission === "granted") {
+    new window.Notification("Conduit", {
       body: details ? `${message}\n${details}` : message,
     });
-  } else if (Notification.permission !== "denied") {
-    Notification.requestPermission().then((permission) => {
+  } else if (window.Notification.permission !== "denied") {
+    window.Notification.requestPermission().then((permission) => {
       if (permission === "granted") {
-        new Notification("Conduit", {
+        new window.Notification("Conduit", {
           body: details ? `${message}\n${details}` : message,
         });
       }
@@ -56,20 +51,12 @@ function showSystemNotification(message: string, details?: string): void {
 }
 
 export function enqueueNotification(
-  options: Omit<AppNotification, "id" | "createdAt"> & {
+  options: Omit<Notification, "id" | "createdAt"> & {
     autoCloseMs?: number;
     system?: boolean;
   },
 ) {
   const { system, autoCloseMs, ...notificationOptions } = options;
-  const id = generateId();
-  const notification: AppNotification = {
-    ...notificationOptions,
-    id,
-    createdAt: Date.now(),
-  };
-
-  store.set(notificationsAtom, (current) => [notification, ...current]);
 
   // Show system notification if requested and app is not visible
   if (system && !isAppVisible()) {
@@ -77,7 +64,17 @@ export function enqueueNotification(
       notificationOptions.message,
       notificationOptions.details,
     );
+    return;
   }
+
+  const id = generateId();
+  const notification: Notification = {
+    ...notificationOptions,
+    id,
+    createdAt: Date.now(),
+  };
+
+  store.set(notificationsAtom, (current) => [notification, ...current]);
 
   if (autoCloseMs && autoCloseMs > 0) {
     scheduleAutoDismiss(id, autoCloseMs);
@@ -88,7 +85,7 @@ export function enqueueNotification(
 
 export function updateNotification(
   id: string,
-  updates: Partial<Omit<AppNotification, "id" | "createdAt">> & {
+  updates: Partial<Omit<Notification, "id" | "createdAt">> & {
     autoCloseMs?: number | null;
   },
 ) {
