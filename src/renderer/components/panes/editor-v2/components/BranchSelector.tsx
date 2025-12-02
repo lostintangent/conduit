@@ -82,6 +82,11 @@ export function BranchSelector({
       setIsLoading(true);
       setIsGitError(false);
       try {
+        // Wait for git API to be ready before querying
+        await git.whenReady();
+
+        if (cancelled) return;
+
         const [branchList, current] = await Promise.all([
           git.getBranches(),
           git.getCurrentBranch(),

@@ -204,6 +204,11 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
     async function loadStatus() {
       setIsLoading(true);
       try {
+        // Wait for git API to be ready before querying
+        await git.whenReady();
+
+        if (cancelled) return;
+
         const status = await git.getStatus();
         if (!cancelled) {
           setGitStatus(status);
