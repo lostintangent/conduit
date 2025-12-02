@@ -66,7 +66,6 @@ export function enqueueNotification(
       notificationOptions.message,
       notificationOptions.details,
     );
-    return;
   }
 
   const id = generateId();
