@@ -44,7 +44,8 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {
     onlyModules: ["node-pty", "@parcel/watcher"],
-    force: true,
+    // Only force rebuild during packaging, not during dev (npm start)
+    force: !!process.env.ELECTRON_FORGE_PACKAGING,
   },
   hooks: {
     packageAfterCopy: async (_, buildPath) => {
