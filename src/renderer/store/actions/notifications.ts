@@ -73,7 +73,10 @@ export function enqueueNotification(
 
   // Show system notification if requested and app is not visible
   if (system && !isAppVisible()) {
-    showSystemNotification(options.message, options.details);
+    showSystemNotification(
+      notificationOptions.message,
+      notificationOptions.details,
+    );
   }
 
   if (autoCloseMs && autoCloseMs > 0) {
