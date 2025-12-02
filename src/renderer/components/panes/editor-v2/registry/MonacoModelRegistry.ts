@@ -57,6 +57,7 @@ import { FileSystemV2APIService } from "../../../../services/FileSystemV2APIServ
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
+import { detectLanguage } from "../utils/languageDetection";
 import { ViewStateRegistry } from "./ViewStateRegistry";
 
 // ============================================================================
@@ -113,46 +114,6 @@ function pathToUri(filePath: string): string {
  */
 function uriToPath(uri: string): string {
   return monaco.Uri.parse(uri).fsPath;
-}
-
-/**
- * Detect language from file path for Monaco.
- */
-function detectLanguage(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase() || "";
-
-  const languageMap: Record<string, string> = {
-    ts: "typescript",
-    tsx: "typescript",
-    js: "javascript",
-    jsx: "javascript",
-    json: "json",
-    md: "markdown",
-    css: "css",
-    scss: "scss",
-    less: "less",
-    html: "html",
-    xml: "xml",
-    yaml: "yaml",
-    yml: "yaml",
-    py: "python",
-    rb: "ruby",
-    go: "go",
-    rs: "rust",
-    java: "java",
-    c: "c",
-    cpp: "cpp",
-    h: "c",
-    hpp: "cpp",
-    sh: "shell",
-    bash: "shell",
-    zsh: "shell",
-    sql: "sql",
-    graphql: "graphql",
-    dockerfile: "dockerfile",
-  };
-
-  return languageMap[ext] || "plaintext";
 }
 
 // ============================================================================

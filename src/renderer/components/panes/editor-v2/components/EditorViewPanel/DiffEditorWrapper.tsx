@@ -28,6 +28,7 @@ import { useEffect, useRef, useCallback } from "react";
 import * as monaco from "monaco-editor";
 import { useDiffContent, useMonacoModel } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
+import { detectLanguage } from "../../utils/languageDetection";
 
 // ============================================================================
 // Types
@@ -85,46 +86,6 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
   };
 
 // ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Infer Monaco language ID from file path.
- */
-function inferLanguageFromPath(filePath: string): string {
-  const extension = filePath.split(".").pop()?.toLowerCase() ?? "";
-
-  const languageMap: Record<string, string> = {
-    ts: "typescript",
-    tsx: "typescript",
-    js: "javascript",
-    jsx: "javascript",
-    json: "json",
-    md: "markdown",
-    css: "css",
-    scss: "scss",
-    html: "html",
-    xml: "xml",
-    yaml: "yaml",
-    yml: "yaml",
-    py: "python",
-    rb: "ruby",
-    go: "go",
-    rs: "rust",
-    java: "java",
-    c: "c",
-    cpp: "cpp",
-    h: "c",
-    hpp: "cpp",
-    sh: "shell",
-    bash: "shell",
-    sql: "sql",
-  };
-
-  return languageMap[extension] ?? "plaintext";
-}
-
-// ============================================================================
 // Component
 // ============================================================================
 
@@ -178,8 +139,8 @@ export function DiffEditorWrapper({
   // Pass editorId to ensure consistent reference counting with other registries
   const modifiedModel = useMonacoModel(editorId, filePath, cwd);
 
-  // Infer language from file path
-  const language = inferLanguageFromPath(filePath);
+  // Detect language from file path
+  const language = detectLanguage(filePath);
 
   // ---------------------------------------------------------------------------
   // Diff Editor Setup

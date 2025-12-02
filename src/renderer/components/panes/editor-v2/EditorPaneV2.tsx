@@ -34,36 +34,11 @@ import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { cn } from "@/utils";
+import { detectLanguage } from "./utils/languageDetection";
 
 // ============================================================================
 // Helpers
 // ============================================================================
-
-/**
- * Detect language from file path for callbacks.
- */
-function detectLanguage(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
-
-  const languageMap: Record<string, string> = {
-    ts: "typescript",
-    tsx: "typescript",
-    js: "javascript",
-    jsx: "javascript",
-    json: "json",
-    md: "markdown",
-    css: "css",
-    scss: "scss",
-    html: "html",
-    py: "python",
-    go: "go",
-    rs: "rust",
-    java: "java",
-    sh: "shell",
-  };
-
-  return languageMap[ext] ?? "plaintext";
-}
 
 /**
  * Compute the parent directory of a given path.

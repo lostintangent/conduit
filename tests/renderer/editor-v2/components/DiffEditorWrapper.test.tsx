@@ -566,5 +566,41 @@ describe("DiffEditorWrapper", () => {
         );
       });
     });
+
+    it("should detect shell for .gitignore (filename-based detection)", async () => {
+      render(
+        <DiffEditorWrapper
+          editorId="test-diff"
+          cwd="/test"
+          filePath="/test/.gitignore"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockCreateModel).toHaveBeenCalledWith(
+          expect.any(String),
+          "shell",
+          expect.anything(),
+        );
+      });
+    });
+
+    it("should detect dockerfile for Dockerfile (filename-based detection)", async () => {
+      render(
+        <DiffEditorWrapper
+          editorId="test-diff"
+          cwd="/test"
+          filePath="/test/Dockerfile"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockCreateModel).toHaveBeenCalledWith(
+          expect.any(String),
+          "dockerfile",
+          expect.anything(),
+        );
+      });
+    });
   });
 });
