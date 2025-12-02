@@ -2,10 +2,14 @@
  * EditorPaneSwitcher - Conditional wrapper for editor pane implementations.
  *
  * Reads the `useEditorV2` feature flag from user settings and renders
- * either the legacy EditorPane (v1) or the new EditorPaneV2.
+ * either the legacy EditorPane (v1) or the new EditorPaneV2 via the
+ * global container pattern (EditorPaneAnchor).
  *
- * This enables gradual rollout of the new editor implementation while
- * maintaining backward compatibility with the existing system.
+ * When useEditorV2 is enabled:
+ * - Renders EditorPaneAnchor (lightweight anchor component)
+ * - The actual EditorPaneV2 is rendered in GlobalEditorContainer
+ * - EditorPaneAnchor.attach() moves the editor DOM to this location
+ * - This prevents mount/unmount during tab switches (no flashing)
  *
  * @example
  * ```tsx
@@ -19,6 +23,8 @@
  *   // ... other props
  * />
  * ```
+ *
+ * @see docs/architecture/editor-global-container-plan.md
  */
 
 import { useAtomValue } from "jotai";
@@ -26,7 +32,7 @@ import { userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
 import type { FileTreeNode } from "@shared/types";
 import { EditorPane } from "./EditorPane";
-import { EditorPaneV2 } from "../editor-v2";
+import { EditorPaneAnchor } from "../editor-v2";
 
 // ============================================================================
 // Types
@@ -75,6 +81,12 @@ export interface EditorPaneSwitcherProps {
 
   /** Hide sandbox indicator for this pane */
   hideIndividualSandboxIndicator?: boolean;
+
+  /**
+   * Whether this editor is being shown in a preview context (tab hover, overview).
+   * When true, an overlay is added to prevent editor interactions.
+   */
+  isInPreview?: boolean;
 }
 
 // ============================================================================
@@ -98,12 +110,14 @@ export function EditorPaneSwitcher({
   isLocked,
   onSave,
   hideIndividualSandboxIndicator,
+  isInPreview,
 }: EditorPaneSwitcherProps) {
   const { useEditorV2 } = useAtomValue(userSettingsAtom);
 
-  // Use EditorPaneV2 when feature flag is enabled
+  // Use EditorPaneV2 via global container pattern when feature flag is enabled
   if (useEditorV2) {
-    // Construct the pane object for EditorPaneV2
+    // Construct the pane object for EditorPaneAnchor
+    // The actual EditorPaneV2 is rendered in GlobalEditorContainer
     const pane = {
       id: paneId,
       type: "editor" as const,
@@ -114,7 +128,8 @@ export function EditorPaneSwitcher({
     };
 
     return (
-      <EditorPaneV2
+      <EditorPaneAnchor
+        paneId={paneId}
         pane={pane}
         onFileChange={onFileChange}
         onClearFile={onClearFile}
@@ -122,6 +137,8 @@ export function EditorPaneSwitcher({
         onFileOpen={onFileOpen}
         onTreeModeChange={onTreeModeChange}
         onSave={onSave}
+        isInPreview={isInPreview}
+        className="h-full w-full"
       />
     );
   }

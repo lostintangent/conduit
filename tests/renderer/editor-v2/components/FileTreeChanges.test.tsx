@@ -16,6 +16,7 @@ const mockOnStatusChanged = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
+const mockWhenReady = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@/hooks/useGitV2", () => ({
   useGitV2: () => ({
@@ -24,13 +25,37 @@ vi.mock("@/hooks/useGitV2", () => ({
     stage: mockStage,
     unstage: mockUnstage,
     revert: mockRevert,
+    whenReady: mockWhenReady,
   }),
+}));
+
+// Mock useGitAvailable hook
+vi.mock("@/hooks/useGitAvailable", () => ({
+  useGitAvailable: () => ({
+    isAvailable: true,
+    isLoading: false,
+  }),
+}));
+
+// Mock EditorPaneRegistry for scroll persistence
+const mockRegistryInstance = {
+  getOrCreate: vi.fn(),
+  registerScrollContainer: vi.fn(),
+  unregisterScrollContainer: vi.fn(),
+  updateScrollPosition: vi.fn(),
+};
+
+vi.mock("@/components/panes/editor-v2/registry/EditorPaneRegistry", () => ({
+  EditorPaneRegistry: {
+    getInstance: vi.fn(() => mockRegistryInstance),
+  },
 }));
 
 // ============================================================================
 // Test Data
 // ============================================================================
 
+const TEST_PANE_ID = "test-pane";
 const TEST_CWD = "/project";
 
 const MOCK_STATUS_WITH_CHANGES = {
@@ -98,6 +123,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -110,6 +136,7 @@ describe("FileTreeChanges", () => {
     it("should render changes view after loading", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -124,6 +151,7 @@ describe("FileTreeChanges", () => {
     it("should call getStatus on mount", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -146,6 +174,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -168,6 +197,7 @@ describe("FileTreeChanges", () => {
     it("should show Staged Changes section when there are staged files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -185,6 +215,7 @@ describe("FileTreeChanges", () => {
     it("should show Changes section when there are unstaged files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -204,6 +235,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -222,6 +254,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -238,6 +271,7 @@ describe("FileTreeChanges", () => {
     it("should display file count in section header", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -263,6 +297,7 @@ describe("FileTreeChanges", () => {
     it("should collapse section when toggle is clicked", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -293,6 +328,7 @@ describe("FileTreeChanges", () => {
     it("should expand collapsed section when toggle is clicked", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -336,6 +372,7 @@ describe("FileTreeChanges", () => {
     it("should call onFileSelect when clicking a file", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -364,6 +401,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={selectedFile}
           onFileSelect={mockOnFileSelect}
@@ -387,6 +425,7 @@ describe("FileTreeChanges", () => {
     it("should show stage button for unstaged files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -410,6 +449,7 @@ describe("FileTreeChanges", () => {
     it("should call stage when stage button is clicked", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -427,12 +467,16 @@ describe("FileTreeChanges", () => {
 
       fireEvent.click(stageButton!);
 
-      expect(mockStage).toHaveBeenCalledWith(["src/index.ts"]);
+      // Wait for async state updates to complete
+      await waitFor(() => {
+        expect(mockStage).toHaveBeenCalledWith(["src/index.ts"]);
+      });
     });
 
     it("should not propagate click event to parent when stage button clicked", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -449,6 +493,11 @@ describe("FileTreeChanges", () => {
       );
 
       fireEvent.click(stageButton!);
+
+      // Wait for async state updates to complete
+      await waitFor(() => {
+        expect(mockStage).toHaveBeenCalled();
+      });
 
       // onFileSelect should NOT be called - click was on action button
       expect(mockOnFileSelect).not.toHaveBeenCalled();
@@ -463,6 +512,7 @@ describe("FileTreeChanges", () => {
     it("should show unstage button for staged files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -484,6 +534,7 @@ describe("FileTreeChanges", () => {
     it("should call unstage when unstage button is clicked", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -501,7 +552,10 @@ describe("FileTreeChanges", () => {
 
       fireEvent.click(unstageButton!);
 
-      expect(mockUnstage).toHaveBeenCalledWith(["src/utils.ts"]);
+      // Wait for async state updates to complete
+      await waitFor(() => {
+        expect(mockUnstage).toHaveBeenCalledWith(["src/utils.ts"]);
+      });
     });
   });
 
@@ -513,6 +567,7 @@ describe("FileTreeChanges", () => {
     it("should show revert button for unstaged files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -533,6 +588,7 @@ describe("FileTreeChanges", () => {
     it("should call revert when revert button is clicked", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -556,6 +612,7 @@ describe("FileTreeChanges", () => {
     it("should not show revert button for staged files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -582,6 +639,7 @@ describe("FileTreeChanges", () => {
     it("should show M badge for modified files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -599,6 +657,7 @@ describe("FileTreeChanges", () => {
     it("should show A badge for added files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -616,6 +675,7 @@ describe("FileTreeChanges", () => {
     it("should show D badge for deleted files", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -639,6 +699,7 @@ describe("FileTreeChanges", () => {
     it("should subscribe to git status changes", async () => {
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -656,6 +717,7 @@ describe("FileTreeChanges", () => {
 
       const { unmount } = render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -682,6 +744,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -699,6 +762,12 @@ describe("FileTreeChanges", () => {
 
       // Should not throw
       fireEvent.click(stageButton!);
+
+      // Wait for async error handling to complete
+      await waitFor(() => {
+        expect(mockStage).toHaveBeenCalled();
+      });
+
       expect(true).toBe(true);
     });
 
@@ -707,6 +776,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -724,6 +794,12 @@ describe("FileTreeChanges", () => {
 
       // Should not throw
       fireEvent.click(unstageButton!);
+
+      // Wait for async error handling to complete
+      await waitFor(() => {
+        expect(mockUnstage).toHaveBeenCalled();
+      });
+
       expect(true).toBe(true);
     });
 
@@ -732,6 +808,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -749,6 +826,12 @@ describe("FileTreeChanges", () => {
 
       // Should not throw
       fireEvent.click(revertButton!);
+
+      // Wait for async error handling to complete
+      await waitFor(() => {
+        expect(mockRevert).toHaveBeenCalled();
+      });
+
       expect(true).toBe(true);
     });
   });
@@ -779,6 +862,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}

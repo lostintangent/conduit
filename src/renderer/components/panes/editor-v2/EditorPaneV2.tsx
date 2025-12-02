@@ -328,45 +328,7 @@ export function EditorPaneV2({
   useEffect(() => {
     let cancelled = false;
 
-    // Load initial status
-    git
-      .getStatus()
-      .then((status) => {
-        if (!cancelled) {
-          updateGitStatusState(status);
-        }
-      })
-      .catch((error) => {
-        // Log error but don't crash - git status is non-critical
-        console.error("[EditorPaneV2] Failed to load git status:", error);
-      });
-
-    // Load current branch
-    git
-      .getCurrentBranch()
-      .then((branch) => {
-        if (!cancelled) {
-          setCurrentBranch(branch);
-        }
-      })
-      .catch((error) => {
-        console.error("[EditorPaneV2] Failed to load current branch:", error);
-      });
-
-    // Load upstream status
-    git
-      .getStatus()
-      .then((status) => {
-        if (!cancelled && status) {
-          // Check if upstream is configured
-          setHasUpstream(!!status.upstream);
-        }
-      })
-      .catch((error) => {
-        console.error("[EditorPaneV2] Failed to load upstream status:", error);
-      });
-
-    // Subscribe to status changes
+    // Subscribe to status changes (can set up immediately - will receive events when ready)
     const statusCleanup = git.onStatusChanged((event) => {
       if (!cancelled) {
         updateGitStatusState(event.status);
@@ -379,6 +341,39 @@ export function EditorPaneV2({
         setCurrentBranch(event.currentBranch);
       }
     });
+
+    // Load initial data after git API is ready
+    // This is important for the global container pattern where the first editor
+    // might mount before the git API has received its initial data from IPC
+    const loadInitialData = async () => {
+      try {
+        // Wait for git subscription to be ready before querying
+        await git.whenReady();
+
+        if (cancelled) return;
+
+        // Load initial status
+        const status = await git.getStatus();
+        if (!cancelled) {
+          updateGitStatusState(status);
+          // Check if upstream is configured
+          if (status) {
+            setHasUpstream(!!status.upstream);
+          }
+        }
+
+        // Load current branch
+        const branch = await git.getCurrentBranch();
+        if (!cancelled) {
+          setCurrentBranch(branch);
+        }
+      } catch (error) {
+        // Log error but don't crash - git status is non-critical
+        console.error("[EditorPaneV2] Failed to load initial git data:", error);
+      }
+    };
+
+    loadInitialData();
 
     return () => {
       cancelled = true;
@@ -743,6 +738,7 @@ export function EditorPaneV2({
         tabIndex={-1}
       >
         <FileTreePanel
+          paneId={pane.id}
           cwd={currentCwd}
           selectedFile={selectedFile}
           onFileSelect={handleFileSelect}

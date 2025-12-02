@@ -1,4 +1,5 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import { disposeEditorPane } from "@/components/panes/editor-v2";
 import {
   detachPane,
   removePane,
@@ -317,6 +318,7 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   }
 
   const sessionsToClose: string[] = [];
+  const editorPaneIdsToDispose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
   const previousActiveTabId = store.get(activeTabIdAtom);
@@ -335,6 +337,8 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
 
           if (pane.type === "terminal") {
             sessionsToClose.push(pane.sessionId);
+          } else if (pane.type === "editor") {
+            editorPaneIdsToDispose.push(pane.id);
           }
         });
         return;
@@ -374,7 +378,12 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
     }
   });
 
+  // Close terminal sessions
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
+
+  // Dispose editor panes from EditorPaneRegistry
+  // This fully removes editors (vs detach which just moves them off-screen)
+  editorPaneIdsToDispose.forEach((paneId) => disposeEditorPane(paneId));
 
   if (shouldOpenReplacement) {
     openTab();

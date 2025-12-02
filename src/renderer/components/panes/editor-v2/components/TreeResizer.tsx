@@ -20,7 +20,7 @@
  * ```
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 // ============================================================================
 // Types
@@ -65,6 +65,7 @@ export function TreeResizer({
   onResizeEnd,
 }: TreeResizerProps) {
   const [isResizing, setIsResizing] = useState(false);
+  const resizerRef = useRef<HTMLDivElement>(null);
 
   // Prevent unused variable warning - currentWidth is used by parent for positioning
   void currentWidth;
@@ -93,13 +94,15 @@ export function TreeResizer({
   useEffect(() => {
     if (!isResizing) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Find the editor pane container to calculate position relative to it
-      const container = document.querySelector(
-        '[data-testid="editor-pane-v2"]',
-      );
-      if (!container) return;
+    // Find the closest ancestor editor pane container
+    // Using closest() instead of querySelector() to support multiple editors
+    // in the global container pattern
+    const container = resizerRef.current?.closest(
+      '[data-testid="editor-pane-v2"]',
+    );
+    if (!container) return;
 
+    const handleMouseMove = (e: MouseEvent) => {
       const containerRect = container.getBoundingClientRect();
       const newWidth = e.clientX - containerRect.left;
 
@@ -140,6 +143,7 @@ export function TreeResizer({
 
   return (
     <div
+      ref={resizerRef}
       className="relative flex items-center justify-center w-px"
       data-testid="tree-resizer"
     >

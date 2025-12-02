@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
+import { useScrollPersistence } from "../../hooks/useScrollPersistence";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { cn } from "@/utils";
@@ -47,6 +48,9 @@ import { GitBadge, getStatusConfig } from "../shared";
 // ============================================================================
 
 export interface FileTreeChangesProps {
+  /** Editor pane ID (for scroll persistence) */
+  paneId: string;
+
   /** Working directory */
   cwd: string;
 
@@ -702,6 +706,13 @@ function useGitStatus(cwd: string) {
       setIsLoading(true);
       setIsNotGitRepo(false);
       try {
+        // Wait for git API to be ready before querying
+        // This is important for the global container pattern where the component
+        // might mount before the git API has received its initial data from IPC
+        await git.whenReady();
+
+        if (cancelled) return;
+
         const status = await git.getStatus();
         if (!cancelled) {
           if (status === null) {
@@ -813,11 +824,19 @@ function useGitStatus(cwd: string) {
  * - Nested: Files organized in expandable folder hierarchy
  */
 export function FileTreeChanges({
+  paneId,
   cwd,
   selectedFile,
   onFileSelect,
   viewMode = "flat",
 }: FileTreeChangesProps) {
+  // ---------------------------------------------------------------------------
+  // Scroll Persistence
+  // ---------------------------------------------------------------------------
+
+  // Callback ref for scroll persistence across DOM moves
+  const scrollContainerRef = useScrollPersistence(paneId, "changesTree");
+
   // ---------------------------------------------------------------------------
   // Hooks
   // ---------------------------------------------------------------------------
@@ -1098,7 +1117,10 @@ export function FileTreeChanges({
   return (
     <div className="flex flex-col h-full" data-testid="file-tree-changes">
       {/* Changes content */}
-      <nav className="overflow-auto flex-1 h-full px-3 text-[13px] text-white/80">
+      <nav
+        ref={scrollContainerRef}
+        className="overflow-auto flex-1 h-full px-3 text-[13px] text-white/80"
+      >
         {/* Staged Changes Section */}
         {stagedFiles.length > 0 && (
           <Section

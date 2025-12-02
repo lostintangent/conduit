@@ -5,8 +5,10 @@
  * - EditorRegistry: Monaco editor instances
  * - MonacoModelRegistry: Monaco text models (one per file)
  * - ViewStateRegistry: Monaco ViewState per (editor, file) pair
+ * - EditorPaneRegistry: EditorPaneV2 component instances (global container pattern)
  *
  * @see docs/architecture/editor-v2-design-narrative.md (Part III: State Management)
+ * @see docs/architecture/editor-global-container-plan.md
  */
 
 export { EditorRegistry } from "./EditorRegistry";
@@ -16,6 +18,11 @@ export {
   uriToPath,
 } from "./MonacoModelRegistry";
 export { ViewStateRegistry } from "./ViewStateRegistry";
+export {
+  EditorPaneRegistry,
+  type EditorPaneConfig,
+  type EditorPaneRegistryEvent,
+} from "./EditorPaneRegistry";
 
 // Re-export FileTooLargeError for convenience
 export { FileTooLargeError } from "../types";

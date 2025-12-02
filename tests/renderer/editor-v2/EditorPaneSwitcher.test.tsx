@@ -26,11 +26,17 @@ vi.mock("@/components/panes/editor/EditorPane", () => ({
   ),
 }));
 
-// Mock the EditorPaneV2 component
+// Mock the EditorPaneAnchor component (used by global container pattern)
 vi.mock("@/components/panes/editor-v2", () => ({
-  EditorPaneV2: ({ pane }: { pane: { id: string; cwd: string } }) => (
-    <div data-testid="editor-pane-v2" data-paneid={pane.id} data-cwd={pane.cwd}>
-      Editor V2
+  EditorPaneAnchor: ({
+    paneId,
+    pane,
+  }: {
+    paneId: string;
+    pane: { id: string; cwd: string };
+  }) => (
+    <div data-testid="editor-pane-v2" data-paneid={paneId} data-cwd={pane.cwd}>
+      Editor V2 (via EditorPaneAnchor)
     </div>
   ),
 }));

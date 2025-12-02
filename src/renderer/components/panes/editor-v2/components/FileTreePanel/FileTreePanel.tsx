@@ -36,6 +36,9 @@ import { cn } from "@/utils";
 // ============================================================================
 
 export interface FileTreePanelProps {
+  /** Editor pane ID (for scroll persistence) */
+  paneId: string;
+
   /** Working directory (root of the tree) */
   cwd: string;
 
@@ -151,6 +154,7 @@ export interface FileTreePanelProps {
  * Main file tree panel with view mode toggle.
  */
 export function FileTreePanel({
+  paneId,
   cwd,
   selectedFile,
   onFileSelect,
@@ -260,6 +264,7 @@ export function FileTreePanel({
           )}
         >
           <FileTreeNormal
+            paneId={paneId}
             cwd={cwd}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
@@ -276,6 +281,7 @@ export function FileTreePanel({
           )}
         >
           <FileTreeChanges
+            paneId={paneId}
             cwd={cwd}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}

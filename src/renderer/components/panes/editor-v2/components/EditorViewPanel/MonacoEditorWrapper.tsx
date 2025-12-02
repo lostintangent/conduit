@@ -59,6 +59,17 @@ export interface MonacoEditorWrapperProps {
 
   /** Callback when editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
+
+  /**
+   * External visibility notification (optional alternative approach).
+   * When provided, the wrapper will trigger layout when visibility changes.
+   * Increment this value to notify that the editor has become visible.
+   *
+   * Note: The global container pattern uses EditorPaneRegistry.notifyVisible()
+   * instead, which is the recommended approach. This prop is available for
+   * alternative implementations or testing.
+   */
+  visibilityKey?: number;
 }
 
 // ============================================================================
@@ -107,6 +118,7 @@ export function MonacoEditorWrapper({
   readOnly = false,
   onChange,
   onMount,
+  visibilityKey,
 }: MonacoEditorWrapperProps) {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -362,6 +374,21 @@ export function MonacoEditorWrapper({
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [editorId]);
+
+  // ---------------------------------------------------------------------------
+  // Visibility Change Handler
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    // Skip if no visibility key provided or on first render
+    if (visibilityKey === undefined) return;
+
+    const editorRegistry = EditorRegistry.getInstance();
+
+    // Trigger layout when visibility key changes (indicates container became visible)
+    // Use the registry's triggerLayout for proper debouncing
+    editorRegistry.triggerLayout(editorId, false);
+  }, [editorId, visibilityKey]);
 
   // ---------------------------------------------------------------------------
   // Focus Handler

@@ -497,6 +497,7 @@ export function TabLayout({
                     })
                   }
                   hideIndividualSandboxIndicator={hasUnifiedSandbox}
+                  isInPreview={isInPreview}
                 />
               </div>
             ) : (

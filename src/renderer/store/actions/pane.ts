@@ -1,3 +1,4 @@
+import { disposeEditorPane } from "@/components/panes/editor-v2";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
@@ -897,6 +898,10 @@ export function removePane(
           api.closeTerminal(pane.sessionId);
         }
         disposeSession(pane.sessionId);
+      } else if (pane.type === "editor") {
+        // Dispose the editor pane from EditorPaneRegistry
+        // This fully removes the editor (vs detach which just moves it off-screen)
+        disposeEditorPane(pane.id);
       }
 
       const newPanes = { ...tab.panes };

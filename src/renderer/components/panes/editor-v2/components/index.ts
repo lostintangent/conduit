@@ -86,3 +86,6 @@ export type { GitBadgeProps } from "./shared";
 // Git operations components
 export { GitOperationsToolbar } from "./GitOperationsToolbar";
 export type { GitOperationsToolbarProps } from "./GitOperationsToolbar";
+
+// Global container for editor panes (keeps editors alive across tab switches)
+export { GlobalEditorContainer } from "./GlobalEditorContainer";

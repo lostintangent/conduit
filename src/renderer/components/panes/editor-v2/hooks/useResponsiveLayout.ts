@@ -27,7 +27,7 @@
  * ```
  */
 
-import { useEffect, useState, RefObject } from "react";
+import { useEffect, useState, RefObject, useRef } from "react";
 
 /**
  * Layout mode based on container width.
@@ -58,6 +58,7 @@ export function useResponsiveLayout(
   breakpoint: number = BREAKPOINT_WIDTH,
 ): LayoutMode {
   const [layout, setLayout] = useState<LayoutMode>("split");
+  const lastLayoutRef = useRef<LayoutMode>("split");
 
   useEffect(() => {
     const container = containerRef.current;
@@ -83,9 +84,14 @@ export function useResponsiveLayout(
 
       const width = entry.contentRect.width;
 
+      // Skip if width is 0 (container is in off-screen global container)
+      // Keep current layout mode until attached to a visible container
+      if (width === 0) return;
+
       // Debounce the state update
       timeoutId = setTimeout(() => {
         const newLayout = calculateLayout(width);
+        lastLayoutRef.current = newLayout;
         setLayout(newLayout);
         timeoutId = null;
       }, DEBOUNCE_MS);
@@ -98,8 +104,16 @@ export function useResponsiveLayout(
     observer.observe(container);
 
     // Set initial layout synchronously (no debounce for initial render)
-    const initialWidth = container.getBoundingClientRect().width;
-    setLayout(calculateLayout(initialWidth));
+    // Use offsetWidth instead of getBoundingClientRect().width because
+    // offsetWidth is not affected by CSS transforms (e.g., scale in preview mode)
+    // Skip if width is 0 (container is in off-screen global container)
+    // to keep the default "split" mode until attached to visible container
+    const initialWidth = container.offsetWidth;
+    if (initialWidth > 0) {
+      const initialLayout = calculateLayout(initialWidth);
+      lastLayoutRef.current = initialLayout;
+      setLayout(initialLayout);
+    }
 
     // Cleanup
     return () => {

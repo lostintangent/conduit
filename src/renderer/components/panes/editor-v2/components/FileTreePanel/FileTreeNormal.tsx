@@ -35,6 +35,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
+import { useScrollPersistence } from "../../hooks/useScrollPersistence";
+
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
@@ -45,6 +47,9 @@ import { FileTreeItem } from "./FileTreeItem";
 // ============================================================================
 
 export interface FileTreeNormalProps {
+  /** Editor pane ID (for scroll persistence) */
+  paneId: string;
+
   /** Working directory (root of the tree) */
   cwd: string;
 
@@ -102,6 +107,7 @@ function getRelativePath(fullPath: string, cwd: string): string {
  * Normal file tree showing directory structure.
  */
 export function FileTreeNormal({
+  paneId,
   cwd,
   selectedFile,
   onFileSelect,
@@ -111,6 +117,9 @@ export function FileTreeNormal({
   // APIs
   const fs = useFileSystemV2(cwd);
   const git = useGitV2(cwd);
+
+  // Callback ref for scroll persistence across DOM moves
+  const scrollContainerRef = useScrollPersistence(paneId, "fileTree");
 
   // State
   const [directoryCache, setDirectoryCache] = useState<DirectoryCache>({});
@@ -141,6 +150,11 @@ export function FileTreeNormal({
         if (!cancelled) {
           setDirectoryCache((prev) => ({ ...prev, [cwd]: entries }));
         }
+
+        // Wait for git API to be ready before querying
+        await git.whenReady();
+
+        if (cancelled) return;
 
         // Load git status
         const status = await git.getStatus();
@@ -211,6 +225,11 @@ export function FileTreeNormal({
     async function loadChangedFiles() {
       setIsLoadingComparison(true);
       try {
+        // Wait for git API to be ready before querying
+        await git.whenReady();
+
+        if (cancelled) return;
+
         const files = await git.getChangedFilesFromBranch(baseBranch);
         if (!cancelled) {
           setChangedFilesFromBranch(files);
@@ -466,6 +485,7 @@ export function FileTreeNormal({
   if (baseBranch) {
     return (
       <nav
+        ref={scrollContainerRef}
         className="overflow-auto h-full px-3 text-[13px] text-white/80"
         data-testid="file-tree-branch-comparison"
       >
@@ -477,6 +497,7 @@ export function FileTreeNormal({
   // Normal mode: show directory tree
   return (
     <nav
+      ref={scrollContainerRef}
       className="overflow-auto h-full px-3 text-[13px] text-white/80"
       data-testid="file-tree-normal"
     >

@@ -21,3 +21,6 @@ export type {
   UseGitOperationsResult,
 } from "./useGitOperations";
 export { useEditorTheme } from "./useEditorTheme";
+export { useEditorVisibility } from "./useEditorVisibility";
+export type { UseEditorVisibilityOptions } from "./useEditorVisibility";
+export { useScrollPersistence } from "./useScrollPersistence";

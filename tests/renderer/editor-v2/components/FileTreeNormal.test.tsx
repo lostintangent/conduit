@@ -4,38 +4,62 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { FileTreeNormal } from "../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
 
 // ============================================================================
-// Mocks
+// Mocks - MUST BE BEFORE COMPONENT IMPORT
 // ============================================================================
 
-// Mock useFileSystemV2 hook
+// Mock useFileSystemV2 hook - use stable references
 const mockReadDirectory = vi.fn();
 const mockOnDirectoryListingChanged = vi.fn();
 
+// Create stable API object
+const stableFSAPI = {
+  readDirectory: mockReadDirectory,
+  onDirectoryListingChanged: mockOnDirectoryListingChanged,
+};
+
 vi.mock("@/hooks/useFileSystemV2", () => ({
-  useFileSystemV2: () => ({
-    readDirectory: mockReadDirectory,
-    onDirectoryListingChanged: mockOnDirectoryListingChanged,
-  }),
+  useFileSystemV2: () => stableFSAPI,
 }));
 
-// Mock useGitV2 hook
+// Mock useGitV2 hook - use stable references
 const mockGetStatus = vi.fn();
 const mockOnStatusChanged = vi.fn();
+const mockWhenReady = vi.fn().mockResolvedValue(undefined);
+
+// Create stable API object
+const stableGitAPI = {
+  getStatus: mockGetStatus,
+  onStatusChanged: mockOnStatusChanged,
+  whenReady: mockWhenReady,
+};
 
 vi.mock("@/hooks/useGitV2", () => ({
-  useGitV2: () => ({
-    getStatus: mockGetStatus,
-    onStatusChanged: mockOnStatusChanged,
+  useGitV2: () => stableGitAPI,
+}));
+
+// Mock useGitAvailable hook
+vi.mock("@/hooks/useGitAvailable", () => ({
+  useGitAvailable: () => ({
+    isAvailable: true,
+    isLoading: false,
   }),
 }));
+
+// Mock useScrollPersistence
+vi.mock("@/components/panes/editor-v2/hooks/useScrollPersistence", () => ({
+  useScrollPersistence: () => vi.fn(),
+}));
+
+// NOW import component AFTER mocks
+import { FileTreeNormal } from "../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
 
 // ============================================================================
 // Test Data
 // ============================================================================
 
+const TEST_PANE_ID = "test-pane";
 const TEST_CWD = "/project";
 
 const MOCK_DIRECTORY_ENTRIES = [
@@ -91,6 +115,7 @@ describe("FileTreeNormal", () => {
 
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -103,6 +128,7 @@ describe("FileTreeNormal", () => {
     it("should render root directory entries after loading", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -122,6 +148,7 @@ describe("FileTreeNormal", () => {
     it("should call readDirectory with cwd on mount", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -136,6 +163,7 @@ describe("FileTreeNormal", () => {
     it("should call getStatus on mount", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -156,6 +184,7 @@ describe("FileTreeNormal", () => {
     it("should show directories before files", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -167,7 +196,6 @@ describe("FileTreeNormal", () => {
       });
 
       // First item should be the directory (src)
-      // The tree-item-src should appear before tree-item-package.json
       const srcItem = screen.getByTestId("tree-item-src");
       expect(srcItem.getAttribute("data-type")).toBe("directory");
     });
@@ -181,6 +209,7 @@ describe("FileTreeNormal", () => {
     it("should call onFileSelect when clicking a file", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -209,6 +238,7 @@ describe("FileTreeNormal", () => {
 
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={selectedFile}
           onFileSelect={mockOnFileSelect}
@@ -232,6 +262,7 @@ describe("FileTreeNormal", () => {
     it("should load subdirectory contents when expanding", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -242,9 +273,7 @@ describe("FileTreeNormal", () => {
         expect(screen.getByTestId("file-tree-normal")).toBeDefined();
       });
 
-      // Find the expand button for the src directory specifically
       const srcItem = screen.getByTestId("tree-item-src");
-      // The toggle button is a sibling within the same parent container
       const fileTreeItem = srcItem.closest('[data-testid="file-tree-item"]');
       const toggleButton = fileTreeItem?.querySelector(
         '[data-testid="toggle-expand"]',
@@ -253,7 +282,6 @@ describe("FileTreeNormal", () => {
       expect(toggleButton).not.toBeNull();
       fireEvent.click(toggleButton!);
 
-      // After clicking, readDirectory should be called for /project/src
       await waitFor(() => {
         expect(mockReadDirectory).toHaveBeenCalledWith("/project/src");
       });
@@ -262,6 +290,7 @@ describe("FileTreeNormal", () => {
     it("should have expand toggle for directories", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -272,7 +301,6 @@ describe("FileTreeNormal", () => {
         expect(screen.getByTestId("file-tree-normal")).toBeDefined();
       });
 
-      // The expand toggle should be visible for directory
       const toggleButton = screen.getByTestId("toggle-expand");
       expect(toggleButton).toBeDefined();
     });
@@ -286,6 +314,7 @@ describe("FileTreeNormal", () => {
     it("should show git status badges for modified files", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -296,8 +325,6 @@ describe("FileTreeNormal", () => {
         expect(screen.getByTestId("file-tree-normal")).toBeDefined();
       });
 
-      // package.json is in MOCK_GIT_STATUS as modified (staged)
-      // Should have a status badge (M for modified)
       const packageItem = screen.getByTestId("tree-item-package.json");
       expect(packageItem.textContent).toContain("M");
     });
@@ -311,6 +338,7 @@ describe("FileTreeNormal", () => {
     it("should subscribe to directory listing changes", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -325,6 +353,7 @@ describe("FileTreeNormal", () => {
     it("should subscribe to git status changes", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -344,6 +373,7 @@ describe("FileTreeNormal", () => {
 
       const { unmount } = render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -369,16 +399,15 @@ describe("FileTreeNormal", () => {
     it("should handle readDirectory errors gracefully", async () => {
       mockReadDirectory.mockRejectedValueOnce(new Error("Permission denied"));
 
-      // Should not throw
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
       );
 
-      // Just ensure no crash - loading state should remain or component recovers
       expect(true).toBe(true);
     });
 
@@ -387,13 +416,13 @@ describe("FileTreeNormal", () => {
 
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
       );
 
-      // Should still render the tree without git status
       await waitFor(() => {
         expect(screen.getByTestId("file-tree-normal")).toBeDefined();
       });
@@ -408,6 +437,7 @@ describe("FileTreeNormal", () => {
     it("should have file-tree-normal test id", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -422,6 +452,7 @@ describe("FileTreeNormal", () => {
     it("should have data-path attributes on items", async () => {
       render(
         <FileTreeNormal
+          paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}

@@ -6,6 +6,7 @@ import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { TabsOverview } from "@/components/layout/overview/TabsOverview";
+import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import { FloatingTerminal } from "@/components/layout/quick/FloatingTerminal";
 import {
   QuickDialog,
@@ -799,6 +800,9 @@ export function App() {
       />
 
       <TabContentPortalProvider>
+        {/* Global container for editor panes - keeps editors alive across tab switches */}
+        <GlobalEditorContainer />
+
         {/* Top positioned tabs */}
         {tabPosition === "top" && !shouldUseDrawer && (
           <TabStrip

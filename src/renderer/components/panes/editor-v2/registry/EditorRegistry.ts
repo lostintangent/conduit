@@ -59,6 +59,9 @@ interface EditorEntryInternal {
 /** Default maximum number of editors to keep in the registry */
 const DEFAULT_MAX_EDITORS = 15;
 
+/** Debounce delay for layout calls (ms) - prevents excessive layouts during animations */
+const LAYOUT_DEBOUNCE_MS = 16; // One frame at 60fps
+
 // ============================================================================
 // EditorRegistry
 // ============================================================================
@@ -121,6 +124,9 @@ export class EditorRegistry {
 
   /** Maximum number of editors to keep (for LRU eviction) */
   private maxEditors: number = DEFAULT_MAX_EDITORS;
+
+  /** Map of editor ID to pending layout debounce timer */
+  private layoutTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   /** Private constructor - use getInstance() */
   private constructor() {}
@@ -207,6 +213,13 @@ export class EditorRegistry {
       return;
     }
 
+    // Clear any pending layout timer
+    const layoutTimer = this.layoutTimers.get(editorId);
+    if (layoutTimer) {
+      clearTimeout(layoutTimer);
+      this.layoutTimers.delete(editorId);
+    }
+
     // Clear ViewState for this editor (cross-registry cleanup)
     // This prevents memory leaks when editors are disposed via LRU eviction
     ViewStateRegistry.getInstance().clearEditor(editorId);
@@ -268,11 +281,74 @@ export class EditorRegistry {
   }
 
   /**
+   * Trigger a layout recalculation for an editor.
+   *
+   * This is debounced to prevent excessive layout calls during animations
+   * or rapid visibility changes. Call this when:
+   * - An editor's container becomes visible after being hidden
+   * - An editor is moved to a new container
+   * - The container is resized
+   *
+   * @param editorId - The editor ID to layout
+   * @param immediate - If true, skip debouncing and layout immediately
+   */
+  triggerLayout(editorId: string, immediate = false): void {
+    const entry = this.editors.get(editorId);
+    if (!entry) return;
+
+    // Clear any existing debounce timer for this editor
+    const existingTimer = this.layoutTimers.get(editorId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      this.layoutTimers.delete(editorId);
+    }
+
+    const doLayout = () => {
+      this.layoutTimers.delete(editorId);
+      // Use requestAnimationFrame to ensure layout happens after DOM updates
+      requestAnimationFrame(() => {
+        const currentEntry = this.editors.get(editorId);
+        if (currentEntry) {
+          currentEntry.editor.layout();
+        }
+      });
+    };
+
+    if (immediate) {
+      doLayout();
+    } else {
+      // Debounce the layout call
+      const timer = setTimeout(doLayout, LAYOUT_DEBOUNCE_MS);
+      this.layoutTimers.set(editorId, timer);
+    }
+  }
+
+  /**
+   * Trigger layout for all editors.
+   *
+   * Useful when the application window is resized or visibility changes globally.
+   *
+   * @param immediate - If true, skip debouncing
+   */
+  triggerLayoutAll(immediate = false): void {
+    for (const editorId of this.editors.keys()) {
+      this.triggerLayout(editorId, immediate);
+    }
+  }
+
+  /**
    * Dispose all editors and clear the registry.
    *
    * Used during shutdown or testing cleanup.
    */
   disposeAll(): void {
+    // Clear all layout timers first
+    for (const timer of this.layoutTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.layoutTimers.clear();
+
+    // Dispose all editors
     for (const [editorId, entry] of this.editors) {
       try {
         entry.editor.dispose();

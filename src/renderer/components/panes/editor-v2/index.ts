@@ -17,6 +17,10 @@
 export { EditorPaneV2 } from "./EditorPaneV2";
 export type { EditorPaneV2Props, FileChangeData } from "./EditorPaneV2";
 
+// Anchor component for global container pattern
+export { EditorPaneAnchor, disposeEditorPane } from "./EditorPaneAnchor";
+export type { EditorPaneAnchorProps } from "./EditorPaneAnchor";
+
 // Re-export types
 export type {
   FileNode,
@@ -33,16 +37,24 @@ export {
   useModelState,
   useDiffContent,
   useResponsiveLayout,
+  useEditorVisibility,
 } from "./hooks";
 
-export type { DiffContent, LayoutMode } from "./hooks";
+export type {
+  DiffContent,
+  LayoutMode,
+  UseEditorVisibilityOptions,
+} from "./hooks";
 
 // Re-export registries
 export {
   EditorRegistry,
   MonacoModelRegistry,
   ViewStateRegistry,
+  EditorPaneRegistry,
 } from "./registry";
+
+export type { EditorPaneConfig, EditorPaneRegistryEvent } from "./registry";
 
 // Re-export components for advanced usage
 export {
@@ -54,6 +66,7 @@ export {
   ChangesReviewPane,
   FileChangeDiff,
   BranchSelector,
+  GlobalEditorContainer,
 } from "./components";
 
 export type { BranchSelectorProps } from "./components";
