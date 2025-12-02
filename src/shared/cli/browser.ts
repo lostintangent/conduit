@@ -308,7 +308,7 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
         },
       ],
       automation: "focus",
-      buildArgs: (handle, options) => ({
+      buildArgs: ([handle], options) => ({
         paneId: options.pane,
         handle,
         scroll: options.scroll,
