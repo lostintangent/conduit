@@ -33,16 +33,12 @@ export default function (program: Command): Command {
     );
 
   program
-    .cliCommand(
-      "notify",
-      async (request, messageParts: string[], { persistent }) => {
-        const message = messageParts.join(" ");
-        await request({ message, persistent: !!persistent });
-      },
-    )
+    .cliCommand("notify", async (request, messageParts: string[]) => {
+      const message = messageParts.join(" ");
+      await request({ message });
+    })
     .description("Display a notification")
-    .argument("<message...>", "The notification message to display")
-    .option("-p, --persistent", "Don't auto-hide the notification");
+    .argument("<message...>", "The notification message to display");
 
   return program;
 }

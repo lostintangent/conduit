@@ -26,7 +26,6 @@ export const notificationHandlers: Partial<HandlerMap> = {
     const notificationId = enqueueNotification({
       kind: "info",
       message: args.message,
-      persistent: args.persistent ?? false,
       system: true,
       actions: !isAlreadyActive
         ? [
