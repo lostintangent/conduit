@@ -67,7 +67,7 @@ async function createWindow() {
     },
     frame: false,
     transparent: true,
-    backgroundColor: "#171717",
+    backgroundColor: "#00000000",
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
