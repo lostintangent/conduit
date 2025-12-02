@@ -1,4 +1,4 @@
-import { Notification } from "@/types";
+import { Notification as AppNotification } from "@/types";
 import { generateId } from "@/utils/id";
 import { getDefaultStore } from "jotai";
 import { notificationsAtom } from "../atoms";
@@ -23,22 +23,61 @@ function clearAutoDismiss(id: string) {
   }
 }
 
+/**
+ * Checks if the application window is currently visible to the user.
+ * Returns false if the document is hidden or the window doesn't have focus.
+ */
+function isAppVisible(): boolean {
+  return !document.hidden && document.hasFocus();
+}
+
+/**
+ * Shows a system-level notification using the browser's Notification API.
+ * Falls back to in-app notification if system notifications are not available.
+ */
+function showSystemNotification(message: string, details?: string): void {
+  if (!("Notification" in window)) {
+    return;
+  }
+
+  if (Notification.permission === "granted") {
+    new Notification("Conduit", {
+      body: details ? `${message}\n${details}` : message,
+    });
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        new Notification("Conduit", {
+          body: details ? `${message}\n${details}` : message,
+        });
+      }
+    });
+  }
+}
+
 export function enqueueNotification(
-  options: Omit<Notification, "id" | "createdAt"> & {
+  options: Omit<AppNotification, "id" | "createdAt"> & {
     autoCloseMs?: number;
+    system?: boolean;
   },
 ) {
+  const { system, autoCloseMs, ...notificationOptions } = options;
   const id = generateId();
-  const notification: Notification = {
-    ...options,
+  const notification: AppNotification = {
+    ...notificationOptions,
     id,
     createdAt: Date.now(),
   };
 
   store.set(notificationsAtom, (current) => [notification, ...current]);
 
-  if (options.autoCloseMs && options.autoCloseMs > 0) {
-    scheduleAutoDismiss(id, options.autoCloseMs);
+  // Show system notification if requested and app is not visible
+  if (system && !isAppVisible()) {
+    showSystemNotification(options.message, options.details);
+  }
+
+  if (autoCloseMs && autoCloseMs > 0) {
+    scheduleAutoDismiss(id, autoCloseMs);
   }
 
   return id;
@@ -46,7 +85,7 @@ export function enqueueNotification(
 
 export function updateNotification(
   id: string,
-  updates: Partial<Omit<Notification, "id" | "createdAt">> & {
+  updates: Partial<Omit<AppNotification, "id" | "createdAt">> & {
     autoCloseMs?: number | null;
   },
 ) {
