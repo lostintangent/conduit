@@ -656,6 +656,28 @@ function useChangesViewState() {
     [],
   );
 
+  /**
+   * Expand folders for specific file paths (additive).
+   * Used when new dirty files appear - expands their parent folders
+   * without collapsing folders the user manually collapsed.
+   */
+  const expandFoldersForPaths = useCallback((paths: string[]) => {
+    if (paths.length === 0) return;
+
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      for (const path of paths) {
+        const parts = path.split("/");
+        let currentPath = "";
+        for (let i = 0; i < parts.length - 1; i++) {
+          currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+          next.add(currentPath);
+        }
+      }
+      return next;
+    });
+  }, []);
+
   return {
     stagedExpanded,
     setStagedExpanded,
@@ -664,6 +686,7 @@ function useChangesViewState() {
     expandedFolders,
     toggleFolder,
     expandAllFolders,
+    expandFoldersForPaths,
   };
 }
 
@@ -860,6 +883,7 @@ export function FileTreeChanges({
     expandedFolders,
     toggleFolder,
     expandAllFolders,
+    expandFoldersForPaths,
   } = useChangesViewState();
 
   // ---------------------------------------------------------------------------
@@ -964,6 +988,46 @@ export function FileTreeChanges({
     }
     prevViewModeRef.current = viewMode;
   }, [viewMode, expandAllFolders, stagedFiles, unstagedFiles]);
+
+  /**
+   * Auto-expand folders for newly added dirty files while in nested view.
+   * This is additive - it won't collapse folders the user manually collapsed.
+   */
+  const prevFilePathsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    // Only auto-expand when in nested view
+    if (viewMode !== "nested") {
+      // Update tracking but don't expand
+      const allPaths = new Set([
+        ...stagedFiles.map(([p]) => p),
+        ...unstagedFiles.map(([p]) => p),
+      ]);
+      prevFilePathsRef.current = allPaths;
+      return;
+    }
+
+    // Get current file paths
+    const currentPaths = new Set([
+      ...stagedFiles.map(([p]) => p),
+      ...unstagedFiles.map(([p]) => p),
+    ]);
+
+    // Find newly added paths (paths that weren't in the previous set)
+    const newPaths: string[] = [];
+    for (const path of currentPaths) {
+      if (!prevFilePathsRef.current.has(path)) {
+        newPaths.push(path);
+      }
+    }
+
+    // Expand folders for new paths
+    if (newPaths.length > 0) {
+      expandFoldersForPaths(newPaths);
+    }
+
+    // Update tracking
+    prevFilePathsRef.current = currentPaths;
+  }, [viewMode, stagedFiles, unstagedFiles, expandFoldersForPaths]);
 
   // ---------------------------------------------------------------------------
   // Render Helpers
