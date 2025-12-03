@@ -20,7 +20,7 @@ export const ApplicationCommands = {
   TAB_DUPLICATE: "tab.duplicate",
   TAB_DUPLICATE_WITH_CWD: "tab.duplicateWithCwd",
   TAB_DUPLICATE_INTO_WORKTREE: "tab.duplicateIntoWorktree",
-  TAB_CHANGE_TITLE: "tab.changeTitle",
+  TAB_RENAME: "tab.rename",
   TAB_LOCK: "tab.lock",
   TAB_UNLOCK: "tab.unlock",
   TAB_TOGGLE_SYNCHRONIZE: "tab.toggleSynchronize",

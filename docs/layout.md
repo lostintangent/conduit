@@ -135,7 +135,7 @@ type Tab = {
   panes: Record<string, Pane>; // Pane data by ID
   layout: LayoutNode; // Layout tree
   activePaneId: string; // Currently focused pane
-  title?: string; // Optional tab title
+  name?: string; // Optional tab name
   locked?: boolean; // Prevents modification
   synchronized?: boolean; // Git sync status
 };

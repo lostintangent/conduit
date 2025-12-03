@@ -106,7 +106,7 @@ export const TabButton = ({
   const handleSaveEdit = () => {
     const trimmedValue = editValue.trim();
     // Always update the title, even if empty (to clear it)
-    updateTabProperty(tabId, { title: trimmedValue || undefined });
+    updateTabProperty(tabId, { name: trimmedValue || undefined });
     setIsEditing(false);
     setEditValue("");
   };

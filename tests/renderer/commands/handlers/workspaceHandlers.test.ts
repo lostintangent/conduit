@@ -60,7 +60,7 @@ describe("workspaceHandlers", () => {
     const paneId = `${id}-pane`;
     return {
       id,
-      title,
+      name: title,
       panes: {
         [paneId]: {
           id: paneId,

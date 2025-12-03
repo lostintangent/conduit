@@ -89,7 +89,7 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
       }
     }
 
-    const trimmedTitle = tab.title?.trim();
+    const trimmedTitle = tab.name?.trim();
     const label =
       trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : fallbackLabel;
     const tooltip =

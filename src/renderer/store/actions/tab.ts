@@ -55,9 +55,9 @@ export function generateIncrementedTabTitle(
   // Find the highest number used by existing tabs with the same base name
   let highestNumber = currentNumber;
   for (const tab of existingTabs) {
-    if (tab.title) {
-      const tabMatch = tab.title.match(/^(.+?)\s+(\d+)$/);
-      const tabBaseName = tabMatch ? tabMatch[1] : tab.title;
+    if (tab.name) {
+      const tabMatch = tab.name.match(/^(.+?)\s+(\d+)$/);
+      const tabBaseName = tabMatch ? tabMatch[1] : tab.name;
       const tabNumber = tabMatch ? parseInt(tabMatch[2], 10) : 1;
 
       if (tabBaseName === baseName && tabNumber >= highestNumber) {
@@ -105,7 +105,7 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
-      title: options?.title,
+      name: options?.title,
     },
   ]);
   focusTab(tabId);
@@ -559,7 +559,7 @@ export async function duplicateTab(
 
   // Use provided title or generate one
   const newTitle =
-    options?.title || generateIncrementedTabTitle(sourceTab.title, tabs);
+    options?.title || generateIncrementedTabTitle(sourceTab.name, tabs);
 
   // Map the active pane ID
   const newActivePaneId = paneIdMap.get(sourceTab.activePaneId);
@@ -578,7 +578,7 @@ export async function duplicateTab(
     panes: newPanes,
     layout: newLayout,
     activePaneId: newActivePaneId || Object.keys(newPanes)[0],
-    title: newTitle,
+    name: newTitle,
     locked: sourceTab.locked,
     synchronized: sourceTab.synchronized,
   };

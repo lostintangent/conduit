@@ -1,6 +1,6 @@
 name: Conduit
 tabs:
-  - title: Coding
+  - name: Coding
     panes:
       - split: column
         panes:
@@ -11,7 +11,7 @@ tabs:
               - type: terminal
       - command: lazygit
 
-  - title: Review
+  - name: Review
     active: true
     panes:
       - split: column
@@ -21,7 +21,7 @@ tabs:
             collapsed: true
       - active: true
 
-  - title: News
+  - name: News
     panes:
       - url: https://espn.com
       - split: column

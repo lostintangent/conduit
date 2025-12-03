@@ -60,7 +60,7 @@ describe("duplicateTab", () => {
   it("should duplicate a tab with single terminal pane", async () => {
     const sourceTab: Tab = {
       id: "tab-1",
-      title: "My Tab",
+      name: "My Tab",
       activePaneId: "pane-1",
       panes: {
         "pane-1": {
@@ -106,13 +106,13 @@ describe("duplicateTab", () => {
     const newTabs = setCallback([sourceTab]);
 
     expect(newTabs).toHaveLength(2);
-    expect(newTabs[1].title).toBe("My Tab 2");
+    expect(newTabs[1].name).toBe("My Tab 2");
   });
 
   it("should duplicate a tab with multiple panes", async () => {
     const sourceTab: Tab = {
       id: "tab-1",
-      title: "Split View",
+      name: "Split View",
       activePaneId: "pane-1",
       panes: {
         "pane-1": {
@@ -171,7 +171,7 @@ describe("duplicateTab", () => {
   it("should duplicate editor panes with same file path", async () => {
     const sourceTab: Tab = {
       id: "tab-1",
-      title: "Editor Tab",
+      name: "Editor Tab",
       activePaneId: "pane-1",
       panes: {
         "pane-1": {
@@ -208,7 +208,7 @@ describe("duplicateTab", () => {
   it("should duplicate browser panes with same URL", async () => {
     const sourceTab: Tab = {
       id: "tab-1",
-      title: "Browser Tab",
+      name: "Browser Tab",
       activePaneId: "pane-1",
       panes: {
         "pane-1": {
@@ -295,7 +295,7 @@ describe("duplicateTab", () => {
     const tabs: Tab[] = [
       {
         id: "tab-1",
-        title: "My Tab 2",
+        name: "My Tab 2",
         activePaneId: "pane-1",
         panes: {
           "pane-1": {
@@ -310,7 +310,7 @@ describe("duplicateTab", () => {
       },
       {
         id: "tab-2",
-        title: "My Tab 5",
+        name: "My Tab 5",
         activePaneId: "pane-2",
         panes: {
           "pane-2": {
@@ -341,14 +341,14 @@ describe("duplicateTab", () => {
     const newTabs = setCallback(tabs);
 
     // Should be "My Tab 6" (highest existing is 5, so next is 6)
-    expect(newTabs[2].title).toBe("My Tab 6");
+    expect(newTabs[2].name).toBe("My Tab 6");
   });
 
   it("should insert new tab immediately after source tab", async () => {
     const tabs: Tab[] = [
       {
         id: "tab-1",
-        title: "First",
+        name: "First",
         activePaneId: "pane-1",
         panes: {
           "pane-1": {
@@ -363,7 +363,7 @@ describe("duplicateTab", () => {
       },
       {
         id: "tab-2",
-        title: "Second",
+        name: "Second",
         activePaneId: "pane-2",
         panes: {
           "pane-2": {
@@ -378,7 +378,7 @@ describe("duplicateTab", () => {
       },
       {
         id: "tab-3",
-        title: "Third",
+        name: "Third",
         activePaneId: "pane-3",
         panes: {
           "pane-3": {
@@ -408,7 +408,7 @@ describe("duplicateTab", () => {
 
     expect(newTabs).toHaveLength(4);
     expect(newTabs[0].id).toBe("tab-1");
-    expect(newTabs[1].title).toBe("First 2"); // Duplicated tab
+    expect(newTabs[1].name).toBe("First 2"); // Duplicated tab
     expect(newTabs[2].id).toBe("tab-2");
     expect(newTabs[3].id).toBe("tab-3");
   });
@@ -582,14 +582,14 @@ describe("duplicateTab", () => {
     const setCallback = mockStoreSet.mock.calls[0][1];
     const newTabs = setCallback([sourceTab]);
 
-    // Should not have a title
-    expect(newTabs[1].title).toBeUndefined();
+    // Should not have a name
+    expect(newTabs[1].name).toBeUndefined();
   });
 
   it("should capture and restore running commands in duplicated terminals", async () => {
     const sourceTab: Tab = {
       id: "tab-1",
-      title: "Dev Server",
+      name: "Dev Server",
       activePaneId: "pane-1",
       panes: {
         "pane-1": {

@@ -313,7 +313,7 @@ export function App() {
       }
 
       updateTabProperty(titleModalState.tabId, {
-        title: title.length > 0 ? title : undefined,
+        name: title.length > 0 ? title : undefined,
       });
 
       setTitleModalState(null);
@@ -895,8 +895,8 @@ export function App() {
         initialValue={titleModalState?.initialValue ?? ""}
         onClose={() => setTitleModalState(null)}
         onSave={handleTitleModalSave}
-        title="Change tab title"
-        placeholder="Enter a title..."
+        title="Rename tab"
+        placeholder="Enter a name..."
       />
 
       {quickPaneState && (
@@ -979,7 +979,7 @@ export function App() {
           duplicateTabWithCwdDialogState
             ? (generateIncrementedTabTitle(
                 tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId)
-                  ?.title,
+                  ?.name,
                 tabs,
               ) ?? "")
             : ""

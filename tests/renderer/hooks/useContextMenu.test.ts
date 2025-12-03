@@ -238,12 +238,12 @@ describe("useContextMenu", () => {
       ).toBe(false);
     });
 
-    it("should filter out change title command when not allowed", async () => {
+    it("should filter out rename tab command when not allowed", async () => {
       (getMenuContextBuilder as any).mockReturnValue(vi.fn());
 
       mockMenuRegistry.getSortedMenuItems.mockReturnValue([
         {
-          commandId: ApplicationCommands.TAB_CHANGE_TITLE,
+          commandId: ApplicationCommands.TAB_RENAME,
           group: "1_tab",
           order: 1,
         },
@@ -272,11 +272,10 @@ describe("useContextMenu", () => {
       const callArgs = mockApi.showContextMenu.mock.calls[0][0];
       const menuItems = callArgs.menuItems;
 
-      // Should not include change title
+      // Should not include rename tab
       expect(
         menuItems.some(
-          (item: any) =>
-            item.commandId === ApplicationCommands.TAB_CHANGE_TITLE,
+          (item: any) => item.commandId === ApplicationCommands.TAB_RENAME,
         ),
       ).toBe(false);
       expect(
@@ -284,12 +283,12 @@ describe("useContextMenu", () => {
       ).toBe(true);
     });
 
-    it("should include change title command when allowed", async () => {
+    it("should include rename tab command when allowed", async () => {
       (getMenuContextBuilder as any).mockReturnValue(vi.fn());
 
       mockMenuRegistry.getSortedMenuItems.mockReturnValue([
         {
-          commandId: ApplicationCommands.TAB_CHANGE_TITLE,
+          commandId: ApplicationCommands.TAB_RENAME,
           group: "1_tab",
           order: 1,
         },
@@ -313,11 +312,10 @@ describe("useContextMenu", () => {
       const callArgs = mockApi.showContextMenu.mock.calls[0][0];
       const menuItems = callArgs.menuItems;
 
-      // Should include change title
+      // Should include rename tab
       expect(
         menuItems.some(
-          (item: any) =>
-            item.commandId === ApplicationCommands.TAB_CHANGE_TITLE,
+          (item: any) => item.commandId === ApplicationCommands.TAB_RENAME,
         ),
       ).toBe(true);
     });

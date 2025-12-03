@@ -35,7 +35,7 @@ export type Pane = TerminalPane | BrowserPane | EditorPane;
  * Common tab metadata shared across workspace, template, and renderer types.
  */
 export type TabMetadata = {
-  title?: string;
+  name?: string;
   locked?: boolean;
   synchronized?: boolean;
 };

@@ -398,11 +398,11 @@ export function registerApplicationCommands(
     },
   });
 
-  // Tab: Change Title
+  // Tab: Rename
   commandRegistry.registerCommand({
-    id: ApplicationCommands.TAB_CHANGE_TITLE,
-    title: "Change Tab Title",
-    description: "Change the title of the current tab",
+    id: ApplicationCommands.TAB_RENAME,
+    title: "Rename Tab",
+    description: "Rename the current tab",
     category: "Tab",
     when: tabIsLocked.isFalse(),
     menu: [
@@ -416,7 +416,7 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       if (targetTabId && context.setTitleModal) {
         const tab = context.allTabs.find((t) => t.id === targetTabId);
-        context.setTitleModal(targetTabId, tab?.title ?? "");
+        context.setTitleModal(targetTabId, tab?.name ?? "");
       }
     },
   });

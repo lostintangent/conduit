@@ -136,7 +136,7 @@ type WorkspaceTab = TabMetadata & {
   "tabs": [
     {
       "id": "tab-1",
-      "title": "Development",
+      "name": "Development",
       "panes": [
         {
           "id": "pane-1",
@@ -209,7 +209,7 @@ type TemplateSplit = {
 name: My Project
 cwd: /Users/dev/project
 tabs:
-  - title: Development
+  - name: Development
     active: true
     split: row
     panes:
@@ -217,7 +217,7 @@ tabs:
       - type: editor
         treeMode: changes
 
-  - title: Testing
+  - name: Testing
     panes:
       - command: npm test -- --watch
 ```

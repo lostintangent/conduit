@@ -122,7 +122,7 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
 
       // Filter out "Change title" if not allowed
       const filteredItems = visibleItems.filter((item) => {
-        if (item.commandId === ApplicationCommands.TAB_CHANGE_TITLE) {
+        if (item.commandId === ApplicationCommands.TAB_RENAME) {
           return allowTitleChange;
         }
         return true;
