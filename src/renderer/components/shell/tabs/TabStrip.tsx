@@ -39,6 +39,8 @@ import {
   userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom, type TabLabelDescriptor } from "@/store/tabLabels";
+import type { TabPosition } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ChevronDown,
@@ -72,7 +74,7 @@ type TabStripProps = {
     paneId: string,
     cwd: string | null,
   ) => void;
-  position?: "top" | "bottom";
+  position?: TabPosition;
 };
 
 export const TabStrip = ({
@@ -503,7 +505,6 @@ export const TabStrip = ({
     const result = await api.createTerminal({ cwd });
     if (!result) return;
 
-    const { generateId } = await import("@/utils/id");
     const paneId = generateId();
     onOpenHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
   }, [activeTab, homeDirectory, onOpenHyperTerminal]);

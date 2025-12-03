@@ -1,6 +1,6 @@
-import { ipcRenderer } from "electron";
 import type { Tab } from "@/types";
-import type { WorkspaceState } from "../../shared/types";
+import { ipcRenderer } from "electron";
+import type { Workspace, WorkspaceState } from "@shared/types";
 
 export default {
   getState: () =>
@@ -30,4 +30,10 @@ export default {
       tabs,
       activeTabId,
     ) as Promise<WorkspaceState>,
+
+  importFromFile: () =>
+    ipcRenderer.invoke("workspace:import") as Promise<Workspace | null>,
+
+  exportToFile: (workspace: Workspace) =>
+    ipcRenderer.invoke("workspace:export-to-file", workspace) as Promise<void>,
 };

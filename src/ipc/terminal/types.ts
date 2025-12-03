@@ -1,4 +1,4 @@
-import type { CloudTerminalOptions } from "@shared/types";
+import type { CloudTerminalOptions, SSHConnectionState } from "@shared/types";
 import type { IPty } from "node-pty";
 
 export type TerminalInstance = {
@@ -28,7 +28,7 @@ export type CloudEnvironment = {
   useSSHKey?: boolean;
 
   // SSH connection state tracking
-  connectionState: "connecting" | "connected" | "disconnected";
+  connectionState: SSHConnectionState;
   connectionStartTime?: number; // Timestamp when connection started (for timeout detection)
 
   // Port forwarding state

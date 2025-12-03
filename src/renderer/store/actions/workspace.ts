@@ -1,11 +1,17 @@
 import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
-import type { Pane, Tab } from "@/types";
-import type { Workspace } from "@shared/types";
+import type { LayoutNode, Pane, Tab } from "@/types";
+import type {
+  TerminalPane as SharedTerminalPane,
+  Workspace,
+} from "@shared/types";
 import { getDefaultStore } from "jotai";
 import { closeTab } from "./tab";
 
 const api = window.conduit;
 const store = getDefaultStore();
+
+type WorkspacePane = Workspace["tabs"][number]["panes"][number];
+type WorkspaceTerminalPane = WorkspacePane & SharedTerminalPane;
 
 export async function openWorkspace(workspace: Workspace) {
   await closeWorkspace({ openReplacement: false });
@@ -14,18 +20,18 @@ export async function openWorkspace(workspace: Workspace) {
     return;
   }
 
+  // Shared across all tabs to support cross-tab terminal cloning
+  const terminalSessions = new Map<
+    string,
+    Awaited<ReturnType<typeof api.createTerminal>>
+  >();
+
   const workspaceTabs: Tab[] = [];
   for (const workspaceTab of workspace.tabs) {
     const panes: Record<string, Pane> = {};
-    const terminalSessions = new Map<
-      string,
-      Awaited<ReturnType<typeof api.createTerminal>>
-    >();
-    const restoreTerminalPane = async (
-      pane: Workspace["tabs"][number]["panes"][number],
-    ) => {
-      const sourcePaneId = pane.sourcePaneId ?? pane.id;
-      let session = terminalSessions.get(sourcePaneId);
+    const restoreTerminalPane = async (pane: WorkspaceTerminalPane) => {
+      const cloneSourceId = pane.cloneOf ?? pane.id;
+      let session = terminalSessions.get(cloneSourceId);
 
       if (!session) {
         session = await api.createTerminal(
@@ -36,9 +42,9 @@ export async function openWorkspace(workspace: Workspace) {
           return;
         }
 
-        terminalSessions.set(sourcePaneId, session);
+        terminalSessions.set(cloneSourceId, session);
 
-        if (!pane.sourcePaneId && pane.command?.trim().length > 0) {
+        if (!pane.cloneOf && pane.command?.trim().length) {
           const commandWithNewline = pane.command.endsWith("\n")
             ? pane.command
             : `${pane.command}\n`;
@@ -61,15 +67,11 @@ export async function openWorkspace(workspace: Workspace) {
     }
 
     const terminalPanes = workspaceTab.panes.filter(
-      (
-        pane,
-      ): pane is Workspace["tabs"][number]["panes"][number] & {
-        type: "terminal";
-      } => pane.type === "terminal",
+      (pane): pane is WorkspaceTerminalPane => pane.type === "terminal",
     );
 
-    const normalTerminals = terminalPanes.filter((pane) => !pane.sourcePaneId);
-    const clonedTerminals = terminalPanes.filter((pane) => !!pane.sourcePaneId);
+    const normalTerminals = terminalPanes.filter((pane) => !pane.cloneOf);
+    const clonedTerminals = terminalPanes.filter((pane) => !!pane.cloneOf);
 
     for (const pane of normalTerminals) {
       await restoreTerminalPane(pane);
@@ -84,6 +86,7 @@ export async function openWorkspace(workspace: Workspace) {
       const tab: Tab = {
         ...workspaceTab,
         panes,
+        layout: workspaceTab.layout as LayoutNode,
       };
 
       workspaceTabs.push(tab);

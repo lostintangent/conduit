@@ -20,6 +20,8 @@ import type {
   ForwardPortResponse,
   GitFileStatus,
   ListVMsPayload,
+  NotificationKind,
+  TabPosition,
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
   TerminalCreateResponse,
@@ -32,7 +34,7 @@ import type {
   TreeChangedEvent,
   UserSettings,
   VMInfo,
-} from "../../shared/types";
+} from "@shared/types";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import configureUpdatesModule from "./modules/updates";
@@ -123,7 +125,7 @@ const conduitAPI = {
     createEventListener("app:before-close", listener),
 
   // Notify when the user changes the tab position setting
-  onTabPositionChange: (listener: (position: "top" | "bottom") => void) =>
+  onTabPositionChange: (listener: (position: TabPosition) => void) =>
     createEventListener("ui:set-tab-position", listener),
 
   onAlwaysShowTabsChange: (listener: (value: boolean) => void) =>
@@ -132,7 +134,7 @@ const conduitAPI = {
   // Notify when showing a notification/toast message
   onShowNotification: (
     listener: (payload: {
-      type: "success" | "error" | "info";
+      type: NotificationKind;
       message: string;
       timeout?: number;
     }) => void,

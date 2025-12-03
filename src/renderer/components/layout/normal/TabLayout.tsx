@@ -22,7 +22,7 @@ import {
 import { enterFocusMode } from "@/store/actions/focusMode";
 import {
   activatePane,
-  openWebViewPane,
+  openBrowserPane,
   setPaneCollapsed,
 } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
@@ -246,7 +246,7 @@ interface TabLayoutProps {
     payload: LayoutResizeStartConfig,
   ) => void;
   resizingNode: string | null;
-  handleWebViewUpdate: (
+  handleBrowserUpdate: (
     tabId: string,
     paneId: string,
     updates: { url?: string; title?: string },
@@ -264,7 +264,7 @@ export function TabLayout({
   handleContextMenu,
   handleResizeStart,
   resizingNode,
-  handleWebViewUpdate,
+  handleBrowserUpdate,
   handleEditorUpdate,
   onOpenQuickPane,
   onOpenPaneActions,
@@ -387,7 +387,7 @@ export function TabLayout({
         );
       }
 
-      const onWebViewContextMenu = (coords: {
+      const onBrowserContextMenu = (coords: {
         clientX: number;
         clientY: number;
       }) => {
@@ -454,7 +454,7 @@ export function TabLayout({
                 isActive={isActivePane}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
-                onLinkClick={(url) => openWebViewPane(tab.id, pane.id, url)}
+                onLinkClick={(url) => openBrowserPane(tab.id, pane.id, url)}
                 showDimensions={shouldShowTerminalDimensions && !isInPreview}
                 hideIndividualSandboxIndicator={hasUnifiedSandbox}
                 isTabSynchronized={tab.synchronized}
@@ -469,17 +469,17 @@ export function TabLayout({
                   key={pane.id}
                   paneId={pane.id}
                   cwd={pane.cwd}
-                  filePath={pane.filePath}
+                  file={pane.file}
                   agentSessionId={pane.agentSessionId}
                   treeMode={pane.treeMode}
                   onFileChange={(fileData) =>
                     handleEditorUpdate(tab.id, pane.id, {
-                      filePath: fileData.filePath,
+                      file: fileData.file,
                     })
                   }
                   onClearFile={() =>
                     handleEditorUpdate(tab.id, pane.id, {
-                      filePath: undefined,
+                      file: undefined,
                     })
                   }
                   onCwdChange={(cwd) =>
@@ -492,7 +492,7 @@ export function TabLayout({
                     onOpenQuickPane({
                       type: "editor",
                       cwd: pane?.cwd,
-                      filePath: node.path,
+                      file: node.path,
                     })
                   }
                   hideIndividualSandboxIndicator={hasUnifiedSandbox}
@@ -510,12 +510,12 @@ export function TabLayout({
                   paneId={pane.id}
                   tabId={tab.id}
                   disableInteraction={resizingNode !== null}
-                  onContextMenu={onWebViewContextMenu}
+                  onContextMenu={onBrowserContextMenu}
                   onUrlChange={(nextUrl) =>
-                    handleWebViewUpdate(tab.id, pane.id, { url: nextUrl })
+                    handleBrowserUpdate(tab.id, pane.id, { url: nextUrl })
                   }
                   onTitleChange={(nextTitle) =>
-                    handleWebViewUpdate(tab.id, pane.id, { title: nextTitle })
+                    handleBrowserUpdate(tab.id, pane.id, { title: nextTitle })
                   }
                   isInPreview={isInPreview}
                   onHover={(isHovering) => {
@@ -524,9 +524,9 @@ export function TabLayout({
                       setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
                   }}
-                  devToolsForPane={pane.devToolsForPane}
+                  devToolsFor={pane.devToolsFor}
                   onOpenDevTools={() =>
-                    openWebViewPane(
+                    openBrowserPane(
                       tab.id,
                       pane.id,
                       "about:blank",
@@ -580,7 +580,7 @@ export function TabLayout({
       createDropHandlers,
       handleContextMenu,
       handleEditorUpdate,
-      handleWebViewUpdate,
+      handleBrowserUpdate,
       isInDesignMode,
       onOpenQuickPane,
       renderDropZone,

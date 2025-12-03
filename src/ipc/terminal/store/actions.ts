@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
+import { detectPorts } from "@shared/utils/portDetection";
 import { getTerminal, removeTerminal, storeTerminal } from ".";
-import { detectPorts } from "../../../shared/portDetection";
 import { createVM, getSSHConnectionInfo } from "../../vm/client";
 import {
   getPrivateKeyPath,
@@ -15,8 +15,6 @@ import type {
   SendToRendererFn,
   TerminalInstance,
 } from "../types";
-
-
 
 const describeProcess = (session: TerminalInstance) => {
   if (session.cloudEnvironment) {
@@ -311,7 +309,6 @@ function setupTerminalListeners(
       exitCode: exitCode ?? null,
       signal: signal ?? null,
     });
-
   });
 }
 

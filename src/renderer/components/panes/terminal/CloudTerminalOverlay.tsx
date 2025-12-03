@@ -1,5 +1,6 @@
 import { closePane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
+import type { SSHConnectionState } from "@shared/types";
 import { getDefaultStore, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -34,9 +35,8 @@ export const CloudTerminalOverlay = ({
 
   const vmId = terminalPane?.vmMetadata?.vmId ?? null;
 
-  const [sshConnectionState, setSSHConnectionState] = useState<
-    "connecting" | "connected" | "disconnected" | null
-  >(null);
+  const [sshConnectionState, setSSHConnectionState] =
+    useState<SSHConnectionState | null>(null);
 
   // Listen for SSH connection state changes
   useEffect(() => {

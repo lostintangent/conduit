@@ -15,10 +15,6 @@ export const paneHandlers: Partial<HandlerMap> = {
           return true;
         }
 
-        if (args?.paneType === "browser") {
-          return pane.type === "webview";
-        }
-
         return pane.type === args?.paneType;
       })
       .map((pane) => ({ ...pane }));

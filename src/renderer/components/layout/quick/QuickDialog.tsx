@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/tooltip";
 import { applicationModeAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType, Pane } from "@/types";
-import { generateId } from "@/utils/id";
 import type { FileTreeNode } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { useSetAtom } from "jotai";
 import { ArrowUpRight, Cloud, PictureInPicture2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -65,10 +65,10 @@ export function QuickDialog({
     [currentDescriptor.type],
   );
 
-  // Handle updates from webview pane
-  const handleWebViewUpdate = useCallback(
+  // Handle updates from browser pane
+  const handleBrowserUpdate = useCallback(
     (updates: { url?: string; title?: string }) => {
-      if (currentDescriptor.type === "webview") {
+      if (currentDescriptor.type === "browser") {
         setCurrentDescriptor((prev) => ({
           ...prev,
           ...updates,
@@ -85,7 +85,7 @@ export function QuickDialog({
         // Update the descriptor to open the file in the same quick pane
         return {
           ...prev,
-          filePath: node.path,
+          file: node.path,
         };
       }
       return prev;
@@ -153,12 +153,12 @@ export function QuickDialog({
             <EditorPane
               paneId={quickPaneId}
               cwd={currentDescriptor.cwd}
-              filePath={currentDescriptor.filePath}
+              file={currentDescriptor.file}
               treeMode={currentDescriptor.treeMode}
               agentSessionId={undefined}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
-              onFileChange={({ filePath }) => handleEditorUpdate({ filePath })}
-              onClearFile={() => handleEditorUpdate({ filePath: undefined })}
+              onFileChange={({ file }) => handleEditorUpdate({ file })}
+              onClearFile={() => handleEditorUpdate({ file: undefined })}
               onTreeModeChange={(mode) =>
                 handleEditorUpdate({ treeMode: mode })
               }
@@ -171,12 +171,12 @@ export function QuickDialog({
               }}
             />
           )}
-          {currentDescriptor.type === "webview" && (
+          {currentDescriptor.type === "browser" && (
             <BrowserPane
               url={currentDescriptor.url}
               paneId={quickPaneId}
-              onUrlChange={(url) => handleWebViewUpdate({ url })}
-              onTitleChange={(title) => handleWebViewUpdate({ title })}
+              onUrlChange={(url) => handleBrowserUpdate({ url })}
+              onTitleChange={(title) => handleBrowserUpdate({ title })}
             />
           )}
         </div>

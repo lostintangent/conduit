@@ -1,5 +1,5 @@
 import { Notification } from "@/types";
-import { generateId } from "@/utils/id";
+import { generateId } from "@shared/utils";
 import { getDefaultStore } from "jotai";
 import { notificationsAtom } from "../atoms";
 

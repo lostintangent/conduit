@@ -40,7 +40,7 @@ export function resolveBrowserPane(
     const matchingTab = findCallingTerminalTab(context);
 
     const browserPane = Object.entries(matchingTab.panes).find(
-      ([, pane]) => pane.type === "webview",
+      ([, pane]) => pane.type === "browser",
     );
 
     if (!browserPane) {

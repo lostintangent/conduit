@@ -1,5 +1,5 @@
-import type { Tab } from "@/store/atoms";
-import type { Workspace } from "@shared/types";
+import type { Tab } from "@/types";
+import type { Workspace, WorkspaceTab } from "@shared/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing handlers
@@ -75,6 +75,13 @@ describe("workspaceHandlers", () => {
     };
   };
 
+  // Convert Tab[] to WorkspaceTab[] for mocking Workspace types
+  const toWorkspaceTabs = (tabs: Tab[]): WorkspaceTab[] =>
+    tabs.map((tab) => ({
+      ...tab,
+      panes: Object.values(tab.panes),
+    }));
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -98,7 +105,7 @@ describe("workspaceHandlers", () => {
         {
           name: workspaceName,
           lastModified: Date.now(),
-          tabs: mockTabs,
+          tabs: toWorkspaceTabs(mockTabs),
           activeTabId,
         },
       ];
@@ -158,7 +165,7 @@ describe("workspaceHandlers", () => {
         {
           name: workspaceName,
           lastModified: Date.now(),
-          tabs: mockTabs,
+          tabs: toWorkspaceTabs(mockTabs),
           activeTabId,
         },
       ];
