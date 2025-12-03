@@ -2,14 +2,18 @@
  * MonacoEditorWrapper - Wrapper for Monaco standalone editor.
  *
  * This component wraps a Monaco editor instance and integrates with the
- * global registries (EditorRegistry, MonacoModelRegistry, ViewStateRegistry).
+ * global registries (MonacoModelRegistry, ViewStateRegistry).
  *
  * Key responsibilities:
- * - Gets/creates editor from EditorRegistry (portal pattern for reuse)
+ * - Creates a fresh Monaco editor on mount (disposed on unmount)
  * - Gets model from MonacoModelRegistry via useMonacoModel hook
  * - Saves/restores ViewState via ViewStateRegistry
  * - Handles automatic layout on container resize
  * - Configures editor options (theme, minimap, etc.)
+ *
+ * Note: Unlike the portal pattern in EditorRegistry, this creates fresh
+ * editors each time to avoid layout issues when switching between
+ * editor and diff modes (similar to how @monaco-editor/react works in v1).
  *
  * @example
  * ```tsx
@@ -25,7 +29,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import * as monaco from "monaco-editor";
 import { useMonacoModel } from "../../hooks";
-import { EditorRegistry, ViewStateRegistry } from "../../registry";
+import { ViewStateRegistry } from "../../registry";
 
 // ============================================================================
 // Constants
@@ -59,33 +63,6 @@ export interface MonacoEditorWrapperProps {
 
   /** Callback when editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
-
-  /**
-   * Whether this editor is the active/visible view.
-   *
-   * When switching between editor and diff modes, both components stay mounted.
-   * The inactive editor detaches its model (setModel(null)) to prevent Monaco
-   * rendering issues, following Monaco's official recommendations.
-   *
-   * When becoming active:
-   * - Model is re-attached
-   * - ViewState is restored
-   * - layout() is called
-   *
-   * @default true
-   */
-  isActive?: boolean;
-
-  /**
-   * External visibility notification (optional alternative approach).
-   * When provided, the wrapper will trigger layout when visibility changes.
-   * Increment this value to notify that the editor has become visible.
-   *
-   * Note: The global container pattern uses EditorPaneRegistry.notifyVisible()
-   * instead, which is the recommended approach. This prop is available for
-   * alternative implementations or testing.
-   */
-  visibilityKey?: number;
 }
 
 // ============================================================================
@@ -134,8 +111,6 @@ export function MonacoEditorWrapper({
   readOnly = false,
   onChange,
   onMount,
-  isActive = true,
-  visibilityKey,
 }: MonacoEditorWrapperProps) {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -145,8 +120,6 @@ export function MonacoEditorWrapper({
   const saveViewStateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  // Track previous isActive state to detect transitions
-  const wasActiveRef = useRef<boolean>(isActive);
 
   // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
   const onMountRef = useRef(onMount);
@@ -228,11 +201,12 @@ export function MonacoEditorWrapper({
     const container = containerRef.current;
     if (!container) return;
 
-    const editorRegistry = EditorRegistry.getInstance();
     const viewStateRegistry = ViewStateRegistry.getInstance();
 
-    // Get or create editor
-    const editor = editorRegistry.getOrCreateEditor(editorId, container, {
+    // Create a fresh Monaco editor (like @monaco-editor/react does in v1).
+    // We don't use EditorRegistry here because the portal pattern causes
+    // layout issues when moving editors between containers during mode switches.
+    const editor = monaco.editor.create(container, {
       ...DEFAULT_EDITOR_OPTIONS,
       theme,
       readOnly,
@@ -251,9 +225,13 @@ export function MonacoEditorWrapper({
         saveViewStateDebounceRef.current = null;
       }
 
-      // Save ViewState immediately before releasing
+      // Save ViewState immediately before disposing
       if (editorRef.current && previousFilePathRef.current) {
-        viewStateRegistry.save(editorId, previousFilePathRef.current, editor);
+        viewStateRegistry.save(
+          editorId,
+          previousFilePathRef.current,
+          editorRef.current,
+        );
       }
 
       // Dispose content change listener
@@ -262,8 +240,8 @@ export function MonacoEditorWrapper({
         contentChangeDisposableRef.current = null;
       }
 
-      // Release editor (doesn't dispose, just marks as unused)
-      editorRegistry.releaseEditor(editorId);
+      // Dispose the editor (unlike EditorRegistry which keeps it alive)
+      editor.dispose();
       editorRef.current = null;
     };
     // Note: onMount handled via ref to avoid editor recreation when callback changes
@@ -315,56 +293,6 @@ export function MonacoEditorWrapper({
     };
     // Note: onChange handled via ref to avoid listener re-setup when callback changes
   }, [editorId, filePath, model]);
-
-  // ---------------------------------------------------------------------------
-  // Active State Management (for editor/diff mode switching)
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    const wasActive = wasActiveRef.current;
-    wasActiveRef.current = isActive;
-
-    const viewStateRegistry = ViewStateRegistry.getInstance();
-    const editorRegistry = EditorRegistry.getInstance();
-
-    // Transition: active -> inactive
-    // Save ViewState and detach model to prevent Monaco rendering issues
-    if (wasActive && !isActive) {
-      // Save ViewState before detaching
-      if (previousFilePathRef.current) {
-        viewStateRegistry.save(editorId, previousFilePathRef.current, editor);
-      }
-
-      // Detach model (Monaco's official recommendation for hidden editors)
-      // This prevents rendering issues and unnecessary updates
-      editor.setModel(null);
-    }
-
-    // Transition: inactive -> active
-    // Re-attach model, restore ViewState, and trigger layout
-    if (!wasActive && isActive && model) {
-      // Re-attach model
-      editor.setModel(model);
-
-      // Restore ViewState
-      if (previousFilePathRef.current) {
-        viewStateRegistry.restore(
-          editorId,
-          previousFilePathRef.current,
-          editor,
-        );
-      }
-
-      // Trigger layout after a frame to let DOM settle
-      // This is critical because visibility:hidden was just removed
-      requestAnimationFrame(() => {
-        editorRegistry.triggerLayout(editorId, true);
-      });
-    }
-  }, [isActive, editorId, model]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update
@@ -443,21 +371,6 @@ export function MonacoEditorWrapper({
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [editorId]);
-
-  // ---------------------------------------------------------------------------
-  // Visibility Change Handler
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    // Skip if no visibility key provided or on first render
-    if (visibilityKey === undefined) return;
-
-    const editorRegistry = EditorRegistry.getInstance();
-
-    // Trigger layout when visibility key changes (indicates container became visible)
-    // Use the registry's triggerLayout for proper debouncing
-    editorRegistry.triggerLayout(editorId, false);
-  }, [editorId, visibilityKey]);
 
   // ---------------------------------------------------------------------------
   // Focus Handler

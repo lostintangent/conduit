@@ -58,22 +58,6 @@ export interface DiffEditorWrapperProps {
 
   /** Callback when diff editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
-
-  /**
-   * Whether this diff editor is the active/visible view.
-   *
-   * When switching between editor and diff modes, both components stay mounted.
-   * The inactive diff editor clears its models to prevent Monaco rendering issues,
-   * following Monaco's official recommendations.
-   *
-   * When becoming active:
-   * - Models are re-attached
-   * - ViewState is restored
-   * - layout() is called
-   *
-   * @default true
-   */
-  isActive?: boolean;
 }
 
 // ============================================================================
@@ -121,7 +105,6 @@ export function DiffEditorWrapper({
   readOnly = false,
   onChange,
   onMount,
-  isActive = true,
 }: DiffEditorWrapperProps) {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -131,10 +114,6 @@ export function DiffEditorWrapper({
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
   const currentFilePathRef = useRef<string>(filePath);
-  // Track previous isActive state to detect transitions
-  const wasActiveRef = useRef<boolean>(isActive);
-  // Track if we've ever set up models (to distinguish initial mount from re-activation)
-  const hasSetupModelsRef = useRef<boolean>(false);
 
   // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
   const onMountRef = useRef(onMount);
@@ -171,7 +150,7 @@ export function DiffEditorWrapper({
     const container = containerRef.current;
     if (!container) return;
 
-    // Create diff editor
+    // Create a fresh diff editor (like v1 does with @monaco-editor/react)
     const diffEditor = monaco.editor.createDiffEditor(container, {
       ...DEFAULT_DIFF_OPTIONS,
       theme,
@@ -186,8 +165,6 @@ export function DiffEditorWrapper({
     // Cleanup on unmount
     return () => {
       // Save ViewState before disposing so it can be restored later
-      // Use a diff-prefixed ID to distinguish from regular editor ViewState
-      // Use ref to get current filePath at cleanup time
       const modifiedEditor = diffEditor.getModifiedEditor();
       if (modifiedEditor && currentFilePathRef.current) {
         ViewStateRegistry.getInstance().save(
@@ -203,7 +180,15 @@ export function DiffEditorWrapper({
         contentChangeDisposableRef.current = null;
       }
 
-      // Dispose original model (we own it)
+      // CRITICAL: Reset the diff editor's model to null BEFORE disposing the TextModels.
+      // This prevents the "TextModel got disposed before DiffEditorWidget model got reset" error.
+      try {
+        diffEditor.setModel(null);
+      } catch {
+        // Ignore if already disposed
+      }
+
+      // Now safe to dispose original model (we own it)
       if (originalModelRef.current) {
         originalModelRef.current.dispose();
         originalModelRef.current = null;
@@ -234,8 +219,14 @@ export function DiffEditorWrapper({
     }
 
     // Create original model (read-only, we own this)
-    // Dispose previous if exists
+    // Dispose previous if exists - must reset diff editor model first
     if (originalModelRef.current) {
+      // Reset diff editor model before disposing to prevent race condition
+      try {
+        diffEditor.setModel(null);
+      } catch {
+        // Ignore if already disposed
+      }
       originalModelRef.current.dispose();
     }
 
@@ -246,20 +237,11 @@ export function DiffEditorWrapper({
       originalUri,
     );
 
-    // Only set models if we're active (visible)
-    // When inactive, we skip setting models to prevent unnecessary work
-    if (!isActive) {
-      return;
-    }
-
     // Set the diff models
     diffEditor.setModel({
       original: originalModelRef.current,
       modified: modifiedModel,
     });
-
-    // Mark that we've set up models at least once
-    hasSetupModelsRef.current = true;
 
     // Restore ViewState for the modified editor (scroll position, cursor, etc.)
     const modifiedEditor = diffEditor.getModifiedEditor();
@@ -301,66 +283,7 @@ export function DiffEditorWrapper({
     diffContent.original,
     modifiedModel,
     readOnly,
-    isActive,
   ]);
-
-  // ---------------------------------------------------------------------------
-  // Active State Management (for editor/diff mode switching)
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    const diffEditor = diffEditorRef.current;
-    if (!diffEditor) return;
-
-    const wasActive = wasActiveRef.current;
-    wasActiveRef.current = isActive;
-
-    // Transition: active -> inactive
-    // Save ViewState and detach models to prevent Monaco rendering issues
-    if (wasActive && !isActive) {
-      // Save ViewState for the modified editor before detaching
-      const modifiedEditor = diffEditor.getModifiedEditor();
-      if (modifiedEditor && currentFilePathRef.current) {
-        ViewStateRegistry.getInstance().save(
-          `diff-modified-${editorId}`,
-          currentFilePathRef.current,
-          modifiedEditor,
-        );
-      }
-
-      // Clear models from diff editor (Monaco's recommendation for hidden editors)
-      // Note: We don't dispose originalModelRef here - it will be reused when re-activating
-      diffEditor.setModel(null);
-    }
-
-    // Transition: inactive -> active
-    // Re-attach models, restore ViewState, and trigger layout
-    if (!wasActive && isActive) {
-      // Only re-attach if we have the models ready
-      if (originalModelRef.current && modifiedModel && !diffContent.isLoading) {
-        // Re-attach models
-        diffEditor.setModel({
-          original: originalModelRef.current,
-          modified: modifiedModel,
-        });
-
-        // Restore ViewState for the modified editor
-        const modifiedEditor = diffEditor.getModifiedEditor();
-        if (modifiedEditor && currentFilePathRef.current) {
-          ViewStateRegistry.getInstance().restore(
-            `diff-modified-${editorId}`,
-            currentFilePathRef.current,
-            modifiedEditor,
-          );
-        }
-
-        // Trigger layout after a frame to let DOM settle
-        requestAnimationFrame(() => {
-          diffEditor.layout();
-        });
-      }
-    }
-  }, [isActive, editorId, modifiedModel, diffContent.isLoading]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update
@@ -391,14 +314,9 @@ export function DiffEditorWrapper({
   // Render
   // ---------------------------------------------------------------------------
 
-  // Always render the diff editor container to keep it mounted.
-  // Loading/error states are shown as overlays when active.
-  // This is important for the visibility toggling pattern - both editors
-  // stay mounted and we switch between them via CSS visibility.
-
   return (
     <div className="h-full w-full relative">
-      {/* Diff editor container - always rendered to stay mounted */}
+      {/* Diff editor container */}
       <div
         ref={containerRef}
         className="h-full w-full"
@@ -406,8 +324,8 @@ export function DiffEditorWrapper({
         data-testid="diff-editor-wrapper"
       />
 
-      {/* Loading state overlay - only shown when active and loading */}
-      {isActive && diffContent.isLoading && (
+      {/* Loading state overlay */}
+      {diffContent.isLoading && (
         <div
           className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-background"
           data-testid="diff-editor-loading"
@@ -416,8 +334,8 @@ export function DiffEditorWrapper({
         </div>
       )}
 
-      {/* Error state overlay - only shown when active and error */}
-      {isActive && diffContent.error && (
+      {/* Error state overlay */}
+      {diffContent.error && (
         <div
           className="absolute inset-0 flex items-center justify-center text-destructive bg-background"
           data-testid="diff-editor-error"
