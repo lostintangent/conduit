@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
  */
 async function getCleanCache() {
   vi.resetModules();
-  const module = await import("../../../src/ipc/fsv2/cache/DirectoryCache");
+  const module = await import("../../../src/ipc/fsv2/DirectoryCache");
   return module.DirectoryCache;
 }
 

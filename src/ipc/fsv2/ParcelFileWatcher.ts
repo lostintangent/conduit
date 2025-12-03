@@ -29,13 +29,13 @@ import watcher, { AsyncSubscription } from "@parcel/watcher";
 import path from "node:path";
 import fs from "node:fs";
 
-import { EventEmitter } from "../utils/EventEmitter";
+import { EventEmitter } from "./EventEmitter";
 import type {
   FileContentChangedEvent,
   FileDeletedEvent,
   FileRenamedEvent,
   Event,
-} from "../types";
+} from "./types";
 
 // ============================================================================
 // Types

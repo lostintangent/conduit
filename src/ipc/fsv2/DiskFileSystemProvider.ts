@@ -27,12 +27,12 @@ import * as fsSync from "node:fs";
 import * as nodePath from "node:path";
 import { spawn } from "node:child_process";
 
-import { EventEmitter } from "../utils/EventEmitter";
-import { DirectoryCache } from "../cache/DirectoryCache";
+import { EventEmitter } from "./EventEmitter";
+import { DirectoryCache } from "./DirectoryCache";
 import {
   ParcelFileWatcher,
   type ParcelFileWatcherOptions,
-} from "../watcher/ParcelFileWatcher";
+} from "./ParcelFileWatcher";
 import type {
   FileSystemProvider,
   FileStat,
@@ -43,7 +43,7 @@ import type {
   FileDeletedEvent,
   DeleteOptions,
   Event,
-} from "../types";
+} from "./types";
 
 // ============================================================================
 // Constants

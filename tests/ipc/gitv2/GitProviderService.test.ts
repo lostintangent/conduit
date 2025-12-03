@@ -54,7 +54,7 @@ vi.mock("node:fs", async () => {
 // Import after mocks
 // ============================================================================
 
-import { GitProviderService } from "../../../src/ipc/gitv2/services/GitProviderService";
+import { GitProviderService } from "../../../src/ipc/gitv2/GitProviderService";
 
 // ============================================================================
 // Tests

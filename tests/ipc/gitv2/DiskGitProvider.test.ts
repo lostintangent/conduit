@@ -87,7 +87,7 @@ vi.mock("node:fs", async () => {
 // Import after mocks
 // ============================================================================
 
-import { DiskGitProvider } from "../../../src/ipc/gitv2/providers/DiskGitProvider";
+import { DiskGitProvider } from "../../../src/ipc/gitv2/DiskGitProvider";
 import type { GitStatus, GitFileStatus } from "../../../src/ipc/gitv2/types";
 
 // ============================================================================

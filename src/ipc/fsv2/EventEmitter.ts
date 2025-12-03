@@ -42,7 +42,7 @@
  * @see docs/architecture/filesystem-provider-design-narrative.md (Appendix C)
  */
 
-import type { Disposable, Event } from "../types";
+import type { Disposable, Event } from "./types";
 
 /**
  * A type-safe event emitter.

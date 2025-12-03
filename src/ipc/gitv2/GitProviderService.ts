@@ -32,7 +32,7 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { simpleGit } from "simple-git";
-import { DiskGitProvider } from "../providers/DiskGitProvider";
+import { DiskGitProvider } from "./DiskGitProvider";
 
 // ============================================================================
 // Constants

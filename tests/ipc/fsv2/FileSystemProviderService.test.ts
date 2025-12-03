@@ -58,7 +58,7 @@ vi.mock("../../../src/ipc/fsv2/providers/DiskFileSystemProvider", () => {
 // Import after mocks
 // ============================================================================
 
-import { FileSystemProviderService } from "../../../src/ipc/fsv2/services/FileSystemProviderService";
+import { FileSystemProviderService } from "../../../src/ipc/fsv2/FileSystemProviderService";
 
 // ============================================================================
 // Tests

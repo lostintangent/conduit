@@ -39,8 +39,8 @@
  */
 
 import * as path from "node:path";
-import { DiskFileSystemProvider } from "../providers/DiskFileSystemProvider";
-import { GitProviderService } from "../../gitv2/services/GitProviderService";
+import { DiskFileSystemProvider } from "./DiskFileSystemProvider";
+import { GitProviderService } from "../gitv2/GitProviderService";
 
 // ============================================================================
 // Constants

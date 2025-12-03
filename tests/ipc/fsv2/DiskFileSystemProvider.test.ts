@@ -133,7 +133,7 @@ vi.mock("../../../src/ipc/fsv2/cache/DirectoryCache", () => ({
 // Imports (after mocks)
 // ============================================================================
 
-import { DiskFileSystemProvider } from "../../../src/ipc/fsv2/providers/DiskFileSystemProvider";
+import { DiskFileSystemProvider } from "../../../src/ipc/fsv2/DiskFileSystemProvider";
 
 // ============================================================================
 // Test Helpers

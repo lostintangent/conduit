@@ -10,12 +10,12 @@ import {
   initializeFileSystemV2Handlers,
   cleanupFileSystemV2Handlers,
   handleWindowClose as handleFsWindowClose,
-} from "./fsv2/main/handlers";
+} from "./fsv2/handlers";
 import {
   initializeGitV2Handlers,
   cleanupGitV2Handlers,
   handleGitWindowClose,
-} from "./gitv2/main/handlers";
+} from "./gitv2/handlers";
 import {
   cleanupTerminalSessions,
   initializeTerminalHandlers,

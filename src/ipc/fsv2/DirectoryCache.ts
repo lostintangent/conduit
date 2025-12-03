@@ -30,7 +30,7 @@
  * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
-import type { DirectoryEntry, Disposable } from "../types";
+import type { DirectoryEntry, Disposable } from "./types";
 
 // ============================================================================
 // Types

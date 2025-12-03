@@ -32,8 +32,8 @@
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import type { DirectoryEntry, FileStat, DeleteOptions } from "../types";
-import { FileSystemProviderService } from "../services/FileSystemProviderService";
+import type { DirectoryEntry, FileStat, DeleteOptions } from "./types";
+import { FileSystemProviderService } from "./FileSystemProviderService";
 
 // ============================================================================
 // Types

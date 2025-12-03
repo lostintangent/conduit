@@ -52,8 +52,8 @@ import type {
   GitCommit,
   GitBranch,
   GitCommitOptions,
-} from "../types";
-import { GitProviderService } from "../services/GitProviderService";
+} from "./types";
+import { GitProviderService } from "./GitProviderService";
 
 // ============================================================================
 // Types

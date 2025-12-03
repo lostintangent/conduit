@@ -27,9 +27,9 @@ import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
 
-import { EventEmitter } from "../../fsv2/utils/EventEmitter";
-import { ParcelFileWatcher } from "../../fsv2/watcher/ParcelFileWatcher";
-import type { Event, Disposable } from "../../fsv2/types";
+import { EventEmitter } from "../fsv2/EventEmitter";
+import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
+import type { Event, Disposable } from "../fsv2/types";
 import type {
   GitProvider,
   GitStatus,
@@ -42,7 +42,7 @@ import type {
   GitBranchChangedEvent,
   GitCommitCreatedEvent,
   GitHeadChangedEvent,
-} from "../types";
+} from "./types";
 
 // ============================================================================
 // Constants
