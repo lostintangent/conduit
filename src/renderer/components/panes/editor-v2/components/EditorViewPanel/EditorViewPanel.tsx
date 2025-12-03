@@ -103,6 +103,9 @@ export function EditorViewPanel({
   // Ref to store the Monaco keybinding disposable for cleanup
   const saveKeybindingDisposableRef = useRef<monaco.IDisposable | null>(null);
 
+  // Ref to always access the latest handleSave (avoids stale closure in Monaco keybinding)
+  const handleSaveRef = useRef<() => void>(() => {});
+
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
 
@@ -150,6 +153,11 @@ export function EditorViewPanel({
     }
   }, [filePath, onSave]);
 
+  // Keep ref updated so Monaco keybinding always calls the latest handleSave
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
+
   // ---------------------------------------------------------------------------
   // Editor Actions Hook
   // ---------------------------------------------------------------------------
@@ -177,22 +185,23 @@ export function EditorViewPanel({
         saveKeybindingDisposableRef.current = null;
       }
 
-      // Add Monaco keybinding for Cmd+S to trigger save
+      // Add Monaco action for Cmd+S to trigger save
       // This ensures Cmd+S works even when the editor has focus
-      const keybindingDisposable = editor.addCommand(
-        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-        () => {
-          // Trigger save via the handleSave callback
-          handleSave();
+      // We use handleSaveRef to always get the latest handleSave (avoids stale closure)
+      // Using addAction instead of addCommand because addAction returns an IDisposable
+      const actionDisposable = editor.addAction({
+        id: "conduit.save",
+        label: "Save",
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+        run: () => {
+          handleSaveRef.current();
         },
-      );
+      });
 
       // Store disposable for cleanup
-      if (keybindingDisposable) {
-        saveKeybindingDisposableRef.current = keybindingDisposable;
-      }
+      saveKeybindingDisposableRef.current = actionDisposable;
     },
-    [handleSave],
+    [],
   );
 
   /**
@@ -210,20 +219,22 @@ export function EditorViewPanel({
         saveKeybindingDisposableRef.current = null;
       }
 
-      // Add Monaco keybinding for Cmd+S to trigger save
-      const keybindingDisposable = modifiedEditor.addCommand(
-        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-        () => {
-          handleSave();
+      // Add Monaco action for Cmd+S to trigger save
+      // We use handleSaveRef to always get the latest handleSave (avoids stale closure)
+      // Using addAction instead of addCommand because addAction returns an IDisposable
+      const actionDisposable = modifiedEditor.addAction({
+        id: "conduit.save",
+        label: "Save",
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+        run: () => {
+          handleSaveRef.current();
         },
-      );
+      });
 
       // Store disposable for cleanup
-      if (keybindingDisposable) {
-        saveKeybindingDisposableRef.current = keybindingDisposable;
-      }
+      saveKeybindingDisposableRef.current = actionDisposable;
     },
-    [handleSave],
+    [],
   );
 
   /**
