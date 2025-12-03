@@ -130,13 +130,8 @@ export interface DeleteOptions {
   recursive?: boolean;
 }
 
-/**
- * A disposable subscription that can be cleaned up.
- */
-export interface Disposable {
-  /** Release resources and stop receiving events */
-  dispose(): void;
-}
+// Re-export common event system types from shared
+export type { Disposable, Event } from "../../shared/types";
 
 /**
  * Cleanup function returned by event subscriptions.
@@ -145,14 +140,6 @@ export interface Disposable {
  * This is a simpler alternative to Disposable for renderer-side callbacks.
  */
 export type Cleanup = () => void;
-
-/**
- * Event subscription function type.
- *
- * Call with a listener to subscribe, returns a disposable to unsubscribe.
- * This pattern matches VS Code's event system for familiarity.
- */
-export type Event<T> = (listener: (e: T) => void) => Disposable;
 
 /**
  * The core filesystem provider interface.

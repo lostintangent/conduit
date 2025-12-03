@@ -33,7 +33,7 @@ vi.mock("@/components/panes/editor-v2/hooks/useScrollPersistence", () => ({
   useScrollPersistence: () => vi.fn(),
 }));
 
-import { FileTreeNormal } from "../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
+import { FileTreeNormal } from "../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
 
 describe("FileTreeNormal Minimal", () => {
   it("should import without crashing", () => {

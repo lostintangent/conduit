@@ -27,7 +27,7 @@ import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
 
-import { EventEmitter } from "../fsv2/EventEmitter";
+import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
 import type { Event, Disposable } from "../fsv2/types";
 import type {

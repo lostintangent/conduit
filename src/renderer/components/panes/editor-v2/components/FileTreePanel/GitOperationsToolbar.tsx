@@ -28,7 +28,7 @@ import { useState, useCallback } from "react";
 import { GitCommit, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGitOperations } from "../../hooks";
-import { BranchSelector } from "../BranchSelector";
+import { BranchSelector } from "./BranchSelector";
 import { cn } from "@/utils";
 
 // ============================================================================

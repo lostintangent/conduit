@@ -10,9 +10,12 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import { ChangesReviewPane } from "../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/ChangesReviewPane";
-import { FileChangeDiff } from "../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/FileChangeDiff";
-import type { GitFileStatus, GitStatus } from "../../../../src/ipc/gitv2/types";
+import { ChangesReviewPane } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/ChangesReviewPane";
+import { FileChangeDiff } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/FileChangeDiff";
+import type {
+  GitFileStatus,
+  GitStatus,
+} from "../../../../../src/ipc/gitv2/types";
 
 // ============================================================================
 // Mocks

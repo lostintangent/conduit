@@ -22,7 +22,7 @@
 import type { EditorPane } from "@/types";
 import type { FileChangeData } from "../EditorPaneV2";
 import type { FileNode } from "../types";
-import { EventEmitter } from "../utils/EventEmitter";
+import { EventEmitter } from "@shared/EventEmitter";
 
 // ============================================================================
 // Types

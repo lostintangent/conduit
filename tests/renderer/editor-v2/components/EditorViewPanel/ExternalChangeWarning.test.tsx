@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { ExternalChangeWarning } from "../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/ExternalChangeWarning";
+import { ExternalChangeWarning } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/ExternalChangeWarning";
 
 // ============================================================================
 // Tests

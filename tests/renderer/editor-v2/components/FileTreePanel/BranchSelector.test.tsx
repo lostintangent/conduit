@@ -17,8 +17,8 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import { BranchSelector } from "../../../../src/renderer/components/panes/editor-v2/components/BranchSelector";
-import { FileTreeNormal } from "../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
+import { BranchSelector } from "../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/BranchSelector";
+import { FileTreeNormal } from "../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
 import type {
   GitBranch,
   GitStatus,

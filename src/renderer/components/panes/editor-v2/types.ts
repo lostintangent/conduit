@@ -13,22 +13,8 @@ import type * as monaco from "monaco-editor";
 // Common Types
 // ============================================================================
 
-/**
- * A disposable resource that can be cleaned up.
- *
- * This matches VS Code's Disposable pattern for consistency.
- */
-export interface Disposable {
-  dispose(): void;
-}
-
-/**
- * Event subscription function type.
- *
- * Call with a listener to subscribe, returns a disposable to unsubscribe.
- * This pattern matches VS Code's event system.
- */
-export type Event<T> = (listener: (e: T) => void) => Disposable;
+// Re-export common event system types from shared
+export type { Disposable, Event } from "@shared/types";
 
 // ============================================================================
 // Editor Mode Types

@@ -56,7 +56,7 @@ import { FileSystemV2API } from "../../../../api/FileSystemV2API";
 import { FileSystemV2APIService } from "../../../../services/FileSystemV2APIService";
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
-import { EventEmitter } from "../utils/EventEmitter";
+import { EventEmitter } from "@shared/EventEmitter";
 import { detectLanguage } from "../utils/languageDetection";
 import { ViewStateRegistry } from "./ViewStateRegistry";
 

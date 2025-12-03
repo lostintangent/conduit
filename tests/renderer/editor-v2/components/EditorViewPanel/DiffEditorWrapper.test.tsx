@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { DiffEditorWrapper } from "../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/DiffEditorWrapper";
+import { DiffEditorWrapper } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/DiffEditorWrapper";
 
 // ============================================================================
 // Mocks

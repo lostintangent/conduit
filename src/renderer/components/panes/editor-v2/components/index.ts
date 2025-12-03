@@ -21,9 +21,6 @@
  * Phase 6 components:
  * - ChangesReviewPane: Multi-file changes review with inline diffs
  * - FileChangeDiff: Individual file diff with actions
- *
- * Phase 7 components:
- * - BranchSelector: Dropdown for selecting comparison branch
  */
 
 // EditorViewPanel and related components
@@ -55,6 +52,8 @@ export {
   FileTreeNormal,
   FileTreeChanges,
   FileTreeItem,
+  GitOperationsToolbar,
+  BranchSelector,
 } from "./FileTreePanel";
 
 export type {
@@ -62,6 +61,8 @@ export type {
   FileTreeNormalProps,
   FileTreeChangesProps,
   FileTreeItemProps,
+  GitOperationsToolbarProps,
+  BranchSelectorProps,
 } from "./FileTreePanel";
 
 // Layout components
@@ -75,17 +76,9 @@ export type {
   FileChangeDiffProps,
 } from "./ChangesReviewPane";
 
-// Branch comparison components
-export { BranchSelector } from "./BranchSelector";
-export type { BranchSelectorProps } from "./BranchSelector";
-
 // Shared components
 export { GitBadge, getStatusConfig } from "./shared";
 export type { GitBadgeProps } from "./shared";
-
-// Git operations components
-export { GitOperationsToolbar } from "./GitOperationsToolbar";
-export type { GitOperationsToolbarProps } from "./GitOperationsToolbar";
 
 // Global container for editor panes (keeps editors alive across tab switches)
 export { GlobalEditorContainer } from "./GlobalEditorContainer";

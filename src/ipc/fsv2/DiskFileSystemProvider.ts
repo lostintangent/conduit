@@ -27,7 +27,7 @@ import * as fsSync from "node:fs";
 import * as nodePath from "node:path";
 import { spawn } from "node:child_process";
 
-import { EventEmitter } from "./EventEmitter";
+import { EventEmitter } from "../../shared/EventEmitter";
 import { DirectoryCache } from "./DirectoryCache";
 import {
   ParcelFileWatcher,

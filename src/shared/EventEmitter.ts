@@ -11,7 +11,7 @@
  *
  * @example
  * ```typescript
- * // In a provider class:
+ * // In a provider or registry class:
  * class MyProvider {
  *   // Private emitter - only this class can fire
  *   private readonly _onDataChanged = new EventEmitter<string>();

@@ -68,5 +68,3 @@ export {
   BranchSelector,
   GlobalEditorContainer,
 } from "./components";
-
-export type { BranchSelectorProps } from "./components";

@@ -32,7 +32,7 @@
 
 import * as monaco from "monaco-editor";
 import type { EditorMetadata } from "../types";
-import { EventEmitter } from "../utils/EventEmitter";
+import { EventEmitter } from "@shared/EventEmitter";
 import { ViewStateRegistry } from "./ViewStateRegistry";
 
 /**

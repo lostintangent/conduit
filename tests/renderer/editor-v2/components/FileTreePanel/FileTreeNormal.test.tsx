@@ -53,7 +53,7 @@ vi.mock("@/components/panes/editor-v2/hooks/useScrollPersistence", () => ({
 }));
 
 // NOW import component AFTER mocks
-import { FileTreeNormal } from "../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
+import { FileTreeNormal } from "../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeNormal";
 
 // ============================================================================
 // Test Data

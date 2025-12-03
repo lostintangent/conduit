@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { FileTreeChanges } from "../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeChanges";
+import { FileTreeChanges } from "../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeChanges";
 
 // ============================================================================
 // Mocks
