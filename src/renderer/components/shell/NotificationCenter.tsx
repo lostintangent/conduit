@@ -2,6 +2,7 @@ import { dismissNotification } from "@/store/actions/notifications";
 import { notificationsAtom } from "@/store/atoms";
 import { Notification } from "@/types";
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import { useAtomValue } from "jotai";
 
@@ -47,27 +48,28 @@ export function NotificationCenter() {
               {notification.actions?.length && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {notification.actions.map((action) => (
-                    <button
+                    <Button
                       key={action.label}
-                      type="button"
-                      className="rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 border border-white/20 bg-white/5 text-white hover:bg-white/10 focus-visible:outline-white"
+                      variant="outline"
+                      size="sm"
                       onClick={action.onClick}
                     >
                       {action.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
             </div>
 
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => dismissNotification(notification.id)}
-              className="rounded-md p-1 text-white/70 transition-colors hover:text-white"
               aria-label="Close notification"
+              className="text-white/70 hover:text-white hover:bg-white/10"
             >
               <X className="h-4 w-4" strokeWidth={2} />
-            </button>
+            </Button>
           </div>
         </div>
       ))}
