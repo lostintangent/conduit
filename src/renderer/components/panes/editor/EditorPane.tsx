@@ -21,7 +21,6 @@ import type { EditorTreeMode } from "@/types";
 import { cleanGitError } from "@/utils/gitErrors";
 import { resolveTheme } from "@/utils/theme";
 import Editor, { loader } from "@monaco-editor/react";
-import { ConduitDiffEditor } from "./ConduitDiffEditor";
 import type {
   FileChangedEvent,
   FileDiffResult,
@@ -38,6 +37,7 @@ import {
   PanelLeftOpen,
   X,
 } from "lucide-react";
+import { ConduitDiffEditor } from "./ConduitDiffEditor";
 
 // CRITICAL: Import worker setup BEFORE any monaco contribution imports
 // This sets up MonacoEnvironment before languages try to register
@@ -226,12 +226,12 @@ function inferLanguageFromFilePath(filePath: string): string {
 
 type EditorPaneProps = {
   cwd: string;
-  filePath?: string;
+  file?: string;
   paneId: string;
   agentSessionId?: string | null;
   treeMode?: EditorTreeMode;
   onFileChange?: (fileData: {
-    filePath: string;
+    file: string;
     language: string;
     content: string;
   }) => void;
@@ -246,7 +246,7 @@ type EditorPaneProps = {
 
 export function EditorPane({
   cwd,
-  filePath,
+  file: filePath,
   paneId,
   agentSessionId,
   treeMode,
@@ -1348,7 +1348,7 @@ export function EditorPane({
           // Update the file path without losing content or state
           // Use currentContentRef to avoid stale closure
           onFileChange?.({
-            filePath: payload.newPath,
+            file: payload.newPath,
             language: inferLanguageFromFilePath(payload.newPath),
             content: currentContentRef.current || "", // Keep existing content
           });
@@ -1456,7 +1456,7 @@ export function EditorPane({
 
             // Update parent with the modified content
             onFileChange?.({
-              filePath: node.path,
+              file: node.path,
               language: detectedLanguage,
               content: diff.modifiedContent,
             });
@@ -1466,7 +1466,7 @@ export function EditorPane({
             setViewMode({ type: "editor" });
 
             onFileChange?.({
-              filePath: node.path,
+              file: node.path,
               language: detectedLanguage,
               content: fileContent,
             });
@@ -1477,7 +1477,7 @@ export function EditorPane({
           setViewMode({ type: "editor" });
 
           onFileChange?.({
-            filePath: node.path,
+            file: node.path,
             language: detectedLanguage,
             content: fileContent,
           });
@@ -1897,7 +1897,7 @@ export function EditorPane({
         // Reload the file to show the reverted content
         const fileContent = await api.readFile(filePath);
         onFileChange?.({
-          filePath,
+          file: filePath,
           language: currentLanguage || "plaintext",
           content: fileContent,
         });

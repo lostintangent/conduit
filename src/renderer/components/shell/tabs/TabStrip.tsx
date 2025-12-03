@@ -39,6 +39,7 @@ import {
   userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom, type TabLabelDescriptor } from "@/store/tabLabels";
+import type { TabPosition } from "@shared/types";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ChevronDown,
@@ -72,7 +73,7 @@ type TabStripProps = {
     paneId: string,
     cwd: string | null,
   ) => void;
-  position?: "top" | "bottom";
+  position?: TabPosition;
 };
 
 export const TabStrip = ({

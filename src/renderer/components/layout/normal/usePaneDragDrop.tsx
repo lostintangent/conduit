@@ -3,7 +3,7 @@ import { detachPane } from "@/store/actions/pane";
 import { applicationModeAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, SplitDirection } from "@/types";
 import { cn } from "@/utils";
-import { generateId } from "@/utils/id";
+import { generateId } from "@shared/utils";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useState } from "react";
 

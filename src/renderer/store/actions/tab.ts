@@ -3,8 +3,8 @@ import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { detachPane, removePane } from "@/store/actions/pane";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
-import { generateId } from "@/utils/id";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { getDefaultStore } from "jotai";
 import path from "path-browserify";
 
@@ -468,28 +468,28 @@ export async function duplicateTab(
       }
     } else if (sourcePane.type === "editor") {
       // Translate file path if duplicating into a worktree
-      let translatedFilePath = sourcePane.filePath;
+      let translatedFile = sourcePane.file;
       if (
         options?.agentSession &&
-        sourcePane.filePath &&
+        sourcePane.file &&
         options.agentSession.repoRoot &&
         options.agentSession.worktreePath
       ) {
         // Normalize paths for comparison
-        const normalizedFilePath = path.normalize(sourcePane.filePath);
+        const normalizedFile = path.normalize(sourcePane.file);
         const normalizedRepoRoot = path.normalize(
           options.agentSession.repoRoot,
         );
 
         // Check if file is within the repository
-        if (normalizedFilePath.startsWith(normalizedRepoRoot + path.sep)) {
+        if (normalizedFile.startsWith(normalizedRepoRoot + path.sep)) {
           // Get the relative path from repo root
           const relativePath = path.relative(
             normalizedRepoRoot,
-            normalizedFilePath,
+            normalizedFile,
           );
           // Construct the new path in the worktree
-          translatedFilePath = path.join(
+          translatedFile = path.join(
             options.agentSession.worktreePath,
             relativePath,
           );
@@ -512,17 +512,17 @@ export async function duplicateTab(
         id: newPaneId,
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
-        filePath: translatedFilePath,
+        file: translatedFile,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
         agentRepoRoot,
         agentWorktreePath,
       };
-    } else if (sourcePane.type === "webview") {
+    } else if (sourcePane.type === "browser") {
       newPanes[newPaneId] = {
         id: newPaneId,
-        type: "webview",
+        type: "browser",
         url: sourcePane.url,
         title: sourcePane.title,
       };

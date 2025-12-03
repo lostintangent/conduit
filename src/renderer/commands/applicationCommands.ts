@@ -51,8 +51,8 @@ import {
   cloneTerminalPane,
   closePane,
   movePane,
+  openBrowserPane,
   openEditorPane,
-  openWebViewPane,
   setPaneCollapsed,
   splitPane,
   splitPaneWithAgentSession,
@@ -953,7 +953,7 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        openWebViewPane(targetTabId, targetPaneId, "about:blank", "row", true);
+        openBrowserPane(targetTabId, targetPaneId, "about:blank", "row", true);
       }
     },
   });
@@ -978,7 +978,7 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        openWebViewPane(targetTabId, targetPaneId, "about:blank", "row", false);
+        openBrowserPane(targetTabId, targetPaneId, "about:blank", "row", false);
       }
     },
   });
@@ -1003,7 +1003,7 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        openWebViewPane(
+        openBrowserPane(
           targetTabId,
           targetPaneId,
           "about:blank",
@@ -1034,7 +1034,7 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        openWebViewPane(
+        openBrowserPane(
           targetTabId,
           targetPaneId,
           "about:blank",

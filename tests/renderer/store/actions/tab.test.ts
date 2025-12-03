@@ -200,12 +200,12 @@ describe("duplicateTab", () => {
     const newPane = Object.values(newTabs[1].panes)[0];
     expect(newPane.type).toBe("editor");
     if (newPane.type === "editor") {
-      expect(newPane.filePath).toBe("/home/user/project/index.ts");
+      expect(newPane.file).toBe("/home/user/project/index.ts");
       expect(newPane.cwd).toBe("/home/user/project");
     }
   });
 
-  it("should duplicate webview panes with same URL", async () => {
+  it("should duplicate browser panes with same URL", async () => {
     const sourceTab: Tab = {
       id: "tab-1",
       title: "Browser Tab",
@@ -213,7 +213,7 @@ describe("duplicateTab", () => {
       panes: {
         "pane-1": {
           id: "pane-1",
-          type: "webview",
+          type: "browser",
           url: "https://example.com",
           title: "Example Site",
         },
@@ -235,8 +235,8 @@ describe("duplicateTab", () => {
     const newTabs = setCallback([sourceTab]);
 
     const newPane = Object.values(newTabs[1].panes)[0];
-    expect(newPane.type).toBe("webview");
-    if (newPane.type === "webview") {
+    expect(newPane.type).toBe("browser");
+    if (newPane.type === "browser") {
       expect(newPane.url).toBe("https://example.com");
       expect(newPane.title).toBe("Example Site");
     }

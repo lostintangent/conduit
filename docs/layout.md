@@ -49,7 +49,7 @@ interface TabLayoutProps {
   handleContextMenu: (event, tabId, paneId?) => void;
   handleResizeStart: (e, payload) => void;
   resizingNode: string | null;
-  handleWebViewUpdate: (tabId, paneId, updates) => void;
+  handleBrowserUpdate: (tabId, paneId, updates) => void;
   handleEditorUpdate: (tabId, paneId, updates) => void;
   onOpenQuickPane?: (descriptor) => void;
   onOpenPaneActions?: () => void;
@@ -106,19 +106,19 @@ The layout system uses a tree structure where each node is either a pane (leaf) 
 // Leaf node - represents an actual pane
 type LayoutPaneNode = {
   type: "pane";
-  id: string;           // Unique node ID
-  paneId: string;       // References pane in tab.panes
-  size?: number;        // Flex size (relative)
-  collapsed?: boolean;  // Whether pane is minimized
+  id: string; // Unique node ID
+  paneId: string; // References pane in tab.panes
+  size?: number; // Flex size (relative)
+  collapsed?: boolean; // Whether pane is minimized
 };
 
 // Branch node - represents a split container
 type LayoutSplitNode = {
   type: "split";
-  id: string;           // Unique node ID
+  id: string; // Unique node ID
   direction: "row" | "column"; // Split axis
   children: LayoutNode[]; // Child nodes
-  size?: number;        // Flex size (relative)
+  size?: number; // Flex size (relative)
 };
 
 // Union type for all layout nodes
@@ -133,11 +133,11 @@ Tabs contain panes and their layout arrangement:
 type Tab = {
   id: string;
   panes: Record<string, Pane>; // Pane data by ID
-  layout: LayoutNode;           // Layout tree
-  activePaneId: string;         // Currently focused pane
-  title?: string;               // Optional tab title
-  locked?: boolean;             // Prevents modification
-  synchronized?: boolean;       // Git sync status
+  layout: LayoutNode; // Layout tree
+  activePaneId: string; // Currently focused pane
+  title?: string; // Optional tab title
+  locked?: boolean; // Prevents modification
+  synchronized?: boolean; // Git sync status
 };
 ```
 
@@ -149,8 +149,8 @@ Three types of panes are supported:
 type TerminalPane = {
   type: "terminal";
   id: string;
-  sessionId: string;    // PTY session ID
-  cwd: string | null;   // Working directory
+  sessionId: string; // PTY session ID
+  cwd: string | null; // Working directory
   processTitle: string; // Current process
   vmMetadata?: VMMetadata; // Cloud VM details
   agentSessionId?: string; // Agent context
@@ -159,18 +159,18 @@ type TerminalPane = {
 type EditorPane = {
   type: "editor";
   id: string;
-  cwd: string;          // Base directory
-  filePath?: string;    // Currently open file
+  cwd: string; // Base directory
+  filePath?: string; // Currently open file
   treeMode?: "all" | "changes"; // File tree filter
   agentSessionId?: string; // Agent context
 };
 
-type WebViewPane = {
-  type: "webview";
+type BrowserPane = {
+  type: "browser";
   id: string;
-  url: string;          // Current URL
-  title?: string;       // Page title
-  devToolsForPane?: string; // Parent pane if devtools
+  url: string; // Current URL
+  title?: string; // Page title
+  devToolsFor?: string; // Parent pane if devtools
 };
 ```
 
@@ -204,8 +204,7 @@ function buildGridTemplateStyles(
   // Normal mode: allocate space based on size property
   const templateValue = buildTemplateString(
     children.map((child) => {
-      if (child.type === "pane" && child.collapsed) 
-        return "collapsed"; // Fixed 25px
+      if (child.type === "pane" && child.collapsed) return "collapsed"; // Fixed 25px
       return child.size ?? 1; // Flex proportion
     }),
   );
@@ -228,11 +227,9 @@ Grid gaps create visual separation between panes:
 
 ```typescript
 // Gaps reveal the background overlay underneath
-const gridGapClass = 
-  applicationMode === "focus" || 
-  applicationMode === "design" ||
-  isInPreview
-    ? "gap-0"  // No gaps in special modes
+const gridGapClass =
+  applicationMode === "focus" || applicationMode === "design" || isInPreview
+    ? "gap-0" // No gaps in special modes
     : "gap-[1px]"; // 1px gap in normal mode
 ```
 
@@ -266,12 +263,12 @@ Every boundary between sibling panes has a primary resize handle:
 
 ```typescript
 type LayoutResizeAxis = {
-  containerNodeId: string;   // Parent split node
+  containerNodeId: string; // Parent split node
   direction: SplitDirection; // Row or column
-  leadingNodeId: string;     // Left/top node
-  trailingNodeId: string;    // Right/bottom node
-  leadingSize: number;       // Current leading size
-  trailingSize: number;      // Current trailing size
+  leadingNodeId: string; // Left/top node
+  trailingNodeId: string; // Right/bottom node
+  leadingSize: number; // Current leading size
+  trailingSize: number; // Current trailing size
 };
 ```
 
@@ -306,27 +303,25 @@ function computeIntersectionHandles(
   currChild: LayoutNode,
   parentDirection: SplitDirection,
 ): IntersectionHandleConfig[] {
-  const perpendicularDirection = 
-    parentDirection === "row" ? "column" : "row";
+  const perpendicularDirection = parentDirection === "row" ? "column" : "row";
 
   // Collect boundaries from both siblings if they split perpendicular
-  const prevBoundaries = 
+  const prevBoundaries =
     previousSibling.type === "split" &&
     previousSibling.direction === perpendicularDirection
       ? collectBoundaries(previousSibling)
       : [];
 
-  const currBoundaries = 
-    currChild.type === "split" &&
-    currChild.direction === perpendicularDirection
+  const currBoundaries =
+    currChild.type === "split" && currChild.direction === perpendicularDirection
       ? collectBoundaries(currChild)
       : [];
 
   // Merge boundaries that are close (within 8% tolerance)
   const seeds = [];
   for (const boundary of [...prevBoundaries, ...currBoundaries]) {
-    const existing = seeds.find(seed =>
-      Math.abs(seed.position - boundary.position) <= 0.08
+    const existing = seeds.find(
+      (seed) => Math.abs(seed.position - boundary.position) <= 0.08,
     );
 
     if (existing) {
@@ -425,6 +420,7 @@ Conduit has four distinct application modes that affect layout rendering and beh
 The default mode for regular interaction.
 
 **Characteristics:**
+
 - Full layout rendering with all panes visible
 - 1px gaps between panes (grid gap)
 - Resize handles visible on hover
@@ -432,6 +428,7 @@ The default mode for regular interaction.
 - Context menus available
 
 **Grid rendering:**
+
 ```css
 .split-container {
   display: grid;
@@ -444,6 +441,7 @@ The default mode for regular interaction.
 Immersive mode showing only the active pane fullscreen.
 
 **Characteristics:**
+
 - Only active pane allocated grid space (others get 0)
 - No grid gaps or resize handles
 - Focus indicator overlay in bottom-right corner
@@ -451,6 +449,7 @@ Immersive mode showing only the active pane fullscreen.
 - Keyboard shortcuts for pane/tab navigation
 
 **Activation:**
+
 - Command/Ctrl + click on pane
 - Drag pane onto another pane (focus mode drag)
 - Keyboard shortcut: ⌘⌥F (Mac) / Ctrl+Alt+F (Win/Linux)
@@ -474,10 +473,8 @@ Immersive mode showing only the active pane fullscreen.
 ```typescript
 // Only active pane gets space
 buildGridTemplateStyles(
-  children.map((child) =>
-    layoutContainsPaneId(child, activePaneId) ? 1 : 0
-  )
-)
+  children.map((child) => (layoutContainsPaneId(child, activePaneId) ? 1 : 0)),
+);
 // Result: "minmax(0, 1fr) 0fr 0fr ..." (only active is 1fr)
 ```
 
@@ -486,6 +483,7 @@ buildGridTemplateStyles(
 Interactive mode for reorganizing the layout.
 
 **Characteristics:**
+
 - Pane control buttons overlay on each pane
 - Drag handles for pane repositioning
 - Drop zones show during drag operations
@@ -511,6 +509,7 @@ Interactive mode for reorganizing the layout.
 ```
 
 **Control buttons include:**
+
 - Drag handle (grip icon)
 - Split buttons (horizontal/vertical)
 - Move buttons (up/down/left/right)
@@ -522,6 +521,7 @@ Interactive mode for reorganizing the layout.
 Bird's-eye view of all tabs for quick navigation.
 
 **Characteristics:**
+
 - Grid of tab previews at 60% scale
 - Tab labels below each preview
 - Solid borders instead of gaps
@@ -580,10 +580,7 @@ Drop zones divide each pane into four edge regions:
 **Detection logic:**
 
 ```typescript
-function getDropZone(
-  event: React.DragEvent,
-  element: HTMLElement
-): DropZone {
+function getDropZone(event: React.DragEvent, element: HTMLElement): DropZone {
   const rect = element.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -626,7 +623,7 @@ When hovering over a valid drop zone:
 ```typescript
 export function detachPane(
   tabId: string,
-  paneId: string
+  paneId: string,
 ): { pane: Pane; layout: LayoutNode } | null {
   const tab = getTab(tabId);
   if (!tab) return null;
@@ -635,26 +632,29 @@ export function detachPane(
   if (!pane) return null;
 
   // Remove pane from layout tree
-  const { node: newLayout, removed } = 
-    removePaneFromLayoutNode(tab.layout, paneId);
+  const { node: newLayout, removed } = removePaneFromLayoutNode(
+    tab.layout,
+    paneId,
+  );
 
   if (!removed || !newLayout) return null;
 
   // Update tab without this pane
-  store.set(tabsAtom, tabs =>
-    tabs.map(t => {
+  store.set(tabsAtom, (tabs) =>
+    tabs.map((t) => {
       if (t.id !== tabId) return t;
-      
+
       const { [paneId]: _, ...remainingPanes } = t.panes;
       return {
         ...t,
         panes: remainingPanes,
         layout: newLayout,
-        activePaneId: t.activePaneId === paneId
-          ? getFirstPaneId(newLayout)
-          : t.activePaneId,
+        activePaneId:
+          t.activePaneId === paneId
+            ? getFirstPaneId(newLayout)
+            : t.activePaneId,
       };
-    })
+    }),
   );
 
   return { pane, layout: newLayout };
@@ -677,13 +677,18 @@ function splitPaneWithExisting(
     paneId: draggedPane.id,
   };
 
-  store.set(tabsAtom, tabs =>
-    tabs.map(tab => {
+  store.set(tabsAtom, (tabs) =>
+    tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
 
       // Insert dragged pane into layout tree
-      const { node: newLayout, modified } = 
-        insertPaneIntoLayout(tab.layout, targetPaneId, newLayoutNode, direction, insertBefore);
+      const { node: newLayout, modified } = insertPaneIntoLayout(
+        tab.layout,
+        targetPaneId,
+        newLayoutNode,
+        direction,
+        insertBefore,
+      );
 
       if (!modified) return tab;
 
@@ -696,7 +701,7 @@ function splitPaneWithExisting(
         layout: newLayout,
         activePaneId: draggedPane.id,
       };
-    })
+    }),
   );
 }
 ```
@@ -826,6 +831,7 @@ return (
 ```
 
 **Benefits:**
+
 - Tab content doesn't re-mount when previewing
 - Terminal sessions stay alive
 - Editor state preserved
@@ -876,7 +882,7 @@ const COLLAPSED_PANE_SIZE = 25;
 
 if (isCollapsed && !isInFocusMode) {
   const isHorizontalBar = parentDirection === "column";
-  
+
   return (
     <button
       className="flex items-center w-full h-full justify-center bg-elevated hover:bg-elevated/80"
@@ -929,16 +935,14 @@ const templateValue = buildTemplateString(
       return "collapsed"; // Will become "25px"
     }
     return child.size ?? 1; // Will become "minmax(0, Nfr)"
-  })
+  }),
 );
 
 // buildTemplateString handles the mapping
 function buildTemplateString(values: (number | "collapsed")[]): string {
   return values
     .map((value) =>
-      value === "collapsed"
-        ? "25px"
-        : `minmax(0, ${Math.max(value, 0)}fr)`
+      value === "collapsed" ? "25px" : `minmax(0, ${Math.max(value, 0)}fr)`,
     )
     .join(" ");
 }
@@ -947,6 +951,7 @@ function buildTemplateString(values: (number | "collapsed")[]): string {
 ### Collapsed Pane Behavior
 
 **Interaction:**
+
 - Click to expand back to previous size
 - Cannot be resized while collapsed
 - Remains in collapsed state during tab switches
@@ -961,8 +966,8 @@ export function setPaneCollapsed(
   paneId: string,
   collapsed: boolean,
 ): void {
-  store.set(tabsAtom, tabs =>
-    tabs.map(tab => {
+  store.set(tabsAtom, (tabs) =>
+    tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
 
       const updateNode = (node: LayoutNode): LayoutNode => {
@@ -982,7 +987,7 @@ export function setPaneCollapsed(
         ...tab,
         layout: updateNode(tab.layout),
       };
-    })
+    }),
   );
 }
 ```
@@ -1052,8 +1057,8 @@ function splitLayoutNode(
   }
 
   // Find child containing target pane
-  const childIndex = node.children.findIndex(child =>
-    containsPane(child, targetPaneId)
+  const childIndex = node.children.findIndex((child) =>
+    containsPane(child, targetPaneId),
   );
 
   if (childIndex === -1) {
@@ -1070,11 +1075,7 @@ function splitLayoutNode(
     targetChild.paneId === targetPaneId
   ) {
     const newChildren = [...node.children];
-    newChildren.splice(
-      insertBefore ? childIndex : childIndex + 1,
-      0,
-      newNode
-    );
+    newChildren.splice(insertBefore ? childIndex : childIndex + 1, 0, newNode);
     return {
       node: { ...node, children: newChildren },
       modified: true,
@@ -1087,7 +1088,7 @@ function splitLayoutNode(
     targetPaneId,
     direction,
     newNode,
-    insertBefore
+    insertBefore,
   );
 
   if (modified) {
@@ -1176,17 +1177,17 @@ export function movePane(
   direction: PaneDirection,
 ): void {
   const config = getPaneDirectionConfig(direction);
-  
-  store.set(tabsAtom, tabs =>
-    tabs.map(tab => {
+
+  store.set(tabsAtom, (tabs) =>
+    tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
 
       const moveNode = (node: LayoutNode): LayoutNode => {
         if (node.type !== "split") return node;
 
         // Check if this split contains the target pane
-        const childIndex = node.children.findIndex(child => 
-          containsPane(child, paneId)
+        const childIndex = node.children.findIndex((child) =>
+          containsPane(child, paneId),
         );
 
         if (childIndex === -1) {
@@ -1206,9 +1207,7 @@ export function movePane(
         }
 
         // Calculate target index
-        const targetIndex = config.isForward 
-          ? childIndex + 1 
-          : childIndex - 1;
+        const targetIndex = config.isForward ? childIndex + 1 : childIndex - 1;
 
         // Check bounds
         if (targetIndex < 0 || targetIndex >= node.children.length) {
@@ -1217,8 +1216,10 @@ export function movePane(
 
         // Swap children
         const newChildren = [...node.children];
-        [newChildren[childIndex], newChildren[targetIndex]] = 
-          [newChildren[targetIndex], newChildren[childIndex]];
+        [newChildren[childIndex], newChildren[targetIndex]] = [
+          newChildren[targetIndex],
+          newChildren[childIndex],
+        ];
 
         return { ...node, children: newChildren };
       };
@@ -1227,7 +1228,7 @@ export function movePane(
         ...tab,
         layout: moveNode(tab.layout),
       };
-    })
+    }),
   );
 }
 ```
@@ -1260,8 +1261,11 @@ function removePaneFromLayoutNode(
   targetPaneId: string,
 ): { node: LayoutNode | null; removed: boolean } {
   // Extract the pane node
-  const { node: updatedNode, removedPane, modified } = 
-    extractPaneNode(node, targetPaneId);
+  const {
+    node: updatedNode,
+    removedPane,
+    modified,
+  } = extractPaneNode(node, targetPaneId);
 
   if (!modified || !removedPane) {
     return { node, removed: false };
@@ -1360,16 +1364,17 @@ export function activatePane(tabId: string, paneId: string): void {
   }
 
   // Set as active pane
-  store.set(tabsAtom, tabs =>
-    tabs.map(tab => {
+  store.set(tabsAtom, (tabs) =>
+    tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
       return { ...tab, activePaneId: paneId };
-    })
+    }),
   );
 }
 ```
 
 **Activation triggers:**
+
 - Click on pane
 - Click on pane in preview
 - Click on mini-map in focus mode
@@ -1387,6 +1392,7 @@ The layout system maintains several invariants:
 5. **Direction consistency** - Split directions are "row" or "column"
 
 These are enforced through:
+
 - Tree simplification after operations
 - Validation in state update functions
 - Cleanup when closing panes/tabs

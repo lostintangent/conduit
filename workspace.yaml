@@ -1,0 +1,31 @@
+name: Conduit
+tabs:
+  - title: Coding
+    panes:
+      - split: column
+        panes:
+          - command: copilot
+          - panes:
+              - id: npm-dev
+                command: npm start
+              - type: terminal
+      - command: lazygit
+
+  - title: Review
+    active: true
+    panes:
+      - split: column
+        panes:
+          - command: codex
+          - cloneOf: npm-dev
+            collapsed: true
+      - active: true
+
+  - title: News
+    panes:
+      - url: https://espn.com
+      - split: column
+        panes:
+          - id: hn-browser
+            url: https://news.ycombinator.com
+          - devToolsFor: hn-browser

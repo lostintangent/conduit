@@ -164,7 +164,7 @@ export const TerminalPane = ({
   isTabSynchronized = false,
   fontSize,
 }: TerminalPaneProps) => {
-  const { id: paneId, sessionId: terminalId, cwd, sourcePaneId } = pane;
+  const { id: paneId, sessionId: terminalId, cwd, cloneOf } = pane;
   const settings = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
   const { showTerminalRuler } = settings;
@@ -203,19 +203,19 @@ export const TerminalPane = ({
   const streamCleanupRef = useRef<(() => void) | null>(null);
 
   const sessionId = useMemo(() => {
-    if (!sourcePaneId || !tabId) {
+    if (!cloneOf || !tabId) {
       return terminalId;
     }
 
     const tab = tabs.find(({ id }) => id === tabId);
-    const sourcePane = tab?.panes[sourcePaneId];
+    const sourcePane = tab?.panes[cloneOf];
 
     if (sourcePane?.type === "terminal") {
       return sourcePane.sessionId;
     }
 
     return terminalId;
-  }, [sourcePaneId, tabId, tabs, terminalId]);
+  }, [cloneOf, tabId, tabs, terminalId]);
 
   const handleSynchronizedInput = useCallback(
     (input: string) => {

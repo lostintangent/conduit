@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { Check, LayoutDashboard, Trash2 } from "lucide-react";
+import { Download, LayoutDashboard, Trash2 } from "lucide-react";
 import { type MouseEvent, useCallback } from "react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
@@ -45,12 +45,37 @@ export const WorkspaceMenu = () => {
   );
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
 
+  const handleImportWorkspace = useCallback(async () => {
+    const workspace = await api.workspace.importFromFile();
+    if (workspace) {
+      setWorkspaces((current) => {
+        // Remove existing workspace with the same name if it exists
+        const filtered = current.workspaces.filter(
+          (w) => w.name !== workspace.name,
+        );
+        return {
+          ...current,
+          workspaces: [workspace, ...filtered],
+        };
+      });
+      openWorkspace(workspace);
+    }
+  }, [setWorkspaces]);
+
   const handleOpenWorkspace = useCallback(
     (workspace: Workspace) => {
       if (workspace.name === workspaceName) return;
       openWorkspace(workspace);
     },
     [workspaceName],
+  );
+
+  const handleExportWorkspace = useCallback(
+    async (workspace: Workspace, e: MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      await api.workspace.exportToFile(workspace);
+    },
+    [],
   );
 
   const handleDeleteWorkspace = useCallback(
@@ -100,6 +125,7 @@ export const WorkspaceMenu = () => {
 
               return (
                 <DropdownMenuItem
+                  key={workspace.name}
                   onClick={() => handleOpenWorkspace(workspace)}
                   className={cn(
                     "flex items-center justify-between",
@@ -107,22 +133,35 @@ export const WorkspaceMenu = () => {
                   )}
                 >
                   <span>{workspace.name}</span>
-                  {isCurrentWorkspace ? (
-                    <Check className="w-4 h-4 mr-1" />
-                  ) : (
+                  <div className="flex items-center gap-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={(e) => handleDeleteWorkspace(workspace, e)}
-                          className="p-1 rounded hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30 group"
-                          aria-label="Delete workspace"
+                          onClick={(e) => handleExportWorkspace(workspace, e)}
+                          className="p-1 rounded hover:bg-foreground/20 transition-colors focus:outline-none focus:ring-2 focus:ring-foreground/30 group"
+                          aria-label="Export workspace"
                         >
-                          <Trash2 className="w-4 h-4 group-hover:text-red-500" />
+                          <Download className="w-4 h-4" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Delete workspace</TooltipContent>
+                      <TooltipContent>Export workspace</TooltipContent>
                     </Tooltip>
-                  )}
+
+                    {!isCurrentWorkspace && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => handleDeleteWorkspace(workspace, e)}
+                            className="p-1 rounded hover:bg-foreground/20 transition-colors focus:outline-none focus:ring-2 focus:ring-foreground/30 group"
+                            aria-label="Delete workspace"
+                          >
+                            <Trash2 className="w-4 h-4 group-hover:text-red-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete workspace</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 </DropdownMenuItem>
               );
             })}
@@ -156,6 +195,10 @@ export const WorkspaceMenu = () => {
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={handleImportWorkspace}>
+          Import Workspace...
+        </DropdownMenuItem>
 
         <DropdownMenuItem
           onClick={closeWorkspaceCmd.execute}

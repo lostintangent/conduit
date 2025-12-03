@@ -43,7 +43,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { openWebViewPane, removePane } from "@/store/actions/pane";
+import { openBrowserPane, removePane } from "@/store/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -321,7 +321,7 @@ export function App() {
     [titleModalState, updateTabProperty],
   );
 
-  const handleWebViewUpdate = useCallback(
+  const handleBrowserUpdate = useCallback(
     (
       tabId: string,
       paneId: string,
@@ -337,7 +337,7 @@ export function App() {
           }
 
           const pane = tab.panes[paneId];
-          if (!pane || pane.type !== "webview") {
+          if (!pane || pane.type !== "browser") {
             return tab;
           }
 
@@ -610,7 +610,7 @@ export function App() {
         return;
       }
 
-      openWebViewPane(activeTab.id, activeTab.activePaneId, url);
+      openBrowserPane(activeTab.id, activeTab.activePaneId, url);
       setIsUrlDialogOpen(false);
     },
     [activeTab],
@@ -833,7 +833,7 @@ export function App() {
               handleContextMenu={handleContextMenu}
               handleResizeStart={handleResizeStart}
               resizingNode={resizingNode}
-              handleWebViewUpdate={handleWebViewUpdate}
+              handleBrowserUpdate={handleBrowserUpdate}
               handleEditorUpdate={handleEditorUpdate}
               onOpenQuickPane={handleOpenQuickPane}
               onOpenPaneActions={() => setShowPaneActionsEditor(true)}

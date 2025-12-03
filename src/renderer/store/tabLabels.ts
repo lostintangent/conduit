@@ -73,13 +73,13 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
         "Shell";
 
       tooltipBase = activePane.cwd ?? activePane.processTitle ?? fallbackLabel;
-    } else if (activePane?.type === "webview") {
+    } else if (activePane?.type === "browser") {
       const title = activePane.title?.trim();
       fallbackLabel =
         title && title.length > 0 ? title : (activePane.url ?? "Browser");
       tooltipBase = fallbackLabel;
     } else if (activePane?.type === "editor") {
-      const editorPath = activePane.filePath ?? activePane.cwd ?? null;
+      const editorPath = activePane.file ?? activePane.cwd ?? null;
       if (editorPath) {
         fallbackLabel = formatPathForLabel(editorPath) ?? editorPath;
         tooltipBase = editorPath;

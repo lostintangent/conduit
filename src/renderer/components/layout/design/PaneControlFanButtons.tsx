@@ -10,8 +10,8 @@ import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
 import { PreCommandRegistry } from "@/commands/preCommands/registry";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
+  openBrowserPane,
   openEditorPane,
-  openWebViewPane,
   splitPane,
 } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
@@ -201,7 +201,7 @@ export function PaneControlFanButtons({
       case "browser": {
         if (isBrowserConfig(action.config)) {
           const url = action.config.url || "https://google.com";
-          openWebViewPane(tabId, paneId, url, direction, insertBefore);
+          openBrowserPane(tabId, paneId, url, direction, insertBefore);
         }
         break;
       }

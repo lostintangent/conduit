@@ -12,7 +12,6 @@ import type {
   Tab,
   TerminalPane,
 } from "@/types";
-import { generateId } from "@/utils/id";
 import {
   getPaneDirectionConfig,
   walkLayout,
@@ -24,6 +23,7 @@ import type {
   AgentSessionInfo,
   TerminalCreateOptions,
 } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { getDefaultStore } from "jotai";
 
 const api = window.conduit;
@@ -753,7 +753,7 @@ export async function splitPaneWithAgentSession(
   }
 }
 
-export function openWebViewPane(
+export function openBrowserPane(
   tabId: string,
   paneId: string,
   url: string,
@@ -764,9 +764,9 @@ export function openWebViewPane(
   const newPaneId = generateId();
   const newPaneState: Pane = {
     id: newPaneId,
-    type: "webview",
+    type: "browser",
     url,
-    ...(devTools && { devToolsForPane: paneId }),
+    ...(devTools && { devToolsFor: paneId }),
   };
 
   const newLayoutNode: LayoutNode = {
@@ -874,7 +874,7 @@ export function cloneTerminalPane(
     const newPane: TerminalPane = {
       ...sourcePane,
       id: newPaneId,
-      sourcePaneId: sourcePane.sourcePaneId ?? paneId,
+      cloneOf: sourcePane.cloneOf ?? paneId,
     };
 
     const newLayoutNode: LayoutNode = {
@@ -1067,7 +1067,7 @@ export function closePane(tabId: string, paneId: string) {
     // See whether this pane has an associated dev tools pane,
     // and if so, let's close it as well
     const devToolsPanes = Object.values(tab.panes).filter(
-      (pane) => pane.type === "webview" && pane.devToolsForPane === paneId,
+      (pane) => pane.type === "browser" && pane.devToolsFor === paneId,
     );
 
     for (const devToolsPane of devToolsPanes) {
@@ -1109,9 +1109,9 @@ export async function forwardPortAndOpen(
     const { dismissNotification } = await import("./notifications");
     dismissNotification(notificationId);
 
-    // Split the pane vertically and open the connection URL in a WebPane
-    // openWebViewPane handles both splitting and creating the webview pane
-    openWebViewPane(
+    // Split the pane vertically and open the connection URL in a BrowserPane
+    // openBrowserPane handles both splitting and creating the browser pane
+    openBrowserPane(
       tabId,
       paneId,
       `http://${result.connection_url}`,

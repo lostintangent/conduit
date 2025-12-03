@@ -1,77 +1,67 @@
-import type { VMMetadata } from "@shared/types";
+import type {
+  EditorTreeMode,
+  Identifiable,
+  LayoutNode,
+  LayoutPaneNode,
+  LayoutSplitNode,
+  NotificationKind,
+  BrowserPane as SharedBrowserPane,
+  EditorPane as SharedEditorPane,
+  TerminalPane as SharedTerminalPane,
+  SplitDirection,
+  TabMetadata,
+  VMMetadata,
+} from "@shared/types";
 
-type Identifiable = { id: string };
-type Resizable = { size?: number };
-
-/* Layout tree types */
-
-export type LayoutPaneNode = {
-  type: "pane";
-  paneId: string;
-  collapsed?: boolean;
-} & Identifiable &
-  Resizable;
-
-export type SplitDirection = "row" | "column";
-export type LayoutSplitNode = {
-  type: "split";
-  direction: SplitDirection;
-  children: LayoutNode[];
-} & Identifiable &
-  Resizable;
-
-export type LayoutNode = LayoutPaneNode | LayoutSplitNode;
+export type {
+  EditorTreeMode,
+  Identifiable,
+  LayoutNode,
+  LayoutPaneNode,
+  LayoutSplitNode,
+  NotificationKind,
+  SplitDirection,
+  TabMetadata,
+  VMMetadata,
+};
 
 /* Tab and pane types */
 
-export type TerminalPane = {
-  type: "terminal";
-  sessionId: string;
-  cwd: string | null;
-  processTitle: string;
-  sourcePaneId?: string;
-
-  vmMetadata?: VMMetadata;
-
+/**
+ * Runtime metadata for panes associated with an agent session.
+ */
+type AgentPaneMetadata = {
   agentSessionId?: string;
   agentBranchName?: string;
   agentBaseBranch?: string | null;
   agentRepoRoot?: string;
   agentWorktreePath?: string;
-} & Identifiable;
+};
 
-export type WebViewPane = {
-  type: "webview";
+export type TerminalPane = Omit<SharedTerminalPane, "cwd"> &
+  AgentPaneMetadata & {
+    sessionId: string;
+    cwd: string | null;
+    processTitle: string;
+    vmMetadata?: VMMetadata;
+  };
+
+export type BrowserPane = Omit<SharedBrowserPane, "url"> & {
   url: string;
   title?: string;
+};
 
-  devToolsForPane?: string;
-} & Identifiable;
+export type EditorPane = Omit<SharedEditorPane, "cwd"> &
+  AgentPaneMetadata & {
+    cwd: string;
+  };
 
-export type EditorTreeMode = "all" | "changes";
-export type EditorPane = {
-  type: "editor";
-  cwd: string;
-  filePath?: string;
-  treeMode?: EditorTreeMode;
+export type Pane = TerminalPane | BrowserPane | EditorPane;
 
-  agentSessionId?: string;
-  agentBranchName?: string;
-  agentBaseBranch?: string | null;
-  agentRepoRoot?: string;
-  agentWorktreePath?: string;
-} & Identifiable;
-
-export type Pane = TerminalPane | WebViewPane | EditorPane;
-
-export type Tab = {
+export type Tab = TabMetadata & {
   panes: Record<string, Pane>;
   layout: LayoutNode;
   activePaneId: string;
-
-  title?: string;
-  locked?: boolean;
-  synchronized?: boolean;
 } & Identifiable;
 
 /* Command palette types */
@@ -85,8 +75,6 @@ export type Command = {
 } & Identifiable;
 
 /* Notification types */
-
-export type NotificationKind = "info" | "success" | "error";
 
 export type NotificationAction = {
   label: string;

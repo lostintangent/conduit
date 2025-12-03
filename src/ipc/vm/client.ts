@@ -1,3 +1,4 @@
+import type { VMState } from "@shared/types";
 import { loadConfig, reloadConfig as reloadVMConfig } from "./config";
 
 /**
@@ -14,7 +15,7 @@ export type VM = {
     id: number;
     login: string;
   };
-  state: "Running" | "Paused" | "Stopped";
+  state: VMState;
   forwarded_ports: {
     [port: string]: {
       connection_url: string;
