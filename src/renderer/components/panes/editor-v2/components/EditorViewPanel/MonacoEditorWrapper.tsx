@@ -61,6 +61,22 @@ export interface MonacoEditorWrapperProps {
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
 
   /**
+   * Whether this editor is the active/visible view.
+   *
+   * When switching between editor and diff modes, both components stay mounted.
+   * The inactive editor detaches its model (setModel(null)) to prevent Monaco
+   * rendering issues, following Monaco's official recommendations.
+   *
+   * When becoming active:
+   * - Model is re-attached
+   * - ViewState is restored
+   * - layout() is called
+   *
+   * @default true
+   */
+  isActive?: boolean;
+
+  /**
    * External visibility notification (optional alternative approach).
    * When provided, the wrapper will trigger layout when visibility changes.
    * Increment this value to notify that the editor has become visible.
@@ -118,6 +134,7 @@ export function MonacoEditorWrapper({
   readOnly = false,
   onChange,
   onMount,
+  isActive = true,
   visibilityKey,
 }: MonacoEditorWrapperProps) {
   // Refs
@@ -128,6 +145,8 @@ export function MonacoEditorWrapper({
   const saveViewStateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  // Track previous isActive state to detect transitions
+  const wasActiveRef = useRef<boolean>(isActive);
 
   // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
   const onMountRef = useRef(onMount);
@@ -296,6 +315,56 @@ export function MonacoEditorWrapper({
     };
     // Note: onChange handled via ref to avoid listener re-setup when callback changes
   }, [editorId, filePath, model]);
+
+  // ---------------------------------------------------------------------------
+  // Active State Management (for editor/diff mode switching)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const wasActive = wasActiveRef.current;
+    wasActiveRef.current = isActive;
+
+    const viewStateRegistry = ViewStateRegistry.getInstance();
+    const editorRegistry = EditorRegistry.getInstance();
+
+    // Transition: active -> inactive
+    // Save ViewState and detach model to prevent Monaco rendering issues
+    if (wasActive && !isActive) {
+      // Save ViewState before detaching
+      if (previousFilePathRef.current) {
+        viewStateRegistry.save(editorId, previousFilePathRef.current, editor);
+      }
+
+      // Detach model (Monaco's official recommendation for hidden editors)
+      // This prevents rendering issues and unnecessary updates
+      editor.setModel(null);
+    }
+
+    // Transition: inactive -> active
+    // Re-attach model, restore ViewState, and trigger layout
+    if (!wasActive && isActive && model) {
+      // Re-attach model
+      editor.setModel(model);
+
+      // Restore ViewState
+      if (previousFilePathRef.current) {
+        viewStateRegistry.restore(
+          editorId,
+          previousFilePathRef.current,
+          editor,
+        );
+      }
+
+      // Trigger layout after a frame to let DOM settle
+      // This is critical because visibility:hidden was just removed
+      requestAnimationFrame(() => {
+        editorRegistry.triggerLayout(editorId, true);
+      });
+    }
+  }, [isActive, editorId, model]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update

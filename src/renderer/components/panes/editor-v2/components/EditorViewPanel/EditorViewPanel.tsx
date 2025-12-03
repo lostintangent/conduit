@@ -7,6 +7,11 @@
  * - ExternalChangeWarning (for conflict detection)
  * - EditorToolbar (for editor actions)
  *
+ * IMPORTANT: Both MonacoEditorWrapper and DiffEditorWrapper are kept mounted
+ * at all times to prevent Monaco editor issues with mount/unmount cycles.
+ * Visibility is controlled via CSS (visibility:hidden) and model detachment
+ * rather than conditional rendering, following Monaco's official recommendations.
+ *
  * Uses useEditorActions hook for toolbar action wiring and state management.
  *
  * @example
@@ -21,7 +26,7 @@
  * ```
  */
 
-import { useCallback, useRef, useMemo, useEffect } from "react";
+import { useCallback, useRef, useMemo, useEffect, useState } from "react";
 import * as monaco from "monaco-editor";
 import type { ViewMode, FileNode, ModelState } from "../../types";
 import { useModelState, useEditorActions } from "../../hooks";
@@ -32,6 +37,17 @@ import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { ChangesReviewPane } from "../ChangesReviewPane";
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Delay in ms when transitioning between editor and diff modes.
+ * This gives the new editor time to load its model before becoming visible,
+ * preventing a flash of stale content from the previous file.
+ */
+const MODE_TRANSITION_DELAY_MS = 50;
 
 // ============================================================================
 // Types
@@ -133,6 +149,57 @@ export function EditorViewPanel({
 
   // Get model state for the current file
   const modelState = useModelState(filePath);
+
+  // ---------------------------------------------------------------------------
+  // Mode Transition Handling
+  // ---------------------------------------------------------------------------
+
+  // Track if we're in a transition between editor types (editor <-> diff)
+  // During transition, both editors are hidden to prevent flash of stale content
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Track the previous viewMode type to detect mode transitions
+  const previousModeTypeRef = useRef<string>(viewMode.type);
+
+  // Effect to handle transitions between editor and diff modes
+  // When switching between mode types (not within the same type), we:
+  // 1. Hide both editors immediately (isTransitioning = true)
+  // 2. Wait for a brief delay + double RAF to let the new model load
+  // 3. Show the new editor (isTransitioning = false)
+  useEffect(() => {
+    const previousModeType = previousModeTypeRef.current;
+    const currentModeType = viewMode.type;
+
+    // Update ref for next comparison
+    previousModeTypeRef.current = currentModeType;
+
+    // Only apply transition delay when switching BETWEEN editor and diff modes
+    // Not when staying in the same mode type (e.g., editor -> editor for different files)
+    const isModeTypeChange =
+      (previousModeType === "editor" && currentModeType === "diff") ||
+      (previousModeType === "diff" && currentModeType === "editor");
+
+    if (!isModeTypeChange) {
+      // Same mode type - no transition needed
+      return;
+    }
+
+    // Start transition - hide both editors
+    setIsTransitioning(true);
+
+    // After delay + double RAF, end transition and show new editor
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsTransitioning(false);
+        });
+      });
+    }, MODE_TRANSITION_DELAY_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [viewMode.type]);
 
   // ---------------------------------------------------------------------------
   // Save Handler (for useEditorActions)
@@ -338,9 +405,37 @@ export function EditorViewPanel({
         />
       )}
 
-      {/* Editor content */}
-      <div className="flex-1 min-h-0">
-        {viewMode.type === "editor" && (
+      {/* Editor content
+       * IMPORTANT: Both MonacoEditorWrapper and DiffEditorWrapper are kept mounted
+       * at all times. We use CSS visibility toggling instead of conditional rendering
+       * to avoid Monaco editor issues with mount/unmount cycles.
+       *
+       * The `isActive` prop tells each wrapper whether it's the current view:
+       * - When active: editor attaches model, responds to interactions
+       * - When inactive: editor detaches model (setModel(null)) to prevent issues
+       *
+       * When transitioning between editor and diff modes (isTransitioning=true),
+       * both editors are hidden to prevent flash of stale content from the
+       * previously active editor's old file.
+       *
+       * This follows Monaco's official recommendation for handling hidden editors.
+       */}
+      <div className="flex-1 min-h-0 relative">
+        {/* Regular editor - always mounted, visibility controlled by isActive and isTransitioning */}
+        <div
+          className="absolute inset-0"
+          style={{
+            // Hide during transition OR when not the active mode
+            visibility:
+              viewMode.type === "editor" && !isTransitioning
+                ? "visible"
+                : "hidden",
+            pointerEvents:
+              viewMode.type === "editor" && !isTransitioning ? "auto" : "none",
+            // Use z-index to ensure the active view is on top
+            zIndex: viewMode.type === "editor" ? 1 : 0,
+          }}
+        >
           <EditorErrorBoundary filePath={filePath}>
             <MonacoEditorWrapper
               editorId={editorId}
@@ -348,11 +443,25 @@ export function EditorViewPanel({
               filePath={filePath}
               theme={theme}
               onMount={handleEditorMount}
+              isActive={viewMode.type === "editor"}
             />
           </EditorErrorBoundary>
-        )}
+        </div>
 
-        {viewMode.type === "diff" && (
+        {/* Diff editor - always mounted, visibility controlled by isActive and isTransitioning */}
+        <div
+          className="absolute inset-0"
+          style={{
+            // Hide during transition OR when not the active mode
+            visibility:
+              viewMode.type === "diff" && !isTransitioning
+                ? "visible"
+                : "hidden",
+            pointerEvents:
+              viewMode.type === "diff" && !isTransitioning ? "auto" : "none",
+            zIndex: viewMode.type === "diff" ? 1 : 0,
+          }}
+        >
           <EditorErrorBoundary filePath={filePath}>
             <DiffEditorWrapper
               editorId={`${editorId}-diff`}
@@ -361,10 +470,12 @@ export function EditorViewPanel({
               baseBranch={baseBranch}
               theme={theme}
               onMount={handleDiffEditorMount}
+              isActive={viewMode.type === "diff"}
             />
           </EditorErrorBoundary>
-        )}
+        </div>
 
+        {/* Changes review - conditionally rendered (not a Monaco editor) */}
         {viewMode.type === "changesReview" && (
           <ChangesReviewPane cwd={cwd} baseBranch={baseBranch} />
         )}

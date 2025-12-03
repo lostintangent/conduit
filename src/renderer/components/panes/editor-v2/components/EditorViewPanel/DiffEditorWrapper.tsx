@@ -58,6 +58,22 @@ export interface DiffEditorWrapperProps {
 
   /** Callback when diff editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
+
+  /**
+   * Whether this diff editor is the active/visible view.
+   *
+   * When switching between editor and diff modes, both components stay mounted.
+   * The inactive diff editor clears its models to prevent Monaco rendering issues,
+   * following Monaco's official recommendations.
+   *
+   * When becoming active:
+   * - Models are re-attached
+   * - ViewState is restored
+   * - layout() is called
+   *
+   * @default true
+   */
+  isActive?: boolean;
 }
 
 // ============================================================================
@@ -105,6 +121,7 @@ export function DiffEditorWrapper({
   readOnly = false,
   onChange,
   onMount,
+  isActive = true,
 }: DiffEditorWrapperProps) {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,6 +131,10 @@ export function DiffEditorWrapper({
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
   const currentFilePathRef = useRef<string>(filePath);
+  // Track previous isActive state to detect transitions
+  const wasActiveRef = useRef<boolean>(isActive);
+  // Track if we've ever set up models (to distinguish initial mount from re-activation)
+  const hasSetupModelsRef = useRef<boolean>(false);
 
   // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
   const onMountRef = useRef(onMount);
@@ -225,11 +246,20 @@ export function DiffEditorWrapper({
       originalUri,
     );
 
+    // Only set models if we're active (visible)
+    // When inactive, we skip setting models to prevent unnecessary work
+    if (!isActive) {
+      return;
+    }
+
     // Set the diff models
     diffEditor.setModel({
       original: originalModelRef.current,
       modified: modifiedModel,
     });
+
+    // Mark that we've set up models at least once
+    hasSetupModelsRef.current = true;
 
     // Restore ViewState for the modified editor (scroll position, cursor, etc.)
     const modifiedEditor = diffEditor.getModifiedEditor();
@@ -271,7 +301,66 @@ export function DiffEditorWrapper({
     diffContent.original,
     modifiedModel,
     readOnly,
+    isActive,
   ]);
+
+  // ---------------------------------------------------------------------------
+  // Active State Management (for editor/diff mode switching)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const diffEditor = diffEditorRef.current;
+    if (!diffEditor) return;
+
+    const wasActive = wasActiveRef.current;
+    wasActiveRef.current = isActive;
+
+    // Transition: active -> inactive
+    // Save ViewState and detach models to prevent Monaco rendering issues
+    if (wasActive && !isActive) {
+      // Save ViewState for the modified editor before detaching
+      const modifiedEditor = diffEditor.getModifiedEditor();
+      if (modifiedEditor && currentFilePathRef.current) {
+        ViewStateRegistry.getInstance().save(
+          `diff-modified-${editorId}`,
+          currentFilePathRef.current,
+          modifiedEditor,
+        );
+      }
+
+      // Clear models from diff editor (Monaco's recommendation for hidden editors)
+      // Note: We don't dispose originalModelRef here - it will be reused when re-activating
+      diffEditor.setModel(null);
+    }
+
+    // Transition: inactive -> active
+    // Re-attach models, restore ViewState, and trigger layout
+    if (!wasActive && isActive) {
+      // Only re-attach if we have the models ready
+      if (originalModelRef.current && modifiedModel && !diffContent.isLoading) {
+        // Re-attach models
+        diffEditor.setModel({
+          original: originalModelRef.current,
+          modified: modifiedModel,
+        });
+
+        // Restore ViewState for the modified editor
+        const modifiedEditor = diffEditor.getModifiedEditor();
+        if (modifiedEditor && currentFilePathRef.current) {
+          ViewStateRegistry.getInstance().restore(
+            `diff-modified-${editorId}`,
+            currentFilePathRef.current,
+            modifiedEditor,
+          );
+        }
+
+        // Trigger layout after a frame to let DOM settle
+        requestAnimationFrame(() => {
+          diffEditor.layout();
+        });
+      }
+    }
+  }, [isActive, editorId, modifiedModel, diffContent.isLoading]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update
@@ -302,36 +391,40 @@ export function DiffEditorWrapper({
   // Render
   // ---------------------------------------------------------------------------
 
-  // Show loading state
-  if (diffContent.isLoading) {
-    return (
-      <div
-        className="flex h-full w-full items-center justify-center text-muted-foreground"
-        data-testid="diff-editor-loading"
-      >
-        Loading diff...
-      </div>
-    );
-  }
-
-  // Show error state
-  if (diffContent.error) {
-    return (
-      <div
-        className="flex h-full w-full items-center justify-center text-destructive"
-        data-testid="diff-editor-error"
-      >
-        {diffContent.error.message}
-      </div>
-    );
-  }
+  // Always render the diff editor container to keep it mounted.
+  // Loading/error states are shown as overlays when active.
+  // This is important for the visibility toggling pattern - both editors
+  // stay mounted and we switch between them via CSS visibility.
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-      onClick={handleContainerClick}
-      data-testid="diff-editor-wrapper"
-    />
+    <div className="h-full w-full relative">
+      {/* Diff editor container - always rendered to stay mounted */}
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        onClick={handleContainerClick}
+        data-testid="diff-editor-wrapper"
+      />
+
+      {/* Loading state overlay - only shown when active and loading */}
+      {isActive && diffContent.isLoading && (
+        <div
+          className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-background"
+          data-testid="diff-editor-loading"
+        >
+          Loading diff...
+        </div>
+      )}
+
+      {/* Error state overlay - only shown when active and error */}
+      {isActive && diffContent.error && (
+        <div
+          className="absolute inset-0 flex items-center justify-center text-destructive bg-background"
+          data-testid="diff-editor-error"
+        >
+          {diffContent.error.message}
+        </div>
+      )}
+    </div>
   );
 }

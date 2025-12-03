@@ -406,6 +406,21 @@ export function EditorPaneV2({
         };
 
         setSelectedFile(fileNode);
+
+        // Check if file is specifically "modified" in git status
+        // Only "modified" files get diff view, not "added" files
+        // Note: git status uses relative paths, so use relativePath not fullPath
+        const status = await git.getStatus();
+        const fileStatus = status?.files.get(relativePath);
+        if (fileStatus?.status === "modified") {
+          setViewMode({
+            type: "diff",
+            filePath: fullPath,
+            baseBranch: baseBranch ?? undefined,
+          });
+        } else {
+          setViewMode({ type: "editor" });
+        }
       } catch (error) {
         // Silently fail - not critical if auto-open doesn't work
         console.debug("[EditorPaneV2] Auto-open failed:", error);
@@ -417,7 +432,7 @@ export function EditorPaneV2({
     return () => {
       cancelled = true;
     };
-  }, [selectedFile, initialFilePath, currentCwd, git]);
+  }, [selectedFile, initialFilePath, currentCwd, git, baseBranch]);
 
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
@@ -444,8 +459,14 @@ export function EditorPaneV2({
         setPanelView("editor");
       }
 
-      // Set initial view mode based on git status - files with changes open in diff
-      if (gitChangedFiles.has(file.path)) {
+      // Set initial view mode based on git status - modified files open in diff
+      // Only "modified" files get diff view, not "added" files (added files have no base to diff against)
+      // Note: gitStatus uses relative paths, so we need to convert the absolute file.path
+      const relativePath = file.path.startsWith(currentCwd)
+        ? file.path.slice(currentCwd.length).replace(/^\//, "")
+        : file.path;
+      const fileStatus = gitStatus?.get(relativePath);
+      if (fileStatus?.status === "modified") {
         setViewMode({
           type: "diff",
           filePath: file.path,
