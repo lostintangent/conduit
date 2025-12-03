@@ -1,5 +1,5 @@
 /**
- * EditorToolbar - Toolbar for editor actions and mode switching.
+ * EditorToolbar - Toolbar for editor actions.
  *
  * Styled to match v1's editor header:
  * - px-3 py-1.5 bg-elevated text-[13px]
@@ -12,27 +12,24 @@ import {
   Undo,
   Redo,
   Search,
-  Code,
-  GitCompare,
   ChevronLeft,
   PanelLeftOpen,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { ViewMode, ModelState } from "../../types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { ModelState } from "../../types";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface EditorToolbarProps {
-  /** Current view mode */
-  viewMode: ViewMode;
-
   /** Current model state (dirty, orphaned, etc.) */
   modelState: ModelState | null;
-
-  /** Handler for view mode changes */
-  onViewModeChange: (mode: ViewMode) => void;
 
   /** Handler for save action */
   onSave: () => void;
@@ -76,13 +73,11 @@ export interface EditorToolbarProps {
 // ============================================================================
 
 /**
- * Editor toolbar with save, undo/redo, and mode toggle.
+ * Editor toolbar with save, undo/redo actions.
  * Styled to match v1's header.
  */
 export function EditorToolbar({
-  viewMode,
   modelState,
-  onViewModeChange,
   onSave,
   onUndo,
   onRedo,
@@ -97,8 +92,6 @@ export function EditorToolbar({
   onExpandTree,
 }: EditorToolbarProps) {
   const isDirty = modelState?.isDirty ?? false;
-  const isEditorMode = viewMode.type === "editor";
-  const isDiffMode = viewMode.type === "diff";
 
   // Use displayPath if provided, otherwise fall back to filePath
   const pathToShow = displayPath ?? filePath ?? "";
@@ -117,15 +110,26 @@ export function EditorToolbar({
         {/* Expand tree button (when tree is collapsed in split mode) */}
         {showExpandTreeButton && onExpandTree && (
           <>
-            <button
-              type="button"
-              onClick={onExpandTree}
-              className={buttonClass}
-              title="Expand tree"
-              data-testid="expand-tree-button"
-            >
-              <PanelLeftOpen size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onExpandTree}
+                  className={buttonClass}
+                  data-testid="expand-tree-button"
+                >
+                  <PanelLeftOpen size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex items-center gap-2">
+                  <span>Expand sidebar</span>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                    ⌘B
+                  </kbd>
+                </div>
+              </TooltipContent>
+            </Tooltip>
             <div className="h-4 w-px bg-white/10 shrink-0" />
           </>
         )}
@@ -133,15 +137,19 @@ export function EditorToolbar({
         {/* Back button (single-column layout only) */}
         {showBackButton && onBack && (
           <>
-            <button
-              type="button"
-              onClick={onBack}
-              className={buttonClass}
-              title="Show file tree"
-              data-testid="back-to-tree-button"
-            >
-              <ChevronLeft size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className={buttonClass}
+                  data-testid="back-to-tree-button"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Back to file tree</TooltipContent>
+            </Tooltip>
             <div className="h-4 w-px bg-white/10 shrink-0" />
           </>
         )}
@@ -170,60 +178,51 @@ export function EditorToolbar({
               className="h-4 mx-1 bg-elevated-border"
             />
 
-            {/* Mode toggle buttons */}
-            <button
-              type="button"
-              onClick={() => onViewModeChange({ type: "editor" })}
-              className={`${buttonClass} ${isEditorMode ? "bg-white/10" : ""}`}
-              title="Code view"
-              data-testid="editor-mode-button"
-            >
-              <Code size={14} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                onViewModeChange({
-                  type: "diff",
-                  filePath: filePath ?? "",
-                })
-              }
-              className={`${buttonClass} ${isDiffMode ? "bg-white/10" : ""}`}
-              title="Diff view"
-              data-testid="diff-mode-button"
-            >
-              <GitCompare size={14} />
-            </button>
-
-            <Separator
-              orientation="vertical"
-              className="h-4 mx-1 bg-elevated-border"
-            />
-
             {/* Undo */}
-            <button
-              type="button"
-              onClick={onUndo}
-              disabled={!canUndo}
-              className={buttonClass}
-              title="Undo"
-              data-testid="undo-button"
-            >
-              <Undo size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  className={buttonClass}
+                  data-testid="undo-button"
+                >
+                  <Undo size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex items-center gap-2">
+                  <span>Undo</span>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                    ⌘Z
+                  </kbd>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
             {/* Redo */}
-            <button
-              type="button"
-              onClick={onRedo}
-              disabled={!canRedo}
-              className={buttonClass}
-              title="Redo"
-              data-testid="redo-button"
-            >
-              <Redo size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  className={buttonClass}
+                  data-testid="redo-button"
+                >
+                  <Redo size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex items-center gap-2">
+                  <span>Redo</span>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                    ⌘⇧Z
+                  </kbd>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
             <Separator
               orientation="vertical"
@@ -231,28 +230,50 @@ export function EditorToolbar({
             />
 
             {/* Save */}
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={!isDirty}
-              className={buttonClass}
-              title="Save"
-              data-testid="save-button"
-            >
-              <Save size={14} />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onSave}
+                  disabled={!isDirty}
+                  className={buttonClass}
+                  data-testid="save-button"
+                >
+                  <Save size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex items-center gap-2">
+                  <span>Save</span>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                    ⌘S
+                  </kbd>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
             {/* Find */}
             {onFind && (
-              <button
-                type="button"
-                onClick={onFind}
-                className={buttonClass}
-                title="Find in file (Cmd+F)"
-                data-testid="find-button"
-              >
-                <Search size={14} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={onFind}
+                    className={buttonClass}
+                    data-testid="find-button"
+                  >
+                    <Search size={14} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="flex items-center gap-2">
+                    <span>Find in file</span>
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                      ⌘F
+                    </kbd>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             )}
           </>
         )}

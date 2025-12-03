@@ -16,6 +16,11 @@
 
 import { FolderTree, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 
 // ============================================================================
@@ -59,29 +64,37 @@ export function PanelViewPortToggle({
       )}
       data-testid="panel-viewport-toggle"
     >
-      <Button
-        variant={activeView === "tree" ? "secondary" : "ghost"}
-        size="sm"
-        className="h-8 px-3 gap-2"
-        onClick={() => onViewChange("tree")}
-        title="File Explorer"
-        data-testid="panel-toggle-tree"
-      >
-        <FolderTree className="h-4 w-4" />
-        <span className="text-xs">Files</span>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant={activeView === "tree" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-3 gap-2"
+            onClick={() => onViewChange("tree")}
+            data-testid="panel-toggle-tree"
+          >
+            <FolderTree className="h-4 w-4" />
+            <span className="text-xs">Files</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Switch to file explorer view</TooltipContent>
+      </Tooltip>
 
-      <Button
-        variant={activeView === "editor" ? "secondary" : "ghost"}
-        size="sm"
-        className="h-8 px-3 gap-2"
-        onClick={() => onViewChange("editor")}
-        title="Editor"
-        data-testid="panel-toggle-editor"
-      >
-        <Code className="h-4 w-4" />
-        <span className="text-xs">Editor</span>
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant={activeView === "editor" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-3 gap-2"
+            onClick={() => onViewChange("editor")}
+            data-testid="panel-toggle-editor"
+          >
+            <Code className="h-4 w-4" />
+            <span className="text-xs">Editor</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Switch to editor view</TooltipContent>
+      </Tooltip>
     </div>
   );
 }

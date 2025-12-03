@@ -26,6 +26,11 @@ import { GitBranch, X, ChevronDown, AlertCircle } from "lucide-react";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
 import type { GitBranch as GitBranchType } from "@/../../src/ipc/gitv2/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 
 // ============================================================================
@@ -251,30 +256,43 @@ export function BranchSelector({
         )}
       >
         {/* Main clickable area for opening dropdown */}
-        <div
-          className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={handleToggle}
-          data-testid="branch-selector-trigger"
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && handleToggle()}
-        >
-          <GitBranch className="w-4 h-4" />
-          <span className="max-w-[120px] truncate">
-            {baseBranch || "Compare to..."}
-          </span>
-          {!baseBranch && <ChevronDown className="w-3 h-3 ml-1" />}
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleToggle}
+              data-testid="branch-selector-trigger"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && handleToggle()}
+            >
+              <GitBranch className="w-4 h-4" />
+              <span className="max-w-[120px] truncate">
+                {baseBranch || "Compare to..."}
+              </span>
+              {!baseBranch && <ChevronDown className="w-3 h-3 ml-1" />}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            {baseBranch
+              ? `Comparing to ${baseBranch} - click to change`
+              : "Select a branch to compare changes against"}
+          </TooltipContent>
+        </Tooltip>
         {/* Clear button - separate from the toggle trigger */}
         {baseBranch && (
-          <button
-            className="flex items-center justify-center h-4 w-4 ml-1 rounded hover:bg-accent-foreground/10 transition-colors"
-            onClick={handleClear}
-            title="Clear comparison"
-            data-testid="branch-selector-clear"
-          >
-            <X className="h-3 w-3" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="flex items-center justify-center h-4 w-4 ml-1 rounded hover:bg-accent-foreground/10 transition-colors"
+                onClick={handleClear}
+                data-testid="branch-selector-clear"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Clear comparison</TooltipContent>
+          </Tooltip>
         )}
       </div>
 

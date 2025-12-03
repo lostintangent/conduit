@@ -14,6 +14,11 @@
  */
 
 import { X } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ============================================================================
 // Types
@@ -81,15 +86,19 @@ export function ExternalChangeWarning({
       data-testid="external-change-warning"
     >
       {/* Dismiss button - absolute positioned top right */}
-      <button
-        type="button"
-        onClick={onKeepChanges}
-        className="absolute top-1.5 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
-        title="Dismiss"
-        data-testid="warning-dismiss-button"
-      >
-        <X size={14} />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onKeepChanges}
+            className="absolute top-1.5 right-2 p-1 rounded hover:bg-white/20 text-warning-foreground transition-colors"
+            data-testid="warning-dismiss-button"
+          >
+            <X size={14} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Dismiss warning</TooltipContent>
+      </Tooltip>
 
       <div className="flex items-center gap-2 text-[13px] pr-8">
         {/* Message */}
@@ -108,25 +117,41 @@ export function ExternalChangeWarning({
         <div className="flex items-center gap-2 shrink-0 ml-auto">
           {/* Reload button - show for conflicts (not deleted) */}
           {!isOrphaned && (
-            <button
-              type="button"
-              onClick={onReload}
-              className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
-              data-testid="warning-reload-button"
-            >
-              Reload from disk
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onReload}
+                  className="px-3 py-1 text-xs rounded bg-warning-button hover:bg-warning-button-hover text-white transition-colors"
+                  data-testid="warning-reload-button"
+                >
+                  Reload from disk
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Discard your changes and reload the file from disk
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {/* Save/Keep button */}
-          <button
-            type="button"
-            onClick={onSave}
-            className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-            data-testid="warning-save-button"
-          >
-            {isOrphaned ? "Save anyway" : "Keep my changes"}
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onSave}
+                className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                data-testid="warning-save-button"
+              >
+                {isOrphaned ? "Save anyway" : "Keep my changes"}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isOrphaned
+                ? "Save your changes and recreate the deleted file"
+                : "Keep your changes and dismiss the warning"}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>

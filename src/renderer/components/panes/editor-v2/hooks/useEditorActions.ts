@@ -63,13 +63,13 @@ export interface EditorActions {
 
   /**
    * Undo the last edit.
-   * Uses the model's native undo method.
+   * Uses Monaco's action system via editor.trigger().
    */
   undo: () => void;
 
   /**
    * Redo a previously undone edit.
-   * Uses the model's native redo method.
+   * Uses Monaco's action system via editor.trigger().
    */
   redo: () => void;
 
@@ -161,22 +161,24 @@ export function useEditorActions(
   }, [onSave]);
 
   /**
-   * Undo the last edit using the model's native method.
+   * Undo the last edit using Monaco's action system.
+   * This properly handles focus, selection, and all editor state.
    */
   const undo = useCallback(() => {
-    const model = editorRef.current?.getModel();
-    if (model) {
-      model.undo();
+    const editor = editorRef.current;
+    if (editor) {
+      editor.trigger("keyboard", "undo", null);
     }
   }, [editorRef]);
 
   /**
-   * Redo a previously undone edit using the model's native method.
+   * Redo a previously undone edit using Monaco's action system.
+   * This properly handles focus, selection, and all editor state.
    */
   const redo = useCallback(() => {
-    const model = editorRef.current?.getModel();
-    if (model) {
-      model.redo();
+    const editor = editorRef.current;
+    if (editor) {
+      editor.trigger("keyboard", "redo", null);
     }
   }, [editorRef]);
 

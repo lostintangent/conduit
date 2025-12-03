@@ -5,7 +5,7 @@
  * - MonacoEditorWrapper (for regular editing)
  * - DiffEditorWrapper (for diff view)
  * - ExternalChangeWarning (for conflict detection)
- * - EditorToolbar (for actions and mode switching)
+ * - EditorToolbar (for editor actions)
  *
  * Uses useEditorActions hook for toolbar action wiring and state management.
  *
@@ -16,13 +16,12 @@
  *   cwd="/project"
  *   selectedFile={{ path: "/project/src/index.ts", name: "index.ts", type: "file" }}
  *   viewMode={{ type: 'editor' }}
- *   onViewModeChange={(mode) => setViewMode(mode)}
  *   theme="dark"
  * />
  * ```
  */
 
-import { useCallback, useRef, useMemo } from "react";
+import { useCallback, useRef, useMemo, useEffect } from "react";
 import * as monaco from "monaco-editor";
 import type { ViewMode, FileNode, ModelState } from "../../types";
 import { useModelState, useEditorActions } from "../../hooks";
@@ -50,9 +49,6 @@ export interface EditorViewPanelProps {
 
   /** Current view mode (editor, diff, changesReview) */
   viewMode: ViewMode;
-
-  /** Handler for view mode changes */
-  onViewModeChange: (mode: ViewMode) => void;
 
   /** Git ref for diff comparisons (default: 'HEAD') */
   baseBranch?: string;
@@ -93,7 +89,6 @@ export function EditorViewPanel({
   cwd,
   selectedFile,
   viewMode,
-  onViewModeChange,
   baseBranch = "HEAD",
   theme = "vs-dark",
   onSave,
@@ -104,6 +99,9 @@ export function EditorViewPanel({
 }: EditorViewPanelProps) {
   // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  // Ref to store the Monaco keybinding disposable for cleanup
+  const saveKeybindingDisposableRef = useRef<monaco.IDisposable | null>(null);
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
@@ -167,14 +165,78 @@ export function EditorViewPanel({
   // ---------------------------------------------------------------------------
 
   /**
-   * Handle editor mount - store ref for actions hook.
+   * Handle editor mount - store ref for actions hook and add Cmd+S keybinding.
    */
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
       editorRef.current = editor;
+
+      // Clean up any existing keybinding
+      if (saveKeybindingDisposableRef.current) {
+        saveKeybindingDisposableRef.current.dispose();
+        saveKeybindingDisposableRef.current = null;
+      }
+
+      // Add Monaco keybinding for Cmd+S to trigger save
+      // This ensures Cmd+S works even when the editor has focus
+      const keybindingDisposable = editor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+        () => {
+          // Trigger save via the handleSave callback
+          handleSave();
+        },
+      );
+
+      // Store disposable for cleanup
+      if (keybindingDisposable) {
+        saveKeybindingDisposableRef.current = keybindingDisposable;
+      }
     },
-    [],
+    [handleSave],
   );
+
+  /**
+   * Handle diff editor mount - store ref and add Cmd+S keybinding to modified editor.
+   */
+  const handleDiffEditorMount = useCallback(
+    (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
+      // For diff editor, we need to get the modified (right side) editor
+      const modifiedEditor = diffEditor.getModifiedEditor();
+      editorRef.current = modifiedEditor;
+
+      // Clean up any existing keybinding
+      if (saveKeybindingDisposableRef.current) {
+        saveKeybindingDisposableRef.current.dispose();
+        saveKeybindingDisposableRef.current = null;
+      }
+
+      // Add Monaco keybinding for Cmd+S to trigger save
+      const keybindingDisposable = modifiedEditor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+        () => {
+          handleSave();
+        },
+      );
+
+      // Store disposable for cleanup
+      if (keybindingDisposable) {
+        saveKeybindingDisposableRef.current = keybindingDisposable;
+      }
+    },
+    [handleSave],
+  );
+
+  /**
+   * Cleanup keybinding on unmount.
+   */
+  useEffect(() => {
+    return () => {
+      if (saveKeybindingDisposableRef.current) {
+        saveKeybindingDisposableRef.current.dispose();
+        saveKeybindingDisposableRef.current = null;
+      }
+    };
+  }, []);
 
   /**
    * Handle reload from disk.
@@ -237,9 +299,7 @@ export function EditorViewPanel({
     >
       {/* Toolbar */}
       <EditorToolbar
-        viewMode={viewMode}
         modelState={effectiveModelState}
-        onViewModeChange={onViewModeChange}
         onSave={editorActions.save}
         onUndo={editorActions.undo}
         onRedo={editorActions.redo}
@@ -289,6 +349,7 @@ export function EditorViewPanel({
               filePath={filePath}
               baseBranch={baseBranch}
               theme={theme}
+              onMount={handleDiffEditorMount}
             />
           </EditorErrorBoundary>
         )}

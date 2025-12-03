@@ -503,13 +503,6 @@ export function EditorPaneV2({
   }, []);
 
   /**
-   * Handle view mode change (editor/diff/changesReview).
-   */
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-  }, []);
-
-  /**
    * Handle base branch change for comparison mode.
    */
   const handleBaseBranchChange = useCallback((branch: string | null) => {
@@ -677,6 +670,29 @@ export function EditorPaneV2({
     return cleanup;
   }, [pane.id, handleToggleTree, handleFocusTree]);
 
+  /**
+   * Keyboard shortcuts for editor actions.
+   * Handles Cmd/Ctrl+S (save). Monaco handles Cmd/Ctrl+F (find) internally.
+   */
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Cmd/Ctrl+S: Save file
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "s" &&
+        selectedFile &&
+        onSave
+      ) {
+        event.preventDefault();
+        onSave();
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedFile, onSave]);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -769,7 +785,6 @@ export function EditorPaneV2({
           cwd={currentCwd}
           selectedFile={selectedFile}
           viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
           baseBranch={baseBranch ?? undefined}
           theme={editorTheme}
           onSave={onSave}

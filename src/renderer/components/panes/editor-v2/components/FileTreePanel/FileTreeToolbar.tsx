@@ -8,6 +8,11 @@
  */
 
 import { FolderUp, PanelLeftClose } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ============================================================================
 // Types
@@ -109,15 +114,26 @@ export function FileTreeToolbar({
       <div className="flex items-center gap-2 truncate">
         {/* Collapse button (split mode only) */}
         {showCollapseButton && onToggleCollapse && (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            className={buttonClass}
-            title="Collapse tree"
-            data-testid="collapse-toggle-button"
-          >
-            <PanelLeftClose size={14} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className={buttonClass}
+                data-testid="collapse-toggle-button"
+              >
+                <PanelLeftClose size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="flex items-center gap-2">
+                <span>Toggle sidebar</span>
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                  ⌘B
+                </kbd>
+              </div>
+            </TooltipContent>
+          </Tooltip>
         )}
 
         {/* Current directory */}
@@ -129,15 +145,19 @@ export function FileTreeToolbar({
       {/* Right side: navigate up button */}
       <div className="flex items-center gap-1 shrink-0">
         {canGoUp && (
-          <button
-            type="button"
-            onClick={onNavigateUp}
-            className={buttonClass}
-            title="Go up one directory"
-            data-testid="navigate-up-button"
-          >
-            <FolderUp size={14} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onNavigateUp}
+                className={buttonClass}
+                data-testid="navigate-up-button"
+              >
+                <FolderUp size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Go up one directory</TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>
