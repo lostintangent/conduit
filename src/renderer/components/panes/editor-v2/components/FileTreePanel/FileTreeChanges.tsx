@@ -611,6 +611,23 @@ function Section({
 // ============================================================================
 
 /**
+ * Extract all parent folder paths from a file path.
+ * e.g., "src/components/Button.tsx" -> ["src", "src/components"]
+ */
+function getParentFolderPaths(filePath: string): string[] {
+  const parts = filePath.split("/");
+  const folders: string[] = [];
+  let currentPath = "";
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+    folders.push(currentPath);
+  }
+
+  return folders;
+}
+
+/**
  * Hook to manage changes view state including section expansion
  * and folder expansion for nested view.
  */
@@ -637,46 +654,27 @@ function useChangesViewState() {
   }, []);
 
   /**
-   * Expand all folders that contain files.
-   * Called when switching to nested view to auto-expand.
+   * Expand folders containing the given file paths.
+   *
+   * @param filePaths - File paths whose parent folders should be expanded
+   * @param replace - If true, replaces all expanded folders. If false, adds to existing (default: false)
    */
-  const expandAllFolders = useCallback(
-    (files: Array<[string, GitFileStatus]>) => {
-      const folders = new Set<string>();
-      for (const [path] of files) {
-        const parts = path.split("/");
-        let currentPath = "";
-        for (let i = 0; i < parts.length - 1; i++) {
-          currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
-          folders.add(currentPath);
+  const expandFoldersForFiles = useCallback(
+    (filePaths: string[], replace = false) => {
+      if (filePaths.length === 0 && !replace) return;
+
+      setExpandedFolders((prev) => {
+        const next = replace ? new Set<string>() : new Set(prev);
+        for (const filePath of filePaths) {
+          for (const folder of getParentFolderPaths(filePath)) {
+            next.add(folder);
+          }
         }
-      }
-      setExpandedFolders(folders);
+        return next;
+      });
     },
     [],
   );
-
-  /**
-   * Expand folders for specific file paths (additive).
-   * Used when new dirty files appear - expands their parent folders
-   * without collapsing folders the user manually collapsed.
-   */
-  const expandFoldersForPaths = useCallback((paths: string[]) => {
-    if (paths.length === 0) return;
-
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      for (const path of paths) {
-        const parts = path.split("/");
-        let currentPath = "";
-        for (let i = 0; i < parts.length - 1; i++) {
-          currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
-          next.add(currentPath);
-        }
-      }
-      return next;
-    });
-  }, []);
 
   return {
     stagedExpanded,
@@ -685,8 +683,7 @@ function useChangesViewState() {
     setChangesExpanded,
     expandedFolders,
     toggleFolder,
-    expandAllFolders,
-    expandFoldersForPaths,
+    expandFoldersForFiles,
   };
 }
 
@@ -882,8 +879,7 @@ export function FileTreeChanges({
     setChangesExpanded,
     expandedFolders,
     toggleFolder,
-    expandAllFolders,
-    expandFoldersForPaths,
+    expandFoldersForFiles,
   } = useChangesViewState();
 
   // ---------------------------------------------------------------------------
@@ -977,57 +973,47 @@ export function FileTreeChanges({
   );
 
   /**
-   * Auto-expand folders when switching to nested view.
-   * Only runs when viewMode changes, not on every file change.
+   * Auto-expand folders in nested view mode.
+   *
+   * Handles two scenarios:
+   * 1. Switching TO nested view: expand all folders (replace mode)
+   * 2. New files appearing while in nested view: expand their folders (additive mode)
+   *
+   * This ensures deeply nested new dirty files are always visible without
+   * collapsing folders the user manually collapsed.
    */
-  const prevViewModeRef = useRef(viewMode);
-  useEffect(() => {
-    // Only expand when transitioning TO nested view
-    if (viewMode === "nested" && prevViewModeRef.current !== "nested") {
-      expandAllFolders([...stagedFiles, ...unstagedFiles]);
-    }
-    prevViewModeRef.current = viewMode;
-  }, [viewMode, expandAllFolders, stagedFiles, unstagedFiles]);
+  const prevStateRef = useRef<{ viewMode: string; filePaths: Set<string> }>({
+    viewMode,
+    filePaths: new Set(),
+  });
 
-  /**
-   * Auto-expand folders for newly added dirty files while in nested view.
-   * This is additive - it won't collapse folders the user manually collapsed.
-   */
-  const prevFilePathsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    // Only auto-expand when in nested view
-    if (viewMode !== "nested") {
-      // Update tracking but don't expand
-      const allPaths = new Set([
-        ...stagedFiles.map(([p]) => p),
-        ...unstagedFiles.map(([p]) => p),
-      ]);
-      prevFilePathsRef.current = allPaths;
-      return;
-    }
-
-    // Get current file paths
-    const currentPaths = new Set([
+    const allFilePaths = [
       ...stagedFiles.map(([p]) => p),
       ...unstagedFiles.map(([p]) => p),
-    ]);
+    ];
+    const currentPaths = new Set(allFilePaths);
+    const wasNestedView = prevStateRef.current.viewMode === "nested";
+    const isNestedView = viewMode === "nested";
 
-    // Find newly added paths (paths that weren't in the previous set)
-    const newPaths: string[] = [];
-    for (const path of currentPaths) {
-      if (!prevFilePathsRef.current.has(path)) {
-        newPaths.push(path);
+    if (isNestedView) {
+      if (!wasNestedView) {
+        // Switching TO nested view: expand all folders (replace mode)
+        expandFoldersForFiles(allFilePaths, true);
+      } else {
+        // Already in nested view: expand only new files' folders (additive)
+        const newPaths = allFilePaths.filter(
+          (p) => !prevStateRef.current.filePaths.has(p),
+        );
+        if (newPaths.length > 0) {
+          expandFoldersForFiles(newPaths, false);
+        }
       }
     }
 
-    // Expand folders for new paths
-    if (newPaths.length > 0) {
-      expandFoldersForPaths(newPaths);
-    }
-
-    // Update tracking
-    prevFilePathsRef.current = currentPaths;
-  }, [viewMode, stagedFiles, unstagedFiles, expandFoldersForPaths]);
+    // Update tracking for next render
+    prevStateRef.current = { viewMode, filePaths: currentPaths };
+  }, [viewMode, stagedFiles, unstagedFiles, expandFoldersForFiles]);
 
   // ---------------------------------------------------------------------------
   // Render Helpers
