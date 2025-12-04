@@ -22,4 +22,10 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
   autoload -Uz add-zsh-hook
   add-zsh-hook precmd __conduit_osc7
   add-zsh-hook chpwd __conduit_osc7
+
+  # Configure suffix aliases to open common file types in Conduit
+  # when the "use Conduit as editor" setting is enabled
+  if [[ "$VISUAL" == "conduit" ]]; then
+    alias -s {md,json,yaml,yml,html,css,js,ts}=conduit
+  fi
 fi
