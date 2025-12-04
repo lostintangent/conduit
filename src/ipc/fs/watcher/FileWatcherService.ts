@@ -421,14 +421,6 @@ export class FileWatcherService {
       ? Object.fromEntries(entry.gitStatus.entries())
       : null;
 
-    // Log staged files count for debugging
-    const stagedCount = entry.gitStatus
-      ? Array.from(entry.gitStatus.values()).filter((s) => s.staged).length
-      : 0;
-    console.log(
-      `[FileWatcherService] Broadcasting git status: ${entry.gitStatus?.size || 0} files (${stagedCount} staged)`,
-    );
-
     const event: GitStatusChangedEvent = {
       cwd,
       gitStatus: gitStatusObj as any,

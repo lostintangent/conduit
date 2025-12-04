@@ -56,6 +56,7 @@ export function SettingsMenu({
     autoSaveWorkspaces,
     useGradientBorders,
     useConduitAsEditor,
+    useEditorV2,
     theme,
   } = useAtomValue(userSettingsAtom);
 
@@ -168,6 +169,13 @@ export function SettingsMenu({
               }
             >
               Use Conduit as $EDITOR
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuCheckboxItem
+              checked={useEditorV2}
+              onClick={() => onUpdateSettings({ useEditorV2: !useEditorV2 })}
+            >
+              Use Editor v2
             </DropdownMenuCheckboxItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>

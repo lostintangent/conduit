@@ -27,12 +27,13 @@
  * @see docs/architecture/editor-global-container-plan.md
  */
 
+import { useEffect, useRef } from "react";
 import { useAtomValue } from "jotai";
 import { userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
 import type { FileTreeNode } from "@shared/types";
 import { EditorPane } from "./EditorPane";
-import { EditorPaneAnchor } from "../editor-v2";
+import { EditorPaneAnchor, EditorPaneRegistry } from "../editor-v2";
 
 // ============================================================================
 // Types
@@ -121,6 +122,28 @@ export function EditorPaneSwitcher({
   onHover,
 }: EditorPaneSwitcherProps) {
   const { useEditorV2 } = useAtomValue(userSettingsAtom);
+
+  // Track previous value to detect v2 → v1 transitions
+  const prevUseEditorV2Ref = useRef(useEditorV2);
+
+  // Dispose all v2 editors when switching from v2 to v1
+  // This ensures subscriptions are properly cleaned up
+  useEffect(() => {
+    const wasV2 = prevUseEditorV2Ref.current;
+    const isV2 = useEditorV2;
+
+    // Update ref for next render
+    prevUseEditorV2Ref.current = isV2;
+
+    // If switching from v2 to v1, dispose all v2 editors
+    if (wasV2 && !isV2) {
+      const registry = EditorPaneRegistry.getInstance();
+      console.log(
+        "[EditorPaneSwitcher] Switching to v1, disposing all v2 editors",
+      );
+      registry.disposeAll();
+    }
+  }, [useEditorV2]);
 
   // Use EditorPaneV2 via global container pattern when feature flag is enabled
   if (useEditorV2) {
