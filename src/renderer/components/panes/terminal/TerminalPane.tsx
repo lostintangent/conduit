@@ -145,7 +145,7 @@ type TerminalPaneProps = {
   tabId?: string;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
-  onLinkClick?: (url: string) => void;
+  onLinkClick: (url: string) => void;
   showDimensions?: boolean;
   hideIndividualSandboxIndicator?: boolean;
   isTabSynchronized?: boolean;
@@ -175,7 +175,6 @@ export const TerminalPane = ({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<TerminalInstance | null>(null);
-  const linkHandlerRef = useRef<((url: string) => void) | null>(null);
   const applicationModeRef = useRef<ApplicationMode>(applicationMode);
   applicationModeRef.current = applicationMode;
 
@@ -461,6 +460,8 @@ export const TerminalPane = ({
         : undefined,
     });
 
+    terminalRef.current?.setLinkHandler(onLinkClick);
+
     return () => {
       mounted = false;
       detachKeyHandler?.();
@@ -478,7 +479,6 @@ export const TerminalPane = ({
         streamCleanupRef.current = null;
       }
 
-      linkHandlerRef.current = null;
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
@@ -588,21 +588,8 @@ export const TerminalPane = ({
       <ComputeTargetIndicator
         paneId={paneId}
         hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}
-        onLinkClick={onLinkClick}
         setLinkHandler={(handler) => {
-          linkHandlerRef.current = handler;
-          if (terminalRef.current) {
-            terminalRef.current.setLinkHandler(
-              handler ||
-                ((url: string) => {
-                  if (onLinkClick) {
-                    onLinkClick(url);
-                  } else {
-                    api.openExternal(url);
-                  }
-                }),
-            );
-          }
+          terminalRef.current?.setLinkHandler(handler);
         }}
       />
 

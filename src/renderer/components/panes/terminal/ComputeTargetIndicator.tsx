@@ -3,15 +3,12 @@ import { forwardPortAndOpen } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import { extractPortFromMatch } from "@shared/utils";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";
-
-const api = window.conduit;
 
 type ComputeTargetIndicatorProps = {
   paneId: string;
   hideIndividualSandboxIndicator?: boolean;
-  onLinkClick?: (url: string) => void;
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
 };
 
@@ -27,7 +24,6 @@ type ComputeTargetIndicatorProps = {
 export function ComputeTargetIndicator({
   paneId,
   hideIndividualSandboxIndicator = false,
-  onLinkClick,
   setLinkHandler,
 }: ComputeTargetIndicatorProps) {
   const tabs = useAtomValue(tabsAtom);
@@ -82,39 +78,18 @@ export function ComputeTargetIndicator({
     await handleForkVMBase(vmId);
   }, [vmId, currentTab, handleForkVMBase]);
 
-  // Create cloud-aware link handler for port forwarding
-  const cloudLinkHandler = useCallback(
-    (url: string) => {
-      // Check if this is a localhost/127.0.0.1 URL and we're in a cloud VM
-      if (vmId) {
-        const port = extractPortFromMatch(url);
+  // Set up cloud VM port forwarding + link handler when in a VM
+  useEffect(() => {
+    if (!vmId) return;
 
-        if (port && currentTab) {
-          // This is a port reference in a cloud VM - forward it!
-          forwardPortAndOpen(currentTab.id, paneId, vmId, port);
-          return;
-        }
+    // Cloud VM - intercept localhost URLs for port forwarding
+    setLinkHandler((url: string) => {
+      const port = extractPortFromMatch(url);
+      if (port && currentTab) {
+        forwardPortAndOpen(currentTab.id, paneId, vmId, port);
       }
-
-      // Otherwise, use the default link handler
-      if (onLinkClick) {
-        onLinkClick(url);
-      } else {
-        api.openExternal(url);
-      }
-    },
-    [vmId, currentTab, paneId, onLinkClick],
-  );
-
-  // Set the link handler when vmId or dependencies change
-  // This runs after the terminal is mounted and whenever vmId changes
-  useMemo(() => {
-    if (vmId) {
-      setLinkHandler(cloudLinkHandler);
-    }
-    // We intentionally don't return a cleanup function here
-    // The parent TerminalPane will handle cleanup in its effect
-  }, [vmId, cloudLinkHandler, setLinkHandler]);
+    });
+  }, [vmId, currentTab, paneId, setLinkHandler]);
 
   if (hideIndividualSandboxIndicator) {
     return null;
