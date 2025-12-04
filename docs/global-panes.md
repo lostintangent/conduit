@@ -13,6 +13,7 @@ This document provides a comprehensive overview of the global panes architecture
 - [Scroll Persistence System](#scroll-persistence-system)
 - [Visibility Detection System](#visibility-detection-system)
 - [Why This Design](#why-this-design)
+- [Event Handling Across Portal Boundaries](#event-handling-across-portal-boundaries)
 - [Usage Patterns](#usage-patterns)
 
 ## Overview
@@ -403,6 +404,9 @@ interface EditorPaneConfig {
 
   /** Callback after successful save */
   onSave?: () => void;
+
+  /** Callback when hover state changes (for design mode) */
+  onHover?: (isHovering: boolean) => void;
 }
 ```
 
@@ -638,8 +642,92 @@ The global container pattern solves all these issues:
 - More code to maintain (hooks, registry, anchor components)
 - Harder to debug (DOM manipulation outside React)
 - Requires careful lifecycle management
+- Mouse events don't propagate across portal boundary (see below)
 
 **Verdict:** The complexity is justified by the dramatic UX improvement and performance gains.
+
+## Event Handling Across Portal Boundaries
+
+### Problem: Mouse Events Don't Propagate Through Portals
+
+React's synthetic event system follows the **React component tree**, not the DOM tree. When `EditorPaneV2` renders via `createPortal()` in `GlobalEditorContainer`, it exists in a separate React tree from `TabLayout` and `EditorPaneAnchor`.
+
+This means:
+
+```
+React Tree (event propagation):     DOM Tree (actual structure):
+
+App                                 App
+├─ TabLayout                        ├─ TabLayout
+│   └─ EditorPaneAnchor (empty)     │   └─ EditorPaneAnchor
+└─ GlobalEditorContainer            │       └─ EditorPaneV2 ← physically here
+    └─ EditorPaneV2 ← events here   └─ GlobalEditorContainer (off-screen)
+```
+
+When you hover over the editor:
+
+1. The DOM shows the mouse entering `EditorPaneAnchor`'s container
+2. But React sees the mouse entering `GlobalEditorContainer`'s tree
+3. `TabLayout`'s `onMouseEnter`/`onMouseLeave` handlers never fire for the editor content
+
+### Impact: Design Mode Hover Detection Breaks
+
+Design mode relies on tracking `hoveredPaneId` to show pane control buttons. Without proper hover detection:
+
+- Controls flicker briefly then disappear
+- Controls fall back to the active pane instead of the hovered pane
+- User experience is inconsistent
+
+### Solution: Explicit `onHover` Callback
+
+Editor panes explicitly propagate hover state via an `onHover` callback:
+
+```typescript
+// EditorPaneV2.tsx - fires callback on mouse events
+<div
+  onMouseEnter={() => onHover?.(true)}
+  onMouseLeave={() => onHover?.(false)}
+>
+
+// TabLayout.tsx - receives callback, updates state
+<EditorPaneSwitcher
+  onHover={(isHovering) => {
+    setHoveredPaneId(isHovering ? pane.id : null);
+  }}
+/>
+
+// TabLayout.tsx - skips clearing hover for editor panes
+onMouseLeave={() => {
+  // Editor panes manage hover via onHover callback
+  if (pane.type !== "editor") {
+    setHoveredPaneId(null);
+  }
+}}
+```
+
+The callback chain: `EditorPaneV2` → `GlobalEditorContainer` → `EditorPaneRegistry` → `EditorPaneAnchor` → `EditorPaneSwitcher` → `TabLayout`
+
+### Why TabLayout Skips `onMouseLeave` for Editors
+
+When the mouse moves from `EditorPaneAnchor`'s container into the portaled `EditorPaneV2` content:
+
+1. React fires `onMouseLeave` on `TabLayout`'s wrapper (it thinks we're leaving)
+2. Then `EditorPaneV2`'s `onMouseEnter` fires (via the callback chain)
+
+If we didn't skip the `onMouseLeave`, there would be a race condition where hover state briefly clears then re-sets, causing flicker.
+
+### Comparison with Browser Panes
+
+`BrowserPane` also uses `onHover` callback, but for a different reason:
+
+- Webviews are Electron native elements with their own event system
+- Mouse events inside the webview don't propagate to React at all
+- `onHover` bridges the webview event boundary
+
+The pattern is the same, but the underlying cause differs:
+
+- **Editor panes**: React portal boundary (same process, different React tree)
+- **Browser panes**: Electron webview boundary (different process entirely)
 
 ## Usage Patterns
 
