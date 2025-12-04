@@ -87,6 +87,15 @@ export interface EditorViewPanelProps {
 
   /** Handler for expand tree button click */
   onExpandTree?: () => void;
+
+  /** Whether to show the diff/edit mode toggle (only for dirty git-modified files) */
+  showDiffToggle?: boolean;
+
+  /** Whether currently in diff mode (vs regular edit mode) */
+  isDiffMode?: boolean;
+
+  /** Handler for toggling between diff and edit modes */
+  onToggleDiffMode?: (isDiff: boolean) => void;
 }
 
 // ============================================================================
@@ -113,6 +122,9 @@ export function EditorViewPanel({
   onBack,
   showExpandTreeButton = false,
   onExpandTree,
+  showDiffToggle = false,
+  isDiffMode = false,
+  onToggleDiffMode,
 }: EditorViewPanelProps) {
   // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -391,6 +403,9 @@ export function EditorViewPanel({
         onBack={onBack}
         showExpandTreeButton={showExpandTreeButton}
         onExpandTree={onExpandTree}
+        showDiffToggle={showDiffToggle}
+        isDiffMode={isDiffMode}
+        onToggleDiffMode={onToggleDiffMode}
       />
 
       {/* External change warning */}

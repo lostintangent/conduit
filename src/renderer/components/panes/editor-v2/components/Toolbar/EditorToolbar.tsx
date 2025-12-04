@@ -14,6 +14,8 @@ import {
   Search,
   ChevronLeft,
   PanelLeftOpen,
+  Columns2,
+  FileCode,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -66,6 +68,15 @@ export interface EditorToolbarProps {
 
   /** Handler for expand tree button click */
   onExpandTree?: () => void;
+
+  /** Whether to show the diff/edit mode toggle (only for dirty files) */
+  showDiffToggle?: boolean;
+
+  /** Whether currently in diff mode (vs regular edit mode) */
+  isDiffMode?: boolean;
+
+  /** Handler for toggling between diff and edit modes */
+  onToggleDiffMode?: (isDiff: boolean) => void;
 }
 
 // ============================================================================
@@ -90,6 +101,9 @@ export function EditorToolbar({
   onBack,
   showExpandTreeButton = false,
   onExpandTree,
+  showDiffToggle = false,
+  isDiffMode = false,
+  onToggleDiffMode,
 }: EditorToolbarProps) {
   const isDirty = modelState?.isDirty ?? false;
 
@@ -168,6 +182,31 @@ export function EditorToolbar({
           <span className="truncate" title={filePath}>
             {pathToShow}
           </span>
+        )}
+
+        {/* Diff/Edit mode toggle (only for git-modified files) */}
+        {showDiffToggle && onToggleDiffMode && (
+          <>
+            <Separator
+              orientation="vertical"
+              className="h-4 mx-1 bg-elevated-border"
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onToggleDiffMode(!isDiffMode)}
+                  className={buttonClass}
+                  data-testid="diff-mode-toggle"
+                >
+                  {isDiffMode ? <FileCode size={14} /> : <Columns2 size={14} />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isDiffMode ? "Switch to editor view" : "Switch to diff view"}
+              </TooltipContent>
+            </Tooltip>
+          </>
         )}
 
         {/* Edit actions (after file path, with separator) */}

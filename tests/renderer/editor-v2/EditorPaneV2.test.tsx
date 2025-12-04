@@ -39,6 +39,12 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
 const mockGit = {
   getStatus: vi.fn().mockResolvedValue({ files: new Map() }),
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
+  onBranchChanged: vi.fn().mockReturnValue(() => {}),
+  getCurrentBranch: vi.fn().mockResolvedValue("main"),
+  getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
+  getMostRecentCommittedFile: vi.fn().mockResolvedValue(null),
+  whenReady: vi.fn().mockResolvedValue(undefined),
+  commit: vi.fn().mockResolvedValue(undefined),
   release: vi.fn(),
 };
 vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
@@ -585,9 +591,9 @@ describe("EditorPaneV2", () => {
     });
 
     it("should derive editor mode from git status", async () => {
-      // Set up git status with a changed file
+      // Set up git status with a changed file (uses relative path, not absolute)
       const changedFiles = new Map([
-        ["/project/test.ts", { status: "modified", staged: false }],
+        ["test.ts", { status: "modified", staged: false }],
       ]);
       mockGit.getStatus.mockResolvedValue({ files: changedFiles });
 

@@ -184,6 +184,10 @@ export function EditorPaneV2({
   // Get editor theme from user settings
   const editorTheme = useEditorTheme();
 
+  // Preference for showing diff vs regular editor for git-modified files
+  // This is session-local state (like changesViewMode), not persisted
+  const [preferDiffForModified, setPreferDiffForModified] = useState(true);
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const treePanelRef = useRef<HTMLDivElement>(null);
@@ -407,12 +411,12 @@ export function EditorPaneV2({
 
         setSelectedFile(fileNode);
 
-        // Check if file is specifically "modified" in git status
-        // Only "modified" files get diff view, not "added" files
+        // Check if file is specifically "modified" in git status and user prefers diff view
+        // Only "modified" files get diff view option, not "added" files
         // Note: git status uses relative paths, so use relativePath not fullPath
         const status = await git.getStatus();
         const fileStatus = status?.files.get(relativePath);
-        if (fileStatus?.status === "modified") {
+        if (fileStatus?.status === "modified" && preferDiffForModified) {
           setViewMode({
             type: "diff",
             filePath: fullPath,
@@ -432,7 +436,14 @@ export function EditorPaneV2({
     return () => {
       cancelled = true;
     };
-  }, [selectedFile, initialFilePath, currentCwd, git, baseBranch]);
+  }, [
+    selectedFile,
+    initialFilePath,
+    currentCwd,
+    git,
+    baseBranch,
+    preferDiffForModified,
+  ]);
 
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
@@ -459,14 +470,15 @@ export function EditorPaneV2({
         setPanelView("editor");
       }
 
-      // Set initial view mode based on git status - modified files open in diff
-      // Only "modified" files get diff view, not "added" files (added files have no base to diff against)
+      // Set initial view mode based on git status and user preference
+      // Only "modified" files get diff view option, not "added" files (added files have no base to diff against)
       // Note: gitStatus uses relative paths, so we need to convert the absolute file.path
       const relativePath = file.path.startsWith(currentCwd)
         ? file.path.slice(currentCwd.length).replace(/^\//, "")
         : file.path;
       const fileStatus = gitStatus?.get(relativePath);
-      if (fileStatus?.status === "modified") {
+      if (fileStatus?.status === "modified" && preferDiffForModified) {
+        // User prefers diff view for modified files
         setViewMode({
           type: "diff",
           filePath: file.path,
@@ -500,7 +512,16 @@ export function EditorPaneV2({
       // onClearFile is for when selection is explicitly cleared (not just changed)
       void hadPreviousFile; // Acknowledge unused variable
     },
-    [layout, fs, onFileChange, selectedFile, gitChangedFiles, baseBranch],
+    [
+      layout,
+      fs,
+      onFileChange,
+      selectedFile,
+      gitStatus,
+      baseBranch,
+      currentCwd,
+      preferDiffForModified,
+    ],
   );
 
   /**
@@ -625,6 +646,43 @@ export function EditorPaneV2({
   const handleToggleTree = useCallback(() => {
     setIsTreeCollapsed((prev) => !prev);
   }, []);
+
+  /**
+   * Handle toggling between diff and edit modes for git-modified files.
+   * Updates both the current view mode AND the session preference.
+   */
+  const handleToggleDiffMode = useCallback(
+    (isDiff: boolean) => {
+      // Update the view mode for the current file
+      if (isDiff && selectedFile) {
+        setViewMode({
+          type: "diff",
+          filePath: selectedFile.path,
+          baseBranch: baseBranch ?? undefined,
+        });
+      } else {
+        setViewMode({ type: "editor" });
+      }
+
+      // Update the preference for future file selections (session-local)
+      setPreferDiffForModified(isDiff);
+    },
+    [selectedFile, baseBranch],
+  );
+
+  /**
+   * Determine if the current file is git-modified (eligible for diff toggle).
+   */
+  const isCurrentFileGitModified = useMemo(() => {
+    if (!selectedFile) return false;
+
+    const relativePath = selectedFile.path.startsWith(currentCwd)
+      ? selectedFile.path.slice(currentCwd.length).replace(/^\//, "")
+      : selectedFile.path;
+
+    const fileStatus = gitStatus?.get(relativePath);
+    return fileStatus?.status === "modified";
+  }, [selectedFile, currentCwd, gitStatus]);
 
   /**
    * Handle changing the current working directory to a specific folder.
@@ -813,6 +871,9 @@ export function EditorPaneV2({
           onBack={() => setPanelView("tree")}
           showExpandTreeButton={layout === "split" && isTreeCollapsed}
           onExpandTree={() => setIsTreeCollapsed(false)}
+          showDiffToggle={isCurrentFileGitModified}
+          isDiffMode={viewMode.type === "diff"}
+          onToggleDiffMode={handleToggleDiffMode}
         />
       </div>
 
