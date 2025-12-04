@@ -26,7 +26,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useScrollPersistence, useExpandedPaths } from "../../hooks";
-import { pathsEqual, getParentPaths } from "../../utils";
+import { pathsEqual, getParentPaths, normalizePathForKey } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
@@ -122,6 +122,7 @@ export function FileTreeNormal({
   // Expanded paths state (shared hook)
   const {
     expandedPaths,
+    isExpanded: isPathExpanded,
     toggle: toggleExpanded,
     expandToFile: expandPathsToFile,
     reset: resetExpandedPaths,
@@ -182,11 +183,12 @@ export function FileTreeNormal({
       for (const dir of parentDirs) {
         if (cancelled) return;
         // Check cache at runtime, not as a dependency
-        if (!directoryCache[dir]) {
+        const cacheKey = normalizePathForKey(dir);
+        if (!directoryCache[cacheKey]) {
           try {
             const entries = await fs.readDirectory(dir);
             if (cancelled) return;
-            setDirectoryCache((prev) => ({ ...prev, [dir]: entries }));
+            setDirectoryCache((prev) => ({ ...prev, [cacheKey]: entries }));
           } catch {
             return;
           }
@@ -219,7 +221,10 @@ export function FileTreeNormal({
         // Load root directory
         const entries = await fs.readDirectory(cwd);
         if (!cancelled) {
-          setDirectoryCache((prev) => ({ ...prev, [cwd]: entries }));
+          setDirectoryCache((prev) => ({
+            ...prev,
+            [normalizePathForKey(cwd)]: entries,
+          }));
         }
 
         // Only fetch git status if parent isn't providing it
@@ -257,8 +262,10 @@ export function FileTreeNormal({
     const cleanups: (() => void)[] = [];
 
     for (const path of expandedPaths) {
+      // path is already normalized (from useExpandedPaths), but be explicit
+      const cacheKey = normalizePathForKey(path);
       const cleanup = fs.onDirectoryListingChanged(path, (entries) => {
-        setDirectoryCache((prev) => ({ ...prev, [path]: entries }));
+        setDirectoryCache((prev) => ({ ...prev, [cacheKey]: entries }));
       });
       cleanups.push(cleanup);
     }
@@ -309,20 +316,21 @@ export function FileTreeNormal({
    */
   const handleToggleExpand = useCallback(
     async (path: string) => {
-      const isCurrentlyExpanded = expandedPaths.has(path);
+      const isCurrentlyExpanded = isPathExpanded(path);
+      const cacheKey = normalizePathForKey(path);
 
       if (isCurrentlyExpanded) {
         // Collapsing: clear cache so we fetch fresh data when re-expanding
         setDirectoryCache((cache) => {
           const newCache = { ...cache };
-          delete newCache[path];
+          delete newCache[cacheKey];
           return newCache;
         });
       } else {
         // Expanding: load fresh directory contents
         fs.readDirectory(path)
           .then((entries) => {
-            setDirectoryCache((cache) => ({ ...cache, [path]: entries }));
+            setDirectoryCache((cache) => ({ ...cache, [cacheKey]: entries }));
           })
           .catch((error) => {
             console.error(`Failed to load directory ${path}:`, error);
@@ -331,7 +339,7 @@ export function FileTreeNormal({
 
       toggleExpanded(path);
     },
-    [fs, expandedPaths, toggleExpanded],
+    [fs, isPathExpanded, toggleExpanded],
   );
 
   // ---------------------------------------------------------------------------
@@ -372,7 +380,7 @@ export function FileTreeNormal({
    */
   const renderDirectory = useCallback(
     (dirPath: string, depth: number): React.ReactNode => {
-      const entries = directoryCache[dirPath];
+      const entries = directoryCache[normalizePathForKey(dirPath)];
       if (!entries) return null;
 
       // Sort entries: directories first, then alphabetically
@@ -385,7 +393,7 @@ export function FileTreeNormal({
 
       return sorted.map((entry) => {
         const entryPath = joinPath(dirPath, entry.name);
-        const isExpanded = expandedPaths.has(entryPath);
+        const isExpanded = isPathExpanded(entryPath);
         const status = gitStatusMap.get(entryPath) ?? null;
         const relativePath = getRelativePath(entryPath, cwd);
 
@@ -413,7 +421,7 @@ export function FileTreeNormal({
     },
     [
       directoryCache,
-      expandedPaths,
+      isPathExpanded,
       gitStatusMap,
       relativeGitStatusMap,
       selectedFile?.path,
@@ -429,7 +437,7 @@ export function FileTreeNormal({
   // ---------------------------------------------------------------------------
 
   // Loading state for initial load
-  if (isLoading && !directoryCache[cwd]) {
+  if (isLoading && !directoryCache[normalizePathForKey(cwd)]) {
     return (
       <div
         className="flex items-center justify-center h-full text-muted-foreground text-sm"

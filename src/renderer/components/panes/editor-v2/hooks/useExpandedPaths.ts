@@ -3,10 +3,14 @@
  *
  * Provides state and callbacks for tracking which directories are expanded,
  * with support for expanding to reveal specific files.
+ *
+ * Uses case-insensitive path comparison on macOS/Windows to handle paths
+ * from different sources (CLI commands, file system API) that may have
+ * different casing.
  */
 
 import { useState, useCallback } from "react";
-import { getParentPaths } from "../utils";
+import { getParentPaths, normalizePathForKey } from "../utils";
 
 export interface UseExpandedPathsOptions {
   /** Initial expanded paths (typically the root directory) */
@@ -62,41 +66,45 @@ export function useExpandedPaths(
 ): UseExpandedPathsResult {
   const { initialPaths = [] } = options;
 
+  // Store normalized paths for case-insensitive comparison
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
-    () => new Set(initialPaths),
+    () => new Set(initialPaths.map(normalizePathForKey)),
   );
 
   const isExpanded = useCallback(
-    (path: string) => expandedPaths.has(path),
+    (path: string) => expandedPaths.has(normalizePathForKey(path)),
     [expandedPaths],
   );
 
   const toggle = useCallback((path: string) => {
+    const key = normalizePathForKey(path);
     setExpandedPaths((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(path);
+        next.add(key);
       }
       return next;
     });
   }, []);
 
   const expand = useCallback((path: string) => {
+    const key = normalizePathForKey(path);
     setExpandedPaths((prev) => {
-      if (prev.has(path)) return prev;
+      if (prev.has(key)) return prev;
       const next = new Set(prev);
-      next.add(path);
+      next.add(key);
       return next;
     });
   }, []);
 
   const collapse = useCallback((path: string) => {
+    const key = normalizePathForKey(path);
     setExpandedPaths((prev) => {
-      if (!prev.has(path)) return prev;
+      if (!prev.has(key)) return prev;
       const next = new Set(prev);
-      next.delete(path);
+      next.delete(key);
       return next;
     });
   }, []);
@@ -109,8 +117,9 @@ export function useExpandedPaths(
       const next = new Set(prev);
       let changed = false;
       for (const parent of parents) {
-        if (!next.has(parent)) {
-          next.add(parent);
+        const key = normalizePathForKey(parent);
+        if (!next.has(key)) {
+          next.add(key);
           changed = true;
         }
       }
@@ -127,8 +136,9 @@ export function useExpandedPaths(
         let changed = false;
         for (const filePath of filePaths) {
           for (const parent of getParentPaths(filePath, rootPath)) {
-            if (!next.has(parent)) {
-              next.add(parent);
+            const key = normalizePathForKey(parent);
+            if (!next.has(key)) {
+              next.add(key);
               changed = true;
             }
           }
@@ -141,7 +151,9 @@ export function useExpandedPaths(
 
   const reset = useCallback(
     (paths?: string[]) => {
-      setExpandedPaths(new Set(paths ?? initialPaths));
+      setExpandedPaths(
+        new Set((paths ?? initialPaths).map(normalizePathForKey)),
+      );
     },
     [initialPaths],
   );

@@ -40,26 +40,7 @@ import type {
   FileDeletedPayload,
   FileRenamedPayload,
 } from "../../preload/window/modules/fsv2";
-
-// ============================================================================
-// Path Normalization
-// ============================================================================
-
-/**
- * Whether the current platform uses case-insensitive file paths.
- */
-const isCaseInsensitiveFs = (() => {
-  const platform = navigator.platform.toLowerCase();
-  return platform.includes("mac") || platform.includes("win");
-})();
-
-/**
- * Normalize a path for use as a Map key.
- * On case-insensitive filesystems, lowercases the path for consistent lookups.
- */
-function normalizePathKey(path: string): string {
-  return isCaseInsensitiveFs ? path.toLowerCase() : path;
-}
+import { normalizePathForKey } from "../utils/pathUtils";
 
 // ============================================================================
 // Types
@@ -319,7 +300,7 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    const key = normalizePathKey(path);
+    const key = normalizePathForKey(path);
     let listeners = this.directoryListeners.get(key);
     if (!listeners) {
       listeners = new Set();
@@ -370,7 +351,7 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    const key = normalizePathKey(path);
+    const key = normalizePathForKey(path);
     let listeners = this.fileListeners.get(key);
     if (!listeners) {
       listeners = new Set();
@@ -426,7 +407,7 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    const key = normalizePathKey(path);
+    const key = normalizePathForKey(path);
     let listeners = this.deleteListeners.get(key);
     if (!listeners) {
       listeners = new Set();
@@ -471,7 +452,7 @@ export class FileSystemV2API {
   onFileRenamed(path: string, callback: FileRenamedCallback): Cleanup {
     this.ensureNotReleased();
     this.ensureSubscribed();
-    const key = normalizePathKey(path);
+    const key = normalizePathForKey(path);
 
     let listeners = this.renameListeners.get(key);
     if (!listeners) {
@@ -572,7 +553,7 @@ export class FileSystemV2API {
           }
 
           // Notify path-specific listeners (use normalized key for lookup)
-          const key = normalizePathKey(payload.path);
+          const key = normalizePathForKey(payload.path);
           const listeners = this.directoryListeners.get(key);
           if (listeners) {
             for (const callback of listeners) {
@@ -627,7 +608,7 @@ export class FileSystemV2API {
           );
 
           // Notify path-specific listeners (use normalized key for lookup)
-          const fileKey = normalizePathKey(payload.path);
+          const fileKey = normalizePathForKey(payload.path);
           const listeners = this.fileListeners.get(fileKey);
           if (listeners) {
             for (const callback of listeners) {
@@ -669,7 +650,7 @@ export class FileSystemV2API {
         }
 
         // Notify path-specific listeners (use normalized key for lookup)
-        const deleteKey = normalizePathKey(payload.path);
+        const deleteKey = normalizePathForKey(payload.path);
         const listeners = this.deleteListeners.get(deleteKey);
         if (listeners) {
           for (const callback of listeners) {
@@ -706,7 +687,7 @@ export class FileSystemV2API {
         }
 
         // Notify path-specific listeners (use normalized key for lookup)
-        const renameKey = normalizePathKey(payload.oldPath);
+        const renameKey = normalizePathForKey(payload.oldPath);
         const listeners = this.renameListeners.get(renameKey);
         if (listeners) {
           for (const callback of listeners) {

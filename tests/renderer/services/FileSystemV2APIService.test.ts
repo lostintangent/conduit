@@ -249,6 +249,105 @@ describe("FileSystemV2APIService", () => {
   });
 
   // ===========================================================================
+  // Case Sensitivity (macOS/Windows)
+  // ===========================================================================
+
+  // Note: These tests verify case-insensitive behavior on macOS/Windows.
+  // The isCaseInsensitiveFs flag is computed at module load time based on
+  // navigator.platform. On macOS/Windows, paths are case-insensitive.
+  // Skip on Linux where paths are case-sensitive.
+
+  describe("case sensitivity on case-insensitive platforms", () => {
+    // Import the flag to check if we're on a case-insensitive platform
+    // This happens after vi.hoisted so the module is already loaded
+    let isCaseInsensitiveFs: boolean;
+
+    beforeEach(async () => {
+      const pathUtils = await import("../../../src/renderer/utils/pathUtils");
+      isCaseInsensitiveFs = pathUtils.isCaseInsensitiveFs;
+    });
+
+    it("should treat paths with different casing as the same instance", () => {
+      if (!isCaseInsensitiveFs) {
+        console.log(
+          "Skipping case sensitivity test on case-sensitive platform",
+        );
+        return;
+      }
+      const service = FileSystemV2APIService.getInstance();
+
+      const api1 = service.acquire("/Test/Project");
+      const api2 = service.acquire("/test/project");
+
+      expect(api1).toBe(api2);
+    });
+
+    it("should share refCount across case variations", () => {
+      if (!isCaseInsensitiveFs) {
+        console.log(
+          "Skipping case sensitivity test on case-sensitive platform",
+        );
+        return;
+      }
+      const service = FileSystemV2APIService.getInstance();
+
+      service.acquire("/Test/Project");
+      expect(service.getRefCount("/test/project")).toBe(1);
+
+      service.acquire("/TEST/PROJECT");
+      expect(service.getRefCount("/Test/Project")).toBe(2);
+    });
+
+    it("should release correctly with different case", () => {
+      if (!isCaseInsensitiveFs) {
+        console.log(
+          "Skipping case sensitivity test on case-sensitive platform",
+        );
+        return;
+      }
+      const service = FileSystemV2APIService.getInstance();
+
+      service.acquire("/Test/Project");
+      service.acquire("/TEST/PROJECT");
+      expect(service.getRefCount("/test/project")).toBe(2);
+
+      service.release("/tEsT/pRoJeCt");
+      expect(service.getRefCount("/Test/Project")).toBe(1);
+    });
+
+    it("should report hasInstance correctly with different case", () => {
+      if (!isCaseInsensitiveFs) {
+        console.log(
+          "Skipping case sensitivity test on case-sensitive platform",
+        );
+        return;
+      }
+      const service = FileSystemV2APIService.getInstance();
+
+      service.acquire("/Test/Project");
+
+      expect(service.hasInstance("/test/project")).toBe(true);
+      expect(service.hasInstance("/TEST/PROJECT")).toBe(true);
+      expect(service.hasInstance("/Test/Project")).toBe(true);
+    });
+
+    it("should combine trailing slash and case normalization", () => {
+      if (!isCaseInsensitiveFs) {
+        console.log(
+          "Skipping case sensitivity test on case-sensitive platform",
+        );
+        return;
+      }
+      const service = FileSystemV2APIService.getInstance();
+
+      const api1 = service.acquire("/Test/Project/");
+      const api2 = service.acquire("/test/project");
+
+      expect(api1).toBe(api2);
+    });
+  });
+
+  // ===========================================================================
   // Stats
   // ===========================================================================
 

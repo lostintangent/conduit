@@ -1,35 +1,17 @@
 /**
  * Path utilities for editor-v2 components.
  *
- * Handles cross-platform path comparison and path manipulation.
+ * Re-exports shared path utilities and adds editor-specific functions.
  */
 
-/**
- * Whether the current platform uses case-insensitive file paths.
- * macOS and Windows are case-insensitive by default.
- */
-export const isCaseInsensitiveFs = (() => {
-  const platform = navigator.platform.toLowerCase();
-  return platform.includes("mac") || platform.includes("win");
-})();
+import { pathsEqual } from "@/utils/pathUtils";
 
-/**
- * Compare two file paths, respecting platform case sensitivity.
- * On macOS/Windows, paths are compared case-insensitively.
- * On Linux, paths are compared case-sensitively.
- */
-export function pathsEqual(
-  path1: string | null | undefined,
-  path2: string | null | undefined,
-): boolean {
-  if (path1 == null || path2 == null) {
-    return path1 === path2;
-  }
-  if (isCaseInsensitiveFs) {
-    return path1.toLowerCase() === path2.toLowerCase();
-  }
-  return path1 === path2;
-}
+// Re-export shared path utilities
+export {
+  isCaseInsensitiveFs,
+  normalizePathForKey,
+  pathsEqual,
+} from "@/utils/pathUtils";
 
 /**
  * Get all parent directory paths for a file path.
