@@ -142,30 +142,46 @@ export function FileTreeNormal({
 
   const prevCwdRef = useRef(cwd);
 
+  // Track which file we've already expanded to, so we don't re-expand
+  // when the user manually collapses a folder
+  const expandedToFileRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (prevCwdRef.current !== cwd) {
       setDirectoryCache({});
       resetExpandedPaths([cwd]);
       setInternalGitStatus(null);
+      expandedToFileRef.current = null;
       prevCwdRef.current = cwd;
     }
   }, [cwd, resetExpandedPaths]);
 
   // ---------------------------------------------------------------------------
-  // Expand to Selected File
+  // Expand to Selected File (event-driven, not reactive)
   // ---------------------------------------------------------------------------
 
+  // This effect should run ONLY when selectedFile changes, not when cache updates.
+  // We explicitly track the last processed selection to achieve event-like behavior.
   useEffect(() => {
-    if (!selectedFile) return;
-    let cancelled = false;
+    const currentPath = selectedFile?.path ?? null;
 
-    const parentDirs = getParentPaths(selectedFile.path, cwd);
+    // Only process actual selection changes
+    if (pathsEqual(expandedToFileRef.current, currentPath)) {
+      return;
+    }
+    expandedToFileRef.current = currentPath;
+
+    if (!currentPath) return;
+
+    let cancelled = false;
+    const parentDirs = getParentPaths(currentPath, cwd);
     if (parentDirs.length === 0) return;
 
     // Load directory contents, then expand
     const loadAndExpand = async () => {
       for (const dir of parentDirs) {
         if (cancelled) return;
+        // Check cache at runtime, not as a dependency
         if (!directoryCache[dir]) {
           try {
             const entries = await fs.readDirectory(dir);
@@ -177,7 +193,7 @@ export function FileTreeNormal({
         }
       }
       if (!cancelled) {
-        expandPathsToFile(selectedFile.path, cwd);
+        expandPathsToFile(currentPath, cwd);
       }
     };
 
@@ -185,7 +201,10 @@ export function FileTreeNormal({
     return () => {
       cancelled = true;
     };
-  }, [selectedFile, cwd, fs, directoryCache, expandPathsToFile]);
+    // Dependencies are intentionally minimal: we want event-driven behavior
+    // (run once per selection change), not reactive (run when cache updates).
+    // fs, directoryCache, expandPathsToFile are read at runtime, not triggers.
+  }, [selectedFile?.path, cwd]);
 
   // ---------------------------------------------------------------------------
   // Initial Load
