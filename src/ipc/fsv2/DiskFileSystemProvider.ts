@@ -385,6 +385,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     this.watcher.onCreated((event) => {
       const parentDir = nodePath.dirname(event.path);
       this.scheduleRefresh(parentDir);
+
+      // Notify about new file content (so git status gets refreshed)
+      if (!event.isDirectory) {
+        this._onFileContentChanged.fire({ path: event.path });
+      }
     });
 
     // File modified
@@ -400,6 +405,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
       // Also invalidate the deleted directory's cache if it was a directory
       DirectoryCache.delete(event.path);
+
+      // Notify about deleted file (so git status gets refreshed)
+      if (!event.isDirectory) {
+        this._onFileContentChanged.fire({ path: event.path });
+      }
     });
 
     // File/directory renamed
@@ -418,6 +428,9 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       // Update cache for renamed directory
       if (event.isDirectory) {
         DirectoryCache.delete(event.oldPath);
+      } else {
+        // Notify about renamed file (so git status gets refreshed)
+        this._onFileContentChanged.fire({ path: event.newPath });
       }
     });
   }
@@ -508,28 +521,31 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       return;
     }
 
+    // Normalize path to match readDirectory's cache key format
+    const normalizedPath = nodePath.resolve(dirPath);
+
     try {
       // Check if directory still exists
-      const exists = await this.exists(dirPath);
+      const exists = await this.exists(normalizedPath);
       if (!exists) {
-        DirectoryCache.delete(dirPath);
+        DirectoryCache.delete(normalizedPath);
         return;
       }
 
       // Read fresh entries
-      const entries = await this.readDirectoryFromDisk(dirPath);
+      const entries = await this.readDirectoryFromDisk(normalizedPath);
 
       // Update cache
-      DirectoryCache.set(dirPath, entries);
+      DirectoryCache.set(normalizedPath, entries);
 
       // Emit event
       this._onDirectoryListingChanged.fire({
-        path: dirPath,
+        path: normalizedPath,
         entries,
       });
     } catch (error) {
       console.error(
-        `[DiskFileSystemProvider] Failed to refresh directory ${dirPath}:`,
+        `[DiskFileSystemProvider] Failed to refresh directory ${normalizedPath}:`,
         error,
       );
     }

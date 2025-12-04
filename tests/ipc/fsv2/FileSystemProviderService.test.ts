@@ -26,7 +26,7 @@ interface MockProviderInstance {
 
 const createdInstances: MockProviderInstance[] = [];
 
-vi.mock("../../../src/ipc/fsv2/providers/DiskFileSystemProvider", () => {
+vi.mock("../../../src/ipc/fsv2/DiskFileSystemProvider", () => {
   return {
     DiskFileSystemProvider: class MockDiskFileSystemProvider {
       cwd: string;

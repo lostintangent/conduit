@@ -81,7 +81,7 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-vi.mock("../../../src/ipc/fsv2/watcher/ParcelFileWatcher", () => {
+vi.mock("../../../src/ipc/fsv2/ParcelFileWatcher", () => {
   // Define mock class inside the factory function
   return {
     ParcelFileWatcher: class MockParcelFileWatcher {
@@ -119,13 +119,15 @@ vi.mock("../../../src/ipc/fsv2/watcher/ParcelFileWatcher", () => {
   };
 });
 
-vi.mock("../../../src/ipc/fsv2/cache/DirectoryCache", () => ({
+vi.mock("../../../src/ipc/fsv2/DirectoryCache", () => ({
   DirectoryCache: {
     get: mockCacheGet,
     set: mockCacheSet,
     has: mockCacheHas,
     delete: mockCacheDelete,
     clear: vi.fn(),
+    addEntry: vi.fn(),
+    removeEntry: vi.fn(),
   },
 }));
 
@@ -470,6 +472,7 @@ describe("DiskFileSystemProvider", () => {
 
   describe("rename()", () => {
     it("should rename a file", async () => {
+      mockStat.mockResolvedValue(createMockStats({ isDirectory: () => false }));
       mockMkdir.mockResolvedValue(undefined);
       mockRename.mockResolvedValue(undefined);
 
@@ -482,6 +485,7 @@ describe("DiskFileSystemProvider", () => {
     });
 
     it("should create parent directory of new path if needed", async () => {
+      mockStat.mockResolvedValue(createMockStats({ isDirectory: () => false }));
       mockMkdir.mockResolvedValue(undefined);
       mockRename.mockResolvedValue(undefined);
 
@@ -736,6 +740,104 @@ describe("DiskFileSystemProvider", () => {
 
       // Should only emit once (due to debouncing)
       expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("should fire onFileContentChanged when a file is created", async () => {
+      mockReaddir.mockResolvedValue([createMockDirent("new.ts", false)]);
+      mockAccess.mockResolvedValue(undefined);
+
+      const contentListener = vi.fn();
+      provider.onFileContentChanged(contentListener);
+
+      // Simulate file created event from watcher (file, not directory)
+      watcherCallbacks.onCreated!({
+        path: "/test/project/new.ts",
+        isDirectory: false,
+      });
+
+      // Should be called immediately (not debounced like directory refresh)
+      expect(contentListener).toHaveBeenCalledWith({
+        path: "/test/project/new.ts",
+      });
+    });
+
+    it("should NOT fire onFileContentChanged when a directory is created", async () => {
+      mockReaddir.mockResolvedValue([createMockDirent("newdir", true)]);
+      mockAccess.mockResolvedValue(undefined);
+
+      const contentListener = vi.fn();
+      provider.onFileContentChanged(contentListener);
+
+      // Simulate directory created event from watcher
+      watcherCallbacks.onCreated!({
+        path: "/test/project/newdir",
+        isDirectory: true,
+      });
+
+      // Should NOT be called for directories
+      expect(contentListener).not.toHaveBeenCalled();
+    });
+
+    it("should fire onFileContentChanged when a file is deleted", () => {
+      const contentListener = vi.fn();
+      provider.onFileContentChanged(contentListener);
+
+      // Simulate file deleted event from watcher
+      watcherCallbacks.onDeleted!({
+        path: "/test/project/deleted.ts",
+        isDirectory: false,
+      });
+
+      // Should be called for deleted file
+      expect(contentListener).toHaveBeenCalledWith({
+        path: "/test/project/deleted.ts",
+      });
+    });
+
+    it("should NOT fire onFileContentChanged when a directory is deleted", () => {
+      const contentListener = vi.fn();
+      provider.onFileContentChanged(contentListener);
+
+      // Simulate directory deleted event from watcher
+      watcherCallbacks.onDeleted!({
+        path: "/test/project/deleteddir",
+        isDirectory: true,
+      });
+
+      // Should NOT be called for directories
+      expect(contentListener).not.toHaveBeenCalled();
+    });
+
+    it("should fire onFileContentChanged when a file is renamed", () => {
+      const contentListener = vi.fn();
+      provider.onFileContentChanged(contentListener);
+
+      // Simulate file renamed event from watcher
+      watcherCallbacks.onRenamed!({
+        oldPath: "/test/project/old.ts",
+        newPath: "/test/project/new.ts",
+        isDirectory: false,
+      });
+
+      // Should be called with the new path
+      expect(contentListener).toHaveBeenCalledWith({
+        path: "/test/project/new.ts",
+      });
+    });
+
+    it("should NOT fire onFileContentChanged when a directory is renamed", () => {
+      const contentListener = vi.fn();
+      provider.onFileContentChanged(contentListener);
+
+      // Simulate directory renamed event from watcher
+      watcherCallbacks.onRenamed!({
+        oldPath: "/test/project/olddir",
+        newPath: "/test/project/newdir",
+        isDirectory: true,
+      });
+
+      // Should NOT be called for directories
+      expect(contentListener).not.toHaveBeenCalled();
     });
   });
 

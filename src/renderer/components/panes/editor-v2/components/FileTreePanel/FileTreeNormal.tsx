@@ -32,7 +32,7 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
@@ -134,6 +134,24 @@ export function FileTreeNormal({
     string[]
   >([]);
   const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // CWD Change Handler
+  // ---------------------------------------------------------------------------
+
+  // Track previous CWD to detect changes
+  const prevCwdRef = useRef(cwd);
+
+  useEffect(() => {
+    if (prevCwdRef.current !== cwd) {
+      // CWD changed - reset all state for the new directory
+      setDirectoryCache({});
+      setExpandedPaths(new Set([cwd]));
+      setGitStatus(null);
+      setChangedFilesFromBranch([]);
+      prevCwdRef.current = cwd;
+    }
+  }, [cwd]);
 
   // ---------------------------------------------------------------------------
   // Initial Load
@@ -280,25 +298,31 @@ export function FileTreeNormal({
       setExpandedPaths((prev) => {
         const next = new Set(prev);
         if (next.has(path)) {
+          // Collapsing: remove from expanded paths and clear local cache
+          // This ensures we fetch fresh data when re-expanding
           next.delete(path);
+          setDirectoryCache((cache) => {
+            const newCache = { ...cache };
+            delete newCache[path];
+            return newCache;
+          });
         } else {
+          // Expanding: add to expanded paths and load contents
           next.add(path);
 
-          // Load directory contents if not cached
-          if (!directoryCache[path]) {
-            fs.readDirectory(path)
-              .then((entries) => {
-                setDirectoryCache((cache) => ({ ...cache, [path]: entries }));
-              })
-              .catch((error) => {
-                console.error(`Failed to load directory ${path}:`, error);
-              });
-          }
+          // Always load fresh directory contents when expanding
+          fs.readDirectory(path)
+            .then((entries) => {
+              setDirectoryCache((cache) => ({ ...cache, [path]: entries }));
+            })
+            .catch((error) => {
+              console.error(`Failed to load directory ${path}:`, error);
+            });
         }
         return next;
       });
     },
-    [fs, directoryCache],
+    [fs],
   );
 
   // ---------------------------------------------------------------------------

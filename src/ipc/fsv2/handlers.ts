@@ -359,8 +359,12 @@ export function initializeFileSystemV2Handlers(): void {
       // Subscribe to requested event types
       if (params.type === "directory" || params.type === "all") {
         const sub = provider.onDirectoryListingChanged((e) => {
-          // Filter by path if specified
-          if (params.path && !e.path.startsWith(params.path)) {
+          // Filter by path if specified (match exact path or child paths)
+          if (
+            params.path &&
+            e.path !== params.path &&
+            !e.path.startsWith(params.path + "/")
+          ) {
             return;
           }
 
