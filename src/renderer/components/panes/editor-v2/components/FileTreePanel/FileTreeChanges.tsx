@@ -38,7 +38,7 @@ import {
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
-import { pathsEqual } from "../../utils";
+import { pathsEqual, getParentPaths } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { cn } from "@/utils";
@@ -631,23 +631,6 @@ function Section({
 // ============================================================================
 
 /**
- * Extract all parent folder paths from a file path.
- * e.g., "src/components/Button.tsx" -> ["src", "src/components"]
- */
-function getParentFolderPaths(filePath: string): string[] {
-  const parts = filePath.split("/");
-  const folders: string[] = [];
-  let currentPath = "";
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
-    folders.push(currentPath);
-  }
-
-  return folders;
-}
-
-/**
  * Hook to manage changes view state including section expansion
  * and folder expansion for nested view.
  */
@@ -686,7 +669,7 @@ function useChangesViewState() {
       setExpandedFolders((prev) => {
         const next = replace ? new Set<string>() : new Set(prev);
         for (const filePath of filePaths) {
-          for (const folder of getParentFolderPaths(filePath)) {
+          for (const folder of getParentPaths(filePath)) {
             next.add(folder);
           }
         }

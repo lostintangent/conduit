@@ -24,3 +24,8 @@ export { useEditorTheme } from "./useEditorTheme";
 export { useEditorVisibility } from "./useEditorVisibility";
 export type { UseEditorVisibilityOptions } from "./useEditorVisibility";
 export { useScrollPersistence } from "./useScrollPersistence";
+export { useExpandedPaths } from "./useExpandedPaths";
+export type {
+  UseExpandedPathsOptions,
+  UseExpandedPathsResult,
+} from "./useExpandedPaths";

@@ -25,8 +25,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
-import { useScrollPersistence } from "../../hooks/useScrollPersistence";
-import { pathsEqual } from "../../utils";
+import { useScrollPersistence, useExpandedPaths } from "../../hooks";
+import { pathsEqual, getParentPaths } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
@@ -119,11 +119,17 @@ export function FileTreeNormal({
   // Callback ref for scroll persistence across DOM moves
   const scrollContainerRef = useScrollPersistence(paneId, "fileTree");
 
-  // State
+  // Expanded paths state (shared hook)
+  const {
+    expandedPaths,
+    toggle: toggleExpanded,
+    expandToFile: expandPathsToFile,
+    reset: resetExpandedPaths,
+  } = useExpandedPaths({ initialPaths: [cwd] });
+
+  // Directory contents cache
   const [directoryCache, setDirectoryCache] = useState<DirectoryCache>({});
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
-    () => new Set([cwd]),
-  );
+
   // Internal git status - only used when parent doesn't provide status
   const [internalGitStatus, setInternalGitStatus] = useState<GitStatus | null>(
     null,
@@ -134,18 +140,52 @@ export function FileTreeNormal({
   // CWD Change Handler
   // ---------------------------------------------------------------------------
 
-  // Track previous CWD to detect changes
   const prevCwdRef = useRef(cwd);
 
   useEffect(() => {
     if (prevCwdRef.current !== cwd) {
-      // CWD changed - reset all state for the new directory
       setDirectoryCache({});
-      setExpandedPaths(new Set([cwd]));
+      resetExpandedPaths([cwd]);
       setInternalGitStatus(null);
       prevCwdRef.current = cwd;
     }
-  }, [cwd]);
+  }, [cwd, resetExpandedPaths]);
+
+  // ---------------------------------------------------------------------------
+  // Expand to Selected File
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    let cancelled = false;
+
+    const parentDirs = getParentPaths(selectedFile.path, cwd);
+    if (parentDirs.length === 0) return;
+
+    // Load directory contents, then expand
+    const loadAndExpand = async () => {
+      for (const dir of parentDirs) {
+        if (cancelled) return;
+        if (!directoryCache[dir]) {
+          try {
+            const entries = await fs.readDirectory(dir);
+            if (cancelled) return;
+            setDirectoryCache((prev) => ({ ...prev, [dir]: entries }));
+          } catch {
+            return;
+          }
+        }
+      }
+      if (!cancelled) {
+        expandPathsToFile(selectedFile.path, cwd);
+      }
+    };
+
+    loadAndExpand();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFile, cwd, fs, directoryCache, expandPathsToFile]);
 
   // ---------------------------------------------------------------------------
   // Initial Load
@@ -250,34 +290,29 @@ export function FileTreeNormal({
    */
   const handleToggleExpand = useCallback(
     async (path: string) => {
-      setExpandedPaths((prev) => {
-        const next = new Set(prev);
-        if (next.has(path)) {
-          // Collapsing: remove from expanded paths and clear local cache
-          // This ensures we fetch fresh data when re-expanding
-          next.delete(path);
-          setDirectoryCache((cache) => {
-            const newCache = { ...cache };
-            delete newCache[path];
-            return newCache;
-          });
-        } else {
-          // Expanding: add to expanded paths and load contents
-          next.add(path);
+      const isCurrentlyExpanded = expandedPaths.has(path);
 
-          // Always load fresh directory contents when expanding
-          fs.readDirectory(path)
-            .then((entries) => {
-              setDirectoryCache((cache) => ({ ...cache, [path]: entries }));
-            })
-            .catch((error) => {
-              console.error(`Failed to load directory ${path}:`, error);
-            });
-        }
-        return next;
-      });
+      if (isCurrentlyExpanded) {
+        // Collapsing: clear cache so we fetch fresh data when re-expanding
+        setDirectoryCache((cache) => {
+          const newCache = { ...cache };
+          delete newCache[path];
+          return newCache;
+        });
+      } else {
+        // Expanding: load fresh directory contents
+        fs.readDirectory(path)
+          .then((entries) => {
+            setDirectoryCache((cache) => ({ ...cache, [path]: entries }));
+          })
+          .catch((error) => {
+            console.error(`Failed to load directory ${path}:`, error);
+          });
+      }
+
+      toggleExpanded(path);
     },
-    [fs],
+    [fs, expandedPaths, toggleExpanded],
   );
 
   // ---------------------------------------------------------------------------
