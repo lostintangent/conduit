@@ -78,18 +78,27 @@ interface EditorPaneEntry {
   /** Current configuration/props for the pane */
   config: EditorPaneConfig;
 
-  /** The root DOM element of the EditorPaneV2 component */
-  rootElement: HTMLDivElement | null;
+  /**
+   * The wrapper DOM element that the registry owns and can move freely.
+   * This element is created by the registry (not React) so we can move it
+   * between containers without conflicting with React's DOM management.
+   * React renders INTO this element via a portal.
+   */
+  wrapperElement: HTMLDivElement;
 
-  /** The container the editor is currently attached to (null if detached) */
+  /** The container the editor is currently attached to (null if detached/off-screen) */
   currentContainer: HTMLElement | null;
 
   /**
-   * Container waiting for rootElement to be set.
-   * When attach() is called before rootElement is available, we store the
-   * target container here. setRootElement() will complete the attachment.
+   * Container waiting for React to render into wrapperElement.
+   * When attach() is called before React has rendered, we store the
+   * target container here. Once React renders and calls markReady(),
+   * we complete the attachment.
    */
   pendingContainer: HTMLElement | null;
+
+  /** Whether React has rendered content into the wrapper */
+  isReady: boolean;
 
   /** Whether the editor is currently visible (attached and container visible) */
   isVisible: boolean;
@@ -223,7 +232,11 @@ export class EditorPaneRegistry {
    * Get or create an editor pane entry.
    *
    * If an entry exists, updates its config and returns it.
-   * If not, creates a new entry.
+   * If not, creates a new entry with a wrapper element.
+   *
+   * The wrapper element is created and owned by the registry (not React),
+   * allowing us to move it freely between containers without conflicting
+   * with React's DOM management.
    *
    * @param paneId - Unique identifier for the pane
    * @param config - Configuration for the pane
@@ -249,13 +262,24 @@ export class EditorPaneRegistry {
       return entry;
     }
 
+    // Create wrapper element that the registry owns
+    // This element can be moved freely without conflicting with React
+    const wrapperElement = document.createElement("div");
+    wrapperElement.setAttribute("data-editor-pane-wrapper", paneId);
+    wrapperElement.style.cssText =
+      "height: 100%; width: 100%; display: flex; flex-direction: column;";
+
+    // Start in off-screen container
+    this.getOffscreenContainer().appendChild(wrapperElement);
+
     // Create new entry
     entry = {
       paneId,
       config,
-      rootElement: null,
+      wrapperElement,
       currentContainer: null,
       pendingContainer: null,
+      isReady: false,
       isVisible: false,
       createdAt: Date.now(),
       lastUsed: Date.now(),
@@ -297,6 +321,47 @@ export class EditorPaneRegistry {
   }
 
   /**
+   * Get the wrapper element for a pane.
+   * React should render INTO this element via createPortal().
+   * The registry owns this element and can move it freely.
+   */
+  getWrapperElement(paneId: string): HTMLDivElement | null {
+    return this.panes.get(paneId)?.wrapperElement ?? null;
+  }
+
+  /**
+   * Mark a pane as ready (React has rendered content into it).
+   * If there's a pending container, completes the attachment.
+   */
+  markReady(paneId: string): void {
+    const entry = this.panes.get(paneId);
+    if (!entry || entry.isReady) return;
+
+    entry.isReady = true;
+
+    // Check if there's a pending attachment to complete
+    if (entry.pendingContainer) {
+      const container = entry.pendingContainer;
+      entry.pendingContainer = null;
+
+      // Complete the attachment
+      container.appendChild(entry.wrapperElement);
+      entry.currentContainer = container;
+      entry.lastUsed = Date.now();
+
+      this._onEvent.fire({ type: "paneAttached", paneId });
+
+      // Restore scroll positions after DOM move
+      this.restoreScrollPositions(paneId);
+
+      // Trigger layout after a frame to let DOM settle
+      requestAnimationFrame(() => {
+        this.notifyVisible(paneId);
+      });
+    }
+  }
+
+  /**
    * Update the configuration for a pane.
    */
   updateConfig(paneId: string, config: Partial<EditorPaneConfig>): void {
@@ -315,15 +380,23 @@ export class EditorPaneRegistry {
   /**
    * Dispose a pane and remove it from the registry.
    * This fully cleans up the pane - use when a tab/pane is closed.
+   *
+   * The registry owns the wrapper element, so we remove it from the DOM here.
+   * React renders INTO the wrapper via portal, so removing the wrapper
+   * will cause React to unmount the portal contents cleanly.
    */
   dispose(paneId: string): void {
     const entry = this.panes.get(paneId);
     if (!entry) return;
 
-    // Remove from DOM if attached
-    if (entry.rootElement?.parentElement) {
-      entry.rootElement.parentElement.removeChild(entry.rootElement);
+    // Remove wrapper element from DOM (registry owns it)
+    if (entry.wrapperElement.parentElement) {
+      entry.wrapperElement.parentElement.removeChild(entry.wrapperElement);
     }
+
+    // Clear references
+    entry.currentContainer = null;
+    entry.pendingContainer = null;
 
     this.panes.delete(paneId);
     this._onEvent.fire({ type: "paneRemoved", paneId });
@@ -349,46 +422,6 @@ export class EditorPaneRegistry {
   // ---------------------------------------------------------------------------
   // Public Methods - DOM Management
   // ---------------------------------------------------------------------------
-
-  /**
-   * Set the root element for a pane.
-   * Called by GlobalEditorContainer when rendering the pane.
-   *
-   * If there's a pendingContainer (attach() was called before rootElement was
-   * available), this completes the attachment.
-   */
-  setRootElement(paneId: string, element: HTMLDivElement | null): void {
-    const entry = this.panes.get(paneId);
-    if (!entry) return;
-
-    entry.rootElement = element;
-
-    if (!element) return;
-
-    // Check if there's a pending attachment to complete
-    if (entry.pendingContainer) {
-      const container = entry.pendingContainer;
-      entry.pendingContainer = null;
-
-      // Complete the attachment
-      container.appendChild(element);
-      entry.currentContainer = container;
-      entry.lastUsed = Date.now();
-
-      this._onEvent.fire({ type: "paneAttached", paneId });
-
-      // Restore scroll positions after DOM move
-      this.restoreScrollPositions(paneId);
-
-      // Trigger layout after a frame to let DOM settle
-      requestAnimationFrame(() => {
-        this.notifyVisible(paneId);
-      });
-    } else if (!entry.currentContainer) {
-      // No pending container, move to off-screen
-      this.getOffscreenContainer().appendChild(element);
-    }
-  }
 
   /**
    * Set the layout trigger callback for a pane.
@@ -550,17 +583,17 @@ export class EditorPaneRegistry {
    * Attach a pane's DOM to a container.
    * This moves the editor from off-screen to the target container.
    *
-   * If rootElement is not yet available (GlobalEditorContainer hasn't rendered),
-   * the container is stored as pendingContainer. setRootElement() will complete
-   * the attachment when the element becomes available.
+   * If React hasn't rendered into the wrapper yet (isReady is false),
+   * the container is stored as pendingContainer. markReady() will complete
+   * the attachment when React renders.
    */
   attach(paneId: string, container: HTMLElement): void {
     const entry = this.panes.get(paneId);
     if (!entry) return;
 
-    // If rootElement not yet available, store as pending
-    // setRootElement() will complete the attachment
-    if (!entry.rootElement) {
+    // If React hasn't rendered yet, store as pending
+    // markReady() will complete the attachment
+    if (!entry.isReady) {
       entry.pendingContainer = container;
       return;
     }
@@ -573,8 +606,8 @@ export class EditorPaneRegistry {
       return;
     }
 
-    // Move to new container
-    container.appendChild(entry.rootElement);
+    // Move wrapper to new container
+    container.appendChild(entry.wrapperElement);
     entry.currentContainer = container;
     entry.lastUsed = Date.now();
 
@@ -595,9 +628,7 @@ export class EditorPaneRegistry {
    */
   detach(paneId: string): void {
     const entry = this.panes.get(paneId);
-    if (!entry || !entry.rootElement) {
-      return;
-    }
+    if (!entry) return;
 
     // Already detached
     if (!entry.currentContainer) {
@@ -607,8 +638,8 @@ export class EditorPaneRegistry {
     // Save scroll positions BEFORE moving (DOM move resets scroll)
     this.saveScrollPositions(paneId);
 
-    // Move to off-screen container
-    this.getOffscreenContainer().appendChild(entry.rootElement);
+    // Move wrapper to off-screen container
+    this.getOffscreenContainer().appendChild(entry.wrapperElement);
     entry.currentContainer = null;
     entry.isVisible = false;
 

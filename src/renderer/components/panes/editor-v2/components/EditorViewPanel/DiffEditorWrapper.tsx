@@ -230,7 +230,11 @@ export function DiffEditorWrapper({
       originalModelRef.current.dispose();
     }
 
-    const originalUri = monaco.Uri.parse(`inmemory://original/${filePath}`);
+    // Use editorId in URI to ensure uniqueness across multiple diff editors
+    // showing the same file (e.g., different panes comparing same file)
+    const originalUri = monaco.Uri.parse(
+      `inmemory://original/${editorId}/${filePath}`,
+    );
     originalModelRef.current = monaco.editor.createModel(
       diffContent.original,
       language,

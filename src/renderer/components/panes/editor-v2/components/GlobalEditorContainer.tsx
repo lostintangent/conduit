@@ -6,16 +6,23 @@
  * - Editors are positioned off-screen when not attached to a container
  * - When a tab becomes active, EditorPaneAnchor calls attach() to move the editor
  *
+ * Key architecture:
+ * - The registry creates and owns wrapper DOM elements (not React)
+ * - React renders INTO these wrapper elements via createPortal()
+ * - The registry can move wrapper elements freely without conflicting with React
+ * - When React unmounts, it only cleans up portal contents, not the wrapper
+ *
  * Benefits:
  * - Editors are never unmounted during tab switches (no React reconciliation)
  * - Monaco editor state (scroll, cursor, undo) is preserved
  * - No visual flashing during tab switches
  * - Works with tab previews and overview mode
+ * - No DOM ownership conflicts with React
  *
  * @see docs/architecture/editor-global-container-plan.md
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { EditorPaneRegistry, type EditorPaneConfig } from "../registry";
 import { EditorPaneV2 } from "../EditorPaneV2";
@@ -38,9 +45,12 @@ interface EditorPaneEntry {
  * Wrapper component for a single EditorPaneV2 instance.
  *
  * Responsibilities:
- * - Provides a root div that can be moved between containers
- * - Registers the root element with EditorPaneRegistry
+ * - Renders EditorPaneV2 into the registry-owned wrapper element via portal
+ * - Calls markReady() to signal that React has rendered
  * - Sets up layout trigger for Monaco using EditorRegistry's triggerLayout
+ *
+ * The key insight: React renders INTO the wrapper element (via portal),
+ * but doesn't own the wrapper itself. The registry owns and moves the wrapper.
  */
 function EditorPaneWrapper({
   paneId,
@@ -49,19 +59,15 @@ function EditorPaneWrapper({
   paneId: string;
   config: EditorPaneConfig;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
   const paneRegistry = EditorPaneRegistry.getInstance();
   const editorRegistry = EditorRegistry.getInstance();
 
-  // Register root element with registry
-  useEffect(() => {
-    if (rootRef.current) {
-      paneRegistry.setRootElement(paneId, rootRef.current);
-    }
+  // Get the registry-owned wrapper element to render into
+  const wrapperElement = paneRegistry.getWrapperElement(paneId);
 
-    return () => {
-      paneRegistry.setRootElement(paneId, null);
-    };
+  // Mark the pane as ready when React renders
+  useEffect(() => {
+    paneRegistry.markReady(paneId);
   }, [paneId, paneRegistry]);
 
   // Set up layout trigger using EditorRegistry's debounced triggerLayout
@@ -83,27 +89,24 @@ function EditorPaneWrapper({
     };
   }, [paneId, paneRegistry, editorRegistry]);
 
-  return (
-    <div
-      ref={rootRef}
-      className="h-full w-full"
-      data-editor-pane-wrapper={paneId}
-      style={{
-        // Ensure the wrapper fills its container
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <EditorPaneV2
-        pane={config.pane}
-        onFileChange={config.onFileChange}
-        onClearFile={config.onClearFile}
-        onCwdChange={config.onCwdChange}
-        onFileOpen={config.onFileOpen}
-        onTreeModeChange={config.onTreeModeChange}
-        onSave={config.onSave}
-      />
-    </div>
+  // If wrapper doesn't exist (disposed), don't render
+  if (!wrapperElement) {
+    return null;
+  }
+
+  // Render INTO the registry-owned wrapper element via portal
+  // React doesn't own the wrapper, so no DOM conflicts when registry moves it
+  return createPortal(
+    <EditorPaneV2
+      pane={config.pane}
+      onFileChange={config.onFileChange}
+      onClearFile={config.onClearFile}
+      onCwdChange={config.onCwdChange}
+      onFileOpen={config.onFileOpen}
+      onTreeModeChange={config.onTreeModeChange}
+      onSave={config.onSave}
+    />,
+    wrapperElement,
   );
 }
 
@@ -115,7 +118,13 @@ function EditorPaneWrapper({
  * Global container for all EditorPaneV2 instances.
  *
  * Renders at app root level and manages all editor panes globally.
- * Uses React portal to render into document.body.
+ * Each EditorPaneWrapper renders into its registry-owned wrapper element via portal.
+ *
+ * Architecture:
+ * 1. Registry creates wrapper DOM elements when panes are registered
+ * 2. GlobalEditorContainer tracks pane state via registry events
+ * 3. EditorPaneWrapper renders INTO registry-owned wrappers via createPortal
+ * 4. Registry can move wrapper elements freely (attach/detach) without React conflicts
  */
 export function GlobalEditorContainer() {
   const [panes, setPanes] = useState<EditorPaneEntry[]>([]);
@@ -171,21 +180,10 @@ export function GlobalEditorContainer() {
     return null;
   }
 
-  // Render all panes into a portal container
-  // The actual positioning is handled by the registry's attach/detach
-  return createPortal(
-    <div
-      id="global-editor-container"
-      style={{
-        // Container itself is invisible - children are moved by registry
-        position: "absolute",
-        width: 0,
-        height: 0,
-        overflow: "hidden",
-        pointerEvents: "none",
-      }}
-      aria-hidden="true"
-    >
+  // Render EditorPaneWrappers - each one portals into its registry-owned element
+  // No outer portal needed since each wrapper manages its own portal
+  return (
+    <>
       {panes.map((pane) => (
         <EditorPaneWrapper
           key={pane.paneId}
@@ -193,7 +191,6 @@ export function GlobalEditorContainer() {
           config={pane.config}
         />
       ))}
-    </div>,
-    document.body,
+    </>
   );
 }
