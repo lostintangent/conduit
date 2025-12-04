@@ -369,7 +369,7 @@ const findCallingTerminalTab = () => {
 
   // 2. If not found in any tab, check if it's the floating terminal
   if (!matchingTab) {
-    if (floatingTerminal?.terminalId === sessionId) {
+    if (hyperTerminal?.terminalId === sessionId) {
       matchingTab = activeTab; // Use the currently active tab
     }
   }
@@ -516,7 +516,7 @@ The renderer process uses React hooks and Jotai atoms to access:
 
 - `tabsAtom` - All tab configurations
 - `activeTabAtom` - Currently active tab
-- `floatingTerminalAtom` - Floating terminal state
+- `hyperTerminalAtom` - Floating terminal state
 
 This state is used to resolve the target tab and execute commands in the appropriate context.
 
@@ -529,15 +529,17 @@ Errors can occur at multiple levels:
 3. **Main Process Level** - Server not running, socket errors
 4. **Renderer Level** - Command execution failures
 
-All errors are propagated back through the response chain:
+All errors are propagated back through the response chain. Handlers throw errors which are caught by the CLI client wrapper:
 
 ```typescript
 try {
-  // Execute command
-  await command.execute();
-  respondResult();
-} catch (error) {
-  respondError(error.message);
+  const result = await handler(args, context);
+
+  if (!isResponseSuppressed) {
+    respondResult(result);
+  }
+} catch ({ message }) {
+  respondError(message);
 }
 ```
 
@@ -580,28 +582,91 @@ async function shutdown() {
 ### Pane Commands
 
 - `pane-list` - List all panes in the active tab
-- `pane-split [direction]` - Split the active pane
-- `pane-move [direction]` - Move the active pane
+  - `-t, --type <paneType>` - Filter panes by type (all, terminal, browser, editor)
+- `pane-split [direction]` - Split the active pane (default: right)
+  - `-t, --type <paneType>` - Type of pane to open (terminal, browser, editor)
+- `pane-move [direction]` - Move the active pane (default: tab)
 - `pane-close` - Close the active pane
+  - `-t, --tab` - Close the active tab instead of the pane
 - `pane-focus` - Toggle focus mode
 
 ### Tab Commands
 
 - `tab-new` - Open a new tab
+  - `-t, --title <title>` - Title for the new tab
+  - `-c, --command <command>` - Command to run in the new tab
 - `tab-duplicate` - Duplicate the active tab
+- `tab-lock` - Toggle the locked state of the active tab
+- `tab-synchronize` - Toggle the synchronized state of the active tab
 
 ### Terminal Commands
 
-- `terminal-read <sessionId>` - Read terminal buffer contents
-- `terminal-write <sessionId> <input...>` - Send input to terminal
+- `terminal-read` - Read terminal buffer contents
+  - `-p, --pane <paneId>` - The ID of the pane to read
+  - `-a, --all` - Read from all terminals in the tab
+- `terminal-write <input...>` - Send input to terminal
+  - `-p, --pane <paneId>` - The ID of the pane to write to
+  - `-a, --all` - Write to all terminals in the tab
+  - `-e, --enter` - Simulate pressing enter/return after sending the input
+- `notify <message...>` - Display a notification
+  - `-p, --persistent` - Don't auto-hide the notification
 
 ### Browser Commands
 
-- `capture-browser <paneId>` - Capture screenshot of browser pane
+#### Simple Browser Commands
+
+- `browser-capture` - Capture screenshot of browser pane
+  - `-p, --pane <paneId>` - The ID of the pane to capture
+- `browser-navigate <url>` - Navigate to a URL
+  - `-p, --pane <paneId>` - The ID of the pane to navigate
+- `browser-back` - Navigate back in history
+  - `-p, --pane <paneId>` - The ID of the pane
+- `browser-forward` - Navigate forward in history
+  - `-p, --pane <paneId>` - The ID of the pane
+- `browser-refresh` - Refresh the browser pane
+  - `-p, --pane <paneId>` - The ID of the pane to refresh
+
+#### Browser Automation Commands
+
+- `browser-query [selector]` - Query for elements
+  - `-p, --pane <paneId>` - The ID of the pane to query
+  - `-c, --context <handle>` - Parent element handle
+  - `-t, --text <text>` - Filter by text content
+  - `-r, --role <role>` - ARIA role to filter by
+  - `-m, --max-results <count>` - Maximum number of results
+  - `--timeout <ms>` - Timeout for query
+  - `--dump-tree` - Return accessibility tree snapshot
+- `browser-click <handle>` - Click an element
+  - `-p, --pane <paneId>` - The ID of the pane
+  - `-b, --button <button>` - Mouse button (left, middle, right)
+  - `-c, --clicks <count>` - Number of clicks
+  - `--offset-x <x>` - X offset from element
+  - `--offset-y <y>` - Y offset from element
+- `browser-hover <handle>` - Hover over an element
+  - `-p, --pane <paneId>` - The ID of the pane
+  - `--offset-x <x>` - X offset from element
+  - `--offset-y <y>` - Y offset from element
+- `browser-focus <handle>` - Focus an element
+  - `-p, --pane <paneId>` - The ID of the pane
+- `browser-type <handle> <text>` - Type text into an element
+  - `-p, --pane <paneId>` - The ID of the pane
+  - `-d, --delay <ms>` - Delay between keystrokes
+- `browser-keys <handle> <keys>` - Send keyboard keys
+  - `-p, --pane <paneId>` - The ID of the pane
+- `browser-scroll <handle>` - Scroll element into view
+  - `-p, --pane <paneId>` - The ID of the pane
+  - `--x <pixels>` - Horizontal scroll amount
+  - `--y <pixels>` - Vertical scroll amount
+  - `--smooth` - Use smooth scrolling
+- `browser-wait [selector]` - Wait for selector or page state
+  - `-p, --pane <paneId>` - The ID of the pane
+  - `-s, --state <state>` - Load state (domcontentloaded, networkidle)
+  - `--timeout <ms>` - Timeout before failing
 
 ### Editor Commands
 
 - `editor-open <path>` - Open file or directory (default command)
+  - For commit messages (COMMIT_EDITMSG), the command waits until the editor is closed
 
 ## Security Considerations
 

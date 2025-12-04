@@ -13,7 +13,6 @@ import type {
   Tab,
   TerminalPane,
 } from "@/types";
-import { generateId } from "@/utils/id";
 import {
   getPaneDirectionConfig,
   walkLayout,
@@ -25,6 +24,7 @@ import type {
   AgentSessionInfo,
   TerminalCreateOptions,
 } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { getDefaultStore } from "jotai";
 
 const api = window.conduit;
@@ -208,10 +208,8 @@ export function setPaneCollapsed(
   // this function shouldn't be called directly from unguarded locations.
 
   store.set(tabsAtom, (tabs) => {
-    const tab = tabs.find(({ id }) => id === tabId);
-    const pane = tab.panes[paneId];
-
     // Find the layout node for the pane and update its collapsed state
+    const tab = tabs.find(({ id }) => id === tabId);
     walkLayout(tab.layout, ({ node, parent }) => {
       if (node.type === "pane" && node.paneId === paneId) {
         if (collapsed) {
@@ -236,6 +234,10 @@ export function setPaneCollapsed(
             }
           }
         } else {
+          // When expanding a collapsed pane, we
+          // remove the collapsed property, since
+          // that is the default state and doesn't
+          // need to be persisted to the workspace.
           delete node.collapsed;
 
           // Activate the pane when restoring it
@@ -752,7 +754,7 @@ export async function splitPaneWithAgentSession(
   }
 }
 
-export function openWebViewPane(
+export function openBrowserPane(
   tabId: string,
   paneId: string,
   url: string,
@@ -763,9 +765,9 @@ export function openWebViewPane(
   const newPaneId = generateId();
   const newPaneState: Pane = {
     id: newPaneId,
-    type: "webview",
+    type: "browser",
     url,
-    ...(devTools && { devToolsForPane: paneId }),
+    ...(devTools && { devToolsFor: paneId }),
   };
 
   const newLayoutNode: LayoutNode = {
@@ -856,6 +858,46 @@ export function openEditorPane(
   );
 }
 
+export function cloneTerminalPane(
+  tabId: string,
+  paneId: string,
+  direction: SplitDirection = "row",
+  insertBefore = false,
+) {
+  // Note: This method is only expected to be called from the clone
+  // command, which is already guarded by checks for whether the pane
+  // can be cloned. So we're not repeating those checks here. That said,
+  store.set(tabsAtom, (tabs) => {
+    const tab = tabs.find(({ id }) => id === tabId);
+    const sourcePane = tab.panes[paneId] as TerminalPane;
+
+    const newPaneId = generateId();
+    const newPane: TerminalPane = {
+      ...sourcePane,
+      id: newPaneId,
+      cloneOf: sourcePane.cloneOf ?? paneId,
+    };
+
+    const newLayoutNode: LayoutNode = {
+      id: generateId(),
+      type: "pane",
+      paneId: newPaneId,
+    };
+
+    const { node: newLayout } = splitLayoutNode(
+      tab.layout,
+      paneId,
+      direction,
+      newLayoutNode,
+      insertBefore,
+    );
+
+    tab.panes[newPaneId] = newPane;
+    tab.layout = newLayout;
+    tab.activePaneId = newPaneId;
+  });
+}
+
 type RemovePaneOptions = {
   skipTerminalClose?: boolean;
 };
@@ -894,10 +936,26 @@ export function removePane(
       }
 
       if (pane.type === "terminal") {
-        if (!options.skipTerminalClose) {
+        // Check if there are other panes across all tabs sharing this session
+        const allTabs = store.get(tabsAtom);
+        const otherPanesWithSameSession = allTabs.flatMap((t) =>
+          Object.values(t.panes).filter(
+            (p) =>
+              p.id !== paneId &&
+              p.type === "terminal" &&
+              p.sessionId === pane.sessionId,
+          ),
+        );
+
+        // Only close the PTY if this is the last pane using this session
+        if (
+          otherPanesWithSameSession.length === 0 &&
+          !options.skipTerminalClose
+        ) {
           api.closeTerminal(pane.sessionId);
         }
-        disposeSession(pane.sessionId);
+        // Always dispose the xterm instance for this specific pane
+        disposeSession(paneId);
       } else if (pane.type === "editor") {
         // Dispose the editor pane from EditorPaneRegistry
         // This fully removes the editor (vs detach which just moves it off-screen)
@@ -984,22 +1042,14 @@ export async function deleteAgentSession(
 }
 
 export function activatePane(tabId: string, paneId: string) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
+  store.set(tabsAtom, (tabs) => {
+    const tab = tabs.find(({ id }) => id === tabId);
+    if (!tab || tab.activePaneId === paneId) {
+      return tabs;
+    }
 
-      if (tab.activePaneId === paneId) {
-        return tab;
-      }
-
-      return {
-        ...tab,
-        activePaneId: paneId,
-      };
-    }),
-  );
+    tab.activePaneId = paneId;
+  });
 }
 
 export function closePane(tabId: string, paneId: string) {
@@ -1021,7 +1071,7 @@ export function closePane(tabId: string, paneId: string) {
     // See whether this pane has an associated dev tools pane,
     // and if so, let's close it as well
     const devToolsPanes = Object.values(tab.panes).filter(
-      (pane) => pane.type === "webview" && pane.devToolsForPane === paneId,
+      (pane) => pane.type === "browser" && pane.devToolsFor === paneId,
     );
 
     for (const devToolsPane of devToolsPanes) {
@@ -1063,9 +1113,9 @@ export async function forwardPortAndOpen(
     const { dismissNotification } = await import("./notifications");
     dismissNotification(notificationId);
 
-    // Split the pane vertically and open the connection URL in a WebPane
-    // openWebViewPane handles both splitting and creating the webview pane
-    openWebViewPane(
+    // Split the pane vertically and open the connection URL in a BrowserPane
+    // openBrowserPane handles both splitting and creating the browser pane
+    openBrowserPane(
       tabId,
       paneId,
       `http://${result.connection_url}`,

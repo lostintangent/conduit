@@ -210,7 +210,7 @@ describe("terminalHandlers", () => {
         activePaneId: "pane-456",
         panes: {
           "pane-456": {
-            type: "webview",
+            type: "browser",
             url: "https://example.com",
           },
         },

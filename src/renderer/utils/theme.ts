@@ -31,8 +31,6 @@ export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
   // Apply overrides if provided
   if (overrides) {
     const root = document.documentElement;
-    if (overrides.surfaceMuted)
-      root.style.setProperty("--color-surface-muted", overrides.surfaceMuted);
     if (overrides.input)
       root.style.setProperty("--color-input", overrides.input);
     if (overrides.border)

@@ -1,5 +1,5 @@
 import { Notification } from "@/types";
-import { generateId } from "@/utils/id";
+import { generateId } from "@shared/utils";
 import { getDefaultStore } from "jotai";
 import { notificationsAtom } from "../atoms";
 
@@ -23,22 +23,62 @@ function clearAutoDismiss(id: string) {
   }
 }
 
+/**
+ * Checks if the application window is currently visible to the user.
+ * Returns false if the document is hidden or the window doesn't have focus.
+ */
+function isAppVisible(): boolean {
+  return !document.hidden && document.hasFocus();
+}
+
+/**
+ * Shows a system-level notification using the browser's Notification API.
+ */
+function showSystemNotification(message: string, details?: string): void {
+  const body = details ? `${message}\n${details}` : message;
+
+  const createNotification = () => {
+    new window.Notification("Conduit", { body });
+  };
+
+  if (window.Notification.permission === "granted") {
+    createNotification();
+  } else if (window.Notification.permission !== "denied") {
+    window.Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        createNotification();
+      }
+    });
+  }
+}
+
 export function enqueueNotification(
   options: Omit<Notification, "id" | "createdAt"> & {
     autoCloseMs?: number;
+    system?: boolean;
   },
 ) {
+  const { system, autoCloseMs, ...notificationOptions } = options;
+
+  // Show system notification if requested and app is not visible
+  if (system && !isAppVisible()) {
+    showSystemNotification(
+      notificationOptions.message,
+      notificationOptions.details,
+    );
+  }
+
   const id = generateId();
   const notification: Notification = {
-    ...options,
+    ...notificationOptions,
     id,
     createdAt: Date.now(),
   };
 
   store.set(notificationsAtom, (current) => [notification, ...current]);
 
-  if (options.autoCloseMs && options.autoCloseMs > 0) {
-    scheduleAutoDismiss(id, options.autoCloseMs);
+  if (autoCloseMs && autoCloseMs > 0) {
+    scheduleAutoDismiss(id, autoCloseMs);
   }
 
   return id;

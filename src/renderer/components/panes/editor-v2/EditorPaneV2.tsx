@@ -108,7 +108,7 @@ function isAtFilesystemRoot(path: string): boolean {
  * Callback payload when file changes (selection or content).
  */
 export interface FileChangeData {
-  filePath: string;
+  file: string;
   language: string;
   content: string;
 }
@@ -192,7 +192,7 @@ export function EditorPaneV2({
   onSave,
   onHover,
 }: EditorPaneV2Props) {
-  const { cwd: initialCwd, filePath: initialFilePath, treeMode } = pane;
+  const { cwd: initialCwd, file: initialFilePath, treeMode } = pane;
 
   // Get editor theme from user settings
   const editorTheme = useEditorTheme();
@@ -596,7 +596,7 @@ export function EditorPaneV2({
         try {
           const content = await fs.readTextFile(file.path);
           onFileChange({
-            filePath: file.path,
+            file: file.path,
             language: detectLanguage(file.path),
             content,
           });

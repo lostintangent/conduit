@@ -1,5 +1,8 @@
 import { hasLastWorkspace } from "@/commands/contextKeys/appContextKeys";
-import { closeWorkspace as closeWorkspaceAction } from "@/store/actions/workspace";
+import {
+  closeWorkspace as closeWorkspaceAction,
+  openWorkspace,
+} from "@/store/actions/workspace";
 import {
   activeTabIdAtom,
   previousTabsSnapshotAtom,
@@ -45,10 +48,16 @@ export function useWorkspaces() {
     };
     loadWorkspaces();
 
+    const unsubscribeOpenWorkspace = window.conduit.onOpenWorkspaceRequest(
+      (workspace) => openWorkspace(workspace),
+    );
+
     return () => {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
       }
+
+      unsubscribeOpenWorkspace();
     };
   }, []);
 

@@ -1,13 +1,21 @@
-import { ipcMain } from "electron";
+import { dialog, ipcMain } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
+import yaml from "yaml";
 import type { Tab } from "../../renderer/types";
 import type { Workspace, WorkspaceState } from "../../shared/types";
 import { captureTerminalCommand } from "../terminal/command";
 import { getAllTerminals } from "../terminal/store";
 import type { TerminalInstance } from "../terminal/types";
+import { convertWorkspaceToTemplate } from "./template/export";
+import { convertTemplateToWorkspace } from "./template/import";
+import type { WorkspaceTemplate } from "./template/types";
 
 const WORKSPACES_FILE_NAME = "workspaces.json";
+const WORKSPACE_FILE_FILTER = {
+  name: "Conduit Workspace",
+  extensions: ["yaml", "yml"],
+};
 
 let workspacesFilePath: string;
 let workspaceState: WorkspaceState = { workspaces: [] };
@@ -56,6 +64,14 @@ export default async function (
       return await saveLastWorkspace(tabs, activeTabId);
     },
   );
+
+  ipcMain.handle("workspace:import", async () => {
+    return await importWorkspace();
+  });
+
+  ipcMain.handle("workspace:export-to-file", async (_, workspace) => {
+    return await exportWorkspaceToFile(workspace);
+  });
 }
 
 /* Load/save workspace state from/to disk */
@@ -86,13 +102,11 @@ async function serializePane(
   pane: TabPane,
   terminalSessions: Map<string, TerminalInstance>,
 ): Promise<SerializedPane> {
-  if (pane.type === "terminal") {
+  if (pane.type === "terminal" && !pane.cloneOf) {
     const terminalSession = terminalSessions.get(pane.sessionId);
-
-    let capturedCommand: string | null = null;
-    if (terminalSession) {
-      capturedCommand = await captureTerminalCommand(terminalSession);
-    }
+    const capturedCommand = terminalSession
+      ? await captureTerminalCommand(terminalSession)
+      : null;
 
     return {
       ...pane,
@@ -122,6 +136,15 @@ async function serializeTabs(tabs: Tab[]): Promise<Workspace["tabs"]> {
   );
 }
 
+/** Adds or updates a workspace in the state and persists it */
+async function addWorkspaceToState(workspace: Workspace): Promise<void> {
+  workspaceState.workspaces = workspaceState.workspaces.filter(
+    (w) => w.name !== workspace.name,
+  );
+  workspaceState.workspaces.unshift(workspace);
+  await saveWorkspaceState();
+}
+
 export async function saveWorkspace(
   name: string,
   tabs: Tab[],
@@ -136,14 +159,7 @@ export async function saveWorkspace(
       activeTabId,
     };
 
-    // Remove existing workspace with the same name if it exists
-    workspaceState.workspaces = workspaceState.workspaces.filter(
-      (s) => s.name !== name,
-    );
-
-    // Add new/updated workspace to the beginning
-    workspaceState.workspaces.unshift(newWorkspace);
-    await saveWorkspaceState();
+    await addWorkspaceToState(newWorkspace);
 
     return workspaceState;
   } catch (error) {
@@ -226,4 +242,56 @@ async function renameWorkspace(
 
 export function getWorkspaces(): Workspace[] {
   return workspaceState.workspaces;
+}
+
+async function importWorkspace(): Promise<Workspace | null> {
+  try {
+    const { filePaths } = await dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: [WORKSPACE_FILE_FILTER],
+    });
+
+    if (filePaths.length === 0) {
+      return null;
+    }
+
+    const filePath = filePaths[0];
+    const fileContent = await fs.readFile(filePath, "utf-8");
+    const fileDir = path.dirname(filePath);
+
+    const template = yaml.parse(fileContent) as WorkspaceTemplate;
+
+    if (!template.name || !template.tabs) {
+      throw new Error("Invalid workspace file: missing name or tabs");
+    }
+
+    const workspace = convertTemplateToWorkspace(template, fileDir);
+    await addWorkspaceToState(workspace);
+
+    return workspace;
+  } catch (error) {
+    console.error("Failed to import workspace:", error);
+    throw error;
+  }
+}
+
+async function exportWorkspaceToFile(workspace: Workspace): Promise<void> {
+  try {
+    const template = convertWorkspaceToTemplate(workspace);
+    const yamlContent = yaml.stringify(template);
+
+    const { filePath } = await dialog.showSaveDialog({
+      defaultPath: `${workspace.name}.yaml`,
+      filters: [WORKSPACE_FILE_FILTER],
+    });
+
+    if (!filePath) {
+      return;
+    }
+
+    await fs.writeFile(filePath, yamlContent, "utf-8");
+  } catch (error) {
+    console.error("Failed to export workspace:", error);
+    throw error;
+  }
 }

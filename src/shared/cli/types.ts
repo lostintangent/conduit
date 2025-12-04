@@ -1,12 +1,13 @@
 import { Pane } from "@/types";
+import type { NewTabOptions } from "@shared/types";
 import type {
   BrowserCaptureArgs,
   BrowserClickArgs,
+  BrowserElementDescriptor,
   BrowserFocusArgs,
   BrowserHoverArgs,
   BrowserKeysArgs,
   BrowserQueryArgs,
-  BrowserQueryResult,
   BrowserScrollArgs,
   BrowserTypeArgs,
   BrowserWaitArgs,
@@ -57,24 +58,26 @@ export type CliCommand =
       "pane-split",
       { direction: PaneSplitTarget; paneType: PaneSplitType }
     >
-  | DefineCommand<"pane-close", { closeTab: boolean }>
+  | DefineCommand<"pane-close", { closeTab: boolean; paneId?: string }>
   | DefineCommand<"pane-focus">
   // Tab commands
-  | DefineCommand<"tab-new">
+  | DefineCommand<"tab-new", NewTabOptions>
   | DefineCommand<"tab-duplicate">
+  | DefineCommand<"tab-lock">
+  | DefineCommand<"tab-synchronize">
   // Terminal commands
-  | DefineCommand<"terminal-read", { sessionId: string }, string>
+  | DefineCommand<"terminal-read", { paneId?: string; all?: boolean }, string>
   | DefineCommand<
       "terminal-write",
-      { sessionId: string; input: string; enter?: boolean }
+      { paneId?: string; all?: boolean; input: string; enter?: boolean }
     >
   // Browser commands
   | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
-  | DefineCommand<"browser-navigate", { paneId: string; url: string }>
-  | DefineCommand<"browser-back", { paneId: string }>
-  | DefineCommand<"browser-forward", { paneId: string }>
-  | DefineCommand<"browser-refresh", { paneId: string }>
-  | DefineCommand<"browser-query", BrowserQueryArgs, BrowserQueryResult>
+  | DefineCommand<"browser-navigate", { paneId?: string; url: string }>
+  | DefineCommand<"browser-back", { paneId?: string }>
+  | DefineCommand<"browser-forward", { paneId?: string }>
+  | DefineCommand<"browser-refresh", { paneId?: string }>
+  | DefineCommand<"browser-query", BrowserQueryArgs, BrowserElementDescriptor[]>
   | DefineCommand<"browser-click", BrowserClickArgs>
   | DefineCommand<"browser-hover", BrowserHoverArgs>
   | DefineCommand<"browser-focus", BrowserFocusArgs>
@@ -83,7 +86,9 @@ export type CliCommand =
   | DefineCommand<"browser-scroll", BrowserScrollArgs>
   | DefineCommand<"browser-wait", BrowserWaitArgs>
   // Editor commands
-  | DefineCommand<"editor-open", { cwd: string; filePath?: string }>;
+  | DefineCommand<"editor-open", { cwd: string; filePath?: string }>
+  // Notification commands
+  | DefineCommand<"notify", { message: string }>;
 
 /* Response types (Renderer -> IPC -> CLI) */
 
@@ -92,3 +97,15 @@ export type CliResponse<T = undefined> = {
   result?: T;
   error?: string;
 };
+
+/* Type utilities for extracting command args and results */
+
+export type CliCommandArgs<Name extends CliCommand["name"]> = Extract<
+  CliCommand,
+  { name: Name }
+>["args"];
+
+export type CliCommandResult<Name extends CliCommand["name"]> =
+  Extract<CliCommand, { name: Name }> extends DefineCommand<any, any, infer R>
+    ? R
+    : void;

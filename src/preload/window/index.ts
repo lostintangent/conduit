@@ -20,21 +20,21 @@ import type {
   ForwardPortResponse,
   GitFileStatus,
   ListVMsPayload,
+  NotificationKind,
+  TabPosition,
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
   TerminalCreateResponse,
-  TerminalCwdPayload,
   TerminalDataPayload,
   TerminalExitPayload,
   TerminalPromptRequest,
   TerminalPromptResponse,
   TerminalPromptStreamChunk,
   TerminalSSHStatePayload,
-  TerminalTitlePayload,
   TreeChangedEvent,
   UserSettings,
   VMInfo,
-} from "../../shared/types";
+} from "@shared/types";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import configureUpdatesModule from "./modules/updates";
@@ -97,14 +97,6 @@ const conduitAPI = {
       }
     }),
 
-  // Notify when terminal title has changed
-  onTitle: (listener: (payload: TerminalTitlePayload) => void) =>
-    createEventListener("terminal:title", listener),
-
-  // Notify when terminal's current working directory has changed
-  onCwd: (listener: (payload: TerminalCwdPayload) => void) =>
-    createEventListener("terminal:cwd", listener),
-
   // Notify when terminal has exited (e.g. user ran `exit` command or closed shell)
   onExit: (listener: (payload: TerminalExitPayload) => void) =>
     createEventListener("terminal:exit", listener),
@@ -135,7 +127,7 @@ const conduitAPI = {
     createEventListener("app:before-close", listener),
 
   // Notify when the user changes the tab position setting
-  onTabPositionChange: (listener: (position: "top" | "bottom") => void) =>
+  onTabPositionChange: (listener: (position: TabPosition) => void) =>
     createEventListener("ui:set-tab-position", listener),
 
   onAlwaysShowTabsChange: (listener: (value: boolean) => void) =>
@@ -144,7 +136,7 @@ const conduitAPI = {
   // Notify when showing a notification/toast message
   onShowNotification: (
     listener: (payload: {
-      type: "success" | "error" | "info";
+      type: NotificationKind;
       message: string;
       timeout?: number;
     }) => void,

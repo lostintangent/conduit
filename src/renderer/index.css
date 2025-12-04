@@ -217,14 +217,14 @@
     height: 100%;
     margin: 0;
     font-family: "Fira Code", Menlo, Monaco, "Courier New", monospace;
-    background-color: inherit;
+    background-color: transparent;
     color: inherit;
   }
 
   body {
     display: flex;
     min-height: 100%;
-    @apply bg-background text-foreground;
+    @apply text-foreground;
   }
 
   #root {

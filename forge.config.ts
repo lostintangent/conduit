@@ -18,7 +18,10 @@ const config: ForgeConfig = {
       unpack: "**/node_modules/{node-pty,@parcel/watcher}/**/*",
     },
     icon: "./build/assets/icon",
-    extraResource: [path.resolve(__dirname, ".vite/build/webview-preload.js")],
+    extraResource: [
+      path.resolve(__dirname, ".vite/build/webview-preload.js"),
+      path.resolve(__dirname, "src/ipc/terminal/shell"),
+    ],
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",
     osxSign: process.env.CONDUIT_APPLE_ID_PASSWORD
@@ -41,7 +44,8 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {
     onlyModules: ["node-pty", "@parcel/watcher"],
-    force: true,
+    // Only force rebuild during packaging, not during dev (npm start)
+    force: !!process.env.ELECTRON_FORGE_PACKAGING,
   },
   hooks: {
     packageAfterCopy: async (_, buildPath) => {

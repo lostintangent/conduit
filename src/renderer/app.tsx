@@ -1,4 +1,4 @@
-import { useCliClient } from "@/automation/useCliClient";
+import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { usePaneActionsSystem } from "@/commands/paneActions";
@@ -7,7 +7,7 @@ import { TabContentPortalProvider } from "@/components/layout/normal/TabContentP
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { TabsOverview } from "@/components/layout/overview/TabsOverview";
 import { GlobalEditorContainer } from "@/components/panes/editor-v2";
-import { FloatingTerminal } from "@/components/layout/quick/FloatingTerminal";
+import { HyperTerminal } from "@/components/layout/quick/HyperTerminal";
 import {
   QuickDialog,
   type PaneDescriptor,
@@ -44,7 +44,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { openWebViewPane, removePane } from "@/store/actions/pane";
+import { openBrowserPane, removePane } from "@/store/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -57,7 +57,7 @@ import {
 import {
   activeTabAtom,
   applicationModeAtom,
-  floatingTerminalAtom,
+  hyperTerminalAtom,
   keybindingsAtom,
   tabsAtom,
 } from "@/store/atoms";
@@ -74,7 +74,7 @@ export function App() {
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setKeybindings = useSetAtom(keybindingsAtom);
-  const [floatingTerminal, setFloatingTerminal] = useAtom(floatingTerminalAtom);
+  const [hyperTerminal, setHyperTerminal] = useAtom(hyperTerminalAtom);
 
   const {
     tabPosition,
@@ -252,10 +252,6 @@ export function App() {
   }, [tabs, openTab]);
 
   useEffect(() => {
-    const closeTerminalSession = (sessionId: string) => {
-      disposeSession(sessionId);
-    };
-
     const unsubscribeExit = api.onExit(({ sessionId }) => {
       // Handle quick pane exit
       setQuickPaneState((current) => {
@@ -267,17 +263,17 @@ export function App() {
           return current;
         }
 
-        closeTerminalSession(sessionId);
+        disposeSession(sessionId);
         return null;
       });
 
       // Handle floating terminal exit
-      setFloatingTerminal((current) => {
+      setHyperTerminal((current) => {
         if (!current || current.terminalId !== sessionId) {
           return current;
         }
 
-        closeTerminalSession(sessionId);
+        disposeSession(sessionId);
         return null;
       });
     });
@@ -318,7 +314,7 @@ export function App() {
       }
 
       updateTabProperty(titleModalState.tabId, {
-        title: title.length > 0 ? title : undefined,
+        name: title.length > 0 ? title : undefined,
       });
 
       setTitleModalState(null);
@@ -326,7 +322,7 @@ export function App() {
     [titleModalState, updateTabProperty],
   );
 
-  const handleWebViewUpdate = useCallback(
+  const handleBrowserUpdate = useCallback(
     (
       tabId: string,
       paneId: string,
@@ -342,7 +338,7 @@ export function App() {
           }
 
           const pane = tab.panes[paneId];
-          if (!pane || pane.type !== "webview") {
+          if (!pane || pane.type !== "browser") {
             return tab;
           }
 
@@ -615,7 +611,7 @@ export function App() {
         return;
       }
 
-      openWebViewPane(activeTab.id, activeTab.activePaneId, url);
+      openBrowserPane(activeTab.id, activeTab.activePaneId, url);
       setIsUrlDialogOpen(false);
     },
     [activeTab],
@@ -732,24 +728,24 @@ export function App() {
 
         current.onClose?.();
 
-        setFloatingTerminal({ terminalId, paneId, cwd });
+        setHyperTerminal({ terminalId, paneId, cwd });
 
         return null;
       });
     },
-    [setFloatingTerminal],
+    [setHyperTerminal],
   );
 
-  const handleOpenFloatingTerminal = useCallback(
+  const handleOpenHyperTerminal = useCallback(
     (terminalId: string, paneId: string, cwd: string | null) => {
       // Directly open terminal in floating overlay.
-      setFloatingTerminal({ terminalId, paneId, cwd });
+      setHyperTerminal({ terminalId, paneId, cwd });
     },
-    [setFloatingTerminal],
+    [setHyperTerminal],
   );
 
-  const handleCloseFloatingTerminal = useCallback(() => {
-    setFloatingTerminal((current) => {
+  const handleCloseHyperTerminal = useCallback(() => {
+    setHyperTerminal((current) => {
       if (!current) {
         return current;
       }
@@ -759,25 +755,25 @@ export function App() {
 
       return null;
     });
-  }, [setFloatingTerminal]);
+  }, [setHyperTerminal]);
 
-  const handleMaximizeFloatingTerminal = useCallback(
+  const handleMaximizeHyperTerminal = useCallback(
     (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay back to quick dialog.
-      setFloatingTerminal(null);
+      setHyperTerminal(null);
       setQuickPaneState({
         type: "terminal",
         sessionId: terminalId,
         cwd,
       });
     },
-    [setFloatingTerminal, setQuickPaneState],
+    [setHyperTerminal, setQuickPaneState],
   );
 
-  const handleOpenFloatingTerminalAsTab = useCallback(
+  const handleOpenHyperTerminalAsTab = useCallback(
     async (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay to new tab.
-      setFloatingTerminal(null);
+      setHyperTerminal(null);
 
       const { openTabFromExistingSession } = await import(
         "@/store/actions/tab"
@@ -787,7 +783,7 @@ export function App() {
         cwd,
       });
     },
-    [setFloatingTerminal],
+    [setHyperTerminal],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -809,7 +805,7 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenFloatingTerminal={handleOpenFloatingTerminal}
+            onOpenHyperTerminal={handleOpenHyperTerminal}
             position={tabPosition}
           />
         )}
@@ -821,7 +817,7 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenFloatingTerminal={handleOpenFloatingTerminal}
+                onOpenHyperTerminal={handleOpenHyperTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -841,7 +837,7 @@ export function App() {
               handleContextMenu={handleContextMenu}
               handleResizeStart={handleResizeStart}
               resizingNode={resizingNode}
-              handleWebViewUpdate={handleWebViewUpdate}
+              handleBrowserUpdate={handleBrowserUpdate}
               handleEditorUpdate={handleEditorUpdate}
               onOpenQuickPane={handleOpenQuickPane}
               onOpenPaneActions={() => setShowPaneActionsEditor(true)}
@@ -861,7 +857,7 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenFloatingTerminal={handleOpenFloatingTerminal}
+            onOpenHyperTerminal={handleOpenHyperTerminal}
             position={tabPosition}
           />
         )}
@@ -873,7 +869,7 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenFloatingTerminal={handleOpenFloatingTerminal}
+                onOpenHyperTerminal={handleOpenHyperTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -903,8 +899,8 @@ export function App() {
         initialValue={titleModalState?.initialValue ?? ""}
         onClose={() => setTitleModalState(null)}
         onSave={handleTitleModalSave}
-        title="Change tab title"
-        placeholder="Enter a title..."
+        title="Rename tab"
+        placeholder="Enter a name..."
       />
 
       {quickPaneState && (
@@ -916,22 +912,22 @@ export function App() {
         />
       )}
 
-      {floatingTerminal && (
-        <FloatingTerminal
-          terminalId={floatingTerminal.terminalId}
-          paneId={floatingTerminal.paneId}
-          cwd={floatingTerminal.cwd}
-          onClose={handleCloseFloatingTerminal}
+      {hyperTerminal && (
+        <HyperTerminal
+          terminalId={hyperTerminal.terminalId}
+          paneId={hyperTerminal.paneId}
+          cwd={hyperTerminal.cwd}
+          onClose={handleCloseHyperTerminal}
           onMaximize={() =>
-            handleMaximizeFloatingTerminal(
-              floatingTerminal.terminalId,
-              floatingTerminal.cwd,
+            handleMaximizeHyperTerminal(
+              hyperTerminal.terminalId,
+              hyperTerminal.cwd,
             )
           }
           onOpenAsTab={() =>
-            handleOpenFloatingTerminalAsTab(
-              floatingTerminal.terminalId,
-              floatingTerminal.cwd,
+            handleOpenHyperTerminalAsTab(
+              hyperTerminal.terminalId,
+              hyperTerminal.cwd,
             )
           }
         />
@@ -987,7 +983,7 @@ export function App() {
           duplicateTabWithCwdDialogState
             ? (generateIncrementedTabTitle(
                 tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId)
-                  ?.title,
+                  ?.name,
                 tabs,
               ) ?? "")
             : ""

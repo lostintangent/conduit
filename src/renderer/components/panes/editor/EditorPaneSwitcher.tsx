@@ -46,7 +46,7 @@ export interface EditorPaneSwitcherProps {
   cwd: string;
 
   /** Currently open file path */
-  filePath?: string;
+  file?: string;
 
   /** Agent session ID (for worktree/branch integration) */
   agentSessionId?: string | null;
@@ -56,7 +56,7 @@ export interface EditorPaneSwitcherProps {
 
   /** Callback when file changes */
   onFileChange?: (fileData: {
-    filePath: string;
+    file: string;
     language: string;
     content: string;
   }) => void;
@@ -106,7 +106,7 @@ export interface EditorPaneSwitcherProps {
 export function EditorPaneSwitcher({
   paneId,
   cwd,
-  filePath,
+  file,
   agentSessionId,
   treeMode,
   onFileChange,
@@ -130,7 +130,7 @@ export function EditorPaneSwitcher({
       id: paneId,
       type: "editor" as const,
       cwd,
-      filePath,
+      file,
       treeMode,
       agentSessionId: agentSessionId ?? undefined,
     };
@@ -157,7 +157,7 @@ export function EditorPaneSwitcher({
     <EditorPane
       paneId={paneId}
       cwd={cwd}
-      filePath={filePath}
+      file={file}
       agentSessionId={agentSessionId}
       treeMode={treeMode}
       onFileChange={onFileChange}

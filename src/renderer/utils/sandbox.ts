@@ -1,4 +1,4 @@
-import type { Tab, TerminalPane, EditorPane } from "@/types";
+import type { EditorPane, Tab, TerminalPane } from "@/types";
 
 export type UnifiedSandboxInfo =
   | {
@@ -12,26 +12,26 @@ export type UnifiedSandboxInfo =
   | null;
 
 /**
- * Determines if all panes in a tab (excluding webviews) share the same sandbox context.
+ * Determines if all panes in a tab (excluding browsers) share the same sandbox context.
  * Returns the unified sandbox info if they do, or null if they don't.
  */
 export function getUnifiedSandboxForTab(tab: Tab): UnifiedSandboxInfo {
-  const nonWebviewPanes = Object.values(tab.panes).filter(
-    (pane) => pane.type !== "webview",
+  const nonBrowserPanes = Object.values(tab.panes).filter(
+    (pane) => pane.type !== "browser",
   ) as (TerminalPane | EditorPane)[];
 
-  // If there are no non-webview panes, no unified sandbox
-  if (nonWebviewPanes.length === 0) {
+  // If there are no non-browser panes, no unified sandbox
+  if (nonBrowserPanes.length === 0) {
     return null;
   }
 
   // Check for unified agent session
-  const firstPane = nonWebviewPanes[0];
+  const firstPane = nonBrowserPanes[0];
   const firstAgentSessionId = firstPane.agentSessionId;
 
   if (firstAgentSessionId) {
     // Check if all panes have the same agentSessionId
-    const allHaveSameAgent = nonWebviewPanes.every(
+    const allHaveSameAgent = nonBrowserPanes.every(
       (pane) => pane.agentSessionId === firstAgentSessionId,
     );
 
@@ -49,7 +49,7 @@ export function getUnifiedSandboxForTab(tab: Tab): UnifiedSandboxInfo {
 
   if (firstVmId) {
     // Check if all panes have the same vmId
-    const allHaveSameVm = nonWebviewPanes.every((pane) =>
+    const allHaveSameVm = nonBrowserPanes.every((pane) =>
       pane.type === "terminal" ? pane.vmMetadata?.vmId === firstVmId : false,
     );
 

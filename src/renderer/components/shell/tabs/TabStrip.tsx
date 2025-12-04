@@ -11,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
@@ -38,6 +39,8 @@ import {
   userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom, type TabLabelDescriptor } from "@/store/tabLabels";
+import type { TabPosition } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ChevronDown,
@@ -50,6 +53,7 @@ import {
   SquareDashedMousePointer,
   SquareTerminal,
   Terminal,
+  Zap,
 } from "lucide-react";
 import React, {
   useCallback,
@@ -65,26 +69,25 @@ type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
-  onOpenFloatingTerminal?: (
+  onOpenHyperTerminal?: (
     terminalId: string,
     paneId: string,
     cwd: string | null,
   ) => void;
-  position?: "top" | "bottom";
+  position?: TabPosition;
 };
 
 export const TabStrip = ({
   onOpenCommandPalette,
   onTabContextMenu,
   onOpenQuickPane,
-  onOpenFloatingTerminal,
+  onOpenHyperTerminal,
   position = "top",
 }: TabStripProps) => {
   const tabLabels = useAtomValue(tabLabelsAtom);
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const { quickTerminalMode } = useAtomValue(userSettingsAtom);
   const { homeDirectory, alwaysShowTabs } = useAtomValue(userSettingsAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
@@ -495,38 +498,30 @@ export const TabStrip = ({
     placeholderIndex,
   ]);
 
-  const openTerminalInPreferredMode = useCallback(
-    async (
-      result: { sessionId: string; cwd: string | null },
-      vmMetadata?: { vmId: string; vmUrl: string },
-    ) => {
-      if (quickTerminalMode === "floating" && onOpenFloatingTerminal) {
-        const { generateId } = await import("@/utils/id");
-        const paneId = generateId();
-        onOpenFloatingTerminal(result.sessionId, paneId, result.cwd);
-      } else if (onOpenQuickPane) {
-        onOpenQuickPane({
-          type: "terminal",
-          sessionId: result.sessionId,
-          cwd: result.cwd,
-          vmMetadata,
-        });
-      }
-    },
-    [quickTerminalMode, onOpenQuickPane, onOpenFloatingTerminal],
-  );
-
-  const handleOpenQuickTerminal = useCallback(async () => {
+  const handleOpenHyperTerminal = useCallback(async () => {
+    if (!onOpenHyperTerminal) return;
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
     if (!result) return;
 
-    await openTerminalInPreferredMode({
+    const paneId = generateId();
+    onOpenHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
+  }, [activeTab, homeDirectory, onOpenHyperTerminal]);
+
+  const handleOpenQuickTerminal = useCallback(async () => {
+    if (!onOpenQuickPane) return;
+    const api = window.conduit;
+    const cwd = getActiveTabCwd(activeTab, homeDirectory);
+    const result = await api.createTerminal({ cwd });
+    if (!result) return;
+
+    onOpenQuickPane({
+      type: "terminal",
       sessionId: result.sessionId,
       cwd: result.cwd ?? null,
     });
-  }, [activeTab, homeDirectory, openTerminalInPreferredMode]);
+  }, [activeTab, homeDirectory, onOpenQuickPane]);
 
   const handleOpenQuickCloudTerminal = useCallback(() => {
     setIsRepoDialogOpen(true);
@@ -539,6 +534,7 @@ export const TabStrip = ({
 
   const handleRepoSubmit = useCallback(
     async (repo?: { owner: string; name: string }) => {
+      if (!onOpenQuickPane) return;
       const api = window.conduit;
 
       const notificationId = enqueueNotification({
@@ -559,13 +555,12 @@ export const TabStrip = ({
 
         dismissNotification(notificationId);
 
-        await openTerminalInPreferredMode(
-          {
-            sessionId: result.sessionId,
-            cwd: result.cwd ?? null,
-          },
-          result.vmMetadata ?? undefined,
-        );
+        onOpenQuickPane({
+          type: "terminal",
+          sessionId: result.sessionId,
+          cwd: result.cwd ?? null,
+          vmMetadata: result.vmMetadata ?? undefined,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         updateNotification(notificationId, {
@@ -576,7 +571,7 @@ export const TabStrip = ({
         });
       }
     },
-    [openTerminalInPreferredMode],
+    [onOpenQuickPane],
   );
 
   // Use margins to create gaps that reveal the overlay underneath
@@ -689,13 +684,13 @@ export const TabStrip = ({
                 <button
                   type="button"
                   className="w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10"
-                  aria-label="Open local quick terminal"
-                  onClick={handleOpenQuickTerminal}
+                  aria-label="Open hyper terminal"
+                  onClick={handleOpenHyperTerminal}
                 >
                   <SquareTerminal size={18} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Open quick terminal</TooltipContent>
+              <TooltipContent side="bottom">Open hyper terminal</TooltipContent>
             </Tooltip>
 
             <DropdownMenu>
@@ -709,14 +704,20 @@ export const TabStrip = ({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleOpenHyperTerminal}>
+                  <Zap size={16} className="mr-3" />
+                  Hyper Terminal
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleOpenQuickTerminal}>
                   <Terminal size={16} className="mr-3" />
-                  Terminal (Local)
+                  Quick Terminal (Local)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
                   <Cloud size={16} className="mr-3" />
-                  Terminal (Cloud)
+                  Quick Terminal (Cloud)
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
                   <FolderTree size={16} className="mr-3" />
                   File explorer

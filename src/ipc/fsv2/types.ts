@@ -12,6 +12,8 @@
  * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
+import type { Event } from "@shared/types";
+
 // ============================================================================
 // Core File System Types
 // ============================================================================

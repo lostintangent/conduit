@@ -5,9 +5,9 @@
  * and syncs with Jotai atom.
  */
 
-import { useEffect, useState, useRef } from "react";
-import { useSetAtom } from "jotai";
 import { paneActionsAtom } from "@/store/atoms";
+import { useSetAtom } from "jotai";
+import { useEffect, useRef, useState } from "react";
 import { PaneActionsRegistry } from "../core/PaneActionsRegistry";
 import { getUserPaneActionsPath } from "../io/fileOperations";
 import type { PaneActionsWatcher } from "../io/watchPaneActions";
@@ -100,12 +100,6 @@ export function usePaneActionsSystem(
         const loaded = await registry.loadFromFile(filePath);
 
         if (!isMounted) return;
-
-        if (loaded) {
-          console.log("[PaneActions] Loaded user configuration");
-        } else {
-          console.log("[PaneActions] Using default configuration");
-        }
 
         // Set up file watcher for external changes
         watcherRef.current = registry.watchFile(filePath, (error) => {

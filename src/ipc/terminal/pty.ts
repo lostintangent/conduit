@@ -1,7 +1,20 @@
+import { app } from "electron";
 import { spawn } from "node-pty";
 import path from "node:path";
 import { getCliState } from "../cli";
 import { getCurrentUserSettings } from "../ui";
+
+/**
+ * Get the path to the shell integration scripts directory.
+ * In development, this is the source directory.
+ * In production, this is the extraResources directory.
+ */
+function getShellIntegrationPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "shell");
+  }
+  return path.join(__dirname, "../../src/ipc/terminal/shell");
+}
 
 export function spawnTerminalProcess(sessionId: string, cwd?: string) {
   const shell = resolveShell();
@@ -12,7 +25,35 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
     cwd = process.env.HOME ?? process.cwd();
   }
 
-  return spawn(shell, [], {
+  // Determine the shell integration script to source
+  const shellName = path.basename(shell);
+  const shellIntegrationDir = getShellIntegrationPath();
+  let args: string[] = [];
+
+  if (shellName === "zsh") {
+    // Save user's original ZDOTDIR (if set) so our script can source their config
+    if (env.ZDOTDIR) {
+      env.CONDUIT_ORIG_ZDOTDIR = env.ZDOTDIR;
+    }
+    // Set ZDOTDIR to our shell integration directory so zsh loads our .zshenv
+    // which restores the original ZDOTDIR and installs the OSC 7 hook
+    env.ZDOTDIR = shellIntegrationDir;
+  } else if (shellName === "bash") {
+    // Force bash to load our integration script via --rcfile
+    const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
+    args = ["--rcfile", scriptPath];
+  } else if (
+    shellName === "pwsh" ||
+    shellName === "pwsh.exe" ||
+    shellName === "powershell" ||
+    shellName === "powershell.exe"
+  ) {
+    // Note: Test if this actually works
+    const scriptPath = path.join(shellIntegrationDir, "conduit.ps1");
+    args = ["-NoExit", "-Command", `. "${scriptPath}"`];
+  }
+
+  return spawn(shell, args, {
     name: "xterm-256color",
     cols: 80,
     rows: 24,

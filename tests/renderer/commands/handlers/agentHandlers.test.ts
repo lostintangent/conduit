@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import * as notifications from "@/store/actions/notifications";
 import * as paneActions from "@/store/actions/pane";
 import type { AgentSessionInfo } from "@shared/types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing handlers
 const mockApi = {
@@ -270,7 +270,7 @@ describe("agentHandlers", () => {
         activePaneId: "pane-456",
         panes: {
           "pane-456": {
-            type: "webview",
+            type: "browser",
             agentSessionId: "agent-789",
           },
         },
@@ -434,7 +434,7 @@ describe("agentHandlers", () => {
         activePaneId: "pane-456",
         panes: {
           "pane-456": {
-            type: "webview",
+            type: "browser",
             agentSessionId: "agent-789",
           },
         },

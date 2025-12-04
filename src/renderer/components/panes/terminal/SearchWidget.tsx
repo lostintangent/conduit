@@ -1,6 +1,5 @@
-import type { TerminalInstance } from "./xtermCache";
-import type { ISearchOptions } from "@xterm/addon-search";
 import { resolveColor } from "@/utils/theme";
+import type { ISearchOptions } from "@xterm/addon-search";
 import {
   ArrowDown,
   ArrowUp,
@@ -17,6 +16,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import type { xtermInstance } from "./xtermCache";
 
 const buildSearchDecorations = (): NonNullable<
   ISearchOptions["decorations"]
@@ -32,7 +32,7 @@ export type SearchWidgetHandle = {
 };
 
 type SearchWidgetProps = {
-  terminal: TerminalInstance | null;
+  terminal: xtermInstance | null;
   onClosed?: () => void;
   ref?: React.Ref<SearchWidgetHandle>;
 };

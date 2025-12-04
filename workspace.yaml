@@ -1,0 +1,21 @@
+name: Conduit
+tabs:
+  - name: Coding
+    panes:
+      - column:
+          - copilot
+          - row: [npm start, ~]
+      - lazygit
+
+  - name: Review
+    panes:
+      - column:
+          - codex
+          - cloneOf: npm start
+            collapsed: true
+      - file://
+
+  - name: News
+    panes:
+      - https://espn.com
+      - https://news.ycombinator.com

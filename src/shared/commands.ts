@@ -20,7 +20,7 @@ export const ApplicationCommands = {
   TAB_DUPLICATE: "tab.duplicate",
   TAB_DUPLICATE_WITH_CWD: "tab.duplicateWithCwd",
   TAB_DUPLICATE_INTO_WORKTREE: "tab.duplicateIntoWorktree",
-  TAB_CHANGE_TITLE: "tab.changeTitle",
+  TAB_RENAME: "tab.rename",
   TAB_LOCK: "tab.lock",
   TAB_UNLOCK: "tab.unlock",
   TAB_TOGGLE_SYNCHRONIZE: "tab.toggleSynchronize",
@@ -60,6 +60,7 @@ export const ApplicationCommands = {
   PANE_SPLIT_RIGHT_EDITOR: "pane.splitRightEditor",
   PANE_SPLIT_TOP_EDITOR: "pane.splitTopEditor",
   PANE_SPLIT_BOTTOM_EDITOR: "pane.splitBottomEditor",
+  PANE_CLONE: "pane.clone",
 
   // Terminal commands
   TERMINAL_CREATE_CLOUD: "terminal.createCloud",

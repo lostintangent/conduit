@@ -79,9 +79,7 @@ describe("applicationCommands", () => {
       expect(
         registeredCommands.has(ApplicationCommands.TAB_DUPLICATE_INTO_WORKTREE),
       ).toBe(true);
-      expect(registeredCommands.has(ApplicationCommands.TAB_CHANGE_TITLE)).toBe(
-        true,
-      );
+      expect(registeredCommands.has(ApplicationCommands.TAB_RENAME)).toBe(true);
 
       // Workspace commands
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_SAVE)).toBe(

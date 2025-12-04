@@ -1,0 +1,55 @@
+import { closePane } from "@/store/actions/pane";
+import type { HandlerMap } from "./types";
+
+export const paneHandlers: Partial<HandlerMap> = {
+  "pane-list": (args, context) => {
+    const matchingTab = context.findCallingTerminalTab();
+
+    const panes = Object.values(matchingTab.panes)
+      .filter(
+        (pane) =>
+          !(pane.type === "terminal" && pane.sessionId === context.sessionId),
+      )
+      .filter((pane) => {
+        if (args?.paneType === "all") {
+          return true;
+        }
+
+        return pane.type === args?.paneType;
+      })
+      .map((pane) => ({ ...pane }));
+
+    return panes;
+  },
+
+  "pane-move": async (args, context) => {
+    const targetCommand = context.moveCommandMap[args.direction];
+    await targetCommand.execute();
+  },
+
+  "pane-split": async (args, context) => {
+    const targetCommand =
+      context.splitCommandMap[args.paneType][args.direction];
+    await targetCommand.execute();
+  },
+
+  "pane-focus": async (_args, context) => {
+    await context.focusPaneCommand.execute();
+  },
+
+  "pane-close": async (args, context) => {
+    if (args.closeTab) {
+      await context.closeTabCommand.execute();
+    } else if (args.paneId) {
+      // Close the specified pane
+      const callingTab = context.findCallingTerminalTab();
+      if (!callingTab.panes[args.paneId]) {
+        throw new Error(`Pane "${args.paneId}" not found in the current tab`);
+      }
+      closePane(callingTab.id, args.paneId);
+    } else {
+      // Close the calling pane (default behavior)
+      await context.closePaneCommand.execute();
+    }
+  },
+};

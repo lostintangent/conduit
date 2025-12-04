@@ -61,6 +61,12 @@ export function useModelState(filePath: string | null): ModelState | null {
     const disposable = registry.onModelStateChanged(
       (event: ModelStateEvent) => {
         // Filter events by our file's URI
+        // Note: renamed events have oldUri/newUri, not uri
+        if (event.type === "renamed") {
+          // Renamed events don't affect our model state tracking
+          // The model registry handles renaming internally
+          return;
+        }
         if (event.uri !== uri) return;
 
         // Update state based on event type
@@ -92,6 +98,10 @@ export function useModelState(filePath: string | null): ModelState | null {
             case "reloaded":
               // After reload, no longer has external changes
               return { ...prevState, hasExternalChanges: false };
+
+            case "fileSizeWarning":
+              // File size warning doesn't change model state
+              return prevState;
 
             default:
               return prevState;

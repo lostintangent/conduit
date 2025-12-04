@@ -1,3 +1,4 @@
+import path from "path";
 import { defineConfig } from "vite";
 
 // Ensure native modules stay external to avoid bundling issues
@@ -8,6 +9,11 @@ export default defineConfig({
       output: {
         format: "es",
       },
+    },
+  },
+  resolve: {
+    alias: {
+      "@shared": path.resolve(__dirname, "../src/shared"),
     },
   },
 });

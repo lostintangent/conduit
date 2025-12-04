@@ -1,15 +1,15 @@
-import { executeCommand } from "@/commands";
 import {
+  executeCommand,
   getCommandRegistry,
   getContextKeyService,
   getKeybindingRegistry,
   getMenuRegistry,
 } from "@/commands";
-import type { MenuItemData } from "@/commands/menus/useMenu";
-import { MenuId } from "@/commands/menus/types";
+import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
 import { getSubmenuLabel } from "@/commands/menus/submenuConfig";
-import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
+import { MenuId } from "@/commands/menus/types";
+import type { MenuItemData } from "@/commands/menus/useMenu";
 import { tabsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
@@ -122,7 +122,7 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
 
       // Filter out "Change title" if not allowed
       const filteredItems = visibleItems.filter((item) => {
-        if (item.commandId === ApplicationCommands.TAB_CHANGE_TITLE) {
+        if (item.commandId === ApplicationCommands.TAB_RENAME) {
           return allowTitleChange;
         }
         return true;

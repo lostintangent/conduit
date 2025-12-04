@@ -1,24 +1,17 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
+import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import {
   detachPane,
   removePane,
   updatePaneProperty,
 } from "@/store/actions/pane";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import type {
-  EditorPane,
-  LayoutNode,
-  Pane,
-  Tab,
-  TerminalPane,
-  WebViewPane,
-} from "@/types";
-import { generateId } from "@/utils/id";
-import type { AgentSessionInfo, Workspace } from "@shared/types";
+import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
+import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { getDefaultStore } from "jotai";
 import path from "path-browserify";
-import { openWorkspace } from "./workspace";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -67,9 +60,9 @@ export function generateIncrementedTabTitle(
   // Find the highest number used by existing tabs with the same base name
   let highestNumber = currentNumber;
   for (const tab of existingTabs) {
-    if (tab.title) {
-      const tabMatch = tab.title.match(/^(.+?)\s+(\d+)$/);
-      const tabBaseName = tabMatch ? tabMatch[1] : tab.title;
+    if (tab.name) {
+      const tabMatch = tab.name.match(/^(.+?)\s+(\d+)$/);
+      const tabBaseName = tabMatch ? tabMatch[1] : tab.name;
       const tabNumber = tabMatch ? parseInt(tabMatch[2], 10) : 1;
 
       if (tabBaseName === baseName && tabNumber >= highestNumber) {
@@ -82,7 +75,7 @@ export function generateIncrementedTabTitle(
 }
 
 export async function openTab(
-  initialCommand?: string,
+  options?: NewTabOptions,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   // Inherit CWD from the active tab's active pane
   const activeTab = store.get(activeTabAtom);
@@ -117,15 +110,17 @@ export async function openTab(
       panes: { [paneId]: paneState },
       layout,
       activePaneId: paneId,
+      name: options?.title,
     },
   ]);
   focusTab(tabId);
 
-  if (initialCommand && initialCommand.length > 0) {
+  const command = options?.command;
+  if (command && command.length > 0) {
     const commandWithNewline =
-      initialCommand.endsWith("\n") || initialCommand.endsWith("\r")
-        ? initialCommand
-        : `${initialCommand}\n`;
+      command.endsWith("\n") || command.endsWith("\r")
+        ? command
+        : `${command}\n`;
 
     api.sendKeypress(result.sessionId, commandWithNewline);
   }
@@ -215,47 +210,12 @@ export async function openTabFromPaneDescriptor(
   descriptor: PaneDescriptor,
 ): Promise<{ tabId: string; paneId: string } | null> {
   const paneId = generateId();
+  const newPane = {
+    id: paneId,
+    ...descriptor,
+  };
 
-  let paneState: Pane | null = null;
-
-  if (descriptor.type === "terminal") {
-    const terminalDescriptor = descriptor as Omit<TerminalPane, "id">;
-    paneState = {
-      id: paneId,
-      type: "terminal",
-      sessionId: terminalDescriptor.sessionId,
-      cwd: terminalDescriptor.cwd,
-      processTitle: terminalDescriptor.processTitle,
-      vmMetadata: terminalDescriptor.vmMetadata,
-    };
-  } else if (descriptor.type === "editor") {
-    const editorDescriptor = descriptor as Omit<EditorPane, "id">;
-    paneState = {
-      id: paneId,
-      type: "editor",
-      cwd: editorDescriptor.cwd,
-      filePath: editorDescriptor.filePath,
-      agentSessionId: editorDescriptor.agentSessionId,
-      agentBranchName: editorDescriptor.agentBranchName,
-      agentBaseBranch: editorDescriptor.agentBaseBranch,
-      agentRepoRoot: editorDescriptor.agentRepoRoot,
-      agentWorktreePath: editorDescriptor.agentWorktreePath,
-    };
-  } else if (descriptor.type === "webview") {
-    const webviewDescriptor = descriptor as Omit<WebViewPane, "id">;
-    paneState = {
-      id: paneId,
-      type: "webview",
-      url: webviewDescriptor.url,
-      title: webviewDescriptor.title,
-    };
-  }
-
-  if (!paneState) {
-    return null;
-  }
-
-  return createTabWithPane(paneState);
+  return createTabWithPane(newPane as Pane);
 }
 
 export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
@@ -308,16 +268,18 @@ export function unlockTab(tabId: string) {
 
 type CloseTabOptions = {
   force?: boolean;
+  openReplacement?: boolean;
 };
 
 export function closeTab(tabId: string, options: CloseTabOptions = {}) {
-  const { force = false } = options;
+  const { force = false, openReplacement = true } = options;
   const targetTab = store.get(tabsAtom).find((tab) => tab.id === tabId);
   if (!targetTab || (targetTab.locked && !force)) {
     return;
   }
 
   const sessionsToClose: string[] = [];
+  const terminalPanesToDispose: string[] = [];
   const editorPaneIdsToDispose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
@@ -325,45 +287,34 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   let nextActiveTabId: string | null | undefined = undefined;
 
   store.set(tabsAtom, (current) => {
-    const next: Tab[] = [];
-    let removedTabIndex = -1;
+    const removedTabIndex = current.findIndex((tab) => tab.id === tabId);
+    const [removedTab] = current.splice(removedTabIndex, 1);
 
-    current.forEach((tab, index) => {
-      if (tab.id === tabId) {
-        removedTabIndex = index;
-        Object.values(tab.panes).forEach((pane) => {
-          // Collect pane IDs for DOM cleanup
-          paneIdsToCleanup.push(pane.id);
+    Object.values(removedTab.panes).forEach((pane) => {
+      // Collect pane IDs for DOM cleanup
+      paneIdsToCleanup.push(pane.id);
 
-          if (pane.type === "terminal") {
-            sessionsToClose.push(pane.sessionId);
-          } else if (pane.type === "editor") {
-            editorPaneIdsToDispose.push(pane.id);
-          }
-        });
-        return;
+      if (pane.type === "terminal") {
+        terminalPanesToDispose.push(pane.id);
+        sessionsToClose.push(pane.sessionId);
+      } else if (pane.type === "editor") {
+        editorPaneIdsToDispose.push(pane.id);
       }
-
-      next.push(tab);
     });
 
-    if (removedTabIndex === -1) {
-      return current;
-    }
-
-    if (next.length === 0) {
-      shouldOpenReplacement = true;
+    if (current.length === 0) {
+      shouldOpenReplacement = openReplacement;
       nextActiveTabId = null;
-      return [];
+      return;
     }
 
     if (previousActiveTabId === tabId) {
       const targetIndex =
-        removedTabIndex >= next.length ? next.length - 1 : removedTabIndex;
-      nextActiveTabId = next[targetIndex]?.id ?? null;
+        removedTabIndex >= current.length
+          ? current.length - 1
+          : removedTabIndex;
+      nextActiveTabId = current[targetIndex]?.id ?? null;
     }
-
-    return next;
   });
 
   if (nextActiveTabId !== undefined) {
@@ -377,6 +328,9 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
       paneElement.remove();
     }
   });
+
+  // Dispose terminal xterm instances
+  terminalPanesToDispose.forEach((paneId) => disposeSession(paneId));
 
   // Close terminal sessions
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
@@ -529,28 +483,28 @@ export async function duplicateTab(
       }
     } else if (sourcePane.type === "editor") {
       // Translate file path if duplicating into a worktree
-      let translatedFilePath = sourcePane.filePath;
+      let translatedFile = sourcePane.file;
       if (
         options?.agentSession &&
-        sourcePane.filePath &&
+        sourcePane.file &&
         options.agentSession.repoRoot &&
         options.agentSession.worktreePath
       ) {
         // Normalize paths for comparison
-        const normalizedFilePath = path.normalize(sourcePane.filePath);
+        const normalizedFile = path.normalize(sourcePane.file);
         const normalizedRepoRoot = path.normalize(
           options.agentSession.repoRoot,
         );
 
         // Check if file is within the repository
-        if (normalizedFilePath.startsWith(normalizedRepoRoot + path.sep)) {
+        if (normalizedFile.startsWith(normalizedRepoRoot + path.sep)) {
           // Get the relative path from repo root
           const relativePath = path.relative(
             normalizedRepoRoot,
-            normalizedFilePath,
+            normalizedFile,
           );
           // Construct the new path in the worktree
-          translatedFilePath = path.join(
+          translatedFile = path.join(
             options.agentSession.worktreePath,
             relativePath,
           );
@@ -573,17 +527,17 @@ export async function duplicateTab(
         id: newPaneId,
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
-        filePath: translatedFilePath,
+        file: translatedFile,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
         agentRepoRoot,
         agentWorktreePath,
       };
-    } else if (sourcePane.type === "webview") {
+    } else if (sourcePane.type === "browser") {
       newPanes[newPaneId] = {
         id: newPaneId,
-        type: "webview",
+        type: "browser",
         url: sourcePane.url,
         title: sourcePane.title,
       };
@@ -620,7 +574,7 @@ export async function duplicateTab(
 
   // Use provided title or generate one
   const newTitle =
-    options?.title || generateIncrementedTabTitle(sourceTab.title, tabs);
+    options?.title || generateIncrementedTabTitle(sourceTab.name, tabs);
 
   // Map the active pane ID
   const newActivePaneId = paneIdMap.get(sourceTab.activePaneId);
@@ -639,7 +593,7 @@ export async function duplicateTab(
     panes: newPanes,
     layout: newLayout,
     activePaneId: newActivePaneId || Object.keys(newPanes)[0],
-    title: newTitle,
+    name: newTitle,
     locked: sourceTab.locked,
     synchronized: sourceTab.synchronized,
   };
@@ -715,18 +669,6 @@ export async function duplicateTabIntoWorktree(
 }
 
 export function registerTabEventHandlers() {
-  if (!api) {
-    return () => {};
-  }
-
-  const unsubscribeTitle = api.onTitle(({ sessionId, title }) => {
-    updatePaneProperty(sessionId, { processTitle: title });
-  });
-
-  const unsubscribeCwd = api.onCwd(({ sessionId, cwd }) => {
-    updatePaneProperty(sessionId, { cwd });
-  });
-
   const unsubscribeExit = api.onExit(({ sessionId }) => {
     const tabs = store.get(tabsAtom);
 
@@ -750,15 +692,8 @@ export function registerTabEventHandlers() {
     void openTab();
   });
 
-  const unsubscribeOpenWorkspace = api.onOpenWorkspaceRequest(
-    (workspace: Workspace) => openWorkspace(workspace),
-  );
-
   return () => {
-    unsubscribeTitle();
-    unsubscribeCwd();
     unsubscribeExit();
     unsubscribeNewTab();
-    unsubscribeOpenWorkspace();
   };
 }

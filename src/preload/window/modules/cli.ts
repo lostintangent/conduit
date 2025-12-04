@@ -1,5 +1,5 @@
 import { ipcRenderer } from "electron";
-import type { CliRequest, CliResponse } from "../../shared/cli/types";
+import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { createEventListener } from "../utils";
 
 export default {

@@ -1,7 +1,7 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { forwardPortAndOpen } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
-import { extractPortFromMatch } from "@shared/portDetection";
+import { extractPortFromMatch } from "@shared/utils";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";

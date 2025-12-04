@@ -12,11 +12,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const OVERLAY_WIDTH = 400;
 const OVERLAY_HEIGHT = 300;
 const DEFAULT_MARGIN = 16;
-const POSITION_STORAGE_KEY = "floatingTerminalPosition";
+const POSITION_STORAGE_KEY = "hyperTerminalPosition";
 
 type Position = { x: number; y: number };
 
-type FloatingTerminalProps = {
+type HyperTerminalProps = {
   terminalId: string;
   paneId: string;
   cwd: string | null;
@@ -97,14 +97,14 @@ const savePosition = (pos: Position) => {
   }
 };
 
-export function FloatingTerminal({
+export function HyperTerminal({
   terminalId,
   paneId,
   cwd,
   onClose,
   onMaximize,
   onOpenAsTab,
-}: FloatingTerminalProps) {
+}: HyperTerminalProps) {
   const [position, setPosition] = useState(getInitialPosition);
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -180,7 +180,7 @@ export function FloatingTerminal({
           onMouseDown={handleMouseDown}
         >
           <span className="text-sm font-medium select-none">
-            Quick Terminal
+            Hyper Terminal
           </span>
           <div className="flex items-center gap-1">
             <ToolbarButton
@@ -206,8 +206,13 @@ export function FloatingTerminal({
         </div>
         <div className="flex-1 min-h-0 overflow-hidden px-0.5">
           <TerminalPane
-            terminalId={terminalId}
-            paneId={paneId}
+            pane={{
+              id: paneId,
+              type: "terminal",
+              sessionId: terminalId,
+              cwd,
+              processTitle: "",
+            }}
             isActive
             fontSize={11}
           />

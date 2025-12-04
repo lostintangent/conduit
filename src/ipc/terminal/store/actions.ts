@@ -1,36 +1,20 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
+import { detectPorts } from "@shared/utils/portDetection";
 import { getTerminal, removeTerminal, storeTerminal } from ".";
-import { detectPorts } from "../../../shared/portDetection";
 import { createVM, getSSHConnectionInfo } from "../../vm/client";
 import {
   getPrivateKeyPath,
   hasSSHKeys,
   setupSSHKeyInVM,
 } from "../../vm/ssh-keys";
-import { consumeOscSequences, normalizeCwd, startCwdPolling } from "../cwd";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type {
   CreateTerminalOptions,
   SendToRendererFn,
   TerminalInstance,
 } from "../types";
-
-const disposeSessionResources = (session: TerminalInstance) => {
-  session.oscBuffer = "";
-  if (session.cwdPoller) {
-    clearInterval(session.cwdPoller);
-    session.cwdPoller = undefined;
-  }
-  if (session.pendingCwdPoll) {
-    clearTimeout(session.pendingCwdPoll);
-    session.pendingCwdPoll = undefined;
-  }
-  session.isPollingCwd = false;
-  session.scheduleCwdPoll = undefined;
-  session.bufferedOutput = [];
-};
 
 const describeProcess = (session: TerminalInstance) => {
   if (session.cloudEnvironment) {
@@ -48,12 +32,6 @@ export async function createTerminal(
   sendToRenderer: SendToRendererFn,
   options?: CreateTerminalOptions,
 ) {
-  console.log("[createTerminal] Function called with options:", {
-    isRemoteVM: options?.isRemoteVM,
-    existingVMId: options?.existingVMId,
-    hasGithubRepo: !!options?.githubRepo,
-  });
-
   const id = randomUUID();
 
   // Check if this should be a remote VM session
@@ -144,14 +122,6 @@ export async function createTerminal(
         id,
         pty,
         lastProcessName: `VM ${vm.id}`,
-        cwd: homeDirectory,
-        oscBuffer: "",
-        cwdPoller: undefined,
-        isPollingCwd: false,
-        pendingCwdPoll: undefined,
-        scheduleCwdPoll: undefined,
-        cwdPollFailures: 0,
-        cwdPollBackedOff: false,
         isRendererReady: false,
         bufferedOutput: [],
         cloudEnvironment: {
@@ -196,13 +166,6 @@ export async function createTerminal(
     id,
     pty,
     lastProcessName: pty.process,
-    cwd: normalizeCwd(cwd),
-
-    oscBuffer: "",
-    isPollingCwd: false,
-    cwdPollFailures: 0,
-    cwdPollBackedOff: false,
-
     isRendererReady: false,
     bufferedOutput: [],
   };
@@ -271,7 +234,6 @@ function setupTerminalListeners(
     if (processName && processName !== terminal.lastProcessName) {
       const previousProcess = terminal.lastProcessName;
       terminal.lastProcessName = processName;
-      sendToRenderer("terminal:title", { sessionId: id, title: processName });
 
       // For cloud terminals, detect SSH disconnection via process change
       if (terminal.cloudEnvironment) {
@@ -311,15 +273,10 @@ function setupTerminalListeners(
         }
       }
     }
-
-    // Only consume OSC sequences for local sessions
-    if (!terminal.cloudEnvironment) {
-      consumeOscSequences(terminal, data, sendToRenderer);
-    }
   });
 
   pty.onExit(async ({ exitCode, signal }) => {
-    disposeSessionResources(terminal);
+    removeTerminal(id);
 
     // Clean up VM if this was a VM session
     if (terminal.cloudEnvironment) {
@@ -352,32 +309,7 @@ function setupTerminalListeners(
       exitCode: exitCode ?? null,
       signal: signal ?? null,
     });
-
-    setTimeout(() => {
-      const current = getTerminal(id);
-      if (current && current.pty === terminal.pty) {
-        removeTerminal(id);
-      }
-    }, 2000);
   });
-
-  const title = describeProcess(terminal);
-  terminal.lastProcessName = title;
-
-  sendToRenderer("terminal:title", {
-    sessionId: id,
-    title,
-  });
-
-  sendToRenderer("terminal:cwd", {
-    sessionId: id,
-    cwd: terminal.cwd,
-  });
-
-  // Only start CWD polling for local sessions
-  if (!terminal.cloudEnvironment) {
-    startCwdPolling(terminal, sendToRenderer);
-  }
 }
 
 export async function killTerminal(terminalId: string) {
@@ -411,7 +343,6 @@ export async function killTerminal(terminalId: string) {
   }
 
   removeTerminal(terminalId);
-  disposeSessionResources(terminal);
 
   try {
     terminal.pty.kill();

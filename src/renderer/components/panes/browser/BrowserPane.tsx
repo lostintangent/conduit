@@ -33,7 +33,7 @@ type BrowserPaneProps = {
 
   disableInteraction: boolean;
   isInPreview: boolean;
-  devToolsForPane?: string;
+  devToolsFor?: string;
   onOpenDevTools?: () => void;
 };
 
@@ -47,7 +47,7 @@ export function BrowserPane({
   onHover,
   disableInteraction = false,
   isInPreview = false,
-  devToolsForPane,
+  devToolsFor,
   onOpenDevTools,
 }: BrowserPaneProps) {
   const applicationMode = useAtomValue(applicationModeAtom);
@@ -208,10 +208,10 @@ export function BrowserPane({
     const webview = webviewRef.current;
     if (!webview) return;
 
-    if (devToolsForPane) {
+    if (devToolsFor) {
       setTimeout(() => {
         const sourceWebview = document.getElementById(
-          devToolsForPane,
+          devToolsFor,
         ) as WebviewTag | null;
         if (!sourceWebview) return;
 
@@ -371,7 +371,7 @@ export function BrowserPane({
 
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background">
-      {!devToolsForPane && (
+      {!devToolsFor && (
         <BrowserToolbar
           currentPage={{ url: currentUrl, title: pageTitle }}
           isLoading={isLoading}

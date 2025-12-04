@@ -1,20 +1,28 @@
 import { ipcRenderer } from "electron";
+import type {
+  BrowserAutomationRequest,
+  BrowserAutomationResponse,
+} from "@shared/cli/browser";
 import automation from "./api/automation";
 
-ipcRenderer.on("automation:invoke", async (_, payload) => {
-  const { id, command, args } = payload ?? {};
-  if (!id || !command || !(command in automation)) {
-    return;
-  }
+ipcRenderer.on(
+  "browser:request",
+  async (_, request: BrowserAutomationRequest) => {
+    const { requestId, command, args } = request ?? {};
+    if (!requestId || !command || !(command in automation)) {
+      return;
+    }
 
-  try {
-    // @ts-ignore dynamic lookup
-    const result = await automation[command](args);
-    ipcRenderer.sendToHost("automation:result", { id, result });
-  } catch (error: any) {
-    ipcRenderer.sendToHost("automation:result", {
-      id,
-      error: error?.message ?? String(error),
-    });
-  }
-});
+    try {
+      const result = await automation[command](args as never);
+      const response: BrowserAutomationResponse = { requestId, result };
+      ipcRenderer.sendToHost("browser:response", response);
+    } catch (error: unknown) {
+      const response: BrowserAutomationResponse = {
+        requestId,
+        error: error instanceof Error ? error.message : String(error),
+      };
+      ipcRenderer.sendToHost("browser:response", response);
+    }
+  },
+);

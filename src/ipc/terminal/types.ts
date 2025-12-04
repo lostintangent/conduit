@@ -1,11 +1,10 @@
-import type { CloudTerminalOptions } from "@shared/types";
+import type { CloudTerminalOptions, SSHConnectionState } from "@shared/types";
 import type { IPty } from "node-pty";
 
 export type TerminalInstance = {
   id: string;
   pty: IPty;
 
-  cwd: string;
   lastProcessName: string;
 
   isRendererReady: boolean;
@@ -13,15 +12,6 @@ export type TerminalInstance = {
 
   // VM metadata (only present for remote VM sessions)
   cloudEnvironment?: CloudEnvironment;
-
-  // Internal state for tracking CWD
-  oscBuffer: string;
-  cwdPoller?: NodeJS.Timeout;
-  isPollingCwd: boolean;
-  pendingCwdPoll?: NodeJS.Timeout;
-  scheduleCwdPoll?: (delay?: number) => void;
-  cwdPollFailures: number; // Consecutive polling failures
-  cwdPollBackedOff: boolean; // Whether we've stopped polling due to errors
 };
 
 export type CreateTerminalOptions = {
@@ -38,7 +28,7 @@ export type CloudEnvironment = {
   useSSHKey?: boolean;
 
   // SSH connection state tracking
-  connectionState: "connecting" | "connected" | "disconnected";
+  connectionState: SSHConnectionState;
   connectionStartTime?: number; // Timestamp when connection started (for timeout detection)
 
   // Port forwarding state

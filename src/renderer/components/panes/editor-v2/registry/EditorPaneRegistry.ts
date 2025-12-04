@@ -257,7 +257,7 @@ export class EditorPaneRegistry {
       const configChanged =
         entry.config.pane.id !== config.pane.id ||
         entry.config.pane.cwd !== config.pane.cwd ||
-        entry.config.pane.filePath !== config.pane.filePath;
+        entry.config.pane.file !== config.pane.file;
 
       entry.config = config;
       entry.lastUsed = Date.now();
@@ -735,7 +735,7 @@ export class EditorPaneRegistry {
       isAttached: entry.currentContainer !== null,
       isVisible: entry.isVisible,
       cwd: entry.config.pane.cwd,
-      filePath: entry.config.pane.filePath,
+      file: entry.config.pane.file,
     }));
   }
 }
