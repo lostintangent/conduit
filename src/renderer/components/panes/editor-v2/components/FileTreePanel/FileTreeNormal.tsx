@@ -26,6 +26,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
+import { pathsEqual } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
@@ -343,7 +344,7 @@ export function FileTreeNormal({
             depth={depth}
             gitStatus={status}
             gitStatusMap={relativeGitStatusMap}
-            isSelected={selectedFile?.path === entryPath}
+            isSelected={pathsEqual(selectedFile?.path, entryPath)}
             isExpanded={isExpanded}
             onSelect={handleSelect}
             onToggleExpand={handleToggleExpand}

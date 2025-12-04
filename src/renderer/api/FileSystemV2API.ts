@@ -376,9 +376,19 @@ export class FileSystemV2API {
     this.ensureSubscribed();
 
     this.globalFileListeners.add(callback);
+    console.log(
+      "[FileSystemV2API] Added global file listener, total count:",
+      this.globalFileListeners.size,
+      "subscriptionId:",
+      this.subscriptionId,
+    );
 
     return () => {
       this.globalFileListeners.delete(callback);
+      console.log(
+        "[FileSystemV2API] Removed global file listener, remaining count:",
+        this.globalFileListeners.size,
+      );
     };
   }
 
@@ -571,9 +581,25 @@ export class FileSystemV2API {
     this.ipcCleanups.push(
       window.conduit.fsv2.onFileContentChanged(
         (payload: FileContentChangedPayload) => {
+          console.log(
+            "[FileSystemV2API] Received file content changed event:",
+            payload,
+            "mySubscriptionId:",
+            this.subscriptionId,
+          );
           if (payload.subscriptionId !== this.subscriptionId) {
+            console.log(
+              "[FileSystemV2API] Ignoring event - subscriptionId mismatch",
+            );
             return;
           }
+
+          console.log(
+            "[FileSystemV2API] Processing file change for path:",
+            payload.path,
+            "globalListeners count:",
+            this.globalFileListeners.size,
+          );
 
           // Notify path-specific listeners
           const listeners = this.fileListeners.get(payload.path);
@@ -593,6 +619,10 @@ export class FileSystemV2API {
           // Notify global listeners
           for (const callback of this.globalFileListeners) {
             try {
+              console.log(
+                "[FileSystemV2API] Calling global listener with path:",
+                payload.path,
+              );
               callback(payload.path);
             } catch (error) {
               console.error(

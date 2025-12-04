@@ -38,6 +38,7 @@ import {
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
+import { pathsEqual } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { cn } from "@/utils";
@@ -562,7 +563,7 @@ function NestedFolderItem({
             <NestedFileItem
               key={file.path}
               file={file}
-              isSelected={selectedPath === file.path}
+              isSelected={pathsEqual(selectedPath, file.path)}
               isStaged={isStaged}
               canRevert={file.status.status !== "untracked"}
               onSelect={() => onFileSelect(file.path)}
@@ -1088,7 +1089,7 @@ export function FileTreeChanges({
         key={path}
         path={path}
         status={status}
-        isSelected={selectedRelativePath === path}
+        isSelected={pathsEqual(selectedRelativePath, path)}
         isStaged={isStaged}
         canRevert={showActionButtons && status.status !== "untracked"}
         onSelect={() => handleSelect(path)}
@@ -1141,7 +1142,7 @@ export function FileTreeChanges({
             <NestedFileItem
               key={file.path}
               file={file}
-              isSelected={selectedRelativePath === file.path}
+              isSelected={pathsEqual(selectedRelativePath, file.path)}
               isStaged={isStaged}
               canRevert={
                 showActionButtons && file.status.status !== "untracked"
