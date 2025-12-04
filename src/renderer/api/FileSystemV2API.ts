@@ -42,6 +42,26 @@ import type {
 } from "../../preload/window/modules/fsv2";
 
 // ============================================================================
+// Path Normalization
+// ============================================================================
+
+/**
+ * Whether the current platform uses case-insensitive file paths.
+ */
+const isCaseInsensitiveFs = (() => {
+  const platform = navigator.platform.toLowerCase();
+  return platform.includes("mac") || platform.includes("win");
+})();
+
+/**
+ * Normalize a path for use as a Map key.
+ * On case-insensitive filesystems, lowercases the path for consistent lookups.
+ */
+function normalizePathKey(path: string): string {
+  return isCaseInsensitiveFs ? path.toLowerCase() : path;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -299,17 +319,18 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    let listeners = this.directoryListeners.get(path);
+    const key = normalizePathKey(path);
+    let listeners = this.directoryListeners.get(key);
     if (!listeners) {
       listeners = new Set();
-      this.directoryListeners.set(path, listeners);
+      this.directoryListeners.set(key, listeners);
     }
     listeners.add(callback);
 
     return () => {
       listeners!.delete(callback);
       if (listeners!.size === 0) {
-        this.directoryListeners.delete(path);
+        this.directoryListeners.delete(key);
       }
     };
   }
@@ -349,17 +370,18 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    let listeners = this.fileListeners.get(path);
+    const key = normalizePathKey(path);
+    let listeners = this.fileListeners.get(key);
     if (!listeners) {
       listeners = new Set();
-      this.fileListeners.set(path, listeners);
+      this.fileListeners.set(key, listeners);
     }
     listeners.add(callback);
 
     return () => {
       listeners!.delete(callback);
       if (listeners!.size === 0) {
-        this.fileListeners.delete(path);
+        this.fileListeners.delete(key);
       }
     };
   }
@@ -404,17 +426,18 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    let listeners = this.deleteListeners.get(path);
+    const key = normalizePathKey(path);
+    let listeners = this.deleteListeners.get(key);
     if (!listeners) {
       listeners = new Set();
-      this.deleteListeners.set(path, listeners);
+      this.deleteListeners.set(key, listeners);
     }
     listeners.add(callback);
 
     return () => {
       listeners!.delete(callback);
       if (listeners!.size === 0) {
-        this.deleteListeners.delete(path);
+        this.deleteListeners.delete(key);
       }
     };
   }
@@ -448,18 +471,19 @@ export class FileSystemV2API {
   onFileRenamed(path: string, callback: FileRenamedCallback): Cleanup {
     this.ensureNotReleased();
     this.ensureSubscribed();
+    const key = normalizePathKey(path);
 
-    let listeners = this.renameListeners.get(path);
+    let listeners = this.renameListeners.get(key);
     if (!listeners) {
       listeners = new Set();
-      this.renameListeners.set(path, listeners);
+      this.renameListeners.set(key, listeners);
     }
     listeners.add(callback);
 
     return () => {
       listeners!.delete(callback);
       if (listeners!.size === 0) {
-        this.renameListeners.delete(path);
+        this.renameListeners.delete(key);
       }
     };
   }
@@ -547,8 +571,9 @@ export class FileSystemV2API {
             return;
           }
 
-          // Notify path-specific listeners
-          const listeners = this.directoryListeners.get(payload.path);
+          // Notify path-specific listeners (use normalized key for lookup)
+          const key = normalizePathKey(payload.path);
+          const listeners = this.directoryListeners.get(key);
           if (listeners) {
             for (const callback of listeners) {
               try {
@@ -601,8 +626,9 @@ export class FileSystemV2API {
             this.globalFileListeners.size,
           );
 
-          // Notify path-specific listeners
-          const listeners = this.fileListeners.get(payload.path);
+          // Notify path-specific listeners (use normalized key for lookup)
+          const fileKey = normalizePathKey(payload.path);
+          const listeners = this.fileListeners.get(fileKey);
           if (listeners) {
             for (const callback of listeners) {
               try {
@@ -642,8 +668,9 @@ export class FileSystemV2API {
           return;
         }
 
-        // Notify path-specific listeners
-        const listeners = this.deleteListeners.get(payload.path);
+        // Notify path-specific listeners (use normalized key for lookup)
+        const deleteKey = normalizePathKey(payload.path);
+        const listeners = this.deleteListeners.get(deleteKey);
         if (listeners) {
           for (const callback of listeners) {
             try {
@@ -678,8 +705,9 @@ export class FileSystemV2API {
           return;
         }
 
-        // Notify path-specific listeners
-        const listeners = this.renameListeners.get(payload.oldPath);
+        // Notify path-specific listeners (use normalized key for lookup)
+        const renameKey = normalizePathKey(payload.oldPath);
+        const listeners = this.renameListeners.get(renameKey);
         if (listeners) {
           for (const callback of listeners) {
             try {

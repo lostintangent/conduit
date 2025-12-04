@@ -258,9 +258,16 @@ export class FileSystemV2APIService {
 
   /**
    * Normalize a path for consistent map keys.
-   * Removes trailing slashes.
+   * Removes trailing slashes and handles case sensitivity on macOS/Windows.
    */
   private normalizePath(path: string): string {
-    return path.replace(/\/+$/, "");
+    let normalized = path.replace(/\/+$/, "");
+    // On macOS and Windows, filesystems are case-insensitive
+    // Lowercase for consistent Map key comparison
+    const platform = navigator.platform.toLowerCase();
+    if (platform.includes("mac") || platform.includes("win")) {
+      normalized = normalized.toLowerCase();
+    }
+    return normalized;
   }
 }

@@ -392,9 +392,17 @@ export class FileSystemProviderService {
    * Normalize a path for consistent lookup.
    *
    * Resolves to absolute path and handles platform-specific normalization.
+   * On case-insensitive filesystems (macOS, Windows), also lowercases the path
+   * to ensure consistent Map key lookups regardless of casing.
    */
   private normalizePath(filePath: string): string {
-    return path.resolve(filePath);
+    const resolved = path.resolve(filePath);
+    // On macOS (darwin) and Windows, filesystems are case-insensitive
+    // Lowercase for consistent Map key comparison
+    if (process.platform === "darwin" || process.platform === "win32") {
+      return resolved.toLowerCase();
+    }
+    return resolved;
   }
 
   /**

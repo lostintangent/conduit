@@ -423,19 +423,39 @@ export class GitProviderService {
    * @param filePath - The absolute path to the changed file
    */
   async notifyFileChanged(filePath: string): Promise<void> {
+    console.log(
+      "[GitProviderService] notifyFileChanged called with:",
+      filePath,
+    );
     const gitRoot = await this.findGitRoot(filePath);
 
     if (!gitRoot) {
       // File is not in a git repository
+      console.log("[GitProviderService] File not in a git repository");
       return;
     }
 
     const normalizedRoot = this.normalizePath(gitRoot);
+    console.log(
+      "[GitProviderService] gitRoot:",
+      gitRoot,
+      "normalizedRoot:",
+      normalizedRoot,
+    );
+    console.log(
+      "[GitProviderService] Provider keys:",
+      Array.from(this.providers.keys()),
+    );
     const entry = this.providers.get(normalizedRoot);
 
     if (entry) {
       // Provider exists for this repo, trigger status refresh
+      console.log(
+        "[GitProviderService] Found provider, triggering status refresh",
+      );
       entry.provider.triggerStatusRefresh();
+    } else {
+      console.log("[GitProviderService] No provider found for normalizedRoot");
     }
   }
 
@@ -469,9 +489,17 @@ export class GitProviderService {
 
   /**
    * Normalize a path for consistent lookup.
+   * On case-insensitive filesystems (macOS, Windows), also lowercases the path
+   * to ensure consistent Map key lookups regardless of casing.
    */
   private normalizePath(filePath: string): string {
-    return path.resolve(filePath);
+    const resolved = path.resolve(filePath);
+    // On macOS (darwin) and Windows, filesystems are case-insensitive
+    // Lowercase for consistent Map key comparison
+    if (process.platform === "darwin" || process.platform === "win32") {
+      return resolved.toLowerCase();
+    }
+    return resolved;
   }
 
   /**

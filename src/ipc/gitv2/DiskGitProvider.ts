@@ -1079,13 +1079,39 @@ export class DiskGitProvider implements GitProvider {
 
   /**
    * Convert a path to be relative to the git root.
+   *
+   * On case-insensitive filesystems (macOS, Windows), handles the case where
+   * the file path and git root have different casings but refer to the same location.
    */
   private toRelativePath(filePath: string): string {
     const absolutePath = path.isAbsolute(filePath)
       ? filePath
       : path.resolve(this.cwd, filePath);
 
-    return path.relative(this.gitRoot, absolutePath);
+    // On case-insensitive filesystems, path.relative() can produce incorrect results
+    // if the paths have different casings (e.g., /Project/Other vs /Project/other).
+    // We detect this by checking if the relative path tries to escape the git root.
+    const relativePath = path.relative(this.gitRoot, absolutePath);
+
+    // If the result starts with "..", the paths might have different casings
+    if (
+      relativePath.startsWith("..") &&
+      (process.platform === "darwin" || process.platform === "win32")
+    ) {
+      // Try case-insensitive comparison
+      const gitRootLower = this.gitRoot.toLowerCase();
+      const absolutePathLower = absolutePath.toLowerCase();
+
+      if (absolutePathLower.startsWith(gitRootLower)) {
+        // The file IS inside the git root, just with different casing
+        // Extract the relative portion using the lowercase match
+        const relativePortion = absolutePath.slice(this.gitRoot.length);
+        // Remove leading slash if present
+        return relativePortion.replace(/^[/\\]/, "");
+      }
+    }
+
+    return relativePath;
   }
 
   /**
