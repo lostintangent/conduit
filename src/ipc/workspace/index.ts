@@ -7,10 +7,8 @@ import type { Workspace, WorkspaceState } from "../../shared/types";
 import { captureTerminalCommand } from "../terminal/command";
 import { getAllTerminals } from "../terminal/store";
 import type { TerminalInstance } from "../terminal/types";
-import {
-  convertTemplateToWorkspace,
-  convertWorkspaceToTemplate,
-} from "./template/converter";
+import { convertWorkspaceToTemplate } from "./template/export";
+import { convertTemplateToWorkspace } from "./template/import";
 import type { WorkspaceTemplate } from "./template/types";
 
 const WORKSPACES_FILE_NAME = "workspaces.json";
