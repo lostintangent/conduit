@@ -88,6 +88,8 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   if (useConduitAsEditor) {
     env.VISUAL = commandName;
     env.EDITOR = commandName;
+    // Signal to shell integration scripts that they should set up suffix aliases
+    env.CONDUIT_USE_EDITOR = "1";
   }
 
   // Expose the IPC socket path and session ID to the terminal
