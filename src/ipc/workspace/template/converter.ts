@@ -310,7 +310,8 @@ export function convertWorkspaceToTemplate(
   const paneIdToGeneratedId = new Map<string, string>();
   const referencedPaneIds = new Set<string>();
 
-  // Pass 1: Build maps and scan for references
+  // Pass 1: Build maps, scan for references, and collect all CWDs
+  const allPaneCwds: string[] = [];
   for (const tab of workspace.tabs) {
     for (const pane of tab.panes) {
       if (pane.type === "terminal") {
@@ -319,6 +320,9 @@ export function convertWorkspaceToTemplate(
         }
         if (pane.cloneOf) {
           referencedPaneIds.add(pane.cloneOf);
+        }
+        if (pane.cwd) {
+          allPaneCwds.push(pane.cwd);
         }
       }
       if (pane.type === "browser") {
@@ -329,8 +333,17 @@ export function convertWorkspaceToTemplate(
           referencedPaneIds.add(pane.devToolsFor);
         }
       }
+      if (pane.type === "editor" && pane.cwd) {
+        allPaneCwds.push(pane.cwd);
+      }
     }
   }
+
+  // Calculate workspace-level common CWD
+  const workspaceCwd: string | undefined =
+    allPaneCwds.length > 0 && allPaneCwds.every((c) => c === allPaneCwds[0])
+      ? allPaneCwds[0]
+      : undefined;
 
   // Generate IDs only for referenced panes that don't have command/URL
   let idCounter = 1;
@@ -367,7 +380,7 @@ export function convertWorkspaceToTemplate(
   }
 
   const templateTabs: TemplateTab[] = workspace.tabs.map((tab, tabIndex) => {
-    // Calculate common CWD for the tab
+    // Calculate common CWD for the tab (only if different from workspace CWD)
     const paneCwds: string[] = [];
     for (const pane of tab.panes) {
       if ((pane.type === "terminal" || pane.type === "editor") && pane.cwd) {
@@ -375,10 +388,15 @@ export function convertWorkspaceToTemplate(
       }
     }
 
-    const tabCwd: string | undefined =
+    const tabCommonCwd: string | undefined =
       paneCwds.length > 0 && paneCwds.every((c) => c === paneCwds[0])
         ? paneCwds[0]
         : undefined;
+
+    // Only include tab CWD if it differs from workspace CWD
+    const tabCwd = tabCommonCwd !== workspaceCwd ? tabCommonCwd : undefined;
+    // Use effective CWD for pane comparisons (tab's actual CWD, whether explicit or inherited)
+    const effectiveTabCwd = tabCommonCwd || workspaceCwd;
 
     // Track first pane to avoid redundant active: true
     let firstPaneId: string | null = null;
@@ -411,7 +429,7 @@ export function convertWorkspaceToTemplate(
       const hasDifferentCwd =
         (pane.type === "terminal" || pane.type === "editor") &&
         pane.cwd &&
-        pane.cwd !== tabCwd;
+        pane.cwd !== effectiveTabCwd;
 
       // Check if we can use string shorthand (or null for empty terminal)
       if (pane.type === "terminal") {
@@ -531,9 +549,10 @@ export function convertWorkspaceToTemplate(
       topLevelLayout = { panes: [layoutResult] };
     }
 
-    const templateTab = {
-      ...tab,
-      cwd: tabCwd,
+    // Only include template-relevant properties (exclude id, layout, activePaneId, panes array)
+    const templateTab: TemplateTab = {
+      name: tab.name,
+      ...(tabCwd && { cwd: tabCwd }),
       ...topLevelLayout,
     } as TemplateTab;
 
@@ -547,6 +566,7 @@ export function convertWorkspaceToTemplate(
 
   return {
     name: workspace.name,
+    ...(workspaceCwd && { cwd: workspaceCwd }),
     tabs: templateTabs,
   };
 }
