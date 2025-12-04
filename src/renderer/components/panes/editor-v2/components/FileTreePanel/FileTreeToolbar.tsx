@@ -8,6 +8,8 @@
  */
 
 import { FolderUp, PanelLeftClose } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { userSettingsAtom } from "@/store/atoms";
 import {
   Tooltip,
   TooltipContent,
@@ -44,21 +46,31 @@ export interface FileTreeToolbarProps {
 
 /**
  * Format directory path for display.
- * Shows the last 2 segments of the path for context.
+ * Replaces home directory with ~ prefix, otherwise shows full path.
+ * Matches v1 behavior.
  */
-function formatDisplayPath(cwd: string): string {
-  const normalized = cwd.endsWith("/") ? cwd.slice(0, -1) : cwd;
-  const segments = normalized.split("/").filter(Boolean);
-
-  if (segments.length === 0) {
-    return "/";
+function formatDisplayPath(cwd: string, homeDirectory?: string): string {
+  if (!homeDirectory) {
+    return cwd;
   }
 
-  if (segments.length === 1) {
-    return segments[0];
+  const normalizedPath = cwd.replace(/\\/g, "/");
+  const normalizedHome = homeDirectory.replace(/\\/g, "/");
+
+  if (normalizedPath === normalizedHome) {
+    return "~";
   }
 
-  return segments.slice(-2).join("/");
+  const homeWithSlash = normalizedHome.endsWith("/")
+    ? normalizedHome
+    : `${normalizedHome}/`;
+
+  if (normalizedPath.startsWith(homeWithSlash)) {
+    const suffix = normalizedPath.slice(homeWithSlash.length);
+    return suffix ? `~/${suffix}` : "~";
+  }
+
+  return cwd;
 }
 
 /**
@@ -94,7 +106,8 @@ export function FileTreeToolbar({
   onToggleCollapse,
   showCollapseButton = false,
 }: FileTreeToolbarProps) {
-  const displayPath = formatDisplayPath(cwd);
+  const { homeDirectory } = useAtomValue(userSettingsAtom);
+  const displayPath = formatDisplayPath(cwd, homeDirectory);
   const isRoot = isAtRoot(cwd);
   const canGoUp = canNavigateUp && !isRoot;
 

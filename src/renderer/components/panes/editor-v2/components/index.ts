@@ -52,7 +52,6 @@ export {
   FileTreeNormal,
   FileTreeChanges,
   FileTreeItem,
-  GitOperationsToolbar,
   BranchSelector,
 } from "./FileTreePanel";
 
@@ -61,7 +60,6 @@ export type {
   FileTreeNormalProps,
   FileTreeChangesProps,
   FileTreeItemProps,
-  GitOperationsToolbarProps,
   BranchSelectorProps,
 } from "./FileTreePanel";
 

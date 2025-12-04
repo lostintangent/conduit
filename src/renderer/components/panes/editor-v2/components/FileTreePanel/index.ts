@@ -9,7 +9,6 @@
  * - FileTreeItem: Individual tree item component
  * - GitBranchToolbar: Git branch and operations toolbar
  * - GitStatusSummary: Compact git status badge summary
- * - GitOperationsToolbar: Git operations toolbar with commit/push/pull actions
  * - BranchSelector: Dropdown for selecting comparison branch
  */
 
@@ -33,9 +32,6 @@ export type { GitBranchToolbarProps } from "./GitBranchToolbar";
 
 export { GitStatusSummary } from "./GitStatusSummary";
 export type { GitStatusSummaryProps } from "./GitStatusSummary";
-
-export { GitOperationsToolbar } from "./GitOperationsToolbar";
-export type { GitOperationsToolbarProps } from "./GitOperationsToolbar";
 
 export { BranchSelector } from "./BranchSelector";
 export type { BranchSelectorProps } from "./BranchSelector";
