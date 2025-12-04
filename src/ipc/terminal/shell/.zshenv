@@ -25,14 +25,7 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
 
   # Configure suffix aliases to open common file types in Conduit
   # when the "use Conduit as editor" setting is enabled
-  if [[ -n "$CONDUIT_USE_EDITOR" ]]; then
-    alias -s md='conduit editor-open'
-    alias -s json='conduit editor-open'
-    alias -s yaml='conduit editor-open'
-    alias -s yml='conduit editor-open'
-    alias -s html='conduit editor-open'
-    alias -s css='conduit editor-open'
-    alias -s js='conduit editor-open'
-    alias -s ts='conduit editor-open'
+  if [[ "$VISUAL" == "conduit" ]]; then
+    alias -s {md,json,yaml,yml,html,css,js,ts}=conduit
   fi
 fi
