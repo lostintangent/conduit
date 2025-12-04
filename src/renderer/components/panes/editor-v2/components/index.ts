@@ -3,7 +3,7 @@
  *
  * Phase 3 components:
  * - EditorViewPanel: Main editor orchestrator
- * - MonacoEditorWrapper: Monaco standalone editor wrapper
+ * - RegularEditorWrapper: Monaco standalone editor wrapper
  * - DiffEditorWrapper: Monaco diff editor wrapper
  * - ExternalChangeWarning: External change warning banner
  * - EditorToolbar: Editor toolbar with actions
@@ -26,14 +26,14 @@
 // EditorViewPanel and related components
 export {
   EditorViewPanel,
-  MonacoEditorWrapper,
+  RegularEditorWrapper,
   DiffEditorWrapper,
   ExternalChangeWarning,
 } from "./EditorViewPanel";
 
 export type {
   EditorViewPanelProps,
-  MonacoEditorWrapperProps,
+  RegularEditorWrapperProps,
   DiffEditorWrapperProps,
   ExternalChangeWarningProps,
 } from "./EditorViewPanel";

@@ -7,7 +7,7 @@
  * @example
  * ```tsx
  * <EditorErrorBoundary filePath={filePath}>
- *   <MonacoEditorWrapper ... />
+ *   <RegularEditorWrapper ... />
  * </EditorErrorBoundary>
  * ```
  */

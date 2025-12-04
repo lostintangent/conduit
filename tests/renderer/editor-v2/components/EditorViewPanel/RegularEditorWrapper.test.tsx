@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MonacoEditorWrapper } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/MonacoEditorWrapper";
+import { RegularEditorWrapper } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/RegularEditorWrapper";
 
 // ============================================================================
 // Mocks
@@ -87,7 +87,7 @@ vi.mock(
 // Tests
 // ============================================================================
 
-describe("MonacoEditorWrapper", () => {
+describe("RegularEditorWrapper", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -103,7 +103,7 @@ describe("MonacoEditorWrapper", () => {
   describe("rendering", () => {
     it("should render the editor container", () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -115,7 +115,7 @@ describe("MonacoEditorWrapper", () => {
 
     it("should have full width and height classes", () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -135,7 +135,7 @@ describe("MonacoEditorWrapper", () => {
   describe("editor registry integration", () => {
     it("should get or create editor from registry on mount", async () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -158,7 +158,7 @@ describe("MonacoEditorWrapper", () => {
 
     it("should release editor on unmount", async () => {
       const { unmount } = render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -184,7 +184,7 @@ describe("MonacoEditorWrapper", () => {
   describe("model attachment", () => {
     it("should attach model to editor", async () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -204,7 +204,7 @@ describe("MonacoEditorWrapper", () => {
   describe("viewstate management", () => {
     it("should restore viewstate for file", async () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -222,7 +222,7 @@ describe("MonacoEditorWrapper", () => {
 
     it("should save viewstate on unmount", async () => {
       const { unmount } = render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -250,7 +250,7 @@ describe("MonacoEditorWrapper", () => {
   describe("options updates", () => {
     it("should update editor options when theme changes", async () => {
       const { rerender } = render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -263,7 +263,7 @@ describe("MonacoEditorWrapper", () => {
       });
 
       rerender(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -282,7 +282,7 @@ describe("MonacoEditorWrapper", () => {
 
     it("should update editor options when readOnly changes", async () => {
       const { rerender } = render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -295,7 +295,7 @@ describe("MonacoEditorWrapper", () => {
       });
 
       rerender(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -320,7 +320,7 @@ describe("MonacoEditorWrapper", () => {
   describe("focus handling", () => {
     it("should focus editor when container is clicked", async () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -347,7 +347,7 @@ describe("MonacoEditorWrapper", () => {
       const mockOnMount = vi.fn();
 
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -364,7 +364,7 @@ describe("MonacoEditorWrapper", () => {
       const mockOnChange = vi.fn();
 
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -385,7 +385,7 @@ describe("MonacoEditorWrapper", () => {
   describe("default props", () => {
     it("should use vs-dark theme by default", async () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -405,7 +405,7 @@ describe("MonacoEditorWrapper", () => {
 
     it("should not be read-only by default", async () => {
       render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file.ts"
@@ -431,7 +431,7 @@ describe("MonacoEditorWrapper", () => {
   describe("file path changes", () => {
     it("should save viewstate for old file when switching files", async () => {
       const { rerender } = render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file1.ts"
@@ -451,7 +451,7 @@ describe("MonacoEditorWrapper", () => {
       mockViewStateRegistry.restore.mockClear();
 
       rerender(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file2.ts"
@@ -469,7 +469,7 @@ describe("MonacoEditorWrapper", () => {
 
     it("should restore viewstate for new file after switching", async () => {
       const { rerender } = render(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file1.ts"
@@ -483,7 +483,7 @@ describe("MonacoEditorWrapper", () => {
       mockViewStateRegistry.restore.mockClear();
 
       rerender(
-        <MonacoEditorWrapper
+        <RegularEditorWrapper
           editorId="test-editor"
           cwd="/test"
           filePath="/test/file2.ts"

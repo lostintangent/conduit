@@ -1,5 +1,5 @@
 /**
- * MonacoEditorWrapper - Wrapper for Monaco standalone editor.
+ * RegularEditorWrapper - Wrapper for Monaco standalone editor.
  *
  * This component wraps a Monaco editor instance and integrates with the
  * global registries (MonacoModelRegistry, ViewStateRegistry).
@@ -17,7 +17,7 @@
  *
  * @example
  * ```tsx
- * <MonacoEditorWrapper
+ * <RegularEditorWrapper
  *   editorId="main-editor"
  *   filePath="/path/to/file.ts"
  *   cwd="/project"
@@ -42,7 +42,7 @@ const VIEWSTATE_SAVE_DEBOUNCE_MS = 300;
 // Types
 // ============================================================================
 
-export interface MonacoEditorWrapperProps {
+export interface RegularEditorWrapperProps {
   /** Unique ID for this editor instance */
   editorId: string;
 
@@ -103,7 +103,7 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
  * - Model management via MonacoModelRegistry
  * - ViewState persistence via ViewStateRegistry
  */
-export function MonacoEditorWrapper({
+export function RegularEditorWrapper({
   editorId,
   cwd,
   filePath,
@@ -111,7 +111,7 @@ export function MonacoEditorWrapper({
   readOnly = false,
   onChange,
   onMount,
-}: MonacoEditorWrapperProps) {
+}: RegularEditorWrapperProps) {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);

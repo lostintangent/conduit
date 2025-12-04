@@ -2,7 +2,7 @@
  * EditorViewPanel - Main editor panel that orchestrates editor components.
  *
  * This is the top-level component for the editor view. It coordinates:
- * - MonacoEditorWrapper (for regular editing)
+ * - RegularEditorWrapper (for regular editing)
  * - DiffEditorWrapper (for diff view)
  * - ExternalChangeWarning (for conflict detection)
  * - EditorToolbar (for editor actions)
@@ -31,7 +31,7 @@ import * as monaco from "monaco-editor";
 import type { ViewMode, FileNode, ModelState } from "../../types";
 import { useModelState, useEditorActions } from "../../hooks";
 import { MonacoModelRegistry, pathToUri } from "../../registry";
-import { MonacoEditorWrapper } from "./MonacoEditorWrapper";
+import { RegularEditorWrapper } from "./RegularEditorWrapper";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
@@ -97,7 +97,7 @@ export interface EditorViewPanelProps {
  * Main editor panel component.
  *
  * Orchestrates the editor view based on the current mode:
- * - `editor`: Shows MonacoEditorWrapper
+ * - `editor`: Shows RegularEditorWrapper
  * - `diff`: Shows DiffEditorWrapper
  * - `changesReview`: Shows multi-file diff view (TODO: Phase 4+)
  */
@@ -423,7 +423,7 @@ export function EditorViewPanel({
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
           <EditorErrorBoundary filePath={filePath}>
-            <MonacoEditorWrapper
+            <RegularEditorWrapper
               editorId={editorId}
               cwd={cwd}
               filePath={filePath}
