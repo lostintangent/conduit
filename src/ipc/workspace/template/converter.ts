@@ -1,11 +1,9 @@
 /**
  * Workspace Template Converter
  *
- * Converts between the YAML-friendly workspace template format (WorkspaceTemplate)
- * and the internal detailed workspace format (Workspace).
+ * Converts between YAML-friendly WorkspaceTemplate and internal Workspace format.
  *
- * The template format is designed to be human-readable and hand-authorable,
- * with smart defaults and type inference to minimize boilerplate.
+ * @see docs/workspace.md for full format documentation
  */
 
 import type {
@@ -73,28 +71,49 @@ function createEditorPane(
 
 /**
  * Infers the pane type from a template pane definition.
- * Priority: explicit type > terminal indicators > browser indicators > editor (default)
+ * Priority: explicit type > browser indicators > editor indicators > terminal (default)
  */
 function inferPaneType(paneNode: TemplatePane): PaneType {
   if (paneNode.type) {
     return paneNode.type;
   }
-  if (paneNode.command || paneNode.cloneOf) {
-    return "terminal";
-  }
   if (paneNode.url || paneNode.devToolsFor) {
     return "browser";
   }
-  return "editor";
+  if (paneNode.file || paneNode.treeMode) {
+    return "editor";
+  }
+  return "terminal";
+}
+
+/** Normalizes string/null shorthand to TemplatePane or TemplateSplit object */
+function normalizePaneInput(
+  input: TemplateLayoutNode,
+): TemplatePane | TemplateSplit {
+  if (input === null || input === "") {
+    return {}; // Empty terminal (terminal is default type)
+  }
+  if (typeof input === "string") {
+    // URLs starting with http:// or https:// become browser panes
+    if (input.startsWith("http://") || input.startsWith("https://")) {
+      return { url: input };
+    }
+    // file:// prefix becomes editor pane
+    if (input.startsWith("file://")) {
+      const filePath = input.slice(7); // Remove "file://" prefix
+      return filePath ? { type: "editor", file: filePath } : { type: "editor" };
+    }
+    // Everything else is a terminal command
+    return { command: input };
+  }
+  return input;
 }
 
 /**
  * Converts a workspace template to the internal detailed format.
  *
- * @param template - The workspace template definition
- * @param cwd - Optional directory path for resolving relative paths
- *                  (e.g., the directory containing the imported YAML file)
- * @returns The fully expanded Workspace object
+ * @param template - The workspace template definition (from YAML)
+ * @param cwd - Optional base directory for resolving relative paths
  */
 export function convertTemplateToWorkspace(
   template: WorkspaceTemplate,
@@ -104,6 +123,12 @@ export function convertTemplateToWorkspace(
 
   // Maps template ID -> Internal Pane ID (for resolving references like cloneOf, devToolsFor)
   const templateIdToPaneId = new Map<string, string>();
+
+  // Maps command string -> Internal Pane ID (for cloneOf by command)
+  const commandToPaneId = new Map<string, string>();
+
+  // Maps URL string -> Internal Pane ID (for devToolsFor by URL)
+  const urlToPaneId = new Map<string, string>();
 
   // Store pending reference resolutions
   const pendingClones: { pane: TerminalPane; targetTemplateId: string }[] = [];
@@ -126,13 +151,20 @@ export function convertTemplateToWorkspace(
       node: TemplateLayoutNode,
       currentCwd: string,
     ): LayoutNode {
-      const isSplit = "panes" in node;
+      // Handle null/empty string and string shorthand first
+      if (node === null || node === "" || typeof node === "string") {
+        return processLayout(normalizePaneInput(node), currentCwd);
+      }
+
+      const isSplit = "row" in node || "column" in node || "panes" in node;
 
       if (isSplit) {
         const splitNode = node as TemplateSplit;
-        const direction: SplitDirection = splitNode.split || "row";
-        const childrenNodes: LayoutNode[] = (splitNode.panes || []).map(
-          (child) => processLayout(child, currentCwd),
+        const direction: SplitDirection = "column" in node ? "column" : "row";
+        const children =
+          splitNode.column || splitNode.row || splitNode.panes || [];
+        const childrenNodes: LayoutNode[] = children.map((child) =>
+          processLayout(normalizePaneInput(child), currentCwd),
         );
 
         return {
@@ -161,6 +193,10 @@ export function convertTemplateToWorkspace(
 
       if (inferredType === "terminal") {
         pane = createTerminalPane(paneNode, paneId, paneCwd);
+        // Register command for cloneOf lookup (first terminal with this command wins)
+        if (paneNode.command && !commandToPaneId.has(paneNode.command)) {
+          commandToPaneId.set(paneNode.command, paneId);
+        }
         if (paneNode.cloneOf) {
           pendingClones.push({
             pane: pane as TerminalPane,
@@ -169,6 +205,10 @@ export function convertTemplateToWorkspace(
         }
       } else if (inferredType === "browser") {
         pane = createBrowserPane(paneNode, paneId);
+        // Register URL for devToolsFor lookup (first browser with this URL wins)
+        if (paneNode.url && !urlToPaneId.has(paneNode.url)) {
+          urlToPaneId.set(paneNode.url, paneId);
+        }
         if (paneNode.devToolsFor) {
           pendingDevTools.push({
             pane: pane as BrowserPane,
@@ -216,7 +256,10 @@ export function convertTemplateToWorkspace(
 
   // Second pass: Resolve cross-pane references
   for (const item of pendingClones) {
-    const targetId = templateIdToPaneId.get(item.targetTemplateId);
+    // First try explicit ID, then fall back to command string
+    const targetId =
+      templateIdToPaneId.get(item.targetTemplateId) ||
+      commandToPaneId.get(item.targetTemplateId);
     if (targetId) {
       item.pane.cloneOf = targetId;
     } else {
@@ -227,7 +270,10 @@ export function convertTemplateToWorkspace(
   }
 
   for (const item of pendingDevTools) {
-    const targetId = templateIdToPaneId.get(item.targetTemplateId);
+    // First try explicit ID, then fall back to URL string
+    const targetId =
+      templateIdToPaneId.get(item.targetTemplateId) ||
+      urlToPaneId.get(item.targetTemplateId);
     if (targetId) {
       item.pane.devToolsFor = targetId;
     } else {
@@ -251,52 +297,76 @@ export function convertTemplateToWorkspace(
 }
 
 /**
- * Converts the internal detailed workspace format to a workspace template.
- *
- * The output is optimized for readability:
- * - Types are omitted when they can be inferred
- * - IDs are only included for panes that are referenced by others
- * - Common CWD is hoisted to the tab level
- * - DevTools URLs are omitted (they're auto-generated)
+ * Converts the internal workspace format to a minimal template for YAML export.
  *
  * @param workspace - The internal workspace object
- * @returns The workspace template definition
  */
 export function convertWorkspaceToTemplate(
   workspace: Workspace,
 ): WorkspaceTemplate {
-  const paneIdToTemplateId = new Map<string, string>();
+  // Maps for resolving references - prefer command/URL over generated IDs
+  const paneIdToCommand = new Map<string, string>();
+  const paneIdToUrl = new Map<string, string>();
+  const paneIdToGeneratedId = new Map<string, string>();
   const referencedPaneIds = new Set<string>();
 
-  // Pass 1: Scan for references to determine which panes need IDs
+  // Pass 1: Build maps and scan for references
   for (const tab of workspace.tabs) {
     for (const pane of tab.panes) {
-      if (pane.type === "terminal" && pane.cloneOf) {
-        referencedPaneIds.add(pane.cloneOf);
+      if (pane.type === "terminal") {
+        if (pane.command) {
+          paneIdToCommand.set(pane.id, pane.command);
+        }
+        if (pane.cloneOf) {
+          referencedPaneIds.add(pane.cloneOf);
+        }
       }
-      if (pane.type === "browser" && pane.devToolsFor) {
-        referencedPaneIds.add(pane.devToolsFor);
+      if (pane.type === "browser") {
+        if (pane.url) {
+          paneIdToUrl.set(pane.id, pane.url);
+        }
+        if (pane.devToolsFor) {
+          referencedPaneIds.add(pane.devToolsFor);
+        }
       }
     }
   }
 
-  // Generate template IDs for referenced panes
+  // Generate IDs only for referenced panes that don't have command/URL
   let idCounter = 1;
-  function getOrGenerateTemplateId(paneId: string): string | undefined {
-    if (paneIdToTemplateId.has(paneId)) {
-      return paneIdToTemplateId.get(paneId);
+  function getTemplateReference(
+    paneId: string,
+    type: "terminal" | "browser",
+  ): string | undefined {
+    // For terminals, prefer command string
+    if (type === "terminal") {
+      const command = paneIdToCommand.get(paneId);
+      if (command) return command;
     }
-    if (referencedPaneIds.has(paneId)) {
-      const templateId = `pane-${idCounter++}`;
-      paneIdToTemplateId.set(paneId, templateId);
-      return templateId;
+    // For browsers, prefer URL string
+    if (type === "browser") {
+      const url = paneIdToUrl.get(paneId);
+      if (url) return url;
     }
-    return undefined;
+    // Fall back to generated ID
+    if (!paneIdToGeneratedId.has(paneId) && referencedPaneIds.has(paneId)) {
+      paneIdToGeneratedId.set(paneId, `pane-${idCounter++}`);
+    }
+    return paneIdToGeneratedId.get(paneId);
   }
 
-  referencedPaneIds.forEach((id) => getOrGenerateTemplateId(id));
+  // Check if a pane needs an explicit ID (referenced but has no command/URL)
+  function needsExplicitId(
+    paneId: string,
+    type: "terminal" | "browser",
+  ): boolean {
+    if (!referencedPaneIds.has(paneId)) return false;
+    if (type === "terminal" && paneIdToCommand.has(paneId)) return false;
+    if (type === "browser" && paneIdToUrl.has(paneId)) return false;
+    return true;
+  }
 
-  const templateTabs: TemplateTab[] = workspace.tabs.map((tab) => {
+  const templateTabs: TemplateTab[] = workspace.tabs.map((tab, tabIndex) => {
     // Calculate common CWD for the tab
     const paneCwds: string[] = [];
     for (const pane of tab.panes) {
@@ -310,15 +380,16 @@ export function convertWorkspaceToTemplate(
         ? paneCwds[0]
         : undefined;
 
+    // Track first pane to avoid redundant active: true
+    let firstPaneId: string | null = null;
+
     function processLayout(node: LayoutNode): TemplateLayoutNode {
       if (node.type === "split") {
-        const split: TemplateSplit = {
-          panes: node.children.map((child) => processLayout(child)),
-        };
-        if (node.direction !== "row") {
-          split.split = node.direction;
+        const children = node.children.map((child) => processLayout(child));
+        if (node.direction === "column") {
+          return { column: children };
         }
-        return split;
+        return { row: children };
       }
 
       const pane = tab.panes.find((p) => p.id === node.paneId);
@@ -326,28 +397,82 @@ export function convertWorkspaceToTemplate(
         return {};
       }
 
+      // Track first pane encountered
+      if (firstPaneId === null) {
+        firstPaneId = pane.id;
+      }
+
+      const layoutNode = node as LayoutPaneNode;
+      const isActive = tab.activePaneId === pane.id;
+      const isFirstPane = pane.id === firstPaneId;
+      // Only mark active if it's not the first pane (first is default)
+      const needsActiveMarker = isActive && !isFirstPane;
+      const isCollapsed = layoutNode.collapsed;
+      const hasDifferentCwd =
+        (pane.type === "terminal" || pane.type === "editor") &&
+        pane.cwd &&
+        pane.cwd !== tabCwd;
+
+      // Check if we can use string shorthand (or null for empty terminal)
+      if (pane.type === "terminal") {
+        const canUseShorthand =
+          !pane.cloneOf &&
+          !needsActiveMarker &&
+          !isCollapsed &&
+          !hasDifferentCwd &&
+          !needsExplicitId(pane.id, "terminal");
+
+        if (canUseShorthand) {
+          // Return command string, or null for empty terminal
+          return pane.command || null;
+        }
+      }
+
+      if (pane.type === "browser") {
+        const canUseShorthand =
+          pane.url &&
+          !pane.devToolsFor &&
+          !needsActiveMarker &&
+          !isCollapsed &&
+          !needsExplicitId(pane.id, "browser");
+
+        if (canUseShorthand) {
+          return pane.url as string;
+        }
+      }
+
+      if (pane.type === "editor") {
+        const canUseShorthand =
+          !needsActiveMarker && !isCollapsed && !hasDifferentCwd;
+
+        if (canUseShorthand) {
+          // Return file:// or file://<path>
+          return pane.file ? `file://${pane.file}` : "file://";
+        }
+      }
+
+      // Build object form
       const basePane: TemplatePane = {};
       let explicitTypeRequired = false;
 
-      const templateId = paneIdToTemplateId.get(pane.id);
-      if (templateId) {
-        basePane.id = templateId;
+      // Add explicit ID only if needed
+      if (pane.type === "terminal" && needsExplicitId(pane.id, "terminal")) {
+        basePane.id = getTemplateReference(pane.id, "terminal");
+      }
+      if (pane.type === "browser" && needsExplicitId(pane.id, "browser")) {
+        basePane.id = getTemplateReference(pane.id, "browser");
       }
 
-      if (tab.activePaneId === pane.id) {
+      if (needsActiveMarker) {
         basePane.active = true;
       }
 
-      if ((node as LayoutPaneNode).collapsed) {
+      if (isCollapsed) {
         basePane.collapsed = true;
       }
 
-      if (
-        (pane.type === "terminal" || pane.type === "editor") &&
-        pane.cwd &&
-        pane.cwd !== tabCwd
-      ) {
-        basePane.cwd = pane.cwd;
+      if (hasDifferentCwd) {
+        basePane.cwd = (pane as TerminalPane | EditorPane).cwd!;
       }
 
       if (pane.type === "terminal") {
@@ -355,23 +480,24 @@ export function convertWorkspaceToTemplate(
           basePane.command = pane.command;
         }
         if (pane.cloneOf) {
-          const targetTemplateId = getOrGenerateTemplateId(pane.cloneOf);
-          if (targetTemplateId) {
-            basePane.cloneOf = targetTemplateId;
+          const ref = getTemplateReference(pane.cloneOf, "terminal");
+          if (ref) {
+            basePane.cloneOf = ref;
           }
-        }
-        if (!basePane.command && !basePane.cloneOf) {
-          explicitTypeRequired = true;
         }
       } else if (pane.type === "editor") {
         if (pane.file) {
           basePane.file = pane.file;
         }
+        // Editor panes need explicit type unless they have a file
+        if (!pane.file) {
+          explicitTypeRequired = true;
+        }
       } else if (pane.type === "browser") {
         if (pane.devToolsFor) {
-          const targetTemplateId = getOrGenerateTemplateId(pane.devToolsFor);
-          if (targetTemplateId) {
-            basePane.devToolsFor = targetTemplateId;
+          const ref = getTemplateReference(pane.devToolsFor, "browser");
+          if (ref) {
+            basePane.devToolsFor = ref;
           }
         }
         if (pane.url && !basePane.devToolsFor) {
@@ -389,13 +515,30 @@ export function convertWorkspaceToTemplate(
       return basePane;
     }
 
+    // Process layout, but use "panes" instead of "row" for top-level horizontal splits
+    const layoutResult = processLayout(tab.layout as LayoutNode);
+    let topLevelLayout: Record<string, unknown>;
+    if (
+      typeof layoutResult === "object" &&
+      layoutResult !== null &&
+      "row" in layoutResult
+    ) {
+      topLevelLayout = { panes: layoutResult.row };
+    } else if (typeof layoutResult === "object" && layoutResult !== null) {
+      topLevelLayout = layoutResult as Record<string, unknown>;
+    } else {
+      // Single pane (string or null) - wrap in panes array
+      topLevelLayout = { panes: [layoutResult] };
+    }
+
     const templateTab = {
       ...tab,
       cwd: tabCwd,
-      ...processLayout(tab.layout as LayoutNode),
+      ...topLevelLayout,
     } as TemplateTab;
 
-    if (workspace.activeTabId === tab.id) {
+    // Only mark active if it's not the first tab (first is default)
+    if (workspace.activeTabId === tab.id && tabIndex !== 0) {
       templateTab.active = true;
     }
 

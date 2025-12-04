@@ -2,30 +2,20 @@ name: Conduit
 tabs:
   - name: Coding
     panes:
-      - split: column
-        panes:
-          - command: copilot
-          - panes:
-              - id: npm-dev
-                command: npm start
-              - type: terminal
-      - command: lazygit
+      - column:
+          - copilot
+          - row: [npm start, ~]
+      - lazygit
 
   - name: Review
-    active: true
     panes:
-      - split: column
-        panes:
-          - command: codex
-          - cloneOf: npm-dev
+      - column:
+          - codex
+          - cloneOf: npm start
             collapsed: true
-      - active: true
+      - file://
 
   - name: News
     panes:
-      - url: https://espn.com
-      - split: column
-        panes:
-          - id: hn-browser
-            url: https://news.ycombinator.com
-          - devToolsFor: hn-browser
+      - https://espn.com
+      - https://news.ycombinator.com

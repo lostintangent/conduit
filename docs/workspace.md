@@ -10,6 +10,13 @@ This document provides a comprehensive overview of how Conduit workspaces are st
   - [Renderer State](#renderer-state)
   - [Workspace State](#workspace-state)
   - [Workspace Templates](#workspace-templates)
+- [Workspace Template Reference](#workspace-template-reference)
+  - [Tab Layout Syntax](#layout-syntax)
+  - [Pane Type Inference](#pane-type-inference)
+  - [String Shorthand](#string-shorthand)
+  - [Pane References](#pane-references)
+  - [CWD Inheritance](#cwd-inheritance)
+  - [Active State](#active-state)
 - [Type Relationships](#type-relationships)
 - [Conversion Process](#conversion-process)
 - [File Structure](#file-structure)
@@ -191,44 +198,182 @@ type TemplatePane = Partial<TerminalPane & BrowserPane & EditorPane> & {
 };
 
 type TemplateSplit = {
-  split?: SplitDirection; // Defaults to "row"
-  panes: (TemplatePane | TemplateSplit)[];
+  row?: TemplateLayoutNode[]; // Horizontal split
+  column?: TemplateLayoutNode[]; // Vertical split
+  panes?: TemplateLayoutNode[]; // Alias for row (preferred at tab level)
 };
+
+// Pane inputs can be objects, strings (commands/URLs), or null (empty terminal)
+type TemplateLayoutNode = TemplatePane | TemplateSplit | string | null;
 ```
 
-**Key characteristics:**
+## Workspace Template Reference
 
-- Layout embedded directly in tab structure (no separate layout tree)
-- All pane fields optional - types inferred from properties
-- CWD inheritance: workspace → tab → pane
-- IDs only required for cross-pane references (`cloneOf`, `devToolsFor`)
+A workspace template has three top-level properties:
 
-**Example template (YAML):**
+| Property | Required | Description                                  |
+| -------- | -------- | -------------------------------------------- |
+| `name`   | Yes      | Display name for the workspace               |
+| `cwd`    | No       | Default working directory for all tabs/panes |
+| `tabs`   | Yes      | Array of tab definitions                     |
+
+```yaml
+name: My Workspace
+cwd: ~/projects/my-app
+tabs:
+  - name: Development
+    panes:
+      - npm start
+      - file://
+```
+
+### Tab Layout Syntax
+
+Tab layouts are defined using `row:`, `column:`, or `panes:` properties:
+
+| Property  | Direction  | Description                               |
+| --------- | ---------- | ----------------------------------------- |
+| `row:`    | Horizontal | Panes arranged left to right              |
+| `column:` | Vertical   | Panes arranged top to bottom              |
+| `panes:`  | Horizontal | Alias for `row:` (preferred at tab level) |
+
+```yaml
+# Horizontal split (side by side)
+panes:
+  - npm start
+  - npm test
+
+# Vertical split (stacked)
+column:
+  - npm start
+  - npm test
+
+# Nested layouts
+panes:
+  - column:
+      - npm start
+      - npm test
+  - file://
+```
+
+**Inline Array Syntax:** For simple layouts, use inline arrays:
+
+```yaml
+panes:
+  - row: [npm start, npm test] # Nested horizontal split
+  - column: [copilot, lazygit] # Nested vertical split
+```
+
+### Pane Type Inference
+
+Panes can be one of three types: `terminal`, `browser`, or `editor`. The type is automatically inferred from properties, or can be set explicitly:
+
+| Priority | Condition                            | Inferred Type |
+| -------- | ------------------------------------ | ------------- |
+| 1        | Explicit `type:` property            | As specified  |
+| 2        | `url:` or `devToolsFor:`             | `browser`     |
+| 3        | `file:` or `treeMode:`               | `editor`      |
+| 4        | Default (including string shorthand) | `terminal`    |
+
+```yaml
+# Explicit type (rarely needed)
+- type: terminal
+
+# Inferred as browser (has url)
+- url: https://example.com
+
+# Inferred as editor (has file)
+- file: src/main.ts
+
+# Inferred as terminal (default)
+- command: npm start
+```
+
+### String Shorthand
+
+Instead of full pane objects, you can use strings and null values:
+
+| Input                         | Result                           |
+| ----------------------------- | -------------------------------- |
+| `http://...` or `https://...` | Browser pane with that URL       |
+| `file://`                     | Editor pane (no file opened)     |
+| `file://path/to/file`         | Editor pane with specified file  |
+| Any other string              | Terminal pane with that command  |
+| `null` or `~`                 | Empty terminal pane (no command) |
+
+```yaml
+panes:
+  - npm start # Terminal with command
+  - https://localhost:3000 # Browser pane
+  - file://src/main.ts # Editor with file open
+  - file:// # Editor (no file)
+  - ~ # Empty terminal (YAML null)
+```
+
+### Pane References
+
+Use `cloneOf` and `devToolsFor` to reference other panes:
+
+**cloneOf (Terminals):** Creates a terminal that shares the PTY session with another terminal.
+
+```yaml
+panes:
+  - npm run dev # Source terminal
+  - cloneOf: npm run dev # References by command string
+    collapsed: true
+```
+
+**devToolsFor (Browsers):** Opens Chrome DevTools for another browser pane.
+
+```yaml
+panes:
+  - https://localhost:3000
+  - devToolsFor: https://localhost:3000 # References by URL
+```
+
+**Explicit IDs:** When command/URL references aren't available or unique, use explicit IDs:
+
+```yaml
+panes:
+  - id: main-terminal
+    type: terminal
+  - cloneOf: main-terminal # References by explicit ID
+```
+
+### CWD Inheritance
+
+Working directories cascade down: workspace → tab → pane.
 
 ```yaml
 name: My Project
-cwd: /Users/dev/project
-tabs:
-  - name: Development
-    active: true
-    split: row
-    panes:
-      - command: npm run dev
-      - type: editor
-        treeMode: changes
+cwd: ~/projects/app # Workspace-level default
 
-  - name: Testing
+tabs:
+  - name: Frontend
+    cwd: ~/projects/app/frontend # Tab-level override
     panes:
-      - command: npm test -- --watch
+      - npm start # Uses tab CWD
+      - cwd: ./packages/ui # Pane-level override (relative to tab)
+        command: npm test
 ```
 
-**Type inference rules:**
+### Active State
 
-| Property Present          | Inferred Type |
-| ------------------------- | ------------- |
-| `command` or `cloneOf`    | `terminal`    |
-| `url` or `devToolsFor`    | `browser`     |
-| `file` or (none of above) | `editor`      |
+The first tab and first pane in each tab are active by default. Use `active: true` only when needed:
+
+```yaml
+tabs:
+  - name: First Tab        # Active by default
+    panes:
+      - npm start          # Active by default in this tab
+
+  - name: Second Tab
+    active: true           # Override: make this the active tab
+    panes:
+      - npm build
+      - npm test
+        active: true       # Override: make this the active pane
+```
 
 ## Type Relationships
 
@@ -272,11 +417,12 @@ type TerminalPane = SharedTerminalPane & {
 
 Converts a minimal YAML template into a fully-expanded workspace:
 
-1. **Generate IDs** - Create unique IDs for all panes and layout nodes
-2. **Infer types** - Determine pane types from properties
-3. **Flatten layout** - Convert nested structure to separate panes array + layout tree
-4. **Resolve references** - Map template IDs to generated IDs for `cloneOf`/`devToolsFor`
-5. **Apply defaults** - Set default values (`treeMode: "all"`, etc.)
+1. **Normalize inputs** - Convert string shorthand and null values to pane objects
+2. **Generate IDs** - Create unique IDs for all panes and layout nodes
+3. **Infer types** - Determine pane types from properties
+4. **Flatten layout** - Convert nested structure to separate panes array + layout tree
+5. **Resolve references** - Map template IDs/commands/URLs to generated IDs for `cloneOf`/`devToolsFor`
+6. **Apply defaults** - Set default values (`treeMode: "all"`, etc.)
 
 ```typescript
 const workspace = convertTemplateToWorkspace(template, "/path/to/yaml");
@@ -288,9 +434,10 @@ Converts a workspace to a minimal, human-readable template:
 
 1. **Scan references** - Identify panes that need IDs (referenced by others)
 2. **Hoist CWD** - Extract common CWD to tab level
-3. **Omit inferable fields** - Remove `type` when it can be inferred
-4. **Embed layout** - Convert layout tree back to nested structure
-5. **Clean metadata** - Remove runtime-only fields
+3. **Use string shorthand** - Convert simple panes to strings (`npm start`, `https://...`, `file://...`, `null`)
+4. **Prefer command/URL refs** - Use command strings for `cloneOf`, URLs for `devToolsFor`
+5. **Use `panes:` at tab level** - Prefer `panes:` over `row:` for top-level layouts
+6. **Omit defaults** - Skip `active: true` for first tab/pane, omit inferable `type:`
 
 ```typescript
 const template = convertWorkspaceToTemplate(workspace);
@@ -347,57 +494,3 @@ src/renderer/types.ts     # Runtime pane types with extensions
 | ----------------- | ------------- | ------------------------------------- |
 | `workspaces.json` | `{userData}/` | All saved workspaces + last workspace |
 | `*.yaml`          | User-chosen   | Exported workspace templates          |
-
-## Template Examples
-
-### Minimal Terminal Tab
-
-```yaml
-name: Simple
-tabs:
-  - command: npm start
-```
-
-### Split Layout with Editor
-
-```yaml
-name: Development
-cwd: ~/project
-tabs:
-  - title: Code
-    split: row
-    panes:
-      - type: editor
-        treeMode: changes
-      - split: column
-        panes:
-          - command: npm run dev
-          - command: npm test -- --watch
-```
-
-### Browser with DevTools
-
-```yaml
-name: Web Dev
-tabs:
-  - split: row
-    panes:
-      - id: main-browser
-        url: http://localhost:3000
-      - devToolsFor: main-browser
-```
-
-### Cloned Terminals
-
-```yaml
-name: Multi-Server
-cwd: ~/monorepo
-tabs:
-  - split: row
-    panes:
-      - id: api
-        cwd: ./packages/api
-        command: npm run dev
-      - cloneOf: api
-        cwd: ./packages/web
-```

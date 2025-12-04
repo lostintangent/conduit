@@ -1,15 +1,7 @@
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  beforeAll,
-} from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
 import { MenuId } from "@/commands/menus/types";
 import { ApplicationCommands } from "@shared/commands";
+import { renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use vi.hoisted to define mocks that can be used in vi.mock
 const {
@@ -94,8 +86,8 @@ vi.mock("jotai", () => ({
 }));
 
 import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
-import { useAtomValue } from "jotai";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { useAtomValue } from "jotai";
 
 describe("useContextMenu", () => {
   beforeEach(() => {
