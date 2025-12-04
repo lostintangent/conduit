@@ -22,6 +22,7 @@ const { mockGitv2 } = vi.hoisted(() => {
     findRoot: vi.fn(),
     // New comparison operations
     getChangedFilesFromBranch: vi.fn(),
+    getStatusFromBranch: vi.fn(),
     getUncommittedDiffStats: vi.fn(),
     getMostRecentDirtyFile: vi.fn(),
     getMostRecentCommittedFile: vi.fn(),
@@ -556,6 +557,50 @@ describe("GitV2API", () => {
       api.release();
 
       await expect(api.getChangedFilesFromBranch("main")).rejects.toThrow(
+        "GitV2API has been released",
+      );
+    });
+  });
+
+  describe("getStatusFromBranch", () => {
+    it("should return Map of file statuses", async () => {
+      const statusObject = {
+        "src/newFile.ts": { status: "added", staged: false },
+        "src/modified.ts": { status: "modified", staged: false },
+      };
+      mockGitv2.getStatusFromBranch.mockResolvedValue(statusObject);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getStatusFromBranch("main");
+
+      expect(mockGitv2.getStatusFromBranch).toHaveBeenCalledWith(
+        "/test/project",
+        "main",
+      );
+      expect(result).toBeInstanceOf(Map);
+      expect(result.get("src/newFile.ts")?.status).toBe("added");
+      expect(result.get("src/modified.ts")?.status).toBe("modified");
+
+      api.release();
+    });
+
+    it("should return empty Map when no changes", async () => {
+      mockGitv2.getStatusFromBranch.mockResolvedValue({});
+
+      const api = new GitV2API("/test/project");
+      const result = await api.getStatusFromBranch("main");
+
+      expect(result).toBeInstanceOf(Map);
+      expect(result.size).toBe(0);
+
+      api.release();
+    });
+
+    it("should throw if released", async () => {
+      const api = new GitV2API("/test/project");
+      api.release();
+
+      await expect(api.getStatusFromBranch("main")).rejects.toThrow(
         "GitV2API has been released",
       );
     });

@@ -321,11 +321,11 @@ describe("DiskGitProvider", () => {
 
   describe("getBranches()", () => {
     it("should return local and remote branches with commit info", async () => {
-      // Format: refname|committerdate|objectname:short|subject|HEAD
+      // Format: refname:short|refname|committerdate|objectname:short|subject|HEAD
       mockGit.raw.mockResolvedValue(
-        "main|2025-01-15 10:00:00 +0000|abc123|Latest commit|*\n" +
-          "develop|2025-01-14 09:00:00 +0000|def456|Dev commit|\n" +
-          "origin/main|2025-01-15 10:00:00 +0000|abc123|Latest commit|\n",
+        "main|refs/heads/main|2025-01-15 10:00:00 +0000|abc123|Latest commit|*\n" +
+          "develop|refs/heads/develop|2025-01-14 09:00:00 +0000|def456|Dev commit|\n" +
+          "origin/main|refs/remotes/origin/main|2025-01-15 10:00:00 +0000|abc123|Latest commit|\n",
       );
 
       const provider = new DiskGitProvider(testGitRoot, testCwd);
@@ -333,15 +333,15 @@ describe("DiskGitProvider", () => {
 
       expect(branches.length).toBe(3);
 
-      const mainBranch = branches.find((b) => b.name === "main");
+      // Local branch
+      const mainBranch = branches.find((b) => b.name === "main" && !b.isRemote);
       expect(mainBranch?.isCurrent).toBe(true);
       expect(mainBranch?.isRemote).toBe(false);
       expect(mainBranch?.lastCommitMessage).toBe("Latest commit");
       expect(mainBranch?.lastCommitDate).toBeInstanceOf(Date);
 
-      const remoteBranch = branches.find(
-        (b) => b.name === "main" && b.isRemote,
-      );
+      // Remote branch keeps full name (origin/main)
+      const remoteBranch = branches.find((b) => b.name === "origin/main");
       expect(remoteBranch?.isRemote).toBe(true);
     });
   });
@@ -623,6 +623,68 @@ describe("DiskGitProvider", () => {
       const files = await provider.getChangedFilesFromBranch("main");
 
       expect(files).toEqual([]);
+    });
+  });
+
+  // ===========================================================================
+  // getStatusFromBranch
+  // ===========================================================================
+
+  describe("getStatusFromBranch()", () => {
+    it("should return files with proper status codes", async () => {
+      mockGit.raw.mockResolvedValue("abc123def456\n"); // merge-base result
+      // Format: <status>\t<path> (A=added, M=modified, D=deleted)
+      mockGit.diff.mockResolvedValue(
+        "A\tsrc/newFile.ts\nM\tsrc/modified.ts\nD\tsrc/deleted.ts\n",
+      );
+      // Mock getStatus for working tree overlay
+      mockGit.status.mockResolvedValue({
+        files: [],
+        isClean: () => true,
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const statusMap = await provider.getStatusFromBranch("main");
+
+      expect(mockGit.raw).toHaveBeenCalledWith(["merge-base", "HEAD", "main"]);
+      expect(mockGit.diff).toHaveBeenCalledWith([
+        "--name-status",
+        "abc123def456",
+        "HEAD",
+      ]);
+
+      expect(statusMap.get("src/newFile.ts")?.status).toBe("added");
+      expect(statusMap.get("src/modified.ts")?.status).toBe("modified");
+      expect(statusMap.get("src/deleted.ts")?.status).toBe("deleted");
+    });
+
+    it("should handle renamed files", async () => {
+      mockGit.raw.mockResolvedValue("abc123\n");
+      // Renamed format: R<score>\t<old-path>\t<new-path>
+      mockGit.diff.mockResolvedValue("R100\told/path.ts\tnew/path.ts\n");
+      mockGit.status.mockResolvedValue({
+        files: [],
+        isClean: () => true,
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const statusMap = await provider.getStatusFromBranch("main");
+
+      expect(statusMap.get("new/path.ts")?.status).toBe("renamed");
+    });
+
+    it("should return empty map when no changes", async () => {
+      mockGit.raw.mockResolvedValue("abc123\n");
+      mockGit.diff.mockResolvedValue("");
+      mockGit.status.mockResolvedValue({
+        files: [],
+        isClean: () => true,
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const statusMap = await provider.getStatusFromBranch("main");
+
+      expect(statusMap.size).toBe(0);
     });
   });
 

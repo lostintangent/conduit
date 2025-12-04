@@ -37,7 +37,7 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
 
 // Mock useGitV2 hook - returns git API with empty status
 const mockGit = {
-  getStatus: vi.fn().mockResolvedValue({ files: new Map() }),
+  getStatus: vi.fn().mockResolvedValue({ files: new Map(), branch: "main" }),
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
   onBranchChanged: vi.fn().mockReturnValue(() => {}),
   getCurrentBranch: vi.fn().mockResolvedValue("main"),
@@ -46,6 +46,8 @@ const mockGit = {
   whenReady: vi.fn().mockResolvedValue(undefined),
   commit: vi.fn().mockResolvedValue(undefined),
   release: vi.fn(),
+  getBranches: vi.fn().mockResolvedValue([]),
+  getChangedFilesFromBranch: vi.fn().mockResolvedValue([]),
 };
 vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
   useGitV2: () => mockGit,
@@ -595,7 +597,10 @@ describe("EditorPaneV2", () => {
       const changedFiles = new Map([
         ["test.ts", { status: "modified", staged: false }],
       ]);
-      mockGit.getStatus.mockResolvedValue({ files: changedFiles });
+      mockGit.getStatus.mockResolvedValue({
+        files: changedFiles,
+        branch: "main",
+      });
 
       render(<EditorPaneV2 pane={TEST_PANE} />);
 

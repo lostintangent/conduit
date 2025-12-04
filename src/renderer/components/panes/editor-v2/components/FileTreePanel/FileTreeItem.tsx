@@ -181,7 +181,10 @@ export const FileTreeItem = memo(function FileTreeItem({
       >
         {/* Expand/collapse chevron for directories */}
         {isDirectory ? (
-          <span className="flex-shrink-0 flex items-center justify-center">
+          <span
+            className="flex-shrink-0 flex items-center justify-center"
+            data-testid="toggle-expand"
+          >
             {isExpanded ? (
               <ChevronDown className="text-foreground" size={12} />
             ) : (

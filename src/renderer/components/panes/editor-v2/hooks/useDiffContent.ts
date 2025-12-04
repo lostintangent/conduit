@@ -328,7 +328,13 @@ export function useDiffContent(
       }
 
       // 3. Get modified content from model registry (if no error yet)
-      if (diffError === null || diffError.type === "not_tracked") {
+      // Also load modified content for not_tracked and not_committed files
+      // so we can show them as "added" in the diff
+      if (
+        diffError === null ||
+        diffError.type === "not_tracked" ||
+        diffError.type === "not_committed"
+      ) {
         const modelState = registry.getModelState(uri);
 
         if (modelState !== undefined) {
@@ -372,8 +378,15 @@ export function useDiffContent(
         }
       }
 
-      // 5. Handle case where file is new (not in git but exists in working dir)
-      if (diffError?.type === "not_tracked" && modifiedContent !== null) {
+      // 5. Handle case where file is new (not in git/branch but exists in working dir)
+      // This applies to:
+      // - not_tracked: file is completely new and never been committed
+      // - not_committed: file exists on disk but not in the base branch (e.g., new file in feature branch)
+      if (
+        (diffError?.type === "not_tracked" ||
+          diffError?.type === "not_committed") &&
+        modifiedContent !== null
+      ) {
         // This is okay - it's a new file being added
         // Clear the error since we can still show a diff (empty original vs modified)
         originalContent = "";

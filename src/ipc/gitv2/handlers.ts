@@ -352,6 +352,29 @@ export function initializeGitV2Handlers(): void {
   );
 
   /**
+   * Get git status relative to a base branch.
+   * Returns files with proper status (added, modified, deleted, renamed).
+   * Returns empty object if no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:status-from-branch",
+    async (
+      _,
+      params: { cwd: string; baseBranch: string },
+    ): Promise<Record<string, GitFileStatus>> => {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
+        return {};
+      }
+      const statusMap = await result.provider.getStatusFromBranch(
+        params.baseBranch,
+      );
+      // Convert Map to plain object for IPC
+      return Object.fromEntries(statusMap);
+    },
+  );
+
+  /**
    * Get aggregate diff statistics for all uncommitted changes.
    * Returns counts of lines added, removed, and files changed.
    * Returns zeros if no active provider.

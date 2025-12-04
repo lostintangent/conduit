@@ -582,6 +582,28 @@ export class GitV2API {
   }
 
   /**
+   * Get git status relative to a base branch.
+   *
+   * Returns files with proper status (added, modified, deleted, renamed).
+   * Also overlays working tree changes (uncommitted modifications).
+   *
+   * @param baseBranch - Branch to compare against (e.g., 'main')
+   * @returns Map of relative file paths to their GitFileStatus
+   * @throws {Error} If the API has been released
+   */
+  async getStatusFromBranch(
+    baseBranch: string,
+  ): Promise<Map<string, GitFileStatus>> {
+    this.ensureNotReleased();
+    const result = await window.conduit.gitv2.getStatusFromBranch(
+      this.cwd,
+      baseBranch,
+    );
+    // Convert plain object back to Map
+    return new Map(Object.entries(result));
+  }
+
+  /**
    * Get diff statistics for uncommitted changes (lines added/removed).
    *
    * @returns Statistics about uncommitted changes

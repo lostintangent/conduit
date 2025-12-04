@@ -61,10 +61,13 @@ export interface FileTreePanelProps {
   /** Current branch name (for display) */
   currentBranch?: string | null;
 
-  /** Git ref for branch comparison (optional) */
+  /** Base branch name for display (e.g., "main") */
   baseBranch?: string | null;
 
-  /** Git status map (relative paths to status) */
+  /** Whether we're comparing to a branch (not HEAD) - controls behavior */
+  isComparingToBranch?: boolean;
+
+  /** Git status map (relative paths to status) - source of truth from parent */
   gitStatus?: Map<string, GitFileStatus> | null;
 
   /** Number of changed files */
@@ -163,6 +166,7 @@ export function FileTreePanel({
   // Git Branch Props
   currentBranch,
   baseBranch,
+  isComparingToBranch = false,
   gitStatus,
   changedFilesCount = 0,
   onOpenBranchPicker,
@@ -268,8 +272,8 @@ export function FileTreePanel({
             cwd={cwd}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
-            baseBranch={baseBranch ?? undefined}
             onDirectoryChange={onDirectoryChange}
+            gitStatus={gitStatus}
           />
         </div>
 
@@ -286,6 +290,9 @@ export function FileTreePanel({
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
             viewMode={changesViewMode}
+            gitStatus={gitStatus}
+            isComparingToBranch={isComparingToBranch}
+            baseBranchName={baseBranch}
           />
         </div>
       </div>

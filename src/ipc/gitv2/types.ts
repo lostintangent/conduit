@@ -346,6 +346,20 @@ export interface GitProvider {
   getChangedFilesFromBranch(baseBranch: string): Promise<string[]>;
 
   /**
+   * Get git status relative to a base branch.
+   *
+   * Returns files that have been added, modified, or deleted
+   * in the current branch compared to the base branch, WITH their proper
+   * status (added, modified, deleted, renamed).
+   *
+   * Also overlays working tree changes (uncommitted modifications).
+   *
+   * @param baseBranch - Branch to compare against (e.g., 'main')
+   * @returns Map of relative file paths to their GitFileStatus
+   */
+  getStatusFromBranch(baseBranch: string): Promise<Map<string, GitFileStatus>>;
+
+  /**
    * Get diff statistics for uncommitted changes (lines added/removed).
    *
    * @returns Statistics about uncommitted changes

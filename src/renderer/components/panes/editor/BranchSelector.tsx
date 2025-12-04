@@ -31,13 +31,14 @@ export function BranchSelector({
   const listRef = useRef<HTMLDivElement>(null);
 
   // Filter branches by search term (limit to 15 for performance)
-  // Exclude HEAD from the list since it's shown as a special option
+  // Exclude HEAD and remote branches (only local branches make sense for comparison)
   const filteredBranches = useMemo(() => {
     const query = filter.toLowerCase();
     return branches
       .filter(
         (b) =>
           b.name.toLowerCase() !== "head" &&
+          !b.isRemote &&
           b.name.toLowerCase().includes(query),
       )
       .slice(0, 15);
@@ -189,7 +190,7 @@ export function BranchSelector({
 
               return (
                 <button
-                  key={branch.name}
+                  key={`${branch.name}-${branch.isRemote ? "remote" : "local"}`}
                   data-index={optionIndex}
                   onClick={() => handleOptionClick(optionIndex)}
                   className={`w-full px-4 py-3 text-left border-b border-border/50 transition-colors ${

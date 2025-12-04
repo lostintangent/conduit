@@ -297,6 +297,21 @@ export default {
     }) as Promise<string[]>,
 
   /**
+   * Get git status relative to a base branch.
+   *
+   * Returns files with proper status (added, modified, deleted, renamed).
+   *
+   * @param cwd - Working directory
+   * @param baseBranch - Branch to compare against (e.g., 'main')
+   * @returns Object of relative file paths to their GitFileStatus
+   */
+  getStatusFromBranch: (cwd: string, baseBranch: string) =>
+    ipcRenderer.invoke("git-v2:status-from-branch", {
+      cwd,
+      baseBranch,
+    }) as Promise<Record<string, GitFileStatus>>,
+
+  /**
    * Get diff statistics for uncommitted changes (lines added/removed).
    *
    * @param cwd - Working directory

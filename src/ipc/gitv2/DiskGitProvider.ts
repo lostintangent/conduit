@@ -327,10 +327,11 @@ export class DiskGitProvider implements GitProvider {
    */
   async getBranches(): Promise<GitBranch[]> {
     // Use for-each-ref to get more detailed branch info including commit date/message
+    // Include full refname to distinguish local from remote branches
     const result = await this.git.raw([
       "for-each-ref",
       "--sort=-committerdate",
-      "--format=%(refname:short)|%(committerdate:iso8601)|%(objectname:short)|%(subject)|%(HEAD)",
+      "--format=%(refname:short)|%(refname)|%(committerdate:iso8601)|%(objectname:short)|%(subject)|%(HEAD)",
       "refs/heads/",
       "refs/remotes/",
     ]);
@@ -340,13 +341,14 @@ export class DiskGitProvider implements GitProvider {
 
     for (const line of lines) {
       const parts = line.split("|");
-      if (parts.length < 4) continue;
+      if (parts.length < 5) continue;
 
       const name = parts[0]?.trim() || "";
-      const dateStr = parts[1]?.trim() || "";
-      const commit = parts[2]?.trim() || "";
-      const message = parts[3]?.trim() || "";
-      const isCurrentMarker = parts[4]?.trim() || "";
+      const fullRefname = parts[1]?.trim() || "";
+      const dateStr = parts[2]?.trim() || "";
+      const commit = parts[3]?.trim() || "";
+      const message = parts[4]?.trim() || "";
+      const isCurrentMarker = parts[5]?.trim() || "";
 
       if (!name) continue;
 
@@ -355,12 +357,12 @@ export class DiskGitProvider implements GitProvider {
         continue;
       }
 
-      const isRemote = name.includes("/");
-      const cleanName = isRemote ? name.split("/").slice(1).join("/") : name;
+      // Use full refname to determine if remote (not the short name, which may contain slashes)
+      const isRemote = fullRefname.startsWith("refs/remotes/");
       const isCurrent = isCurrentMarker === "*";
 
       branches.push({
-        name: cleanName,
+        name,
         isRemote,
         isCurrent,
         commit,
@@ -438,6 +440,85 @@ export class DiskGitProvider implements GitProvider {
       );
       return [];
     }
+  }
+
+  /**
+   * Get git status relative to a base branch.
+   *
+   * Returns files that have been added, modified, or deleted
+   * in the current branch compared to the base branch, WITH their proper
+   * status (added, modified, deleted, renamed).
+   *
+   * Also overlays working tree changes (uncommitted modifications).
+   */
+  async getStatusFromBranch(
+    baseBranch: string,
+  ): Promise<Map<string, GitFileStatus>> {
+    const statusMap = new Map<string, GitFileStatus>();
+
+    try {
+      // Get the merge base between current HEAD and base branch
+      const mergeBase = await this.git.raw(["merge-base", "HEAD", baseBranch]);
+
+      // Get files changed since the merge base with status codes
+      const result = await this.git.diff([
+        "--name-status",
+        mergeBase.trim(),
+        "HEAD",
+      ]);
+
+      const lines = result.split("\n");
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        // Format: <status>\t<path> or <status>\t<old-path>\t<new-path> for renames
+        const parts = line.split("\t");
+        if (parts.length < 2) continue;
+
+        const statusCode = parts[0]?.trim();
+        // For renames, use the new path (parts[2]), otherwise use parts[1]
+        const filePath =
+          parts.length >= 3 ? parts[2]?.trim() : parts[1]?.trim();
+
+        if (!statusCode || !filePath) continue;
+
+        let status: GitFileStatus["status"] = "modified";
+
+        if (statusCode.startsWith("A")) {
+          status = "added";
+        } else if (statusCode.startsWith("D")) {
+          status = "deleted";
+        } else if (statusCode.startsWith("M")) {
+          status = "modified";
+        } else if (statusCode.startsWith("R")) {
+          status = "renamed";
+        } else if (statusCode.startsWith("C")) {
+          status = "copied";
+        }
+
+        statusMap.set(filePath, {
+          status,
+          staged: true, // Changes in commits are considered "staged"
+          path: filePath,
+        });
+      }
+
+      // Overlay working tree changes (uncommitted)
+      const workingTreeStatus = await this.getStatus();
+      if (workingTreeStatus?.files) {
+        for (const [relativePath, status] of workingTreeStatus.files) {
+          // Working tree changes override committed changes
+          statusMap.set(relativePath, status);
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[DiskGitProvider] Failed to get status from branch:",
+        error,
+      );
+    }
+
+    return statusMap;
   }
 
   /**

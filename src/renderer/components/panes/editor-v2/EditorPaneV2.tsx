@@ -35,6 +35,8 @@ import { useGitV2 } from "@/hooks/useGitV2";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { cn } from "@/utils";
 import { detectLanguage } from "./utils/languageDetection";
+import { BranchSelector } from "@/components/panes/editor/BranchSelector";
+import type { Branch } from "@shared/types";
 
 // ============================================================================
 // Helpers
@@ -277,9 +279,13 @@ export function EditorPaneV2({
   const [isPushing, setIsPushing] = useState(false);
   const [hasUpstream, setHasUpstream] = useState(true);
 
+  // Branch selector state
+  const [isBranchSelectorOpen, setIsBranchSelectorOpen] = useState(false);
+  const [branches, setBranches] = useState<Branch[]>([]);
+
   // Helper to update git status state
   const updateGitStatusState = useCallback(
-    (status: { files: Map<string, GitFileStatus> } | null) => {
+    (status: { files: Map<string, GitFileStatus>; branch?: string } | null) => {
       if (!status?.files) {
         setGitStatus(null);
         setGitChangedFiles(new Set());
@@ -290,6 +296,12 @@ export function EditorPaneV2({
       // Store full status map for GitBranchToolbar
       setGitStatus(status.files);
       setGitChangedFiles(new Set(status.files.keys()));
+
+      // Update current branch from status (if available)
+      // This is more reliable than a separate async call since it comes with the status
+      if (status.branch) {
+        setCurrentBranch(status.branch);
+      }
 
       // Count staged files
       let staged = 0;
@@ -360,6 +372,83 @@ export function EditorPaneV2({
       branchCleanup();
     };
   }, [git, updateGitStatusState]);
+
+  // Load branches for the branch selector dialog
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBranches = async () => {
+      try {
+        await git.whenReady();
+        if (cancelled) return;
+
+        const branchList = await git.getBranches();
+        if (!cancelled) {
+          // Convert to v1 Branch format for BranchSelector compatibility
+          const formattedBranches: Branch[] = branchList.map((b) => ({
+            name: b.name,
+            isCurrent: b.isCurrent,
+            isRemote: b.isRemote,
+            lastCommitDate: b.lastCommitDate ?? new Date(),
+            lastCommitHash: b.commit ?? "",
+            lastCommitMessage: b.lastCommitMessage ?? "",
+          }));
+          setBranches(formattedBranches);
+        }
+      } catch (error) {
+        console.error("[EditorPaneV2] Failed to load branches:", error);
+      }
+    };
+
+    loadBranches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [git]);
+
+  // Recompute git status when baseBranch changes
+  // When baseBranch is set, fetch status relative to that branch
+  // When baseBranch is null, use normal HEAD status
+  useEffect(() => {
+    let cancelled = false;
+
+    const updateStatusForBranch = async () => {
+      try {
+        await git.whenReady();
+        if (cancelled) return;
+
+        if (baseBranch) {
+          // Branch comparison mode: get status relative to base branch
+          // This returns proper status (added, modified, deleted, renamed)
+          const branchStatus = await git.getStatusFromBranch(baseBranch);
+          if (!cancelled) {
+            setGitStatus(branchStatus);
+            setGitChangedFiles(new Set(branchStatus.keys()));
+            // In branch comparison mode, staging is not applicable
+            setStagedCount(0);
+          }
+        } else {
+          // HEAD mode: refresh normal status
+          const status = await git.getStatus();
+          if (!cancelled) {
+            updateGitStatusState(status);
+          }
+        }
+      } catch (error) {
+        console.error(
+          "[EditorPaneV2] Failed to update status for branch:",
+          error,
+        );
+      }
+    };
+
+    updateStatusForBranch();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [git, baseBranch, updateGitStatusState]);
 
   // Track if auto-open has been attempted (ref to avoid re-triggering effect)
   const autoOpenAttemptedRef = useRef(false);
@@ -546,9 +635,18 @@ export function EditorPaneV2({
 
   /**
    * Handle base branch change for comparison mode.
+   * Called when a branch is selected from the BranchSelector dialog.
    */
-  const handleBaseBranchChange = useCallback((branch: string | null) => {
+  const handleBranchSelect = useCallback((branch: string | null) => {
     setBaseBranch(branch);
+    setIsBranchSelectorOpen(false);
+  }, []);
+
+  /**
+   * Open the branch selector dialog.
+   */
+  const handleOpenBranchPicker = useCallback(() => {
+    setIsBranchSelectorOpen(true);
   }, []);
 
   /**
@@ -816,6 +914,12 @@ export function EditorPaneV2({
           onTreeViewModeChange={handleTreeViewModeChange}
           // Git Branch Props
           currentBranch={currentBranch}
+          baseBranch={baseBranch}
+          isComparingToBranch={baseBranch !== null}
+          gitStatus={gitStatus}
+          changedFilesCount={gitChangedFiles.size}
+          onOpenBranchPicker={handleOpenBranchPicker}
+          // Git Operations Props
           stagedCount={stagedCount}
           onPull={handlePull}
           onPush={handlePush}
@@ -832,10 +936,8 @@ export function EditorPaneV2({
           isTreeCollapsed={isTreeCollapsed}
           onToggleCollapse={handleToggleTree}
           showCollapseButton={layout === "split"}
-          baseBranch={baseBranch}
-          gitStatus={gitStatus}
-          changedFilesCount={gitChangedFiles.size}
           onDirectoryChange={handleDirectoryChange}
+          // Changes View Mode Props
           changesViewMode={changesViewMode}
           onChangesViewModeChange={setChangesViewMode}
         />
@@ -895,6 +997,15 @@ export function EditorPaneV2({
           v2
         </div>
       )}
+
+      {/* Branch Selector Dialog */}
+      <BranchSelector
+        open={isBranchSelectorOpen}
+        branches={branches}
+        currentBaseBranch={baseBranch}
+        onSelectBranch={handleBranchSelect}
+        onOpenChange={setIsBranchSelectorOpen}
+      />
     </div>
   );
 }

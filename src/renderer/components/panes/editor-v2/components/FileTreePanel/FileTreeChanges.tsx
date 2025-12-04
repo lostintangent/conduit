@@ -62,6 +62,21 @@ export interface FileTreeChangesProps {
 
   /** View mode for changes list (flat or nested) - controlled by parent */
   viewMode?: "flat" | "nested";
+
+  /**
+   * Git status from parent (source of truth).
+   * When provided, component uses this instead of fetching its own.
+   */
+  gitStatus?: Map<string, GitFileStatus> | null;
+
+  /**
+   * Whether we're comparing to a branch (not HEAD).
+   * When true: hides action buttons, combines staged/unstaged sections.
+   */
+  isComparingToBranch?: boolean;
+
+  /** Base branch name for display (e.g., "main") */
+  baseBranchName?: string | null;
 }
 
 /** A file entry with its status */
@@ -274,12 +289,12 @@ interface FlatChangeItemProps {
   canRevert: boolean;
   /** Callback when file is clicked */
   onSelect: () => void;
-  /** Callback to stage file */
-  onStage: () => void;
-  /** Callback to unstage file */
-  onUnstage: () => void;
-  /** Callback to revert file */
-  onRevert: () => void;
+  /** Callback to stage file (optional - if undefined, no action buttons shown) */
+  onStage?: () => void;
+  /** Callback to unstage file (optional) */
+  onUnstage?: () => void;
+  /** Callback to revert file (optional) */
+  onRevert?: () => void;
 }
 
 /**
@@ -338,14 +353,16 @@ function FlatChangeItem({
           )}
         </div>
 
-        {/* Action buttons (visible on hover) */}
-        <ActionButtons
-          isStaged={isStaged}
-          canRevert={canRevert}
-          onStage={onStage}
-          onUnstage={onUnstage}
-          onRevert={onRevert}
-        />
+        {/* Action buttons (visible on hover) - only shown when handlers provided */}
+        {onStage && onUnstage && onRevert && (
+          <ActionButtons
+            isStaged={isStaged}
+            canRevert={canRevert}
+            onStage={onStage}
+            onUnstage={onUnstage}
+            onRevert={onRevert}
+          />
+        )}
 
         {/* Git status badge - always rightmost */}
         <GitBadge status={status} />
@@ -369,12 +386,12 @@ interface NestedFileItemProps {
   canRevert: boolean;
   /** Callback when file is clicked */
   onSelect: () => void;
-  /** Callback to stage file */
-  onStage: () => void;
-  /** Callback to unstage file */
-  onUnstage: () => void;
-  /** Callback to revert file */
-  onRevert: () => void;
+  /** Callback to stage file (optional - if undefined, no action buttons shown) */
+  onStage?: () => void;
+  /** Callback to unstage file (optional) */
+  onUnstage?: () => void;
+  /** Callback to revert file (optional) */
+  onRevert?: () => void;
 }
 
 /**
@@ -425,14 +442,16 @@ function NestedFileItem({
           {file.name}
         </span>
 
-        {/* Action buttons (visible on hover) */}
-        <ActionButtons
-          isStaged={isStaged}
-          canRevert={canRevert}
-          onStage={onStage}
-          onUnstage={onUnstage}
-          onRevert={onRevert}
-        />
+        {/* Action buttons (visible on hover) - only shown when handlers provided */}
+        {onStage && onUnstage && onRevert && (
+          <ActionButtons
+            isStaged={isStaged}
+            canRevert={canRevert}
+            onStage={onStage}
+            onUnstage={onUnstage}
+            onRevert={onRevert}
+          />
+        )}
 
         {/* Git status badge - always rightmost */}
         <GitBadge status={file.status} />
@@ -454,12 +473,12 @@ interface NestedFolderItemProps {
   isStaged: boolean;
   /** Callback when file is clicked */
   onFileSelect: (path: string) => void;
-  /** Callback to stage file */
-  onStage: (path: string) => void;
-  /** Callback to unstage file */
-  onUnstage: (path: string) => void;
-  /** Callback to revert file */
-  onRevert: (path: string) => void;
+  /** Callback to stage file (optional - if undefined, no action buttons shown) */
+  onStage?: (path: string) => void;
+  /** Callback to unstage file (optional) */
+  onUnstage?: (path: string) => void;
+  /** Callback to revert file (optional) */
+  onRevert?: (path: string) => void;
 }
 
 /**
@@ -547,9 +566,9 @@ function NestedFolderItem({
               isStaged={isStaged}
               canRevert={file.status.status !== "untracked"}
               onSelect={() => onFileSelect(file.path)}
-              onStage={() => onStage(file.path)}
-              onUnstage={() => onUnstage(file.path)}
-              onRevert={() => onRevert(file.path)}
+              onStage={onStage ? () => onStage(file.path) : undefined}
+              onUnstage={onUnstage ? () => onUnstage(file.path) : undefined}
+              onRevert={onRevert ? () => onRevert(file.path) : undefined}
             />
           ))}
         </ul>
@@ -699,14 +718,17 @@ interface OptimisticUpdate {
 /**
  * Hook to manage git status loading, subscriptions, and optimistic updates.
  * Optimistic updates provide immediate UI feedback while git operations complete.
+ *
+ * @param cwd - Working directory
+ * @param skip - If true, skip all fetching and subscriptions (for when parent provides status)
  */
-function useGitStatus(cwd: string) {
+function useGitStatus(cwd: string, skip = false) {
   const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
     useGitAvailable();
   const git = useGitV2(cwd);
 
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!skip);
   const [isNotGitRepo, setIsNotGitRepo] = useState(false);
 
   // Optimistic updates for immediate UI feedback
@@ -714,8 +736,14 @@ function useGitStatus(cwd: string) {
     OptimisticUpdate[]
   >([]);
 
-  // Initial load
+  // Initial load (skip when parent provides status)
   useEffect(() => {
+    // Skip fetching when parent provides status
+    if (skip) {
+      setIsLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function loadStatus() {
@@ -758,10 +786,15 @@ function useGitStatus(cwd: string) {
     return () => {
       cancelled = true;
     };
-  }, [git, isGitAvailable, isCheckingGit]);
+  }, [git, isGitAvailable, isCheckingGit, skip]);
 
-  // Subscribe to status changes and clear optimistic updates
+  // Subscribe to status changes and clear optimistic updates (skip when parent provides status)
   useEffect(() => {
+    // Skip subscription when parent provides status
+    if (skip) {
+      return;
+    }
+
     const cleanup = git.onStatusChanged((event) => {
       setGitStatus(event.status);
       // Clear all optimistic updates when real status arrives
@@ -769,7 +802,7 @@ function useGitStatus(cwd: string) {
     });
 
     return cleanup;
-  }, [git]);
+  }, [git, skip]);
 
   /**
    * Apply an optimistic update for immediate UI feedback.
@@ -849,7 +882,15 @@ export function FileTreeChanges({
   selectedFile,
   onFileSelect,
   viewMode = "flat",
+  gitStatus: gitStatusFromParent,
+  isComparingToBranch = false,
+  baseBranchName,
 }: FileTreeChangesProps) {
+  // Whether parent is providing git status (we skip internal fetching)
+  const hasParentStatus = gitStatusFromParent !== undefined;
+
+  // Show action buttons only when NOT comparing to a branch
+  const showActionButtons = !isComparingToBranch;
   // ---------------------------------------------------------------------------
   // Scroll Persistence
   // ---------------------------------------------------------------------------
@@ -861,16 +902,26 @@ export function FileTreeChanges({
   // Hooks
   // ---------------------------------------------------------------------------
 
+  // Internal git status hook - only used when parent doesn't provide status
+  // Note: Hook always runs (React rules), but we ignore results when parent provides status
   const {
     git,
-    gitStatus,
-    isLoading,
+    gitStatus: gitStatusFromHook,
+    isLoading: isLoadingInternal,
     isNotGitRepo,
     isGitAvailable,
     isCheckingGit,
     applyOptimisticUpdate,
     revertOptimisticUpdate,
-  } = useGitStatus(cwd);
+  } = useGitStatus(cwd, hasParentStatus);
+
+  // Use parent's status when provided, otherwise use internal hook
+  const gitStatus = hasParentStatus
+    ? { files: gitStatusFromParent }
+    : gitStatusFromHook;
+
+  // Only show loading state when using internal hook
+  const isLoading = hasParentStatus ? false : isLoadingInternal;
 
   const {
     stagedExpanded,
@@ -888,6 +939,8 @@ export function FileTreeChanges({
 
   /**
    * Group files by staging status.
+   * When comparing to a branch, all files go into unstagedFiles since
+   * staged/unstaged distinction doesn't apply to branch comparisons.
    */
   const { stagedFiles, unstagedFiles } = useMemo(() => {
     const staged: Array<[string, GitFileStatus]> = [];
@@ -895,7 +948,10 @@ export function FileTreeChanges({
 
     if (gitStatus?.files) {
       for (const [path, status] of gitStatus.files) {
-        if (status.staged) {
+        // In branch comparison mode, treat all files as unstaged (no staging separation)
+        if (isComparingToBranch) {
+          unstaged.push([path, status]);
+        } else if (status.staged) {
           staged.push([path, status]);
         } else {
           unstaged.push([path, status]);
@@ -908,7 +964,7 @@ export function FileTreeChanges({
     unstaged.sort((a, b) => a[0].localeCompare(b[0]));
 
     return { stagedFiles: staged, unstagedFiles: unstaged };
-  }, [gitStatus]);
+  }, [gitStatus, isComparingToBranch]);
 
   /**
    * Build folder trees for nested view.
@@ -1021,6 +1077,7 @@ export function FileTreeChanges({
 
   /**
    * Render files in flat view mode.
+   * In branch comparison mode, action buttons are hidden.
    */
   const renderFlatFiles = (
     files: Array<[string, GitFileStatus]>,
@@ -1033,17 +1090,18 @@ export function FileTreeChanges({
         status={status}
         isSelected={selectedRelativePath === path}
         isStaged={isStaged}
-        canRevert={status.status !== "untracked"}
+        canRevert={showActionButtons && status.status !== "untracked"}
         onSelect={() => handleSelect(path)}
-        onStage={() => handleStage(path)}
-        onUnstage={() => handleUnstage(path)}
-        onRevert={() => handleRevert(path)}
+        onStage={showActionButtons ? () => handleStage(path) : undefined}
+        onUnstage={showActionButtons ? () => handleUnstage(path) : undefined}
+        onRevert={showActionButtons ? () => handleRevert(path) : undefined}
       />
     ));
   };
 
   /**
    * Render files in nested view mode.
+   * In branch comparison mode, action buttons are hidden.
    */
   const renderNestedFiles = (
     tree: Map<string, FolderNode>,
@@ -1070,9 +1128,9 @@ export function FileTreeChanges({
             selectedPath={selectedRelativePath}
             isStaged={isStaged}
             onFileSelect={handleSelect}
-            onStage={handleStage}
-            onUnstage={handleUnstage}
-            onRevert={handleRevert}
+            onStage={showActionButtons ? handleStage : undefined}
+            onUnstage={showActionButtons ? handleUnstage : undefined}
+            onRevert={showActionButtons ? handleRevert : undefined}
           />
         ))}
 
@@ -1085,11 +1143,19 @@ export function FileTreeChanges({
               file={file}
               isSelected={selectedRelativePath === file.path}
               isStaged={isStaged}
-              canRevert={file.status.status !== "untracked"}
+              canRevert={
+                showActionButtons && file.status.status !== "untracked"
+              }
               onSelect={() => handleSelect(file.path)}
-              onStage={() => handleStage(file.path)}
-              onUnstage={() => handleUnstage(file.path)}
-              onRevert={() => handleRevert(file.path)}
+              onStage={
+                showActionButtons ? () => handleStage(file.path) : undefined
+              }
+              onUnstage={
+                showActionButtons ? () => handleUnstage(file.path) : undefined
+              }
+              onRevert={
+                showActionButtons ? () => handleRevert(file.path) : undefined
+              }
             />
           ))}
       </>
@@ -1185,10 +1251,12 @@ export function FileTreeChanges({
           </Section>
         )}
 
-        {/* Unstaged Changes Section */}
+        {/* Unstaged Changes Section (or all changes in branch comparison mode) */}
         {unstagedFiles.length > 0 && (
           <Section
-            title="Changes"
+            title={
+              isComparingToBranch ? `Changes from ${baseBranchName}` : "Changes"
+            }
             count={unstagedFiles.length}
             isExpanded={changesExpanded}
             onToggle={() => setChangesExpanded(!changesExpanded)}
