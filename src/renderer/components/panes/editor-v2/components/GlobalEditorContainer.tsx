@@ -105,6 +105,7 @@ function EditorPaneWrapper({
       onFileOpen={config.onFileOpen}
       onTreeModeChange={config.onTreeModeChange}
       onSave={config.onSave}
+      onHover={config.onHover}
     />,
     wrapperElement,
   );

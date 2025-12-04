@@ -53,6 +53,13 @@ export interface EditorPaneConfig {
 
   /** Callback after successful save */
   onSave?: () => void;
+
+  /**
+   * Callback when hover state changes on the editor.
+   * Required for design mode since portal-rendered content doesn't
+   * propagate mouse events to parent React components.
+   */
+  onHover?: (isHovering: boolean) => void;
 }
 
 /**

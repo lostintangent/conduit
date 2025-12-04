@@ -147,6 +147,16 @@ export interface EditorPaneV2Props {
    * Callback fired after a successful file save.
    */
   onSave?: () => void;
+
+  /**
+   * Callback fired when hover state changes (mouseenter/mouseleave on root element).
+   *
+   * This is essential for design mode because EditorPaneV2 is rendered via React
+   * portal in GlobalEditorContainer. Mouse events don't propagate across the portal
+   * boundary in React's event system, so parent components can't detect hover via
+   * their own event handlers. This callback bridges that gap.
+   */
+  onHover?: (isHovering: boolean) => void;
 }
 
 // ============================================================================
@@ -180,6 +190,7 @@ export function EditorPaneV2({
   onFileOpen,
   onTreeModeChange,
   onSave,
+  onHover,
 }: EditorPaneV2Props) {
   const { cwd: initialCwd, filePath: initialFilePath, treeMode } = pane;
 
@@ -886,6 +897,8 @@ export function EditorPaneV2({
       ref={containerRef}
       className="relative flex h-full w-full overflow-hidden bg-background"
       data-testid="editor-pane-v2"
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
     >
       {/* File Tree Panel
        * IMPORTANT: We use CSS visibility (display: none + width: 0) instead of

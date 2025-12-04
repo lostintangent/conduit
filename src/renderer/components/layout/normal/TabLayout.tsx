@@ -438,7 +438,13 @@ export function TabLayout({
             }
           }}
           onMouseLeave={() => {
-            setHoveredPaneId(null);
+            // Editor panes use the global container pattern where content is
+            // rendered via React portal. This causes onMouseLeave to fire when
+            // entering the editor (React sees it as leaving this tree). Instead,
+            // editor panes manage hover state via their onHover callback.
+            if (pane.type !== "editor") {
+              setHoveredPaneId(null);
+            }
             if (isInPreview) {
               setHoveredPreviewPaneId(null);
             }
@@ -496,6 +502,12 @@ export function TabLayout({
                       filePath: node.path,
                     })
                   }
+                  onHover={(isHovering) => {
+                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInPreview) {
+                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
+                    }
+                  }}
                   hideIndividualSandboxIndicator={hasUnifiedSandbox}
                   isInPreview={isInPreview}
                 />

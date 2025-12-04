@@ -77,6 +77,15 @@ export interface EditorPaneAnchorProps {
   onSave?: () => void;
 
   /**
+   * Callback fired when hover state changes on the editor.
+   *
+   * Required for design mode hover detection. Since EditorPaneV2 renders via
+   * portal, standard mouse events don't bubble to parent components. This
+   * callback propagates hover state from the editor back to the layout system.
+   */
+  onHover?: (isHovering: boolean) => void;
+
+  /**
    * Whether this anchor is in a preview context (tab hover, overview).
    * When true, an overlay is added to prevent editor interactions.
    * @default false
@@ -108,6 +117,7 @@ export function EditorPaneAnchor({
   onFileOpen,
   onTreeModeChange,
   onSave,
+  onHover,
   isInPreview = false,
   className,
 }: EditorPaneAnchorProps) {
@@ -123,6 +133,7 @@ export function EditorPaneAnchor({
     onFileOpen,
     onTreeModeChange,
     onSave,
+    onHover,
   });
 
   // Update callback refs when props change
@@ -134,6 +145,7 @@ export function EditorPaneAnchor({
       onFileOpen,
       onTreeModeChange,
       onSave,
+      onHover,
     };
   }, [
     onFileChange,
@@ -142,6 +154,7 @@ export function EditorPaneAnchor({
     onFileOpen,
     onTreeModeChange,
     onSave,
+    onHover,
   ]);
 
   // Create stable callback wrappers
@@ -153,6 +166,7 @@ export function EditorPaneAnchor({
     onFileOpen: (node) => callbacksRef.current.onFileOpen?.(node),
     onTreeModeChange: (mode) => callbacksRef.current.onTreeModeChange?.(mode),
     onSave: () => callbacksRef.current.onSave?.(),
+    onHover: (isHovering) => callbacksRef.current.onHover?.(isHovering),
   });
 
   // Update pane in stable callbacks when it changes

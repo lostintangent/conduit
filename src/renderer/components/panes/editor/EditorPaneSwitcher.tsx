@@ -87,6 +87,13 @@ export interface EditorPaneSwitcherProps {
    * When true, an overlay is added to prevent editor interactions.
    */
   isInPreview?: boolean;
+
+  /**
+   * Callback fired when hover state changes on the editor.
+   * Required for design mode hover detection, passed through to both v1 and v2
+   * editor implementations.
+   */
+  onHover?: (isHovering: boolean) => void;
 }
 
 // ============================================================================
@@ -111,6 +118,7 @@ export function EditorPaneSwitcher({
   onSave,
   hideIndividualSandboxIndicator,
   isInPreview,
+  onHover,
 }: EditorPaneSwitcherProps) {
   const { useEditorV2 } = useAtomValue(userSettingsAtom);
 
@@ -137,6 +145,7 @@ export function EditorPaneSwitcher({
         onFileOpen={onFileOpen}
         onTreeModeChange={onTreeModeChange}
         onSave={onSave}
+        onHover={onHover}
         isInPreview={isInPreview}
         className="h-full w-full"
       />
@@ -159,6 +168,7 @@ export function EditorPaneSwitcher({
       isLocked={isLocked}
       onSave={onSave}
       hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}
+      onHover={onHover}
     />
   );
 }
