@@ -34,7 +34,8 @@ type BrowserPaneProps = {
   disableInteraction: boolean;
   isInPreview: boolean;
   devToolsFor?: string;
-  onOpenDevTools?: () => void;
+  isDevToolsOpen: boolean;
+  onToggleDevTools: () => void;
 };
 
 export function BrowserPane({
@@ -48,7 +49,8 @@ export function BrowserPane({
   disableInteraction = false,
   isInPreview = false,
   devToolsFor,
-  onOpenDevTools,
+  isDevToolsOpen,
+  onToggleDevTools,
 }: BrowserPaneProps) {
   const applicationMode = useAtomValue(applicationModeAtom);
 
@@ -387,7 +389,8 @@ export function BrowserPane({
           onGoForward={() => webviewRef.current?.goForward()}
           onRefresh={() => webviewRef.current?.reload()}
           onStop={() => webviewRef.current?.stop()}
-          onOpenDevTools={onOpenDevTools}
+          isDevToolsOpen={isDevToolsOpen}
+          onToggleDevTools={onToggleDevTools}
           onCaptureScreenshot={() => {
             const webContentsId = webviewRef.current?.getWebContentsId();
             browser.captureScreenshot(webContentsId);

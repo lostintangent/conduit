@@ -22,6 +22,7 @@ import {
 import { enterFocusMode } from "@/store/actions/focusMode";
 import {
   activatePane,
+  closePane,
   openBrowserPane,
   setPaneCollapsed,
 } from "@/store/actions/pane";
@@ -525,16 +526,26 @@ export function TabLayout({
                     }
                   }}
                   devToolsFor={pane.devToolsFor}
-                  onOpenDevTools={() =>
-                    openBrowserPane(
-                      tab.id,
-                      pane.id,
-                      "about:blank",
-                      "column",
-                      false,
-                      true,
-                    )
-                  }
+                  isDevToolsOpen={Object.values(tab.panes).some(
+                    (p) => p.type === "browser" && p.devToolsFor === pane.id,
+                  )}
+                  onToggleDevTools={() => {
+                    const devToolsPane = Object.values(tab.panes).find(
+                      (p) => p.type === "browser" && p.devToolsFor === pane.id,
+                    );
+                    if (devToolsPane) {
+                      closePane(tab.id, devToolsPane.id);
+                    } else {
+                      openBrowserPane(
+                        tab.id,
+                        pane.id,
+                        "about:blank",
+                        "column",
+                        false,
+                        true,
+                      );
+                    }
+                  }}
                 />
               </div>
             )}

@@ -1,3 +1,4 @@
+import { useCommand } from "@/commands/hooks/useCommand";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,7 +12,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useCommand } from "@/commands/hooks/useCommand";
 import { ApplicationCommands } from "@shared/commands";
 import { BrowserPage } from "@shared/types";
 import {
@@ -30,13 +30,15 @@ const api = window.conduit;
 
 type BrowserMenuProps = {
   currentPage: BrowserPage;
-  onOpenDevTools: () => void;
+  isDevToolsOpen: boolean;
+  onToggleDevTools: () => void;
   onCaptureScreenshot: () => void;
 };
 
 export function BrowserMenu({
   currentPage,
-  onOpenDevTools,
+  isDevToolsOpen,
+  onToggleDevTools,
   onCaptureScreenshot,
 }: BrowserMenuProps) {
   const [showCheckmark, setShowCheckmark] = useState(false);
@@ -113,9 +115,9 @@ export function BrowserMenu({
           <Camera size={12} />
           Copy screenshot
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onOpenDevTools}>
+        <DropdownMenuItem onClick={onToggleDevTools}>
           <Code size={12} />
-          Open dev tools
+          {isDevToolsOpen ? "Close dev tools" : "Open dev tools"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={collapsePane.execute}>

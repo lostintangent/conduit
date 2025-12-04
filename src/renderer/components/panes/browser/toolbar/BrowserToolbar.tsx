@@ -10,13 +10,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { BrowserPage } from "@shared/types";
 import { normalizeUrl } from "@/utils/browser";
+import { BrowserPage } from "@shared/types";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";
-import { StarredPagesMenu } from "./StarredPagesMenu";
 import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
+import { StarredPagesMenu } from "./StarredPagesMenu";
 
 const api = window.conduit;
 
@@ -33,7 +33,8 @@ type BrowserToolbarProps = {
   onGoForward: () => void;
   onRefresh: () => void;
   onStop: () => void;
-  onOpenDevTools: () => void;
+  isDevToolsOpen: boolean;
+  onToggleDevTools: () => void;
   onCaptureScreenshot: () => void;
 };
 
@@ -50,7 +51,8 @@ export function BrowserToolbar({
   onGoForward,
   onRefresh,
   onStop,
-  onOpenDevTools,
+  isDevToolsOpen,
+  onToggleDevTools,
   onCaptureScreenshot,
 }: BrowserToolbarProps) {
   const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
@@ -364,7 +366,8 @@ export function BrowserToolbar({
       />
       <BrowserMenu
         currentPage={currentPage}
-        onOpenDevTools={onOpenDevTools}
+        isDevToolsOpen={isDevToolsOpen}
+        onToggleDevTools={onToggleDevTools}
         onCaptureScreenshot={onCaptureScreenshot}
       />
     </div>
