@@ -42,6 +42,10 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
     // Force bash to load our integration script via --rcfile
     const scriptPath = path.join(shellIntegrationDir, "conduit.bash");
     args = ["--rcfile", scriptPath];
+  } else if (shellName === "fish") {
+    // Use fish's --init-command to source our integration script
+    const scriptPath = path.join(shellIntegrationDir, "conduit.fish");
+    args = ["--init-command", `source "${scriptPath}"`];
   } else if (
     shellName === "pwsh" ||
     shellName === "pwsh.exe" ||

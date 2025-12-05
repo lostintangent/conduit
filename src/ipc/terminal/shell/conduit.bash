@@ -9,3 +9,19 @@ __conduit_osc7() {
 
 # Append to PROMPT_COMMAND if present, otherwise set it.
 PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND};}__conduit_osc7"
+
+# If the copilot command is not available, define a wrapper function
+# that prompts the user to install GitHub Copilot CLI
+if ! command -v copilot &>/dev/null; then
+  copilot() {
+    local response
+    echo "The GitHub Copilot CLI is not installed."
+    read -r -p "Would you like to install it? (Y/n) " response
+    if [[ -z "$response" || "$response" == [Yy] ]]; then
+      if npm install -g @github/copilot; then
+        unset -f copilot
+        copilot "$@"
+      fi
+    fi
+  }
+fi
