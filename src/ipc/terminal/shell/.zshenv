@@ -37,12 +37,19 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
       echo "The GitHub Copilot CLI is not installed."
       echo -n "Would you like to install it? (Y/n) "
       read -r response
-      if [[ "$response" =~ ^[Yy]?$ ]]; then
+      # Match 'Y', 'y', or empty string (Enter key)
+      if [[ -z "$response" || "$response" == [Yy] ]]; then
+        if ! (( $+commands[npm] )); then
+          echo "npm is required to install GitHub Copilot CLI but was not found in PATH." >&2
+          return 1
+        fi
         echo "Installing GitHub Copilot CLI..."
         if npm install -g @github/copilot; then
           echo "GitHub Copilot CLI installed successfully."
           # Remove this wrapper function so the real copilot takes precedence
           unfunction copilot
+          # Refresh the command hash table so zsh finds the newly installed command
+          rehash
           # Run the real copilot command with any arguments that were passed
           copilot "$@"
         else
