@@ -126,6 +126,24 @@ export const FileTreeItem = memo(function FileTreeItem({
     [path, entry.type, isDirectory, onSelect, onToggleExpand],
   );
 
+  // Handle keyboard interaction (Enter key)
+  // - For directories: toggle expand/collapse
+  // - For files: select the file
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isDirectory) {
+          onToggleExpand?.(path);
+        } else {
+          onSelect(path, entry.type);
+        }
+      }
+    },
+    [path, entry.type, isDirectory, onSelect, onToggleExpand],
+  );
+
   // Handle "change to this directory" click
   const handleChangeCwd = useCallback(
     (e: React.MouseEvent) => {
@@ -175,6 +193,7 @@ export const FileTreeItem = memo(function FileTreeItem({
             : "hover:bg-foreground/10",
         )}
         onClick={handleRowClick}
+        onKeyDown={handleKeyDown}
         data-testid={`tree-item-${entry.name}`}
         data-path={path}
         data-type={entry.type}
@@ -213,6 +232,7 @@ export const FileTreeItem = memo(function FileTreeItem({
           {isDirectory && onDirectoryChange && (
             <button
               type="button"
+              tabIndex={-1}
               onClick={handleChangeCwd}
               className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
               title="Change to this directory"
