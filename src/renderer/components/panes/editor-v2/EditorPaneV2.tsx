@@ -1012,17 +1012,6 @@ export function EditorPaneV2({
         />
       )}
 
-      {/* v2 Indicator Badge (development only) */}
-      {import.meta.env.DEV && (
-        <div
-          className="absolute bottom-1 left-1 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-blue-500/80 text-white rounded"
-          title="Editor v2 is active"
-          data-testid="v2-indicator"
-        >
-          v2
-        </div>
-      )}
-
       {/* Branch Selector Dialog */}
       <BranchSelector
         open={isBranchSelectorOpen}

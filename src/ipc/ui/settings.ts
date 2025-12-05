@@ -17,7 +17,7 @@ const shouldUseEditorV2 = (): boolean => {
   const envValue = process.env.VITE_USE_EDITOR_V2;
   if (envValue === "true" || envValue === "1") return true;
   if (envValue === "false" || envValue === "0") return false;
-  return false; // Default to v1
+  return true; // Default to v2
 };
 
 const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
