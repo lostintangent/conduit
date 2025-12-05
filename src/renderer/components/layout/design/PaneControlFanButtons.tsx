@@ -239,8 +239,8 @@ export function PaneControlFanButtons({
   const offset = hasMoveButton ? "calc(50% - 16px)" : "50%";
 
   const buttonClass =
-    "flex items-center justify-center w-8 h-8 rounded-full hover:bg-accent hover:text-background transition-colors cursor-pointer";
-  const iconClass = "w-4 h-4";
+    "flex items-center justify-center w-11 h-11 rounded-full hover:bg-accent hover:text-background transition-all duration-200 cursor-pointer hover:scale-110 hover:shadow-[0_0_20px_rgba(59,130,246,0.6)] active:scale-95";
+  const iconClass = "w-5 h-5";
 
   // Get the starting angle for the 180° arc based on position
   const getStartAngle = () => {
