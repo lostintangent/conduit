@@ -1,5 +1,5 @@
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
-import { EditorPane } from "@/components/panes/editor/EditorPane";
+import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -150,7 +150,7 @@ export function QuickDialog({
             />
           )}
           {currentDescriptor.type === "editor" && (
-            <EditorPane
+            <EditorPaneSwitcher
               paneId={quickPaneId}
               cwd={currentDescriptor.cwd}
               file={currentDescriptor.file}

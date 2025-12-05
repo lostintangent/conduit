@@ -39,6 +39,8 @@ import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import configureUpdatesModule from "./modules/updates";
 import configureWorkspaceModule from "./modules/workspace";
+import fsv2Module from "./modules/fsv2";
+import gitv2Module from "./modules/gitv2";
 import { createEventListener } from "./utils";
 
 const conduitAPI = {
@@ -547,6 +549,8 @@ const conduitAPI = {
   cli: configureCliModule,
   updates: configureUpdatesModule,
   workspace: configureWorkspaceModule,
+  fsv2: fsv2Module,
+  gitv2: gitv2Module,
 };
 
 export type ConduitAPI = typeof conduitAPI;

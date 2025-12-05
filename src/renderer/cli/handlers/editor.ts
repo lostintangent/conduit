@@ -1,7 +1,11 @@
 import type { HandlerMap } from "./types";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import type { EditorPane } from "@/types";
 
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
+
+type EditorQuickDescriptor = Omit<EditorPane, "id"> &
+  Pick<QuickPaneDescriptor, "isLocked" | "closeOnSave" | "onClose">;
 
 export const editorHandlers: Partial<HandlerMap> = {
   "editor-open": (args, context) => {
@@ -10,9 +14,10 @@ export const editorHandlers: Partial<HandlerMap> = {
       COMMIT_EDITMSG_FILENAME,
     );
 
-    const descriptor: QuickPaneDescriptor = {
-      ...commandArgs,
+    const descriptor: EditorQuickDescriptor = {
       type: "editor",
+      cwd: commandArgs.cwd,
+      file: commandArgs.filePath,
     };
 
     if (isCommitMessageRequest) {

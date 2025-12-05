@@ -41,8 +41,8 @@ export function calculateWebviewScale(
 ): ScalingResult {
   const { layoutWidth, layoutHeight, rectWidth, rectHeight } = dimensions;
 
-  let scaleX = layoutWidth > 0 ? rectWidth / layoutWidth : 1;
-  let scaleY = layoutHeight > 0 ? rectHeight / layoutHeight : 1;
+  const scaleX = layoutWidth > 0 ? rectWidth / layoutWidth : 1;
+  const scaleY = layoutHeight > 0 ? rectHeight / layoutHeight : 1;
 
   const targetWidth = layoutWidth || rectWidth;
   const targetHeight = layoutHeight || rectHeight;

@@ -7,7 +7,7 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
-import { EditorPane } from "@/components/panes/editor/EditorPane";
+import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import type {
@@ -440,7 +440,13 @@ export function TabLayout({
             }
           }}
           onMouseLeave={() => {
-            setHoveredPaneId(null);
+            // Editor panes use the global container pattern where content is
+            // rendered via React portal. This causes onMouseLeave to fire when
+            // entering the editor (React sees it as leaving this tree). Instead,
+            // editor panes manage hover state via their onHover callback.
+            if (pane.type !== "editor") {
+              setHoveredPaneId(null);
+            }
             if (isInPreview) {
               setHoveredPreviewPaneId(null);
             }
@@ -466,7 +472,7 @@ export function TabLayout({
                 onContextMenu={onPaneContextMenu}
                 onMouseDown={onPaneActivate}
               >
-                <EditorPane
+                <EditorPaneSwitcher
                   key={pane.id}
                   paneId={pane.id}
                   cwd={pane.cwd}
@@ -496,7 +502,14 @@ export function TabLayout({
                       file: node.path,
                     })
                   }
+                  onHover={(isHovering) => {
+                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInPreview) {
+                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
+                    }
+                  }}
                   hideIndividualSandboxIndicator={hasUnifiedSandbox}
+                  isInPreview={isInPreview}
                 />
               </div>
             ) : (

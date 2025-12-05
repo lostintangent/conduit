@@ -9,3 +9,4 @@ export * from "./agentHandlers";
 export * from "./workspaceHandlers";
 export * from "./viewHandlers";
 export * from "./paneHandlers";
+export * from "./editorCommandHandlers";

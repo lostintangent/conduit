@@ -39,9 +39,9 @@ export async function handleCompleteAgentSessionAction(
         kind: "success",
         message:
           result.status === "merged"
-            ? "Worktree changes merged"
+            ? "Agent session completed"
             : "No changes to merge",
-        details: result.status === "merged" ? result.message : undefined,
+        details: result.message,
         autoCloseMs: 3000,
       });
     }
@@ -72,7 +72,8 @@ export async function handleDeleteAgentSessionAction(
 
     enqueueNotification({
       kind: "success",
-      message: "Worktree deleted",
+      message: "Agent session deleted",
+      details: result.message,
       autoCloseMs: 3000,
     });
   } catch (error) {

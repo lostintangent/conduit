@@ -34,6 +34,8 @@ describe("gitStatus", () => {
         status: "modified",
         staged: false,
         relativePath: "file.txt",
+        stagedStatus: undefined,
+        unstagedStatus: "modified",
       });
     });
 
@@ -48,6 +50,8 @@ describe("gitStatus", () => {
         status: "modified",
         staged: true,
         relativePath: "file.txt",
+        stagedStatus: "modified",
+        unstagedStatus: undefined,
       });
     });
 
@@ -62,6 +66,8 @@ describe("gitStatus", () => {
         status: "added",
         staged: true,
         relativePath: "newfile.txt",
+        stagedStatus: "added",
+        unstagedStatus: undefined,
       });
     });
 
@@ -76,6 +82,8 @@ describe("gitStatus", () => {
         status: "deleted",
         staged: false,
         relativePath: "deleted.txt",
+        stagedStatus: undefined,
+        unstagedStatus: "deleted",
       });
     });
 
@@ -105,6 +113,8 @@ describe("gitStatus", () => {
         status: "renamed",
         staged: true,
         relativePath: "new.txt",
+        stagedStatus: "renamed",
+        unstagedStatus: undefined,
       });
     });
 
@@ -192,6 +202,8 @@ describe("gitStatus", () => {
         status: "modified",
         staged: false,
         relativePath: "file.txt",
+        stagedStatus: undefined,
+        unstagedStatus: "modified",
       });
     });
 
@@ -231,6 +243,8 @@ describe("gitStatus", () => {
         status: "modified",
         staged: false,
         relativePath: "src/file.txt",
+        stagedStatus: undefined,
+        unstagedStatus: "modified",
       });
     });
 

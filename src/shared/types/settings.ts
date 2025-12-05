@@ -40,6 +40,7 @@ export type UserSettings = {
 
   // Editor settings
   useConduitAsEditor: boolean;
+  useEditorV2: boolean; // Feature flag for the new Editor v2 implementation
 
   // Workspace settings
   autoSaveWorkspaces: boolean;

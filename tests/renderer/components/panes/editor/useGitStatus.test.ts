@@ -14,6 +14,7 @@ const mockApi = vi.hoisted(() => {
     getBranches: vi.fn(),
     onGitStatusChanged: vi.fn(),
     setBaseBranch: vi.fn(),
+    getCurrentBranch: vi.fn(),
   };
 
   // Set up global window.conduit in hoisted scope
@@ -44,6 +45,7 @@ describe("useGitStatus", () => {
 
     mockApi.onGitStatusChanged.mockReturnValue(() => {});
     mockApi.setBaseBranch.mockResolvedValue({});
+    mockApi.getCurrentBranch.mockResolvedValue(null);
   });
 
   describe("Initial State", () => {
@@ -126,6 +128,7 @@ describe("useGitStatus", () => {
         success: true,
         branches: [],
       });
+      mockApi.getCurrentBranch.mockResolvedValue("main");
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -163,8 +166,10 @@ describe("useGitStatus", () => {
         success: false,
         branches: [],
       });
+      mockApi.getCurrentBranch.mockRejectedValue(new Error("Network error"));
 
-      const { result } = renderHook(() => useGitStatus("/test/path"));
+      // Use a unique path to avoid cache contamination
+      const { result } = renderHook(() => useGitStatus("/network/error/path"));
 
       await waitFor(
         () => {
@@ -264,6 +269,7 @@ describe("useGitStatus", () => {
           } as Branch,
         ],
       });
+      mockApi.getCurrentBranch.mockResolvedValue("main");
 
       const { result } = renderHook(() => useGitStatus("/test/path"));
 
@@ -283,8 +289,10 @@ describe("useGitStatus", () => {
       mockApi.getBranches.mockRejectedValue(
         new Error("Failed to fetch branches"),
       );
+      mockApi.getCurrentBranch.mockResolvedValue(null);
 
-      const { result } = renderHook(() => useGitStatus("/test/path"));
+      // Use a unique path to avoid cache contamination
+      const { result } = renderHook(() => useGitStatus("/error/test/path"));
 
       await waitFor(
         () => {
@@ -631,7 +639,8 @@ describe("useGitStatus", () => {
     it("should handle missing API methods gracefully", () => {
       (global.window as any).conduit = {};
 
-      const { result } = renderHook(() => useGitStatus("/test/path"));
+      // Use a unique path to avoid cache contamination
+      const { result } = renderHook(() => useGitStatus("/unique/test/path"));
 
       // Should not crash
       expect(result.current.gitStatus).toBeNull();

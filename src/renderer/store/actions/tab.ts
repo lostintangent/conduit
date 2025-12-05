@@ -1,6 +1,11 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import { disposeEditorPane } from "@/components/panes/editor-v2";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
-import { detachPane, removePane } from "@/store/actions/pane";
+import {
+  detachPane,
+  removePane,
+  updatePaneProperty,
+} from "@/store/actions/pane";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
@@ -274,7 +279,8 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   }
 
   const sessionsToClose: string[] = [];
-  const panesToDispose: string[] = [];
+  const terminalPanesToDispose: string[] = [];
+  const editorPaneIdsToDispose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
   const previousActiveTabId = store.get(activeTabIdAtom);
@@ -289,8 +295,10 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
       paneIdsToCleanup.push(pane.id);
 
       if (pane.type === "terminal") {
-        panesToDispose.push(pane.id);
+        terminalPanesToDispose.push(pane.id);
         sessionsToClose.push(pane.sessionId);
+      } else if (pane.type === "editor") {
+        editorPaneIdsToDispose.push(pane.id);
       }
     });
 
@@ -321,8 +329,15 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
     }
   });
 
-  panesToDispose.forEach((paneId) => disposeSession(paneId));
+  // Dispose terminal xterm instances
+  terminalPanesToDispose.forEach((paneId) => disposeSession(paneId));
+
+  // Close terminal sessions
   sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
+
+  // Dispose editor panes from EditorPaneRegistry
+  // This fully removes editors (vs detach which just moves them off-screen)
+  editorPaneIdsToDispose.forEach((paneId) => disposeEditorPane(paneId));
 
   if (shouldOpenReplacement) {
     openTab();

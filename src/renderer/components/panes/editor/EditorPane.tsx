@@ -242,6 +242,11 @@ type EditorPaneProps = {
   isLocked?: boolean;
   onSave?: () => void;
   hideIndividualSandboxIndicator?: boolean;
+  /**
+   * Callback fired when hover state changes on the editor.
+   * Used for design mode hover detection.
+   */
+  onHover?: (isHovering: boolean) => void;
 };
 
 export function EditorPane({
@@ -258,6 +263,7 @@ export function EditorPane({
   isLocked = false,
   onSave,
   hideIndividualSandboxIndicator = false,
+  onHover,
 }: EditorPaneProps) {
   const { homeDirectory, theme } = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
@@ -2021,6 +2027,8 @@ export function EditorPane({
     <div
       ref={containerRef}
       className="flex flex-1 min-h-0 min-w-0 flex-col bg-background relative"
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
     >
       {/* Wrapper that contains both split and single mode layouts */}
       <div className="flex flex-1 min-h-0 min-w-0 flex-col">
