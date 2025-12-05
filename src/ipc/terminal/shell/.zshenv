@@ -34,13 +34,13 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
   if ! (( $+commands[copilot] )); then
     copilot() {
       local response
-      echo "The GitHub Copilot CLI is not installed."
-      echo -n "Would you like to install it? (Y/n) "
+      print "The GitHub Copilot CLI is not installed."
+      print -n "Would you like to install it? (Y/n) "
       read -r response
       # Match 'Y', 'y', or empty string (Enter key)
       if [[ -z "$response" || "$response" == [Yy] ]]; then
         if ! (( $+commands[npm] )); then
-          echo "npm is required to install GitHub Copilot CLI but was not found in PATH." >&2
+          print -u2 "npm is required to install GitHub Copilot CLI but was not found in PATH."
           return 1
         fi
         if npm install -g @github/copilot; then
