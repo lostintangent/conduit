@@ -35,8 +35,7 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
     copilot() {
       local response
       print "The GitHub Copilot CLI is not installed."
-      print -n "Would you like to install it? (Y/n) "
-      read -r response
+      read -r "response?Would you like to install it? (Y/n) "
       # Match 'Y', 'y', or empty string (Enter key)
       if [[ -z "$response" || "$response" == [Yy] ]]; then
         if ! (( $+commands[npm] )); then

@@ -16,8 +16,7 @@ if ! command -v copilot &>/dev/null; then
   copilot() {
     local response
     echo "The GitHub Copilot CLI is not installed."
-    echo -n "Would you like to install it? (Y/n) "
-    read -r response
+    read -r -p "Would you like to install it? (Y/n) " response
     # Match 'Y', 'y', or empty string (Enter key)
     if [[ -z "$response" || "$response" == [Yy] ]]; then
       if ! command -v npm &>/dev/null; then
