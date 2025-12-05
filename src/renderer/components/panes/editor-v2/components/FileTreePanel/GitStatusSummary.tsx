@@ -80,6 +80,24 @@ export function GitStatusSummary({
     return { statusCounts: counts, uniqueStatuses: statuses };
   }, [gitStatus]);
 
+  // Show "0" with grey dot when no changes
+  if (changedFilesCount === 0) {
+    return (
+      <div className="flex items-center gap-1" data-testid="git-status-summary">
+        <span
+          className="block transition-opacity duration-300 ease-out"
+          style={{ opacity: 0.5 }}
+        >
+          0
+        </span>
+        <div
+          className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50"
+          aria-hidden="true"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-1" data-testid="git-status-summary">
       {/* Total count - visible when collapsed */}

@@ -286,180 +286,148 @@ export function GitBranchToolbar({
           )}
         </div>
 
-        {/* Status summary and actions (shown when there are changes) */}
-        {changedFilesCount > 0 && (
-          <div className="flex items-center">
-            {/* Filter toggle with status summary */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Toggle
-                  pressed={showOnlyChangedFiles}
-                  onPressedChange={() => onFilterToggle()}
-                  onMouseEnter={() => setIsStatusHovered(true)}
-                  onMouseLeave={() => setIsStatusHovered(false)}
-                  size="sm"
-                  className={`text-xs px-2 pr-3 py-0.5 h-auto text-foreground hover:text-foreground ${
-                    showOnlyChangedFiles
-                      ? "border border-border bg-primary/10"
-                      : ""
-                  }`}
-                  data-testid="filter-toggle"
-                >
-                  <GitStatusSummary
-                    gitStatus={gitStatus}
-                    changedFilesCount={changedFilesCount}
-                    isExpanded={showOnlyChangedFiles || isReviewModeActive}
-                    isHovered={isStatusHovered}
-                  />
-                </Toggle>
-              </TooltipTrigger>
-              <TooltipContent>
-                {showOnlyChangedFiles
-                  ? "Showing only changed files - Click to show all files"
-                  : `Show only ${changedFilesCount} changed ${changedFilesCount === 1 ? "file" : "files"}`}
-              </TooltipContent>
-            </Tooltip>
+        {/* Status summary and actions */}
+        <div className="flex items-center">
+          {/* Filter toggle with status summary */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                pressed={showOnlyChangedFiles}
+                onPressedChange={() => onFilterToggle()}
+                onMouseEnter={() => setIsStatusHovered(true)}
+                onMouseLeave={() => setIsStatusHovered(false)}
+                size="sm"
+                className={`text-xs px-2 pr-3 py-0.5 h-auto text-foreground hover:text-foreground ${
+                  showOnlyChangedFiles
+                    ? "border border-border bg-primary/10"
+                    : ""
+                }`}
+                data-testid="filter-toggle"
+              >
+                <GitStatusSummary
+                  gitStatus={gitStatus}
+                  changedFilesCount={changedFilesCount}
+                  isExpanded={showOnlyChangedFiles || isReviewModeActive}
+                  isHovered={isStatusHovered}
+                />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>
+              {showOnlyChangedFiles
+                ? "Showing only changed files - Click to show all files"
+                : changedFilesCount > 0
+                  ? `Show only ${changedFilesCount} changed ${changedFilesCount === 1 ? "file" : "files"}`
+                  : "No changed files"}
+            </TooltipContent>
+          </Tooltip>
 
-            {/* Pull/Push/Review actions - animated slide in when filter active */}
-            {!isReviewModeActive &&
-              (onPull || onPush) &&
-              (baseBranch === null || baseBranch === "HEAD") && (
-                <div
-                  className="flex items-center overflow-hidden"
-                  style={{
-                    maxWidth: showOnlyChangedFiles ? "200px" : "0px",
-                    opacity: showOnlyChangedFiles ? 1 : 0,
-                    transition: showOnlyChangedFiles
-                      ? "max-width 300ms ease-out, opacity 300ms ease-out"
-                      : "max-width 150ms ease-out, opacity 150ms ease-out",
-                    willChange: "max-width, opacity",
-                  }}
-                >
-                  {/* Separator */}
-                  <div
-                    className="overflow-hidden"
-                    style={{
-                      width: showOnlyChangedFiles ? "auto" : 0,
-                      marginLeft: showOnlyChangedFiles ? "0.5rem" : 0,
-                      marginRight: showOnlyChangedFiles ? "0.5rem" : 0,
-                      transition: showOnlyChangedFiles
-                        ? "width 300ms ease-out, margin 300ms ease-out"
-                        : "width 150ms ease-out, margin 150ms ease-out",
-                    }}
-                  >
-                    <Separator orientation="vertical" className="h-4" />
-                  </div>
+          {/* Pull/Push/Review actions - visible when in "show only changes" mode */}
+          {!isReviewModeActive &&
+            showOnlyChangedFiles &&
+            (onPull || onPush) &&
+            (baseBranch === null || baseBranch === "HEAD") && (
+              <div className="flex items-center">
+                {/* Separator */}
+                <Separator orientation="vertical" className="h-4 mx-2" />
 
-                  {/* Action buttons */}
-                  <div
-                    className="flex items-center gap-0.5"
-                    style={{
-                      transform: showOnlyChangedFiles
-                        ? "translateX(0) translateZ(0)"
-                        : "translateX(-8px) translateZ(0)",
-                      transition: showOnlyChangedFiles
-                        ? "transform 300ms ease-out"
-                        : "transform 150ms ease-out",
-                      willChange: "transform",
-                    }}
-                  >
-                    {/* Pull button */}
-                    {onPull && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Toggle
-                            pressed={false}
-                            onPressedChange={onPull}
-                            disabled={isGitOperationRunning || !hasUpstream}
-                            size="sm"
-                            className={toggleButtonClass}
-                            data-testid="pull-button"
-                          >
-                            <FillingIcon
-                              icon={ArrowDownToLine}
-                              isAnimating={isPulling}
-                            />
-                          </Toggle>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {!hasUpstream
-                            ? "No upstream branch configured"
-                            : isPulling
-                              ? "Pulling..."
-                              : "Pull from remote"}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                {/* Action buttons */}
+                <div className="flex items-center gap-0.5">
+                  {/* Pull button */}
+                  {onPull && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Toggle
+                          pressed={false}
+                          onPressedChange={onPull}
+                          disabled={isGitOperationRunning || !hasUpstream}
+                          size="sm"
+                          className={toggleButtonClass}
+                          data-testid="pull-button"
+                        >
+                          <FillingIcon
+                            icon={ArrowDownToLine}
+                            isAnimating={isPulling}
+                          />
+                        </Toggle>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {!hasUpstream
+                          ? "No upstream branch configured"
+                          : isPulling
+                            ? "Pulling..."
+                            : "Pull from remote"}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
-                    {/* Push button (with upstream) */}
-                    {onPush && hasUpstream && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Toggle
-                            pressed={false}
-                            onPressedChange={onPush}
-                            disabled={isGitOperationRunning}
-                            size="sm"
-                            className={toggleButtonClass}
-                            data-testid="push-button"
-                          >
-                            <FillingIcon
-                              icon={ArrowUpFromLine}
-                              isAnimating={isPushing}
-                            />
-                          </Toggle>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {isPushing ? "Pushing..." : "Push to remote"}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                  {/* Push button (with upstream) */}
+                  {onPush && hasUpstream && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Toggle
+                          pressed={false}
+                          onPressedChange={onPush}
+                          disabled={isGitOperationRunning}
+                          size="sm"
+                          className={toggleButtonClass}
+                          data-testid="push-button"
+                        >
+                          <FillingIcon
+                            icon={ArrowUpFromLine}
+                            isAnimating={isPushing}
+                          />
+                        </Toggle>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isPushing ? "Pushing..." : "Push to remote"}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
-                    {/* Publish button (no upstream) */}
-                    {onPush && !hasUpstream && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Toggle
-                            pressed={false}
-                            onPressedChange={onPush}
-                            disabled={isGitOperationRunning}
-                            size="sm"
-                            className={toggleButtonClass}
-                            data-testid="publish-button"
-                          >
-                            <FillingIcon icon={Send} isAnimating={isPushing} />
-                          </Toggle>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {isPushing ? "Publishing..." : "Publish branch"}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                  {/* Publish button (no upstream) */}
+                  {onPush && !hasUpstream && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Toggle
+                          pressed={false}
+                          onPressedChange={onPush}
+                          disabled={isGitOperationRunning}
+                          size="sm"
+                          className={toggleButtonClass}
+                          data-testid="publish-button"
+                        >
+                          <FillingIcon icon={Send} isAnimating={isPushing} />
+                        </Toggle>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isPushing ? "Publishing..." : "Publish branch"}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
-                    {/* Review changes button */}
-                    {onReviewChanges && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Toggle
-                            pressed={false}
-                            onPressedChange={onReviewChanges}
-                            size="sm"
-                            className={toggleButtonClass}
-                            data-testid="review-button"
-                          >
-                            <SquareArrowOutUpRight />
-                          </Toggle>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Review all changes in detail
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
+                  {/* Review changes button - only show when there are changes */}
+                  {onReviewChanges && changedFilesCount > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Toggle
+                          pressed={false}
+                          onPressedChange={onReviewChanges}
+                          size="sm"
+                          className={toggleButtonClass}
+                          data-testid="review-button"
+                        >
+                          <SquareArrowOutUpRight />
+                        </Toggle>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Review all changes in detail
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
-              )}
-          </div>
-        )}
+              </div>
+            )}
+        </div>
       </div>
 
       {/* Second row: Commit message input and button */}
