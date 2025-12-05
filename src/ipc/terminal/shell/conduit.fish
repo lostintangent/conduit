@@ -6,13 +6,10 @@
 if not type -q copilot
     function copilot
         printf "The GitHub Copilot CLI is not installed.\n"
-        read -l -P "Would you like to install it? (Y/n) " response
-        # Match 'Y', 'y', or empty string (Enter key)
-        if test -z "$response" -o "$response" = Y -o "$response" = y
+        read -P "Would you like to install it? (Y/n) " response
+        if test -z "$response"; or string match -qi 'y' -- "$response"
             if npm install -g @github/copilot
-                # Remove this wrapper function so the real copilot takes precedence
                 functions -e copilot
-                # Run the real copilot command with any arguments that were passed
                 copilot $argv
             end
         end

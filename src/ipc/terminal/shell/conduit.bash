@@ -17,12 +17,9 @@ if ! command -v copilot &>/dev/null; then
     local response
     echo "The GitHub Copilot CLI is not installed."
     read -r -p "Would you like to install it? (Y/n) " response
-    # Match 'Y', 'y', or empty string (Enter key)
     if [[ -z "$response" || "$response" == [Yy] ]]; then
       if npm install -g @github/copilot; then
-        # Remove this wrapper function so the real copilot takes precedence
         unset -f copilot
-        # Run the real copilot command with any arguments that were passed
         copilot "$@"
       fi
     fi
