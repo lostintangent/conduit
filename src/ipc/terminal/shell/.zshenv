@@ -35,13 +35,9 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
     copilot() {
       local response
       print "The GitHub Copilot CLI is not installed."
-      read -r "?Would you like to install it? (Y/n) " response
+      read -rp "Would you like to install it? (Y/n) " response
       # Match 'Y', 'y', or empty string (Enter key)
       if [[ -z "$response" || "$response" == [Yy] ]]; then
-        if ! (( $+commands[npm] )); then
-          print -u2 "npm is required to install GitHub Copilot CLI but was not found in PATH."
-          return 1
-        fi
         if npm install -g @github/copilot; then
           # Remove this wrapper function so the real copilot takes precedence
           unfunction copilot

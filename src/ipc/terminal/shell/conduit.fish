@@ -9,10 +9,6 @@ if not type -q copilot
         read -l -P "Would you like to install it? (Y/n) " response
         # Match 'Y', 'y', or empty string (Enter key)
         if test -z "$response" -o "$response" = Y -o "$response" = y
-            if not type -q npm
-                printf "npm is required to install GitHub Copilot CLI but was not found in PATH.\n" >&2
-                return 1
-            end
             if npm install -g @github/copilot
                 # Remove this wrapper function so the real copilot takes precedence
                 functions -e copilot
