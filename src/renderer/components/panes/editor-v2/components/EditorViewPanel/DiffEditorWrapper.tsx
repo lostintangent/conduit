@@ -24,8 +24,8 @@
  * ```
  */
 
-import { useEffect, useRef, useCallback } from "react";
 import * as monaco from "monaco-editor";
+import { useCallback, useEffect, useRef } from "react";
 import { useDiffContent, useMonacoModel } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage } from "../../utils/languageDetection";
@@ -83,6 +83,7 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
     parameterHints: { enabled: false },
     quickSuggestions: false,
     suggestOnTriggerCharacters: false,
+    unicodeHighlight: { ambiguousCharacters: false },
   };
 
 // ============================================================================

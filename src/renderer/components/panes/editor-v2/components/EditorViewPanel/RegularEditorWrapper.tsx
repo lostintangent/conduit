@@ -89,6 +89,7 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
     parameterHints: { enabled: false },
     quickSuggestions: false,
     suggestOnTriggerCharacters: false,
+    unicodeHighlight: { ambiguousCharacters: false },
   };
 
 // ============================================================================
