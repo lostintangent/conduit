@@ -38,7 +38,7 @@ function global:prompt {
 # If the copilot command is not available, define a wrapper function
 # that prompts the user to install GitHub Copilot CLI
 if (-not (Get-Command copilot -ErrorAction SilentlyContinue)) {
-    function global:copilot {
+    function copilot {
         Write-Host "The GitHub Copilot CLI is not installed."
         $response = Read-Host "Would you like to install it? (Y/n)"
 
