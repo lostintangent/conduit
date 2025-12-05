@@ -486,21 +486,9 @@ describe("EditorPaneV2", () => {
       mockFs.readTextFile.mockClear();
     });
 
-    it("should call onFileOpen when file is selected", async () => {
-      const onFileOpen = vi.fn();
-
-      render(<EditorPaneV2 pane={TEST_PANE} onFileOpen={onFileOpen} />);
-
-      fireEvent.click(screen.getByTestId("select-file-button"));
-
-      await waitFor(() => {
-        expect(onFileOpen).toHaveBeenCalledWith({
-          path: "/project/test.ts",
-          name: "test.ts",
-          type: "file",
-        });
-      });
-    });
+    // Note: onFileOpen is NOT called when file is selected within the editor.
+    // It's meant for external "open in quick pane" actions, not internal file selection.
+    // Internal file selection just updates the selectedFile state.
 
     it("should call onFileChange with file content when file is selected", async () => {
       const onFileChange = vi.fn();

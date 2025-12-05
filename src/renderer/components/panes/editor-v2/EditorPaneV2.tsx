@@ -594,8 +594,8 @@ export function EditorPaneV2({
         setViewMode({ type: "editor" });
       }
 
-      // Notify parent of file open
-      onFileOpen?.(file);
+      // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
+      // File selection within the editor just updates selectedFile state
 
       // Load file content and notify parent
       if (onFileChange && file.type === "file") {
