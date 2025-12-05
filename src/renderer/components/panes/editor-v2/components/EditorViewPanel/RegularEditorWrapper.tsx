@@ -307,6 +307,7 @@ export function RegularEditorWrapper({
 
     // Update editor-specific options
     editor.updateOptions({
+      theme,
       readOnly,
     });
   }, [theme, readOnly]);

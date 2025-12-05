@@ -29,20 +29,23 @@ const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
 const mockCommit = vi.fn();
 
-vi.mock("../../../../src/renderer/hooks/useGitV2", () => ({
+vi.mock("../../../../../src/renderer/hooks/useGitV2", () => ({
   useGitV2: () => ({
+    whenReady: vi.fn().mockResolvedValue(undefined),
     getStatus: mockGetStatus,
     onStatusChanged: mockOnStatusChanged,
     stage: mockStage,
     unstage: mockUnstage,
     revert: mockRevert,
     commit: mockCommit,
+    getFileContent: vi.fn(),
+    getOriginalContent: vi.fn(),
   }),
 }));
 
 // Mock DiffEditorWrapper - we don't need to test the actual diff editor
 vi.mock(
-  "../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel",
+  "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel",
   () => ({
     DiffEditorWrapper: ({ filePath, readOnly }: any) => (
       <div
@@ -363,12 +366,12 @@ describe("ChangesReviewPane", () => {
       expect(screen.queryByTestId("file-change-diff-content")).toBeNull();
 
       // Click on file path to expand (the clickable area)
-      await act(async () => {
-        fireEvent.click(screen.getByText("src/file.ts"));
-      });
+      fireEvent.click(screen.getByText("src/file.ts"));
 
-      // Now should be expanded
-      expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
+      // Wait for expansion to occur
+      await waitFor(() => {
+        expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
+      });
     });
 
     it("should collapse file when header is clicked again", async () => {
@@ -385,16 +388,16 @@ describe("ChangesReviewPane", () => {
       });
 
       // Expand
-      await act(async () => {
-        fireEvent.click(screen.getByText("src/file.ts"));
+      fireEvent.click(screen.getByText("src/file.ts"));
+      await waitFor(() => {
+        expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
       });
-      expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
 
       // Collapse
-      await act(async () => {
-        fireEvent.click(screen.getByText("src/file.ts"));
+      fireEvent.click(screen.getByText("src/file.ts"));
+      await waitFor(() => {
+        expect(screen.queryByTestId("file-change-diff-content")).toBeNull();
       });
-      expect(screen.queryByTestId("file-change-diff-content")).toBeNull();
     });
   });
 
@@ -419,12 +422,14 @@ describe("ChangesReviewPane", () => {
       );
 
       // Click expand all
-      await act(async () => {
-        fireEvent.click(screen.getByTestId("toggle-all-button"));
-      });
+      fireEvent.click(screen.getByTestId("toggle-all-button"));
 
-      // All files should be expanded
-      expect(screen.getAllByTestId("file-change-diff-content")).toHaveLength(2);
+      // Wait for all files to be expanded
+      await waitFor(() => {
+        expect(screen.getAllByTestId("file-change-diff-content")).toHaveLength(
+          2,
+        );
+      });
     });
 
     it("should collapse all files when Collapse All is clicked", async () => {
@@ -442,20 +447,22 @@ describe("ChangesReviewPane", () => {
       });
 
       // Expand all first
-      await act(async () => {
-        fireEvent.click(screen.getByTestId("toggle-all-button"));
+      fireEvent.click(screen.getByTestId("toggle-all-button"));
+      await waitFor(() => {
+        expect(screen.getAllByTestId("file-change-diff-content")).toHaveLength(
+          2,
+        );
       });
-      expect(screen.getAllByTestId("file-change-diff-content")).toHaveLength(2);
 
       // Click collapse all
-      await act(async () => {
-        fireEvent.click(screen.getByTestId("toggle-all-button"));
-      });
+      fireEvent.click(screen.getByTestId("toggle-all-button"));
 
-      // All files should be collapsed
-      expect(screen.queryAllByTestId("file-change-diff-content")).toHaveLength(
-        0,
-      );
+      // Wait for all files to be collapsed
+      await waitFor(() => {
+        expect(
+          screen.queryAllByTestId("file-change-diff-content"),
+        ).toHaveLength(0);
+      });
     });
   });
 
@@ -477,12 +484,12 @@ describe("ChangesReviewPane", () => {
       expect(screen.getByText("src/staged.ts")).toBeDefined();
 
       // Click section header to collapse
-      await act(async () => {
-        fireEvent.click(screen.getByTestId("section-staged-changes"));
-      });
+      fireEvent.click(screen.getByTestId("section-staged-changes"));
 
-      // File should be hidden
-      expect(screen.queryByText("src/staged.ts")).toBeNull();
+      // Wait for file to be hidden
+      await waitFor(() => {
+        expect(screen.queryByText("src/staged.ts")).toBeNull();
+      });
     });
   });
 
@@ -650,9 +657,7 @@ describe("ChangesReviewPane", () => {
       });
 
       // Click commit
-      await act(async () => {
-        fireEvent.click(screen.getByTestId("commit-button"));
-      });
+      fireEvent.click(screen.getByTestId("commit-button"));
 
       // Wait for committing state
       await waitFor(() => {

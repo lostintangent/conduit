@@ -23,6 +23,13 @@ const createMockEditor = () => {
     layout: vi.fn(),
     getModel: vi.fn(),
     setModel: vi.fn(),
+    updateOptions: vi.fn(),
+    focus: vi.fn(),
+    onDidChangeModelContent: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidBlurEditorText: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidFocusEditorText: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidScrollChange: vi.fn(() => ({ dispose: vi.fn() })),
   };
 };
 
@@ -54,11 +61,38 @@ const createMockModel = (content: string, language?: string, uri?: unknown) => {
   return model;
 };
 
+// Map to store models by URI for getModel lookup
+const modelMap = new Map<string, ReturnType<typeof createMockModel>>();
+
 export const editor = {
   create: vi.fn(() => createMockEditor()),
-  createModel: vi.fn((content: string, language?: string, uri?: unknown) =>
-    createMockModel(content, language, uri),
-  ),
+  createModel: vi.fn((content: string, language?: string, uri?: unknown) => {
+    const model = createMockModel(content, language, uri);
+    const uriStr = model.uri.toString();
+    modelMap.set(uriStr, model);
+    return model;
+  }),
+  createDiffEditor: vi.fn(() => ({
+    setModel: vi.fn(),
+    getModifiedEditor: vi.fn(() => ({
+      focus: vi.fn(),
+      getModel: vi.fn(() => createMockModel("")),
+    })),
+    updateOptions: vi.fn(),
+    dispose: vi.fn(),
+    layout: vi.fn(),
+  })),
+  getModel: vi.fn((uri: unknown) => {
+    if (!uri) return null;
+    const uriStr =
+      typeof uri === "string"
+        ? uri
+        : (uri as { toString: () => string }).toString();
+    return modelMap.get(uriStr) || null;
+  }),
+  setTheme: vi.fn(),
+  defineTheme: vi.fn(),
+  setModelLanguage: vi.fn(),
 };
 
 export const Uri = {
@@ -80,6 +114,9 @@ export const __testHelpers = {
   },
   resetVersionCounter: () => {
     versionCounter = 1;
+  },
+  resetModelMap: () => {
+    modelMap.clear();
   },
   createMockEditor,
   createMockModel,

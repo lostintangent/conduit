@@ -17,7 +17,7 @@ interface MockProviderInstance {
 
 const createdInstances: MockProviderInstance[] = [];
 
-vi.mock("../../../src/ipc/gitv2/providers/DiskGitProvider", () => {
+vi.mock("../../../src/ipc/gitv2/DiskGitProvider", () => {
   return {
     DiskGitProvider: class MockDiskGitProvider {
       gitRoot: string;

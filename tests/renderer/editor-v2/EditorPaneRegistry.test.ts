@@ -58,7 +58,7 @@ describe("EditorPaneRegistry", () => {
   describe("Lifecycle - Create", () => {
     it("should create a new pane entry with getOrCreate()", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       const entry = registry.getOrCreate("pane-1", config);
@@ -66,14 +66,14 @@ describe("EditorPaneRegistry", () => {
       expect(entry).toBeDefined();
       expect(entry.paneId).toBe("pane-1");
       expect(entry.config).toBe(config);
-      expect(entry.rootElement).toBeNull();
+      expect(entry.wrapperElement).toBeDefined();
       expect(entry.currentContainer).toBeNull();
       expect(entry.isVisible).toBe(false);
     });
 
     it("should return existing entry on subsequent getOrCreate() calls", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       const entry1 = registry.getOrCreate("pane-1", config);
@@ -84,14 +84,14 @@ describe("EditorPaneRegistry", () => {
 
     it("should update config on subsequent getOrCreate() calls", () => {
       const config1 = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
       const config2 = {
         pane: {
           id: "pane-1",
           type: "editor",
           cwd: "/test",
-          filePath: "/test/file.ts",
+          file: "/test/file.ts",
         },
       };
 
@@ -106,7 +106,7 @@ describe("EditorPaneRegistry", () => {
       registry.onEvent(listener);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -121,21 +121,21 @@ describe("EditorPaneRegistry", () => {
     it("should fire paneUpdated event when config changes", () => {
       const listener = vi.fn();
       const config1 = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
       const config2 = {
         pane: {
           id: "pane-1",
           type: "editor",
           cwd: "/test",
-          filePath: "/test/file.ts",
+          file: "/test/file.ts",
         },
       };
 
+      registry.onEvent(listener); // Attach listener first
       registry.getOrCreate("pane-1", config1);
       listener.mockClear(); // Clear the paneAdded event
 
-      registry.onEvent(listener);
       registry.getOrCreate("pane-1", config2);
 
       expect(listener).toHaveBeenCalledWith({
@@ -166,7 +166,7 @@ describe("EditorPaneRegistry", () => {
 
     it("should store pendingContainer when rootElement not set", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -179,47 +179,47 @@ describe("EditorPaneRegistry", () => {
 
     it("should complete pending attachment when rootElement is set", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
       registry.attach("pane-1", mockContainer);
-      registry.setRootElement("pane-1", mockRootElement);
+      registry.markReady("pane-1");
 
       const entry = registry.get("pane-1");
       expect(entry.pendingContainer).toBeNull();
       expect(entry.currentContainer).toBe(mockContainer);
-      expect(mockContainer.contains(mockRootElement)).toBe(true);
+      expect(mockContainer.contains(entry.wrapperElement)).toBe(true);
     });
 
     it("should attach rootElement to container immediately if rootElement already set", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
-      registry.getOrCreate("pane-1", config);
-      registry.setRootElement("pane-1", mockRootElement);
+      const entry = registry.getOrCreate("pane-1", config);
+      registry.markReady("pane-1");
       registry.attach("pane-1", mockContainer);
 
-      expect(mockContainer.contains(mockRootElement)).toBe(true);
+      expect(mockContainer.contains(entry.wrapperElement)).toBe(true);
     });
 
     it("should move rootElement to off-screen container on detach", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
-      registry.getOrCreate("pane-1", config);
-      registry.setRootElement("pane-1", mockRootElement);
+      const entry = registry.getOrCreate("pane-1", config);
+      registry.markReady("pane-1");
       registry.attach("pane-1", mockContainer);
       registry.detach("pane-1");
 
-      expect(mockContainer.contains(mockRootElement)).toBe(false);
+      expect(mockContainer.contains(entry.wrapperElement)).toBe(false);
       // Should be in off-screen container
       const offscreenContainer = document.getElementById(
         "editor-pane-offscreen-container",
       );
-      expect(offscreenContainer?.contains(mockRootElement)).toBe(true);
+      expect(offscreenContainer?.contains(entry.wrapperElement)).toBe(true);
     });
 
     it("should fire paneAttached event on attach", () => {
@@ -227,11 +227,11 @@ describe("EditorPaneRegistry", () => {
       registry.onEvent(listener);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
-      registry.setRootElement("pane-1", mockRootElement);
+      registry.markReady("pane-1");
 
       listener.mockClear();
       registry.attach("pane-1", mockContainer);
@@ -247,11 +247,11 @@ describe("EditorPaneRegistry", () => {
       registry.onEvent(listener);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
-      registry.setRootElement("pane-1", mockRootElement);
+      registry.markReady("pane-1");
       registry.attach("pane-1", mockContainer);
 
       listener.mockClear();
@@ -270,7 +270,7 @@ describe("EditorPaneRegistry", () => {
   describe("Lifecycle - Dispose", () => {
     it("should remove pane from registry on dispose()", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -281,23 +281,22 @@ describe("EditorPaneRegistry", () => {
     });
 
     it("should remove rootElement from DOM on dispose()", () => {
-      const mockRootElement = document.createElement("div");
       const mockContainer = document.createElement("div");
       document.body.appendChild(mockContainer);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
-      registry.getOrCreate("pane-1", config);
-      registry.setRootElement("pane-1", mockRootElement);
+      const entry = registry.getOrCreate("pane-1", config);
+      registry.markReady("pane-1");
       registry.attach("pane-1", mockContainer);
 
-      expect(mockContainer.contains(mockRootElement)).toBe(true);
+      expect(mockContainer.contains(entry.wrapperElement)).toBe(true);
 
       registry.dispose("pane-1");
-      expect(mockContainer.contains(mockRootElement)).toBe(false);
-      expect(document.body.contains(mockRootElement)).toBe(false);
+      expect(mockContainer.contains(entry.wrapperElement)).toBe(false);
+      expect(document.body.contains(entry.wrapperElement)).toBe(false);
     });
 
     it("should fire paneRemoved event on dispose()", () => {
@@ -305,7 +304,7 @@ describe("EditorPaneRegistry", () => {
       registry.onEvent(listener);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -349,7 +348,7 @@ describe("EditorPaneRegistry", () => {
 
     it("should register scroll container", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -365,7 +364,7 @@ describe("EditorPaneRegistry", () => {
 
     it("should update scroll position when updateScrollPosition() is called", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -383,11 +382,11 @@ describe("EditorPaneRegistry", () => {
 
     it("should preserve scroll position during detach/attach cycle", async () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
-      registry.setRootElement("pane-1", mockRootElement);
+      registry.markReady("pane-1");
       registry.attach("pane-1", mockContainer);
       registry.registerScrollContainer(
         "pane-1",
@@ -418,11 +417,11 @@ describe("EditorPaneRegistry", () => {
 
     it("should handle element hidden before detach (critical bug fix test)", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
-      registry.setRootElement("pane-1", mockRootElement);
+      registry.markReady("pane-1");
       registry.attach("pane-1", mockContainer);
       registry.registerScrollContainer(
         "pane-1",
@@ -449,7 +448,7 @@ describe("EditorPaneRegistry", () => {
 
     it("should unregister scroll container and preserve savedScrollTop", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -480,7 +479,7 @@ describe("EditorPaneRegistry", () => {
   describe("Visibility Tracking", () => {
     it("should mark pane as visible when notifyVisible() is called", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -492,7 +491,7 @@ describe("EditorPaneRegistry", () => {
 
     it("should mark pane as hidden when notifyHidden() is called", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -508,7 +507,7 @@ describe("EditorPaneRegistry", () => {
       registry.onEvent(listener);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -526,7 +525,7 @@ describe("EditorPaneRegistry", () => {
     it("should trigger layout callback when notifyVisible() is called", () => {
       const layoutTrigger = vi.fn();
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -542,7 +541,7 @@ describe("EditorPaneRegistry", () => {
       registry.onEvent(listener);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -564,7 +563,7 @@ describe("EditorPaneRegistry", () => {
   describe("Query Methods", () => {
     it("should return true from has() for existing pane", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -577,7 +576,7 @@ describe("EditorPaneRegistry", () => {
 
     it("should return pane entry from get()", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       const entry = registry.getOrCreate("pane-1", config);
@@ -590,10 +589,10 @@ describe("EditorPaneRegistry", () => {
 
     it("should return all pane entries from getAll()", () => {
       const config1 = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
       const config2 = {
-        pane: { id: "pane-2", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-2", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config1);
@@ -607,10 +606,10 @@ describe("EditorPaneRegistry", () => {
 
     it("should return all pane IDs from getAllIds()", () => {
       const config1 = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
       const config2 = {
-        pane: { id: "pane-2", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-2", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config1);
@@ -629,7 +628,7 @@ describe("EditorPaneRegistry", () => {
   describe("Update Config", () => {
     it("should update pane config with updateConfig()", () => {
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -639,14 +638,14 @@ describe("EditorPaneRegistry", () => {
           id: "pane-1",
           type: "editor",
           cwd: "/test",
-          filePath: "/test/file.ts",
+          file: "/test/file.ts",
         },
       };
 
       registry.updateConfig("pane-1", newPaneConfig);
 
       const entry = registry.get("pane-1");
-      expect(entry.config.pane.filePath).toBe("/test/file.ts");
+      expect(entry.config.pane.file).toBe("/test/file.ts");
     });
 
     it("should fire paneUpdated event when updateConfig() is called", () => {
@@ -654,7 +653,7 @@ describe("EditorPaneRegistry", () => {
       registry.onEvent(listener);
 
       const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
       };
 
       registry.getOrCreate("pane-1", config);
@@ -665,7 +664,7 @@ describe("EditorPaneRegistry", () => {
           id: "pane-1",
           type: "editor",
           cwd: "/test",
-          filePath: "/test/file.ts",
+          file: "/test/file.ts",
         },
       };
 

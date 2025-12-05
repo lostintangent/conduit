@@ -27,6 +27,7 @@ vi.mock("@/components/panes/editor/EditorPane", () => ({
 }));
 
 // Mock the EditorPaneAnchor component (used by global container pattern)
+// and EditorPaneRegistry (used for cleanup when switching from v2 to v1)
 vi.mock("@/components/panes/editor-v2", () => ({
   EditorPaneAnchor: ({
     paneId,
@@ -39,6 +40,11 @@ vi.mock("@/components/panes/editor-v2", () => ({
       Editor V2 (via EditorPaneAnchor)
     </div>
   ),
+  EditorPaneRegistry: {
+    getInstance: () => ({
+      disposeAll: vi.fn(),
+    }),
+  },
 }));
 
 // Import after mocks

@@ -4,10 +4,9 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { RegularEditorWrapper } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/RegularEditorWrapper";
 
 // ============================================================================
-// Mocks
+// Mocks - Must be defined before vi.mock calls that reference them
 // ============================================================================
 
 // Mock Monaco model
@@ -19,7 +18,7 @@ const mockModel = {
   onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
 };
 
-// Mock Monaco editor
+// Mock Monaco editor - returned by monaco.editor.create
 const mockEditor = {
   setModel: vi.fn(),
   getModel: vi.fn(() => mockModel),
@@ -32,12 +31,12 @@ const mockEditor = {
   })),
   restoreViewState: vi.fn(),
   onDidChangeModelContent: vi.fn(() => ({ dispose: vi.fn() })),
-};
-
-// Mock EditorRegistry
-const mockEditorRegistry = {
-  getOrCreateEditor: vi.fn(() => mockEditor),
-  releaseEditor: vi.fn(),
+  onDidBlurEditorText: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidFocusEditorText: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidScrollChange: vi.fn(() => ({ dispose: vi.fn() })),
+  getDomNode: vi.fn(() => document.createElement("div")),
+  layout: vi.fn(),
 };
 
 // Mock ViewStateRegistry
@@ -47,41 +46,80 @@ const mockViewStateRegistry = {
 };
 
 // Mock useMonacoModel hook
-vi.mock(
-  "../../../../src/renderer/components/panes/editor-v2/hooks",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("../../../../src/renderer/components/panes/editor-v2/hooks")
-      >();
-    return {
-      ...original,
-      useMonacoModel: vi.fn(() => mockModel),
-    };
+// Note: We don't use importOriginal because the real hooks would access window.conduit
+vi.mock("../../../../../src/renderer/components/panes/editor-v2/hooks", () => ({
+  useMonacoModel: vi.fn(() => mockModel),
+  useResponsiveLayout: vi.fn(() => ({ layoutMode: "normal", showTree: true })),
+  useEditorVisibility: vi.fn(),
+  useDiffContent: vi.fn(() => ({
+    original: "original",
+    modified: "modified",
+    isLoading: false,
+    error: null,
+  })),
+  useModelState: vi.fn(() => ({
+    content: "content",
+    isDirty: false,
+    isOrphaned: false,
+  })),
+}));
+
+// Mock monaco-editor - The component uses monaco.editor.create directly
+vi.mock("monaco-editor", () => ({
+  editor: {
+    create: vi.fn(() => mockEditor),
+    createModel: vi.fn(() => mockModel),
+    setTheme: vi.fn(),
+    defineTheme: vi.fn(),
+    setModelLanguage: vi.fn(),
   },
-);
+  Uri: {
+    parse: vi.fn((uri: string) => ({ toString: () => uri })),
+    file: vi.fn((path: string) => ({
+      toString: () => `file://${path}`,
+      fsPath: path,
+    })),
+  },
+}));
 
 // Mock registries
 vi.mock(
-  "../../../../src/renderer/components/panes/editor-v2/registry",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("../../../../src/renderer/components/panes/editor-v2/registry")
-      >();
-    return {
-      ...original,
-      EditorRegistry: {
-        getInstance: () => mockEditorRegistry,
-        resetInstance: vi.fn(),
-      },
-      ViewStateRegistry: {
-        getInstance: () => mockViewStateRegistry,
-        resetInstance: vi.fn(),
-      },
-    };
-  },
+  "../../../../../src/renderer/components/panes/editor-v2/registry",
+  () => ({
+    EditorRegistry: {
+      getInstance: () => ({
+        getOrCreateEditor: vi.fn(() => mockEditor),
+        releaseEditor: vi.fn(),
+      }),
+      resetInstance: vi.fn(),
+    },
+    ViewStateRegistry: {
+      getInstance: () => mockViewStateRegistry,
+      resetInstance: vi.fn(),
+    },
+    MonacoModelRegistry: {
+      getInstance: () => ({
+        getOrCreate: vi.fn(() => mockModel),
+        release: vi.fn(),
+      }),
+      resetInstance: vi.fn(),
+    },
+    EditorPaneRegistry: {
+      getInstance: () => ({
+        getOrCreate: vi.fn(),
+        dispose: vi.fn(),
+        disposeAll: vi.fn(),
+        attach: vi.fn(),
+        detach: vi.fn(),
+      }),
+      resetInstance: vi.fn(),
+    },
+  }),
 );
+
+// Import after mocks are set up
+import { RegularEditorWrapper } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/RegularEditorWrapper";
+import * as monaco from "monaco-editor";
 
 // ============================================================================
 // Tests
@@ -129,11 +167,11 @@ describe("RegularEditorWrapper", () => {
   });
 
   // ===========================================================================
-  // Editor Registry Integration
+  // Editor Creation
   // ===========================================================================
 
-  describe("editor registry integration", () => {
-    it("should get or create editor from registry on mount", async () => {
+  describe("editor creation", () => {
+    it("should create editor using monaco.editor.create on mount", async () => {
       render(
         <RegularEditorWrapper
           editorId="test-editor"
@@ -145,8 +183,7 @@ describe("RegularEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockEditorRegistry.getOrCreateEditor).toHaveBeenCalledWith(
-          "test-editor",
+        expect(monaco.editor.create).toHaveBeenCalledWith(
           expect.any(HTMLElement),
           expect.objectContaining({
             theme: "vs-dark",
@@ -156,7 +193,7 @@ describe("RegularEditorWrapper", () => {
       });
     });
 
-    it("should release editor on unmount", async () => {
+    it("should dispose editor on unmount", async () => {
       const { unmount } = render(
         <RegularEditorWrapper
           editorId="test-editor"
@@ -166,14 +203,12 @@ describe("RegularEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockEditorRegistry.getOrCreateEditor).toHaveBeenCalled();
+        expect(monaco.editor.create).toHaveBeenCalled();
       });
 
       unmount();
 
-      expect(mockEditorRegistry.releaseEditor).toHaveBeenCalledWith(
-        "test-editor",
-      );
+      expect(mockEditor.dispose).toHaveBeenCalled();
     });
   });
 
@@ -215,7 +250,7 @@ describe("RegularEditorWrapper", () => {
         expect(mockViewStateRegistry.restore).toHaveBeenCalledWith(
           "test-editor",
           "/test/file.ts",
-          mockEditor,
+          expect.any(Object),
         );
       });
     });
@@ -238,7 +273,7 @@ describe("RegularEditorWrapper", () => {
       expect(mockViewStateRegistry.save).toHaveBeenCalledWith(
         "test-editor",
         "/test/file.ts",
-        mockEditor,
+        expect.any(Object),
       );
     });
   });
@@ -356,7 +391,7 @@ describe("RegularEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockOnMount).toHaveBeenCalledWith(mockEditor);
+        expect(mockOnMount).toHaveBeenCalledWith(expect.any(Object));
       });
     });
 
@@ -393,8 +428,7 @@ describe("RegularEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockEditorRegistry.getOrCreateEditor).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(monaco.editor.create).toHaveBeenCalledWith(
           expect.any(HTMLElement),
           expect.objectContaining({
             theme: "vs-dark",
@@ -413,8 +447,7 @@ describe("RegularEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockEditorRegistry.getOrCreateEditor).toHaveBeenCalledWith(
-          expect.any(String),
+        expect(monaco.editor.create).toHaveBeenCalledWith(
           expect.any(HTMLElement),
           expect.objectContaining({
             readOnly: false,
@@ -442,7 +475,7 @@ describe("RegularEditorWrapper", () => {
         expect(mockViewStateRegistry.restore).toHaveBeenCalledWith(
           "test-editor",
           "/test/file1.ts",
-          mockEditor,
+          expect.any(Object),
         );
       });
 
@@ -462,7 +495,7 @@ describe("RegularEditorWrapper", () => {
         expect(mockViewStateRegistry.save).toHaveBeenCalledWith(
           "test-editor",
           "/test/file1.ts",
-          mockEditor,
+          expect.any(Object),
         );
       });
     });
@@ -494,7 +527,7 @@ describe("RegularEditorWrapper", () => {
         expect(mockViewStateRegistry.restore).toHaveBeenCalledWith(
           "test-editor",
           "/test/file2.ts",
-          mockEditor,
+          expect.any(Object),
         );
       });
     });

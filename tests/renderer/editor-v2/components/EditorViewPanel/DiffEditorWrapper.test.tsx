@@ -4,11 +4,20 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { DiffEditorWrapper } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/DiffEditorWrapper";
 
 // ============================================================================
-// Mocks
+// Mocks - Use vi.hoisted to create mocks that can be dynamically changed
 // ============================================================================
+
+// State container for dynamic mock state
+const mockState = vi.hoisted(() => ({
+  diffContent: {
+    original: "original content",
+    modified: "modified content",
+    isLoading: false,
+    error: null as string | null,
+  },
+}));
 
 // Mock Monaco model
 const mockModifiedModel = {
@@ -19,15 +28,24 @@ const mockModifiedModel = {
   onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
 };
 
+// Mock modified editor (returned by getModifiedEditor)
+const mockModifiedEditor = {
+  focus: vi.fn(),
+  getModel: vi.fn(() => mockModifiedModel),
+  saveViewState: vi.fn(() => ({
+    cursorState: [{ position: { lineNumber: 1, column: 1 } }],
+    viewState: { scrollTop: 0 },
+  })),
+  restoreViewState: vi.fn(),
+};
+
 // Mock Monaco diff editor
 const mockDiffEditor = {
   setModel: vi.fn(),
-  getModifiedEditor: vi.fn(() => ({
-    focus: vi.fn(),
-    getModel: vi.fn(() => mockModifiedModel),
-  })),
+  getModifiedEditor: vi.fn(() => mockModifiedEditor),
   updateOptions: vi.fn(),
   dispose: vi.fn(),
+  layout: vi.fn(),
 };
 
 // Mock monaco.editor.createDiffEditor
@@ -35,42 +53,81 @@ const mockCreateDiffEditor = vi.fn(() => mockDiffEditor);
 const mockCreateModel = vi.fn(() => ({
   dispose: vi.fn(),
 }));
+const mockSetTheme = vi.fn();
 
 // Mock monaco module
 vi.mock("monaco-editor", () => ({
   editor: {
     createDiffEditor: (...args: unknown[]) => mockCreateDiffEditor(...args),
     createModel: (...args: unknown[]) => mockCreateModel(...args),
-    setTheme: vi.fn(),
+    setTheme: (...args: unknown[]) => mockSetTheme(...args),
   },
   Uri: {
     parse: vi.fn((uri: string) => ({ toString: () => uri })),
+    file: vi.fn((path: string) => ({
+      toString: () => `file://${path}`,
+      fsPath: path,
+    })),
   },
 }));
 
-// Diff content state
-let mockDiffContentState = {
-  original: "original content",
-  modified: "modified content",
-  isLoading: false,
-  error: null as string | null,
+// Mock ViewStateRegistry
+const mockViewStateRegistry = {
+  save: vi.fn(),
+  restore: vi.fn(),
 };
 
-// Mock useDiffContent hook
+// Mock useDiffContent hook - return function that reads current state
+vi.mock("../../../../../src/renderer/components/panes/editor-v2/hooks", () => ({
+  useDiffContent: vi.fn(() => mockState.diffContent),
+  useMonacoModel: vi.fn(() => mockModifiedModel),
+  useResponsiveLayout: vi.fn(() => ({ layoutMode: "normal", showTree: true })),
+  useEditorVisibility: vi.fn(),
+  useModelState: vi.fn(() => ({
+    content: "content",
+    isDirty: false,
+    isOrphaned: false,
+  })),
+}));
+
+// Mock registries
 vi.mock(
-  "../../../../src/renderer/components/panes/editor-v2/hooks",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("../../../../src/renderer/components/panes/editor-v2/hooks")
-      >();
-    return {
-      ...original,
-      useDiffContent: vi.fn(() => mockDiffContentState),
-      useMonacoModel: vi.fn(() => mockModifiedModel),
-    };
-  },
+  "../../../../../src/renderer/components/panes/editor-v2/registry",
+  () => ({
+    ViewStateRegistry: {
+      getInstance: () => mockViewStateRegistry,
+      resetInstance: vi.fn(),
+    },
+    MonacoModelRegistry: {
+      getInstance: () => ({
+        getOrCreate: vi.fn(() => mockModifiedModel),
+        release: vi.fn(),
+      }),
+      resetInstance: vi.fn(),
+    },
+    EditorPaneRegistry: {
+      getInstance: () => ({
+        getOrCreate: vi.fn(),
+        dispose: vi.fn(),
+        disposeAll: vi.fn(),
+        attach: vi.fn(),
+        detach: vi.fn(),
+      }),
+      resetInstance: vi.fn(),
+    },
+    EditorRegistry: {
+      getInstance: () => ({
+        getOrCreateEditor: vi.fn(),
+        releaseEditor: vi.fn(),
+      }),
+      resetInstance: vi.fn(),
+    },
+  }),
 );
+
+// Import component after mocks are set up
+import { DiffEditorWrapper } from "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/DiffEditorWrapper";
+import { useDiffContent } from "../../../../../src/renderer/components/panes/editor-v2/hooks";
 
 // ============================================================================
 // Tests
@@ -80,12 +137,16 @@ describe("DiffEditorWrapper", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to default state
-    mockDiffContentState = {
+    mockState.diffContent = {
       original: "original content",
       modified: "modified content",
       isLoading: false,
       error: null,
     };
+    // Reset the mock implementation to use default state
+    (useDiffContent as ReturnType<typeof vi.fn>).mockImplementation(
+      () => mockState.diffContent,
+    );
   });
 
   afterEach(() => {
@@ -98,12 +159,12 @@ describe("DiffEditorWrapper", () => {
 
   describe("loading state", () => {
     it("should show loading state while fetching content", () => {
-      mockDiffContentState = {
-        original: null as unknown as string,
-        modified: null as unknown as string,
+      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
+        original: null,
+        modified: null,
         isLoading: true,
         error: null,
-      };
+      });
 
       render(
         <DiffEditorWrapper
@@ -117,13 +178,13 @@ describe("DiffEditorWrapper", () => {
       expect(screen.getByText("Loading diff...")).toBeDefined();
     });
 
-    it("should not create diff editor while loading", () => {
-      mockDiffContentState = {
-        original: null as unknown as string,
-        modified: null as unknown as string,
+    it("should not set up model while loading", async () => {
+      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
+        original: null,
+        modified: null,
         isLoading: true,
         error: null,
-      };
+      });
 
       render(
         <DiffEditorWrapper
@@ -133,8 +194,10 @@ describe("DiffEditorWrapper", () => {
         />,
       );
 
-      // Editor container should not be rendered
-      expect(screen.queryByTestId("diff-editor-wrapper")).toBeNull();
+      // Monaco diff editor model should not be set up during loading
+      await waitFor(() => {
+        expect(mockDiffEditor.setModel).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -144,12 +207,12 @@ describe("DiffEditorWrapper", () => {
 
   describe("error state", () => {
     it("should show error state when fetch fails", () => {
-      mockDiffContentState = {
-        original: null as unknown as string,
-        modified: null as unknown as string,
+      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
+        original: null,
+        modified: null,
         isLoading: false,
-        error: "Failed to fetch git content",
-      };
+        error: { message: "Failed to fetch git content" },
+      });
 
       render(
         <DiffEditorWrapper
@@ -163,13 +226,13 @@ describe("DiffEditorWrapper", () => {
       expect(screen.getByText("Failed to fetch git content")).toBeDefined();
     });
 
-    it("should not create diff editor on error", () => {
-      mockDiffContentState = {
-        original: null as unknown as string,
-        modified: null as unknown as string,
+    it("should not set up model on error", async () => {
+      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
+        original: null,
+        modified: null,
         isLoading: false,
-        error: "Failed to fetch git content",
-      };
+        error: { message: "Failed to fetch git content" },
+      });
 
       render(
         <DiffEditorWrapper
@@ -179,7 +242,10 @@ describe("DiffEditorWrapper", () => {
         />,
       );
 
-      expect(screen.queryByTestId("diff-editor-wrapper")).toBeNull();
+      // Monaco diff editor model should not be set up on error
+      await waitFor(() => {
+        expect(mockDiffEditor.setModel).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -285,9 +351,6 @@ describe("DiffEditorWrapper", () => {
 
   describe("options updates", () => {
     it("should update theme globally when theme changes", async () => {
-      // Import the mocked monaco module to access setTheme
-      const monaco = await import("monaco-editor");
-
       const { rerender } = render(
         <DiffEditorWrapper
           editorId="test-diff"
@@ -302,7 +365,7 @@ describe("DiffEditorWrapper", () => {
       });
 
       // Clear the mock to check for the new call
-      (monaco.editor.setTheme as ReturnType<typeof vi.fn>).mockClear();
+      mockSetTheme.mockClear();
 
       rerender(
         <DiffEditorWrapper
@@ -314,7 +377,7 @@ describe("DiffEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(monaco.editor.setTheme).toHaveBeenCalledWith("vs-light");
+        expect(mockSetTheme).toHaveBeenCalledWith("vs-light");
       });
     });
 
@@ -361,6 +424,8 @@ describe("DiffEditorWrapper", () => {
       mockDiffEditor.getModifiedEditor.mockReturnValue({
         focus: mockFocus,
         getModel: vi.fn(() => mockModifiedModel),
+        saveViewState: vi.fn(() => null),
+        restoreViewState: vi.fn(),
       });
 
       render(

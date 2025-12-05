@@ -178,7 +178,7 @@ describe("duplicateTab", () => {
           id: "pane-1",
           type: "editor",
           cwd: "/home/user/project",
-          filePath: "/home/user/project/index.ts",
+          file: "/home/user/project/index.ts",
         },
       },
       layout: {

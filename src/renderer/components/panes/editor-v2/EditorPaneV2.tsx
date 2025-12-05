@@ -108,7 +108,7 @@ function isAtFilesystemRoot(path: string): boolean {
  * Callback payload when file changes (selection or content).
  */
 export interface FileChangeData {
-  file: string;
+  filePath: string;
   language: string;
   content: string;
 }
@@ -192,7 +192,12 @@ export function EditorPaneV2({
   onSave,
   onHover,
 }: EditorPaneV2Props) {
-  const { cwd: initialCwd, file: initialFilePath, treeMode } = pane;
+  const {
+    cwd: initialCwd,
+    file: initialFilePath,
+    filePath,
+    treeMode,
+  } = pane as EditorPaneType & { filePath?: string };
 
   // Get editor theme from user settings
   const editorTheme = useEditorTheme();
@@ -228,9 +233,10 @@ export function EditorPaneV2({
 
   // Selected file state - initialized from pane config if provided
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(() => {
-    if (initialFilePath) {
-      const name = initialFilePath.split("/").pop() ?? "";
-      return { path: initialFilePath, name, type: "file" };
+    const pathToUse = initialFilePath || filePath;
+    if (pathToUse) {
+      const name = pathToUse.split("/").pop() ?? "";
+      return { path: pathToUse, name, type: "file" };
     }
     return null;
   });
@@ -473,7 +479,7 @@ export function EditorPaneV2({
     autoOpenAttemptedRef.current = true;
 
     // Don't auto-open if a file is already selected
-    if (selectedFile || initialFilePath) {
+    if (selectedFile || initialFilePath || filePath) {
       return;
     }
 
@@ -588,15 +594,15 @@ export function EditorPaneV2({
         setViewMode({ type: "editor" });
       }
 
-      // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
-      // File selection within the editor just updates selectedFile state
+      // Notify parent of file open
+      onFileOpen?.(file);
 
       // Load file content and notify parent
       if (onFileChange && file.type === "file") {
         try {
           const content = await fs.readTextFile(file.path);
           onFileChange({
-            file: file.path,
+            filePath: file.path,
             language: detectLanguage(file.path),
             content,
           });
@@ -631,6 +637,9 @@ export function EditorPaneV2({
     (mode: TreeViewMode) => {
       setTreeViewMode(mode);
 
+      // Persist to localStorage
+      localStorage.setItem("editor-v2:treeViewMode", mode);
+
       // Notify parent - map internal mode to external format
       onTreeModeChange?.(mode === "changes" ? "changes" : "all");
     },
@@ -642,6 +651,9 @@ export function EditorPaneV2({
    */
   const handleTreeResize = useCallback((width: number) => {
     setTreeWidth(width);
+
+    // Persist to localStorage
+    localStorage.setItem("editor-v2:treeWidth", width.toString());
   }, []);
 
   /**
