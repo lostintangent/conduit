@@ -46,16 +46,9 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
         if npm install -g @github/copilot; then
           # Remove this wrapper function so the real copilot takes precedence
           unfunction copilot
-          # Refresh the command hash table so zsh finds the newly installed command
-          rehash
           # Run the real copilot command with any arguments that were passed
           copilot "$@"
-        else
-          echo "Failed to install GitHub Copilot CLI." >&2
-          return 1
         fi
-      else
-        return 0
       fi
     }
   fi
