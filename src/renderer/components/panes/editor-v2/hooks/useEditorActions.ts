@@ -47,10 +47,6 @@ import { useCallback, useEffect, useState } from "react";
 import type * as monaco from "monaco-editor";
 import type { ModelState } from "../types";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /**
  * Actions available for editor toolbar integration.
  */

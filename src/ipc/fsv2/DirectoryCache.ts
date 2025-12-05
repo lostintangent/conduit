@@ -26,8 +26,6 @@
  * - Average directory: ~20 files × 50 bytes = 1KB
  * - 500 directories = ~500KB
  * - Reasonable for long-running editor sessions
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
 import type { DirectoryEntry, Disposable } from "./types";

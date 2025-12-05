@@ -44,10 +44,6 @@ import type { FileNode } from "../../types";
 import { cn } from "@/utils";
 import { GitBadge, getStatusConfig } from "../shared";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface FileTreeChangesProps {
   /** Editor pane ID (for scroll persistence) */
   paneId: string;
@@ -917,10 +913,6 @@ export function FileTreeChanges({
     expandFoldersForFiles,
   } = useChangesViewState();
 
-  // ---------------------------------------------------------------------------
-  // Computed Values
-  // ---------------------------------------------------------------------------
-
   /**
    * Group files by staging status.
    * When comparing to a branch, all files go into unstagedFiles since
@@ -1145,10 +1137,6 @@ export function FileTreeChanges({
       </>
     );
   };
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   // Git not installed
   if (!isCheckingGit && !isGitAvailable) {

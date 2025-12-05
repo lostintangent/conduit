@@ -23,10 +23,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /**
  * The current active view in single-column layout mode.
  */
@@ -39,10 +35,6 @@ export interface PanelViewPortToggleProps {
   /** Callback when view is changed */
   onViewChange: (view: PanelView) => void;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Floating toggle buttons for switching between tree and editor views.

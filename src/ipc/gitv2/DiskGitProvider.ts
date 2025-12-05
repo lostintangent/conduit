@@ -18,30 +18,28 @@
  * ├── ParcelFileWatcher (.git directory watching)
  * └── EventEmitters (notifications)
  * ```
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
-import * as path from "node:path";
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
+import * as path from "node:path";
 import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
-import type { Event, Disposable } from "../fsv2/types";
+import type { Disposable, Event } from "../fsv2/types";
 import type {
-  GitProvider,
-  GitStatus,
+  GitBranch,
+  GitBranchChangedEvent,
+  GitCommit,
+  GitCommitCreatedEvent,
+  GitCommitOptions,
   GitFileStatus,
   GitFileStatusCode,
-  GitCommit,
-  GitCommitOptions,
-  GitBranch,
-  GitStatusChangedEvent,
-  GitBranchChangedEvent,
-  GitCommitCreatedEvent,
   GitHeadChangedEvent,
+  GitProvider,
+  GitStatus,
+  GitStatusChangedEvent,
 } from "./types";
 
 // ============================================================================

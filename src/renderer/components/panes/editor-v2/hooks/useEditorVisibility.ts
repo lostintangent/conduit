@@ -7,16 +7,10 @@
  *
  * Visibility is tracked via two mechanisms:
  * 1. IntersectionObserver - Detects when element enters/leaves viewport
- * 2. MutationObserver - Detects CSS display/visibility changes on ancestors
- *
- * @see docs/architecture/editor-global-container-plan.md
+ * 2. MutationObserver - Detects CSS display/visibility changes on ancestor
  */
 
-import { useEffect, useRef, useCallback } from "react";
-
-// ============================================================================
-// Types
-// ============================================================================
+import { useCallback, useEffect, useRef } from "react";
 
 export interface UseEditorVisibilityOptions {
   /**
@@ -45,10 +39,6 @@ export interface UseEditorVisibilityOptions {
    */
   debounceMs?: number;
 }
-
-// ============================================================================
-// Helpers
-// ============================================================================
 
 /**
  * Check if an element is visible (not display:none, visibility:hidden, etc.)

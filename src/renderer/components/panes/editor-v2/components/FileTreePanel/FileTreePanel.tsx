@@ -31,10 +31,6 @@ import { FileTreeChanges } from "./FileTreeChanges";
 import { GitBranchToolbar } from "./GitBranchToolbar";
 import { cn } from "@/utils";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface FileTreePanelProps {
   /** Editor pane ID (for scroll persistence) */
   paneId: string;
@@ -149,10 +145,6 @@ export interface FileTreePanelProps {
   onChangesViewModeChange?: (mode: "flat" | "nested") => void;
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
 /**
  * Main file tree panel with view mode toggle.
  */
@@ -211,10 +203,6 @@ export function FileTreePanel({
   const handleFilterToggle = () => {
     onTreeViewModeChange(treeViewMode === "changes" ? "files" : "changes");
   };
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <div

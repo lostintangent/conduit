@@ -8,8 +8,6 @@
  * - Simple over clever: Plain strings for paths (not URIs)
  * - Events include data: Reduces IPC roundtrips
  * - Two file types only: 'file' | 'directory' (no symlinks for now)
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
 import type { Event } from "@shared/types";

@@ -18,28 +18,18 @@
  * - No visual flashing during tab switches
  * - Works with tab previews and overview mode
  * - No DOM ownership conflicts with React
- *
- * @see docs/architecture/editor-global-container-plan.md
  */
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { EditorPaneRegistry, type EditorPaneConfig } from "../registry";
 import { EditorPaneV2 } from "../EditorPaneV2";
+import { EditorPaneRegistry, type EditorPaneConfig } from "../registry";
 import { EditorRegistry } from "../registry/EditorRegistry";
-
-// ============================================================================
-// Types
-// ============================================================================
 
 interface EditorPaneEntry {
   paneId: string;
   config: EditorPaneConfig;
 }
-
-// ============================================================================
-// EditorPaneWrapper
-// ============================================================================
 
 /**
  * Wrapper component for a single EditorPaneV2 instance.

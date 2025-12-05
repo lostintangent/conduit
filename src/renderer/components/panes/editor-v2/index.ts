@@ -8,9 +8,6 @@
  * - React hooks for state integration
  * - Component-based architecture with clear responsibilities
  * - Real-time updates via event subscriptions
- *
- * @see docs/architecture/editor-v2-design-narrative.md
- * @see docs/architecture/editor-v2-implementation-plan.md
  */
 
 // Main orchestrator component
@@ -18,26 +15,26 @@ export { EditorPaneV2 } from "./EditorPaneV2";
 export type { EditorPaneV2Props, FileChangeData } from "./EditorPaneV2";
 
 // Anchor component for global container pattern
-export { EditorPaneAnchor, disposeEditorPane } from "./EditorPaneAnchor";
+export { disposeEditorPane, EditorPaneAnchor } from "./EditorPaneAnchor";
 export type { EditorPaneAnchorProps } from "./EditorPaneAnchor";
 
 // Re-export types
 export type {
-  FileNode,
-  ViewMode,
-  TreeViewMode,
   EditorMode,
+  FileNode,
   ModelState,
   ModelStateEvent,
+  TreeViewMode,
+  ViewMode,
 } from "./types";
 
 // Re-export hooks
 export {
-  useMonacoModel,
-  useModelState,
   useDiffContent,
-  useResponsiveLayout,
   useEditorVisibility,
+  useModelState,
+  useMonacoModel,
+  useResponsiveLayout,
 } from "./hooks";
 
 export type {
@@ -48,23 +45,23 @@ export type {
 
 // Re-export registries
 export {
+  EditorPaneRegistry,
   EditorRegistry,
   MonacoModelRegistry,
   ViewStateRegistry,
-  EditorPaneRegistry,
 } from "./registry";
 
 export type { EditorPaneConfig, EditorPaneRegistryEvent } from "./registry";
 
 // Re-export components for advanced usage
 export {
-  EditorViewPanel,
-  FileTreePanel,
-  TreeResizer,
-  PanelViewPortToggle,
-  EditorToolbar,
-  ChangesReviewPane,
-  FileChangeDiff,
   BranchSelector,
+  ChangesReviewPane,
+  EditorToolbar,
+  EditorViewPanel,
+  FileChangeDiff,
+  FileTreePanel,
   GlobalEditorContainer,
+  PanelViewPortToggle,
+  TreeResizer,
 } from "./components";

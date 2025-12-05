@@ -20,10 +20,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface ExternalChangeWarningProps {
   /** Path to the file (for display) */
   filePath: string;
@@ -46,10 +42,6 @@ export interface ExternalChangeWarningProps {
   /** Handler to save local changes to disk */
   onSave: () => void;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Warning banner for external file changes.

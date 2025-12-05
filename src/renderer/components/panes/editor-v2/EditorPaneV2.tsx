@@ -38,10 +38,6 @@ import { detectLanguage } from "./utils/languageDetection";
 import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import type { Branch } from "@shared/types";
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
 /**
  * Compute the parent directory of a given path.
  * Returns null if already at filesystem root.
@@ -100,10 +96,6 @@ function isAtFilesystemRoot(path: string): boolean {
   return false;
 }
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /**
  * Callback payload when file changes (selection or content).
  */
@@ -159,10 +151,6 @@ export interface EditorPaneV2Props {
   onHover?: (isHovering: boolean) => void;
 }
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 /** Default tree panel width in pixels */
 const DEFAULT_TREE_WIDTH = 220;
 
@@ -171,10 +159,6 @@ const MIN_TREE_WIDTH = 150;
 
 /** Maximum tree panel width in pixels */
 const MAX_TREE_WIDTH = 500;
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Main editor pane orchestrator.
@@ -892,10 +876,6 @@ export function EditorPaneV2({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedFile, onSave]);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   // Determine visibility for each panel
   // In single layout: show based on panelView toggle

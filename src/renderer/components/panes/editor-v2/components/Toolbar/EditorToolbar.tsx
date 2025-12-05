@@ -25,10 +25,6 @@ import {
 } from "@/components/ui/tooltip";
 import type { ModelState } from "../../types";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface EditorToolbarProps {
   /** Current model state (dirty, orphaned, etc.) */
   modelState: ModelState | null;
@@ -78,10 +74,6 @@ export interface EditorToolbarProps {
   /** Handler for toggling between diff and edit modes */
   onToggleDiffMode?: (isDiff: boolean) => void;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Editor toolbar with save, undo/redo actions.

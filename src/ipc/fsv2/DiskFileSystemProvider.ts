@@ -18,14 +18,12 @@
  * ├── DirectoryCache (performance)
  * └── EventEmitters (notifications)
  * ```
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
-import * as fs from "node:fs/promises";
-import * as fsSync from "node:fs";
-import * as nodePath from "node:path";
 import { spawn } from "node:child_process";
+import * as fsSync from "node:fs";
+import * as fs from "node:fs/promises";
+import * as nodePath from "node:path";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import { DirectoryCache } from "./DirectoryCache";
@@ -34,15 +32,15 @@ import {
   type ParcelFileWatcherOptions,
 } from "./ParcelFileWatcher";
 import type {
-  FileSystemProvider,
-  FileStat,
+  DeleteOptions,
   DirectoryEntry,
   DirectoryListingChangedEvent,
-  FileContentChangedEvent,
-  FileRenamedEvent,
-  FileDeletedEvent,
-  DeleteOptions,
   Event,
+  FileContentChangedEvent,
+  FileDeletedEvent,
+  FileRenamedEvent,
+  FileStat,
+  FileSystemProvider,
 } from "./types";
 
 // ============================================================================

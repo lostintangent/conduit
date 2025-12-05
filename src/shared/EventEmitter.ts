@@ -38,8 +38,6 @@
  * // Later, to unsubscribe:
  * subscription.dispose();
  * ```
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md (Appendix C)
  */
 
 import type { Disposable, Event } from "./types";

@@ -16,10 +16,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface FileTreeToolbarProps {
   /** Current working directory */
   cwd: string;
@@ -39,10 +35,6 @@ export interface FileTreeToolbarProps {
   /** Whether to show the collapse button (only in split layout mode) */
   showCollapseButton?: boolean;
 }
-
-// ============================================================================
-// Helpers
-// ============================================================================
 
 /**
  * Format directory path for display.
@@ -89,10 +81,6 @@ function isAtRoot(cwd: string): boolean {
 
   return false;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * File tree header toolbar with navigation and collapse controls.

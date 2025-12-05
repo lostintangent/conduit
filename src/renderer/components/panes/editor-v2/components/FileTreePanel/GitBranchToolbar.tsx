@@ -52,10 +52,6 @@ import {
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { GitStatusSummary } from "./GitStatusSummary";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface GitBranchToolbarProps {
   /** Current branch name (null if no git repo) */
   currentBranch: string | null;
@@ -137,10 +133,6 @@ export interface GitBranchToolbarProps {
   onChangesViewModeChange?: (mode: "flat" | "nested") => void;
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
 /**
  * Git branch and operations toolbar.
  *
@@ -176,10 +168,6 @@ export function GitBranchToolbar({
 
   const commitInputRef = useRef<HTMLInputElement>(null);
   const [isStatusHovered, setIsStatusHovered] = useState(false);
-
-  // ---------------------------------------------------------------------------
-  // Computed Values
-  // ---------------------------------------------------------------------------
 
   /**
    * Any git operation is running - operations are mutually exclusive.
@@ -239,10 +227,6 @@ export function GitBranchToolbar({
   // ---------------------------------------------------------------------------
 
   const toggleButtonClass = "[&_svg]:size-3.5";
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <div className="flex flex-col" data-testid="git-branch-toolbar">

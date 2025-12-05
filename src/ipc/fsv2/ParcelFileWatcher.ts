@@ -21,20 +21,18 @@
  *
  * 4. **Symlink resolution**: Resolves symlinks to handle macOS edge cases
  *    like /var → /private/var.
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
 import watcher, { AsyncSubscription } from "@parcel/watcher";
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import type {
+  Event,
   FileContentChangedEvent,
   FileDeletedEvent,
   FileRenamedEvent,
-  Event,
 } from "./types";
 
 // ============================================================================

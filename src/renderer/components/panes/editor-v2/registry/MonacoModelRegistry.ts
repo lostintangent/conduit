@@ -47,22 +47,16 @@
  * // Release reference when done
  * registry.removeReference('file:///path/to/file.ts', 'editor-1');
  * ```
- *
- * @see docs/architecture/editor-v2-design-narrative.md (Section 9)
  */
 
+import { EventEmitter } from "@shared/EventEmitter";
 import * as monaco from "monaco-editor";
 import { FileSystemV2API } from "../../../../api/FileSystemV2API";
 import { FileSystemV2APIService } from "../../../../services/FileSystemV2APIService";
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
-import { EventEmitter } from "@shared/EventEmitter";
 import { detectLanguage, pathsEqual } from "../utils";
 import { ViewStateRegistry } from "./ViewStateRegistry";
-
-// ============================================================================
-// Constants
-// ============================================================================
 
 /** Grace period before disposing a model with zero references (ms) */
 const DISPOSE_GRACE_PERIOD_MS = 5000;
@@ -94,10 +88,6 @@ interface ReferenceEvent {
   refCountAfter: number;
   stackTrace?: string;
 }
-
-// ============================================================================
-// Helpers
-// ============================================================================
 
 /**
  * Convert a file path to a Monaco URI string.

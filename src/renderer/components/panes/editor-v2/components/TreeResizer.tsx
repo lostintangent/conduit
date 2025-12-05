@@ -22,10 +22,6 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface TreeResizerProps {
   /** Current tree width */
   currentWidth: number;
@@ -45,10 +41,6 @@ export interface TreeResizerProps {
   /** Callback when resize ends */
   onResizeEnd?: () => void;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Draggable divider for resizing the tree panel.
@@ -131,10 +123,6 @@ export function TreeResizer({
       document.body.style.userSelect = "";
     };
   }, [isResizing, minWidth, maxWidth, onResize, onResizeEnd]);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   // Resize handle highlight class (matches v1 pane resize behavior)
   const handleClass = isResizing

@@ -26,21 +26,17 @@
  * ```
  */
 
-import { useCallback, useRef, useMemo, useEffect, useState } from "react";
 import * as monaco from "monaco-editor";
-import type { ViewMode, FileNode, ModelState } from "../../types";
-import { useModelState, useEditorActions } from "../../hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEditorActions, useModelState } from "../../hooks";
 import { MonacoModelRegistry, pathToUri } from "../../registry";
-import { RegularEditorWrapper } from "./RegularEditorWrapper";
+import type { FileNode, ModelState, ViewMode } from "../../types";
+import { ChangesReviewPane } from "../ChangesReviewPane";
+import { EditorErrorBoundary } from "../EditorErrorBoundary";
+import { EditorToolbar } from "../Toolbar/EditorToolbar";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
-import { EditorToolbar } from "../Toolbar/EditorToolbar";
-import { EditorErrorBoundary } from "../EditorErrorBoundary";
-import { ChangesReviewPane } from "../ChangesReviewPane";
-
-// ============================================================================
-// Constants
-// ============================================================================
+import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
 /**
  * Brief delay when transitioning between editor and diff modes.
@@ -49,10 +45,6 @@ import { ChangesReviewPane } from "../ChangesReviewPane";
  * zero-size or incorrectly-sized container.
  */
 const MODE_TRANSITION_DELAY_MS = 50;
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export interface EditorViewPanelProps {
   /** Unique ID for the editor instance */
@@ -97,10 +89,6 @@ export interface EditorViewPanelProps {
   /** Handler for toggling between diff and edit modes */
   onToggleDiffMode?: (isDiff: boolean) => void;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Main editor panel component.
@@ -354,10 +342,6 @@ export function EditorViewPanel({
     const registry = MonacoModelRegistry.getInstance();
     registry.clearExternalChanges(pathToUri(filePath));
   }, [filePath]);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   // Empty state - no file selected
   if (!selectedFile || !filePath) {

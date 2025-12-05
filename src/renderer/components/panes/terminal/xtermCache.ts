@@ -1,7 +1,7 @@
 import {
   defaultFontFamily,
   defaultFontSize,
-} from "@/components/shell/TerminalFontSettingsDialog";
+} from "@/components/shell/title/TerminalFontSettingsDialog";
 import { updatePaneProperty } from "@/store/actions/pane";
 import { resolveColor } from "@/utils/theme";
 import { UserSettings } from "@shared/types";

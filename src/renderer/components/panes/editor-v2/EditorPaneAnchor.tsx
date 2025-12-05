@@ -19,20 +19,14 @@
  *   onFileChange={handleFileChange}
  * />
  * ```
- *
- * @see docs/architecture/editor-global-container-plan.md
  */
 
-import { useEffect, useRef, useCallback } from "react";
 import type { EditorPane } from "@/types";
+import { useCallback, useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
-import type { FileNode } from "./types";
-import { EditorPaneRegistry, type EditorPaneConfig } from "./registry";
 import { useEditorVisibility } from "./hooks/useEditorVisibility";
-
-// ============================================================================
-// Types
-// ============================================================================
+import { EditorPaneRegistry, type EditorPaneConfig } from "./registry";
+import type { FileNode } from "./types";
 
 export interface EditorPaneAnchorProps {
   /**
@@ -97,10 +91,6 @@ export interface EditorPaneAnchorProps {
    */
   className?: string;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Anchor component that marks where an EditorPaneV2 should appear.

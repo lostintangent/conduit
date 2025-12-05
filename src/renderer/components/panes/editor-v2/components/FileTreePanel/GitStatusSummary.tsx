@@ -18,13 +18,9 @@
  * ```
  */
 
-import { useMemo } from "react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import { useMemo } from "react";
 import { GitBadge, getStatusConfig } from "../shared";
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export interface GitStatusSummaryProps {
   /** Git status map (relative paths to status) */
@@ -40,10 +36,6 @@ export interface GitStatusSummaryProps {
   isHovered?: boolean;
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
 /**
  * Compact git status summary with animated morphing.
  *
@@ -56,13 +48,6 @@ export function GitStatusSummary({
   isExpanded = false,
   isHovered = false,
 }: GitStatusSummaryProps) {
-  // ---------------------------------------------------------------------------
-  // Computed Values
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Show expanded state when filter is active or when hovered.
-   */
   const showExpanded = isExpanded || isHovered;
 
   /**
@@ -94,10 +79,6 @@ export function GitStatusSummary({
 
     return { statusCounts: counts, uniqueStatuses: statuses };
   }, [gitStatus]);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <div className="flex items-center gap-1" data-testid="git-status-summary">

@@ -46,18 +46,14 @@
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import type {
-  GitStatus,
-  GitFileStatus,
-  GitCommit,
-  GitBranch,
-  GitCommitOptions,
-} from "./types";
 import { GitProviderService } from "./GitProviderService";
-
-// ============================================================================
-// Types
-// ============================================================================
+import type {
+  GitBranch,
+  GitCommit,
+  GitCommitOptions,
+  GitFileStatus,
+  GitStatus,
+} from "./types";
 
 /**
  * Serialized git status for IPC transport.
@@ -128,10 +124,6 @@ const subscriptions = new Map<string, Subscription>();
 
 /** Counter for generating unique subscription IDs */
 let subscriptionIdCounter = 0;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 /**
  * Get window ID from IPC event.

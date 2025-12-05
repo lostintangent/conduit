@@ -33,10 +33,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface BranchSelectorProps {
   /** Working directory */
   cwd: string;
@@ -47,10 +43,6 @@ export interface BranchSelectorProps {
   /** Callback when base branch changes */
   onBaseBranchChange: (branch: string | null) => void;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Branch selector dropdown for comparison mode.
@@ -137,10 +129,6 @@ export function BranchSelector({
     return cleanup;
   }, [git]);
 
-  // ---------------------------------------------------------------------------
-  // Computed Values
-  // ---------------------------------------------------------------------------
-
   /**
    * Filter branches for display.
    * - Only show local branches (remote comparison not supported)
@@ -190,10 +178,6 @@ export function BranchSelector({
       setIsOpen(false);
     }
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   // Git not installed - show disabled state
   if (!isCheckingGit && !isGitAvailable) {

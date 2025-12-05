@@ -24,10 +24,6 @@ import type { FileChangeData } from "../EditorPaneV2";
 import type { FileNode } from "../types";
 import { EventEmitter } from "@shared/EventEmitter";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /**
  * Props required for an EditorPaneV2 instance.
  * This is a subset of EditorPaneV2Props that the registry tracks.

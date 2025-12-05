@@ -30,10 +30,6 @@ import { useDiffContent, useMonacoModel } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage } from "../../utils/languageDetection";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface DiffEditorWrapperProps {
   /** Unique ID for this diff editor instance */
   editorId: string;
@@ -85,10 +81,6 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
     suggestOnTriggerCharacters: false,
     unicodeHighlight: { ambiguousCharacters: false },
   };
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Monaco diff editor wrapper with content loading.
@@ -314,10 +306,6 @@ export function DiffEditorWrapper({
   const handleContainerClick = useCallback(() => {
     diffEditorRef.current?.getModifiedEditor().focus();
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <div className="h-full w-full relative">

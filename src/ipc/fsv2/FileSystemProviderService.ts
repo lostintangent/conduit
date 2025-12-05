@@ -34,13 +34,11 @@
  * // Release when done (decrements refCount, may start grace timer)
  * service.releaseProvider('/project/src');
  * ```
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
 import * as path from "node:path";
-import { DiskFileSystemProvider } from "./DiskFileSystemProvider";
 import { GitProviderService } from "../gitv2/GitProviderService";
+import { DiskFileSystemProvider } from "./DiskFileSystemProvider";
 
 // ============================================================================
 // Constants

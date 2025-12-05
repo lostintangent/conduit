@@ -36,10 +36,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
 import { GitBadge } from "../shared";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface FileChangeDiffProps {
   /** Relative file path from git root */
   filePath: string;
@@ -60,16 +56,8 @@ export interface FileChangeDiffProps {
   onToggle: () => void;
 }
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 /** Fixed height for expanded diff view */
 const DIFF_HEIGHT = 300;
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Individual file diff with collapsible header and action buttons.
@@ -83,10 +71,6 @@ export function FileChangeDiff({
   onToggle,
 }: FileChangeDiffProps) {
   const git = useGitV2(cwd);
-
-  // ---------------------------------------------------------------------------
-  // Computed Values
-  // ---------------------------------------------------------------------------
 
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
@@ -143,10 +127,6 @@ export function FileChangeDiff({
     },
     [git, filePath],
   );
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <div

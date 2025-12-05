@@ -37,10 +37,6 @@ import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { cn } from "@/utils";
 import { GitBadge, getStatusConfig, aggregateFolderStatus } from "../shared";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface FileTreeItemProps {
   /** Directory entry (name and type) */
   entry: DirectoryEntry;
@@ -84,10 +80,6 @@ export interface FileTreeItemProps {
    */
   displayPath?: string;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * File tree item component.

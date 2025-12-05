@@ -37,15 +37,9 @@
  * // Clear when done with a file
  * registry.clear('editor-1', '/path/to/file.ts');
  * ```
- *
- * @see docs/architecture/editor-v2-design-narrative.md (Section 10)
  */
 
 import type * as monaco from "monaco-editor";
-
-// ============================================================================
-// Constants
-// ============================================================================
 
 /**
  * Default maximum number of ViewState entries to keep.
@@ -55,10 +49,6 @@ import type * as monaco from "monaco-editor";
  * memory usage and user experience (fewer cache misses).
  */
 const DEFAULT_MAX_ENTRIES = 200;
-
-// ============================================================================
-// Types
-// ============================================================================
 
 /**
  * Key for identifying a ViewState entry.

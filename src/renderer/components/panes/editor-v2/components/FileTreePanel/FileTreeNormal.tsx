@@ -33,10 +33,6 @@ import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { FileTreeItem } from "./FileTreeItem";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface FileTreeNormalProps {
   /** Editor pane ID (for scroll persistence) */
   paneId: string;
@@ -68,10 +64,6 @@ interface DirectoryCache {
   [path: string]: DirectoryEntry[];
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
 /**
  * Join path segments correctly.
  */
@@ -93,10 +85,6 @@ function getRelativePath(fullPath: string, cwd: string): string {
   }
   return fullPath;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Normal file tree showing directory structure.
@@ -431,10 +419,6 @@ export function FileTreeNormal({
       cwd,
     ],
   );
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   // Loading state for initial load
   if (isLoading && !directoryCache[normalizePathForKey(cwd)]) {

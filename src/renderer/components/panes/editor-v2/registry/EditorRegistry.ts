@@ -52,10 +52,6 @@ interface EditorEntryInternal {
   inUse: boolean;
 }
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 /** Default maximum number of editors to keep in the registry */
 const DEFAULT_MAX_EDITORS = 15;
 

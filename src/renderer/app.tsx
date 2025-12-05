@@ -6,13 +6,13 @@ import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { TabsOverview } from "@/components/layout/overview/TabsOverview";
-import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import { HyperTerminal } from "@/components/layout/quick/HyperTerminal";
 import {
   QuickDialog,
   type PaneDescriptor,
   type QuickPaneDescriptor,
 } from "@/components/layout/quick/QuickDialog";
+import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import {
   disposeSession,
   updateTerminalFonts,
@@ -28,7 +28,7 @@ import { PaneActionsEditor } from "@/components/shell/paneActions";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
-import { TerminalFontSettingsDialog } from "@/components/shell/TerminalFontSettingsDialog";
+import { TerminalFontSettingsDialog } from "@/components/shell/title/TerminalFontSettingsDialog";
 import { TitleBar } from "@/components/shell/title/TitleBar";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";

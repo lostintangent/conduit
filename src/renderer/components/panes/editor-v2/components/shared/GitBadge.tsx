@@ -14,10 +14,6 @@
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { cn } from "@/utils";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface GitBadgeProps {
   /** Git status for the file */
   status: GitFileStatus;
@@ -133,10 +129,6 @@ export function getStatusConfig(status: GitFileStatus): StatusConfig | null {
       return null;
   }
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Git status badge for files and folders.

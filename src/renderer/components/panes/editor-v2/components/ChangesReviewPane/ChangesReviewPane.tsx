@@ -38,10 +38,6 @@ import { FileChangeDiff } from "./FileChangeDiff";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface ChangesReviewPaneProps {
   /** Working directory */
   cwd: string;
@@ -168,10 +164,6 @@ function CommitForm({ stagedCount, onCommit, isCommitting }: CommitFormProps) {
   );
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
 /**
  * Multi-file changes review pane with inline diffs and commit UI.
  */
@@ -240,10 +232,6 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
 
     return cleanup;
   }, [git]);
-
-  // ---------------------------------------------------------------------------
-  // Computed Values
-  // ---------------------------------------------------------------------------
 
   const { stagedFiles, unstagedFiles } = useMemo(() => {
     const staged: Array<[string, GitFileStatus]> = [];
@@ -319,10 +307,6 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
   const handleDismissError = useCallback(() => {
     setCommitError(null);
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   if (isLoading) {
     return (

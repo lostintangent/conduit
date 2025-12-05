@@ -16,10 +16,6 @@ import { Component, type ReactNode } from "react";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 interface EditorErrorBoundaryProps {
   /** Children to render (the Monaco editor) */
   children: ReactNode;
@@ -41,10 +37,6 @@ interface EditorErrorBoundaryState {
   /** Attempt count for retry */
   retryAttempt: number;
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Error boundary specifically for Monaco editor components.

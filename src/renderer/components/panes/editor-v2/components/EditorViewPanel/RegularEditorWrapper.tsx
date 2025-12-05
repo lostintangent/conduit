@@ -31,16 +31,8 @@ import * as monaco from "monaco-editor";
 import { useMonacoModel } from "../../hooks";
 import { ViewStateRegistry } from "../../registry";
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 /** Debounce delay for ViewState saves (ms) */
 const VIEWSTATE_SAVE_DEBOUNCE_MS = 300;
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export interface RegularEditorWrapperProps {
   /** Unique ID for this editor instance */
@@ -91,10 +83,6 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
     suggestOnTriggerCharacters: false,
     unicodeHighlight: { ambiguousCharacters: false },
   };
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Monaco editor wrapper with registry integration.
@@ -381,10 +369,6 @@ export function RegularEditorWrapper({
   const handleContainerClick = useCallback(() => {
     editorRef.current?.focus();
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <div

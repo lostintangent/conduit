@@ -37,10 +37,6 @@ import { useState, useCallback, useMemo } from "react";
 import { useGitV2 } from "@/hooks/useGitV2";
 import type { GitCommit } from "@/../../src/ipc/gitv2/types";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /**
  * State for git operations.
  */
@@ -103,10 +99,6 @@ export interface GitOperations {
  * Return type for useGitOperations hook.
  */
 export type UseGitOperationsResult = [GitOperationsState, GitOperations];
-
-// ============================================================================
-// Helpers
-// ============================================================================
 
 /**
  * Extract a user-friendly error message from various error types.

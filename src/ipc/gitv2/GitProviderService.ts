@@ -25,25 +25,15 @@
  * // Release when done
  * service.releaseProvider('/project'); // Use the gitRoot, not cwd
  * ```
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
-import * as path from "node:path";
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { simpleGit } from "simple-git";
 import { DiskGitProvider } from "./DiskGitProvider";
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 /** Grace period before disposing a provider with zero references (ms) */
 const DISPOSE_GRACE_PERIOD_MS = 5000;
-
-// ============================================================================
-// Types
-// ============================================================================
 
 /**
  * Internal entry tracking a provider instance and its lifecycle state.

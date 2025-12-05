@@ -27,13 +27,11 @@
  * - `fs-v2:exists` - Check if path exists
  * - `fs-v2:subscribe` - Subscribe to provider events
  * - `fs-v2:unsubscribe` - Unsubscribe from events
- *
- * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import type { DirectoryEntry, FileStat, DeleteOptions } from "./types";
 import { FileSystemProviderService } from "./FileSystemProviderService";
+import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
 
 // ============================================================================
 // Types

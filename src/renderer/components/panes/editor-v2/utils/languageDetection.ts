@@ -10,10 +10,6 @@
  * get proper syntax highlighting.
  */
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 /**
  * Map exact filenames to Monaco language IDs (case-insensitive).
  *
