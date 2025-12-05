@@ -28,4 +28,31 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
   if [[ "$VISUAL" == "conduit" ]]; then
     alias -s {md,json,yaml,yml,html,css,js,ts}=conduit
   fi
+
+  # If the copilot command is not available, define a wrapper function
+  # that prompts the user to install GitHub Copilot CLI
+  if ! (( $+commands[copilot] )); then
+    copilot() {
+      local response
+      echo "The GitHub Copilot CLI is not installed."
+      echo -n "Would you like to install it? (Y/n) "
+      read -r response
+      if [[ "$response" =~ ^[Yy]?$ ]]; then
+        echo "Installing GitHub Copilot CLI..."
+        if npm install -g @github/copilot; then
+          echo "GitHub Copilot CLI installed successfully."
+          # Remove this wrapper function so the real copilot takes precedence
+          unfunction copilot
+          # Run the real copilot command with any arguments that were passed
+          copilot "$@"
+        else
+          echo "Failed to install GitHub Copilot CLI." >&2
+          return 1
+        fi
+      else
+        echo "Installation cancelled."
+        return 0
+      fi
+    }
+  fi
 fi
