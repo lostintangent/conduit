@@ -34,3 +34,19 @@ function global:prompt {
         "PS $p$('>' * ($nestedPromptLevel + 1)) "
     }
 }
+
+# If the copilot command is not available, define a wrapper function
+# that prompts the user to install GitHub Copilot CLI
+if (-not (Get-Command copilot -ErrorAction SilentlyContinue)) {
+    function global:copilot {
+        Write-Host "The GitHub Copilot CLI is not installed."
+        $response = Read-Host "Would you like to install it? (Y/n)"
+
+        if ([string]::IsNullOrWhiteSpace($response) -or $response -match '^(?i)y$') {
+            if (npm install -g @github/copilot) {
+                Remove-Item Function:\copilot -Force
+                & copilot @args
+            }
+        }
+    }
+}
