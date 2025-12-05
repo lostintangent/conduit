@@ -43,9 +43,7 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
           echo "npm is required to install GitHub Copilot CLI but was not found in PATH." >&2
           return 1
         fi
-        echo "Installing GitHub Copilot CLI..."
         if npm install -g @github/copilot; then
-          echo "GitHub Copilot CLI installed successfully."
           # Remove this wrapper function so the real copilot takes precedence
           unfunction copilot
           # Refresh the command hash table so zsh finds the newly installed command
@@ -57,7 +55,6 @@ if [[ -z "$CONDUIT_ZSHENV_DONE" ]]; then
           return 1
         fi
       else
-        echo "Installation cancelled."
         return 0
       fi
     }
