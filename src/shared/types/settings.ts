@@ -19,6 +19,7 @@ export type AgentConfig = {
   id: string;
   name: string;
   command: string;
+  interactiveCommand?: string;
   isDefault?: boolean;
 };
 
