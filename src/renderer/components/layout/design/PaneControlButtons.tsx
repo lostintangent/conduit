@@ -112,7 +112,7 @@ export function PaneControlButtons({
   } as const;
 
   const buttonClass =
-    "flex items-center justify-center w-11 h-11 rounded-none hover:bg-accent hover:text-background transition-all duration-200 hover:scale-110 hover:shadow-[0_0_20px_rgba(59,130,246,0.6)] active:scale-95";
+    "flex items-center justify-center w-8 h-8 rounded-none hover:bg-accent hover:text-background transition-all duration-200 hover:scale-110 hover:shadow-[0_0_20px_rgba(59,130,246,0.6)] active:scale-95";
 
   const iconClass = "w-5 h-5 pointer-events-none";
 
