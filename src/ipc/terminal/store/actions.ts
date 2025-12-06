@@ -115,8 +115,8 @@ export async function createTerminal(
       const sshInfo = getSSHConnectionInfo(vm);
 
       // Spawn a regular local shell
-      const homeDirectory = process.env.HOME ?? process.cwd();
-      const pty = spawnTerminalProcess(id, homeDirectory);
+      const initialCwd = options?.cwd ?? process.env.HOME ?? process.cwd();
+      const pty = spawnTerminalProcess(id, initialCwd);
 
       const session: TerminalInstance = {
         id,
@@ -140,6 +140,7 @@ export async function createTerminal(
           localBranch: options.githubRepo?.branch,
           branchExistsOnRemote: options.githubRepo?.branchExistsOnRemote,
         },
+        initialCwd,
       };
 
       storeTerminal(session);
@@ -159,8 +160,9 @@ export async function createTerminal(
   }
 
   // Regular local session
-  const cwd = options?.cwd ?? path.resolve(process.env.HOME ?? process.cwd());
-  const pty = spawnTerminalProcess(id, cwd);
+  const initialCwd =
+    options?.cwd ?? path.resolve(process.env.HOME ?? process.cwd());
+  const pty = spawnTerminalProcess(id, initialCwd);
 
   const terminal: TerminalInstance = {
     id,
@@ -168,6 +170,7 @@ export async function createTerminal(
     lastProcessName: pty.process,
     isRendererReady: false,
     bufferedOutput: [],
+    initialCwd,
   };
 
   storeTerminal(terminal);

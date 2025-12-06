@@ -21,6 +21,7 @@ import {
 import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
+import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
@@ -44,7 +45,12 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { openBrowserPane, removePane } from "@/store/actions/pane";
+import {
+  openBrowserPane,
+  removePane,
+  splitPane,
+  updatePaneProperty,
+} from "@/store/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -63,9 +69,9 @@ import {
 } from "@/store/atoms";
 import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentConfig, AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
 
@@ -85,6 +91,7 @@ export function App() {
     themeOverrides,
     terminalFontFamily,
     terminalFontSize,
+    agents,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -132,6 +139,7 @@ export function App() {
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
   const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
   const [showAgentsEditor, setShowAgentsEditor] = useState(false);
+  const [showAgentLauncher, setShowAgentLauncher] = useState(false);
   const [showTerminalFontSettings, setShowTerminalFontSettings] =
     useState(false);
 
@@ -154,6 +162,21 @@ export function App() {
     useState(false);
   const [duplicateTabWithCwdDialogState, setDuplicateTabWithCwdDialogState] =
     useState<{ tabId: string } | null>(null);
+
+  const interactiveAgents = useMemo(
+    () => (agents ?? []).filter((agent) => agent.interactiveCommand?.trim()),
+    [agents],
+  );
+
+  const defaultInteractiveAgentId = useMemo(
+    () => interactiveAgents.find((agent) => agent.isDefault)?.id,
+    [interactiveAgents],
+  );
+
+  const interactiveAgentMap = useMemo(
+    () => new Map(interactiveAgents.map((agent) => [agent.id, agent])),
+    [interactiveAgents],
+  );
 
   useCliClient({
     onOpenFile: setQuickPaneState,
@@ -178,6 +201,7 @@ export function App() {
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
+    setShowAgentLauncher,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -455,6 +479,255 @@ export function App() {
       }
     },
     [recordCommandHistoryEntry, quickPaneState],
+  );
+
+  const handleAgentLaunch = useCallback(
+    async ({
+      prompt,
+      agentIds,
+      useWorktrees,
+      useCurrentPaneForDefault,
+    }: {
+      prompt: string;
+      agentIds: string[];
+      useWorktrees: boolean;
+      useCurrentPaneForDefault: boolean;
+    }) => {
+      const trimmedPrompt = prompt.trim();
+      if (trimmedPrompt.length === 0) {
+        return;
+      }
+
+      if (!activeTab || !activeTab.activePaneId) {
+        enqueueNotification({
+          kind: "error",
+          message: "No active pane available to launch agents.",
+          autoCloseMs: 4500,
+        });
+        return;
+      }
+
+      if (activeTab.locked) {
+        enqueueNotification({
+          kind: "error",
+          message: "Unlock the tab before launching agents.",
+          autoCloseMs: 4500,
+        });
+        return;
+      }
+
+      const activePane = activeTab.panes[activeTab.activePaneId];
+      if (!activePane || activePane.type !== "terminal") {
+        enqueueNotification({
+          kind: "error",
+          message: "Launch Agents requires an active terminal pane.",
+          autoCloseMs: 4500,
+        });
+        return;
+      }
+
+      const selectedAgents: AgentConfig[] = agentIds
+        .map((id) => interactiveAgentMap.get(id))
+        .filter((agent): agent is AgentConfig => Boolean(agent));
+
+      if (selectedAgents.length === 0) {
+        enqueueNotification({
+          kind: "error",
+          message: "Select at least one agent to launch.",
+          autoCloseMs: 4500,
+        });
+        return;
+      }
+
+      const inferredCwd = getActiveTabCwd(activeTab);
+      const baseCwd =
+        activePane.cwd ??
+        (inferredCwd || undefined) ??
+        activePane.agentWorktreePath ??
+        activePane.agentRepoRoot ??
+        undefined;
+
+      if (useWorktrees) {
+        if (!baseCwd) {
+          enqueueNotification({
+            kind: "error",
+            message:
+              "Worktrees require a working directory in the active terminal.",
+            autoCloseMs: 4500,
+          });
+          return;
+        }
+
+        const hasRepo = await api.hasGitRepository(baseCwd);
+        if (!hasRepo) {
+          enqueueNotification({
+            kind: "error",
+            message: "No Git repository found",
+            details:
+              "Agent worktrees require a Git repository in the active terminal directory.",
+            autoCloseMs: 6000,
+          });
+          return;
+        }
+      }
+
+      const formatCommand = (agent: AgentConfig) => {
+        const baseCommand = agent.interactiveCommand?.trim();
+        if (!baseCommand) {
+          return null;
+        }
+
+        if (baseCommand.includes("{arg}")) {
+          return baseCommand.replaceAll("{arg}", trimmedPrompt);
+        }
+
+        const promptArg = JSON.stringify(trimmedPrompt);
+        return `${baseCommand} ${promptArg}`.trim();
+      };
+
+      const notifyWorktreeError = (message: string) => {
+        enqueueNotification({
+          kind: "error",
+          message: "Failed to create agent worktree",
+          details: message,
+          autoCloseMs: 6000,
+        });
+      };
+
+      const createAgentSession = async (): Promise<AgentSessionInfo | null> => {
+        if (!baseCwd) {
+          notifyWorktreeError("Missing working directory.");
+          return null;
+        }
+
+        try {
+          const session = await api.spawnAgentSession({ cwd: baseCwd });
+          if (!session) {
+            notifyWorktreeError("No session returned from worktree creation.");
+            return null;
+          }
+          return session;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          if (message.includes("Unable to find a Git repository")) {
+            enqueueNotification({
+              kind: "error",
+              message: "No Git repository found",
+              details:
+                "Agent worktrees require a Git repository in the active terminal directory.",
+              autoCloseMs: 6000,
+            });
+          } else {
+            notifyWorktreeError(message);
+          }
+          return null;
+        }
+      };
+
+      const launches: {
+        agent: AgentConfig;
+        paneId: string;
+        sessionId: string;
+      }[] = [];
+
+      let splitTargetPaneId = activeTab.activePaneId;
+      let splitIndex = 0;
+
+      const defaultAgent = selectedAgents.find((agent) => agent.isDefault);
+      const remainingAgents = selectedAgents.filter(
+        (agent) => agent !== defaultAgent,
+      );
+
+      if (defaultAgent && useCurrentPaneForDefault) {
+        if (useWorktrees) {
+          const session = await createAgentSession();
+          if (!session) {
+            return;
+          }
+
+          updatePaneProperty(activePane.sessionId, {
+            agentSessionId: session.id,
+            agentBranchName: session.branchName,
+            agentBaseBranch: session.baseBranch ?? undefined,
+            agentRepoRoot: session.repoRoot,
+            agentWorktreePath: session.worktreePath,
+            cwd: session.worktreePath,
+          });
+
+          const cdCommand = `cd ${JSON.stringify(session.worktreePath)}\n`;
+          api.sendKeypress(activePane.sessionId, cdCommand);
+        }
+
+        launches.push({
+          agent: defaultAgent,
+          paneId: activePane.id,
+          sessionId: activePane.sessionId,
+        });
+      } else if (defaultAgent) {
+        remainingAgents.unshift(defaultAgent);
+      }
+
+      for (const agent of remainingAgents) {
+        let agentSession: AgentSessionInfo | null = null;
+        let terminalOptions: { cwd: string } | undefined;
+
+        if (useWorktrees) {
+          agentSession = await createAgentSession();
+          if (!agentSession) {
+            return;
+          }
+          terminalOptions = { cwd: agentSession.worktreePath };
+        }
+
+        const direction = splitIndex % 2 === 0 ? "row" : "column";
+        const newPane = await splitPane(
+          activeTab.id,
+          splitTargetPaneId,
+          direction,
+          false,
+          {
+            terminalOptions,
+            agentSession: agentSession ?? undefined,
+          },
+        );
+
+        if (!newPane || newPane.type !== "terminal") {
+          continue;
+        }
+
+        launches.push({
+          agent,
+          paneId: newPane.id,
+          sessionId: newPane.sessionId,
+        });
+
+        splitTargetPaneId = newPane.id;
+        splitIndex += 1;
+      }
+
+      launches.forEach((launch) => {
+        const command = formatCommand(launch.agent);
+        if (!command) {
+          return;
+        }
+        const normalizedCommand =
+          command.endsWith("\n") || command.endsWith("\r")
+            ? command
+            : `${command}\n`;
+        api.sendKeypress(launch.sessionId, normalizedCommand);
+      });
+
+      setShowAgentLauncher(false);
+    },
+    [
+      activeTab,
+      interactiveAgentMap,
+      enqueueNotification,
+      setShowAgentLauncher,
+      updatePaneProperty,
+      homeDirectory,
+    ],
   );
 
   const handleVMRepoSubmit = useCallback(
@@ -997,6 +1270,14 @@ export function App() {
         onClose={() => setShowWorkspacePicker(false)}
         workspaces={workspaces.workspaces}
         onSessionsUpdate={updateWorkspaces}
+      />
+
+      <AgentLauncherDialog
+        isOpen={showAgentLauncher}
+        agents={interactiveAgents}
+        defaultAgentId={defaultInteractiveAgentId}
+        onClose={() => setShowAgentLauncher(false)}
+        onLaunch={handleAgentLaunch}
       />
 
       <AgentCleanupDialog

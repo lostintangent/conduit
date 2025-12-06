@@ -67,6 +67,7 @@ export const ApplicationCommands = {
   TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
 
   // Agent session commands
+  AGENT_LAUNCH: "agent.launch",
   AGENT_MANAGE_SESSIONS: "agent.manageSessions",
   AGENT_MERGE_AND_CLOSE: "agent.mergeAndClose",
   AGENT_TERMINATE: "agent.terminate",

@@ -1,10 +1,10 @@
-import { applicationModeAtom } from "@/store/atoms";
-import { getHashedColor } from "@/utils/theme";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { applicationModeAtom } from "@/store/atoms";
+import { getHashedColor } from "@/utils/theme";
 import { useAtomValue } from "jotai";
 import { Cloud, GitFork, GitMerge, Trash2 } from "lucide-react";
 import { useMemo } from "react";
@@ -64,10 +64,10 @@ export function SandboxIndicator({
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-3 right-3 flex flex-col items-end gap-2 text-white z-[1000]">
+    <div className="pointer-events-none absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-[1000]">
       {showVmIndicator && (
         <div
-          className="pointer-events-auto group flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90 transition-all duration-200"
+          className="pointer-events-auto group flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90 transition-all duration-200 opacity-80"
           style={overlayStyle}
           title={vmTitle}
         >
@@ -87,7 +87,7 @@ export function SandboxIndicator({
 
       {showAgentControls && (
         <div
-          className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur"
+          className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur opacity-80"
           style={overlayStyle}
         >
           <Tooltip>
