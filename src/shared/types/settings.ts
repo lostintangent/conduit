@@ -23,6 +23,15 @@ export type AgentConfig = {
   isDefault?: boolean;
 };
 
+export type LaunchGroup = {
+  id: string;
+  name: string;
+  agentIds: string[];
+};
+
+// Legacy type alias for backwards compatibility
+export type Team = LaunchGroup;
+
 export type UserSettings = {
   // UI/Layout settings
   tabPosition: TabPosition;
@@ -35,6 +44,7 @@ export type UserSettings = {
   showTerminalRuler: boolean;
   terminalPromptBufferLines?: number;
   agents?: AgentConfig[];
+  launchGroups?: LaunchGroup[];
   terminalFontFamily?: string;
   terminalFontSize?: number;
 
