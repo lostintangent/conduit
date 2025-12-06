@@ -43,7 +43,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(56);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(57);
 
       // View commands
       expect(
@@ -162,6 +162,9 @@ describe("applicationCommands", () => {
       ).toBe(true);
 
       // Agent commands
+      expect(registeredCommands.has(ApplicationCommands.AGENT_LAUNCH)).toBe(
+        true,
+      );
       expect(
         registeredCommands.has(ApplicationCommands.AGENT_MANAGE_SESSIONS),
       ).toBe(true);
