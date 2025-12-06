@@ -22,6 +22,7 @@ import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
 import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
+import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
 import { PaneActionsEditor } from "@/components/shell/paneActions";
@@ -85,6 +86,7 @@ export function App() {
     themeOverrides,
     terminalFontFamily,
     terminalFontSize,
+    agents,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -132,6 +134,7 @@ export function App() {
   const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
   const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
   const [showAgentsEditor, setShowAgentsEditor] = useState(false);
+  const [showAgentLauncher, setShowAgentLauncher] = useState(false);
   const [showTerminalFontSettings, setShowTerminalFontSettings] =
     useState(false);
 
@@ -178,6 +181,7 @@ export function App() {
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
+    setShowAgentLauncher,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
@@ -1068,6 +1072,15 @@ export function App() {
       {showAgentsEditor && (
         <AgentsEditor onClose={() => setShowAgentsEditor(false)} />
       )}
+
+      <AgentLauncherDialog
+        isOpen={showAgentLauncher}
+        agents={agents || []}
+        defaultAgentId={agents?.find((agent: any) => agent.isDefault)?.id}
+        onClose={() => setShowAgentLauncher(false)}
+        onLaunch={() => {}}
+      />
+
       <TerminalFontSettingsDialog
         isOpen={showTerminalFontSettings}
         initialFontFamily={terminalFontFamily}

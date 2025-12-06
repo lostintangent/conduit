@@ -133,7 +133,7 @@ export function registerApplicationCommands(
   // View: Manage Pane Actions
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_PANE_ACTIONS,
-    title: "Manage Pane Actions",
+    title: "Pane Actions",
     description: "Customize the action available in design mode",
     category: "View",
     run: (context) => {
@@ -144,7 +144,7 @@ export function registerApplicationCommands(
   // View: Manage Agents
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_AGENTS,
-    title: "Manage Agents",
+    title: "Agent Profiles",
     description: "Configure AI agents for terminal prompt mode (Cmd+P)",
     category: "View",
     run: (context) => {
@@ -1194,6 +1194,24 @@ export function registerApplicationCommands(
     when: When.and(activePaneType.equals("terminal"), hasCwd.isTrue()),
     run: (context) => {
       void handleOpenInVSCode(context.activeTab);
+    },
+  });
+
+  // Agent: Launch
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_LAUNCH,
+    title: "Launch Agents",
+    description:
+      "Open agent launcher to split panes or worktrees and start agents with a prompt",
+    category: "Agent",
+    keybinding: {
+      key: "Cmd+I",
+    },
+    when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
+    run: (context) => {
+      if (context.setShowAgentLauncher) {
+        context.setShowAgentLauncher(true);
+      }
     },
   });
 

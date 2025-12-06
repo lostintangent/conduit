@@ -16,3 +16,5 @@ coverage/
 .env.local
 keys/
 build/scripts/publish.sh
+src/ipc/terminal/shell/.zsh_history
+src/ipc/terminal/shell/.zcompdump

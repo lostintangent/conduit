@@ -50,6 +50,7 @@ import {
   LayoutGrid,
   MoreHorizontal,
   PlusSquare,
+  Rocket,
   SquareDashedMousePointer,
   SquareTerminal,
   Terminal,
@@ -88,6 +89,10 @@ export const TabStrip = ({
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const activePane =
+    activeTab?.activePaneId !== undefined
+      ? activeTab?.panes[activeTab.activePaneId]
+      : null;
   const { homeDirectory, alwaysShowTabs } = useAtomValue(userSettingsAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
@@ -114,6 +119,8 @@ export const TabStrip = ({
   const toggleDesignModeCmd = useCommand(
     ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
   );
+  const launchAgentsCmd = useCommand(ApplicationCommands.AGENT_LAUNCH);
+  const canLaunchAgents = activePane?.type === "terminal";
 
   const isInOverviewMode = applicationMode === "overview";
 
@@ -775,6 +782,24 @@ export const TabStrip = ({
             </TooltipTrigger>
             <TooltipContent>
               {getCommandDisplayTitle(toggleDesignModeCmd)}
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="rounded-lg h-8 px-3 inline-flex items-center gap-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-green-700 text-white hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label={launchAgentsCmd.title || "Launch agents"}
+                onClick={launchAgentsCmd.execute}
+                disabled={launchAgentsCmd.disabled || !canLaunchAgents}
+              >
+                <Rocket size={16} />
+                <span>Launch</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {getCommandDisplayTitle(launchAgentsCmd)}
             </TooltipContent>
           </Tooltip>
         </div>
