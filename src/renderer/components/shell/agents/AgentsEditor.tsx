@@ -301,11 +301,11 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-8"
       onClick={handleClose}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[800px] h-[80vh] flex flex-col"
+        className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[900px] h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -331,39 +331,46 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
           onValueChange={setActiveTab}
           className="flex-1 flex flex-col min-h-0"
         >
-          <TabsList className="px-6 flex-shrink-0">
-            <TabsTrigger value="agents">Agents</TabsTrigger>
-            <TabsTrigger value="groups">Teams</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between px-6 py-2 border-b border-gray-700 flex-shrink-0">
+            <TabsList className="flex-shrink-0 border-b-0 w-auto">
+              <TabsTrigger value="agents">Agents</TabsTrigger>
+              <TabsTrigger value="groups">Teams</TabsTrigger>
+            </TabsList>
+
+            {/* Action buttons - shown inline with tabs */}
+            <div className="flex gap-2 flex-shrink-0">
+              {activeTab === "agents" ? (
+                <>
+                  <button
+                    onClick={handleResetToDefaults}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 rounded transition-colors"
+                    title="Reset to default agents"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset
+                  </button>
+                  <button
+                    onClick={handleAddAgent}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Agent
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleAddGroup}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Team
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Agents Tab */}
           <TabsContent value="agents" className="flex flex-col min-h-0 flex-1">
-            {/* Header - Only show when not editing */}
-            {editingIndex === null && (
-              <div className="px-6 pt-4 pb-3 border-b border-gray-700 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white">Agents</h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleResetToDefaults}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 rounded transition-colors"
-                      title="Reset to default agents"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      Reset to Defaults
-                    </button>
-                    <button
-                      onClick={handleAddAgent}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
-                    >
-                      <Plus className="w-3 h-3" />
-                      Add Agent
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Scrollable Agents List */}
             <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
               <div className="space-y-2">
@@ -601,27 +608,6 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
 
           {/* Teams Tab */}
           <TabsContent value="groups" className="flex flex-col min-h-0 flex-1">
-            {/* Header - Only show when not editing */}
-            {editingGroupIndex === null && (
-              <div className="px-6 pt-4 pb-3 border-b border-gray-700 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Teams</h3>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Create teams of agents to work together
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleAddGroup}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
-                  >
-                    <Plus className="w-3 h-3" />
-                    Add Team
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Scrollable Groups List */}
             <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
               {launchGroups.length === 0 ? (
