@@ -1,10 +1,6 @@
-import { app } from "electron";
-import fs from "node:fs/promises";
-import path from "node:path";
+const CLUSTER_URL = "https://blue.sandbox.githubnext.com/";
+const IMAGE_ID = "image_custom_79479917-a762-704a-3e1f-b130a7ac3977";
 
-/**
- * Configuration loaded from .env.local file
- */
 export type VMConfig = {
   managerUrl: string;
   token: string; // Used for both VM API auth and as GITHUB_TOKEN in VM
@@ -13,55 +9,26 @@ export type VMConfig = {
 
 let cachedConfig: VMConfig | null = null;
 
-/**
- * Load VM configuration from .env.local file
- * Includes NODE, TOKEN (used for both VM API and as GITHUB_TOKEN in VM), and IMAGE_ID
- */
 export async function loadConfig(): Promise<VMConfig> {
   if (cachedConfig) {
     return cachedConfig;
   }
 
-  const configPath = path.join(app.getAppPath(), ".env.local");
+  const config: Partial<VMConfig> = {
+    managerUrl: CLUSTER_URL,
+    defaultImageId: IMAGE_ID,
+  };
 
-  try {
-    const content = await fs.readFile(configPath, "utf-8");
-    const config: Partial<VMConfig> = {};
-
-    content.split("\n").forEach((line) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) {
-        return;
-      }
-
-      const [key, ...valueParts] = trimmed.split("=");
-      const value = valueParts.join("=").trim();
-
-      if (key === "NODE") {
-        config.managerUrl = value;
-      } else if (key === "TOKEN") {
-        config.token = value;
-      } else if (key === "IMAGE_ID") {
-        config.defaultImageId = value;
-      }
-    });
-
-    if (!config.managerUrl || !config.token || !config.defaultImageId) {
-      throw new Error(
-        "Missing required configuration. Ensure NODE, TOKEN, and IMAGE_ID are set in .env.local",
-      );
-    }
-
-    cachedConfig = config as VMConfig;
-    return cachedConfig;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(
-        ".env.local file not found. Please create it with NODE, TOKEN, and IMAGE_ID",
-      );
-    }
-    throw error;
+  if (process.env.GITHUB_TOKEN) {
+    config.token = process.env.GITHUB_TOKEN;
+  } else {
+    throw new Error(
+      "In oder to use cloud VMs, you must define a GitHub PAT via the GITHUB_TOKEN environment variable.",
+    );
   }
+
+  cachedConfig = config as VMConfig;
+  return cachedConfig;
 }
 
 /**

@@ -10,7 +10,7 @@
 Additionally, if you want to make use of cloud terminals, you need to also perform the following steps:
 
 1. Generate a [GitHub PAT](https://github.com/settings/personal-access-tokens/new)
-1. Copy the `.env.local.example` file, rename it to `.env.local`, and then paste your PAT into it
+1. Define an environment variable called `GITHUB_TOKEN` with the value of the PAT
 
 ## 🧠 Fundamental assumptions
 

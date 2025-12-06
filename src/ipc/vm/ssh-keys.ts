@@ -111,9 +111,6 @@ export async function setupSSHKeyInVM(
       );
     }
 
-    console.log("[SSH] SSH key successfully appended to authorized_keys");
-    console.log("[SSH] GITHUB_TOKEN successfully added to bashrc");
-
     return true;
   } catch (error) {
     console.error("[SSH] Failed to setup SSH key:", error);

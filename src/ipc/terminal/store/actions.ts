@@ -79,9 +79,7 @@ export async function createTerminal(
 
       if (!options?.existingVMId) {
         const keysAvailable = await hasSSHKeys();
-
         if (keysAvailable) {
-          console.log("[SSH] Found SSH keys, installing in VM...");
           const { loadConfig } = await import("../../vm/config");
           const config = await loadConfig();
           useSSHKey = await setupSSHKeyInVM(
@@ -89,14 +87,6 @@ export async function createTerminal(
             config.managerUrl,
             config.token,
           );
-
-          if (useSSHKey) {
-            console.log("[SSH] SSH key authentication enabled");
-          } else {
-            console.log(
-              "[SSH] Failed to setup SSH key, will use password authentication",
-            );
-          }
         } else {
           console.log(
             "[SSH] No SSH keys found in keys/ folder, will use password authentication",
@@ -215,10 +205,6 @@ function setupTerminalListeners(
           }
           return;
         }
-
-        // During connection, buffer but don't display output
-        // This hides SSH warnings, Ubuntu banner, etc.
-        console.log("[VM] Buffering connection output:", data.substring(0, 50));
         return;
       }
     }
@@ -376,9 +362,6 @@ export function markTerminalReady(
       // Use SSH key authentication with the Conduit key
       const keyPath = getPrivateKeyPath();
       sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${keyPath}" -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
-      console.log(
-        `[VM] Terminal ready, sending SSH command with key: ${sshCommand.trim()}`,
-      );
     } else {
       // Use password authentication
       sshCommand = `ssh -q -o LogLevel=QUIET -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${terminal.cloudEnvironment.sshPort} ace@${terminal.cloudEnvironment.vmHost}\n`;
