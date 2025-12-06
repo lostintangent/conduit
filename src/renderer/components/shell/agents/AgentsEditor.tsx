@@ -468,7 +468,7 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
                                 })
                               }
                               className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
-                              placeholder="e.g., aider"
+                              placeholder="e.g., copiot"
                             />
                             <p className="mt-1 text-xs text-gray-500">
                               Command to launch when creating an agent session.
