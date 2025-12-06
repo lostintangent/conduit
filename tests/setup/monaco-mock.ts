@@ -81,6 +81,7 @@ export const editor = {
     updateOptions: vi.fn(),
     dispose: vi.fn(),
     layout: vi.fn(),
+    revealFirstDiff: vi.fn(),
   })),
   getModel: vi.fn((uri: unknown) => {
     if (!uri) return null;
