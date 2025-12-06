@@ -169,11 +169,16 @@ export function EditorToolbar({
           />
         )}
 
-        {/* File path */}
+        {/* File name with full path tooltip */}
         {pathToShow && (
-          <span className="truncate" title={filePath}>
-            {pathToShow}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate cursor-help">
+                {pathToShow.split("/").pop() ?? pathToShow}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{pathToShow}</TooltipContent>
+          </Tooltip>
         )}
 
         {/* Diff/Edit mode toggle (only for git-modified files) */}
