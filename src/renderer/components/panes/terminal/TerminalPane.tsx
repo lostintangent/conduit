@@ -274,9 +274,7 @@ export const TerminalPane = ({
         }
       }
 
-      // Fallback to legacy terminalPromptAgent if no agents configured
-      const agentCommand =
-        selectedAgent?.command || settings.terminalPromptAgent;
+      const agentCommand = selectedAgent?.command;
 
       if (!agentCommand) {
         // Write error to terminal

@@ -671,9 +671,8 @@ export function registerApplicationCommands(
   // Pane: Split Left with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_LEFT_AGENT,
-    title: "Split Pane Left (Worktree)",
-    description:
-      "Create a new pane to the left with an isolated agent worktree",
+    title: "Split Pane Left (Agent Session)",
+    description: "Create a new pane to the left with an isolated agent session",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Left",
@@ -681,7 +680,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_worktree",
+      group: "3_split_more/split_agent_session",
       order: 1,
       when: hasGitRepo.isTrue(),
       title: "Left",
@@ -698,9 +697,9 @@ export function registerApplicationCommands(
   // Pane: Split Right with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_RIGHT_AGENT,
-    title: "Split Pane Right (Worktree)",
+    title: "Split Pane Right (Agent Session)",
     description:
-      "Create a new pane to the right with an isolated agent worktree",
+      "Create a new pane to the right with an isolated agent session",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Right",
@@ -708,7 +707,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_worktree",
+      group: "3_split_more/split_agent_session",
       order: 2,
       when: hasGitRepo.isTrue(),
       title: "Right",
@@ -725,8 +724,8 @@ export function registerApplicationCommands(
   // Pane: Split Top with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_TOP_AGENT,
-    title: "Split Pane Top (Worktree)",
-    description: "Create a new pane above with an isolated agent worktree",
+    title: "Split Pane Top (Agent Session)",
+    description: "Create a new pane above with an isolated agent session",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Up",
@@ -734,7 +733,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_worktree",
+      group: "3_split_more/split_agent_session",
       order: 3,
       when: hasGitRepo.isTrue(),
       title: "Top",
@@ -756,8 +755,8 @@ export function registerApplicationCommands(
   // Pane: Split Bottom with Agent Session
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT,
-    title: "Split Pane Bottom (Worktree)",
-    description: "Create a new pane below with an isolated agent worktree",
+    title: "Split Pane Bottom (Agent Session)",
+    description: "Create a new pane below with an isolated agent session",
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Down",
@@ -765,7 +764,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_worktree",
+      group: "3_split_more/split_agent_session",
       order: 4,
       when: hasGitRepo.isTrue(),
       title: "Bottom",
@@ -1379,7 +1378,7 @@ export function registerMenuContextBuilders(): void {
 
   registerSubmenu(
     MenuId.PaneContext,
-    "3_split_more/split_worktree",
-    "Split worktree...",
+    "3_split_more/split_agent_session",
+    "Split agent session...",
   );
 }

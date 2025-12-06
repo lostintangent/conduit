@@ -15,14 +15,6 @@ async function handlePromptRequest(
 ): Promise<TerminalPromptResponse> {
   const { prompt, agentCommand, sessionId } = request;
 
-  if (!agentCommand) {
-    return {
-      success: false,
-      error:
-        "No agent command configured. Please configure 'terminalPromptAgent' in settings.",
-    };
-  }
-
   // Cancel any existing request for this session
   const existingProcess = activeRequests.get(sessionId);
   if (existingProcess && !existingProcess.killed) {

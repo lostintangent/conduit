@@ -727,10 +727,21 @@ export async function splitPaneWithAgentSession(
       return;
     }
 
-    await splitPane(tabId, paneId, direction, insertBefore, {
+    const newPane = await splitPane(tabId, paneId, direction, insertBefore, {
       terminalOptions: { cwd: session.worktreePath },
       agentSession: session,
     });
+
+    const settings = await api.getSettings();
+    const defaultAgent = settings.agents?.find((agent) => agent.isDefault);
+    if (defaultAgent?.interactiveCommand) {
+      setTimeout(() => {
+        api.sendKeypress(
+          newPane.sessionId,
+          defaultAgent.interactiveCommand + "\r",
+        );
+      }, 100);
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 

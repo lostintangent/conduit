@@ -33,7 +33,6 @@ export type UserSettings = {
 
   // Terminal settings
   showTerminalRuler: boolean;
-  terminalPromptAgent?: string; // Deprecated: kept for backward compatibility
   terminalPromptBufferLines?: number;
   agents?: AgentConfig[];
   terminalFontFamily?: string;

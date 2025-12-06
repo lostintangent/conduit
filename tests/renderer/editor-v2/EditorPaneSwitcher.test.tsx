@@ -8,10 +8,10 @@
  * based on the useEditorV2 feature flag in user settings.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userSettingsAtom } from "@/store/atoms";
 import { render, screen } from "@testing-library/react";
 import { Provider, createStore } from "jotai";
-import { userSettingsAtom } from "@/store/atoms";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Mock Components
@@ -69,7 +69,6 @@ const createSettingsStore = (useEditorV2: boolean) => {
     useGradientBorders: true,
     theme: "dark",
     showTerminalRuler: true,
-    quickTerminalMode: "floating",
     useConduitAsEditor: true,
     useEditorV2,
     autoSaveWorkspaces: true,
