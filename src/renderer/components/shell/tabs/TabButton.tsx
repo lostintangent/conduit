@@ -1,45 +1,21 @@
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
+import type { TabDescriptor } from "@/store/tabLabels";
+import { cn } from "@/utils";
 import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
-const cx = (...classes: Array<string | false>) =>
-  classes.filter(Boolean).join(" ");
-
 const CHAR_WIDTH_PX = 8;
 
-type TabPlaceholderProps = {
-  width: number | null;
-  onDragOver: (event: React.DragEvent<Element>) => void;
-  onDrop: (event: React.DragEvent<Element>) => void;
-};
-
-export const TabPlaceholder = ({
-  width,
-  onDragOver,
-  onDrop,
-}: TabPlaceholderProps) => (
-  <div
-    role="presentation"
-    aria-hidden="true"
-    className="flex items-center justify-center py-1.5 px-3 border border-dashed border-white/25 rounded-lg bg-white/10 opacity-60 transition-colors duration-150 flex-none"
-    style={{
-      width: `${width}px`,
-    }}
-    onDragOver={onDragOver}
-    onDrop={onDrop}
-  />
-);
-
 type TabButtonProps = {
-  tabId: string;
-  label: string;
-  tooltip: string;
-  title: string | undefined;
+  tab: TabDescriptor;
   index: number;
-  isActive: boolean;
   disableClick: boolean;
-  isLocked: boolean;
   onContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onDragStart: (
     event: React.DragEvent<HTMLButtonElement>,
@@ -58,15 +34,10 @@ type TabButtonProps = {
   onHoverChange?: (tabId: string, element: HTMLButtonElement | null) => void;
 };
 
-export const TabButton = ({
-  tabId,
-  label,
-  tooltip,
-  title,
+export function TabButton({
+  tab,
   index,
-  isActive,
   disableClick,
-  isLocked,
   onContextMenu,
   onDragStart,
   onDragOver,
@@ -74,12 +45,13 @@ export const TabButton = ({
   onDrop,
   onDragEnd,
   onHoverChange,
-}: TabButtonProps) => {
+}: TabButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
+
   const inputRef = useRef<HTMLInputElement>(null);
-  const showCloseButton = isHovered && !disableClick && !isLocked;
+  const showCloseButton = isHovered && !disableClick && !tab.locked;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -89,12 +61,12 @@ export const TabButton = ({
   }, [isEditing]);
 
   const handleDoubleClick = (event: React.MouseEvent) => {
-    if (disableClick || isEditing || isLocked) {
+    if (disableClick || isEditing || tab.locked) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    setEditValue(title || "");
+    setEditValue(tab.name || "");
     setIsEditing(true);
   };
 
@@ -105,8 +77,7 @@ export const TabButton = ({
 
   const handleSaveEdit = () => {
     const trimmedValue = editValue.trim();
-    // Always update the title, even if empty (to clear it)
-    updateTabProperty(tabId, { name: trimmedValue || undefined });
+    updateTabProperty(tab.id, { name: trimmedValue || undefined });
     setIsEditing(false);
     setEditValue("");
   };
@@ -123,15 +94,15 @@ export const TabButton = ({
     }
   };
 
-  return (
+  const button = (
     <button
       type="button"
       role="tab"
-      aria-selected={isActive}
+      aria-selected={tab.isActive}
       draggable={true}
-      className={cx(
+      className={cn(
         "group flex items-center gap-2 py-1.5 px-3 border-0 rounded-lg cursor-pointer text-[0.85rem] leading-none transition-colors duration-150 flex-none whitespace-nowrap select-none",
-        isActive ? "magic" : "bg-secondary hover:bg-secondary-hover",
+        tab.isActive ? "magic" : "bg-secondary hover:bg-secondary-hover",
       )}
       onClick={(event) => {
         if (disableClick) {
@@ -139,23 +110,23 @@ export const TabButton = ({
           event.stopPropagation();
           return;
         }
-        focusTab(tabId);
+        focusTab(tab.id);
       }}
       onMouseEnter={(event) => {
         setIsHovered(true);
-        onHoverChange?.(tabId, event.currentTarget);
+        onHoverChange?.(tab.id, event.currentTarget);
       }}
       onMouseLeave={() => {
         setIsHovered(false);
-        onHoverChange?.(tabId, null);
+        onHoverChange?.(tab.id, null);
       }}
       onContextMenu={
-        onContextMenu ? (event) => onContextMenu(event, tabId) : undefined
+        onContextMenu ? (event) => onContextMenu(event, tab.id) : undefined
       }
-      onDragStart={(event) => onDragStart(event, tabId)}
-      onDragOver={(event) => onDragOver(event, tabId)}
+      onDragStart={(event) => onDragStart(event, tab.id)}
+      onDragOver={(event) => onDragOver(event, tab.id)}
       onDragLeave={
-        onDragLeave ? (event) => onDragLeave(event, tabId) : undefined
+        onDragLeave ? (event) => onDragLeave(event, tab.id) : undefined
       }
       onDrop={onDrop}
       onDragEnd={onDragEnd}
@@ -183,11 +154,8 @@ export const TabButton = ({
             }}
           />
         ) : (
-          <span
-            className="overflow-hidden text-ellipsis whitespace-nowrap"
-            title={tooltip}
-          >
-            {label}
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+            {tab.label}
           </span>
         )}
       </span>
@@ -197,6 +165,7 @@ export const TabButton = ({
         className="h-4.5 ml-1 mr-0.5 bg-foreground/60"
       />
 
+      {/* Tab index */}
       <span className="flex items-center gap-1 text-xs">
         {showCloseButton ? (
           <Trash2
@@ -204,12 +173,10 @@ export const TabButton = ({
             className="cursor-pointer transition-all duration-150 flex-none opacity-60 hover:opacity-100 hover:text-destructive"
             onClick={(event) => {
               event.stopPropagation();
-              if (!isLocked) {
-                closeTab(tabId);
-              }
+              closeTab(tab.id);
             }}
           />
-        ) : isLocked ? (
+        ) : tab.locked ? (
           <Lock size={14} className="flex-none opacity-60" />
         ) : (
           <Command size={14} className="flex-none opacity-60" />
@@ -218,4 +185,24 @@ export const TabButton = ({
       </span>
     </button>
   );
-};
+
+  // Non-active tabs include a hover preview of their contents, and so we don't want to wrap them in a tooltip.
+  if (!tab.isActive) {
+    return button;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent>
+        <div className="flex flex-col gap-1">
+          {Object.entries(tab.tooltip).map(([key, value]) => (
+            <div key={key}>
+              {key}: {value}
+            </div>
+          ))}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}

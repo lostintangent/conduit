@@ -6,7 +6,8 @@ import {
 import { TabPreviewOverlay } from "@/components/layout/overview/TabPreviewOverlay";
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
-import { TabButton, TabPlaceholder } from "@/components/shell/tabs/TabButton";
+import { TabButton } from "@/components/shell/tabs/TabButton";
+import { TabPlaceholder } from "@/components/shell/tabs/TabPlaceholder";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +39,7 @@ import {
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
-import { tabLabelsAtom, type TabLabelDescriptor } from "@/store/tabLabels";
+import { tabLabelsAtom } from "@/store/tabLabels";
 import type { TabPosition } from "@shared/types";
 import { generateId } from "@shared/utils";
 import { useAtom, useAtomValue } from "jotai";
@@ -63,8 +64,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-
-type TabDescriptor = TabLabelDescriptor;
 
 type TabStripProps = {
   onOpenCommandPalette?: () => void;
@@ -458,15 +457,10 @@ export const TabStrip = ({
       if (tab.id !== draggingTab?.id || !shouldShowPlaceholder) {
         elements.push(
           <TabButton
-            key={`tab-${tab.id}`}
-            tabId={tab.id}
-            label={tab.label}
-            tooltip={tab.tooltip}
-            title={tab.name}
+            key={tab.id}
+            tab={tab}
             index={index}
-            isActive={tab.isActive}
             disableClick={draggingTab !== null}
-            isLocked={tab.locked}
             onContextMenu={onTabContextMenu}
             onDragStart={handleDragStart}
             onDragOver={handleDragOverTab}

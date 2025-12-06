@@ -2,16 +2,16 @@ import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { atom } from "jotai";
 
-export type TabLabelDescriptor = {
+export type TabDescriptor = {
   id: string;
-  name?: string;
   label: string;
-  tooltip: string;
+  tooltip: Record<string, string>;
+  name?: string;
   isActive: boolean;
   locked: boolean;
 };
 
-const resolveActivePane = (tab: Tab): Pane | undefined => {
+function resolveActivePane(tab: Tab): Pane | undefined {
   const activePane = tab.panes[tab.activePaneId];
   if (activePane) {
     return activePane;
@@ -19,12 +19,12 @@ const resolveActivePane = (tab: Tab): Pane | undefined => {
 
   const firstPane = Object.values(tab.panes)[0];
   return firstPane;
-};
+}
 
 const normalizePath = (value: string | null | undefined) =>
   value ? value.replace(/\\/g, "/") : null;
 
-export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
+export const tabLabelsAtom = atom((get): TabDescriptor[] => {
   const tabs = get(tabsAtom);
   const activeTabId = get(activeTabIdAtom);
   const { homeDirectory } = get(userSettingsAtom);
@@ -63,39 +63,58 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
 
   return tabs.map((tab) => {
     const activePane = resolveActivePane(tab);
-    let fallbackLabel = "Shell";
-    let tooltipBase = "Shell";
 
-    if (activePane?.type === "terminal") {
-      fallbackLabel =
-        formatPathForLabel(activePane.cwd) ??
-        activePane.processTitle ??
-        "Shell";
+    let label;
+    const tooltip: Record<string, string> = {};
 
-      tooltipBase = activePane.cwd ?? activePane.processTitle ?? fallbackLabel;
-    } else if (activePane?.type === "browser") {
-      const title = activePane.title?.trim();
-      fallbackLabel =
-        title && title.length > 0 ? title : (activePane.url ?? "Browser");
-      tooltipBase = fallbackLabel;
-    } else if (activePane?.type === "editor") {
-      const editorPath = activePane.file ?? activePane.cwd ?? null;
-      if (editorPath) {
-        fallbackLabel = formatPathForLabel(editorPath) ?? editorPath;
-        tooltipBase = editorPath;
-      } else {
-        fallbackLabel = "Editor";
-        tooltipBase = fallbackLabel;
+    switch (activePane?.type) {
+      case "terminal": {
+        label =
+          formatPathForLabel(activePane.cwd) ??
+          activePane.processTitle ??
+          "Shell";
+
+        tooltip["CWD"] = activePane.cwd;
+        if (activePane.processTitle) {
+          tooltip["Command"] = activePane.processTitle;
+        }
+
+        break;
+      }
+
+      case "browser": {
+        const title = activePane.title?.trim();
+        label = title ?? activePane.url ?? "Browser";
+
+        if (activePane.title) {
+          tooltip["Title"] = activePane.title;
+        }
+        tooltip["URL"] = activePane.url;
+
+        break;
+      }
+
+      case "editor": {
+        const editorPath = activePane.file ?? activePane.cwd ?? null;
+        label = formatPathForLabel(editorPath) ?? editorPath ?? "Editor";
+
+        tooltip["CWD"] = activePane.cwd;
+        if (activePane.file) {
+          tooltip["File"] = activePane.file;
+        }
+
+        break;
       }
     }
 
-    const trimmedName = tab.name?.trim();
+    const name = tab.name?.trim();
+    const isActive = tab.id === activeTabId;
     return {
       id: tab.id,
-      name: trimmedName || undefined,
-      label: trimmedName ?? fallbackLabel,
-      tooltip: trimmedName ?? tooltipBase,
-      isActive: tab.id === activeTabId,
+      label: name || label,
+      name,
+      tooltip,
+      isActive,
       locked: tab.locked,
     };
   });
