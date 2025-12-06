@@ -32,6 +32,7 @@ export interface CommandContext {
   // UI state setters
   readonly setApplicationMode?: (mode: ApplicationMode) => void;
   readonly setShowKeybindingsEditor?: (show: boolean) => void;
+  readonly setShowAgentLauncher?: (show: boolean) => void;
   readonly setIsCommandPaletteOpenOverride?: (open: boolean) => void;
   readonly setShowCreateWorkspaceDialog?: (show: boolean) => void;
   readonly setShowRenameWorkspaceDialog?: (show: boolean) => void;
