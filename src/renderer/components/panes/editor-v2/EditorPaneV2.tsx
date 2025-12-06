@@ -5,7 +5,6 @@
  * - FileTreePanel for file navigation
  * - EditorViewPanel for file editing
  * - TreeResizer for panel resizing
- * - PanelViewPortToggle for narrow viewport navigation
  *
  * It handles responsive layout switching between split and single modes,
  * persists user preferences, and manages editor mode (normal vs diff).
@@ -18,25 +17,19 @@
  * ```
  */
 
-import { useRef, useState, useCallback, useMemo, useEffect } from "react";
-import type { EditorPane as EditorPaneType } from "@/types";
-import type { FileNode, TreeViewMode, ViewMode } from "./types";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
-import {
-  FileTreePanel,
-  EditorViewPanel,
-  TreeResizer,
-  PanelViewPortToggle,
-} from "./components";
-import type { PanelView } from "./components";
-import { useResponsiveLayout, useEditorTheme } from "./hooks";
+import { registerEditorHandlers } from "@/commands/handlers";
+import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
-import { registerEditorHandlers } from "@/commands/handlers";
+import type { EditorPane as EditorPaneType } from "@/types";
 import { cn } from "@/utils";
-import { detectLanguage } from "./utils/languageDetection";
-import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import type { Branch } from "@shared/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EditorViewPanel, FileTreePanel, TreeResizer } from "./components";
+import { useEditorTheme, useResponsiveLayout } from "./hooks";
+import type { FileNode, TreeViewMode, ViewMode } from "./types";
+import { detectLanguage } from "./utils/languageDetection";
 
 /**
  * Compute the parent directory of a given path.
@@ -239,7 +232,7 @@ export function EditorPaneV2({
   );
 
   // Panel view state (for single-column layout mode)
-  const [panelView, setPanelView] = useState<PanelView>("tree");
+  const [panelView, setPanelView] = useState<"tree" | "editor">("tree");
 
   // ---------------------------------------------------------------------------
   // Hooks
@@ -738,13 +731,6 @@ export function EditorPaneV2({
   const canNavigateUp = !isAtFilesystemRoot(currentCwd);
 
   /**
-   * Handle panel view toggle (for single-column layout).
-   */
-  const handlePanelViewChange = useCallback((view: PanelView) => {
-    setPanelView(view);
-  }, []);
-
-  /**
    * Toggle tree panel collapsed state.
    * Only effective in split layout mode.
    */
@@ -983,14 +969,6 @@ export function EditorPaneV2({
           onToggleDiffMode={handleToggleDiffMode}
         />
       </div>
-
-      {/* Panel View Toggle (single-column layout only) */}
-      {layout === "single" && (
-        <PanelViewPortToggle
-          activeView={panelView}
-          onViewChange={handlePanelViewChange}
-        />
-      )}
 
       {/* Branch Selector Dialog */}
       <BranchSelector

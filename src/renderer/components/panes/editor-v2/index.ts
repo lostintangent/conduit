@@ -62,6 +62,5 @@ export {
   FileChangeDiff,
   FileTreePanel,
   GlobalEditorContainer,
-  PanelViewPortToggle,
   TreeResizer,
 } from "./components";

@@ -2,14 +2,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+  act,
+  fireEvent,
   render,
   screen,
-  fireEvent,
   waitFor,
-  act,
 } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor-v2/EditorPaneV2";
 
 // ============================================================================
@@ -115,30 +115,6 @@ vi.mock(
   }),
 );
 
-// Mock PanelViewPortToggle
-vi.mock(
-  "../../../src/renderer/components/panes/editor-v2/components/Toolbar/PanelViewPortToggle",
-  () => ({
-    PanelViewPortToggle: ({ activeView, onViewChange }) => (
-      <div data-testid="mock-panel-toggle">
-        <span data-testid="panel-active-view">{activeView}</span>
-        <button
-          data-testid="switch-to-editor"
-          onClick={() => onViewChange("editor")}
-        >
-          Editor
-        </button>
-        <button
-          data-testid="switch-to-tree"
-          onClick={() => onViewChange("tree")}
-        >
-          Tree
-        </button>
-      </div>
-    ),
-  }),
-);
-
 // ============================================================================
 // Test Data
 // ============================================================================
@@ -229,22 +205,6 @@ describe("EditorPaneV2", () => {
 
       expect(screen.queryByTestId("mock-tree-resizer")).toBeNull();
     });
-
-    it("should render mobile toggle in single mode", () => {
-      mockLayout.mockReturnValue("single");
-
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      expect(screen.getByTestId("mock-panel-toggle")).toBeDefined();
-    });
-
-    it("should not render mobile toggle in split mode", () => {
-      mockLayout.mockReturnValue("split");
-
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      expect(screen.queryByTestId("mock-panel-toggle")).toBeNull();
-    });
   });
 
   // ===========================================================================
@@ -294,23 +254,6 @@ describe("EditorPaneV2", () => {
 
       expect(screen.getByTestId("editor-file-path").textContent).toBe(
         "/project/test.ts",
-      );
-    });
-
-    it("should switch to editor view in single mode when file is selected", () => {
-      mockLayout.mockReturnValue("single");
-
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      // Should start on tree view
-      expect(screen.getByTestId("panel-active-view").textContent).toBe("tree");
-
-      // Select a file
-      fireEvent.click(screen.getByTestId("select-file-button"));
-
-      // Should switch to editor view
-      expect(screen.getByTestId("panel-active-view").textContent).toBe(
-        "editor",
       );
     });
   });
@@ -375,31 +318,6 @@ describe("EditorPaneV2", () => {
   });
 
   // ===========================================================================
-  // Mobile View Toggle
-  // ===========================================================================
-
-  describe("mobile view toggle", () => {
-    it("should toggle between tree and editor views", () => {
-      mockLayout.mockReturnValue("single");
-
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      // Should start on tree
-      expect(screen.getByTestId("panel-active-view").textContent).toBe("tree");
-
-      // Switch to editor
-      fireEvent.click(screen.getByTestId("switch-to-editor"));
-      expect(screen.getByTestId("panel-active-view").textContent).toBe(
-        "editor",
-      );
-
-      // Switch back to tree
-      fireEvent.click(screen.getByTestId("switch-to-tree"));
-      expect(screen.getByTestId("panel-active-view").textContent).toBe("tree");
-    });
-  });
-
-  // ===========================================================================
   // Responsive Layout
   // ===========================================================================
 
@@ -426,20 +344,6 @@ describe("EditorPaneV2", () => {
 
       expect(treeContainer.classList.contains("hidden")).toBe(false);
       expect(editorContainer.classList.contains("hidden")).toBe(true);
-    });
-
-    it("should show editor panel when toggled in single mode", () => {
-      mockLayout.mockReturnValue("single");
-
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      fireEvent.click(screen.getByTestId("switch-to-editor"));
-
-      const treeContainer = screen.getByTestId("tree-container");
-      const editorContainer = screen.getByTestId("editor-container");
-
-      expect(treeContainer.classList.contains("hidden")).toBe(true);
-      expect(editorContainer.classList.contains("hidden")).toBe(false);
     });
   });
 

@@ -16,7 +16,6 @@
  *
  * Phase 5 components:
  * - TreeResizer: Draggable divider for tree panel resizing
- * - PanelViewPortToggle: Floating toggle for narrow viewport layout
  *
  * Phase 6 components:
  * - ChangesReviewPane: Multi-file changes review with inline diffs
@@ -25,42 +24,38 @@
 
 // EditorViewPanel and related components
 export {
-  EditorViewPanel,
-  RegularEditorWrapper,
   DiffEditorWrapper,
+  EditorViewPanel,
   ExternalChangeWarning,
+  RegularEditorWrapper,
 } from "./EditorViewPanel";
 
 export type {
-  EditorViewPanelProps,
-  RegularEditorWrapperProps,
   DiffEditorWrapperProps,
+  EditorViewPanelProps,
   ExternalChangeWarningProps,
+  RegularEditorWrapperProps,
 } from "./EditorViewPanel";
 
 // Toolbar components
-export { EditorToolbar, PanelViewPortToggle } from "./Toolbar";
-export type {
-  EditorToolbarProps,
-  PanelViewPortToggleProps,
-  PanelView,
-} from "./Toolbar";
+export { EditorToolbar } from "./Toolbar";
+export type { EditorToolbarProps } from "./Toolbar";
 
 // FileTreePanel components
 export {
-  FileTreePanel,
-  FileTreeNormal,
+  BranchSelector,
   FileTreeChanges,
   FileTreeItem,
-  BranchSelector,
+  FileTreeNormal,
+  FileTreePanel,
 } from "./FileTreePanel";
 
 export type {
-  FileTreePanelProps,
-  FileTreeNormalProps,
+  BranchSelectorProps,
   FileTreeChangesProps,
   FileTreeItemProps,
-  BranchSelectorProps,
+  FileTreeNormalProps,
+  FileTreePanelProps,
 } from "./FileTreePanel";
 
 // Layout components
@@ -75,7 +70,7 @@ export type {
 } from "./ChangesReviewPane";
 
 // Shared components
-export { GitBadge, getStatusConfig } from "./shared";
+export { getStatusConfig, GitBadge } from "./shared";
 export type { GitBadgeProps } from "./shared";
 
 // Global container for editor panes (keeps editors alive across tab switches)
