@@ -27,6 +27,15 @@ export type LaunchGroup = {
   id: string;
   name: string;
   agentIds: string[];
+  agentInstances?: {
+    [agentId: string]: {
+      count: number;
+      instances?: {
+        id: string;
+        instructions?: string;
+      }[];
+    };
+  };
 };
 
 // Legacy type alias for backwards compatibility

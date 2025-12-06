@@ -9,7 +9,10 @@ import { useUserSettings } from "@/hooks/useUserSettings";
 import type { AgentConfig, LaunchGroup } from "@shared/types";
 import {
   Check,
+  ChevronDown,
+  ChevronRight,
   Edit2,
+  Edit3,
   MessageSquare,
   Plus,
   RotateCcw,
@@ -43,6 +46,9 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
     null,
   );
   const [editedGroup, setEditedGroup] = useState<LaunchGroup | null>(null);
+  const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Sync local state when userSettings changes
   useEffect(() => {
@@ -289,14 +295,120 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
   const toggleAgentInGroup = (agentId: string) => {
     if (!editedGroup) return;
 
-    const updatedAgentIds = editedGroup.agentIds.includes(agentId)
-      ? editedGroup.agentIds.filter((id) => id !== agentId)
-      : [...editedGroup.agentIds, agentId];
+    const isCurrentlySelected = editedGroup.agentIds.includes(agentId);
+
+    if (isCurrentlySelected) {
+      // Remove agent
+      const updatedAgentIds = editedGroup.agentIds.filter(
+        (id) => id !== agentId,
+      );
+      const updatedInstances = { ...(editedGroup.agentInstances || {}) };
+      delete updatedInstances[agentId];
+
+      setEditedGroup({
+        ...editedGroup,
+        agentIds: updatedAgentIds,
+        agentInstances: updatedInstances,
+      });
+    } else {
+      // Add agent with default instance
+      const updatedAgentIds = [...editedGroup.agentIds, agentId];
+      const updatedInstances = {
+        ...(editedGroup.agentInstances || {}),
+        [agentId]: {
+          count: 1,
+          instances: [{ id: `${agentId}-1`, instructions: "" }],
+        },
+      };
+
+      setEditedGroup({
+        ...editedGroup,
+        agentIds: updatedAgentIds,
+        agentInstances: updatedInstances,
+      });
+    }
+  };
+
+  const updateAgentInstanceCount = (agentId: string, delta: number) => {
+    if (!editedGroup) return;
+
+    const instances = editedGroup.agentInstances || {};
+    const current = instances[agentId] || {
+      count: 1,
+      instances: [{ id: `${agentId}-1`, instructions: "" }],
+    };
+    const newCount = Math.max(1, current.count + delta);
+
+    // Update instances array
+    const newInstances = [...(current.instances || [])];
+    if (newCount > current.count) {
+      // Add new instances
+      for (let i = current.count; i < newCount; i++) {
+        newInstances.push({ id: `${agentId}-${i + 1}`, instructions: "" });
+      }
+    } else if (newCount < current.count) {
+      // Remove instances
+      newInstances.splice(newCount);
+    }
 
     setEditedGroup({
       ...editedGroup,
-      agentIds: updatedAgentIds,
+      agentInstances: {
+        ...instances,
+        [agentId]: {
+          count: newCount,
+          instances: newInstances,
+        },
+      },
     });
+  };
+
+  const updateInstanceInstructions = (
+    agentId: string,
+    instanceIndex: number,
+    instructions: string,
+  ) => {
+    if (!editedGroup) return;
+
+    const instances = editedGroup.agentInstances || {};
+    const agentData = instances[agentId] || {
+      count: 1,
+      instances: [{ id: `${agentId}-1`, instructions: "" }],
+    };
+    const updatedInstances = [...agentData.instances];
+    updatedInstances[instanceIndex] = {
+      ...updatedInstances[instanceIndex],
+      instructions,
+    };
+
+    setEditedGroup({
+      ...editedGroup,
+      agentInstances: {
+        ...instances,
+        [agentId]: {
+          ...agentData,
+          instances: updatedInstances,
+        },
+      },
+    });
+  };
+
+  const toggleInstructionsExpanded = (instanceId: string) => {
+    setExpandedInstructions((prev) => {
+      const next = new Set(prev);
+      if (next.has(instanceId)) {
+        next.delete(instanceId);
+      } else {
+        next.add(instanceId);
+      }
+      return next;
+    });
+  };
+
+  const hasCustomInstructions = (agentId: string, instanceIndex: number) => {
+    if (!editedGroup) return false;
+    const instanceData = editedGroup.agentInstances?.[agentId];
+    return !!instanceData?.instances?.[instanceIndex]?.instructions?.trim();
   };
 
   return (
@@ -657,32 +769,152 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
 
                             <div>
                               <label className="text-xs text-gray-400 block mb-2">
-                                Select Agents
+                                Team Members
                               </label>
-                              <div className="space-y-2 max-h-64 overflow-y-auto">
-                                {agents.map((agent) => (
-                                  <label
-                                    key={agent.id}
-                                    className="flex items-center gap-2 px-3 py-2 bg-gray-900 rounded hover:bg-gray-800 cursor-pointer transition-colors"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={editedGroup.agentIds.includes(
-                                        agent.id,
-                                      )}
-                                      onChange={() =>
-                                        toggleAgentInGroup(agent.id)
-                                      }
-                                      className="w-4 h-4 bg-gray-900 border border-gray-700 rounded"
-                                    />
-                                    <span className="text-sm text-gray-300 flex-1">
-                                      {agent.name}
-                                    </span>
-                                    <code className="px-1.5 py-0.5 text-xs bg-gray-700 rounded text-gray-400">
-                                      /{agent.id}
-                                    </code>
-                                  </label>
-                                ))}
+                              <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {agents.map((agent) => {
+                                  const isSelected =
+                                    editedGroup.agentIds.includes(agent.id);
+                                  const instanceData = editedGroup
+                                    .agentInstances?.[agent.id] || {
+                                    count: 1,
+                                    instances: [
+                                      { id: `${agent.id}-1`, instructions: "" },
+                                    ],
+                                  };
+
+                                  return (
+                                    <div key={agent.id} className="space-y-2">
+                                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-900 rounded">
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() =>
+                                            toggleAgentInGroup(agent.id)
+                                          }
+                                          className="w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                                        />
+                                        <span className="text-sm text-gray-300 flex-1">
+                                          {agent.name}
+                                        </span>
+
+                                        {/* Instance controls */}
+                                        {isSelected && (
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() =>
+                                                updateAgentInstanceCount(
+                                                  agent.id,
+                                                  -1,
+                                                )
+                                              }
+                                              disabled={instanceData.count <= 1}
+                                              className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed rounded text-gray-300 text-sm"
+                                              title="Decrease instances"
+                                            >
+                                              −
+                                            </button>
+                                            <span className="text-xs text-gray-400 w-8 text-center">
+                                              {instanceData.count}
+                                            </span>
+                                            <button
+                                              onClick={() =>
+                                                updateAgentInstanceCount(
+                                                  agent.id,
+                                                  1,
+                                                )
+                                              }
+                                              className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded text-gray-300 text-sm"
+                                              title="Increase instances"
+                                            >
+                                              +
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Instance instructions */}
+                                      {isSelected &&
+                                        instanceData.instances &&
+                                        instanceData.instances.map(
+                                          (instance, idx) => {
+                                            const instanceId = `${agent.id}-${idx}`;
+                                            const isExpanded =
+                                              expandedInstructions.has(
+                                                instanceId,
+                                              );
+                                            const hasInstructions =
+                                              hasCustomInstructions(
+                                                agent.id,
+                                                idx,
+                                              );
+
+                                            return (
+                                              <div
+                                                key={instance.id}
+                                                className="ml-8 space-y-1"
+                                              >
+                                                <button
+                                                  onClick={() =>
+                                                    toggleInstructionsExpanded(
+                                                      instanceId,
+                                                    )
+                                                  }
+                                                  className="flex items-center gap-2 w-full px-2 py-1 hover:bg-gray-800/50 rounded transition-colors text-left"
+                                                  title={
+                                                    isExpanded
+                                                      ? "Collapse instructions"
+                                                      : "Expand instructions"
+                                                  }
+                                                >
+                                                  {isExpanded ? (
+                                                    <ChevronDown className="w-3 h-3 text-gray-500" />
+                                                  ) : (
+                                                    <ChevronRight className="w-3 h-3 text-gray-500" />
+                                                  )}
+                                                  {hasInstructions ? (
+                                                    <Edit3 className="w-3 h-3 text-blue-400" />
+                                                  ) : (
+                                                    <Edit2 className="w-3 h-3 text-gray-500" />
+                                                  )}
+                                                  <span className="text-xs text-gray-500">
+                                                    {instanceData.count > 1
+                                                      ? `Instance ${idx + 1} - `
+                                                      : ""}
+                                                    Special Instructions{" "}
+                                                    {hasInstructions
+                                                      ? "(customized)"
+                                                      : "(optional)"}
+                                                  </span>
+                                                </button>
+
+                                                {isExpanded && (
+                                                  <div className="pl-6">
+                                                    <textarea
+                                                      value={
+                                                        instance.instructions ||
+                                                        ""
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateInstanceInstructions(
+                                                          agent.id,
+                                                          idx,
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      placeholder={`Custom instructions for this ${agent.name} ${instanceData.count > 1 ? `instance...` : "instance..."}`}
+                                                      className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-white focus:outline-none focus:border-blue-500 resize-none"
+                                                      rows={3}
+                                                    />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          },
+                                        )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                               <p className="mt-2 text-xs text-gray-500">
                                 Selected: {editedGroup.agentIds.length} agent(s)
@@ -717,27 +949,35 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
                                 </h4>
                               </div>
                               <div className="space-y-1">
-                                <div>
-                                  <span className="text-xs text-gray-500">
-                                    Agents:{" "}
+                                {group.agentIds.length === 0 ? (
+                                  <span className="text-xs text-gray-600 italic">
+                                    No agents selected
                                   </span>
-                                  {group.agentIds.length === 0 ? (
-                                    <span className="text-xs text-gray-600 italic">
-                                      No agents selected
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-gray-400">
-                                      {group.agentIds
-                                        .map((id) => {
-                                          const agent = agents.find(
-                                            (a) => a.id === id,
-                                          );
-                                          return agent ? agent.name : id;
-                                        })
-                                        .join(", ")}
-                                    </span>
-                                  )}
-                                </div>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {group.agentIds.map((id) => {
+                                      const agent = agents.find(
+                                        (a) => a.id === id,
+                                      );
+                                      const instanceData =
+                                        group.agentInstances?.[id];
+                                      const count = instanceData?.count || 1;
+
+                                      return (
+                                        <div key={id} className="text-xs">
+                                          <span className="text-gray-400">
+                                            {agent ? agent.name : id}
+                                          </span>
+                                          {count > 1 && (
+                                            <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded text-xs">
+                                              ×{count}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex gap-2">
