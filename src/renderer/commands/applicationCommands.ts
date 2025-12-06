@@ -1198,6 +1198,24 @@ export function registerApplicationCommands(
     },
   });
 
+  // Agent: Launch
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_LAUNCH,
+    title: "Launch Agents",
+    description:
+      "Open agent launcher to split panes or worktrees and start agents with a prompt",
+    category: "Agent",
+    keybinding: {
+      key: "Cmd+I",
+    },
+    when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
+    run: (context) => {
+      if (context.setShowAgentLauncher) {
+        context.setShowAgentLauncher(true);
+      }
+    },
+  });
+
   // Agent: Manage Sessions
   commandRegistry.registerCommand({
     id: ApplicationCommands.AGENT_MANAGE_SESSIONS,

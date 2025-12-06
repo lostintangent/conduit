@@ -6,6 +6,7 @@ export type TerminalInstance = {
   pty: IPty;
 
   lastProcessName: string;
+  initialCwd?: string;
 
   isRendererReady: boolean;
   bufferedOutput: string[];
