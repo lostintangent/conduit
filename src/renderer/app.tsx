@@ -45,12 +45,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import {
-  openBrowserPane,
-  removePane,
-  splitPane,
-  splitPaneWithAgentSession,
-} from "@/store/actions/pane";
+import { openBrowserPane, removePane } from "@/store/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -607,86 +602,6 @@ export function App() {
     ],
   );
 
-  const handleLaunchAgents = useCallback(
-    async (payload: {
-      prompt: string;
-      agentIds: string[];
-      useWorktrees: boolean;
-      useCurrentPaneForDefault: boolean;
-    }) => {
-      if (!activeTab || !activeTab.activePaneId || !agents) {
-        return;
-      }
-
-      if (agents.length === 0) {
-        enqueueNotification({
-          kind: "error",
-          message: "No agents configured",
-          details: "Please configure agents in the Agents editor first.",
-          autoCloseMs: 5000,
-        });
-        return;
-      }
-
-      const selectedAgents = agents.filter((agent: any) =>
-        payload.agentIds.includes(agent.id),
-      );
-
-      if (selectedAgents.length === 0) {
-        return;
-      }
-
-      const defaultAgent = agents.find((agent: any) => agent.isDefault);
-      let currentPaneId = activeTab.activePaneId;
-      let firstPane = true;
-
-      for (const agent of selectedAgents) {
-        const isDefault = agent.id === defaultAgent?.id;
-        const useCurrentPane =
-          isDefault && payload.useCurrentPaneForDefault && firstPane;
-
-        if (!agent.interactiveCommand) {
-          continue;
-        }
-
-        try {
-          if (useCurrentPane) {
-            // For now, just log - we'll implement command execution later
-            console.log(
-              `Would launch ${agent.name} in current pane with prompt:`,
-              payload.prompt,
-            );
-          } else {
-            // Create new pane
-            if (payload.useWorktrees) {
-              // Create with agent session (worktree)
-              await splitPaneWithAgentSession(
-                activeTab.id,
-                currentPaneId,
-                "row",
-                false,
-              );
-            } else {
-              // Create regular split
-              await splitPane(activeTab.id, currentPaneId, "row", false);
-            }
-          }
-
-          firstPane = false;
-        } catch (error) {
-          console.error("Failed to launch agent:", agent.name, error);
-          enqueueNotification({
-            kind: "error",
-            message: `Failed to launch ${agent.name}`,
-            details: error instanceof Error ? error.message : String(error),
-            autoCloseMs: 5000,
-          });
-        }
-      }
-    },
-    [activeTab, agents],
-  );
-
   const handleShellCommand = useCallback(
     async (rawCommand: string) => {
       await runShellCommand(rawCommand, { trackHistory: true });
@@ -1163,7 +1078,7 @@ export function App() {
         agents={agents || []}
         defaultAgentId={agents?.find((agent: any) => agent.isDefault)?.id}
         onClose={() => setShowAgentLauncher(false)}
-        onLaunch={handleLaunchAgents}
+        onLaunch={() => {}}
       />
 
       <TerminalFontSettingsDialog
