@@ -455,7 +455,7 @@ export const TabStrip = ({
             tabId={tab.id}
             label={tab.label}
             tooltip={tab.tooltip}
-            title={tab.title}
+            title={tab.name}
             index={index}
             isActive={tab.isActive}
             disableClick={draggingTab !== null}

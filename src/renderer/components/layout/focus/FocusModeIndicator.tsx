@@ -95,15 +95,20 @@ export function FocusModeIndicator() {
       return "";
     }
     const match = tabLabels.find((tab) => tab.id === activeTab.id);
-    return match?.label ?? "";
+    return match?.name ?? "";
   }, [tabLabels, activeTab?.id]);
 
-  const tabInfo =
-    totalTabs > 0 && activeTabIndex >= 0
-      ? `${activeTabIndex + 1}/${totalTabs}${
-          activeTabLabel ? ` (${activeTabLabel})` : ""
-        }`
-      : "";
+  const tabInfo = useMemo(() => {
+    if (hasMultipleTabs) {
+      let prefix = `${activeTabIndex + 1}/${totalTabs}`;
+      if (activeTabLabel) {
+        prefix += ` (${activeTabLabel})`;
+      }
+      return prefix;
+    }
+
+    return activeTabLabel;
+  }, [hasMultipleTabs, activeTabIndex, totalTabs, activeTabLabel]);
 
   return (
     <div
@@ -116,7 +121,9 @@ export function FocusModeIndicator() {
       <div className="flex flex-col items-end gap-2">
         {miniMap}
         <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
-          <span className="text-xs text-white/90 font-medium">{tabInfo}</span>
+          {tabInfo && (
+            <span className="text-xs text-white/90 font-medium">{tabInfo}</span>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -129,7 +136,7 @@ export function FocusModeIndicator() {
                 <ArrowLeft size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Previous tab (⌘←)</TooltipContent>
+            <TooltipContent side="top">Previous tab</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -143,7 +150,7 @@ export function FocusModeIndicator() {
                 <ArrowRight size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Next tab (⌘→)</TooltipContent>
+            <TooltipContent side="top">Next tab</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>

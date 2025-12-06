@@ -4,10 +4,10 @@ import { atom } from "jotai";
 
 export type TabLabelDescriptor = {
   id: string;
+  name?: string;
   label: string;
   tooltip: string;
   isActive: boolean;
-  title?: string;
   locked: boolean;
 };
 
@@ -89,18 +89,13 @@ export const tabLabelsAtom = atom((get): TabLabelDescriptor[] => {
       }
     }
 
-    const trimmedTitle = tab.name?.trim();
-    const label =
-      trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : fallbackLabel;
-    const tooltip =
-      trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : tooltipBase;
-
+    const trimmedName = tab.name?.trim();
     return {
       id: tab.id,
-      label,
-      tooltip,
+      name: trimmedName || undefined,
+      label: trimmedName ?? fallbackLabel,
+      tooltip: trimmedName ?? tooltipBase,
       isActive: tab.id === activeTabId,
-      title: trimmedTitle || undefined,
       locked: tab.locked,
     };
   });
