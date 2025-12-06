@@ -127,6 +127,7 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
       id: `agent-${Date.now()}`,
       name: "New Agent",
       command: "copilot -p {arg}",
+      interactiveCommand: "",
       isDefault: false,
     };
 
@@ -254,7 +255,7 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
 
                     <div>
                       <label className="text-xs text-gray-400 block mb-1">
-                        Command
+                        Non-Interactive Launch Command
                       </label>
                       <input
                         type="text"
@@ -269,11 +270,33 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
                         placeholder="e.g., copilot -p {arg}"
                       />
                       <p className="mt-1 text-xs text-gray-500">
-                        Use{" "}
+                        Used for Cmd+P prompt mode. Use{" "}
                         <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
                           {"{arg}"}
                         </code>{" "}
                         as a placeholder for the prompt, or omit it to use stdin
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">
+                        Interactive Launch Command (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={editedAgent.interactiveCommand || ""}
+                        onChange={(e) =>
+                          setEditedAgent({
+                            ...editedAgent,
+                            interactiveCommand: e.target.value,
+                          })
+                        }
+                        className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                        placeholder="e.g., aider"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Command to launch when creating an agent session. Leave
+                        empty to use default shell
                       </p>
                     </div>
 
@@ -330,9 +353,26 @@ export function AgentsEditor({ onClose }: AgentsEditorProps) {
                           </span>
                         )}
                       </div>
-                      <code className="text-xs text-gray-400 font-mono">
-                        {agent.command}
-                      </code>
+                      <div className="space-y-1">
+                        <div>
+                          <span className="text-xs text-gray-500">
+                            Non-interactive:{" "}
+                          </span>
+                          <code className="text-xs text-gray-400 font-mono">
+                            {agent.command}
+                          </code>
+                        </div>
+                        {agent.interactiveCommand && (
+                          <div>
+                            <span className="text-xs text-gray-500">
+                              Interactive:{" "}
+                            </span>
+                            <code className="text-xs text-gray-400 font-mono">
+                              {agent.interactiveCommand}
+                            </code>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       {!agent.isDefault && (
