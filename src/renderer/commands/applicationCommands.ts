@@ -133,7 +133,7 @@ export function registerApplicationCommands(
   // View: Manage Pane Actions
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_PANE_ACTIONS,
-    title: "Manage Pane Actions",
+    title: "Pane Actions",
     description: "Customize the action available in design mode",
     category: "View",
     run: (context) => {
@@ -144,7 +144,7 @@ export function registerApplicationCommands(
   // View: Manage Agents
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_AGENTS,
-    title: "Manage Agents",
+    title: "Agent Profiles",
     description: "Configure AI agents for terminal prompt mode (Cmd+P)",
     category: "View",
     run: (context) => {

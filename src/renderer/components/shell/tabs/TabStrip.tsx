@@ -789,7 +789,7 @@ export const TabStrip = ({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="rounded-lg h-8 px-3 inline-flex items-center gap-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-accent/20 text-accent-foreground hover:bg-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="rounded-lg h-8 px-3 inline-flex items-center gap-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-green-700 text-white hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
                 aria-label={launchAgentsCmd.title || "Launch agents"}
                 onClick={launchAgentsCmd.execute}
                 disabled={launchAgentsCmd.disabled || !canLaunchAgents}

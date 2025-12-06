@@ -114,17 +114,8 @@ export function AgentLauncherDialog({
         <DialogTitle className="text-lg font-semibold text-foreground">
           Launch Agents
         </DialogTitle>
-        <p className="text-sm text-muted-foreground">
-          Select one or more agents with interactive commands and launch them
-          with a shared prompt. Use worktrees to give each agent an isolated
-          branch, or reuse the current pane for the default agent.
-        </p>
-
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Prompt
-            </label>
             <Textarea
               autoFocus
               value={prompt}
