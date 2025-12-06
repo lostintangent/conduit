@@ -32,7 +32,7 @@ export function getDefaultActions(): Action[] {
       enabled: true,
       paneType: "terminal",
       config: {
-        command: "",
+        command: "copilot",
         preCommandId: "create-agent-session",
       },
     },
