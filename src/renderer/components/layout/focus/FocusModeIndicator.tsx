@@ -72,8 +72,12 @@ export function FocusModeIndicator() {
     [activeTab],
   );
 
+  const hasMultiplePanes = activeTab
+    ? Object.keys(activeTab.panes).length > 1
+    : false;
+
   const miniMap = useMemo(() => {
-    if (!activeTab) {
+    if (!activeTab || !hasMultiplePanes) {
       return null;
     }
 
@@ -84,7 +88,7 @@ export function FocusModeIndicator() {
         onSelectPane={handleSelectPane}
       />
     );
-  }, [activeTab, handleSelectPane]);
+  }, [activeTab, hasMultiplePanes, handleSelectPane]);
 
   if (!activeTab) {
     return null;
