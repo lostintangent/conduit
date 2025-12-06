@@ -252,7 +252,7 @@ export function DiffEditorWrapper({
 
     // Automatically scroll to the first diff after a short delay
     // to ensure diff computation is complete
-    setTimeout(() => diffEditor.revealFirstDiff(), 100);
+    const revealTimeoutId = setTimeout(() => diffEditor.revealFirstDiff(), 100);
 
     // Set up content change listener for onChange callback
     if (contentChangeDisposableRef.current) {
@@ -269,6 +269,9 @@ export function DiffEditorWrapper({
     }
 
     return () => {
+      // Clear the reveal timeout
+      clearTimeout(revealTimeoutId);
+
       // Cleanup content change listener
       if (contentChangeDisposableRef.current) {
         contentChangeDisposableRef.current.dispose();
