@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import type { Command } from "@/types";
 import { searchFiles, type FileSearchResult } from "@/utils/fileSearch";
 import {
@@ -55,8 +54,6 @@ export function CommandPalette({
   const previousQueryRef = useRef<string>("");
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fsApi = cwd ? useFileSystemV2(cwd) : null;
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -83,7 +80,7 @@ export function CommandPalette({
 
   // Debounced file search
   useEffect(() => {
-    if (!isFileSearchMode || !cwd || !fsApi) {
+    if (!isFileSearchMode || !cwd) {
       setFileSearchResults([]);
       setIsSearching(false);
       return;
@@ -103,9 +100,15 @@ export function CommandPalette({
 
     // Start search after debounce delay
     setIsSearching(true);
+    console.log(
+      `[CommandPalette] Starting file search in cwd: ${cwd}, query: "${fileSearchQuery}"`,
+    );
     searchTimeoutRef.current = setTimeout(() => {
-      searchFiles(fsApi, cwd, fileSearchQuery, 50, 8)
+      searchFiles(cwd, fileSearchQuery, 50)
         .then((results) => {
+          console.log(
+            `[CommandPalette] Search completed with ${results.length} results`,
+          );
           setFileSearchResults(results);
           setIsSearching(false);
         })
@@ -121,7 +124,7 @@ export function CommandPalette({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [isFileSearchMode, fileSearchQuery, cwd, fsApi]);
+  }, [isFileSearchMode, fileSearchQuery, cwd]);
 
   const filteredCommands = useMemo(() => {
     if (isShellMode || isFileSearchMode) {

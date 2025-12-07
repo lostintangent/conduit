@@ -551,6 +551,16 @@ const conduitAPI = {
   workspace: configureWorkspaceModule,
   fsv2: fsv2Module,
   gitv2: gitv2Module,
+
+  // Search
+  searchFiles: (request: {
+    rootPath: string;
+    query: string;
+    maxResults?: number;
+  }) =>
+    ipcRenderer.invoke("search:files", request) as Promise<
+      Array<{ path: string; name: string; relativePath: string }>
+    >,
 };
 
 export type ConduitAPI = typeof conduitAPI;

@@ -24,6 +24,7 @@ import { initializeUIHandlers, initializeUserSettings } from "./ui";
 import { initializeUpdateHandlers, cleanupUpdateHandlers } from "./updates";
 import { initializeVMHandlers } from "./vm";
 import initializeWorkspaceHandlers from "./workspace";
+import { registerSearchHandlers } from "./search";
 
 async function ensureConduitDirectory(): Promise<string> {
   const homeDir = app.getPath("home");
@@ -63,6 +64,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeFileWatcherHandlers();
   initializeVMHandlers();
   initializeBrowserHandlers();
+  registerSearchHandlers();
 
   // Initialize v2 filesystem and git handlers
   initializeFileSystemV2Handlers();
