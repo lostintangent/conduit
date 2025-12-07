@@ -46,6 +46,7 @@ import {
   updateNotification,
 } from "@/store/actions/notifications";
 import { openBrowserPane, removePane, splitPane } from "@/store/actions/pane";
+import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -794,204 +795,6 @@ export function App() {
 
   const shouldUseDrawer = !alwaysShowTabs;
 
-  // Handler for launching agent teams in worktrees
-  const handleWorktreeLaunch = async (payload: {
-    prompt: string;
-    agentIds: string[];
-    agentInstances?: {
-      [agentId: string]: {
-        count: number;
-        instances?: { id: string; instructions?: string }[];
-      };
-    };
-    launchTarget: "same-folder" | "worktree" | "cloud-vm";
-  }) => {
-    // Get the current working directory from active tab
-    const cwd = getActiveTabCwd(activeTab);
-    if (!cwd) {
-      throw new Error("No working directory found in active pane");
-    }
-
-    // Calculate total number of agent instances to launch
-    const agentConfigs = agents || [];
-    const totalInstances = payload.agentIds.reduce((sum, agentId) => {
-      const count = payload.agentInstances?.[agentId]?.count ?? 1;
-      return sum + count;
-    }, 0);
-
-    if (totalInstances === 0) {
-      throw new Error("No agents selected to launch");
-    }
-
-    // Close the launcher dialog
-    setShowAgentLauncher(false);
-
-    // Show progress notification
-    const notifId = enqueueNotification({
-      kind: "info",
-      message: `Launching ${totalInstances} agent${totalInstances > 1 ? "s" : ""}...`,
-    });
-
-    try {
-      // Create the first worktree and tab
-      const firstAgentId = payload.agentIds[0];
-      const firstAgent = agentConfigs.find((a) => a.id === firstAgentId);
-      if (!firstAgent?.interactiveCommand) {
-        throw new Error(
-          `Agent ${firstAgent?.name ?? firstAgentId} has no interactive command configured`,
-        );
-      }
-
-      const firstSession = await api.spawnAgentSession({
-        cwd,
-        preferredName: firstAgent.name,
-      });
-      if (!firstSession) {
-        throw new Error("Failed to create first agent session");
-      }
-
-      // Create a new terminal in the worktree
-      const firstTerminal = await api.createTerminal({
-        cwd: firstSession.worktreePath,
-      });
-      if (!firstTerminal) {
-        throw new Error("Failed to create terminal in worktree");
-      }
-
-      // Create the initial tab with the first agent
-      const { openTabFromExistingSession } = await import(
-        "@/store/actions/tab"
-      );
-      const tabResult = await openTabFromExistingSession({
-        sessionId: firstTerminal.sessionId,
-        cwd: firstSession.worktreePath,
-        title: firstAgent.name,
-      });
-      if (!tabResult) {
-        throw new Error("Failed to create tab");
-      }
-
-      const { tabId, paneId } = tabResult;
-
-      // Update the pane with agent session metadata
-      const tabs = store.get(tabsAtom);
-      store.set(
-        tabsAtom,
-        tabs.map((tab) => {
-          if (tab.id !== tabId) return tab;
-          return {
-            ...tab,
-            panes: {
-              ...tab.panes,
-              [paneId]: {
-                ...tab.panes[paneId],
-                agentSessionId: firstSession.id,
-                agentBranchName: firstSession.branchName,
-                agentBaseBranch: firstSession.baseBranch,
-                agentRepoRoot: firstSession.repoRoot,
-                agentWorktreePath: firstSession.worktreePath,
-              },
-            },
-          };
-        }),
-      );
-
-      // Send the interactive command for the first agent
-      const firstInstances = payload.agentInstances?.[firstAgentId]
-        ?.instances ?? [{ id: "1" }];
-      const firstInstanceInstructions = firstInstances[0]?.instructions;
-      const firstCommand = firstAgent.interactiveCommand.replace(
-        "{arg}",
-        firstInstanceInstructions
-          ? `"${payload.prompt}"\n\n${firstInstanceInstructions}`
-          : `"${payload.prompt}"`,
-      );
-
-      setTimeout(() => {
-        api.sendKeypress(firstTerminal.sessionId, firstCommand + "\r");
-      }, 100);
-
-      // Track all created sessions
-      const createdSessions: AgentSessionInfo[] = [firstSession];
-      let currentPaneId = paneId;
-      let instanceIndex = 1; // First instance of first agent already created
-
-      // Create remaining instances
-      for (const agentId of payload.agentIds) {
-        const agent = agentConfigs.find((a) => a.id === agentId);
-        if (!agent?.interactiveCommand) {
-          console.warn(`Skipping agent ${agentId}: no interactive command`);
-          continue;
-        }
-
-        const instanceConfig = payload.agentInstances?.[agentId];
-        const instances = instanceConfig?.instances ?? [{ id: "1" }];
-        const startIdx = agentId === firstAgentId ? 1 : 0; // Skip first instance of first agent
-
-        for (let i = startIdx; i < instances.length; i++) {
-          const instance = instances[i];
-
-          // Create a new worktree for this instance
-          const session = await api.spawnAgentSession({
-            cwd,
-            preferredName: agent.name,
-          });
-          if (!session) {
-            console.error(
-              `Failed to create session for ${agent.name} instance ${i + 1}`,
-            );
-            continue;
-          }
-          createdSessions.push(session);
-
-          // Split the current pane and create a new terminal in the worktree
-          const newPane = await splitPane(tabId, currentPaneId, "row", false, {
-            terminalOptions: { cwd: session.worktreePath },
-            agentSession: session,
-          });
-
-          if (!newPane) {
-            console.error(
-              `Failed to split pane for ${agent.name} instance ${i + 1}`,
-            );
-            continue;
-          }
-
-          currentPaneId = newPane.id;
-
-          // Send the interactive command with custom instructions
-          const command = agent.interactiveCommand.replace(
-            "{arg}",
-            instance.instructions
-              ? `"${payload.prompt}"\n\n${instance.instructions}`
-              : `"${payload.prompt}"`,
-          );
-
-          setTimeout(
-            () => {
-              api.sendKeypress(newPane.sessionId, command + "\r");
-            },
-            100 * (instanceIndex + 1),
-          );
-
-          instanceIndex++;
-        }
-      }
-
-      // Update notification
-      updateNotification(notifId, {
-        kind: "success",
-        message: `Launched ${totalInstances} agent${totalInstances > 1 ? "s" : ""} in ${createdSessions.length} worktree${createdSessions.length > 1 ? "s" : ""}`,
-      });
-    } catch (error) {
-      updateNotification(notifId, {
-        kind: "error",
-        message: `Launch failed: ${error instanceof Error ? error.message : String(error)}`,
-      });
-      throw error;
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
       <TitleBar
@@ -1282,7 +1085,17 @@ export function App() {
         onLaunch={async (payload) => {
           try {
             if (payload.launchTarget === "worktree") {
-              await handleWorktreeLaunch(payload);
+              const cwd = getActiveTabCwd(activeTab);
+              if (!cwd) {
+                throw new Error("No working directory found in active pane");
+              }
+
+              await launchAgentsInWorktrees(payload, {
+                cwd,
+                agents: agents || [],
+                api,
+                onClose: () => setShowAgentLauncher(false),
+              });
             } else {
               enqueueNotification({
                 kind: "error",
