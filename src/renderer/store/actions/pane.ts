@@ -998,7 +998,10 @@ export function removePane(
   );
 }
 
-function closeAgentSessionPanes(tabId: string, agentSessionId: string): number {
+export function closeAgentSessionPanes(
+  tabId: string,
+  agentSessionId: string,
+): number {
   const tabs = store.get(tabsAtom);
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {

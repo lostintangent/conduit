@@ -99,3 +99,12 @@ export const hasCwd = new ContextKey<boolean>("hasCwd", false);
  * Used by: agent split commands (menu visibility)
  */
 export const hasGitRepo = new ContextKey<boolean>("hasGitRepo", false);
+
+/**
+ * Whether the tab has any panes with active worktrees
+ * Used by: tab cleanup commands (menu visibility)
+ */
+export const tabHasWorktrees = new ContextKey<boolean>(
+  "tabHasWorktrees",
+  false,
+);

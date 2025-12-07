@@ -71,6 +71,7 @@ export const ApplicationCommands = {
   AGENT_MANAGE_SESSIONS: "agent.manageSessions",
   AGENT_MERGE_AND_CLOSE: "agent.mergeAndClose",
   AGENT_TERMINATE: "agent.terminate",
+  AGENT_DELETE_ALL_WORKTREES: "agent.deleteAllWorktrees",
 
   // Editor commands
   EDITOR_TOGGLE_SIDEBAR: "editor.toggleSidebar",
