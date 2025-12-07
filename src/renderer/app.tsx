@@ -87,6 +87,7 @@ export function App() {
     terminalFontFamily,
     terminalFontSize,
     agents,
+    launchGroups,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -1076,9 +1077,18 @@ export function App() {
       <AgentLauncherDialog
         isOpen={showAgentLauncher}
         agents={agents || []}
+        launchGroups={launchGroups || []}
         defaultAgentId={agents?.find((agent: any) => agent.isDefault)?.id}
         onClose={() => setShowAgentLauncher(false)}
-        onLaunch={() => {}}
+        onLaunch={async (payload) => {
+          // TODO: Implement agent launching logic with support for:
+          // - payload.agentIds: array of agent IDs to launch
+          // - payload.agentInstances: instance configuration with custom instructions
+          // - payload.useWorktrees: whether to create worktrees
+          // - payload.useCurrentPaneForDefault: use current pane for default agent
+          // - payload.prompt: the user's prompt/task description
+          console.log("Launch agents:", payload);
+        }}
       />
 
       <TerminalFontSettingsDialog
