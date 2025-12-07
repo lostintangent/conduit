@@ -393,7 +393,7 @@ export function CommandPalette({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="w-[480px] max-w-[90vw] p-4 gap-0 bg-popover border-white/10"
+        className="w-[480px] max-w-[90vw] p-4 gap-0 bg-popover border-white/10 top-[20%] -translate-y-0"
         showClose={false}
         aria-describedby={undefined}
       >
