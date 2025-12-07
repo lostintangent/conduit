@@ -400,20 +400,6 @@ export function CommandPalette({
         <DialogTitle className="sr-only">Command Palette</DialogTitle>
 
         {/* Mode indicator */}
-        {isFileSearchMode && (
-          <div className="mb-2 px-2 py-1 rounded-md bg-blue-500/20 border border-blue-500/40 text-blue-400 text-xs font-medium flex items-center justify-between">
-            <span>🔍 File Search Mode</span>
-            {isSearching ? (
-              <span className="text-blue-300 animate-pulse">Searching...</span>
-            ) : fileSearchResults.length > 0 ? (
-              <span className="text-blue-300">
-                {fileSearchResults.length} found
-              </span>
-            ) : fileSearchQuery.length > 0 ? (
-              <span className="text-blue-300/60">No results</span>
-            ) : null}
-          </div>
-        )}
         {isShellMode && (
           <div className="mb-2 px-2 py-1 rounded-md bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-medium">
             💻 Shell Command Mode
