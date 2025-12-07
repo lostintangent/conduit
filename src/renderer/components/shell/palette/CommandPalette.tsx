@@ -582,33 +582,32 @@ export function CommandPalette({
           !isCreateFileMode &&
           !isContentSearchMode &&
           inputValue.trim().length === 0 && (
-            <div className="mt-3 px-3 py-2 rounded-md bg-muted/30 border border-border/50 space-y-1.5">
-              <div className="text-xs font-semibold text-foreground/80 mb-1.5">
-                Quick Actions:
-              </div>
-              <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
-                  !
-                </kbd>
-                <span>Run shell command</span>
-              </div>
-              <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
-                  &gt;
-                </kbd>
-                <span>Search for file</span>
-              </div>
-              <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
-                  :
-                </kbd>
-                <span>Create new file</span>
-              </div>
-              <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
-                  ?
-                </kbd>
-                <span>Find in files (add /c for case-sensitive)</span>
+            <div className="mt-2 px-2 py-1.5 rounded-md bg-muted/20 border border-border/30">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <kbd className="px-1 py-0.5 bg-muted/50 rounded font-mono text-[10px] min-w-[16px] text-center">
+                    !
+                  </kbd>
+                  <span>Shell command</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <kbd className="px-1 py-0.5 bg-muted/50 rounded font-mono text-[10px] min-w-[16px] text-center">
+                    &gt;
+                  </kbd>
+                  <span>Find file</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <kbd className="px-1 py-0.5 bg-muted/50 rounded font-mono text-[10px] min-w-[16px] text-center">
+                    :
+                  </kbd>
+                  <span>Create file</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <kbd className="px-1 py-0.5 bg-muted/50 rounded font-mono text-[10px] min-w-[16px] text-center">
+                    ?
+                  </kbd>
+                  <span>Find in files</span>
+                </div>
               </div>
             </div>
           )}
