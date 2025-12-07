@@ -1084,8 +1084,7 @@ export function App() {
           // TODO: Implement agent launching logic with support for:
           // - payload.agentIds: array of agent IDs to launch
           // - payload.agentInstances: instance configuration with custom instructions
-          // - payload.useWorktrees: whether to create worktrees
-          // - payload.useCurrentPaneForDefault: use current pane for default agent
+          // - payload.launchTarget: "same-folder" | "worktree" | "cloud-vm"
           // - payload.prompt: the user's prompt/task description
           console.log("Launch agents:", payload);
         }}

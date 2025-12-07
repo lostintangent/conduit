@@ -24,8 +24,7 @@ type AgentLauncherDialogProps = {
         instances?: AgentInstance[];
       };
     };
-    useWorktrees: boolean;
-    useCurrentPaneForDefault: boolean;
+    launchTarget: "same-folder" | "worktree" | "cloud-vm";
   }) => Promise<void> | void;
 };
 
@@ -62,8 +61,10 @@ export function AgentLauncherDialog({
   const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(
     new Set(),
   );
-  const [useWorktrees, setUseWorktrees] = useState(true);
-  const [useCurrentPane, setUseCurrentPane] = useState(false);
+  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+  const [launchTarget, setLaunchTarget] = useState<
+    "same-folder" | "worktree" | "cloud-vm"
+  >("worktree");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -78,8 +79,7 @@ export function AgentLauncherDialog({
         : sortedAgents[0]?.id;
 
     setPrompt("");
-    setUseWorktrees(true);
-    setUseCurrentPane(false);
+    setLaunchTarget("worktree");
     setMode("custom");
     setSelectedTeamId(null);
     setSelectedAgents(initialAgentId ? [initialAgentId] : []);
@@ -94,14 +94,9 @@ export function AgentLauncherDialog({
         : {},
     );
     setExpandedInstructions(new Set());
+    setExpandedAgents(new Set());
     setIsSubmitting(false);
   }, [defaultAgentId, isOpen, sortedAgents]);
-
-  useEffect(() => {
-    if (!defaultAgentId || !selectedAgents.includes(defaultAgentId)) {
-      setUseCurrentPane(false);
-    }
-  }, [defaultAgentId, selectedAgents]);
 
   const toggleAgent = (agentId: string) => {
     setSelectedAgents((current) => {
@@ -219,9 +214,6 @@ export function AgentLauncherDialog({
     setSelectedTeamId(null);
   };
 
-  const canUseCurrentPane =
-    Boolean(defaultAgentId) && selectedAgents.includes(defaultAgentId);
-
   const canSubmit =
     prompt.trim().length > 0 &&
     selectedAgents.length > 0 &&
@@ -240,8 +232,7 @@ export function AgentLauncherDialog({
         prompt,
         agentIds: selectedAgents,
         agentInstances,
-        useWorktrees,
-        useCurrentPaneForDefault: useCurrentPane && canUseCurrentPane,
+        launchTarget,
       });
       onClose();
     } catch (error) {
@@ -275,85 +266,6 @@ export function AgentLauncherDialog({
             />
           </div>
 
-          {/* Options */}
-          <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-muted/20 p-3 flex-shrink-0">
-            <label className="flex items-start gap-3 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={useWorktrees}
-                onChange={(event) => setUseWorktrees(event.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border border-white/30 bg-transparent accent-sky-500"
-              />
-              <span>
-                <span className="font-medium">
-                  Create isolated branches for each launched agent.
-                </span>
-              </span>
-            </label>
-
-            <label
-              className={`flex items-start gap-3 text-sm ${
-                canUseCurrentPane ? "text-foreground" : "text-muted-foreground"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={useCurrentPane && canUseCurrentPane}
-                disabled={!canUseCurrentPane}
-                onChange={(event) => setUseCurrentPane(event.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border border-white/30 bg-transparent accent-sky-500 disabled:opacity-50"
-              />
-              <span>
-                <span className="font-medium">
-                  Launch default agent in focused pane
-                </span>
-              </span>
-            </label>
-          </div>
-
-          {/* Team Selection */}
-          {launchGroups.length > 0 && (
-            <div className="space-y-2 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">
-                  Teams
-                </label>
-                {mode === "team" && (
-                  <button
-                    type="button"
-                    onClick={switchToCustomMode}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Customize team
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {launchGroups.map((team) => {
-                  const isSelected = selectedTeamId === team.id;
-                  return (
-                    <button
-                      key={team.id}
-                      type="button"
-                      onClick={() => loadTeam(team.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md border text-sm transition ${
-                        isSelected
-                          ? "border-accent bg-accent/10 text-foreground"
-                          : "border-white/10 hover:border-accent/60 hover:bg-white/5 text-muted-foreground"
-                      }`}
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>{team.name}</span>
-                      <span className="text-xs opacity-60">
-                        ({team.agentIds.length})
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Agent Selection */}
           <div className="space-y-2 flex-1 min-h-0 flex flex-col">
             <div className="flex items-center justify-between flex-shrink-0">
@@ -365,6 +277,44 @@ export function AgentLauncherDialog({
                   "Only agents with interactive commands are shown"}
               </span>
             </div>
+
+            {/* Team Selection - moved here */}
+            {launchGroups.length > 0 && (
+              <div className="flex flex-wrap gap-2 flex-shrink-0">
+                {launchGroups.map((team) => {
+                  const isSelected = selectedTeamId === team.id;
+                  return (
+                    <button
+                      key={team.id}
+                      type="button"
+                      onClick={() => loadTeam(team.id)}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md border text-xs transition ${
+                        isSelected
+                          ? "border-accent bg-accent/10 text-foreground"
+                          : "border-white/10 hover:border-accent/60 hover:bg-white/5 text-muted-foreground"
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>{team.name}</span>
+                      <span className="text-xs opacity-60">
+                        ({team.agentIds.length})
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {mode === "team" && (
+                  <button
+                    type="button"
+                    onClick={switchToCustomMode}
+                    className="px-2 py-1.5 text-xs text-foreground hover:text-foreground transition-colors border border-accent/50 bg-accent/10 hover:bg-accent/20 rounded-md"
+                  >
+                    Customize
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="flex-1 space-y-2 overflow-y-auto rounded-lg border border-white/10 bg-muted/10 p-2">
               {sortedAgents.length === 0 ? (
                 <div className="text-sm text-muted-foreground">
@@ -522,49 +472,72 @@ export function AgentLauncherDialog({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-1 flex-shrink-0">
-            <div className="text-xs text-muted-foreground">
-              {selectedAgents.length > 0 && (
-                <span>
-                  {selectedAgents.length} agent
-                  {selectedAgents.length !== 1 ? "s" : ""} selected
-                  {Object.values(agentInstances).reduce(
-                    (sum, data) => sum + data.count,
-                    0,
-                  ) > selectedAgents.length && (
-                    <span>
-                      {" "}
-                      (
-                      {Object.values(agentInstances).reduce(
-                        (sum, data) => sum + data.count,
-                        0,
-                      )}{" "}
-                      instances)
-                    </span>
-                  )}
-                </span>
-              )}
+          <div className="flex items-center justify-between pt-1 flex-shrink-0 gap-4">
+            {/* Launch Target dropdown - moved to bottom left */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <label className="text-xs text-muted-foreground whitespace-nowrap">
+                Target:
+              </label>
+              <select
+                value={launchTarget}
+                onChange={(e) =>
+                  setLaunchTarget(
+                    e.target.value as "same-folder" | "worktree" | "cloud-vm",
+                  )
+                }
+                className="px-2 py-1.5 bg-background border border-white/10 rounded-md text-xs text-foreground focus:outline-none focus:border-accent"
+              >
+                <option value="same-folder">Same Folder</option>
+                <option value="worktree">Worktree</option>
+                <option value="cloud-vm">Cloud VM</option>
+              </select>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-white/15 px-3 py-2 text-sm font-medium text-foreground transition hover:border-white/30 hover:bg-white/5"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
-                  canSubmit
-                    ? "bg-accent text-background hover:bg-accent/90"
-                    : "bg-accent/40 text-background/70"
-                }`}
-              >
-                {isSubmitting ? "Launching..." : "Launch"}
-              </button>
+
+            {/* Agent count and buttons */}
+            <div className="flex items-center gap-3 ml-auto">
+              <div className="text-xs text-muted-foreground">
+                {selectedAgents.length > 0 && (
+                  <span>
+                    {selectedAgents.length} agent
+                    {selectedAgents.length !== 1 ? "s" : ""} selected
+                    {Object.values(agentInstances).reduce(
+                      (sum, data) => sum + data.count,
+                      0,
+                    ) > selectedAgents.length && (
+                      <span>
+                        {" "}
+                        (
+                        {Object.values(agentInstances).reduce(
+                          (sum, data) => sum + data.count,
+                          0,
+                        )}{" "}
+                        instances)
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-md border border-white/15 px-3 py-2 text-sm font-medium text-foreground transition hover:border-white/30 hover:bg-white/5"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
+                    canSubmit
+                      ? "bg-accent text-background hover:bg-accent/90"
+                      : "bg-accent/40 text-background/70"
+                  }`}
+                >
+                  {isSubmitting ? "Launching..." : "Launch"}
+                </button>
+              </div>
             </div>
           </div>
         </form>
