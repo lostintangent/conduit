@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Command } from "@/types";
 import { searchFiles, type FileSearchResult } from "@/utils/fileSearch";
+import path from "path-browserify";
 import {
   useCallback,
   useEffect,
@@ -70,17 +71,25 @@ export function CommandPalette({
     hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === "!";
   const isFileSearchMode =
     hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === ">";
+  const isCreateFileMode =
+    hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === ":";
   const shellCommand = isShellMode
     ? inputValue.slice(firstNonWhitespaceIndex + 1)
     : "";
   const fileSearchQuery = isFileSearchMode
     ? inputValue.slice(firstNonWhitespaceIndex + 1).trim()
     : "";
-  const commandQuery = isShellMode || isFileSearchMode ? "" : inputValue.trim();
+  const createFileName = isCreateFileMode
+    ? inputValue.slice(firstNonWhitespaceIndex + 1).trim()
+    : "";
+  const commandQuery =
+    isShellMode || isFileSearchMode || isCreateFileMode
+      ? ""
+      : inputValue.trim();
 
   // Debounced file search
   useEffect(() => {
-    if (!isFileSearchMode || !cwd) {
+    if (!isFileSearchMode || !cwd || isCreateFileMode) {
       setFileSearchResults([]);
       setIsSearching(false);
       return;
@@ -124,10 +133,10 @@ export function CommandPalette({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [isFileSearchMode, fileSearchQuery, cwd]);
+  }, [isFileSearchMode, fileSearchQuery, cwd, isCreateFileMode]);
 
   const filteredCommands = useMemo(() => {
-    if (isShellMode || isFileSearchMode) {
+    if (isShellMode || isFileSearchMode || isCreateFileMode) {
       return [];
     }
 
@@ -139,7 +148,13 @@ export function CommandPalette({
     return commandItems.filter((command) =>
       command.label.toLowerCase().includes(query),
     );
-  }, [commandItems, inputValue, isShellMode, isFileSearchMode]);
+  }, [
+    commandItems,
+    inputValue,
+    isShellMode,
+    isFileSearchMode,
+    isCreateFileMode,
+  ]);
 
   const filteredShellHistory = useMemo(() => {
     if (!isShellMode) {
@@ -164,7 +179,9 @@ export function CommandPalette({
       ? filteredShellHistory.length
       : isFileSearchMode
         ? fileSearchResults.length
-        : filteredCommands.length;
+        : isCreateFileMode
+          ? 0
+          : filteredCommands.length;
 
     if (activeLength === 0) {
       setSelectedIndex(0);
@@ -179,6 +196,7 @@ export function CommandPalette({
     isOpen,
     isShellMode,
     isFileSearchMode,
+    isCreateFileMode,
   ]);
 
   useEffect(() => {
@@ -204,6 +222,15 @@ export function CommandPalette({
       return;
     }
 
+    if (isCreateFileMode) {
+      const normalizedCreateFileName = createFileName.toLowerCase();
+      if (normalizedCreateFileName !== previousQueryRef.current) {
+        previousQueryRef.current = normalizedCreateFileName;
+        setSelectedIndex(0);
+      }
+      return;
+    }
+
     const normalizedQuery = inputValue.trim().toLowerCase();
     if (normalizedQuery !== previousQueryRef.current) {
       previousQueryRef.current = normalizedQuery;
@@ -218,8 +245,10 @@ export function CommandPalette({
     isOpen,
     isShellMode,
     isFileSearchMode,
+    isCreateFileMode,
     shellCommand,
     fileSearchQuery,
+    createFileName,
   ]);
 
   const renderHighlightedLabel = useCallback((label: string, query: string) => {
@@ -290,6 +319,29 @@ export function CommandPalette({
     [onClose, onOpenFile],
   );
 
+  const createFile = useCallback(
+    async (fileName: string) => {
+      if (!cwd || !fileName || !onOpenFile) {
+        return;
+      }
+
+      try {
+        // Construct full file path
+        const filePath = path.join(cwd, fileName);
+
+        // Create the file (empty)
+        await window.conduit.writeFile(filePath, "");
+
+        // Open the newly created file
+        onOpenFile(filePath);
+        onClose();
+      } catch (error) {
+        console.error("[CommandPalette] Failed to create file:", error);
+      }
+    },
+    [cwd, onOpenFile, onClose],
+  );
+
   const handleInputKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
       event.stopPropagation();
@@ -332,6 +384,15 @@ export function CommandPalette({
           return;
         }
 
+        if (isCreateFileMode) {
+          event.preventDefault();
+          const fileName = createFileName.trim();
+          if (fileName.length > 0) {
+            void createFile(fileName);
+          }
+          return;
+        }
+
         const command = filteredCommands[selectedIndex];
         if (command) {
           event.preventDefault();
@@ -346,7 +407,9 @@ export function CommandPalette({
           ? filteredShellHistory.length
           : isFileSearchMode
             ? fileSearchResults.length
-            : filteredCommands.length;
+            : isCreateFileMode
+              ? 0
+              : filteredCommands.length;
 
         if (activeLength === 0) {
           return;
@@ -364,7 +427,9 @@ export function CommandPalette({
           ? filteredShellHistory.length
           : isFileSearchMode
             ? fileSearchResults.length
-            : filteredCommands.length;
+            : isCreateFileMode
+              ? 0
+              : filteredCommands.length;
 
         if (activeLength === 0) {
           return;
@@ -382,10 +447,13 @@ export function CommandPalette({
       inputValue,
       isShellMode,
       isFileSearchMode,
+      isCreateFileMode,
+      createFileName,
       onClose,
       runCommand,
       runShell,
       openFile,
+      createFile,
       selectedIndex,
     ],
   );
@@ -399,20 +467,43 @@ export function CommandPalette({
       >
         <DialogTitle className="sr-only">Command Palette</DialogTitle>
 
-        {/* Mode indicator */}
-        {isShellMode && (
-          <div className="mb-2 px-2 py-1 rounded-md bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-medium">
-            💻 Shell Command Mode
-          </div>
-        )}
-
         <Input
           autoFocus
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
           onKeyDown={handleInputKeyDown}
-          placeholder="Search commands, type ! for shell, or > to find files..."
+          placeholder="Search commands..."
         />
+
+        {/* Help text - show when no prefix is active */}
+        {!isShellMode &&
+          !isFileSearchMode &&
+          !isCreateFileMode &&
+          inputValue.trim().length === 0 && (
+            <div className="mt-3 px-3 py-2 rounded-md bg-muted/30 border border-border/50 space-y-1.5">
+              <div className="text-xs font-semibold text-foreground/80 mb-1.5">
+                Quick Actions:
+              </div>
+              <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
+                  !
+                </kbd>
+                <span>Run shell command</span>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
+                  &gt;
+                </kbd>
+                <span>Search for file</span>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
+                  :
+                </kbd>
+                <span>Create new file</span>
+              </div>
+            </div>
+          )}
 
         {isShellMode ? (
           filteredShellHistory.length > 0 ? (
@@ -531,6 +622,27 @@ export function CommandPalette({
               </div>
               <div className="text-xs text-blue-400/50">
                 Searches current directory recursively
+              </div>
+            </div>
+          )
+        ) : isCreateFileMode ? (
+          createFileName.length > 0 ? (
+            <div className="mt-3 rounded-md border border-green-500/40 bg-green-500/10 px-3 py-2">
+              <div className="text-sm text-green-400 mb-1">
+                <span className="font-medium">Create:</span> {createFileName}
+              </div>
+              {cwd && <div className="text-xs text-green-400/60">in {cwd}</div>}
+              <div className="text-xs text-green-400/50 mt-2">
+                Press Enter to create and open
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-md border border-dashed border-green-500/30 bg-green-500/5 px-3 py-2 text-sm text-green-400/70">
+              <div className="font-medium mb-1">
+                Enter a filename to create...
+              </div>
+              <div className="text-xs text-green-400/50">
+                Creates file in current terminal directory
               </div>
             </div>
           )
