@@ -20,6 +20,22 @@ export interface FileSearchResult {
   relativePath: string;
 }
 
+export interface ContentSearchRequest {
+  rootPath: string;
+  query: string;
+  caseSensitive?: boolean;
+  maxResults?: number;
+}
+
+export interface ContentSearchResult {
+  path: string;
+  relativePath: string;
+  line: number;
+  content: string;
+  matchStart: number;
+  matchEnd: number;
+}
+
 export function registerSearchHandlers(): void {
   ipcMain.handle(
     "search:files",
@@ -89,6 +105,100 @@ export function registerSearchHandlers(): void {
         return results;
       } catch (error) {
         console.error("[FileSearch] Search failed:", error);
+        return results;
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "search:content",
+    async (
+      _,
+      request: ContentSearchRequest,
+    ): Promise<ContentSearchResult[]> => {
+      const {
+        rootPath,
+        query,
+        caseSensitive = false,
+        maxResults = 100,
+      } = request;
+      const results: ContentSearchResult[] = [];
+
+      try {
+        // Build grep command with common exclusions
+        const excludeDirs = [
+          "node_modules",
+          ".git",
+          ".next",
+          ".nuxt",
+          "dist",
+          "build",
+          "out",
+          ".cache",
+          "__pycache__",
+          ".pytest_cache",
+          "vendor",
+          "target",
+          "coverage",
+          "test-results",
+        ];
+
+        const excludeArgs = excludeDirs
+          .map((dir) => `--exclude-dir="${dir}"`)
+          .join(" ");
+
+        // Escape special characters in query for grep
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+        const caseFlag = caseSensitive ? "" : "-i";
+
+        // Use grep with line numbers and context
+        const command = `grep -r -n ${caseFlag} ${excludeArgs} --binary-files=without-match "${escapedQuery}" "${rootPath}" 2>/dev/null | head -n ${maxResults}`;
+
+        console.log(
+          `[ContentSearch] Running grep in ${rootPath} for "${query}" (caseSensitive: ${caseSensitive})`,
+        );
+
+        const { stdout } = await execAsync(command, {
+          maxBuffer: 5 * 1024 * 1024, // 5MB buffer
+          timeout: 10000, // 10 second timeout
+        });
+
+        if (!stdout || stdout.trim() === "") {
+          return results;
+        }
+
+        // Parse grep output: path:line:content
+        const lines = stdout.trim().split("\n").slice(0, maxResults);
+
+        for (const line of lines) {
+          const match = line.match(/^([^:]+):(\d+):(.*)$/);
+          if (!match) continue;
+
+          const [, fullPath, lineNumStr, content] = match;
+          const lineNum = parseInt(lineNumStr, 10);
+          const relativePath = fullPath.replace(rootPath + "/", "");
+
+          // Find match position in content
+          const searchContent = caseSensitive ? content : content.toLowerCase();
+          const searchQuery = caseSensitive ? query : query.toLowerCase();
+          const matchStart = searchContent.indexOf(searchQuery);
+          const matchEnd = matchStart >= 0 ? matchStart + query.length : -1;
+
+          results.push({
+            path: fullPath,
+            relativePath,
+            line: lineNum,
+            content: content.trim(),
+            matchStart,
+            matchEnd,
+          });
+        }
+
+        console.log(`[ContentSearch] Found ${results.length} results`);
+        return results;
+      } catch (error) {
+        console.error("[ContentSearch] Search failed:", error);
         return results;
       }
     },

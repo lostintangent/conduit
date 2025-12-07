@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Command } from "@/types";
 import { searchFiles, type FileSearchResult } from "@/utils/fileSearch";
+import { searchContent, type ContentSearchResult } from "@/utils/contentSearch";
 import path from "path-browserify";
 import {
   useCallback,
@@ -50,6 +51,9 @@ export function CommandPalette({
   const [fileSearchResults, setFileSearchResults] = useState<
     FileSearchResult[]
   >([]);
+  const [contentSearchResults, setContentSearchResults] = useState<
+    ContentSearchResult[]
+  >([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const previousQueryRef = useRef<string>("");
@@ -61,6 +65,7 @@ export function CommandPalette({
     setInputValue("");
     setSelectedIndex(0);
     setFileSearchResults([]);
+    setContentSearchResults([]);
     setIsSearching(false);
     previousQueryRef.current = "";
   }, [isOpen]);
@@ -73,6 +78,8 @@ export function CommandPalette({
     hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === ">";
   const isCreateFileMode =
     hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === ":";
+  const isContentSearchMode =
+    hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === "?";
   const shellCommand = isShellMode
     ? inputValue.slice(firstNonWhitespaceIndex + 1)
     : "";
@@ -82,8 +89,18 @@ export function CommandPalette({
   const createFileName = isCreateFileMode
     ? inputValue.slice(firstNonWhitespaceIndex + 1).trim()
     : "";
+  const contentSearchQuery = isContentSearchMode
+    ? inputValue.slice(firstNonWhitespaceIndex + 1).trim()
+    : "";
+
+  // Check if content search should be case sensitive (ends with /c)
+  const contentSearchCaseSensitive = contentSearchQuery.endsWith("/c");
+  const contentSearchText = contentSearchCaseSensitive
+    ? contentSearchQuery.slice(0, -2).trim()
+    : contentSearchQuery;
+
   const commandQuery =
-    isShellMode || isFileSearchMode || isCreateFileMode
+    isShellMode || isFileSearchMode || isCreateFileMode || isContentSearchMode
       ? ""
       : inputValue.trim();
 
@@ -135,8 +152,61 @@ export function CommandPalette({
     };
   }, [isFileSearchMode, fileSearchQuery, cwd, isCreateFileMode]);
 
+  // Debounced content search
+  useEffect(() => {
+    if (!isContentSearchMode || !cwd) {
+      setContentSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Clear any pending search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If query is empty, clear results
+    if (contentSearchText.length === 0) {
+      setContentSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Start search after debounce delay
+    setIsSearching(true);
+    console.log(
+      `[CommandPalette] Starting content search in cwd: ${cwd}, query: "${contentSearchText}", caseSensitive: ${contentSearchCaseSensitive}`,
+    );
+    searchTimeoutRef.current = setTimeout(() => {
+      searchContent(cwd, contentSearchText, contentSearchCaseSensitive, 50)
+        .then((results) => {
+          console.log(
+            `[CommandPalette] Content search completed with ${results.length} results`,
+          );
+          setContentSearchResults(results);
+          setIsSearching(false);
+        })
+        .catch((error) => {
+          console.error("[ContentSearch] Search failed:", error);
+          setContentSearchResults([]);
+          setIsSearching(false);
+        });
+    }, 300); // 300ms debounce for content search (more expensive)
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [isContentSearchMode, contentSearchText, contentSearchCaseSensitive, cwd]);
+
   const filteredCommands = useMemo(() => {
-    if (isShellMode || isFileSearchMode || isCreateFileMode) {
+    if (
+      isShellMode ||
+      isFileSearchMode ||
+      isCreateFileMode ||
+      isContentSearchMode
+    ) {
       return [];
     }
 
@@ -154,6 +224,7 @@ export function CommandPalette({
     isShellMode,
     isFileSearchMode,
     isCreateFileMode,
+    isContentSearchMode,
   ]);
 
   const filteredShellHistory = useMemo(() => {
@@ -179,9 +250,11 @@ export function CommandPalette({
       ? filteredShellHistory.length
       : isFileSearchMode
         ? fileSearchResults.length
-        : isCreateFileMode
-          ? 0
-          : filteredCommands.length;
+        : isContentSearchMode
+          ? contentSearchResults.length
+          : isCreateFileMode
+            ? 0
+            : filteredCommands.length;
 
     if (activeLength === 0) {
       setSelectedIndex(0);
@@ -193,9 +266,11 @@ export function CommandPalette({
     filteredCommands.length,
     filteredShellHistory.length,
     fileSearchResults.length,
+    contentSearchResults.length,
     isOpen,
     isShellMode,
     isFileSearchMode,
+    isContentSearchMode,
     isCreateFileMode,
   ]);
 
@@ -231,6 +306,15 @@ export function CommandPalette({
       return;
     }
 
+    if (isContentSearchMode) {
+      const normalizedContentQuery = contentSearchText.toLowerCase();
+      if (normalizedContentQuery !== previousQueryRef.current) {
+        previousQueryRef.current = normalizedContentQuery;
+        setSelectedIndex(0);
+      }
+      return;
+    }
+
     const normalizedQuery = inputValue.trim().toLowerCase();
     if (normalizedQuery !== previousQueryRef.current) {
       previousQueryRef.current = normalizedQuery;
@@ -246,9 +330,11 @@ export function CommandPalette({
     isShellMode,
     isFileSearchMode,
     isCreateFileMode,
+    isContentSearchMode,
     shellCommand,
     fileSearchQuery,
     createFileName,
+    contentSearchText,
   ]);
 
   const renderHighlightedLabel = useCallback((label: string, query: string) => {
@@ -393,6 +479,15 @@ export function CommandPalette({
           return;
         }
 
+        if (isContentSearchMode) {
+          event.preventDefault();
+          const selectedResult = contentSearchResults[selectedIndex];
+          if (selectedResult) {
+            openFile(selectedResult.path);
+          }
+          return;
+        }
+
         const command = filteredCommands[selectedIndex];
         if (command) {
           event.preventDefault();
@@ -407,9 +502,11 @@ export function CommandPalette({
           ? filteredShellHistory.length
           : isFileSearchMode
             ? fileSearchResults.length
-            : isCreateFileMode
-              ? 0
-              : filteredCommands.length;
+            : isContentSearchMode
+              ? contentSearchResults.length
+              : isCreateFileMode
+                ? 0
+                : filteredCommands.length;
 
         if (activeLength === 0) {
           return;
@@ -427,9 +524,11 @@ export function CommandPalette({
           ? filteredShellHistory.length
           : isFileSearchMode
             ? fileSearchResults.length
-            : isCreateFileMode
-              ? 0
-              : filteredCommands.length;
+            : isContentSearchMode
+              ? contentSearchResults.length
+              : isCreateFileMode
+                ? 0
+                : filteredCommands.length;
 
         if (activeLength === 0) {
           return;
@@ -444,9 +543,11 @@ export function CommandPalette({
       filteredShellHistory,
       filteredCommands,
       fileSearchResults,
+      contentSearchResults,
       inputValue,
       isShellMode,
       isFileSearchMode,
+      isContentSearchMode,
       isCreateFileMode,
       createFileName,
       onClose,
@@ -479,6 +580,7 @@ export function CommandPalette({
         {!isShellMode &&
           !isFileSearchMode &&
           !isCreateFileMode &&
+          !isContentSearchMode &&
           inputValue.trim().length === 0 && (
             <div className="mt-3 px-3 py-2 rounded-md bg-muted/30 border border-border/50 space-y-1.5">
               <div className="text-xs font-semibold text-foreground/80 mb-1.5">
@@ -501,6 +603,12 @@ export function CommandPalette({
                   :
                 </kbd>
                 <span>Create new file</span>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px] flex-shrink-0">
+                  ?
+                </kbd>
+                <span>Find in files (add /c for case-sensitive)</span>
               </div>
             </div>
           )}
@@ -643,6 +751,78 @@ export function CommandPalette({
               </div>
               <div className="text-xs text-green-400/50">
                 Creates file in current terminal directory
+              </div>
+            </div>
+          )
+        ) : isContentSearchMode ? (
+          isSearching ? (
+            <div className="mt-3 rounded-md border border-dashed border-purple-500/40 bg-purple-500/10 px-3 py-2 text-sm text-purple-400">
+              Searching file contents...
+            </div>
+          ) : contentSearchResults.length > 0 ? (
+            <ul
+              className="mt-3 max-h-64 space-y-2 overflow-y-auto"
+              role="listbox"
+            >
+              {contentSearchResults.map((result, index) => {
+                const isActive = index === selectedIndex;
+                return (
+                  <li
+                    key={`${result.path}-${result.line}`}
+                    ref={(element) => focusIfActive(element, isActive)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openFile(result.path)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      className={`flex w-full flex-col rounded-md border px-3 py-2 text-left transition cursor-pointer ${
+                        isActive
+                          ? "border-purple-500/60 bg-purple-500/20 text-foreground"
+                          : "border-transparent text-white/80 hover:border-purple-500/40 hover:bg-purple-500/10"
+                      }`}
+                      aria-selected={isActive}
+                    >
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-sm font-medium truncate flex-1">
+                          {result.relativePath}
+                        </span>
+                        <span className="text-xs text-purple-400/60 flex-shrink-0">
+                          Line {result.line}
+                        </span>
+                      </div>
+                      <div className="text-xs font-mono text-muted-foreground truncate">
+                        {result.matchStart >= 0 ? (
+                          <>
+                            {result.content.substring(0, result.matchStart)}
+                            <span className="bg-purple-500/30 text-purple-300 px-0.5">
+                              {result.content.substring(
+                                result.matchStart,
+                                result.matchEnd,
+                              )}
+                            </span>
+                            {result.content.substring(result.matchEnd)}
+                          </>
+                        ) : (
+                          result.content
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : contentSearchText.length > 0 ? (
+            <div className="mt-3 rounded-md border border-dashed border-purple-500/40 bg-purple-500/10 px-3 py-2 text-sm text-purple-400">
+              No matches found for "{contentSearchText}"
+              {contentSearchCaseSensitive && " (case-sensitive)"}
+            </div>
+          ) : (
+            <div className="mt-3 rounded-md border border-dashed border-purple-500/30 bg-purple-500/5 px-3 py-2 text-sm text-purple-400/70">
+              <div className="font-medium mb-1">
+                Enter text to search in files...
+              </div>
+              <div className="text-xs text-purple-400/50">
+                Add /c at the end for case-sensitive search
               </div>
             </div>
           )

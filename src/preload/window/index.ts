@@ -561,6 +561,23 @@ const conduitAPI = {
     ipcRenderer.invoke("search:files", request) as Promise<
       Array<{ path: string; name: string; relativePath: string }>
     >,
+
+  searchContent: (request: {
+    rootPath: string;
+    query: string;
+    caseSensitive?: boolean;
+    maxResults?: number;
+  }) =>
+    ipcRenderer.invoke("search:content", request) as Promise<
+      Array<{
+        path: string;
+        relativePath: string;
+        line: number;
+        content: string;
+        matchStart: number;
+        matchEnd: number;
+      }>
+    >,
 };
 
 export type ConduitAPI = typeof conduitAPI;
