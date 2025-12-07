@@ -3,21 +3,22 @@
  */
 import { renderHook } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { usePackageJsonScripts } from "@/hooks/usePackageJsonScripts";
 
-// Mock window.conduit
+// Mock window.conduit BEFORE importing the hook - must be at module level
 const mockReadFile = vi.fn();
-global.window = {
+(global as any).window = {
   conduit: {
     fsv2: {
       readFile: mockReadFile,
     },
   },
-} as any;
+};
+
+import { usePackageJsonScripts } from "@/hooks/usePackageJsonScripts";
 
 describe("usePackageJsonScripts", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockReadFile.mockReset();
   });
 
   it("should return null when no cwd provided", async () => {
@@ -41,9 +42,15 @@ describe("usePackageJsonScripts", () => {
       },
     };
 
-    mockReadFile.mockResolvedValue(
-      new TextEncoder().encode(JSON.stringify(mockPackageJson)),
-    );
+    // Mock expects (cwd, absolutePath) - the hook now passes absolute path
+    mockReadFile.mockImplementation((cwd, filePath) => {
+      if (filePath === "/path/to/project/package.json") {
+        return Promise.resolve(
+          new TextEncoder().encode(JSON.stringify(mockPackageJson)),
+        );
+      }
+      return Promise.reject(new Error("File not found"));
+    });
 
     const { result } = renderHook(() =>
       usePackageJsonScripts("/path/to/project"),
@@ -60,18 +67,26 @@ describe("usePackageJsonScripts", () => {
   });
 
   it("should search parent directories when not found in current", async () => {
-    // First call fails (not in current dir)
-    mockReadFile.mockRejectedValueOnce(new Error("File not found"));
-
-    // Second call succeeds (found in parent)
     const mockPackageJson = {
       scripts: {
         dev: "npm run watch",
       },
     };
-    mockReadFile.mockResolvedValueOnce(
-      new TextEncoder().encode(JSON.stringify(mockPackageJson)),
-    );
+
+    // Mock implementation that fails for subdir but succeeds for parent
+    mockReadFile.mockImplementation((cwd, filePath) => {
+      // Fail for /path/to/project/subdir/package.json
+      if (filePath === "/path/to/project/subdir/package.json") {
+        return Promise.reject(new Error("File not found"));
+      }
+      // Succeed for /path/to/project/package.json
+      if (filePath === "/path/to/project/package.json") {
+        return Promise.resolve(
+          new TextEncoder().encode(JSON.stringify(mockPackageJson)),
+        );
+      }
+      return Promise.reject(new Error("File not found"));
+    });
 
     const { result } = renderHook(() =>
       usePackageJsonScripts("/path/to/project/subdir"),

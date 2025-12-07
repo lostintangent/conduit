@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import path from "path-browserify";
 
-const api = window.conduit;
-
 interface PackageJsonScripts {
   [key: string]: string;
 }
@@ -43,8 +41,11 @@ export function usePackageJsonScripts(cwd: string | undefined) {
           try {
             const packageJsonPath = path.join(currentDir, "package.json");
 
-            // Try to read the file
-            const content = await api.fsv2.readFile(currentDir, "package.json");
+            // Try to read the file (fsv2.readFile requires absolute path as second param)
+            const content = await window.conduit.fsv2.readFile(
+              currentDir,
+              packageJsonPath,
+            );
             const text = new TextDecoder().decode(content);
             const packageJson: PackageJson = JSON.parse(text);
 
