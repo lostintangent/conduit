@@ -1,10 +1,14 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { forwardPortAndOpen } from "@/store/actions/pane";
+import { forwardPortAndOpen, splitPane } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import { extractPortFromMatch } from "@shared/utils";
 import { useAtomValue } from "jotai";
+import { getDefaultStore } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";
+
+const api = window.conduit;
+const store = getDefaultStore();
 
 type ComputeTargetIndicatorProps = {
   paneId: string;
@@ -45,6 +49,7 @@ export function ComputeTargetIndicator({
 
   const agentSessionId = terminalPane?.agentSessionId ?? null;
   const vmId = terminalPane?.vmMetadata?.vmId ?? null;
+  const cwd = terminalPane?.cwd;
 
   // Use sandbox handlers from the shared hook
   const {
@@ -78,6 +83,44 @@ export function ComputeTargetIndicator({
     await handleForkVMBase(vmId);
   }, [vmId, currentTab, handleForkVMBase]);
 
+  // Handler to run npm scripts
+  const handleRunScript = useCallback(
+    async (scriptName: string) => {
+      if (!currentTab || !terminalPane) return;
+
+      try {
+        // Split pane to the right (row = horizontal split)
+        await splitPane(currentTab.id, paneId, "row", false, {});
+
+        // Wait a moment for the new pane to be created and ready
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Get the updated tab to find the new pane
+        const tabs = store.get(tabsAtom);
+        const updatedTab = tabs.find((t) => t.id === currentTab.id);
+        if (!updatedTab) return;
+
+        // Find the most recently created terminal pane (should be the one we just created)
+        const terminalPanes = Object.values(updatedTab.panes).filter(
+          (p) => p.type === "terminal",
+        );
+        const newPane = terminalPanes[terminalPanes.length - 1];
+        if (!newPane || newPane.type !== "terminal") return;
+
+        // Send npm install && npm run command to ensure packages are installed
+        const command = `npm i && npm run ${scriptName}`;
+        for (const char of command) {
+          await api.sendKeypress(newPane.sessionId, char);
+        }
+        // Send Enter key to execute
+        await api.sendKeypress(newPane.sessionId, "\r");
+      } catch (error) {
+        console.error("Failed to run npm script:", error);
+      }
+    },
+    [currentTab, terminalPane, paneId],
+  );
+
   // Set up cloud VM port forwarding + link handler when in a VM
   useEffect(() => {
     if (!vmId) return;
@@ -99,9 +142,11 @@ export function ComputeTargetIndicator({
     <SandboxIndicator
       vmId={vmId}
       agentSessionId={agentSessionId}
+      cwd={cwd}
       onCompleteAgentSession={handleCompleteAgentSession}
       onDeleteAgentSession={handleDeleteAgentSession}
       onForkVM={vmId ? handleForkVM : undefined}
+      onRunScript={handleRunScript}
     />
   );
 }

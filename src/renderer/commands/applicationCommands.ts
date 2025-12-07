@@ -144,7 +144,7 @@ export function registerApplicationCommands(
   // View: Manage Agents
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_AGENTS,
-    title: "Agent Profiles",
+    title: "Agent Teams",
     description: "Configure AI agents for terminal prompt mode (Cmd+P)",
     category: "View",
     run: (context) => {

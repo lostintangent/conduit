@@ -45,7 +45,8 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { openBrowserPane, removePane } from "@/store/actions/pane";
+import { openBrowserPane, removePane, splitPane } from "@/store/actions/pane";
+import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -65,10 +66,11 @@ import {
 import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom, getDefaultStore } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
+const store = getDefaultStore();
 
 export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
@@ -87,6 +89,7 @@ export function App() {
     terminalFontFamily,
     terminalFontSize,
     agents,
+    launchGroups,
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
@@ -1076,9 +1079,38 @@ export function App() {
       <AgentLauncherDialog
         isOpen={showAgentLauncher}
         agents={agents || []}
+        launchGroups={launchGroups || []}
         defaultAgentId={agents?.find((agent: any) => agent.isDefault)?.id}
         onClose={() => setShowAgentLauncher(false)}
-        onLaunch={() => {}}
+        onLaunch={async (payload) => {
+          try {
+            if (payload.launchTarget === "worktree") {
+              const cwd = getActiveTabCwd(activeTab);
+              if (!cwd) {
+                throw new Error("No working directory found in active pane");
+              }
+
+              await launchAgentsInWorktrees(payload, {
+                cwd,
+                agents: agents || [],
+                api,
+                onClose: () => setShowAgentLauncher(false),
+              });
+            } else {
+              enqueueNotification({
+                kind: "error",
+                message: `Launch target "${payload.launchTarget}" is not yet implemented`,
+              });
+            }
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            enqueueNotification({
+              kind: "error",
+              message: `Launch failed: ${errorMessage}`,
+            });
+          }
+        }}
       />
 
       <TerminalFontSettingsDialog
