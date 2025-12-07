@@ -45,7 +45,12 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { openBrowserPane, removePane, splitPane } from "@/store/actions/pane";
+import {
+  openBrowserPane,
+  removePane,
+  splitPane,
+  openEditorPane,
+} from "@/store/actions/pane";
 import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
 import {
   duplicateTab,
@@ -68,6 +73,7 @@ import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom, getDefaultStore } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
+import path from "path-browserify";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -895,6 +901,22 @@ export function App() {
         onRunShellCommand={handleShellCommand}
         shellHistory={commandHistory}
         onRemoveShellHistoryEntry={removeCommandHistoryEntry}
+        cwd={activeTab ? getActiveTabCwd(activeTab, homeDirectory) : null}
+        onOpenFile={(filePath) => {
+          if (!activeTab || !activeTab.activePaneId) {
+            return;
+          }
+
+          // Extract directory from file path
+          const cwd = path.dirname(filePath);
+
+          // Create a quick pane with the file
+          setQuickPaneState({
+            type: "editor",
+            cwd,
+            file: filePath,
+          });
+        }}
       />
 
       <NotificationCenter />

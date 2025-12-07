@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Command } from "@/types";
+import { searchFiles, type FileSearchResult } from "@/utils/fileSearch";
 import {
   useCallback,
   useEffect,
@@ -28,6 +29,9 @@ type CommandPaletteProps = {
   shellHistory: string[];
   onRunShellCommand: (command: string) => Promise<void> | void;
   onRemoveShellHistoryEntry: (command: string) => Promise<void> | void;
+
+  cwd: string | null;
+  onOpenFile?: (filePath: string) => void;
 };
 
 export function CommandPalette({
@@ -37,17 +41,26 @@ export function CommandPalette({
   onRunShellCommand,
   shellHistory,
   onRemoveShellHistoryEntry,
+  cwd,
+  onOpenFile,
 }: CommandPaletteProps) {
   const [inputValue, setInputValue] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [fileSearchResults, setFileSearchResults] = useState<
+    FileSearchResult[]
+  >([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const previousQueryRef = useRef<string>("");
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
     setInputValue("");
     setSelectedIndex(0);
+    setFileSearchResults([]);
+    setIsSearching(false);
     previousQueryRef.current = "";
   }, [isOpen]);
 
@@ -55,13 +68,66 @@ export function CommandPalette({
   const hasTypedCharacters = firstNonWhitespaceIndex !== -1;
   const isShellMode =
     hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === "!";
+  const isFileSearchMode =
+    hasTypedCharacters && inputValue[firstNonWhitespaceIndex] === ">";
   const shellCommand = isShellMode
     ? inputValue.slice(firstNonWhitespaceIndex + 1)
     : "";
-  const commandQuery = isShellMode ? "" : inputValue.trim();
+  const fileSearchQuery = isFileSearchMode
+    ? inputValue.slice(firstNonWhitespaceIndex + 1).trim()
+    : "";
+  const commandQuery = isShellMode || isFileSearchMode ? "" : inputValue.trim();
+
+  // Debounced file search
+  useEffect(() => {
+    if (!isFileSearchMode || !cwd) {
+      setFileSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Clear any pending search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If query is empty, clear results
+    if (fileSearchQuery.length === 0) {
+      setFileSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Start search after debounce delay
+    setIsSearching(true);
+    console.log(
+      `[CommandPalette] Starting file search in cwd: ${cwd}, query: "${fileSearchQuery}"`,
+    );
+    searchTimeoutRef.current = setTimeout(() => {
+      searchFiles(cwd, fileSearchQuery, 50)
+        .then((results) => {
+          console.log(
+            `[CommandPalette] Search completed with ${results.length} results`,
+          );
+          setFileSearchResults(results);
+          setIsSearching(false);
+        })
+        .catch((error) => {
+          console.error("[FileSearch] Search failed:", error);
+          setFileSearchResults([]);
+          setIsSearching(false);
+        });
+    }, 100); // 100ms debounce for more dynamic feel
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [isFileSearchMode, fileSearchQuery, cwd]);
 
   const filteredCommands = useMemo(() => {
-    if (isShellMode) {
+    if (isShellMode || isFileSearchMode) {
       return [];
     }
 
@@ -73,7 +139,7 @@ export function CommandPalette({
     return commandItems.filter((command) =>
       command.label.toLowerCase().includes(query),
     );
-  }, [commandItems, inputValue, isShellMode]);
+  }, [commandItems, inputValue, isShellMode, isFileSearchMode]);
 
   const filteredShellHistory = useMemo(() => {
     if (!isShellMode) {
@@ -96,7 +162,9 @@ export function CommandPalette({
 
     const activeLength = isShellMode
       ? filteredShellHistory.length
-      : filteredCommands.length;
+      : isFileSearchMode
+        ? fileSearchResults.length
+        : filteredCommands.length;
 
     if (activeLength === 0) {
       setSelectedIndex(0);
@@ -107,8 +175,10 @@ export function CommandPalette({
   }, [
     filteredCommands.length,
     filteredShellHistory.length,
+    fileSearchResults.length,
     isOpen,
     isShellMode,
+    isFileSearchMode,
   ]);
 
   useEffect(() => {
@@ -120,6 +190,15 @@ export function CommandPalette({
       const normalizedShellQuery = shellCommand.trim().toLowerCase();
       if (normalizedShellQuery !== previousQueryRef.current) {
         previousQueryRef.current = normalizedShellQuery;
+        setSelectedIndex(0);
+      }
+      return;
+    }
+
+    if (isFileSearchMode) {
+      const normalizedFileQuery = fileSearchQuery.toLowerCase();
+      if (normalizedFileQuery !== previousQueryRef.current) {
+        previousQueryRef.current = normalizedFileQuery;
         setSelectedIndex(0);
       }
       return;
@@ -138,7 +217,9 @@ export function CommandPalette({
     inputValue,
     isOpen,
     isShellMode,
+    isFileSearchMode,
     shellCommand,
+    fileSearchQuery,
   ]);
 
   const renderHighlightedLabel = useCallback((label: string, query: string) => {
@@ -199,6 +280,16 @@ export function CommandPalette({
     [onClose, onRunShellCommand, shellCommand],
   );
 
+  const openFile = useCallback(
+    (filePath: string) => {
+      if (onOpenFile) {
+        onOpenFile(filePath);
+      }
+      onClose();
+    },
+    [onClose, onOpenFile],
+  );
+
   const handleInputKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
       event.stopPropagation();
@@ -232,6 +323,15 @@ export function CommandPalette({
           return;
         }
 
+        if (isFileSearchMode) {
+          event.preventDefault();
+          const selectedFile = fileSearchResults[selectedIndex];
+          if (selectedFile) {
+            openFile(selectedFile.path);
+          }
+          return;
+        }
+
         const command = filteredCommands[selectedIndex];
         if (command) {
           event.preventDefault();
@@ -244,7 +344,9 @@ export function CommandPalette({
         event.preventDefault();
         const activeLength = isShellMode
           ? filteredShellHistory.length
-          : filteredCommands.length;
+          : isFileSearchMode
+            ? fileSearchResults.length
+            : filteredCommands.length;
 
         if (activeLength === 0) {
           return;
@@ -260,7 +362,9 @@ export function CommandPalette({
         event.preventDefault();
         const activeLength = isShellMode
           ? filteredShellHistory.length
-          : filteredCommands.length;
+          : isFileSearchMode
+            ? fileSearchResults.length
+            : filteredCommands.length;
 
         if (activeLength === 0) {
           return;
@@ -274,11 +378,14 @@ export function CommandPalette({
     [
       filteredShellHistory,
       filteredCommands,
+      fileSearchResults,
       inputValue,
       isShellMode,
+      isFileSearchMode,
       onClose,
       runCommand,
       runShell,
+      openFile,
       selectedIndex,
     ],
   );
@@ -286,17 +393,39 @@ export function CommandPalette({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="w-[480px] max-w-[90vw] p-4 gap-0 bg-popover border-white/10"
+        className="w-[480px] max-w-[90vw] p-4 gap-0 bg-popover border-white/10 top-[20%] -translate-y-0"
         showClose={false}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">Command Palette</DialogTitle>
+
+        {/* Mode indicator */}
+        {isFileSearchMode && (
+          <div className="mb-2 px-2 py-1 rounded-md bg-blue-500/20 border border-blue-500/40 text-blue-400 text-xs font-medium flex items-center justify-between">
+            <span>🔍 File Search Mode</span>
+            {isSearching ? (
+              <span className="text-blue-300 animate-pulse">Searching...</span>
+            ) : fileSearchResults.length > 0 ? (
+              <span className="text-blue-300">
+                {fileSearchResults.length} found
+              </span>
+            ) : fileSearchQuery.length > 0 ? (
+              <span className="text-blue-300/60">No results</span>
+            ) : null}
+          </div>
+        )}
+        {isShellMode && (
+          <div className="mb-2 px-2 py-1 rounded-md bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-medium">
+            💻 Shell Command Mode
+          </div>
+        )}
+
         <Input
           autoFocus
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
           onKeyDown={handleInputKeyDown}
-          placeholder="Search commands or type ! to run a shell command..."
+          placeholder="Search commands, type ! for shell, or > to find files..."
         />
 
         {isShellMode ? (
@@ -362,6 +491,61 @@ export function CommandPalette({
               {shellHistory.length === 0
                 ? "No recent shell commands yet."
                 : "No matching recent commands."}
+            </div>
+          )
+        ) : isFileSearchMode ? (
+          isSearching ? (
+            <div className="mt-3 rounded-md border border-dashed border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-400">
+              Searching files...
+            </div>
+          ) : fileSearchResults.length > 0 ? (
+            <ul
+              className="mt-3 max-h-64 space-y-2 overflow-y-auto"
+              role="listbox"
+            >
+              {fileSearchResults.map((file, index) => {
+                const isActive = index === selectedIndex;
+                return (
+                  <li
+                    key={file.path}
+                    ref={(element) => focusIfActive(element, isActive)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openFile(file.path)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition cursor-pointer ${
+                        isActive
+                          ? "border-blue-500/60 bg-blue-500/20 text-foreground"
+                          : "border-transparent text-white/80 hover:border-blue-500/40 hover:bg-blue-500/10"
+                      }`}
+                      aria-selected={isActive}
+                    >
+                      <div className="flex-1 flex flex-col gap-1 min-w-0">
+                        <span className="text-sm font-medium truncate">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {file.relativePath}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : fileSearchQuery.length > 0 ? (
+            <div className="mt-3 rounded-md border border-dashed border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-400">
+              No files found matching "{fileSearchQuery}"
+            </div>
+          ) : (
+            <div className="mt-3 rounded-md border border-dashed border-blue-500/30 bg-blue-500/5 px-3 py-2 text-sm text-blue-400/70">
+              <div className="font-medium mb-1">
+                Start typing to search files...
+              </div>
+              <div className="text-xs text-blue-400/50">
+                Searches current directory recursively
+              </div>
             </div>
           )
         ) : filteredCommands.length > 0 ? (
