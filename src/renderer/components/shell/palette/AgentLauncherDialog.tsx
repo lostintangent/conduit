@@ -347,16 +347,13 @@ export function AgentLauncherDialog({
                           checked={isSelected}
                           readOnly
                           disabled={mode === "team"}
-                          className="mt-1 h-4 w-4 rounded border border-white/40 bg-transparent accent-sky-500"
+                          className="h-4 w-4 rounded border border-white/40 bg-transparent accent-sky-500"
                         />
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">
+                            <span className="text-[11px] font-semibold text-foreground">
                               {agent.name}
                             </span>
-                            <code className="rounded bg-white/10 px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                              /{agent.id}
-                            </code>
                             {agent.isDefault && (
                               <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[11px] font-medium text-blue-200">
                                 default
