@@ -19,6 +19,7 @@ import {
   paneCanBeCollapsed,
   paneIsCollapsed,
   tabCount,
+  tabHasWorktrees,
   tabIsLocked,
 } from "@/commands/contextKeys/appContextKeys";
 import {
@@ -50,6 +51,7 @@ import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
   cloneTerminalPane,
+  closeAgentSessionPanes,
   closePane,
   movePane,
   openBrowserPane,
@@ -1250,6 +1252,93 @@ export function registerApplicationCommands(
     },
   });
 
+  // Agent: Delete All Worktrees
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_DELETE_ALL_WORKTREES,
+    title: "Delete All Worktrees",
+    description: "Delete all agent worktrees associated with this tab",
+    category: "Agent",
+    when: tabHasWorktrees.isTrue(),
+    menu: {
+      id: MenuId.TabContext,
+      group: "4_tab",
+      order: 0,
+    },
+    run: async (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (!targetTabId) {
+        return;
+      }
+
+      const tab = context.allTabs.find((t) => t.id === targetTabId);
+      if (!tab) {
+        return;
+      }
+
+      // Collect all unique agent session IDs from panes with worktrees
+      const agentSessionIds = new Set<string>();
+      for (const pane of Object.values(tab.panes)) {
+        if (
+          (pane.type === "terminal" || pane.type === "editor") &&
+          pane.agentSessionId &&
+          pane.agentWorktreePath
+        ) {
+          agentSessionIds.add(pane.agentSessionId);
+        }
+      }
+
+      if (agentSessionIds.size === 0) {
+        return;
+      }
+
+      // Show progress notification
+      const notifId = enqueueNotification({
+        kind: "info",
+        message: `Deleting ${agentSessionIds.size} worktree${agentSessionIds.size > 1 ? "s" : ""}...`,
+      });
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Delete each agent session
+      for (const sessionId of agentSessionIds) {
+        try {
+          const result = await window.conduit.cleanupAgentSession({
+            sessionId,
+          });
+          if (result.status === "success") {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to delete agent session ${sessionId}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Close all panes associated with deleted sessions
+      for (const sessionId of agentSessionIds) {
+        closeAgentSessionPanes(targetTabId, sessionId);
+      }
+
+      // Update notification with result
+      if (errorCount === 0) {
+        enqueueNotification({
+          kind: "success",
+          message: `Successfully deleted ${successCount} worktree${successCount > 1 ? "s" : ""}`,
+          autoCloseMs: 3000,
+        });
+      } else {
+        enqueueNotification({
+          kind: "warning",
+          message: `Deleted ${successCount} worktree${successCount > 1 ? "s" : ""}, ${errorCount} failed`,
+          autoCloseMs: 5000,
+        });
+      }
+    },
+  });
+
   // ============================================================================
   // Editor Commands
   // ============================================================================
@@ -1313,8 +1402,21 @@ const tabContextBuilder: MenuContextBuilder = async (
     hasGitRepoValue = await checkGitRepo(activePane.cwd);
   }
 
+  // Check if the tab has any panes with active worktrees
+  let hasWorktreesValue = false;
+  for (const pane of Object.values(tab.panes)) {
+    if (
+      (pane.type === "terminal" || pane.type === "editor") &&
+      pane.agentWorktreePath
+    ) {
+      hasWorktreesValue = true;
+      break;
+    }
+  }
+
   contextKeyService.setGlobal(hasGitRepo.key, hasGitRepoValue);
   contextKeyService.setGlobal(tabIsLocked.key, tab.locked);
+  contextKeyService.setGlobal(tabHasWorktrees.key, hasWorktreesValue);
 };
 
 /**
