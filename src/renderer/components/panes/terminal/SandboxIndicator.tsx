@@ -64,7 +64,7 @@ export function SandboxIndicator({
   }
 
   return (
-    <div className="pointer-events-none absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-[1000]">
+    <div className="pointer-events-none absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-10">
       {showVmIndicator && (
         <div
           className="pointer-events-auto group flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90 transition-all duration-200 opacity-80"
@@ -100,7 +100,9 @@ export function SandboxIndicator({
                 <GitMerge size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Merge changes</TooltipContent>
+            <TooltipContent side="bottom" align="center">
+              Merge changes
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -112,7 +114,9 @@ export function SandboxIndicator({
                 <Trash2 size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent>Delete worktree</TooltipContent>
+            <TooltipContent side="bottom" align="center">
+              Delete worktree
+            </TooltipContent>
           </Tooltip>
         </div>
       )}
