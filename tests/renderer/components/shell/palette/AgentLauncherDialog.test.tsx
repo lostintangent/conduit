@@ -396,7 +396,9 @@ describe("AgentLauncherDialog", () => {
         />,
       );
 
-      const launchButton = screen.getByText("Launch") as HTMLButtonElement;
+      const launchButton = screen
+        .getByText("Launch")
+        .closest("button") as HTMLButtonElement;
       expect(launchButton.disabled).toBe(true);
     });
 
@@ -413,7 +415,9 @@ describe("AgentLauncherDialog", () => {
       const textarea = screen.getByPlaceholderText(/Describe what you want/);
       fireEvent.change(textarea, { target: { value: "Write tests" } });
 
-      const launchButton = screen.getByText("Launch") as HTMLButtonElement;
+      const launchButton = screen
+        .getByText("Launch")
+        .closest("button") as HTMLButtonElement;
       expect(launchButton.disabled).toBe(false);
     });
 

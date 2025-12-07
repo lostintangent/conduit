@@ -119,7 +119,11 @@ export const TabStrip = ({
     ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
   );
   const launchAgentsCmd = useCommand(ApplicationCommands.AGENT_LAUNCH);
-  const canLaunchAgents = activePane?.type === "terminal";
+
+  // Track if active pane is in a git repo
+  const [isInGitRepo, setIsInGitRepo] = useState(false);
+
+  const canLaunchAgents = activePane?.type === "terminal" && isInGitRepo;
 
   const isInOverviewMode = applicationMode === "overview";
 
@@ -143,6 +147,33 @@ export const TabStrip = ({
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
   const [isRepoDialogOpen, setIsRepoDialogOpen] = useState(false);
+
+  // Check if current terminal pane is in a git repository
+  useEffect(() => {
+    const checkGitRepo = async () => {
+      if (activePane?.type !== "terminal") {
+        setIsInGitRepo(false);
+        return;
+      }
+
+      const cwd = activePane.cwd;
+      if (!cwd) {
+        setIsInGitRepo(false);
+        return;
+      }
+
+      try {
+        const api = window.conduit;
+        const gitRoot = await api.gitv2.findRoot(cwd);
+        setIsInGitRepo(gitRoot !== null);
+      } catch (error) {
+        console.error("Failed to check git repo:", error);
+        setIsInGitRepo(false);
+      }
+    };
+
+    void checkGitRepo();
+  }, [activePane]);
 
   // Track pane drag hover for tab switching
   const paneDragHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -793,7 +824,11 @@ export const TabStrip = ({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              {getCommandDisplayTitle(launchAgentsCmd)}
+              {!canLaunchAgents && activePane?.type !== "terminal"
+                ? "Focus a terminal pane to launch agents"
+                : !canLaunchAgents && !isInGitRepo
+                  ? "Navigate to a git repository to launch agents"
+                  : getCommandDisplayTitle(launchAgentsCmd)}
             </TooltipContent>
           </Tooltip>
         </div>
