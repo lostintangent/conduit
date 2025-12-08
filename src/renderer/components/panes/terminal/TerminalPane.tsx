@@ -20,10 +20,10 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AgentPanel } from "./AgentPanel";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
-import { PromptModeOverlay } from "./PromptModeOverlay";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 import { attach, getOrCreate, serializeSession } from "./xtermCache";
 
@@ -191,11 +191,12 @@ export const TerminalPane = ({
   const [promptMode, setPromptMode] = useState<{
     isOpen: boolean;
     isProcessing: boolean;
-    response?: string;
+    content: string;
     error?: string;
   }>({
     isOpen: false,
     isProcessing: false,
+    content: "",
   });
 
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
@@ -244,7 +245,7 @@ export const TerminalPane = ({
     setPromptMode((prev) => ({
       ...prev,
       isOpen: !prev.isOpen,
-      response: undefined,
+      content: "",
       error: undefined,
     }));
   }, []);
@@ -261,15 +262,11 @@ export const TerminalPane = ({
         if (requestedAgent) {
           selectedAgent = requestedAgent;
         } else {
-          // Agent not found - show error
-          const terminal = terminalRef.current?.terminal;
-          if (terminal) {
-            terminal.writeln(
-              `\r\n\x1b[31mError: Agent '${requestedAgentId}' not found. Available agents: ${agents.map((a) => a.id).join(", ")}\x1b[0m\r`,
-            );
-          }
-          setPromptMode((prev) => ({ ...prev, isOpen: false }));
-          focusTerminal();
+          // Agent not found - show error in panel
+          setPromptMode((prev) => ({
+            ...prev,
+            error: `Agent '${requestedAgentId}' not found. Available agents: ${agents.map((a) => a.id).join(", ")}`,
+          }));
           return;
         }
       }
@@ -277,15 +274,11 @@ export const TerminalPane = ({
       const agentCommand = selectedAgent?.command;
 
       if (!agentCommand) {
-        // Write error to terminal
-        const terminal = terminalRef.current?.terminal;
-        if (terminal) {
-          terminal.writeln(
-            "\r\n\x1b[31mError: No agent configured. Please configure agents in settings.\x1b[0m\r",
-          );
-        }
-        setPromptMode((prev) => ({ ...prev, isOpen: false }));
-        focusTerminal();
+        // Show error in panel
+        setPromptMode((prev) => ({
+          ...prev,
+          error: "No agent configured. Please configure agents in settings.",
+        }));
         return;
       }
 
@@ -295,24 +288,14 @@ export const TerminalPane = ({
         streamCleanupRef.current = null;
       }
 
+      const agentName = selectedAgent?.name || "Agent";
+
       setPromptMode((prev) => ({
         ...prev,
         isProcessing: true,
+        content: `❯ [${agentName}] ${prompt}\n\n`,
+        error: undefined,
       }));
-
-      // Write the prompt to terminal
-      const terminal = terminalRef.current?.terminal;
-      if (!terminal) {
-        console.error("Terminal not available");
-        setPromptMode({
-          isOpen: false,
-          isProcessing: false,
-        });
-        return;
-      }
-
-      const agentName = selectedAgent?.name || "Agent";
-      terminal.writeln(`\r\n\x1b[36m❯ [${agentName}] ${prompt}\x1b[0m\r`);
 
       // Get terminal buffer
       const buffer = serializeSession(sessionId, {
@@ -324,35 +307,33 @@ export const TerminalPane = ({
 
       // Set up stream listener
       const removeListener = api.onPromptStream(sessionId, (chunk) => {
-        const currentTerminal = terminalRef.current?.terminal;
-        if (!currentTerminal) {
-          // Terminal destroyed, clean up listener
+        if (chunk.type === "data" && chunk.data) {
+          // Stream data to panel
+          setPromptMode((prev) => ({
+            ...prev,
+            content: prev.content + chunk.data,
+          }));
+        } else if (chunk.type === "error" && chunk.error) {
+          // Show error in panel
+          setPromptMode((prev) => ({
+            ...prev,
+            error: chunk.error,
+            isProcessing: false,
+          }));
           if (streamCleanupRef.current) {
             streamCleanupRef.current();
             streamCleanupRef.current = null;
           }
-          return;
-        }
-
-        if (chunk.type === "data" && chunk.data) {
-          // Stream data to terminal
-          const formattedData = chunk.data.replace(/\n/g, "\r\n");
-          currentTerminal.write(`\x1b[32m${formattedData}\x1b[0m`);
-        } else if (chunk.type === "error" && chunk.error) {
-          // Write error
-          currentTerminal.writeln(`\r\n\x1b[31mError: ${chunk.error}\x1b[0m\r`);
         } else if (chunk.type === "end") {
           // Stream ended
-          currentTerminal.write("\r\n");
-          setPromptMode({
-            isOpen: false,
+          setPromptMode((prev) => ({
+            ...prev,
             isProcessing: false,
-          });
+          }));
           if (streamCleanupRef.current) {
             streamCleanupRef.current();
             streamCleanupRef.current = null;
           }
-          focusTerminal();
         }
       });
 
@@ -369,46 +350,41 @@ export const TerminalPane = ({
 
         // Handle any errors from the initial call
         if (!response.success && response.error) {
-          const currentTerminal = terminalRef.current?.terminal;
-          if (currentTerminal) {
-            currentTerminal.writeln(
-              `\x1b[31mError: ${response.error}\x1b[0m\r`,
-            );
-          }
-          setPromptMode({
-            isOpen: false,
+          setPromptMode((prev) => ({
+            ...prev,
+            error: response.error,
             isProcessing: false,
-          });
+          }));
           if (streamCleanupRef.current) {
             streamCleanupRef.current();
             streamCleanupRef.current = null;
           }
-          focusTerminal();
         }
       } catch (error) {
         // Handle IPC call errors
-        const currentTerminal = terminalRef.current?.terminal;
-        if (currentTerminal) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-          currentTerminal.writeln(`\x1b[31mError: ${errorMessage}\x1b[0m\r`);
-        }
-        setPromptMode({
-          isOpen: false,
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setPromptMode((prev) => ({
+          ...prev,
+          error: errorMessage,
           isProcessing: false,
-        });
+        }));
         if (streamCleanupRef.current) {
           streamCleanupRef.current();
           streamCleanupRef.current = null;
         }
-        focusTerminal();
       }
     },
-    [sessionId, cwd, settings, focusTerminal],
+    [sessionId, cwd, settings],
   );
 
   const handleClosePromptMode = useCallback(() => {
-    setPromptMode((prev) => ({ ...prev, isOpen: false }));
+    setPromptMode((prev) => ({
+      ...prev,
+      isOpen: false,
+      content: "",
+      error: undefined,
+    }));
     focusTerminal();
   }, [focusTerminal]);
 
@@ -594,13 +570,13 @@ export const TerminalPane = ({
       {/* Cloud terminal SSH connection state overlays */}
       <CloudTerminalOverlay terminalId={sessionId} paneId={paneId} />
 
-      {/* Terminal Prompt Mode overlay */}
-      <PromptModeOverlay
+      {/* Agent Panel - floats above terminal */}
+      <AgentPanel
         isOpen={promptMode.isOpen}
         onClose={handleClosePromptMode}
         onSubmit={handlePromptSubmit}
         isProcessing={promptMode.isProcessing}
-        response={promptMode.response}
+        content={promptMode.content}
         error={promptMode.error}
       />
     </div>

@@ -406,14 +406,32 @@ export async function cleanupAgentSession(
     );
   }
 
-  const worktreeExists = await fileExists(session.worktreePath);
-  if (worktreeExists) {
+  // Check if Git recognizes this as a valid worktree (not just if the directory exists)
+  let isValidWorktree = false;
+  try {
+    const { stdout } = await runGit(session.repoRoot, ["worktree", "list"]);
+    isValidWorktree = stdout.includes(session.worktreePath);
+  } catch {
+    // If we can't list worktrees, assume it's not valid
+  }
+
+  if (isValidWorktree) {
     await runGit(session.repoRoot, [
       "worktree",
       "remove",
       "--force",
       session.worktreePath,
     ]);
+  } else {
+    // Prune any stale worktree references
+    await safeGitCommand(session.repoRoot, ["worktree", "prune"]);
+
+    // Clean up directory if it still exists on disk
+    const dirExists = await fileExists(session.worktreePath);
+    if (dirExists) {
+      const { rm } = await import("node:fs/promises");
+      await rm(session.worktreePath, { recursive: true, force: true });
+    }
   }
 
   await safeGitCommand(session.repoRoot, ["branch", "-D", session.branchName]);
@@ -421,8 +439,8 @@ export async function cleanupAgentSession(
   agentSessions.delete(payload.sessionId);
 
   return {
-    status: worktreeExists ? "removed" : "missing",
-    message: worktreeExists
+    status: isValidWorktree ? "removed" : "missing",
+    message: isValidWorktree
       ? `Removed agent worktree ${session.branchName}.`
       : `Worktree already missing; cleaned up metadata for ${session.branchName}.`,
   };
