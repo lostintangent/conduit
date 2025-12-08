@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 interface AgentPanelProps {
@@ -6,6 +6,7 @@ interface AgentPanelProps {
   isProcessing: boolean;
   onClose: () => void;
   onSubmit: (prompt: string, agentId?: string) => void;
+  onClearHistory?: () => void;
   content: string;
   error?: string;
 }
@@ -15,6 +16,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   isProcessing,
   onClose,
   onSubmit,
+  onClearHistory,
   content,
   error,
 }) => {
@@ -112,6 +114,16 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           )}
         </div>
         <div className="flex items-center gap-1">
+          {onClearHistory && content && (
+            <button
+              onClick={onClearHistory}
+              disabled={isProcessing}
+              className="p-1 rounded hover:bg-accent/20 text-foreground/50 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Clear conversation history"
+            >
+              <RotateCcw size={14} />
+            </button>
+          )}
           <button
             onClick={() => setIsMaximized(!isMaximized)}
             className="p-1 rounded hover:bg-accent/20 text-foreground/50 hover:text-foreground"

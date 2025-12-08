@@ -193,10 +193,12 @@ export const TerminalPane = ({
     isProcessing: boolean;
     content: string;
     error?: string;
+    conversationHistory: Array<{ role: "user" | "assistant"; content: string }>;
   }>({
     isOpen: false,
     isProcessing: false,
     content: "",
+    conversationHistory: [],
   });
 
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
@@ -245,7 +247,7 @@ export const TerminalPane = ({
     setPromptMode((prev) => ({
       ...prev,
       isOpen: !prev.isOpen,
-      content: "",
+      // Don't reset content or conversationHistory - keep the chat history
       error: undefined,
     }));
   }, []);
@@ -290,10 +292,11 @@ export const TerminalPane = ({
 
       const agentName = selectedAgent?.name || "Agent";
 
+      // Append user message to display
       setPromptMode((prev) => ({
         ...prev,
         isProcessing: true,
-        content: `❯ [${agentName}] ${prompt}\n\n`,
+        content: prev.content + `\n❯ [You] ${prompt}\n\n[${agentName}] `,
         error: undefined,
       }));
 
@@ -302,12 +305,21 @@ export const TerminalPane = ({
         scrollback: settings.terminalPromptBufferLines || 100,
       });
 
-      // Construct full prompt
-      const fullPrompt = constructPrompt(prompt, buffer || "", cwd || null);
+      // Construct full prompt with conversation history
+      const fullPrompt = constructPrompt(
+        prompt,
+        buffer || "",
+        cwd || null,
+        promptMode.conversationHistory,
+      );
+
+      // Track the assistant's response
+      let assistantResponse = "";
 
       // Set up stream listener
       const removeListener = api.onPromptStream(sessionId, (chunk) => {
         if (chunk.type === "data" && chunk.data) {
+          assistantResponse += chunk.data;
           // Stream data to panel
           setPromptMode((prev) => ({
             ...prev,
@@ -325,10 +337,15 @@ export const TerminalPane = ({
             streamCleanupRef.current = null;
           }
         } else if (chunk.type === "end") {
-          // Stream ended
+          // Stream ended - add to conversation history
           setPromptMode((prev) => ({
             ...prev,
             isProcessing: false,
+            conversationHistory: [
+              ...prev.conversationHistory,
+              { role: "user", content: prompt },
+              { role: "assistant", content: assistantResponse },
+            ],
           }));
           if (streamCleanupRef.current) {
             streamCleanupRef.current();
@@ -375,18 +392,27 @@ export const TerminalPane = ({
         }
       }
     },
-    [sessionId, cwd, settings],
+    [sessionId, cwd, settings, promptMode.conversationHistory],
   );
 
   const handleClosePromptMode = useCallback(() => {
     setPromptMode((prev) => ({
       ...prev,
       isOpen: false,
-      content: "",
+      // Keep content and conversationHistory - don't reset
       error: undefined,
     }));
     focusTerminal();
   }, [focusTerminal]);
+
+  const handleClearPromptHistory = useCallback(() => {
+    setPromptMode((prev) => ({
+      ...prev,
+      content: "",
+      conversationHistory: [],
+      error: undefined,
+    }));
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -575,6 +601,7 @@ export const TerminalPane = ({
         isOpen={promptMode.isOpen}
         onClose={handleClosePromptMode}
         onSubmit={handlePromptSubmit}
+        onClearHistory={handleClearPromptHistory}
         isProcessing={promptMode.isProcessing}
         content={promptMode.content}
         error={promptMode.error}
