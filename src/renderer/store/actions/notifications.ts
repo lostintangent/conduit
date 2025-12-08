@@ -52,13 +52,16 @@ function showSystemNotification(message: string, details?: string): void {
   }
 }
 
+const DEFAULT_AUTO_CLOSE_MS = 5000;
+
 export function enqueueNotification(
   options: Omit<Notification, "id" | "createdAt"> & {
-    autoCloseMs?: number;
+    autoCloseMs?: number | null;
     system?: boolean;
+    persistent?: boolean;
   },
 ) {
-  const { system, autoCloseMs, ...notificationOptions } = options;
+  const { system, autoCloseMs, persistent, ...notificationOptions } = options;
 
   // Show system notification if requested and app is not visible
   if (system && !isAppVisible()) {
@@ -77,8 +80,16 @@ export function enqueueNotification(
 
   store.set(notificationsAtom, (current) => [notification, ...current]);
 
-  if (autoCloseMs && autoCloseMs > 0) {
-    scheduleAutoDismiss(id, autoCloseMs);
+  // Schedule auto-dismiss: use explicit value, or default unless persistent/null
+  const effectiveTimeout =
+    autoCloseMs !== undefined
+      ? autoCloseMs
+      : persistent
+        ? null
+        : DEFAULT_AUTO_CLOSE_MS;
+
+  if (effectiveTimeout && effectiveTimeout > 0) {
+    scheduleAutoDismiss(id, effectiveTimeout);
   }
 
   return id;
