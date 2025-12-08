@@ -284,15 +284,15 @@ export function getSSHConnectionInfo(vm: VM): SSHConnectionInfo {
 
   const host = vm.ip_address; // Use VM internal IP for host
 
-  // Parse port from the new URL format: https://20_125_42_246-5201.blue.sandbox.githubnext.com
+  // Parse port from the new URL format: https://acac0c835001.green.sandbox.githubnext.com
   // Extract the subdomain prefix and get the port after the last dash
   let port: number;
   const url = sshPort.connection_url;
 
   if (url.includes("://")) {
     // New format: extract from subdomain
-    const hostname = url.split("://")[1].split(".")[0]; // Get "20_125_42_246-5201"
-    const portStr = hostname.split("-").pop(); // Get "5201"
+    const hostname = url.split("://")[1].split(".")[0]; // Get "acac0c835001"
+    const portStr = hostname.length == 12 ? hostname.slice(-4) : undefined; // Get "5001"
     port = parseInt(portStr || "", 10);
   } else {
     // Old format: host:port
