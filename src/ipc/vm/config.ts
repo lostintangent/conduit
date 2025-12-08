@@ -1,4 +1,4 @@
-const CLUSTER_URL = "https://blue.sandbox.githubnext.com/";
+const CLUSTER_URL = "https://green.sandbox.githubnext.com/";
 const IMAGE_ID = "image_custom_79479917-a762-704a-3e1f-b130a7ac3977";
 
 export type VMConfig = {
