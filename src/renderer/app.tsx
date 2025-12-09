@@ -1,3 +1,4 @@
+import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
 import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
@@ -50,13 +51,7 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import {
-  openBrowserPane,
-  removePane,
-  splitPane,
-  openEditorPane,
-} from "@/store/actions/pane";
-import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
+import { openBrowserPane, removePane } from "@/store/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -76,9 +71,9 @@ import {
 import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue, useSetAtom, getDefaultStore } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { getDefaultStore, useAtom, useAtomValue, useSetAtom } from "jotai";
 import path from "path-browserify";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -895,12 +890,13 @@ export function App() {
         />
       )}
 
-      {hyperTerminals.map((terminal) => (
+      {hyperTerminals.map((terminal, index) => (
         <HyperTerminal
           key={terminal.terminalId}
           terminalId={terminal.terminalId}
           paneId={terminal.paneId}
           cwd={terminal.cwd}
+          index={index}
           onClose={() => closeHyperTerminal(terminal.terminalId)}
           onMaximize={() =>
             handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)

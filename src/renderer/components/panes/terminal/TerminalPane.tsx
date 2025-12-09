@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { exitFocusMode } from "@/store/actions/focusMode";
+import { isHyperTerminal } from "@/store/actions/hyperTerminal";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { TerminalPane as TerminalPaneType } from "@/types";
@@ -576,7 +577,7 @@ export const TerminalPane = ({
         onClosed={focusTerminal}
       />
 
-      {showDimensions && dimensions && (
+      {showDimensions && dimensions && !isHyperTerminal(terminalId) && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
           <div className="bg-elevated px-6 py-3 rounded-lg text-lg font-semibold border border-elevated-border shadow-lg">
             {dimensions.width} × {dimensions.height}

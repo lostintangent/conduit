@@ -3,8 +3,37 @@ import { openTabFromExistingSession } from "@/store/actions/tab";
 import { hyperTerminalsAtom } from "@/store/atoms";
 import { getDefaultStore } from "jotai";
 
+type HyperTerminal = { terminalId: string; paneId: string; cwd: string | null };
+
 const api = window.conduit;
 const store = getDefaultStore();
+
+/**
+ * Removes a hyper terminal from the store by its terminal ID.
+ *
+ * @param terminalId - The terminal session ID to remove
+ * @returns The removed terminal, or undefined if not found
+ */
+function removeHyperTerminal(terminalId: string): HyperTerminal | undefined {
+  let removed: HyperTerminal | undefined;
+  store.set(hyperTerminalsAtom, (terminals) => {
+    const index = terminals.findIndex((t) => t.terminalId === terminalId);
+    if (index !== -1) {
+      removed = terminals.splice(index, 1)[0];
+    }
+  });
+  return removed;
+}
+
+/**
+ * Checks if a terminal session is a hyper terminal (floating overlay).
+ *
+ * @param sessionId - The terminal session ID to check
+ * @returns True if the session is a hyper terminal, false otherwise
+ */
+export function isHyperTerminal(sessionId: string): boolean {
+  return store.get(hyperTerminalsAtom).some((t) => t.terminalId === sessionId);
+}
 
 /**
  * Opens a new hyper terminal (floating overlay).
@@ -19,10 +48,10 @@ export function openHyperTerminal(
   paneId: string,
   cwd: string | null,
 ) {
-  store.set(hyperTerminalsAtom, (draft) => {
+  store.set(hyperTerminalsAtom, (terminals) => {
     // Prevent duplicate terminals
-    if (!draft.some((t) => t.terminalId === terminalId)) {
-      draft.push({ terminalId, paneId, cwd });
+    if (!terminals.some((t) => t.terminalId === terminalId)) {
+      terminals.push({ terminalId, paneId, cwd });
     }
   });
 }
@@ -34,18 +63,13 @@ export function openHyperTerminal(
  * @param terminalId - The terminal session ID to close
  */
 export function closeHyperTerminal(terminalId: string) {
-  store.set(hyperTerminalsAtom, (draft) => {
-    const index = draft.findIndex((t) => t.terminalId === terminalId);
-    if (index === -1) {
-      return;
-    }
+  const terminal = removeHyperTerminal(terminalId);
+  if (!terminal) {
+    return;
+  }
 
-    const terminal = draft[index];
-    api.closeTerminal(terminal.terminalId);
-    disposeSession(terminal.terminalId);
-
-    draft.splice(index, 1);
-  });
+  api.closeTerminal(terminal.terminalId);
+  disposeSession(terminal.terminalId);
 }
 
 /**
@@ -55,15 +79,9 @@ export function closeHyperTerminal(terminalId: string) {
  * @param terminalId - The terminal session ID that exited
  */
 export function handleHyperTerminalExit(terminalId: string) {
-  store.set(hyperTerminalsAtom, (draft) => {
-    const index = draft.findIndex((t) => t.terminalId === terminalId);
-    if (index === -1) {
-      return;
-    }
-
+  if (removeHyperTerminal(terminalId)) {
     disposeSession(terminalId);
-    draft.splice(index, 1);
-  });
+  }
 }
 
 /**
@@ -75,12 +93,7 @@ export function handleHyperTerminalExit(terminalId: string) {
  * @returns An object with the terminal data for the quick pane
  */
 export function maximizeHyperTerminal(terminalId: string, cwd: string | null) {
-  store.set(hyperTerminalsAtom, (draft) => {
-    const index = draft.findIndex((t) => t.terminalId === terminalId);
-    if (index !== -1) {
-      draft.splice(index, 1);
-    }
-  });
+  removeHyperTerminal(terminalId);
 
   // Return the quick pane descriptor
   return {
@@ -101,12 +114,7 @@ export async function moveHyperTerminalToTab(
   terminalId: string,
   cwd: string | null,
 ) {
-  store.set(hyperTerminalsAtom, (draft) => {
-    const index = draft.findIndex((t) => t.terminalId === terminalId);
-    if (index !== -1) {
-      draft.splice(index, 1);
-    }
-  });
+  removeHyperTerminal(terminalId);
 
   await openTabFromExistingSession({
     sessionId: terminalId,
