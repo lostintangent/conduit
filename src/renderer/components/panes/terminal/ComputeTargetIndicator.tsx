@@ -1,6 +1,6 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { forwardPortAndOpen, splitPane } from "@/store/actions/pane";
-import { tabsAtom } from "@/store/atoms";
+import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { extractPortFromMatch } from "@shared/utils";
 import { useAtomValue } from "jotai";
 import { getDefaultStore } from "jotai";
@@ -31,6 +31,8 @@ export function ComputeTargetIndicator({
   setLinkHandler,
 }: ComputeTargetIndicatorProps) {
   const tabs = useAtomValue(tabsAtom);
+  const userSettings = useAtomValue(userSettingsAtom);
+  const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
 
   // Memoize the current pane and tab lookup
   const { currentPane, currentTab } = useMemo(() => {
@@ -88,37 +90,55 @@ export function ComputeTargetIndicator({
     async (scriptName: string) => {
       if (!currentTab || !terminalPane) return;
 
+      const command = `npm i && npm run ${scriptName}`;
+
       try {
-        // Split pane to the right (row = horizontal split)
-        await splitPane(currentTab.id, paneId, "row", false, {});
+        if (playButtonTarget === "hyper") {
+          // Open in Hyper terminal
+          const cwd = terminalPane.cwd || undefined;
+          const result = await api.createTerminal({ cwd });
+          if (!result) return;
 
-        // Wait a moment for the new pane to be created and ready
-        await new Promise((resolve) => setTimeout(resolve, 100));
+          // Wait for terminal to be ready
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // Get the updated tab to find the new pane
-        const tabs = store.get(tabsAtom);
-        const updatedTab = tabs.find((t) => t.id === currentTab.id);
-        if (!updatedTab) return;
+          // Send the command to the Hyper terminal
+          for (const char of command) {
+            await api.sendKeypress(result.sessionId, char);
+          }
+          // Send Enter key to execute
+          await api.sendKeypress(result.sessionId, "\r");
+        } else {
+          // Split pane to the right (row = horizontal split)
+          await splitPane(currentTab.id, paneId, "row", false, {});
 
-        // Find the most recently created terminal pane (should be the one we just created)
-        const terminalPanes = Object.values(updatedTab.panes).filter(
-          (p) => p.type === "terminal",
-        );
-        const newPane = terminalPanes[terminalPanes.length - 1];
-        if (!newPane || newPane.type !== "terminal") return;
+          // Wait a moment for the new pane to be created and ready
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // Send npm install && npm run command to ensure packages are installed
-        const command = `npm i && npm run ${scriptName}`;
-        for (const char of command) {
-          await api.sendKeypress(newPane.sessionId, char);
+          // Get the updated tab to find the new pane
+          const tabs = store.get(tabsAtom);
+          const updatedTab = tabs.find((t) => t.id === currentTab.id);
+          if (!updatedTab) return;
+
+          // Find the most recently created terminal pane (should be the one we just created)
+          const terminalPanes = Object.values(updatedTab.panes).filter(
+            (p) => p.type === "terminal",
+          );
+          const newPane = terminalPanes[terminalPanes.length - 1];
+          if (!newPane || newPane.type !== "terminal") return;
+
+          // Send npm install && npm run command to ensure packages are installed
+          for (const char of command) {
+            await api.sendKeypress(newPane.sessionId, char);
+          }
+          // Send Enter key to execute
+          await api.sendKeypress(newPane.sessionId, "\r");
         }
-        // Send Enter key to execute
-        await api.sendKeypress(newPane.sessionId, "\r");
       } catch (error) {
         console.error("Failed to run npm script:", error);
       }
     },
-    [currentTab, terminalPane, paneId],
+    [currentTab, terminalPane, paneId, playButtonTarget],
   );
 
   // Set up cloud VM port forwarding + link handler when in a VM

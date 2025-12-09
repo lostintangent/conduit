@@ -3,7 +3,7 @@
  */
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
+import { AgentsEditorContent } from "@/components/shell/agents/AgentsEditorContent";
 import type { AgentConfig, LaunchGroup } from "@shared/types";
 
 // Mock useUserSettings hook
@@ -20,8 +20,6 @@ vi.mock("@/hooks/useUserSettings", () => ({
 }));
 
 describe("AgentsEditor", () => {
-  const mockOnClose = vi.fn();
-
   const mockAgents: AgentConfig[] = [
     {
       id: "agent-1",
@@ -56,22 +54,21 @@ describe("AgentsEditor", () => {
 
   describe("Initial Rendering", () => {
     it("should render with agents tab active by default", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
-      expect(screen.getByText("Agent Teams")).toBeDefined();
       expect(screen.getByText("Agents")).toBeDefined();
       expect(screen.getByText("Teams")).toBeDefined();
     });
 
     it("should display all agents in the list", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       expect(screen.getByText("Copilot")).toBeDefined();
       expect(screen.getByText("Assistant")).toBeDefined();
     });
 
     it("should show Add Agent button", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       expect(screen.getByText("Add Agent")).toBeDefined();
     });
@@ -79,7 +76,7 @@ describe("AgentsEditor", () => {
 
   describe("Agent Management", () => {
     it("should allow editing an agent", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
@@ -91,7 +88,7 @@ describe("AgentsEditor", () => {
     it("should save agent changes", async () => {
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
@@ -116,7 +113,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should cancel agent editing", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
@@ -133,7 +130,7 @@ describe("AgentsEditor", () => {
     it("should add a new agent", async () => {
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const addButton = screen.getByText("Add Agent");
       fireEvent.click(addButton);
@@ -147,7 +144,7 @@ describe("AgentsEditor", () => {
       window.confirm = vi.fn(() => true);
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const deleteButtons = screen.getAllByTitle(/Delete/);
       fireEvent.click(deleteButtons[1]);
@@ -168,7 +165,7 @@ describe("AgentsEditor", () => {
       window.confirm = vi.fn(() => true);
       mockUserSettings.agents = [mockAgents[0]];
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const deleteButtons = screen.getAllByTitle(/Delete/);
       fireEvent.click(deleteButtons[0]);
@@ -182,7 +179,7 @@ describe("AgentsEditor", () => {
     it("should set an agent as default", async () => {
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       // Look for the star/default indicator button
       const defaultButtons = screen.getAllByTitle(/Set as default/i);
@@ -207,7 +204,7 @@ describe("AgentsEditor", () => {
 
   describe("Team Management", () => {
     it("should switch to teams tab", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -216,7 +213,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should display teams list", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -227,7 +224,7 @@ describe("AgentsEditor", () => {
     it("should add a new team", async () => {
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -241,7 +238,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should edit a team", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -255,7 +252,7 @@ describe("AgentsEditor", () => {
     it("should save team changes", async () => {
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -286,7 +283,7 @@ describe("AgentsEditor", () => {
       window.confirm = vi.fn(() => true);
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -306,7 +303,7 @@ describe("AgentsEditor", () => {
 
   describe("Team Member Management", () => {
     it("should toggle agent in team", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -321,7 +318,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should configure instance count for team member", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -337,7 +334,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should add custom instructions for team member instance", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -365,60 +362,12 @@ describe("AgentsEditor", () => {
     });
   });
 
-  describe("Close Dialog", () => {
-    it("should close dialog when clicking close button", () => {
-      render(<AgentsEditor onClose={mockOnClose} />);
-
-      const closeButton = screen.getByTitle(/Close/);
-      fireEvent.click(closeButton);
-
-      expect(mockOnClose).toHaveBeenCalled();
-    });
-
-    it("should warn before closing with unsaved changes", () => {
-      window.confirm = vi.fn(() => false);
-
-      render(<AgentsEditor onClose={mockOnClose} />);
-
-      const editButtons = screen.getAllByTitle(/Edit/);
-      fireEvent.click(editButtons[0]);
-
-      const nameInput = screen.getByDisplayValue("Copilot");
-      fireEvent.change(nameInput, { target: { value: "Modified" } });
-
-      const closeButton = screen.getByTitle(/Close/);
-      fireEvent.click(closeButton);
-
-      expect(window.confirm).toHaveBeenCalledWith(
-        expect.stringContaining("unsaved changes"),
-      );
-      expect(mockOnClose).not.toHaveBeenCalled();
-    });
-
-    it("should close dialog discarding changes if confirmed", () => {
-      window.confirm = vi.fn(() => true);
-
-      render(<AgentsEditor onClose={mockOnClose} />);
-
-      const editButtons = screen.getAllByTitle(/Edit/);
-      fireEvent.click(editButtons[0]);
-
-      const nameInput = screen.getByDisplayValue("Copilot");
-      fireEvent.change(nameInput, { target: { value: "Modified" } });
-
-      const closeButton = screen.getByTitle(/Close/);
-      fireEvent.click(closeButton);
-
-      expect(mockOnClose).toHaveBeenCalled();
-    });
-  });
-
   describe("Reset to Defaults", () => {
     it("should reset agents to defaults when confirmed", async () => {
       window.confirm = vi.fn(() => true);
       mockUpdateSettings.mockResolvedValue(undefined);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const resetButton = screen.getByText("Reset");
       fireEvent.click(resetButton);
@@ -435,7 +384,7 @@ describe("AgentsEditor", () => {
     it("should not reset agents if not confirmed", () => {
       window.confirm = vi.fn(() => false);
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const resetButton = screen.getByText("Reset");
       fireEvent.click(resetButton);
@@ -462,7 +411,7 @@ describe("AgentsEditor", () => {
       };
       mockUserSettings.launchGroups = [teamWithInstructions];
 
-      render(<AgentsEditor onClose={mockOnClose} />);
+      render(<AgentsEditorContent userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
