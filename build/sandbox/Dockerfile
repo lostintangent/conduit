@@ -58,7 +58,7 @@ RUN echo 'export PATH="/root/.bun/bin:$PATH"' >> /etc/profile.d/bun.sh
 RUN node --version && npm --version && yarn --version && bun --version
 
 # Expose the sandbox-ipc server port
-EXPOSE 3000
+EXPOSE 9876
 
 # Default command: start the sandbox-ipc server
 CMD ["sandbox-ipc", "-workspace", "/workspace"]
