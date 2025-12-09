@@ -612,9 +612,13 @@ export async function applyDiffPatch(
           return;
         }
         cleanedUp = true;
-        gitApply.stderr.removeListener("data", stderrHandler);
-        gitApply.removeListener("close", closeHandler);
-        gitApply.removeListener("error", errorHandler);
+        try {
+          gitApply.stderr.removeListener("data", stderrHandler);
+          gitApply.removeListener("close", closeHandler);
+          gitApply.removeListener("error", errorHandler);
+        } catch (error) {
+          // Ignore errors during cleanup if process is already destroyed
+        }
       };
 
       const stderrHandler = (data: Buffer) => {

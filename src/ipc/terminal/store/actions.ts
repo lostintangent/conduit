@@ -262,11 +262,110 @@ function setupTerminalListeners(
     }
   });
 
-  const onExitDisposable = pty.onExit(async ({ exitCode, signal }) => {
+  // Store cleanup function to dispose event listeners when terminal is killed manually
+  // Track if already cleaned up to prevent double-disposal and race conditions
+  let listenersDisposed = false;
+  let dataDisposable: { dispose: () => void } | null = null;
+  let exitDisposable: { dispose: () => void } | null = null;
+
+  dataDisposable = pty.onData((data) => {
+    // Handle SSH connection state tracking for cloud terminals
+    if (terminal.cloudEnvironment) {
+      const currentState = terminal.cloudEnvironment.connectionState;
+
+      // Check for successful connection
+      // We use a hybrid approach: check if the SSH process is running AND we see a shell prompt
+      if (currentState === "connecting") {
+        const processName = pty.process;
+        const isSSHRunning = processName === "ssh";
+        const hasShellPrompt =
+          (data.includes("ace@") &&
+            (data.includes("$") || data.includes("#"))) ||
+          data.includes("/workspace");
+
+        // SSH is connected when the ssh process is running AND we see a remote shell prompt
+        if (isSSHRunning && hasShellPrompt) {
+          console.log(
+            "[VM] SSH connection established (ssh process + remote prompt detected)",
+          );
+          terminal.cloudEnvironment.connectionState = "connected";
+          sendToRenderer("terminal:ssh-state", {
+            sessionId: id,
+            state: "connected",
+          });
+          // Now that we're connected, send this data (the prompt) to the terminal
+          if (terminal.isRendererReady) {
+            sendToRenderer("terminal:data", { sessionId: id, data });
+          } else {
+            terminal.bufferedOutput.push(data);
+          }
+          return;
+        }
+        return;
+      }
+    }
+
+    // Normal data handling for connected cloud terminals or local terminals
+    if (terminal.isRendererReady) {
+      sendToRenderer("terminal:data", { sessionId: id, data });
+    } else {
+      terminal.bufferedOutput.push(data);
+    }
+
+    const processName = pty.process;
+    if (processName && processName !== terminal.lastProcessName) {
+      const previousProcess = terminal.lastProcessName;
+      terminal.lastProcessName = processName;
+
+      // For cloud terminals, detect SSH disconnection via process change
+      if (terminal.cloudEnvironment) {
+        const currentState = terminal.cloudEnvironment.connectionState;
+
+        // SSH session ended when process changes from 'ssh' to something else (local shell)
+        // This is more reliable than text parsing
+        if (
+          currentState === "connected" &&
+          previousProcess === "ssh" &&
+          processName !== "ssh"
+        ) {
+          console.log(
+            `[VM] SSH process ended (changed from ssh to ${processName}), terminal disconnected`,
+          );
+
+          terminal.cloudEnvironment.connectionState = "disconnected";
+          sendToRenderer("terminal:ssh-state", {
+            sessionId: id,
+            state: "disconnected",
+          });
+        }
+      }
+    }
+
+    // Detect ports in terminal output for cloud VMs
+    if (terminal.cloudEnvironment) {
+      const detectedPorts = detectPorts(data);
+
+      for (const port of detectedPorts) {
+        if (
+          !terminal.cloudEnvironment.detectedPorts.has(port) &&
+          !terminal.cloudEnvironment.forwardedPorts.has(port)
+        ) {
+          terminal.cloudEnvironment.detectedPorts.add(port);
+          sendToRenderer("terminal:port-detected", { sessionId: id, port });
+        }
+      }
+    }
+  });
+
+  exitDisposable = pty.onExit(async ({ exitCode, signal }) => {
+    // Set flag to prevent cleanupListeners from running
+    listenersDisposed = true;
+    
     // Clean up onData listener only (not this onExit listener to avoid circular cleanup)
-    if (onDataDisposable) {
+    if (dataDisposable) {
       try {
-        onDataDisposable.dispose();
+        dataDisposable.dispose();
+        dataDisposable = null;
       } catch (error) {
         console.error("Failed to cleanup onData listener on exit", error);
       }
@@ -307,25 +406,28 @@ function setupTerminalListeners(
     });
   });
 
-  // Store cleanup function to dispose event listeners when terminal is killed manually
-  // Track if already cleaned up to prevent double-disposal
-  let listenersDisposed = false;
   terminal.cleanupListeners = () => {
     if (listenersDisposed) {
       return;
     }
     listenersDisposed = true;
     
-    try {
-      onDataDisposable.dispose();
-    } catch (error) {
-      console.error("Failed to dispose onData listener", error);
+    if (dataDisposable) {
+      try {
+        dataDisposable.dispose();
+        dataDisposable = null;
+      } catch (error) {
+        console.error("Failed to dispose onData listener", error);
+      }
     }
     
-    try {
-      onExitDisposable.dispose();
-    } catch (error) {
-      console.error("Failed to dispose onExit listener", error);
+    if (exitDisposable) {
+      try {
+        exitDisposable.dispose();
+        exitDisposable = null;
+      } catch (error) {
+        console.error("Failed to dispose onExit listener", error);
+      }
     }
   };
 }
