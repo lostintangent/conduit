@@ -27,7 +27,7 @@ export function RepoScriptsMenu({ cwd, onRunScript }: RepoScriptsMenuProps) {
   const userSettings = useAtomValue(userSettingsAtom);
   const showPlayButton = userSettings.showPlayButton ?? false;
 
-  const { scripts, loading } = usePackageJsonScripts(cwd);
+  const { scripts } = usePackageJsonScripts(cwd);
   const hasScripts = scripts && Object.keys(scripts).length > 0;
 
   // Don't render if the setting is disabled or there are no scripts or no handler
@@ -58,7 +58,7 @@ export function RepoScriptsMenu({ cwd, onRunScript }: RepoScriptsMenuProps) {
           className="w-56 max-h-[400px] overflow-y-auto"
           side="left"
         >
-          {Object.entries(scripts).map(([scriptName, scriptCommand]) => (
+          {Object.entries(scripts || {}).map(([scriptName, scriptCommand]) => (
             <DropdownMenuItem
               key={scriptName}
               onClick={() => onRunScript(scriptName)}
