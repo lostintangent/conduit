@@ -122,6 +122,10 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Increase read limit to handle large patch messages (default is 32KB)
+	// We need to support patches up to several MB
+	conn.SetReadLimit(10 * 1024 * 1024) // 10MB
+
 	// Get workspace from query param, default to server default
 	workspacePath := r.URL.Query().Get("workspace")
 	if workspacePath == "" {
