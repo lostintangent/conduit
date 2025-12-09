@@ -36,6 +36,7 @@ import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { cn } from "@/utils";
 import { GitBadge, getStatusConfig, aggregateFolderStatus } from "../shared";
+import { FileTreeItemRename } from "./FileTreeItemRename";
 
 export interface FileTreeItemProps {
   /** Directory entry (name and type) */
@@ -86,6 +87,25 @@ export interface FileTreeItemProps {
    * Useful for branch comparison mode where we want to show the relative path.
    */
   displayPath?: string;
+
+  // ---------------------------------------------------------------------------
+  // Inline Rename Props
+  // ---------------------------------------------------------------------------
+
+  /** Whether this item is currently being renamed */
+  isRenaming?: boolean;
+
+  /** Callback when rename is committed with the new name */
+  onRenameCommit?: (newName: string) => void;
+
+  /** Callback when rename is cancelled */
+  onRenameCancel?: () => void;
+
+  /**
+   * Optional callback to check if a sibling with this name already exists.
+   * Used for validation during rename.
+   */
+  checkNameConflict?: (name: string) => boolean;
 }
 
 /**
@@ -108,6 +128,10 @@ export const FileTreeItem = memo(function FileTreeItem({
   onDirectoryChange,
   children,
   displayPath,
+  isRenaming = false,
+  onRenameCommit,
+  onRenameCancel,
+  checkNameConflict,
 }: FileTreeItemProps) {
   const isDirectory = entry.type === "directory";
 
@@ -126,23 +150,12 @@ export const FileTreeItem = memo(function FileTreeItem({
     [path, entry.type, isDirectory, onSelect, onToggleExpand],
   );
 
-  // Handle keyboard interaction (Enter key)
-  // - For directories: toggle expand/collapse
-  // - For files: select the file
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (isDirectory) {
-          onToggleExpand?.(path);
-        } else {
-          onSelect(path, entry.type);
-        }
-      }
-    },
-    [path, entry.type, isDirectory, onSelect, onToggleExpand],
-  );
+  // Keyboard events are handled by the tree container (FileTreeNormal).
+  // This component only needs to be focusable via roving tabindex.
+  // - Enter → triggers rename (tree container handles this)
+  // - Space → opens file / toggles folder (tree container handles this)
+  // - Arrow keys → navigation (tree container handles this)
+  void isRenaming; // Used by tree container to disable keyboard handling
 
   // Handle "change to this directory" click
   const handleChangeCwd = useCallback(
@@ -200,7 +213,6 @@ export const FileTreeItem = memo(function FileTreeItem({
             : "hover:bg-foreground/10",
         )}
         onClick={handleRowClick}
-        onKeyDown={handleKeyDown}
         data-testid={`tree-item-${entry.name}`}
         data-path={path}
         data-type={entry.type}
@@ -225,43 +237,55 @@ export const FileTreeItem = memo(function FileTreeItem({
         {/* Icon - colored for files with git status */}
         <Icon className={cn("flex-shrink-0", iconColorClass)} size={12} />
 
-        {/* Name - colored for files with git status */}
-        <span
-          className={cn("min-w-0 flex-1 truncate", textColorClass)}
-          title={displayPath ?? entry.name}
-        >
-          {displayPath ?? entry.name}
-        </span>
+        {/* Name or Rename Input */}
+        {isRenaming && onRenameCommit && onRenameCancel ? (
+          <FileTreeItemRename
+            initialName={entry.name}
+            isDirectory={isDirectory}
+            onCommit={onRenameCommit}
+            onCancel={onRenameCancel}
+            checkNameConflict={checkNameConflict}
+          />
+        ) : (
+          <span
+            className={cn("min-w-0 flex-1 truncate", textColorClass)}
+            title={displayPath ?? entry.name}
+          >
+            {displayPath ?? entry.name}
+          </span>
+        )}
 
-        {/* Action buttons container */}
-        <div className="shrink-0 flex items-center gap-1">
-          {/* Change to this directory button (directories only, on hover) */}
-          {isDirectory && onDirectoryChange && (
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={handleChangeCwd}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
-              title="Change to this directory"
-              data-testid="change-directory-button"
-            >
-              <FolderInput size={12} />
-            </button>
-          )}
+        {/* Action buttons container - hidden during rename */}
+        {!isRenaming && (
+          <div className="shrink-0 flex items-center gap-1">
+            {/* Change to this directory button (directories only, on hover) */}
+            {isDirectory && onDirectoryChange && (
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={handleChangeCwd}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+                title="Change to this directory"
+                data-testid="change-directory-button"
+              >
+                <FolderInput size={12} />
+              </button>
+            )}
 
-          {/* Git status badge: letter for files, dot for folders */}
-          {gitStatus && !isDirectory && <GitBadge status={gitStatus} />}
-          {isDirectory && folderStatus && (
-            <div
-              className={cn(
-                "flex-shrink-0 w-1.5 h-1.5 rounded-full",
-                folderStatus.colorClass,
-              )}
-              title={folderStatus.label}
-              data-testid="git-badge-folder"
-            />
-          )}
-        </div>
+            {/* Git status badge: letter for files, dot for folders */}
+            {gitStatus && !isDirectory && <GitBadge status={gitStatus} />}
+            {isDirectory && folderStatus && (
+              <div
+                className={cn(
+                  "flex-shrink-0 w-1.5 h-1.5 rounded-full",
+                  folderStatus.colorClass,
+                )}
+                title={folderStatus.label}
+                data-testid="git-badge-folder"
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Children (expanded directory contents) - with vertical connecting line */}

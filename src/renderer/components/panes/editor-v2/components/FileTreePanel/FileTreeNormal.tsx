@@ -163,6 +163,21 @@ export function FileTreeNormal({
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
 
   /**
+   * Pending focus path - set after rename when the new path may not be
+   * visible yet. Once the path appears in visiblePaths, it will be applied.
+   */
+  const [pendingFocusPath, setPendingFocusPath] = useState<string | null>(null);
+
+  /**
+   * Paths to suppress git status for during rename transitions.
+   * Includes both source and destination paths, cleared after a timeout
+   * to allow git status to settle.
+   */
+  const [gitStatusSuppressedPaths, setGitStatusSuppressedPaths] = useState<
+    Set<string>
+  >(new Set());
+
+  /**
    * Flat list of all currently visible paths in display order.
    * Used for efficient arrow key navigation.
    */
@@ -206,6 +221,15 @@ export function FileTreeNormal({
     },
     [directoryCache],
   );
+
+  // ---------------------------------------------------------------------------
+  // Inline Rename State
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Path of the item currently being renamed, or null if not renaming.
+   */
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // CWD Change Handler
@@ -482,11 +506,119 @@ export function FileTreeNormal({
     [getEntryTypeForPath, onFileSelect, handleToggleExpand],
   );
 
+  // ---------------------------------------------------------------------------
+  // Inline Rename Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Begin renaming the item at the given path.
+   */
+  const beginRename = useCallback((path: string) => {
+    setRenamingPath(path);
+  }, []);
+
+  /**
+   * Cancel the current rename operation.
+   */
+  const cancelRename = useCallback(() => {
+    setRenamingPath(null);
+  }, []);
+
+  /**
+   * Commit a rename operation.
+   * Calls the file system API to rename the file/folder.
+   */
+  const commitRename = useCallback(
+    async (newName: string) => {
+      if (!renamingPath) return;
+
+      const parentDir = getParentPath(renamingPath);
+      if (!parentDir) {
+        console.error("Cannot rename: no parent directory found");
+        setRenamingPath(null);
+        return;
+      }
+
+      const newPath = joinPath(parentDir, newName);
+
+      try {
+        await fs.rename(renamingPath, newPath);
+
+        // Optimistic update: update directory cache immediately so the new name
+        // is visible before the file watcher triggers a refresh
+        const oldName = renamingPath.split("/").pop();
+        const cacheKey = normalizePathForKey(parentDir);
+        setDirectoryCache((prev) => {
+          const entries = prev[cacheKey];
+          if (!entries || !oldName) return prev;
+          return {
+            ...prev,
+            [cacheKey]: entries.map((entry) =>
+              entry.name === oldName ? { ...entry, name: newName } : entry,
+            ),
+          };
+        });
+
+        // Now safe to hide the rename input - new name is already in cache
+        setRenamingPath(null);
+        // Suppress git status for both paths during transition
+        // (prevents "deleted" flash on source and stale status on destination)
+        setGitStatusSuppressedPaths(new Set([renamingPath, newPath]));
+        // Clear suppression after git has time to recognize the rename
+        setTimeout(() => {
+          setGitStatusSuppressedPaths(new Set());
+        }, 250);
+        // Set pending focus - will be applied once path appears in visiblePaths
+        setPendingFocusPath(newPath);
+      } catch (error) {
+        console.error("Rename failed:", error);
+        // TODO: Show error notification
+        setRenamingPath(null);
+      }
+    },
+    [renamingPath, fs],
+  );
+
+  /**
+   * Check if a name conflicts with existing siblings.
+   * Returns a function that can be passed to FileTreeItemRename.
+   */
+  const createNameConflictChecker = useCallback(
+    (path: string): ((name: string) => boolean) => {
+      return (name: string): boolean => {
+        const parentDir = getParentPath(path);
+        if (!parentDir) return false;
+
+        const entries = directoryCache[normalizePathForKey(parentDir)];
+        if (!entries) return false;
+
+        const currentName = path.split("/").pop();
+        // Check if any sibling (other than current item) has this name
+        return entries.some(
+          (e) =>
+            e.name.toLowerCase() === name.toLowerCase() &&
+            e.name !== currentName,
+        );
+      };
+    },
+    [directoryCache],
+  );
+
   /**
    * Main keyboard event handler for the tree container.
    */
   const handleTreeKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // Don't handle keyboard events while renaming (rename input handles them)
+      if (renamingPath) {
+        // But allow Escape to bubble up to cancel rename if needed
+        if (e.key === "Escape") {
+          e.preventDefault();
+          cancelRename();
+        }
+        return;
+      }
+
       // If no focus, set focus to first item on any navigation key
       if (!focusedPath) {
         if (
@@ -559,14 +691,28 @@ export function FileTreeNormal({
           e.preventDefault();
           handleSpaceKey(focusedPath);
           break;
+
+        case "Enter":
+          e.preventDefault();
+          beginRename(focusedPath);
+          break;
+
+        case "Escape":
+          e.preventDefault();
+          // Clear focus (like VS Code behavior)
+          setFocusedPath(null);
+          break;
       }
     },
     [
       focusedPath,
       visiblePaths,
+      renamingPath,
       handleArrowRight,
       handleArrowLeft,
       handleSpaceKey,
+      beginRename,
+      cancelRename,
     ],
   );
 
@@ -587,27 +733,57 @@ export function FileTreeNormal({
   /**
    * Handle focus entering the tree container.
    * Sets focus to the first item if nothing is focused.
+   * Only triggers when tabbing INTO the tree, not when clicking items within it.
    */
-  const handleTreeFocus = useCallback(() => {
-    if (!focusedPath && visiblePaths.length > 0) {
-      // If there's a selected file, focus that; otherwise focus first item
-      if (selectedFile?.path && visiblePaths.includes(selectedFile.path)) {
-        setFocusedPath(selectedFile.path);
-      } else {
-        setFocusedPath(visiblePaths[0]);
+  const handleTreeFocus = useCallback(
+    (e: React.FocusEvent) => {
+      // Only handle focus when the container itself receives focus (Tab key),
+      // not when focus bubbles up from clicking a child item
+      if (e.target !== e.currentTarget) {
+        return;
       }
-    }
-  }, [focusedPath, visiblePaths, selectedFile?.path]);
+
+      if (!focusedPath && visiblePaths.length > 0) {
+        // If there's a selected file, focus that; otherwise focus first item
+        if (selectedFile?.path && visiblePaths.includes(selectedFile.path)) {
+          setFocusedPath(selectedFile.path);
+        } else {
+          setFocusedPath(visiblePaths[0]);
+        }
+      }
+    },
+    [focusedPath, visiblePaths, selectedFile?.path],
+  );
 
   // ---------------------------------------------------------------------------
   // Focus Management & Scroll Into View
   // ---------------------------------------------------------------------------
 
   /**
-   * When a folder is collapsed and the focused item was inside it,
-   * move focus to the collapsed folder.
+   * Apply pending focus when the path becomes visible.
+   * This handles the race condition after rename where the new path
+   * isn't immediately in visiblePaths.
    */
   useEffect(() => {
+    if (pendingFocusPath && visiblePaths.includes(pendingFocusPath)) {
+      setFocusedPath(pendingFocusPath);
+      setPendingFocusPath(null);
+      // Note: gitStatusSuppressedPaths is cleared via timeout, not here,
+      // to allow git status time to settle after the tree updates
+    }
+  }, [pendingFocusPath, visiblePaths]);
+
+  /**
+   * When a folder is collapsed and the focused item was inside it,
+   * move focus to the collapsed folder.
+   *
+   * Skip this logic if we're waiting for a pending focus (e.g., after rename)
+   * since the new path may not be visible yet.
+   */
+  useEffect(() => {
+    // Don't "fix" focus if we're waiting for a pending path to appear
+    if (pendingFocusPath) return;
+
     if (focusedPath && !visiblePaths.includes(focusedPath)) {
       // Focused path is no longer visible - find nearest visible parent
       let parentPath = getParentPath(focusedPath);
@@ -625,7 +801,7 @@ export function FileTreeNormal({
         setFocusedPath(null);
       }
     }
-  }, [focusedPath, visiblePaths]);
+  }, [focusedPath, visiblePaths, pendingFocusPath]);
 
   /**
    * When focusedPath changes:
@@ -697,8 +873,14 @@ export function FileTreeNormal({
       return sorted.map((entry) => {
         const entryPath = joinPath(dirPath, entry.name);
         const isExpanded = isPathExpanded(entryPath);
-        const status = gitStatusMap.get(entryPath) ?? null;
+        // Suppress git status for paths involved in a recent rename
+        // (cleared via timeout after git has time to settle)
+        const status = gitStatusSuppressedPaths.has(entryPath)
+          ? null
+          : (gitStatusMap.get(entryPath) ?? null);
         const relativePath = getRelativePath(entryPath, cwd);
+
+        const isItemRenaming = pathsEqual(renamingPath, entryPath);
 
         return (
           <FileTreeItem
@@ -715,6 +897,13 @@ export function FileTreeNormal({
             onSelect={handleItemClick}
             onToggleExpand={handleToggleExpand}
             onDirectoryChange={onDirectoryChange}
+            // Inline rename props
+            isRenaming={isItemRenaming}
+            onRenameCommit={isItemRenaming ? commitRename : undefined}
+            onRenameCancel={isItemRenaming ? cancelRename : undefined}
+            checkNameConflict={
+              isItemRenaming ? createNameConflictChecker(entryPath) : undefined
+            }
           >
             {entry.type === "directory" &&
               isExpanded &&
@@ -727,12 +916,17 @@ export function FileTreeNormal({
       directoryCache,
       isPathExpanded,
       gitStatusMap,
+      gitStatusSuppressedPaths,
       relativeGitStatusMap,
       selectedFile?.path,
       focusedPath,
+      renamingPath,
       handleItemClick,
       handleToggleExpand,
       onDirectoryChange,
+      commitRename,
+      cancelRename,
+      createNameConflictChecker,
       cwd,
     ],
   );
