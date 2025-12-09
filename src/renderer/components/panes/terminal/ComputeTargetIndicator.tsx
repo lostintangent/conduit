@@ -5,6 +5,7 @@ import { extractPortFromMatch, generateId } from "@shared/utils";
 import { useAtomValue, useSetAtom } from "jotai";
 import { getDefaultStore } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
+import { RepoScriptsMenu } from "./RepoScriptsMenu";
 import { SandboxIndicator } from "./SandboxIndicator";
 
 const api = window.conduit;
@@ -173,14 +174,16 @@ export function ComputeTargetIndicator({
   }
 
   return (
-    <SandboxIndicator
-      vmId={vmId}
-      agentSessionId={agentSessionId}
-      cwd={cwd}
-      onCompleteAgentSession={handleCompleteAgentSession}
-      onDeleteAgentSession={handleDeleteAgentSession}
-      onForkVM={vmId ? handleForkVM : undefined}
-      onRunScript={handleRunScript}
-    />
+    <div className="pointer-events-none absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-10">
+      <SandboxIndicator
+        vmId={vmId}
+        agentSessionId={agentSessionId}
+        onCompleteAgentSession={handleCompleteAgentSession}
+        onDeleteAgentSession={handleDeleteAgentSession}
+        onForkVM={vmId ? handleForkVM : undefined}
+      />
+
+      <RepoScriptsMenu cwd={cwd} onRunScript={handleRunScript} />
+    </div>
   );
 }
