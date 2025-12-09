@@ -752,34 +752,13 @@ export function App() {
     [openHyperTerminal],
   );
 
-  const handleOpenHyperTerminalCallback = useCallback(
-    (terminalId: string, paneId: string, cwd: string | null) => {
-      openHyperTerminal(terminalId, paneId, cwd);
-    },
-    [openHyperTerminal],
-  );
-
-  const handleCloseHyperTerminalCallback = useCallback(
-    (terminalId: string) => {
-      closeHyperTerminal(terminalId);
-    },
-    [closeHyperTerminal],
-  );
-
-  const handleMaximizeHyperTerminalCallback = useCallback(
+  const handleMaximizeHyperTerminal = useCallback(
     (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay back to quick dialog.
       const quickPaneDescriptor = maximizeHyperTerminal(terminalId, cwd);
       setQuickPaneState(quickPaneDescriptor);
     },
     [maximizeHyperTerminal, setQuickPaneState],
-  );
-
-  const handleOpenHyperTerminalAsTabCallback = useCallback(
-    async (terminalId: string, cwd: string | null) => {
-      await moveHyperTerminalToTab(terminalId, cwd);
-    },
-    [moveHyperTerminalToTab],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -798,7 +777,6 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenHyperTerminal={handleOpenHyperTerminalCallback}
             position={tabPosition}
           />
         )}
@@ -810,7 +788,6 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenHyperTerminal={handleOpenHyperTerminalCallback}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -850,7 +827,6 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenHyperTerminal={handleOpenHyperTerminalCallback}
             position={tabPosition}
           />
         )}
@@ -862,7 +838,6 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenHyperTerminal={handleOpenHyperTerminalCallback}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -927,12 +902,12 @@ export function App() {
           terminalId={terminal.terminalId}
           paneId={terminal.paneId}
           cwd={terminal.cwd}
-          onClose={() => handleCloseHyperTerminalCallback(terminal.terminalId)}
+          onClose={() => closeHyperTerminal(terminal.terminalId)}
           onMaximize={() =>
-            handleMaximizeHyperTerminalCallback(terminal.terminalId, terminal.cwd)
+            handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
           }
           onOpenAsTab={() =>
-            handleOpenHyperTerminalAsTabCallback(terminal.terminalId, terminal.cwd)
+            moveHyperTerminalToTab(terminal.terminalId, terminal.cwd)
           }
         />
       ))}
