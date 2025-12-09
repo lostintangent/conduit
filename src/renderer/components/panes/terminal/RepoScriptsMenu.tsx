@@ -36,44 +36,42 @@ export function RepoScriptsMenu({ cwd, onRunScript }: RepoScriptsMenuProps) {
   }
 
   return (
-    <div className="pointer-events-auto flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur opacity-80 bg-gray-800/50">
-      <DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-              >
-                <Play size={16} />
-              </button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="center">
-            Run npm script
-          </TooltipContent>
-        </Tooltip>
-        <DropdownMenuContent
-          align="end"
-          className="w-56 max-h-[400px] overflow-y-auto"
-          side="left"
-        >
-          {Object.entries(scripts || {}).map(([scriptName, scriptCommand]) => (
-            <DropdownMenuItem
-              key={scriptName}
-              onClick={() => onRunScript(scriptName)}
-              className="cursor-pointer"
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
             >
-              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                <span className="font-medium">{scriptName}</span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {scriptCommand}
-                </span>
-              </div>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+              <Play size={16} />
+            </button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center">
+          Run npm script
+        </TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent
+        align="end"
+        className="w-56 max-h-[400px] overflow-y-auto"
+        side="left"
+      >
+        {Object.entries(scripts || {}).map(([scriptName, scriptCommand]) => (
+          <DropdownMenuItem
+            key={scriptName}
+            onClick={() => onRunScript(scriptName)}
+            className="cursor-pointer"
+          >
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+              <span className="font-medium">{scriptName}</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {scriptCommand}
+              </span>
+            </div>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
