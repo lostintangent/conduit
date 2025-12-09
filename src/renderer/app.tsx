@@ -62,7 +62,7 @@ import {
 import {
   activeTabAtom,
   applicationModeAtom,
-  hyperTerminalAtom,
+  hyperTerminalsAtom,
   keybindingsAtom,
   tabsAtom,
 } from "@/store/atoms";
@@ -81,7 +81,7 @@ export function App() {
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setKeybindings = useSetAtom(keybindingsAtom);
-  const [hyperTerminal, setHyperTerminal] = useAtom(hyperTerminalAtom);
+  const [hyperTerminals, setHyperTerminals] = useAtom(hyperTerminalsAtom);
 
   const userSettings = useUserSettings();
   const {
@@ -283,13 +283,14 @@ export function App() {
       });
 
       // Handle floating terminal exit
-      setHyperTerminal((current) => {
-        if (!current || current.terminalId !== sessionId) {
-          return current;
+      setHyperTerminals((draft) => {
+        const index = draft.findIndex((t) => t.terminalId === sessionId);
+        if (index === -1) {
+          return;
         }
 
         disposeSession(sessionId);
-        return null;
+        draft.splice(index, 1);
       });
     });
 
@@ -743,52 +744,77 @@ export function App() {
 
         current.onClose?.();
 
-        setHyperTerminal({ terminalId, paneId, cwd });
+        setHyperTerminals((draft) => {
+          // Prevent duplicate terminals
+          if (!draft.some((t) => t.terminalId === terminalId)) {
+            draft.push({ terminalId, paneId, cwd });
+          }
+        });
 
         return null;
       });
     },
-    [setHyperTerminal],
+    [setHyperTerminals],
   );
 
   const handleOpenHyperTerminal = useCallback(
     (terminalId: string, paneId: string, cwd: string | null) => {
-      // Directly open terminal in floating overlay.
-      setHyperTerminal({ terminalId, paneId, cwd });
+      // Add a new terminal to the floating overlays array.
+      setHyperTerminals((draft) => {
+        // Prevent duplicate terminals
+        if (!draft.some((t) => t.terminalId === terminalId)) {
+          draft.push({ terminalId, paneId, cwd });
+        }
+      });
     },
-    [setHyperTerminal],
+    [setHyperTerminals],
   );
 
-  const handleCloseHyperTerminal = useCallback(() => {
-    setHyperTerminal((current) => {
-      if (!current) {
-        return current;
-      }
+  const handleCloseHyperTerminal = useCallback(
+    (terminalId: string) => {
+      setHyperTerminals((draft) => {
+        const index = draft.findIndex((t) => t.terminalId === terminalId);
+        if (index === -1) {
+          return;
+        }
 
-      api.closeTerminal(current.terminalId);
-      disposeSession(current.terminalId);
+        const terminal = draft[index];
+        api.closeTerminal(terminal.terminalId);
+        disposeSession(terminal.terminalId);
 
-      return null;
-    });
-  }, [setHyperTerminal]);
+        draft.splice(index, 1);
+      });
+    },
+    [setHyperTerminals],
+  );
 
   const handleMaximizeHyperTerminal = useCallback(
     (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay back to quick dialog.
-      setHyperTerminal(null);
+      setHyperTerminals((draft) => {
+        const index = draft.findIndex((t) => t.terminalId === terminalId);
+        if (index !== -1) {
+          draft.splice(index, 1);
+        }
+      });
       setQuickPaneState({
         type: "terminal",
         sessionId: terminalId,
         cwd,
       });
     },
-    [setHyperTerminal, setQuickPaneState],
+    [setHyperTerminals, setQuickPaneState],
   );
 
   const handleOpenHyperTerminalAsTab = useCallback(
     async (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay to new tab.
-      setHyperTerminal(null);
+      setHyperTerminals((draft) => {
+        const index = draft.findIndex((t) => t.terminalId === terminalId);
+        if (index !== -1) {
+          draft.splice(index, 1);
+        }
+      });
 
       const { openTabFromExistingSession } = await import(
         "@/store/actions/tab"
@@ -798,7 +824,7 @@ export function App() {
         cwd,
       });
     },
-    [setHyperTerminal],
+    [setHyperTerminals],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -940,26 +966,21 @@ export function App() {
         />
       )}
 
-      {hyperTerminal && (
+      {hyperTerminals.map((terminal) => (
         <HyperTerminal
-          terminalId={hyperTerminal.terminalId}
-          paneId={hyperTerminal.paneId}
-          cwd={hyperTerminal.cwd}
-          onClose={handleCloseHyperTerminal}
+          key={terminal.terminalId}
+          terminalId={terminal.terminalId}
+          paneId={terminal.paneId}
+          cwd={terminal.cwd}
+          onClose={() => handleCloseHyperTerminal(terminal.terminalId)}
           onMaximize={() =>
-            handleMaximizeHyperTerminal(
-              hyperTerminal.terminalId,
-              hyperTerminal.cwd,
-            )
+            handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
           }
           onOpenAsTab={() =>
-            handleOpenHyperTerminalAsTab(
-              hyperTerminal.terminalId,
-              hyperTerminal.cwd,
-            )
+            handleOpenHyperTerminalAsTab(terminal.terminalId, terminal.cwd)
           }
         />
-      )}
+      ))}
 
       <InputDialog
         isOpen={isUrlDialogOpen}

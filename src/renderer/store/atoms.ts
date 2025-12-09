@@ -88,8 +88,10 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  */
 export const paneActionsAtom = atom<Action[]>([]);
 
-export const hyperTerminalAtom = atom<{
-  terminalId: string;
-  paneId: string;
-  cwd: string | null;
-}>();
+export const hyperTerminalsAtom = atomWithImmer<
+  Array<{
+    terminalId: string;
+    paneId: string;
+    cwd: string | null;
+  }>
+>([]);

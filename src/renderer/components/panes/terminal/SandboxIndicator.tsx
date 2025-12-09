@@ -2,8 +2,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -162,10 +160,6 @@ export function SandboxIndicator({
                 className="w-56 max-h-[400px] overflow-y-auto"
                 side="left"
               >
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  npm scripts
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 {Object.entries(scripts).map(([scriptName, scriptCommand]) => (
                   <DropdownMenuItem
                     key={scriptName}

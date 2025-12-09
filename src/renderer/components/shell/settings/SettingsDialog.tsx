@@ -73,9 +73,6 @@ export function SettingsDialog({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-white">Settings</h2>
-            <p className="text-xs text-gray-400 mt-1">
-              Customize your Conduit experience
-            </p>
           </div>
           <button
             onClick={onClose}

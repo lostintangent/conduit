@@ -6,13 +6,13 @@ export type PaneResolutionContext = {
   tabs: Tab[];
   sessionId: string;
   activeTab?: Tab;
-  hyperTerminal?: { terminalId: string };
+  hyperTerminals?: Array<{ terminalId: string }>;
 };
 
 export function findCallingTerminalTab({
   tabs,
   sessionId,
-  hyperTerminal,
+  hyperTerminals,
   activeTab,
 }: PaneResolutionContext): Tab {
   let matchingTab = tabs.find((tab) =>
@@ -21,7 +21,7 @@ export function findCallingTerminalTab({
     ),
   );
 
-  if (!matchingTab && hyperTerminal?.terminalId === sessionId) {
+  if (!matchingTab && hyperTerminals?.some((t) => t.terminalId === sessionId)) {
     matchingTab = activeTab ?? undefined;
   }
 
@@ -66,7 +66,7 @@ export function resolveTerminalSessions(
   paneId?: string,
   all?: boolean,
 ): string[] {
-  const { sessionId, hyperTerminal } = context;
+  const { sessionId, hyperTerminals } = context;
   const matchingTab = findCallingTerminalTab(context);
 
   const getOtherTerminalPanes = () =>
@@ -74,7 +74,9 @@ export function resolveTerminalSessions(
       ([, pane]) => pane.type === "terminal" && pane.sessionId !== sessionId,
     ) as [string, TerminalPane][];
 
-  const isHyperTerminal = hyperTerminal?.terminalId === sessionId;
+  const isHyperTerminal = hyperTerminals?.some(
+    (t) => t.terminalId === sessionId,
+  );
 
   if (all || (isHyperTerminal && !paneId)) {
     const terminalPanes = getOtherTerminalPanes();

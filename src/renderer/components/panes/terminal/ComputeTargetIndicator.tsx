@@ -1,8 +1,8 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { forwardPortAndOpen, splitPane } from "@/store/actions/pane";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
-import { extractPortFromMatch } from "@shared/utils";
-import { useAtomValue } from "jotai";
+import { hyperTerminalsAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { extractPortFromMatch, generateId } from "@shared/utils";
+import { useAtomValue, useSetAtom } from "jotai";
 import { getDefaultStore } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";
@@ -33,6 +33,7 @@ export function ComputeTargetIndicator({
   const tabs = useAtomValue(tabsAtom);
   const userSettings = useAtomValue(userSettingsAtom);
   const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
+  const setHyperTerminals = useSetAtom(hyperTerminalsAtom);
 
   // Memoize the current pane and tab lookup
   const { currentPane, currentTab } = useMemo(() => {
@@ -99,6 +100,19 @@ export function ComputeTargetIndicator({
           const result = await api.createTerminal({ cwd });
           if (!result) return;
 
+          // Add the terminal to the hyperTerminals array
+          const newPaneId = generateId();
+          setHyperTerminals((draft) => {
+            // Prevent duplicate terminals
+            if (!draft.some((t) => t.terminalId === result.sessionId)) {
+              draft.push({
+                terminalId: result.sessionId,
+                paneId: newPaneId,
+                cwd: result.cwd ?? null,
+              });
+            }
+          });
+
           // Wait for terminal to be ready
           await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -138,7 +152,7 @@ export function ComputeTargetIndicator({
         console.error("Failed to run npm script:", error);
       }
     },
-    [currentTab, terminalPane, paneId, playButtonTarget],
+    [currentTab, terminalPane, paneId, playButtonTarget, setHyperTerminals],
   );
 
   // Set up cloud VM port forwarding + link handler when in a VM
