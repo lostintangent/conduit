@@ -12,6 +12,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
+	"sandbox-ipc-provider-go/git"
 	"sandbox-ipc-provider-go/types"
 	"sandbox-ipc-provider-go/workspace"
 )
@@ -61,18 +62,20 @@ type Client struct {
 
 // Server is the WebSocket server that manages per-client workspace sessions
 type Server struct {
-	manager        *workspace.Manager
+	manager          *workspace.Manager
 	defaultWorkspace string // Default workspace if client doesn't specify one
-	clients        map[*Client]bool
-	mu             sync.RWMutex
+	clients          map[*Client]bool
+	chunkManager     *git.ChunkedPatchManager // Manages chunked patch sessions
+	mu               sync.RWMutex
 }
 
 // NewServer creates a new server with workspace manager
 func NewServer(defaultWorkspace string) *Server {
 	return &Server{
-		manager:        workspace.NewManager(),
+		manager:          workspace.NewManager(),
 		defaultWorkspace: defaultWorkspace,
-		clients:        make(map[*Client]bool),
+		clients:          make(map[*Client]bool),
+		chunkManager:     git.NewChunkedPatchManager(),
 	}
 }
 
@@ -275,6 +278,18 @@ func (s *Server) handleRequest(client *Client, req *Request) {
 		result, err = s.handleGitStatusFromBranch(session, req.Params)
 	case "git.mostRecentCommittedFile":
 		result, err = s.handleGitMostRecentCommittedFile(session, req.Params)
+	case "git.applyPatches":
+		result, err = s.handleGitApplyPatches(session, req.Params)
+
+	// Chunked patch methods for large files
+	case "git.startChunkedPatch":
+		result, err = s.handleGitStartChunkedPatch(req.Params)
+	case "git.sendPatchChunk":
+		result, err = s.handleGitSendPatchChunk(req.Params)
+	case "git.finalizeChunkedPatch":
+		result, err = s.handleGitFinalizeChunkedPatch(session, req.Params)
+	case "git.cancelChunkedPatch":
+		result, err = s.handleGitCancelChunkedPatch(req.Params)
 
 	default:
 		s.sendError(client, req.ID, -32601, fmt.Sprintf("Method not found: %s", req.Method))
@@ -696,6 +711,99 @@ func (s *Server) handleGitMostRecentCommittedFile(session *workspace.Session, pa
 		return nil, err
 	}
 	return map[string]interface{}{"file": file}, nil
+}
+
+func (s *Server) handleGitApplyPatches(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	var p types.ApplyPatchesRequest
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+
+	result, err := session.GitProvider.ApplyPatches(&p)
+	if err != nil {
+		return nil, err
+	}
+
+	// Trigger git watcher refresh to update status
+	if session.GitWatcher != nil {
+		session.GitWatcher.TriggerRefresh()
+	}
+
+	return result, nil
+}
+
+// ============================================================================
+// Chunked Patch Handlers (for large files)
+// ============================================================================
+
+// handleGitStartChunkedPatch initiates a chunked patch transfer session
+func (s *Server) handleGitStartChunkedPatch(params json.RawMessage) (interface{}, error) {
+	var req types.StartChunkedPatchRequest
+	if err := json.Unmarshal(params, &req); err != nil {
+		return nil, err
+	}
+
+	return s.chunkManager.StartSession(&req)
+}
+
+// handleGitSendPatchChunk receives a chunk of patch data
+func (s *Server) handleGitSendPatchChunk(params json.RawMessage) (interface{}, error) {
+	var chunk types.PatchChunk
+	if err := json.Unmarshal(params, &chunk); err != nil {
+		return nil, err
+	}
+
+	return s.chunkManager.AddChunk(&chunk)
+}
+
+// handleGitFinalizeChunkedPatch assembles chunks and applies the patches
+func (s *Server) handleGitFinalizeChunkedPatch(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+
+	var req types.FinalizeChunkedPatchRequest
+	if err := json.Unmarshal(params, &req); err != nil {
+		return nil, err
+	}
+
+	// Assemble all chunks into a complete request
+	patchRequest, err := s.chunkManager.FinalizeSession(req.SessionID)
+	if err != nil {
+		return &types.ApplyPatchesResult{
+			Success: false,
+			Error:   err.Error(),
+		}, nil
+	}
+
+	// Apply the assembled patches
+	result, err := session.GitProvider.ApplyPatches(patchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	// Trigger git watcher refresh to update status
+	if session.GitWatcher != nil {
+		session.GitWatcher.TriggerRefresh()
+	}
+
+	return result, nil
+}
+
+// handleGitCancelChunkedPatch cancels an in-progress chunked transfer
+func (s *Server) handleGitCancelChunkedPatch(params json.RawMessage) (interface{}, error) {
+	var req struct {
+		SessionID string `json:"sessionId"`
+	}
+	if err := json.Unmarshal(params, &req); err != nil {
+		return nil, err
+	}
+
+	s.chunkManager.CancelSession(req.SessionID)
+	return map[string]bool{"cancelled": true}, nil
 }
 
 // ============================================================================

@@ -161,3 +161,90 @@ type GitHeadChangedEvent struct {
 	CurrentHead    string `json:"currentHead"`
 	IsBranchSwitch bool   `json:"isBranchSwitch"`
 }
+
+// ============================================================================
+// Git Patch Types
+// ============================================================================
+
+// PatchType identifies the type of patch being applied
+type PatchType string
+
+const (
+	PatchTypeStaged    PatchType = "staged"
+	PatchTypeUnstaged  PatchType = "unstaged"
+	PatchTypeUntracked PatchType = "untracked"
+)
+
+// ApplyPatchesRequest contains patches to apply to a repository.
+// Each patch is base64-encoded diff content.
+// For backward compatibility, this still accepts base64-encoded strings.
+type ApplyPatchesRequest struct {
+	// Staged is a base64-encoded patch for changes that should be staged after applying
+	Staged string `json:"staged,omitempty"`
+	// Unstaged is a base64-encoded patch for changes that should remain unstaged
+	Unstaged string `json:"unstaged,omitempty"`
+	// Untracked is a base64-encoded patch for new files that should remain untracked
+	Untracked string `json:"untracked,omitempty"`
+}
+
+// PatchChunk represents a chunk of binary patch data for streaming large patches.
+// Chunks are sent sequentially and assembled on the server before applying.
+type PatchChunk struct {
+	// SessionID identifies this chunked transfer session (UUID)
+	SessionID string `json:"sessionId"`
+	// PatchType identifies which patch this chunk belongs to
+	PatchType PatchType `json:"patchType"`
+	// ChunkIndex is the 0-based index of this chunk
+	ChunkIndex int `json:"chunkIndex"`
+	// TotalChunks is the total number of chunks for this patch
+	TotalChunks int `json:"totalChunks"`
+	// Data is the raw binary chunk data (not base64 encoded when using binary frames)
+	Data []byte `json:"data"`
+	// TotalSize is the total size of the complete patch in bytes
+	TotalSize int64 `json:"totalSize"`
+}
+
+// PatchChunkAck is sent after receiving each chunk
+type PatchChunkAck struct {
+	SessionID  string `json:"sessionId"`
+	ChunkIndex int    `json:"chunkIndex"`
+	Received   bool   `json:"received"`
+	Error      string `json:"error,omitempty"`
+}
+
+// StartChunkedPatchRequest initiates a chunked patch transfer session
+type StartChunkedPatchRequest struct {
+	// SessionID is a unique identifier for this transfer session
+	SessionID string `json:"sessionId"`
+	// Patches describes the patches that will be sent
+	Patches []ChunkedPatchInfo `json:"patches"`
+}
+
+// ChunkedPatchInfo describes a patch that will be sent in chunks
+type ChunkedPatchInfo struct {
+	PatchType   PatchType `json:"patchType"`
+	TotalSize   int64     `json:"totalSize"`
+	TotalChunks int       `json:"totalChunks"`
+}
+
+// StartChunkedPatchResponse confirms the session is ready
+type StartChunkedPatchResponse struct {
+	SessionID string `json:"sessionId"`
+	Ready     bool   `json:"ready"`
+	Error     string `json:"error,omitempty"`
+}
+
+// FinalizeChunkedPatchRequest signals that all chunks have been sent
+type FinalizeChunkedPatchRequest struct {
+	SessionID string `json:"sessionId"`
+}
+
+// ApplyPatchesResult contains the result of applying patches.
+type ApplyPatchesResult struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+	// Applied contains the list of patch types that were successfully applied
+	Applied []string `json:"applied,omitempty"`
+	// FilesAffected is the total number of files modified
+	FilesAffected int `json:"filesAffected,omitempty"`
+}

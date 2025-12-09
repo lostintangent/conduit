@@ -4,6 +4,7 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -696,4 +697,148 @@ func FindGitRoot(startPath string) (string, error) {
 	}
 
 	return "", fmt.Errorf("not a git repository: %s", startPath)
+}
+
+// ============================================================================
+// Patch Operations
+// ============================================================================
+
+// ApplyPatches applies staged, unstaged, and untracked patches atomically.
+// Each patch is expected to be base64-encoded diff content.
+// The operation preserves staging state: staged patches are applied and staged,
+// unstaged patches remain in working tree only, untracked files stay untracked.
+func (p *Provider) ApplyPatches(request *types.ApplyPatchesRequest) (*types.ApplyPatchesResult, error) {
+	result := &types.ApplyPatchesResult{
+		Success: false,
+		Applied: []string{},
+	}
+
+	var totalFilesAffected int
+
+	// Helper to write patch to temp file
+	writePatch := func(name string, base64Content string) (string, error) {
+		decoded, err := base64Decode(base64Content)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode %s patch: %w", name, err)
+		}
+		
+		tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("conduit-%s-%d.patch", name, time.Now().UnixNano()))
+		if err := os.WriteFile(tmpFile, decoded, 0644); err != nil {
+			return "", fmt.Errorf("failed to write %s patch: %w", name, err)
+		}
+		return tmpFile, nil
+	}
+
+	// Helper to count files in a patch using git apply --numstat
+	countPatchFiles := func(patchPath string) (int, []string, error) {
+		output, err := p.runGit("apply", "--numstat", patchPath)
+		if err != nil {
+			return 0, nil, nil // Not a fatal error, just can't count
+		}
+		
+		var files []string
+		scanner := bufio.NewScanner(strings.NewReader(output))
+		for scanner.Scan() {
+			parts := strings.Split(scanner.Text(), "\t")
+			if len(parts) >= 3 {
+				files = append(files, parts[2])
+			}
+		}
+		return len(files), files, nil
+	}
+
+	// Helper to clean up temp files
+	var tempFiles []string
+	defer func() {
+		for _, f := range tempFiles {
+			os.Remove(f)
+		}
+	}()
+
+	// Apply staged patch first (apply + stage affected files)
+	if request.Staged != "" {
+		patchPath, err := writePatch("staged", request.Staged)
+		if err != nil {
+			result.Error = err.Error()
+			return result, nil
+		}
+		tempFiles = append(tempFiles, patchPath)
+
+		// Get files that will be affected
+		count, files, _ := countPatchFiles(patchPath)
+		
+		// Apply the patch
+		if _, err := p.runGit("apply", patchPath); err != nil {
+			result.Error = fmt.Sprintf("failed to apply staged patch: %v", err)
+			return result, nil
+		}
+
+		// Stage the affected files
+		if len(files) > 0 {
+			args := append([]string{"add", "--"}, files...)
+			if _, err := p.runGit(args...); err != nil {
+				result.Error = fmt.Sprintf("failed to stage files after applying staged patch: %v", err)
+				return result, nil
+			}
+		}
+
+		result.Applied = append(result.Applied, "staged")
+		totalFilesAffected += count
+	}
+
+	// Apply unstaged patch (working tree only, no staging)
+	if request.Unstaged != "" {
+		patchPath, err := writePatch("unstaged", request.Unstaged)
+		if err != nil {
+			result.Error = err.Error()
+			return result, nil
+		}
+		tempFiles = append(tempFiles, patchPath)
+
+		count, _, _ := countPatchFiles(patchPath)
+
+		if _, err := p.runGit("apply", patchPath); err != nil {
+			result.Error = fmt.Sprintf("failed to apply unstaged patch: %v", err)
+			return result, nil
+		}
+
+		result.Applied = append(result.Applied, "unstaged")
+		totalFilesAffected += count
+	}
+
+	// Apply untracked patch (new files, stay untracked)
+	if request.Untracked != "" {
+		patchPath, err := writePatch("untracked", request.Untracked)
+		if err != nil {
+			result.Error = err.Error()
+			return result, nil
+		}
+		tempFiles = append(tempFiles, patchPath)
+
+		count, _, _ := countPatchFiles(patchPath)
+
+		if _, err := p.runGit("apply", patchPath); err != nil {
+			result.Error = fmt.Sprintf("failed to apply untracked patch: %v", err)
+			return result, nil
+		}
+
+		result.Applied = append(result.Applied, "untracked")
+		totalFilesAffected += count
+	}
+
+	result.Success = true
+	result.FilesAffected = totalFilesAffected
+	return result, nil
+}
+
+// base64Decode decodes a base64 string to bytes.
+// Supports both standard and URL-safe base64 encoding.
+func base64Decode(s string) ([]byte, error) {
+	// Try standard base64 first
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err == nil {
+		return decoded, nil
+	}
+	// Try URL-safe base64
+	return base64.URLEncoding.DecodeString(s)
 }
