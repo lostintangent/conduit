@@ -178,6 +178,29 @@ export class FileSystemProviderService {
       if (existing.disposeTimer) {
         clearTimeout(existing.disposeTimer);
         existing.disposeTimer = undefined;
+
+        // Re-establish git integration that was released during grace period
+        if (!existing.fileChangeDisposable) {
+          existing.fileChangeDisposable =
+            existing.provider.onFileContentChanged((event) => {
+              GitProviderService.getInstance()
+                .notifyFileChanged(event.path)
+                .catch(() => {
+                  // Silently ignore errors - git notification is best-effort
+                });
+            });
+        }
+        if (!existing.gitRoot) {
+          // Re-acquire GitProvider reference
+          GitProviderService.getInstance()
+            .getProvider(normalizedPath)
+            .then((result) => {
+              existing.gitRoot = result.gitRoot;
+            })
+            .catch(() => {
+              // Not in a git repo - no git integration needed
+            });
+        }
       }
 
       // Increment reference count
@@ -280,6 +303,22 @@ export class FileSystemProviderService {
     entry.refCount--;
 
     if (entry.refCount <= 0) {
+      // Immediately dispose the file change subscription to stop forwarding
+      // file changes to GitProviderService during the grace period.
+      // This prevents "ghost" git notifications while the provider awaits disposal.
+      if (entry.fileChangeDisposable) {
+        entry.fileChangeDisposable.dispose();
+        entry.fileChangeDisposable = undefined;
+      }
+
+      // Also release the GitProvider reference immediately, since we're no longer
+      // forwarding file changes to it. This allows the GitProvider to enter its
+      // own grace period if no other consumers hold references.
+      if (entry.gitRoot) {
+        GitProviderService.getInstance().releaseProvider(entry.gitRoot);
+        entry.gitRoot = undefined;
+      }
+
       // Start grace period timer
       entry.disposeTimer = setTimeout(() => {
         this.disposeProvider(normalizedPath);

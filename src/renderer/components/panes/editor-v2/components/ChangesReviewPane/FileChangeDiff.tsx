@@ -13,6 +13,7 @@
  * <FileChangeDiff
  *   filePath="src/components/Button.tsx"
  *   cwd="/project"
+ *   git={git}
  *   status={{ path: "src/components/Button.tsx", status: "modified", staged: false }}
  *   isExpanded={true}
  *   onToggle={() => setExpanded(!expanded)}
@@ -30,7 +31,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
-import { useGitV2 } from "@/hooks/useGitV2";
+import type { GitV2API } from "@/api/GitV2API";
 import { DiffEditorWrapper } from "../EditorViewPanel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
@@ -42,6 +43,9 @@ export interface FileChangeDiffProps {
 
   /** Working directory */
   cwd: string;
+
+  /** Git API instance (shared from parent) */
+  git: GitV2API;
 
   /** Git status for this file */
   status: GitFileStatus;
@@ -65,13 +69,12 @@ const DIFF_HEIGHT = 300;
 export function FileChangeDiff({
   filePath,
   cwd,
+  git,
   status,
   baseBranch,
   isExpanded,
   onToggle,
 }: FileChangeDiffProps) {
-  const git = useGitV2(cwd);
-
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
   }, [filePath]);

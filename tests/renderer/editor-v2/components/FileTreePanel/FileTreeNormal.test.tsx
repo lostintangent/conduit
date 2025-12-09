@@ -9,35 +9,27 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 // Mocks - MUST BE BEFORE COMPONENT IMPORT
 // ============================================================================
 
-// Mock useFileSystemV2 hook - use stable references
+// Mock fs API - use stable references
 const mockReadDirectory = vi.fn();
 const mockOnDirectoryListingChanged = vi.fn();
 
-// Create stable API object
-const stableFSAPI = {
+// Create stable fs API object (passed as prop)
+const mockFsAPI = {
   readDirectory: mockReadDirectory,
   onDirectoryListingChanged: mockOnDirectoryListingChanged,
 };
 
-vi.mock("@/hooks/useFileSystemV2", () => ({
-  useFileSystemV2: () => stableFSAPI,
-}));
-
-// Mock useGitV2 hook - use stable references
+// Mock git API - use stable references
 const mockGetStatus = vi.fn();
 const mockOnStatusChanged = vi.fn();
 const mockWhenReady = vi.fn().mockResolvedValue(undefined);
 
-// Create stable API object
-const stableGitAPI = {
+// Create stable git API object (passed as prop)
+const mockGitAPI = {
   getStatus: mockGetStatus,
   onStatusChanged: mockOnStatusChanged,
   whenReady: mockWhenReady,
 };
-
-vi.mock("@/hooks/useGitV2", () => ({
-  useGitV2: () => stableGitAPI,
-}));
 
 // Mock useGitAvailable hook
 vi.mock("@/hooks/useGitAvailable", () => ({
@@ -117,6 +109,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -130,6 +124,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -150,6 +146,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -165,6 +163,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -186,6 +186,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -211,6 +213,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -240,6 +244,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={selectedFile}
           onFileSelect={mockOnFileSelect}
         />,
@@ -264,6 +270,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -292,6 +300,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -316,6 +326,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -340,6 +352,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -355,6 +369,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -375,6 +391,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -403,6 +421,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -418,6 +438,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -439,6 +461,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -454,6 +478,8 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          fs={mockFsAPI as any}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,

@@ -23,9 +23,9 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
-import { useGitV2 } from "@/hooks/useGitV2";
 import { useScrollPersistence, useExpandedPaths } from "../../hooks";
+import type { FileSystemV2API } from "@/api/FileSystemV2API";
+import type { GitV2API } from "@/api/GitV2API";
 import { pathsEqual, getParentPaths, normalizePathForKey } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
@@ -39,6 +39,12 @@ export interface FileTreeNormalProps {
 
   /** Working directory (root of the tree) */
   cwd: string;
+
+  /** FileSystem API instance (shared from parent) */
+  fs: FileSystemV2API;
+
+  /** Git API instance (shared from parent) */
+  git: GitV2API;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
@@ -92,6 +98,8 @@ function getRelativePath(fullPath: string, cwd: string): string {
 export function FileTreeNormal({
   paneId,
   cwd,
+  fs,
+  git,
   selectedFile,
   onFileSelect,
   onDirectoryChange,
@@ -99,10 +107,6 @@ export function FileTreeNormal({
 }: FileTreeNormalProps) {
   // Whether parent is providing git status (we skip internal fetching)
   const hasParentStatus = gitStatusFromParent !== undefined;
-
-  // APIs
-  const fs = useFileSystemV2(cwd);
-  const git = useGitV2(cwd);
 
   // Callback ref for scroll persistence across DOM moves
   const scrollContainerRef = useScrollPersistence(paneId, "fileTree");

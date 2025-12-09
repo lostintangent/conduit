@@ -18,6 +18,7 @@
  * ```tsx
  * <ChangesReviewPane
  *   cwd="/project"
+ *   git={git}
  *   baseBranch="main"
  * />
  * ```
@@ -33,7 +34,7 @@ import {
   X,
 } from "lucide-react";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
-import { useGitV2 } from "@/hooks/useGitV2";
+import type { GitV2API } from "@/api/GitV2API";
 import { FileChangeDiff } from "./FileChangeDiff";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
@@ -41,6 +42,9 @@ import { cn } from "@/utils";
 export interface ChangesReviewPaneProps {
   /** Working directory */
   cwd: string;
+
+  /** Git API instance (shared from parent) */
+  git: GitV2API;
 
   /** Git ref for original content comparison (default: 'HEAD') */
   baseBranch?: string;
@@ -167,9 +171,11 @@ function CommitForm({ stagedCount, onCommit, isCommitting }: CommitFormProps) {
 /**
  * Multi-file changes review pane with inline diffs and commit UI.
  */
-export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
-  const git = useGitV2(cwd);
-
+export function ChangesReviewPane({
+  cwd,
+  git,
+  baseBranch,
+}: ChangesReviewPaneProps) {
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
@@ -394,6 +400,7 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
                     key={path}
                     filePath={path}
                     cwd={cwd}
+                    git={git}
                     status={status}
                     baseBranch={baseBranch}
                     isExpanded={expandedFiles.has(path)}
@@ -421,6 +428,7 @@ export function ChangesReviewPane({ cwd, baseBranch }: ChangesReviewPaneProps) {
                     key={path}
                     filePath={path}
                     cwd={cwd}
+                    git={git}
                     status={status}
                     baseBranch={baseBranch}
                     isExpanded={expandedFiles.has(path)}

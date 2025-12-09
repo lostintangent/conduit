@@ -41,11 +41,8 @@ export function usePackageJsonScripts(cwd: string | undefined) {
           try {
             const packageJsonPath = path.join(currentDir, "package.json");
 
-            // Try to read the file (fsv2.readFile requires absolute path as second param)
-            const content = await window.conduit.fsv2.readFile(
-              currentDir,
-              packageJsonPath,
-            );
+            // fsv2.readFile is now lightweight (no watcher creation)
+            const content = await window.conduit.fsv2.readFile(packageJsonPath);
             const text = new TextDecoder().decode(content);
             const packageJson: PackageJson = JSON.parse(text);
 

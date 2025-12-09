@@ -14,7 +14,7 @@
  * @example
  * ```tsx
  * <BranchSelector
- *   cwd="/project"
+ *   git={git}
  *   baseBranch={baseBranch}
  *   onBaseBranchChange={setBaseBranch}
  * />
@@ -23,8 +23,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { GitBranch, X, ChevronDown, AlertCircle } from "lucide-react";
-import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
+import type { GitV2API } from "@/api/GitV2API";
 import type { GitBranch as GitBranchType } from "@/../../src/ipc/gitv2/types";
 import {
   Tooltip,
@@ -34,8 +34,8 @@ import {
 import { cn } from "@/utils";
 
 export interface BranchSelectorProps {
-  /** Working directory */
-  cwd: string;
+  /** Git API instance (shared from parent) */
+  git: GitV2API;
 
   /** Currently selected base branch for comparison (null = no comparison) */
   baseBranch: string | null;
@@ -48,13 +48,12 @@ export interface BranchSelectorProps {
  * Branch selector dropdown for comparison mode.
  */
 export function BranchSelector({
-  cwd,
+  git,
   baseBranch,
   onBaseBranchChange,
 }: BranchSelectorProps) {
   const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
     useGitAvailable();
-  const git = useGitV2(cwd);
 
   // State
   const [branches, setBranches] = useState<GitBranchType[]>([]);

@@ -10,7 +10,7 @@ import { FileTreeChanges } from "../../../../../src/renderer/components/panes/ed
 // Mocks
 // ============================================================================
 
-// Mock useGitV2 hook
+// Mock git API (passed as prop)
 const mockGetStatus = vi.fn();
 const mockOnStatusChanged = vi.fn();
 const mockStage = vi.fn();
@@ -18,16 +18,14 @@ const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
 const mockWhenReady = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("@/hooks/useGitV2", () => ({
-  useGitV2: () => ({
-    getStatus: mockGetStatus,
-    onStatusChanged: mockOnStatusChanged,
-    stage: mockStage,
-    unstage: mockUnstage,
-    revert: mockRevert,
-    whenReady: mockWhenReady,
-  }),
-}));
+const mockGitAPI = {
+  getStatus: mockGetStatus,
+  onStatusChanged: mockOnStatusChanged,
+  stage: mockStage,
+  unstage: mockUnstage,
+  revert: mockRevert,
+  whenReady: mockWhenReady,
+};
 
 // Mock useGitAvailable hook
 vi.mock("@/hooks/useGitAvailable", () => ({
@@ -125,6 +123,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -138,6 +137,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -153,6 +153,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -176,6 +177,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -199,6 +201,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -217,6 +220,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -237,6 +241,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -256,6 +261,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -273,6 +279,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -299,6 +306,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -330,6 +338,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -374,6 +383,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -403,6 +413,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={selectedFile}
           onFileSelect={mockOnFileSelect}
         />,
@@ -427,6 +438,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -451,6 +463,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -478,6 +491,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -514,6 +528,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -536,6 +551,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -569,6 +585,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -590,6 +607,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -614,6 +632,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -641,6 +660,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -659,6 +679,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -677,6 +698,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -701,6 +723,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -719,6 +742,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -746,6 +770,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -778,6 +803,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -810,6 +836,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -864,6 +891,7 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
+          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,

@@ -150,7 +150,7 @@ export class FileSystemV2API {
    */
   async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readDirectory(this.cwd, dirPath);
+    return window.conduit.fsv2.readDirectory(dirPath);
   }
 
   /**
@@ -163,7 +163,7 @@ export class FileSystemV2API {
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readFile(this.cwd, filePath);
+    return window.conduit.fsv2.readFile(filePath);
   }
 
   /**
@@ -191,7 +191,7 @@ export class FileSystemV2API {
    */
   async stat(path: string): Promise<FileStat> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.stat(this.cwd, path);
+    return window.conduit.fsv2.stat(path);
   }
 
   /**
@@ -203,7 +203,7 @@ export class FileSystemV2API {
    */
   async exists(path: string): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.exists(this.cwd, path);
+    return window.conduit.fsv2.exists(path);
   }
 
   // ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ export class FileSystemV2API {
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.writeFile(this.cwd, filePath, content);
+    return window.conduit.fsv2.writeFile(filePath, content);
   }
 
   /**
@@ -251,7 +251,7 @@ export class FileSystemV2API {
    */
   async delete(path: string, options?: DeleteOptions): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.delete(this.cwd, path, options);
+    return window.conduit.fsv2.delete(path, options);
   }
 
   /**
@@ -264,7 +264,7 @@ export class FileSystemV2API {
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.rename(this.cwd, oldPath, newPath);
+    return window.conduit.fsv2.rename(oldPath, newPath);
   }
 
   /**
@@ -278,7 +278,7 @@ export class FileSystemV2API {
    */
   async createDirectory(dirPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.createDirectory(this.cwd, dirPath);
+    return window.conduit.fsv2.createDirectory(dirPath);
   }
 
   // ---------------------------------------------------------------------------
@@ -379,19 +379,9 @@ export class FileSystemV2API {
     this.ensureSubscribed();
 
     this.globalFileListeners.add(callback);
-    console.log(
-      "[FileSystemV2API] Added global file listener, total count:",
-      this.globalFileListeners.size,
-      "subscriptionId:",
-      this.subscriptionId,
-    );
 
     return () => {
       this.globalFileListeners.delete(callback);
-      console.log(
-        "[FileSystemV2API] Removed global file listener, remaining count:",
-        this.globalFileListeners.size,
-      );
     };
   }
 
@@ -587,25 +577,9 @@ export class FileSystemV2API {
     this.ipcCleanups.push(
       window.conduit.fsv2.onFileContentChanged(
         (payload: FileContentChangedPayload) => {
-          console.log(
-            "[FileSystemV2API] Received file content changed event:",
-            payload,
-            "mySubscriptionId:",
-            this.subscriptionId,
-          );
           if (payload.subscriptionId !== this.subscriptionId) {
-            console.log(
-              "[FileSystemV2API] Ignoring event - subscriptionId mismatch",
-            );
             return;
           }
-
-          console.log(
-            "[FileSystemV2API] Processing file change for path:",
-            payload.path,
-            "globalListeners count:",
-            this.globalFileListeners.size,
-          );
 
           // Notify path-specific listeners (use normalized key for lookup)
           const fileKey = normalizePathForKey(payload.path);
@@ -626,10 +600,6 @@ export class FileSystemV2API {
           // Notify global listeners
           for (const callback of this.globalFileListeners) {
             try {
-              console.log(
-                "[FileSystemV2API] Calling global listener with path:",
-                payload.path,
-              );
               callback(payload.path);
             } catch (error) {
               console.error(
@@ -754,8 +724,7 @@ export class FileSystemV2API {
         this.subscriptionId = id;
         this.subscriptionPromise = null;
       })
-      .catch((error: unknown) => {
-        console.error("[FileSystemV2API] Failed to subscribe:", error);
+      .catch(() => {
         this.subscriptionPromise = null;
       });
   }

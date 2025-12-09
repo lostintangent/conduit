@@ -42,8 +42,8 @@ describe("usePackageJsonScripts", () => {
       },
     };
 
-    // Mock expects (cwd, absolutePath) - the hook now passes absolute path
-    mockReadFile.mockImplementation((cwd, filePath) => {
+    // readFile only takes filePath (no cwd)
+    mockReadFile.mockImplementation((filePath) => {
       if (filePath === "/path/to/project/package.json") {
         return Promise.resolve(
           new TextEncoder().encode(JSON.stringify(mockPackageJson)),
@@ -74,7 +74,7 @@ describe("usePackageJsonScripts", () => {
     };
 
     // Mock implementation that fails for subdir but succeeds for parent
-    mockReadFile.mockImplementation((cwd, filePath) => {
+    mockReadFile.mockImplementation((filePath) => {
       // Fail for /path/to/project/subdir/package.json
       if (filePath === "/path/to/project/subdir/package.json") {
         return Promise.reject(new Error("File not found"));

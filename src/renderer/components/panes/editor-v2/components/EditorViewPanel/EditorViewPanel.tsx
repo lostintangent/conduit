@@ -31,6 +31,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorActions, useModelState } from "../../hooks";
 import { MonacoModelRegistry, pathToUri } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
+import type { GitV2API } from "@/api/GitV2API";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
@@ -52,6 +53,9 @@ export interface EditorViewPanelProps {
 
   /** Working directory for file operations */
   cwd: string;
+
+  /** Git API instance (shared from parent) */
+  git?: GitV2API;
 
   /** Currently selected file (null for empty state) */
   selectedFile: FileNode | null;
@@ -101,6 +105,7 @@ export interface EditorViewPanelProps {
 export function EditorViewPanel({
   editorId,
   cwd,
+  git,
   selectedFile,
   viewMode,
   baseBranch = "HEAD",
@@ -442,9 +447,9 @@ export function EditorViewPanel({
               onMount={handleDiffEditorMount}
             />
           </EditorErrorBoundary>
-        ) : viewMode.type === "changesReview" ? (
+        ) : viewMode.type === "changesReview" && git ? (
           // Changes review pane
-          <ChangesReviewPane cwd={cwd} baseBranch={baseBranch} />
+          <ChangesReviewPane cwd={cwd} git={git} baseBranch={baseBranch} />
         ) : null}
       </div>
     </div>

@@ -413,40 +413,21 @@ export class GitProviderService {
    * @param filePath - The absolute path to the changed file
    */
   async notifyFileChanged(filePath: string): Promise<void> {
-    console.log(
-      "[GitProviderService] notifyFileChanged called with:",
-      filePath,
-    );
     const gitRoot = await this.findGitRoot(filePath);
 
     if (!gitRoot) {
-      // File is not in a git repository
-      console.log("[GitProviderService] File not in a git repository");
+      // File is not in a git repository - silently ignore
       return;
     }
 
     const normalizedRoot = this.normalizePath(gitRoot);
-    console.log(
-      "[GitProviderService] gitRoot:",
-      gitRoot,
-      "normalizedRoot:",
-      normalizedRoot,
-    );
-    console.log(
-      "[GitProviderService] Provider keys:",
-      Array.from(this.providers.keys()),
-    );
     const entry = this.providers.get(normalizedRoot);
 
     if (entry) {
       // Provider exists for this repo, trigger status refresh
-      console.log(
-        "[GitProviderService] Found provider, triggering status refresh",
-      );
       entry.provider.triggerStatusRefresh();
-    } else {
-      console.log("[GitProviderService] No provider found for normalizedRoot");
     }
+    // Silently ignore files in repos without active providers
   }
 
   /**

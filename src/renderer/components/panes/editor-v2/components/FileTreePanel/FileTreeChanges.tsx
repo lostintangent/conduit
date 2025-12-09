@@ -35,8 +35,8 @@ import {
   Folder,
   FolderOpen,
 } from "lucide-react";
-import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
+import type { GitV2API } from "@/api/GitV2API";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
 import { pathsEqual, getParentPaths } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
@@ -50,6 +50,9 @@ export interface FileTreeChangesProps {
 
   /** Working directory */
   cwd: string;
+
+  /** Git API instance (shared from parent) */
+  git: GitV2API;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
@@ -699,13 +702,13 @@ interface OptimisticUpdate {
  * Hook to manage git status loading, subscriptions, and optimistic updates.
  * Optimistic updates provide immediate UI feedback while git operations complete.
  *
+ * @param git - Git API instance (shared from parent)
  * @param cwd - Working directory
  * @param skip - If true, skip all fetching and subscriptions (for when parent provides status)
  */
-function useGitStatus(cwd: string, skip = false) {
+function useGitStatus(git: GitV2API, cwd: string, skip = false) {
   const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
     useGitAvailable();
-  const git = useGitV2(cwd);
 
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [isLoading, setIsLoading] = useState(!skip);
@@ -834,7 +837,6 @@ function useGitStatus(cwd: string, skip = false) {
   }, [gitStatus, optimisticUpdates]);
 
   return {
-    git,
     gitStatus: effectiveGitStatus,
     isLoading,
     isNotGitRepo,
@@ -859,6 +861,7 @@ function useGitStatus(cwd: string, skip = false) {
 export function FileTreeChanges({
   paneId,
   cwd,
+  git,
   selectedFile,
   onFileSelect,
   viewMode = "flat",
@@ -885,7 +888,6 @@ export function FileTreeChanges({
   // Internal git status hook - only used when parent doesn't provide status
   // Note: Hook always runs (React rules), but we ignore results when parent provides status
   const {
-    git,
     gitStatus: gitStatusFromHook,
     isLoading: isLoadingInternal,
     isNotGitRepo,
@@ -893,7 +895,7 @@ export function FileTreeChanges({
     isCheckingGit,
     applyOptimisticUpdate,
     revertOptimisticUpdate,
-  } = useGitStatus(cwd, hasParentStatus);
+  } = useGitStatus(git, cwd, hasParentStatus);
 
   // Use parent's status when provided, otherwise use internal hook
   const gitStatus = hasParentStatus

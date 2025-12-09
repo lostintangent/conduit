@@ -38,17 +38,13 @@ function renderWithProviders(ui: React.ReactElement) {
 // Mocks
 // ============================================================================
 
-// Mock useGitV2 hook
+// Mock git API (passed as prop)
 const mockGitApi = {
   getBranches: vi.fn(),
   getCurrentBranch: vi.fn(),
   onBranchChanged: vi.fn(),
   whenReady: vi.fn(),
 };
-
-vi.mock("@/hooks/useGitV2", () => ({
-  useGitV2: () => mockGitApi,
-}));
 
 // Mock useGitAvailable hook
 vi.mock("@/hooks/useGitAvailable", () => ({
@@ -73,7 +69,7 @@ const mockBranches = [
 
 describe("BranchSelector", () => {
   const defaultProps = {
-    cwd: "/test/project",
+    git: mockGitApi as any,
     baseBranch: null,
     onBaseBranchChange: vi.fn(),
   };

@@ -21,7 +21,7 @@ import type {
 // Mocks
 // ============================================================================
 
-// Mock useGitV2 hook
+// Mock git API (passed as prop)
 const mockGetStatus = vi.fn();
 const mockOnStatusChanged = vi.fn();
 const mockStage = vi.fn();
@@ -29,19 +29,17 @@ const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
 const mockCommit = vi.fn();
 
-vi.mock("../../../../../src/renderer/hooks/useGitV2", () => ({
-  useGitV2: () => ({
-    whenReady: vi.fn().mockResolvedValue(undefined),
-    getStatus: mockGetStatus,
-    onStatusChanged: mockOnStatusChanged,
-    stage: mockStage,
-    unstage: mockUnstage,
-    revert: mockRevert,
-    commit: mockCommit,
-    getFileContent: vi.fn(),
-    getOriginalContent: vi.fn(),
-  }),
-}));
+const mockGitApi = {
+  whenReady: vi.fn().mockResolvedValue(undefined),
+  getStatus: mockGetStatus,
+  onStatusChanged: mockOnStatusChanged,
+  stage: mockStage,
+  unstage: mockUnstage,
+  revert: mockRevert,
+  commit: mockCommit,
+  getFileContent: vi.fn(),
+  getOriginalContent: vi.fn(),
+};
 
 // Mock DiffEditorWrapper - we don't need to test the actual diff editor
 vi.mock(
@@ -104,6 +102,7 @@ describe("FileChangeDiff", () => {
   const defaultProps = {
     filePath: "src/test.ts",
     cwd: TEST_CWD,
+    git: mockGitApi as any,
     status: { path: "src/test.ts", status: "modified" as const, staged: false },
     isExpanded: false,
     onToggle: vi.fn(),
@@ -288,7 +287,7 @@ describe("ChangesReviewPane", () => {
     it("should show loading state initially", async () => {
       mockGetStatus.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       expect(screen.getByTestId("changes-review-pane-loading")).toBeDefined();
     });
@@ -298,7 +297,7 @@ describe("ChangesReviewPane", () => {
     it("should show empty state when no changes", async () => {
       mockGetStatus.mockResolvedValue(createMockStatus([]));
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane-empty")).toBeDefined();
@@ -316,7 +315,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -336,7 +335,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("staged-section")).toBeDefined();
@@ -357,7 +356,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -382,7 +381,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -411,7 +410,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -441,7 +440,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -475,7 +474,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("staged-section")).toBeDefined();
@@ -502,7 +501,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -522,7 +521,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -544,7 +543,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("commit-form")).toBeDefined();
@@ -561,7 +560,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("commit-form")).toBeDefined();
@@ -578,7 +577,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("commit-form")).toBeDefined();
@@ -595,7 +594,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("commit-form")).toBeDefined();
@@ -617,7 +616,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("commit-form")).toBeDefined();
@@ -646,7 +645,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("commit-form")).toBeDefined();
@@ -671,7 +670,7 @@ describe("ChangesReviewPane", () => {
     it("should subscribe to git status changes", async () => {
       mockGetStatus.mockResolvedValue(createMockStatus([]));
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(mockOnStatusChanged).toHaveBeenCalled();
@@ -694,7 +693,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       // Wait for component to render
       await waitFor(() => {
@@ -719,7 +718,7 @@ describe("ChangesReviewPane", () => {
       );
       mockStage.mockRejectedValue(new Error("Stage failed"));
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -748,7 +747,7 @@ describe("ChangesReviewPane", () => {
       );
       mockCommit.mockRejectedValue(new Error("Commit failed"));
 
-      render(<ChangesReviewPane cwd={TEST_CWD} />);
+      render(<ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("commit-form")).toBeDefined();

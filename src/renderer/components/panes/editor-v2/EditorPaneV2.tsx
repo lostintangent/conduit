@@ -915,6 +915,8 @@ export function EditorPaneV2({
         <FileTreePanel
           paneId={pane.id}
           cwd={currentCwd}
+          fs={fs}
+          git={git}
           selectedFile={selectedFile}
           onFileSelect={handleFileSelect}
           treeViewMode={treeViewMode}
@@ -971,6 +973,7 @@ export function EditorPaneV2({
         <EditorViewPanel
           editorId={editorId}
           cwd={currentCwd}
+          git={git}
           selectedFile={selectedFile}
           viewMode={viewMode}
           baseBranch={baseBranch ?? undefined}
