@@ -24,6 +24,8 @@ const config: ForgeConfig = {
     ],
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",
+    // Support building for specific architectures via environment variable
+    arch: (process.env.npm_config_arch as any) || undefined,
     osxSign: process.env.CONDUIT_APPLE_ID_PASSWORD
       ? {
           identity: "Developer ID Application: Jonathan Carter (RHFNBL7EG4)",
