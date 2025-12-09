@@ -53,7 +53,6 @@ describe("useHyperTerminals", () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
     // Clean up after each test
     store.set(hyperTerminalsAtom, []);
   });
