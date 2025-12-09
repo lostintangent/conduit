@@ -1,27 +1,26 @@
 import { browserAutomate } from "@/cli/browser";
+import { isHyperTerminal } from "@/store/actions/hyperTerminal";
 import type { Tab, TerminalPane } from "@/types";
 import type { WebviewTag } from "electron";
 
-export type PaneResolutionContext = {
+export type CliRequestContext = {
   tabs: Tab[];
   sessionId: string;
   activeTab?: Tab;
-  hyperTerminals?: Array<{ terminalId: string }>;
 };
 
 export function findCallingTerminalTab({
   tabs,
   sessionId,
-  hyperTerminals,
   activeTab,
-}: PaneResolutionContext): Tab {
+}: CliRequestContext): Tab {
   let matchingTab = tabs.find((tab) =>
     Object.values(tab.panes).some(
       (pane) => pane.type === "terminal" && pane.sessionId === sessionId,
     ),
   );
 
-  if (!matchingTab && hyperTerminals?.some((t) => t.terminalId === sessionId)) {
+  if (!matchingTab && isHyperTerminal(sessionId)) {
     matchingTab = activeTab ?? undefined;
   }
 
@@ -33,7 +32,7 @@ export function findCallingTerminalTab({
 }
 
 export function resolveBrowserPane(
-  context: PaneResolutionContext,
+  context: CliRequestContext,
   paneId?: string,
 ): { paneId: string; webview: WebviewTag } {
   const findBrowserPane = () => {
@@ -62,11 +61,11 @@ export function resolveBrowserPane(
 }
 
 export function resolveTerminalSessions(
-  context: PaneResolutionContext,
+  context: CliRequestContext,
   paneId?: string,
   all?: boolean,
 ): string[] {
-  const { sessionId, hyperTerminals } = context;
+  const { sessionId } = context;
   const matchingTab = findCallingTerminalTab(context);
 
   const getOtherTerminalPanes = () =>
@@ -74,11 +73,9 @@ export function resolveTerminalSessions(
       ([, pane]) => pane.type === "terminal" && pane.sessionId !== sessionId,
     ) as [string, TerminalPane][];
 
-  const isHyperTerminal = hyperTerminals?.some(
-    (t) => t.terminalId === sessionId,
-  );
+  const callerIsHyperTerminal = isHyperTerminal(sessionId);
 
-  if (all || (isHyperTerminal && !paneId)) {
+  if (all || (callerIsHyperTerminal && !paneId)) {
     const terminalPanes = getOtherTerminalPanes();
 
     if (terminalPanes.length === 0) {
@@ -109,7 +106,7 @@ export function resolveTerminalSessions(
 type BrowserAutomationCommand = Parameters<typeof browserAutomate>[0];
 
 export async function automateBrowser<T extends BrowserAutomationCommand>(
-  context: PaneResolutionContext,
+  context: CliRequestContext,
   command: T,
   args: Parameters<typeof browserAutomate<T>>[1],
 ) {
@@ -124,7 +121,7 @@ export async function automateBrowser<T extends BrowserAutomationCommand>(
 }
 
 export function executeWebviewAction(
-  context: PaneResolutionContext,
+  context: CliRequestContext,
   paneId: string | undefined,
   action: (webview: WebviewTag) => void,
 ) {

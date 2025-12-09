@@ -1,3 +1,4 @@
+import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
 import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
@@ -39,17 +40,18 @@ import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
 import {
+  closeHyperTerminal,
+  handleHyperTerminalExit,
+  maximizeHyperTerminal,
+  moveHyperTerminalToTab,
+  openHyperTerminal,
+} from "@/store/actions/hyperTerminal";
+import {
   dismissNotification,
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import {
-  openBrowserPane,
-  removePane,
-  splitPane,
-  openEditorPane,
-} from "@/store/actions/pane";
-import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
+import { openBrowserPane, removePane } from "@/store/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -69,9 +71,9 @@ import {
 import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
-import { useAtom, useAtomValue, useSetAtom, getDefaultStore } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { getDefaultStore, useAtom, useAtomValue, useSetAtom } from "jotai";
 import path from "path-browserify";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -81,7 +83,7 @@ export function App() {
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setKeybindings = useSetAtom(keybindingsAtom);
-  const [hyperTerminals, setHyperTerminals] = useAtom(hyperTerminalsAtom);
+  const hyperTerminals = useAtomValue(hyperTerminalsAtom);
 
   const userSettings = useUserSettings();
   const {
@@ -283,15 +285,7 @@ export function App() {
       });
 
       // Handle floating terminal exit
-      setHyperTerminals((draft) => {
-        const index = draft.findIndex((t) => t.terminalId === sessionId);
-        if (index === -1) {
-          return;
-        }
-
-        disposeSession(sessionId);
-        draft.splice(index, 1);
-      });
+      handleHyperTerminalExit(sessionId);
     });
 
     const unsubscribeNotification = api.onShowNotification((payload) => {
@@ -744,87 +738,21 @@ export function App() {
 
         current.onClose?.();
 
-        setHyperTerminals((draft) => {
-          // Prevent duplicate terminals
-          if (!draft.some((t) => t.terminalId === terminalId)) {
-            draft.push({ terminalId, paneId, cwd });
-          }
-        });
+        openHyperTerminal(terminalId, paneId, cwd);
 
         return null;
       });
     },
-    [setHyperTerminals],
-  );
-
-  const handleOpenHyperTerminal = useCallback(
-    (terminalId: string, paneId: string, cwd: string | null) => {
-      // Add a new terminal to the floating overlays array.
-      setHyperTerminals((draft) => {
-        // Prevent duplicate terminals
-        if (!draft.some((t) => t.terminalId === terminalId)) {
-          draft.push({ terminalId, paneId, cwd });
-        }
-      });
-    },
-    [setHyperTerminals],
-  );
-
-  const handleCloseHyperTerminal = useCallback(
-    (terminalId: string) => {
-      setHyperTerminals((draft) => {
-        const index = draft.findIndex((t) => t.terminalId === terminalId);
-        if (index === -1) {
-          return;
-        }
-
-        const terminal = draft[index];
-        api.closeTerminal(terminal.terminalId);
-        disposeSession(terminal.terminalId);
-
-        draft.splice(index, 1);
-      });
-    },
-    [setHyperTerminals],
+    [openHyperTerminal],
   );
 
   const handleMaximizeHyperTerminal = useCallback(
     (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay back to quick dialog.
-      setHyperTerminals((draft) => {
-        const index = draft.findIndex((t) => t.terminalId === terminalId);
-        if (index !== -1) {
-          draft.splice(index, 1);
-        }
-      });
-      setQuickPaneState({
-        type: "terminal",
-        sessionId: terminalId,
-        cwd,
-      });
+      const quickPaneDescriptor = maximizeHyperTerminal(terminalId, cwd);
+      setQuickPaneState(quickPaneDescriptor);
     },
-    [setHyperTerminals, setQuickPaneState],
-  );
-
-  const handleOpenHyperTerminalAsTab = useCallback(
-    async (terminalId: string, cwd: string | null) => {
-      // Transfer terminal from floating overlay to new tab.
-      setHyperTerminals((draft) => {
-        const index = draft.findIndex((t) => t.terminalId === terminalId);
-        if (index !== -1) {
-          draft.splice(index, 1);
-        }
-      });
-
-      const { openTabFromExistingSession } = await import(
-        "@/store/actions/tab"
-      );
-      await openTabFromExistingSession({
-        sessionId: terminalId,
-        cwd,
-      });
-    },
-    [setHyperTerminals],
+    [maximizeHyperTerminal, setQuickPaneState],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -843,7 +771,6 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenHyperTerminal={handleOpenHyperTerminal}
             position={tabPosition}
           />
         )}
@@ -855,7 +782,6 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenHyperTerminal={handleOpenHyperTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -895,7 +821,6 @@ export function App() {
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
             onOpenQuickPane={handleOpenQuickPane}
-            onOpenHyperTerminal={handleOpenHyperTerminal}
             position={tabPosition}
           />
         )}
@@ -907,7 +832,6 @@ export function App() {
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
                 onOpenQuickPane={handleOpenQuickPane}
-                onOpenHyperTerminal={handleOpenHyperTerminal}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -966,18 +890,19 @@ export function App() {
         />
       )}
 
-      {hyperTerminals.map((terminal) => (
+      {hyperTerminals.map((terminal, index) => (
         <HyperTerminal
           key={terminal.terminalId}
           terminalId={terminal.terminalId}
           paneId={terminal.paneId}
           cwd={terminal.cwd}
-          onClose={() => handleCloseHyperTerminal(terminal.terminalId)}
+          index={index}
+          onClose={() => closeHyperTerminal(terminal.terminalId)}
           onMaximize={() =>
             handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
           }
           onOpenAsTab={() =>
-            handleOpenHyperTerminalAsTab(terminal.terminalId, terminal.cwd)
+            moveHyperTerminalToTab(terminal.terminalId, terminal.cwd)
           }
         />
       ))}

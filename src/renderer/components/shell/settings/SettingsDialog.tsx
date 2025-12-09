@@ -70,16 +70,14 @@ export function SettingsDialog({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Settings</h2>
-          </div>
+        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700 flex-shrink-0">
+          <h2 className="text-lg font-semibold text-white">Settings</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded transition-colors"
+            className="p-1.5 hover:bg-white/10 rounded transition-colors"
             title="Close (Esc)"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-4 h-4 text-gray-400" />
           </button>
         </div>
 
