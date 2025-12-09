@@ -7,12 +7,12 @@
  * The container is automatically cleaned up after tests complete.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import WebSocket from "ws";
 import { execSync, spawn } from "child_process";
-import { mkdtempSync, writeFileSync, mkdirSync } from "fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import WebSocket from "ws";
 
 const CONTAINER_NAME = "conduit-sandbox-integration-test";
 const IMAGE_NAME = "conduit-sandbox";
