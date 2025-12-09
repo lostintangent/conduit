@@ -92,7 +92,10 @@ export const TabStrip = ({
     activeTab?.activePaneId !== undefined
       ? activeTab?.panes[activeTab.activePaneId]
       : null;
-  const { homeDirectory, alwaysShowTabs } = useAtomValue(userSettingsAtom);
+  const { homeDirectory, alwaysShowTabs, showLaunchButton, playButtonTarget } =
+    useAtomValue(userSettingsAtom);
+  const shouldShowLaunchButton = showLaunchButton ?? false;
+  const scriptTarget = playButtonTarget ?? "newPane";
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
@@ -810,27 +813,29 @@ export const TabStrip = ({
             </TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="rounded-lg h-8 px-3 inline-flex items-center gap-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-green-700 text-white hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label={launchAgentsCmd.title || "Launch agents"}
-                onClick={launchAgentsCmd.execute}
-                disabled={launchAgentsCmd.disabled || !canLaunchAgents}
-              >
-                <Rocket size={16} />
-                <span>Launch</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {!canLaunchAgents && activePane?.type !== "terminal"
-                ? "Focus a terminal pane to launch agents"
-                : !canLaunchAgents && !isInGitRepo
-                  ? "Navigate to a git repository to launch agents"
-                  : getCommandDisplayTitle(launchAgentsCmd)}
-            </TooltipContent>
-          </Tooltip>
+          {shouldShowLaunchButton && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="rounded-lg h-8 px-3 inline-flex items-center gap-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-green-700 text-white hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label={launchAgentsCmd.title || "Launch agents"}
+                  onClick={launchAgentsCmd.execute}
+                  disabled={launchAgentsCmd.disabled || !canLaunchAgents}
+                >
+                  <Rocket size={16} />
+                  <span>Launch</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {!canLaunchAgents && activePane?.type !== "terminal"
+                  ? "Focus a terminal pane to launch agents"
+                  : !canLaunchAgents && !isInGitRepo
+                    ? "Navigate to a git repository to launch agents"
+                    : getCommandDisplayTitle(launchAgentsCmd)}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 
