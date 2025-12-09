@@ -64,7 +64,8 @@ const config: ForgeConfig = {
     new MakerZIP({}, ["darwin"]),
     new MakerDMG({
       icon: path.resolve(__dirname, "build/assets/icon.icns"),
-      name: "Conduit",
+      // Include architecture in DMG name for clarity
+      name: (arch: string) => `Conduit-${arch}`,
     }),
     new MakerSquirrel({}),
     new MakerRpm({}),
