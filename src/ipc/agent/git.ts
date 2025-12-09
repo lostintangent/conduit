@@ -605,17 +605,24 @@ export async function applyDiffPatch(
       gitApply.stdin.end();
 
       let stderr = "";
+      let cleanedUp = false;
+
+      const cleanup = () => {
+        if (cleanedUp) {
+          return;
+        }
+        cleanedUp = true;
+        gitApply.stderr.removeListener("data", stderrHandler);
+        gitApply.removeListener("close", closeHandler);
+        gitApply.removeListener("error", errorHandler);
+      };
 
       const stderrHandler = (data: Buffer) => {
         stderr += data.toString();
       };
 
       const closeHandler = (code: number | null) => {
-        // Clean up event listeners to prevent memory leaks
-        gitApply.stderr.removeListener("data", stderrHandler);
-        gitApply.removeListener("close", closeHandler);
-        gitApply.removeListener("error", errorHandler);
-
+        cleanup();
         if (code === 0) {
           resolve(true);
         } else {
@@ -625,11 +632,7 @@ export async function applyDiffPatch(
       };
 
       const errorHandler = (error: Error) => {
-        // Clean up event listeners to prevent memory leaks
-        gitApply.stderr.removeListener("data", stderrHandler);
-        gitApply.removeListener("close", closeHandler);
-        gitApply.removeListener("error", errorHandler);
-
+        cleanup();
         console.error("Failed to spawn git apply:", error);
         resolve(false);
       };

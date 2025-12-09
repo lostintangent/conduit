@@ -263,12 +263,12 @@ function setupTerminalListeners(
   });
 
   const onExitDisposable = pty.onExit(async ({ exitCode, signal }) => {
-    // Clean up event listeners first, before removing from store
-    if (terminal.cleanupListeners) {
+    // Clean up onData listener only (not this onExit listener to avoid circular cleanup)
+    if (onDataDisposable) {
       try {
-        terminal.cleanupListeners();
+        onDataDisposable.dispose();
       } catch (error) {
-        console.error("Failed to cleanup terminal listeners on exit", error);
+        console.error("Failed to cleanup onData listener on exit", error);
       }
     }
 
@@ -307,10 +307,26 @@ function setupTerminalListeners(
     });
   });
 
-  // Store cleanup function to dispose event listeners when terminal is killed
+  // Store cleanup function to dispose event listeners when terminal is killed manually
+  // Track if already cleaned up to prevent double-disposal
+  let listenersDisposed = false;
   terminal.cleanupListeners = () => {
-    onDataDisposable.dispose();
-    onExitDisposable.dispose();
+    if (listenersDisposed) {
+      return;
+    }
+    listenersDisposed = true;
+    
+    try {
+      onDataDisposable.dispose();
+    } catch (error) {
+      console.error("Failed to dispose onData listener", error);
+    }
+    
+    try {
+      onExitDisposable.dispose();
+    } catch (error) {
+      console.error("Failed to dispose onExit listener", error);
+    }
   };
 }
 
