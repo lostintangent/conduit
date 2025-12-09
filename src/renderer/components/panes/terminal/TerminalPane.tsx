@@ -6,12 +6,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { exitFocusMode } from "@/store/actions/focusMode";
+import { splitPane } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
-import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import {
+  applicationModeAtom,
+  hyperTerminalsAtom,
+  tabsAtom,
+  userSettingsAtom,
+} from "@/store/atoms";
 import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@/utils/terminalPrompt";
 import { broadcastTerminalInput } from "@/utils/terminalSync";
+import { generateId } from "@shared/utils";
 import { useAtomValue, useSetAtom } from "jotai";
+import { getDefaultStore } from "jotai";
 import { Keyboard } from "lucide-react";
 import React, {
   useCallback,
@@ -23,6 +31,7 @@ import React, {
 import { AgentPanel } from "./AgentPanel";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
+import { RepoScriptsMenu } from "./RepoScriptsMenu";
 import { createFitController } from "./FitController";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 import { attach, getOrCreate, serializeSession } from "./xtermCache";
@@ -30,6 +39,7 @@ import { attach, getOrCreate, serializeSession } from "./xtermCache";
 import "@xterm/xterm/css/xterm.css";
 
 const api = window.conduit;
+const store = getDefaultStore();
 type TerminalInstance = ReturnType<typeof getOrCreate>;
 
 const registerTerminalKeyHandler = ({
@@ -167,7 +177,9 @@ export const TerminalPane = ({
   const { id: paneId, sessionId: terminalId, cwd, cloneOf } = pane;
   const settings = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
+  const setHyperTerminals = useSetAtom(hyperTerminalsAtom);
   const { showTerminalRuler } = settings;
+  const playButtonTarget = settings.playButtonTarget ?? "newPane";
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
 
@@ -414,6 +426,80 @@ export const TerminalPane = ({
     }));
   }, []);
 
+  // Find current tab for script running
+  const currentTab = useMemo(() => {
+    if (!tabId) return undefined;
+    return tabs.find((t) => t.id === tabId);
+  }, [tabs, tabId]);
+
+  // Handler to run npm scripts
+  const handleRunScript = useCallback(
+    async (scriptName: string) => {
+      if (!currentTab) return;
+
+      const command = `npm i && npm run ${scriptName}`;
+
+      try {
+        if (playButtonTarget === "hyper") {
+          // Open in Hyper terminal
+          const result = await api.createTerminal({ cwd: cwd || undefined });
+          if (!result) return;
+
+          // Add the terminal to the hyperTerminals array
+          const newPaneId = generateId();
+          setHyperTerminals((draft) => {
+            // Prevent duplicate terminals
+            if (!draft.some((t) => t.terminalId === result.sessionId)) {
+              draft.push({
+                terminalId: result.sessionId,
+                paneId: newPaneId,
+                cwd: result.cwd ?? null,
+              });
+            }
+          });
+
+          // Wait for terminal to be ready
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // Send the command to the Hyper terminal
+          for (const char of command) {
+            await api.sendKeypress(result.sessionId, char);
+          }
+          // Send Enter key to execute
+          await api.sendKeypress(result.sessionId, "\r");
+        } else {
+          // Split pane to the right (row = horizontal split)
+          await splitPane(currentTab.id, paneId, "row", false, {});
+
+          // Wait a moment for the new pane to be created and ready
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // Get the updated tab to find the new pane
+          const tabs = store.get(tabsAtom);
+          const updatedTab = tabs.find((t) => t.id === currentTab.id);
+          if (!updatedTab) return;
+
+          // Find the most recently created terminal pane (should be the one we just created)
+          const terminalPanes = Object.values(updatedTab.panes).filter(
+            (p) => p.type === "terminal",
+          );
+          const newPane = terminalPanes[terminalPanes.length - 1];
+          if (!newPane || newPane.type !== "terminal") return;
+
+          // Send npm install && npm run command to ensure packages are installed
+          for (const char of command) {
+            await api.sendKeypress(newPane.sessionId, char);
+          }
+          // Send Enter key to execute
+          await api.sendKeypress(newPane.sessionId, "\r");
+        }
+      } catch (error) {
+        console.error("Failed to run npm script:", error);
+      }
+    },
+    [currentTab, cwd, paneId, playButtonTarget, setHyperTerminals],
+  );
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -592,6 +678,11 @@ export const TerminalPane = ({
           terminalRef.current?.setLinkHandler(handler);
         }}
       />
+
+      {/* Repository scripts menu */}
+      <div className="pointer-events-none absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-10">
+        <RepoScriptsMenu cwd={cwd} onRunScript={handleRunScript} />
+      </div>
 
       {/* Cloud terminal SSH connection state overlays */}
       <CloudTerminalOverlay terminalId={sessionId} paneId={paneId} />
