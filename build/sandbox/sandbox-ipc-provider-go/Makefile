@@ -2,16 +2,17 @@
 
 BINARY_NAME=sandbox-ipc
 VERSION?=dev
+BUILD_TIME?=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
 all: build
 
 # Build the binary
 build:
-	go build -ldflags="-w -s" -o $(BINARY_NAME) .
+	go build -ldflags="-w -s -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" -o $(BINARY_NAME) .
 
 # Build with version
 build-version:
-	go build -ldflags="-w -s -X main.version=$(VERSION)" -o $(BINARY_NAME) .
+	go build -ldflags="-w -s -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" -o $(BINARY_NAME) .
 
 # Run the server
 run:

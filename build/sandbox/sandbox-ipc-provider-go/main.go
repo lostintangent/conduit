@@ -13,12 +13,25 @@ import (
 	"syscall"
 )
 
+// Version information - set at build time via -ldflags
+var (
+	version   = "dev"
+	buildTime = "unknown"
+)
+
 func main() {
 	// Parse command-line flags
 	port := flag.Int("port", 3000, "Port to listen on")
 	host := flag.String("host", "0.0.0.0", "Host to bind to")
 	workspace := flag.String("workspace", "", "Workspace directory to serve (defaults to current directory)")
+	showVersion := flag.Bool("version", false, "Show version information")
 	flag.Parse()
+
+	// Handle version flag
+	if *showVersion {
+		fmt.Printf("sandbox-ipc version %s (built %s)\n", version, buildTime)
+		os.Exit(0)
+	}
 
 	// Determine workspace path
 	workspacePath := *workspace
