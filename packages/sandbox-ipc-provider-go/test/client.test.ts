@@ -854,6 +854,64 @@ async function testGitUncommittedDiffStats(): Promise<boolean> {
   }
 }
 
+async function testGitStatusFromBranch(): Promise<boolean> {
+  log("Testing git.statusFromBranch...");
+  try {
+    const result = await sendRequest<{
+      added: string[];
+      modified: string[];
+      deleted: string[];
+    }>("git.statusFromBranch", { baseBranch: "main" });
+
+    if (
+      !Array.isArray(result.added) ||
+      !Array.isArray(result.modified) ||
+      !Array.isArray(result.deleted)
+    ) {
+      fail("git.statusFromBranch missing file arrays");
+      return false;
+    }
+
+    success(
+      `Git statusFromBranch OK: +${result.added.length} added, ~${result.modified.length} modified, -${result.deleted.length} deleted`,
+    );
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.statusFromBranch error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitMostRecentCommittedFile(): Promise<boolean> {
+  log("Testing git.mostRecentCommittedFile...");
+  try {
+    const result = await sendRequest<{ file: string | null }>(
+      "git.mostRecentCommittedFile",
+      { commitLimit: 10 },
+    );
+
+    // file can be null if no commits or string if found
+    if (result.file !== null && typeof result.file !== "string") {
+      fail("git.mostRecentCommittedFile invalid file type");
+      return false;
+    }
+
+    success(`Git mostRecentCommittedFile OK: ${result.file || "(no commits)"}`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.mostRecentCommittedFile error: ${err.message}`);
+    return false;
+  }
+}
+
 // Main test runner
 async function runTests(): Promise<void> {
   console.log("\n" + "=".repeat(60));
@@ -887,6 +945,11 @@ async function runTests(): Promise<void> {
     { name: "Git Branches", fn: testGitBranches },
     { name: "Git Has Uncommitted Changes", fn: testGitHasUncommittedChanges },
     { name: "Git Uncommitted Diff Stats", fn: testGitUncommittedDiffStats },
+    { name: "Git Status From Branch", fn: testGitStatusFromBranch },
+    {
+      name: "Git Most Recent Committed File",
+      fn: testGitMostRecentCommittedFile,
+    },
   ];
 
   try {

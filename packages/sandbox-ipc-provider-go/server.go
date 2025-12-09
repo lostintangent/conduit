@@ -271,6 +271,10 @@ func (s *Server) handleRequest(client *Client, req *Request) {
 		result, err = s.handleGitUncommittedDiffStats(session, req.Params)
 	case "git.mostRecentDirtyFile":
 		result, err = s.handleGitMostRecentDirtyFile(session, req.Params)
+	case "git.statusFromBranch":
+		result, err = s.handleGitStatusFromBranch(session, req.Params)
+	case "git.mostRecentCommittedFile":
+		result, err = s.handleGitMostRecentCommittedFile(session, req.Params)
 
 	default:
 		s.sendError(client, req.ID, -32601, fmt.Sprintf("Method not found: %s", req.Method))
@@ -333,6 +337,10 @@ type GitCheckoutParams struct {
 
 type GitBranchParams struct {
 	BaseBranch string `json:"baseBranch"`
+}
+
+type GitMostRecentCommittedFileParams struct {
+	CommitLimit int `json:"commitLimit"`
 }
 
 // ============================================================================
@@ -654,6 +662,36 @@ func (s *Server) handleGitMostRecentDirtyFile(session *workspace.Session, params
 		return nil, fmt.Errorf("not a git repository")
 	}
 	file, err := session.GitProvider.GetMostRecentDirtyFile()
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"file": file}, nil
+}
+
+func (s *Server) handleGitStatusFromBranch(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	var p GitBranchParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+	return session.GitProvider.GetStatusFromBranch(p.BaseBranch)
+}
+
+func (s *Server) handleGitMostRecentCommittedFile(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	var p GitMostRecentCommittedFileParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+	commitLimit := p.CommitLimit
+	if commitLimit <= 0 {
+		commitLimit = 10 // default
+	}
+	file, err := session.GitProvider.GetMostRecentCommittedFile(commitLimit)
 	if err != nil {
 		return nil, err
 	}
