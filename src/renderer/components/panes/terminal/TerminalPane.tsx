@@ -7,11 +7,10 @@ import {
 } from "@/components/ui/tooltip";
 import { exitFocusMode } from "@/store/actions/focusMode";
 import { splitPane } from "@/store/actions/pane";
-import { isHyperTerminal } from "@/store/actions/hyperTerminal";
+import { isHyperTerminal, openHyperTerminal } from "@/store/actions/hyperTerminal";
 import type { ApplicationMode } from "@/store/atoms";
 import {
   applicationModeAtom,
-  hyperTerminalsAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
@@ -178,7 +177,6 @@ export const TerminalPane = ({
   const { id: paneId, sessionId: terminalId, cwd, cloneOf } = pane;
   const settings = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
-  const setHyperTerminals = useSetAtom(hyperTerminalsAtom);
   const { showTerminalRuler } = settings;
   const playButtonTarget = settings.playButtonTarget ?? "newPane";
   const applicationMode = useAtomValue(applicationModeAtom);
@@ -446,18 +444,9 @@ export const TerminalPane = ({
           const result = await api.createTerminal({ cwd: cwd || undefined });
           if (!result) return;
 
-          // Add the terminal to the hyperTerminals array
+          // Use the openHyperTerminal store action
           const newPaneId = generateId();
-          setHyperTerminals((draft) => {
-            // Prevent duplicate terminals
-            if (!draft.some((t) => t.terminalId === result.sessionId)) {
-              draft.push({
-                terminalId: result.sessionId,
-                paneId: newPaneId,
-                cwd: result.cwd ?? null,
-              });
-            }
-          });
+          openHyperTerminal(result.sessionId, newPaneId, result.cwd ?? null);
 
           // Wait for terminal to be ready
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -498,7 +487,7 @@ export const TerminalPane = ({
         console.error("Failed to run npm script:", error);
       }
     },
-    [currentTab, cwd, paneId, playButtonTarget, setHyperTerminals],
+    [currentTab, cwd, paneId, playButtonTarget],
   );
 
   useEffect(() => {
