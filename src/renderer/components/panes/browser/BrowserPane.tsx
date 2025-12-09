@@ -18,6 +18,7 @@ import { BrowserToolbar } from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
 
 const { browser } = window.conduit;
+const isWindows = window.conduit.platform === "win32";
 
 type BrowserPaneProps = {
   url: string;
@@ -365,9 +366,11 @@ export function BrowserPane({
   useEffect(() => {
     if (!webviewRef.current) return;
 
+    // On Windows, Windows 11 handles rounded corners
+    // On other platforms, apply rounded corners in focus mode
     webviewRef.current.classList.toggle(
       "rounded-b-xl",
-      applicationMode === "focus",
+      applicationMode === "focus" && !isWindows,
     );
   }, [applicationMode]);
 

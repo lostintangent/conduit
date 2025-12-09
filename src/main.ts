@@ -55,19 +55,35 @@ function hydrateEnvFromLoginShell() {
 hydrateEnvFromLoginShell();
 
 async function createWindow() {
+  const isWindows = process.platform === "win32";
+  const isMac = process.platform === "darwin";
+
   const mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+    // On macOS: hiddenInset gives traffic lights with custom titlebar area
+    // On Windows/Linux: hidden allows custom titlebar with native window controls overlay
+    titleBarStyle: isMac ? "hiddenInset" : "hidden",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
     },
+    // All platforms use frameless window with custom styling
+    // Windows uses titleBarOverlay for native min/max/close buttons
     frame: false,
-    transparent: true,
-    backgroundColor: "#00000000",
+    transparent: !isWindows,
+    backgroundColor: isWindows ? "#1a1a1a" : "#00000000",
+    // Windows: use native window controls overlay (like VSCode)
+    // This gives us proper snap/resize behavior with custom titlebar
+    ...(isWindows && {
+      titleBarOverlay: {
+        color: "rgba(0,0,0,0)",
+        symbolColor: "#a1a1aa",
+        height: 35,
+      },
+    }),
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));

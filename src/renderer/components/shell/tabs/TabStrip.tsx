@@ -66,6 +66,8 @@ import React, {
   useState,
 } from "react";
 
+const isWindows = window.conduit.platform === "win32";
+
 type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
@@ -604,10 +606,13 @@ export const TabStrip = ({
   );
 
   // Use margins to create gaps that reveal the overlay underneath
+  // On Windows, no rounded corners (Windows 11 handles rounding)
   const marginClass = alwaysShowTabs
     ? position === "top"
       ? "mb-[1px]"
-      : "mt-[1px] rounded-b-xl"
+      : isWindows
+        ? "mt-[1px]"
+        : "mt-[1px] rounded-b-xl"
     : "";
 
   return (

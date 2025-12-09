@@ -757,8 +757,14 @@ export function App() {
 
   const shouldUseDrawer = !alwaysShowTabs;
 
+  // On Windows, we use native frame with Windows-managed rounded corners
+  // On macOS/Linux, we use custom frameless window with CSS rounded corners
+  const isWindows = api.platform === "win32";
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
+    <div
+      className={`flex-1 flex flex-col min-h-0 overflow-hidden ${isWindows ? "" : "rounded-xl"}`}
+    >
       <TitleBar />
 
       <TabContentPortalProvider>
