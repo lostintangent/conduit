@@ -19,6 +19,11 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:sandbox:build": "docker build -t conduit-sandbox -f build/sandbox/Dockerfile .",
+    "test:sandbox:start": "bash build/sandbox/scripts/start-test-container.sh",
+    "test:sandbox:stop": "bash build/sandbox/scripts/stop-test-container.sh",
+    "test:sandbox": "vitest run tests/integration/sandbox-ipc.integration.test.ts",
+    "test:sandbox:all": "npm run test:sandbox:start && npm run test:sandbox; npm run test:sandbox:stop",
     "postinstall": "node build/scripts/setup-keys.js",
     "prepare": "husky",
     "premake": "npm run build:icon"
@@ -40,6 +45,7 @@
     "@types/path-browserify": "^1.0.3",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^5.0.4",
@@ -56,7 +62,8 @@
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
-    "vitest": "^4.0.4"
+    "vitest": "^4.0.4",
+    "ws": "^8.18.3"
   },
   "dependencies": {
     "@electron-forge/publisher-github": "^7.10.2",
