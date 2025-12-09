@@ -28,5 +28,8 @@ export { GitV2API } from "./useGitV2";
 export { useGitAvailable } from "./useGitAvailable";
 export type { UseGitAvailableResult } from "./useGitAvailable";
 
+// Hyper terminals hook
+export { useHyperTerminals } from "./useHyperTerminals";
+
 // Common types
 export type { Cleanup } from "./useFileSystemV2";
