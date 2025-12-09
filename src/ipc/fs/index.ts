@@ -23,7 +23,11 @@ export function initializeFsHandlers() {
     try {
       return await readFile(filePath);
     } catch (error) {
-      console.error("Failed to read file", filePath, error);
+      // Don't log ENOENT - "file not found" is an expected condition
+      // (e.g., checking if config files exist, searching for package.json)
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.error("Failed to read file", filePath, error);
+      }
       throw error;
     }
   });
@@ -63,13 +67,6 @@ export function initializeFsHandlers() {
       try {
         const fs = require("node:fs");
 
-        // Check if file exists before watching
-        if (!fs.existsSync(filePath)) {
-          console.log(
-            `File ${filePath} does not exist yet, will watch parent directory`,
-          );
-        }
-
         // Create watcher
         const watcher = fs.watch(filePath, (eventType: string) => {
           if (eventType === "change") {
@@ -87,7 +84,11 @@ export function initializeFsHandlers() {
         // Store watcher
         fileWatchers.set(watcherId, watcher);
       } catch (error) {
-        console.error("Failed to watch file", filePath, error);
+        // Don't log ENOENT - watching a file that doesn't exist yet is expected
+        // (e.g., config files that will be created later)
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.error("Failed to watch file", filePath, error);
+        }
       }
     },
   );

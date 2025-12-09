@@ -38,24 +38,28 @@ export function usePackageJsonScripts(cwd: string | undefined) {
 
         // Search up to 10 levels or until we hit root
         for (let i = 0; i < 10; i++) {
-          try {
-            const packageJsonPath = path.join(currentDir, "package.json");
+          const packageJsonPath = path.join(currentDir, "package.json");
 
-            // fsv2.readFile is now lightweight (no watcher creation)
-            const content = await window.conduit.fsv2.readFile(packageJsonPath);
-            const text = new TextDecoder().decode(content);
-            const packageJson: PackageJson = JSON.parse(text);
+          // Check existence first to avoid Electron IPC error logging
+          const exists = await window.conduit.fsv2.exists(packageJsonPath);
+          if (exists) {
+            try {
+              const content =
+                await window.conduit.fsv2.readFile(packageJsonPath);
+              const text = new TextDecoder().decode(content);
+              const packageJson: PackageJson = JSON.parse(text);
 
-            if (!cancelled && packageJson.scripts) {
-              setResult({
-                scripts: packageJson.scripts,
-                packageJsonPath,
-              });
-              setLoading(false);
-              return;
+              if (!cancelled && packageJson.scripts) {
+                setResult({
+                  scripts: packageJson.scripts,
+                  packageJsonPath,
+                });
+                setLoading(false);
+                return;
+              }
+            } catch (err) {
+              // File exists but can't be read/parsed, continue up the directory tree
             }
-          } catch (err) {
-            // File doesn't exist or can't be read, continue up the directory tree
           }
 
           // Check if we've reached the root
