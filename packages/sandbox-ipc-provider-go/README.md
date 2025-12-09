@@ -37,12 +37,6 @@ docker build -t sandbox-ipc .
 docker run -p 3000:3000 -v /path/to/project:/workspace sandbox-ipc
 ```
 
-### Using Docker Compose
-
-```bash
-docker-compose up
-```
-
 ## Usage
 
 ### Command Line Options

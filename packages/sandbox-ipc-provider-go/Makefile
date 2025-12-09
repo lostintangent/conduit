@@ -54,14 +54,6 @@ docker:
 docker-run:
 	docker run -p 3000:3000 -v $(PWD)/workspace:/workspace sandbox-ipc
 
-# Docker compose up
-compose-up:
-	docker-compose up --build
-
-# Docker compose down
-compose-down:
-	docker-compose down
-
 # Format code
 fmt:
 	go fmt ./...
