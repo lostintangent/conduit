@@ -164,7 +164,7 @@ export function EditorPaneV2({
   onFileChange,
   onClearFile,
   onCwdChange,
-  onFileOpen,
+  onFileOpen: _onFileOpen,
   onTreeModeChange,
   onSave,
   onHover,
@@ -233,6 +233,22 @@ export function EditorPaneV2({
 
   // Panel view state (for single-column layout mode)
   const [panelView, setPanelView] = useState<"tree" | "editor">("tree");
+
+  // ---------------------------------------------------------------------------
+  // Prop → State Sync
+  // ---------------------------------------------------------------------------
+
+  // Sync pane.cwd prop to currentCwd state when it changes externally.
+  // This handles the case where the pane config is updated (e.g., registry update)
+  // while the component is still mounted. Without this, subscriptions would
+  // remain for the old cwd.
+  useEffect(() => {
+    if (initialCwd !== currentCwd) {
+      setCurrentCwd(initialCwd);
+    }
+    // Note: We intentionally exclude currentCwd from deps - we only want to sync
+    // when the PROP changes, not when internal navigation changes currentCwd
+  }, [initialCwd]);
 
   // ---------------------------------------------------------------------------
   // Hooks

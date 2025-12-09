@@ -466,6 +466,36 @@ describe("FileSystemV2API", () => {
       await expect(api.rename("/old", "/new")).rejects.toThrow();
       await expect(api.createDirectory("/test")).rejects.toThrow();
     });
+
+    it("should unsubscribe if released while subscription is pending (race condition)", async () => {
+      // Set up a delayed subscription that we can control
+      let resolveSubscription: ((value: string) => void) | null = null;
+      mockFsv2.subscribe.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSubscription = resolve;
+          }),
+      );
+
+      const api = new FileSystemV2API("/test/project");
+
+      // Release BEFORE the subscription completes - this is the race condition
+      api.release();
+
+      expect(api.isReleased).toBe(true);
+      // At this point, subscriptionId is still null because promise hasn't resolved
+      expect(mockFsv2.unsubscribe).not.toHaveBeenCalled();
+
+      // Now complete the subscription (simulates IPC finally returning)
+      resolveSubscription!("late-subscription-id");
+
+      // Wait for the promise chain to complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // The fix should have detected that we're already released
+      // and immediately unsubscribed
+      expect(mockFsv2.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
+    });
   });
 
   // ===========================================================================

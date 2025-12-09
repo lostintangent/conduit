@@ -892,6 +892,9 @@ export class GitV2API {
    *
    * Uses a promise to prevent multiple concurrent subscription requests.
    * If a subscription is already in progress, returns immediately.
+   *
+   * Handles the race condition where release() is called while the
+   * subscription IPC is in flight - in that case, immediately unsubscribes.
    */
   private ensureSubscribed(): void {
     // Already subscribed
@@ -911,6 +914,17 @@ export class GitV2API {
 
         if (!subscriptionId) {
           // Not a git repository - subscriptions won't work
+          return;
+        }
+
+        // Check if we were released while waiting for the subscription
+        // This handles the race condition where release() is called
+        // before the IPC completes
+        if (this.released) {
+          // Immediately unsubscribe since we're already released
+          window.conduit.gitv2.unsubscribe(subscriptionId).catch(() => {
+            // Ignore errors during cleanup
+          });
           return;
         }
 

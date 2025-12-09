@@ -964,6 +964,38 @@ describe("GitV2API", () => {
       await expect(api.commit("msg")).rejects.toThrow();
       await expect(api.checkout("ref")).rejects.toThrow();
     });
+
+    it("should unsubscribe if released while subscription is pending (race condition)", async () => {
+      // Set up a delayed subscription that we can control
+      let resolveSubscription: ((value: string) => void) | null = null;
+      mockGitv2.subscribe.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSubscription = resolve;
+          }),
+      );
+
+      const api = new GitV2API("/test/project");
+
+      // Release BEFORE the subscription completes - this is the race condition
+      api.release();
+
+      expect(api.isReleased).toBe(true);
+      // At this point, subscriptionId is still null because promise hasn't resolved
+      expect(mockGitv2.unsubscribe).not.toHaveBeenCalled();
+
+      // Now complete the subscription (simulates IPC finally returning)
+      resolveSubscription!("late-subscription-id");
+
+      // Wait for the promise chain to complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // The fix should have detected that we're already released
+      // and immediately unsubscribed
+      expect(mockGitv2.unsubscribe).toHaveBeenCalledWith(
+        "late-subscription-id",
+      );
+    });
   });
 
   // ===========================================================================

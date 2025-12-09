@@ -722,6 +722,9 @@ export class FileSystemV2API {
    *
    * Uses a promise to prevent multiple concurrent subscription requests.
    * If a subscription is already in progress, returns the existing promise.
+   *
+   * Handles the race condition where release() is called while the
+   * subscription IPC is in flight - in that case, immediately unsubscribes.
    */
   private ensureSubscribed(): void {
     // Already subscribed
@@ -738,6 +741,16 @@ export class FileSystemV2API {
     this.subscriptionPromise = window.conduit.fsv2
       .subscribe(this.cwd, "all")
       .then((id: string) => {
+        // Check if we were released while waiting for the subscription
+        // This handles the race condition where release() is called
+        // before the IPC completes
+        if (this.released) {
+          // Immediately unsubscribe since we're already released
+          window.conduit.fsv2.unsubscribe(id).catch(() => {
+            // Ignore errors during cleanup
+          });
+          return;
+        }
         this.subscriptionId = id;
         this.subscriptionPromise = null;
       })
