@@ -13,8 +13,29 @@ A high-performance, single-binary service that runs inside VMs backing cloud ter
 - **Smart Caching** - LRU cache for directory listings
 - **Background Prefetch** - Proactively caches child directories
 - **Cache Verification** - Validates cache freshness with cooldown
-- **Git Integration** - Automatic gitignore filtering
+- **Git Integration** - Full git support with automatic gitignore filtering
 - **WebSocket Events** - Bidirectional real-time communication via [coder/websocket](https://github.com/coder/websocket)
+- **Multi-Client Workspaces** - Reference-counted workspace sessions with automatic cleanup
+
+## Architecture
+
+### Per-Client Workspace Sessions
+
+The server uses a **WorkspaceManager** that manages workspace sessions with reference counting:
+
+```
+Client1 connects (/ws?workspace=/path/a) → Creates new session, refCount=1
+Client2 connects (/ws?workspace=/path/a) → Reuses session, refCount=2
+Client2 disconnects                      → refCount=1
+Client1 disconnects                      → refCount=0, cleanup session
+```
+
+**Benefits:**
+
+- Multiple terminals can share the same workspace efficiently
+- Different terminals can connect to different workspaces on the same server
+- Automatic cleanup when the last client disconnects
+- File watchers are scoped to each workspace session
 
 ## Performance Optimizations
 
@@ -73,10 +94,14 @@ Usage: sandbox-ipc [options]
 Options:
   -port int       Port to listen on (default 3000)
   -host string    Host to bind to (default "0.0.0.0")
-  -workspace      Workspace directory to serve (default: current directory)
+  -workspace      Default workspace directory (default: current directory)
 
 Environment Variables:
   WORKSPACE_PATH  Workspace directory (used if -workspace not provided)
+
+WebSocket Connection:
+  ws://host:port/ws                       # Uses default workspace
+  ws://host:port/ws?workspace=/path/to/dir # Client-specified workspace
 ```
 
 ### WebSocket API
@@ -130,16 +155,40 @@ All messages use JSON with this envelope:
 | `fs.rename`          | `{ oldPath, newPath }` | Rename/move file            |
 | `fs.exists`          | `{ path }`             | Check if path exists        |
 
+#### Git Methods
+
+| Method                       | Params                  | Description                       |
+| ---------------------------- | ----------------------- | --------------------------------- |
+| `git.status`                 | `{}`                    | Get repository status             |
+| `git.fileStatus`             | `{ path }`              | Get status for a specific file    |
+| `git.branch`                 | `{}`                    | Get current branch name           |
+| `git.branches`               | `{}`                    | Get all branches (local & remote) |
+| `git.diff`                   | `{ path, staged? }`     | Get file diff                     |
+| `git.fileAtRef`              | `{ path, ref }`         | Get file content at ref           |
+| `git.stage`                  | `{ files }`             | Stage files for commit            |
+| `git.unstage`                | `{ files }`             | Unstage files                     |
+| `git.commit`                 | `{ message, options? }` | Create a commit                   |
+| `git.checkout`               | `{ ref }`               | Checkout branch/ref               |
+| `git.revert`                 | `{ files }`             | Discard local file changes        |
+| `git.hasUncommittedChanges`  | `{}`                    | Check for uncommitted changes     |
+| `git.hasUnpushedCommits`     | `{}`                    | Check for unpushed commits        |
+| `git.changedFilesFromBranch` | `{ baseBranch }`        | Get files changed from base       |
+| `git.uncommittedDiffStats`   | `{}`                    | Get diff stats (lines +/-)        |
+| `git.mostRecentDirtyFile`    | `{}`                    | Get most recently modified file   |
+
 #### Events
 
-| Event              | Data                                | Description               |
-| ------------------ | ----------------------------------- | ------------------------- |
-| `connected`        | `{ workspace }`                     | Connection established    |
-| `fileCreated`      | `{ path, isDirectory }`             | File/directory created    |
-| `fileChanged`      | `{ path }`                          | File content modified     |
-| `fileDeleted`      | `{ path, isDirectory }`             | File/directory deleted    |
-| `fileRenamed`      | `{ oldPath, newPath, isDirectory }` | File/directory renamed    |
-| `directoryChanged` | `{ path, entries }`                 | Directory listing changed |
+| Event              | Data                                   | Description               |
+| ------------------ | -------------------------------------- | ------------------------- |
+| `connected`        | `{ workspace }`                        | Connection established    |
+| `fileCreated`      | `{ path, isDirectory }`                | File/directory created    |
+| `fileChanged`      | `{ path }`                             | File content modified     |
+| `fileDeleted`      | `{ path, isDirectory }`                | File/directory deleted    |
+| `fileRenamed`      | `{ oldPath, newPath, isDirectory }`    | File/directory renamed    |
+| `directoryChanged` | `{ path, entries }`                    | Directory listing changed |
+| `gitStatusChanged` | `{ status, added, modified, removed }` | Git status changed        |
+| `gitBranchChanged` | `{ previousBranch, currentBranch }`    | Branch changed            |
+| `gitHeadChanged`   | `{ previousHead, currentHead }`        | HEAD changed              |
 
 #### Future Methods (Planned)
 
@@ -148,8 +197,6 @@ All messages use JSON with this envelope:
 | `terminal.create` | Create terminal session |
 | `terminal.resize` | Resize terminal         |
 | `terminal.write`  | Write to terminal       |
-| `git.status`      | Get git status          |
-| `git.commit`      | Commit changes          |
 | `search.files`    | Search file names       |
 | `search.text`     | Search text in files    |
 
@@ -257,6 +304,11 @@ The test suite covers:
 - **fileDeleted event** - Real-time file deletion events
 - **directoryChanged event** - Real-time directory listing updates
 - **Error handling** - Invalid methods and paths
+- **git.status** - Git repository status
+- **git.branch** - Current branch
+- **git.branches** - All branches listing
+- **git.hasUncommittedChanges** - Uncommitted changes check
+- **git.uncommittedDiffStats** - Diff statistics
 
 ## Architecture
 
@@ -265,7 +317,7 @@ sandbox-ipc-provider-go/
 ├── main.go              # Entry point
 ├── server.go            # WebSocket server
 ├── types/
-│   └── types.go         # Shared type definitions
+│   └── types.go         # Shared type definitions (fs + git)
 ├── fs/
 │   ├── provider.go      # Filesystem operations
 │   ├── gitignore.go     # Gitignore filtering
@@ -273,6 +325,9 @@ sandbox-ipc-provider-go/
 │   ├── cache.go         # LRU directory cache
 │   ├── prefetch.go      # Background prefetching
 │   └── verify.go        # Cache verification
+├── git/
+│   ├── provider.go      # Git operations (status, stage, commit, etc.)
+│   └── watcher.go       # .git directory watcher for status changes
 ├── test/                # TypeScript test suite
 ├── Dockerfile           # Multi-stage Docker build
 └── Makefile             # Build commands

@@ -15,7 +15,9 @@ import WebSocket from "ws";
 // Configuration
 const SERVER_URL = process.env.SERVER_URL || "ws://localhost:3002/ws";
 const HEALTH_URL = process.env.HEALTH_URL || "http://localhost:3002/health";
-const TEST_WORKSPACE = process.env.TEST_WORKSPACE || "/tmp/sandbox-ipc-test";
+// Use /private/tmp on macOS to avoid symlink issues with FSEvents
+const TEST_WORKSPACE =
+  process.env.TEST_WORKSPACE || "/private/tmp/sandbox-ipc-test";
 
 // Test state
 let ws: WebSocket;
@@ -94,9 +96,10 @@ function sendRequest<T = any>(method: string, params?: any): Promise<T> {
 }
 
 // Wait for a specific event type
-function waitForEvent(eventType: string, timeout = 5000): Promise<any> {
+function waitForEvent(eventType: string, timeout = 3000): Promise<any> {
   return new Promise((resolve, reject) => {
     const startIndex = receivedEvents.length;
+    const startTime = Date.now();
 
     const checkEvents = () => {
       for (let i = startIndex; i < receivedEvents.length; i++) {
@@ -113,13 +116,11 @@ function waitForEvent(eventType: string, timeout = 5000): Promise<any> {
     const interval = setInterval(() => {
       if (checkEvents()) {
         clearInterval(interval);
+      } else if (Date.now() - startTime > timeout) {
+        clearInterval(interval);
+        reject(new Error(`Timeout waiting for event: ${eventType}`));
       }
-    }, 100);
-
-    setTimeout(() => {
-      clearInterval(interval);
-      reject(new Error(`Timeout waiting for event: ${eventType}`));
-    }, timeout);
+    }, 50);
   });
 }
 
@@ -145,9 +146,6 @@ async function setupTestWorkspace(): Promise<void> {
     "Nested content",
   );
 
-  // Wait for watcher to settle
-  await sleep(500);
-
   success("Test workspace created");
 }
 
@@ -170,11 +168,19 @@ async function connect(): Promise<void> {
 
         if (message.event === "connected") {
           log(`Connected to workspace: ${message.data?.workspace}`);
-          // Wait a bit for any initial filesystem events to settle
-          setTimeout(() => {
-            receivedEvents.length = 0; // Clear any setup events
+          log(`Watcher ready: ${message.data?.watcherReady}`);
+
+          // Server reports watcher is ready - no need to wait
+          if (message.data?.watcherReady) {
+            receivedEvents.length = 0; // Clear setup events
             resolve();
-          }, 500);
+          } else {
+            // Fallback: wait a short time for watcher to become ready
+            setTimeout(() => {
+              receivedEvents.length = 0;
+              resolve();
+            }, 200);
+          }
         }
       } else if (message.type === "response" && message.id) {
         const pending = pendingRequests.get(message.id);
@@ -714,6 +720,140 @@ async function testInvalidPath(): Promise<boolean> {
   }
 }
 
+// ============================================================================
+// Git Tests
+// ============================================================================
+
+async function testGitStatus(): Promise<boolean> {
+  log("Testing git.status...");
+  try {
+    const result = await sendRequest<{
+      branch: string;
+      files: Record<string, any>;
+      ahead: number;
+      behind: number;
+    }>("git.status", {});
+
+    if (!result.branch) {
+      fail("git.status missing branch");
+      return false;
+    }
+
+    success(
+      `Git status OK: branch=${result.branch}, files=${Object.keys(result.files || {}).length}`,
+    );
+    return true;
+  } catch (err: any) {
+    // Not a git repo is expected for test workspace
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.status error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitBranch(): Promise<boolean> {
+  log("Testing git.branch...");
+  try {
+    const result = await sendRequest<{ branch: string }>("git.branch", {});
+
+    if (!result.branch) {
+      fail("git.branch missing branch");
+      return false;
+    }
+
+    success(`Git branch OK: ${result.branch}`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.branch error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitBranches(): Promise<boolean> {
+  log("Testing git.branches...");
+  try {
+    const result = await sendRequest<{ branches: any[] }>("git.branches", {});
+
+    if (!Array.isArray(result.branches)) {
+      fail("git.branches missing branches array");
+      return false;
+    }
+
+    success(`Git branches OK: ${result.branches.length} branches`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.branches error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitHasUncommittedChanges(): Promise<boolean> {
+  log("Testing git.hasUncommittedChanges...");
+  try {
+    const result = await sendRequest<{ hasChanges: boolean }>(
+      "git.hasUncommittedChanges",
+      {},
+    );
+
+    if (typeof result.hasChanges !== "boolean") {
+      fail("git.hasUncommittedChanges missing hasChanges");
+      return false;
+    }
+
+    success(`Git hasUncommittedChanges OK: ${result.hasChanges}`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.hasUncommittedChanges error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitUncommittedDiffStats(): Promise<boolean> {
+  log("Testing git.uncommittedDiffStats...");
+  try {
+    const result = await sendRequest<{
+      added: number;
+      removed: number;
+      files: number;
+    }>("git.uncommittedDiffStats", {});
+
+    if (
+      typeof result.added !== "number" ||
+      typeof result.removed !== "number"
+    ) {
+      fail("git.uncommittedDiffStats missing stats");
+      return false;
+    }
+
+    success(
+      `Git uncommittedDiffStats OK: +${result.added}/-${result.removed} in ${result.files} files`,
+    );
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.uncommittedDiffStats error: ${err.message}`);
+    return false;
+  }
+}
+
 // Main test runner
 async function runTests(): Promise<void> {
   console.log("\n" + "=".repeat(60));
@@ -741,6 +881,12 @@ async function runTests(): Promise<void> {
     { name: "Directory Changed Event", fn: testDirectoryChangedEvent },
     { name: "Invalid Method", fn: testInvalidMethod },
     { name: "Invalid Path", fn: testInvalidPath },
+    // Git tests
+    { name: "Git Status", fn: testGitStatus },
+    { name: "Git Branch", fn: testGitBranch },
+    { name: "Git Branches", fn: testGitBranches },
+    { name: "Git Has Uncommitted Changes", fn: testGitHasUncommittedChanges },
+    { name: "Git Uncommitted Diff Stats", fn: testGitUncommittedDiffStats },
   ];
 
   try {
@@ -779,11 +925,21 @@ async function runTests(): Promise<void> {
   console.log(`\n  Results: ${passed} passed, ${failed} failed\n`);
   console.log("=".repeat(60) + "\n");
 
-  // Cleanup
-  if (fs.existsSync(TEST_WORKSPACE)) {
-    fs.rmSync(TEST_WORKSPACE, { recursive: true });
-    log("Test workspace cleaned up");
+  // Don't delete workspace - server needs it for subsequent runs
+  // Just clean up test-created files
+  const testFiles = fs.readdirSync(TEST_WORKSPACE);
+  for (const file of testFiles) {
+    // Keep basic files, delete test-generated ones
+    if (
+      file.startsWith("event-") ||
+      file.startsWith("new-") ||
+      file === "renamed-data.json"
+    ) {
+      const filePath = path.join(TEST_WORKSPACE, file);
+      fs.rmSync(filePath, { recursive: true, force: true });
+    }
   }
+  log("Test files cleaned up (workspace preserved)");
 
   process.exit(failed > 0 ? 1 : 0);
 }

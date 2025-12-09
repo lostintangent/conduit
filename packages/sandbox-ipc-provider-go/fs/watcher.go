@@ -38,6 +38,7 @@ type Watcher struct {
 	handler        EventHandler
 	ignorePatterns []string
 	watching       bool
+	ready          bool
 	mu             sync.RWMutex
 
 	// Rename detection
@@ -51,6 +52,9 @@ type Watcher struct {
 
 	// Stop channel
 	stopCh chan struct{}
+	
+	// Ready channel - closed when watcher is fully initialized
+	readyCh chan struct{}
 }
 
 // NewWatcher creates a new file watcher.
@@ -69,6 +73,7 @@ func NewWatcher(path string, handler EventHandler) (*Watcher, error) {
 		pendingCreates: make(map[string]time.Time),
 		debounceTimers: make(map[string]*time.Timer),
 		stopCh:         make(chan struct{}),
+		readyCh:        make(chan struct{}),
 	}, nil
 }
 
@@ -91,6 +96,12 @@ func (w *Watcher) Start() error {
 	if err := w.addRecursive(w.path); err != nil {
 		return err
 	}
+
+	// Mark as ready - watcher is now watching all directories
+	w.mu.Lock()
+	w.ready = true
+	close(w.readyCh)
+	w.mu.Unlock()
 
 	// Start event processing goroutine
 	go w.processEvents()
@@ -120,6 +131,18 @@ func (w *Watcher) IsWatching() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.watching
+}
+
+// IsReady returns whether the watcher has finished initialization.
+func (w *Watcher) IsReady() bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.ready
+}
+
+// Ready returns a channel that is closed when the watcher is ready.
+func (w *Watcher) Ready() <-chan struct{} {
+	return w.readyCh
 }
 
 func (w *Watcher) addRecursive(path string) error {

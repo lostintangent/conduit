@@ -35,11 +35,7 @@ func main() {
 	}
 
 	// Create server
-	srv, err := NewServer(workspacePath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating server: %v\n", err)
-		os.Exit(1)
-	}
+	srv := NewServer(workspacePath)
 
 	// Handle graceful shutdown
 	sigCh := make(chan os.Signal, 1)
