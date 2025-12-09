@@ -1,15 +1,10 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { openHyperTerminal } from "@/store/actions/hyperTerminal";
-import { forwardPortAndOpen, splitPane } from "@/store/actions/pane";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
-import { extractPortFromMatch, generateId } from "@shared/utils";
+import { forwardPortAndOpen } from "@/store/actions/pane";
+import { tabsAtom } from "@/store/atoms";
+import { extractPortFromMatch } from "@shared/utils";
 import { useAtomValue } from "jotai";
-import { getDefaultStore } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";
-
-const api = window.conduit;
-const store = getDefaultStore();
 
 type ComputeTargetIndicatorProps = {
   paneId: string;
@@ -32,8 +27,6 @@ export function ComputeTargetIndicator({
   setLinkHandler,
 }: ComputeTargetIndicatorProps) {
   const tabs = useAtomValue(tabsAtom);
-  const userSettings = useAtomValue(userSettingsAtom);
-  const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
 
   // Memoize the current pane and tab lookup
   const { currentPane, currentTab } = useMemo(() => {
@@ -52,7 +45,6 @@ export function ComputeTargetIndicator({
 
   const agentSessionId = terminalPane?.agentSessionId ?? null;
   const vmId = terminalPane?.vmMetadata?.vmId ?? null;
-  const cwd = terminalPane?.cwd;
 
   // Use sandbox handlers from the shared hook
   const {
@@ -86,66 +78,6 @@ export function ComputeTargetIndicator({
     await handleForkVMBase(vmId);
   }, [vmId, currentTab, handleForkVMBase]);
 
-  // Handler to run npm scripts
-  const handleRunScript = useCallback(
-    async (scriptName: string) => {
-      if (!currentTab || !terminalPane) return;
-
-      const command = `npm i && npm run ${scriptName}`;
-
-      try {
-        if (playButtonTarget === "hyper") {
-          // Open in Hyper terminal
-          const cwd = terminalPane.cwd || undefined;
-          const result = await api.createTerminal({ cwd });
-          if (!result) return;
-
-          // Add the terminal to the hyperTerminals array
-          const newPaneId = generateId();
-          openHyperTerminal(result.sessionId, newPaneId, result.cwd ?? null);
-
-          // Wait for terminal to be ready
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          // Send the command to the Hyper terminal
-          for (const char of command) {
-            await api.sendKeypress(result.sessionId, char);
-          }
-          // Send Enter key to execute
-          await api.sendKeypress(result.sessionId, "\r");
-        } else {
-          // Split pane to the right (row = horizontal split)
-          await splitPane(currentTab.id, paneId, "row", false, {});
-
-          // Wait a moment for the new pane to be created and ready
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          // Get the updated tab to find the new pane
-          const tabs = store.get(tabsAtom);
-          const updatedTab = tabs.find((t) => t.id === currentTab.id);
-          if (!updatedTab) return;
-
-          // Find the most recently created terminal pane (should be the one we just created)
-          const terminalPanes = Object.values(updatedTab.panes).filter(
-            (p) => p.type === "terminal",
-          );
-          const newPane = terminalPanes[terminalPanes.length - 1];
-          if (!newPane || newPane.type !== "terminal") return;
-
-          // Send npm install && npm run command to ensure packages are installed
-          for (const char of command) {
-            await api.sendKeypress(newPane.sessionId, char);
-          }
-          // Send Enter key to execute
-          await api.sendKeypress(newPane.sessionId, "\r");
-        }
-      } catch (error) {
-        console.error("Failed to run npm script:", error);
-      }
-    },
-    [currentTab, terminalPane, paneId, playButtonTarget],
-  );
-
   // Set up cloud VM port forwarding + link handler when in a VM
   useEffect(() => {
     if (!vmId) return;
@@ -164,14 +96,14 @@ export function ComputeTargetIndicator({
   }
 
   return (
-    <SandboxIndicator
-      vmId={vmId}
-      agentSessionId={agentSessionId}
-      cwd={cwd}
-      onCompleteAgentSession={handleCompleteAgentSession}
-      onDeleteAgentSession={handleDeleteAgentSession}
-      onForkVM={vmId ? handleForkVM : undefined}
-      onRunScript={handleRunScript}
-    />
+    <div className="pointer-events-none absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-10">
+      <SandboxIndicator
+        vmId={vmId}
+        agentSessionId={agentSessionId}
+        onCompleteAgentSession={handleCompleteAgentSession}
+        onDeleteAgentSession={handleDeleteAgentSession}
+        onForkVM={vmId ? handleForkVM : undefined}
+      />
+    </div>
   );
 }

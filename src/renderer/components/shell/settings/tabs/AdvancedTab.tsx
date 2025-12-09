@@ -28,7 +28,7 @@ export function AdvancedTab({
   onOpenTerminalFontSettings,
 }: AdvancedTabProps) {
   const showLaunchButton = userSettings.showLaunchButton ?? false;
-  const showPlayButton = userSettings.showPlayButton ?? true;
+  const showPlayButton = userSettings.showPlayButton ?? false;
   const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
 
   return (

@@ -6,12 +6,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { exitFocusMode } from "@/store/actions/focusMode";
-import { isHyperTerminal } from "@/store/actions/hyperTerminal";
+import {
+  isHyperTerminal,
+  openHyperTerminal,
+} from "@/store/actions/hyperTerminal";
+import { splitPane } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@/utils/terminalPrompt";
 import { broadcastTerminalInput } from "@/utils/terminalSync";
+import { generateId } from "@shared/utils";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Keyboard } from "lucide-react";
 import React, {
@@ -25,6 +30,7 @@ import { AgentPanel } from "./AgentPanel";
 import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
 import { createFitController } from "./FitController";
+import { RepoScriptsMenu } from "./RepoScriptsMenu";
 import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
 import { attach, getOrCreate, serializeSession } from "./xtermCache";
 
@@ -169,6 +175,7 @@ export const TerminalPane = ({
   const settings = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
   const { showTerminalRuler } = settings;
+  const playButtonTarget = settings.playButtonTarget ?? "newPane";
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
 
@@ -415,6 +422,37 @@ export const TerminalPane = ({
     }));
   }, []);
 
+  // Find current tab for script running
+  const currentTab = useMemo(() => {
+    if (!tabId) return undefined;
+    return tabs.find((t) => t.id === tabId);
+  }, [tabs, tabId]);
+
+  const handleRunScript = useCallback(
+    async (scriptName: string) => {
+      if (!currentTab) return;
+
+      const command = `npm i && npm run ${scriptName}`;
+      let targetSessionId: string;
+
+      if (playButtonTarget === "hyper") {
+        // Open a new hyper terminal
+        const result = await api.createTerminal({ cwd });
+        openHyperTerminal(result.sessionId, generateId(), result.cwd);
+
+        targetSessionId = result.sessionId;
+      } else {
+        const newPane = await splitPane(currentTab.id, paneId, "row");
+        targetSessionId = newPane.sessionId;
+      }
+
+      // Wait for the terminal to be ready and then send the command
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await api.sendKeypress(targetSessionId, `${command}\r`);
+    },
+    [currentTab, cwd, paneId, playButtonTarget],
+  );
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -593,6 +631,11 @@ export const TerminalPane = ({
           terminalRef.current?.setLinkHandler(handler);
         }}
       />
+
+      {/* Repository scripts menu */}
+      <div className="pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-50">
+        <RepoScriptsMenu cwd={cwd} onRunScript={handleRunScript} />
+      </div>
 
       {/* Cloud terminal SSH connection state overlays */}
       <CloudTerminalOverlay terminalId={sessionId} paneId={paneId} />
