@@ -12,7 +12,7 @@ A high-performance, single-binary service that runs inside VMs backing cloud ter
 - **Real-time Watching** - Native fsnotify with rename detection
 - **Smart Caching** - LRU cache for directory listings
 - **Git Integration** - Automatic gitignore filtering
-- **SSE Events** - Server-Sent Events for real-time updates
+- **WebSocket Events** - Bidirectional real-time communication via [coder/websocket](https://github.com/coder/websocket)
 
 ## Quick Start
 
@@ -190,6 +190,47 @@ make build-all
 GOOS=linux GOARCH=amd64 go build -o sandbox-ipc-linux .
 GOOS=darwin GOARCH=arm64 go build -o sandbox-ipc-darwin .
 ```
+
+## Testing
+
+A comprehensive TypeScript test suite is provided in the `test/` directory.
+
+### Running Tests
+
+```bash
+# Build the server
+go build -o sandbox-ipc .
+
+# Start the server with a test workspace
+mkdir -p /tmp/sandbox-ipc-test
+./sandbox-ipc --port 3002 --workspace /tmp/sandbox-ipc-test &
+
+# Install test dependencies
+cd test
+npm install
+
+# Run tests
+npm test
+```
+
+### Test Coverage
+
+The test suite covers:
+
+- **Health endpoint** - Server status check
+- **fs.readDirectory** - Directory listing
+- **fs.stat** - File and directory metadata
+- **fs.readFile** - File content reading
+- **fs.writeFile** - File content writing
+- **fs.createDirectory** - Directory creation
+- **fs.exists** - Path existence check
+- **fs.rename** - File/directory renaming
+- **fs.delete** - File/directory deletion (including recursive)
+- **fileCreated event** - Real-time file creation events
+- **fileChanged event** - Real-time file modification events
+- **fileDeleted event** - Real-time file deletion events
+- **directoryChanged event** - Real-time directory listing updates
+- **Error handling** - Invalid methods and paths
 
 ## Architecture
 
