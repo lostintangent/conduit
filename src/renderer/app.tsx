@@ -742,10 +742,13 @@ export function App() {
 
         current.onClose?.();
 
-        setHyperTerminal((terminals) => [
-          ...terminals,
-          { terminalId, paneId, cwd },
-        ]);
+        setHyperTerminal((terminals) => {
+          // Prevent duplicate terminals
+          if (terminals.some((t) => t.terminalId === terminalId)) {
+            return terminals;
+          }
+          return [...terminals, { terminalId, paneId, cwd }];
+        });
 
         return null;
       });
@@ -756,7 +759,13 @@ export function App() {
   const handleOpenHyperTerminal = useCallback(
     (terminalId: string, paneId: string, cwd: string | null) => {
       // Add a new terminal to the floating overlays array.
-      setHyperTerminal((current) => [...current, { terminalId, paneId, cwd }]);
+      setHyperTerminal((current) => {
+        // Prevent duplicate terminals
+        if (current.some((t) => t.terminalId === terminalId)) {
+          return current;
+        }
+        return [...current, { terminalId, paneId, cwd }];
+      });
     },
     [setHyperTerminal],
   );
