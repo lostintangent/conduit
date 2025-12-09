@@ -912,6 +912,259 @@ async function testGitMostRecentCommittedFile(): Promise<boolean> {
   }
 }
 
+async function testGitFileStatus(): Promise<boolean> {
+  log("Testing git.fileStatus...");
+  try {
+    const result = await sendRequest<{ status: string }>("git.fileStatus", {
+      path: "test.txt",
+    });
+
+    if (typeof result.status !== "string") {
+      fail("git.fileStatus missing status");
+      return false;
+    }
+
+    success(`Git fileStatus OK: ${result.status}`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.fileStatus error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitDiff(): Promise<boolean> {
+  log("Testing git.diff...");
+  try {
+    const result = await sendRequest<{ diff: string }>("git.diff", {
+      path: "test.txt",
+      staged: false,
+    });
+
+    if (typeof result.diff !== "string") {
+      fail("git.diff missing diff string");
+      return false;
+    }
+
+    success(`Git diff OK: ${result.diff.length} chars`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.diff error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitFileAtRef(): Promise<boolean> {
+  log("Testing git.fileAtRef...");
+  try {
+    const result = await sendRequest<{ content: string }>("git.fileAtRef", {
+      path: "test.txt",
+      ref: "HEAD",
+    });
+
+    if (typeof result.content !== "string") {
+      fail("git.fileAtRef missing content");
+      return false;
+    }
+
+    success(`Git fileAtRef OK: ${result.content.length} chars`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.fileAtRef error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitStage(): Promise<boolean> {
+  log("Testing git.stage...");
+  try {
+    await sendRequest<{ success: boolean }>("git.stage", {
+      files: ["test.txt"],
+    });
+
+    success("Git stage OK");
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.stage error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitUnstage(): Promise<boolean> {
+  log("Testing git.unstage...");
+  try {
+    await sendRequest<{ success: boolean }>("git.unstage", {
+      files: ["test.txt"],
+    });
+
+    success("Git unstage OK");
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.unstage error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitCommit(): Promise<boolean> {
+  log("Testing git.commit...");
+  try {
+    const result = await sendRequest<{ hash: string }>("git.commit", {
+      message: "Test commit",
+    });
+
+    if (typeof result.hash !== "string") {
+      fail("git.commit missing hash");
+      return false;
+    }
+
+    success(`Git commit OK: ${result.hash}`);
+    return true;
+  } catch (err: any) {
+    if (
+      err.message.includes("not a git repository") ||
+      err.message.includes("nothing to commit")
+    ) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.commit error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitCheckout(): Promise<boolean> {
+  log("Testing git.checkout...");
+  try {
+    await sendRequest<{ success: boolean }>("git.checkout", {
+      ref: "main",
+    });
+
+    success("Git checkout OK");
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.checkout error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitRevert(): Promise<boolean> {
+  log("Testing git.revert...");
+  try {
+    await sendRequest<{ success: boolean }>("git.revert", {
+      files: ["test.txt"],
+    });
+
+    success("Git revert OK");
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.revert error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitHasUnpushedCommits(): Promise<boolean> {
+  log("Testing git.hasUnpushedCommits...");
+  try {
+    const result = await sendRequest<{ hasUnpushed: boolean }>(
+      "git.hasUnpushedCommits",
+      {},
+    );
+
+    if (typeof result.hasUnpushed !== "boolean") {
+      fail("git.hasUnpushedCommits missing hasUnpushed");
+      return false;
+    }
+
+    success(`Git hasUnpushedCommits OK: ${result.hasUnpushed}`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.hasUnpushedCommits error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitChangedFilesFromBranch(): Promise<boolean> {
+  log("Testing git.changedFilesFromBranch...");
+  try {
+    const result = await sendRequest<{ files: string[] }>(
+      "git.changedFilesFromBranch",
+      { baseBranch: "main" },
+    );
+
+    if (!Array.isArray(result.files)) {
+      fail("git.changedFilesFromBranch missing files array");
+      return false;
+    }
+
+    success(`Git changedFilesFromBranch OK: ${result.files.length} files`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.changedFilesFromBranch error: ${err.message}`);
+    return false;
+  }
+}
+
+async function testGitMostRecentDirtyFile(): Promise<boolean> {
+  log("Testing git.mostRecentDirtyFile...");
+  try {
+    const result = await sendRequest<{ file: string | null }>(
+      "git.mostRecentDirtyFile",
+      {},
+    );
+
+    // file can be null if no dirty files or string if found
+    if (result.file !== null && typeof result.file !== "string") {
+      fail("git.mostRecentDirtyFile invalid file type");
+      return false;
+    }
+
+    success(`Git mostRecentDirtyFile OK: ${result.file || "(no dirty files)"}`);
+    return true;
+  } catch (err: any) {
+    if (err.message.includes("not a git repository")) {
+      success("Git not available (expected for test workspace)");
+      return true;
+    }
+    fail(`git.mostRecentDirtyFile error: ${err.message}`);
+    return false;
+  }
+}
+
 // Main test runner
 async function runTests(): Promise<void> {
   console.log("\n" + "=".repeat(60));
@@ -950,6 +1203,20 @@ async function runTests(): Promise<void> {
       name: "Git Most Recent Committed File",
       fn: testGitMostRecentCommittedFile,
     },
+    { name: "Git File Status", fn: testGitFileStatus },
+    { name: "Git Diff", fn: testGitDiff },
+    { name: "Git File At Ref", fn: testGitFileAtRef },
+    { name: "Git Stage", fn: testGitStage },
+    { name: "Git Unstage", fn: testGitUnstage },
+    { name: "Git Commit", fn: testGitCommit },
+    { name: "Git Checkout", fn: testGitCheckout },
+    { name: "Git Revert", fn: testGitRevert },
+    { name: "Git Has Unpushed Commits", fn: testGitHasUnpushedCommits },
+    {
+      name: "Git Changed Files From Branch",
+      fn: testGitChangedFilesFromBranch,
+    },
+    { name: "Git Most Recent Dirty File", fn: testGitMostRecentDirtyFile },
   ];
 
   try {
