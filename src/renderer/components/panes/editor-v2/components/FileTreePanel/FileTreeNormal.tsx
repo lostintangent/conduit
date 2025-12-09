@@ -32,6 +32,7 @@ import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { FileTreeItem } from "./FileTreeItem";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export interface FileTreeNormalProps {
   /** Editor pane ID (for scroll persistence) */
@@ -176,6 +177,11 @@ export function FileTreeNormal({
   const [gitStatusSuppressedPaths, setGitStatusSuppressedPaths] = useState<
     Set<string>
   >(new Set());
+
+  /**
+   * Path pending deletion - when set, shows confirmation dialog.
+   */
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
 
   /**
    * Flat list of all currently visible paths in display order.
@@ -604,6 +610,102 @@ export function FileTreeNormal({
     [directoryCache],
   );
 
+  // ---------------------------------------------------------------------------
+  // Delete Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Initiate delete - shows confirmation dialog.
+   */
+  const handleDelete = useCallback((path: string) => {
+    setDeletingPath(path);
+  }, []);
+
+  /**
+   * Cancel the delete operation.
+   */
+  const cancelDelete = useCallback(() => {
+    setDeletingPath(null);
+  }, []);
+
+  /**
+   * Compute the next focus target after deleting a path.
+   * Priority: next sibling > previous sibling > parent
+   */
+  const getNextFocusAfterDelete = useCallback(
+    (deletedPath: string): string | null => {
+      const index = visiblePaths.indexOf(deletedPath);
+      if (index === -1) return null;
+
+      // Try next sibling (next item in visible list)
+      if (index < visiblePaths.length - 1) {
+        return visiblePaths[index + 1];
+      }
+
+      // Try previous sibling
+      if (index > 0) {
+        return visiblePaths[index - 1];
+      }
+
+      // Fall back to parent
+      const parentPath = getParentPath(deletedPath);
+      if (parentPath && !pathsEqual(parentPath, cwd)) {
+        return parentPath;
+      }
+
+      return null;
+    },
+    [visiblePaths, cwd],
+  );
+
+  /**
+   * Confirm and execute the delete operation.
+   */
+  const confirmDelete = useCallback(async () => {
+    if (!deletingPath) return;
+
+    const pathToDelete = deletingPath;
+    const entryType = getEntryTypeForPath(pathToDelete);
+    const isDirectory = entryType === "directory";
+
+    // Compute next focus target before delete
+    const nextFocus = getNextFocusAfterDelete(pathToDelete);
+
+    try {
+      // Delete with recursive option for directories
+      await fs.delete(pathToDelete, { recursive: isDirectory });
+
+      // Optimistic update: remove from cache immediately
+      const parentDir = getParentPath(pathToDelete);
+      const fileName = pathToDelete.split("/").pop();
+      if (parentDir && fileName) {
+        const cacheKey = normalizePathForKey(parentDir);
+        setDirectoryCache((prev) => {
+          const entries = prev[cacheKey];
+          if (!entries) return prev;
+          return {
+            ...prev,
+            [cacheKey]: entries.filter((entry) => entry.name !== fileName),
+          };
+        });
+      }
+
+      // Clear deleting state
+      setDeletingPath(null);
+
+      // Move focus to next item
+      if (nextFocus) {
+        setFocusedPath(nextFocus);
+      } else {
+        setFocusedPath(null);
+      }
+    } catch (error) {
+      console.error("Delete failed:", error);
+      // TODO: Show error notification
+      setDeletingPath(null);
+    }
+  }, [deletingPath, getEntryTypeForPath, getNextFocusAfterDelete, fs]);
+
   /**
    * Main keyboard event handler for the tree container.
    */
@@ -702,6 +804,12 @@ export function FileTreeNormal({
           // Clear focus (like VS Code behavior)
           setFocusedPath(null);
           break;
+
+        case "Delete":
+        case "Backspace":
+          e.preventDefault();
+          handleDelete(focusedPath);
+          break;
       }
     },
     [
@@ -713,6 +821,7 @@ export function FileTreeNormal({
       handleSpaceKey,
       beginRename,
       cancelRename,
+      handleDelete,
     ],
   );
 
@@ -943,21 +1052,45 @@ export function FileTreeNormal({
     );
   }
 
+  // Compute delete dialog message
+  const deletingName = deletingPath?.split("/").pop() ?? "";
+  const deletingIsDirectory = deletingPath
+    ? getEntryTypeForPath(deletingPath) === "directory"
+    : false;
+
   // Normal mode: show directory tree
   return (
-    <nav
-      ref={scrollContainerRef}
-      role="tree"
-      aria-label="File tree"
-      tabIndex={focusedPath ? -1 : 0}
-      className="overflow-auto h-full px-3 text-[13px] text-white/80 focus:outline-none"
-      data-testid="file-tree-normal"
-      onKeyDown={handleTreeKeyDown}
-      onFocus={handleTreeFocus}
-    >
-      <ul role="group" className="space-y-0.5">
-        {renderDirectory(cwd, 0)}
-      </ul>
-    </nav>
+    <>
+      <nav
+        ref={scrollContainerRef}
+        role="tree"
+        aria-label="File tree"
+        tabIndex={focusedPath ? -1 : 0}
+        className="overflow-auto h-full px-3 text-[13px] text-white/80 focus:outline-none"
+        data-testid="file-tree-normal"
+        onKeyDown={handleTreeKeyDown}
+        onFocus={handleTreeFocus}
+      >
+        <ul role="group" className="space-y-0.5">
+          {renderDirectory(cwd, 0)}
+        </ul>
+      </nav>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        isOpen={deletingPath !== null}
+        title={deletingIsDirectory ? "Delete Folder" : "Delete File"}
+        description={
+          deletingIsDirectory
+            ? `Are you sure you want to delete "${deletingName}" and all its contents? This action cannot be undone.`
+            : `Are you sure you want to delete "${deletingName}"? This action cannot be undone.`
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        variant="destructive"
+      />
+    </>
   );
 }
