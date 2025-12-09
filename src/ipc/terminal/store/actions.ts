@@ -263,6 +263,15 @@ function setupTerminalListeners(
   });
 
   const onExitDisposable = pty.onExit(async ({ exitCode, signal }) => {
+    // Clean up event listeners first, before removing from store
+    if (terminal.cleanupListeners) {
+      try {
+        terminal.cleanupListeners();
+      } catch (error) {
+        console.error("Failed to cleanup terminal listeners on exit", error);
+      }
+    }
+
     removeTerminal(id);
 
     // Clean up VM if this was a VM session
