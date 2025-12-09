@@ -102,7 +102,9 @@ export function TabButton({
       draggable={true}
       className={cn(
         "group flex items-center gap-2 py-1.5 px-3 border-0 rounded-lg cursor-pointer text-[0.85rem] leading-none transition-colors duration-150 flex-none whitespace-nowrap select-none",
-        tab.isActive ? "magic" : "bg-secondary hover:bg-secondary-hover",
+        tab.isActive
+          ? "bg-foreground text-background"
+          : "bg-secondary hover:bg-foreground/30",
       )}
       onClick={(event) => {
         if (disableClick) {
@@ -162,7 +164,10 @@ export function TabButton({
 
       <Separator
         orientation="vertical"
-        className="h-4.5 ml-1 mr-0.5 bg-foreground/60"
+        className={cn(
+          "h-4.5 ml-1 mr-0.5",
+          tab.isActive ? "bg-background" : "bg-foreground/60",
+        )}
       />
 
       {/* Tab index */}
