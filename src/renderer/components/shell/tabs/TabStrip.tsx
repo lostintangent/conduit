@@ -21,7 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useHyperTerminals } from "@/hooks/useHyperTerminals";
+import { openHyperTerminal } from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
   enqueueNotification,
@@ -79,7 +79,6 @@ export const TabStrip = ({
   onOpenQuickPane,
   position = "top",
 }: TabStripProps) => {
-  const { openHyperTerminal } = useHyperTerminals();
   const tabLabels = useAtomValue(tabLabelsAtom);
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
@@ -537,7 +536,7 @@ export const TabStrip = ({
 
     const paneId = generateId();
     openHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
-  }, [activeTab, homeDirectory, openHyperTerminal]);
+  }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
     if (!onOpenQuickPane) return;

@@ -35,10 +35,16 @@ import { useAutoUpdater } from "@/hooks/useAutoUpdater";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
-import { useHyperTerminals } from "@/hooks/useHyperTerminals";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
+import {
+  closeHyperTerminal,
+  handleHyperTerminalExit,
+  maximizeHyperTerminal,
+  moveHyperTerminalToTab,
+  openHyperTerminal,
+} from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
   enqueueNotification,
@@ -63,6 +69,7 @@ import {
 import {
   activeTabAtom,
   applicationModeAtom,
+  hyperTerminalsAtom,
   keybindingsAtom,
   tabsAtom,
 } from "@/store/atoms";
@@ -81,15 +88,7 @@ export function App() {
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setKeybindings = useSetAtom(keybindingsAtom);
-
-  const {
-    hyperTerminals,
-    openHyperTerminal,
-    closeHyperTerminal,
-    handleHyperTerminalExit,
-    maximizeHyperTerminal,
-    moveHyperTerminalToTab,
-  } = useHyperTerminals();
+  const hyperTerminals = useAtomValue(hyperTerminalsAtom);
 
   const userSettings = useUserSettings();
   const {

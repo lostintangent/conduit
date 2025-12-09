@@ -1,5 +1,5 @@
-import { useHyperTerminals } from "@/hooks/useHyperTerminals";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
+import { openHyperTerminal } from "@/store/actions/hyperTerminal";
 import { forwardPortAndOpen, splitPane } from "@/store/actions/pane";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import { extractPortFromMatch, generateId } from "@shared/utils";
@@ -34,7 +34,6 @@ export function ComputeTargetIndicator({
   const tabs = useAtomValue(tabsAtom);
   const userSettings = useAtomValue(userSettingsAtom);
   const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
-  const { openHyperTerminal } = useHyperTerminals();
 
   // Memoize the current pane and tab lookup
   const { currentPane, currentTab } = useMemo(() => {
@@ -144,7 +143,7 @@ export function ComputeTargetIndicator({
         console.error("Failed to run npm script:", error);
       }
     },
-    [currentTab, terminalPane, paneId, playButtonTarget, openHyperTerminal],
+    [currentTab, terminalPane, paneId, playButtonTarget],
   );
 
   // Set up cloud VM port forwarding + link handler when in a VM
