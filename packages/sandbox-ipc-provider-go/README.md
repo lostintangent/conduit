@@ -53,65 +53,129 @@ Environment Variables:
   WORKSPACE_PATH  Workspace directory (used if -workspace not provided)
 ```
 
-### API Endpoints
+### WebSocket API
 
-#### Filesystem Operations
+Connect to `ws://localhost:3000/ws` for bidirectional communication.
 
-| Method | Endpoint                                 | Description                 |
-| ------ | ---------------------------------------- | --------------------------- |
-| GET    | `/api/events`                            | SSE event stream            |
-| GET    | `/api/fs/readDirectory?path=...`         | List directory contents     |
-| GET    | `/api/fs/stat?path=...`                  | Get file/directory metadata |
-| GET    | `/api/fs/readFile?path=...`              | Read file contents          |
-| POST   | `/api/fs/writeFile?path=...`             | Write file contents         |
-| POST   | `/api/fs/createDirectory?path=...`       | Create directory            |
-| DELETE | `/api/fs/delete?path=...&recursive=true` | Delete file/directory       |
-| POST   | `/api/fs/rename?oldPath=...&newPath=...` | Rename/move file            |
-| GET    | `/api/fs/exists?path=...`                | Check if path exists        |
-| GET    | `/health`                                | Health check                |
+#### Protocol
 
-#### Future Endpoints (Planned)
+All messages use JSON with this envelope:
 
-| Method | Endpoint                      | Description             |
-| ------ | ----------------------------- | ----------------------- |
-| POST   | `/api/terminal/create`        | Create terminal session |
-| POST   | `/api/terminal/resize`        | Resize terminal         |
-| WS     | `/api/terminal/ws`            | Terminal WebSocket      |
-| GET    | `/api/git/status`             | Git status              |
-| POST   | `/api/git/commit`             | Git commit              |
-| GET    | `/api/search/files?query=...` | Search files            |
-| GET    | `/api/search/text?query=...`  | Search text in files    |
+```typescript
+// Request (client → server)
+{
+  "id": 1,                    // Unique request ID for correlation
+  "method": "fs.readDirectory",
+  "params": { "path": "/src" }
+}
 
-### SSE Events
+// Response (server → client)
+{
+  "type": "response",
+  "id": 1,                    // Matches request ID
+  "result": { "entries": [...] }
+}
 
-Connect to `/api/events` for real-time filesystem notifications:
+// Error (server → client)
+{
+  "type": "error",
+  "id": 1,
+  "error": { "code": -32000, "message": "File not found" }
+}
+
+// Event (server → client, unsolicited)
+{
+  "type": "event",
+  "event": "fileChanged",
+  "data": { "path": "/src/app.ts" }
+}
+```
+
+#### Methods
+
+| Method               | Params                 | Description                 |
+| -------------------- | ---------------------- | --------------------------- |
+| `fs.readDirectory`   | `{ path }`             | List directory contents     |
+| `fs.stat`            | `{ path }`             | Get file/directory metadata |
+| `fs.readFile`        | `{ path }`             | Read file contents (base64) |
+| `fs.writeFile`       | `{ path, content }`    | Write file contents         |
+| `fs.createDirectory` | `{ path }`             | Create directory            |
+| `fs.delete`          | `{ path, recursive }`  | Delete file/directory       |
+| `fs.rename`          | `{ oldPath, newPath }` | Rename/move file            |
+| `fs.exists`          | `{ path }`             | Check if path exists        |
+
+#### Events
+
+| Event              | Data                                | Description               |
+| ------------------ | ----------------------------------- | ------------------------- |
+| `connected`        | `{ workspace }`                     | Connection established    |
+| `fileCreated`      | `{ path, isDirectory }`             | File/directory created    |
+| `fileChanged`      | `{ path }`                          | File content modified     |
+| `fileDeleted`      | `{ path, isDirectory }`             | File/directory deleted    |
+| `fileRenamed`      | `{ oldPath, newPath, isDirectory }` | File/directory renamed    |
+| `directoryChanged` | `{ path, entries }`                 | Directory listing changed |
+
+#### Future Methods (Planned)
+
+| Method            | Description             |
+| ----------------- | ----------------------- |
+| `terminal.create` | Create terminal session |
+| `terminal.resize` | Resize terminal         |
+| `terminal.write`  | Write to terminal       |
+| `git.status`      | Get git status          |
+| `git.commit`      | Commit changes          |
+| `search.files`    | Search file names       |
+| `search.text`     | Search text in files    |
+
+### Health Check
+
+HTTP endpoint for container probes:
+
+```
+GET /health
+```
+
+### Example Client
 
 ```javascript
-const events = new EventSource("http://localhost:3000/api/events");
+const ws = new WebSocket("ws://localhost:3000/ws");
 
-events.addEventListener("connected", () => {
-  console.log("Connected to sandbox IPC");
-});
+// Request helper
+let requestId = 0;
+const pending = new Map();
 
-events.addEventListener("fileCreated", (e) => {
-  const data = JSON.parse(e.data);
-  console.log("File created:", data.path);
-});
+function call(method, params) {
+  return new Promise((resolve, reject) => {
+    const id = ++requestId;
+    pending.set(id, { resolve, reject });
+    ws.send(JSON.stringify({ id, method, params }));
+  });
+}
 
-events.addEventListener("fileChanged", (e) => {
-  const data = JSON.parse(e.data);
-  console.log("File changed:", data.path);
-});
+// Handle messages
+ws.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
 
-events.addEventListener("fileRenamed", (e) => {
-  const data = JSON.parse(e.data);
-  console.log("Renamed:", data.oldPath, "→", data.newPath);
-});
+  if (msg.type === "response" || msg.type === "error") {
+    const handler = pending.get(msg.id);
+    if (handler) {
+      pending.delete(msg.id);
+      if (msg.error) {
+        handler.reject(new Error(msg.error.message));
+      } else {
+        handler.resolve(msg.result);
+      }
+    }
+  } else if (msg.type === "event") {
+    console.log("Event:", msg.event, msg.data);
+  }
+};
 
-events.addEventListener("fileDeleted", (e) => {
-  const data = JSON.parse(e.data);
-  console.log("File deleted:", data.path);
-});
+// Usage
+ws.onopen = async () => {
+  const dir = await call("fs.readDirectory", { path: "/src" });
+  console.log("Directory:", dir.entries);
+};
 ```
 
 ## Cross-Platform Builds
