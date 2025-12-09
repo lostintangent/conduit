@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
+	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	"sandbox-ipc-provider-go/fs"
 	"sandbox-ipc-provider-go/types"
 )
@@ -63,19 +65,21 @@ type WebSocketMessage struct {
 	Data   interface{} `json:"data,omitempty"`
 }
 
+// Client represents a connected WebSocket client
+type Client struct {
+	conn *websocket.Conn
+	ctx  context.Context
+}
+
 // Server is the WebSocket server for filesystem operations
 type Server struct {
 	provider *fs.Provider
 	watcher  *fs.Watcher
 	cache    *fs.DirectoryCache
 
-	// WebSocket
-	upgrader websocket.Upgrader
-	clients  map[*websocket.Conn]bool
-	mu       sync.RWMutex
-
-	// Request ID counter
-	eventID atomic.Uint64
+	// WebSocket clients
+	clients map[*Client]bool
+	mu      sync.RWMutex
 }
 
 // NewServer creates a new WebSocket server
@@ -88,12 +92,7 @@ func NewServer(workspacePath string) (*Server, error) {
 	s := &Server{
 		provider: provider,
 		cache:    fs.NewDirectoryCache(500),
-		clients:  make(map[*websocket.Conn]bool),
-		upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return true // Allow all origins for now
-			},
-		},
+		clients:  make(map[*Client]bool),
 	}
 
 	// Create watcher with server as event handler
@@ -140,8 +139,8 @@ func (s *Server) Start(addr string) error {
 // Stop shuts down the server
 func (s *Server) Stop() error {
 	s.mu.Lock()
-	for conn := range s.clients {
-		conn.Close()
+	for client := range s.clients {
+		client.conn.Close(websocket.StatusGoingAway, "server shutdown")
 	}
 	s.mu.Unlock()
 	return s.watcher.Stop()
@@ -149,58 +148,77 @@ func (s *Server) Stop() error {
 
 // handleWebSocket handles WebSocket connections
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.upgrader.Upgrade(w, r, nil)
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: true, // Allow all origins
+	})
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf("WebSocket accept error: %v", err)
 		return
 	}
 
+	ctx := r.Context()
+	client := &Client{conn: conn, ctx: ctx}
+
 	// Register client
 	s.mu.Lock()
-	s.clients[conn] = true
+	s.clients[client] = true
 	s.mu.Unlock()
 
 	// Send connected event
-	s.sendEvent(conn, "connected", map[string]interface{}{
+	s.sendEvent(client, "connected", map[string]interface{}{
 		"workspace": s.provider.CWD(),
 	})
 
 	// Handle messages
-	go s.handleConnection(conn)
+	s.handleConnection(client)
 }
 
 // handleConnection processes messages from a WebSocket connection
-func (s *Server) handleConnection(conn *websocket.Conn) {
+func (s *Server) handleConnection(client *Client) {
 	defer func() {
 		s.mu.Lock()
-		delete(s.clients, conn)
+		delete(s.clients, client)
 		s.mu.Unlock()
-		conn.Close()
+		client.conn.CloseNow()
 	}()
 
 	for {
-		_, message, err := conn.ReadMessage()
+		// Read with timeout context
+		ctx, cancel := context.WithTimeout(client.ctx, 60*time.Second)
+		_, data, err := client.conn.Read(ctx)
+		cancel()
+
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("WebSocket error: %v", err)
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
+				websocket.CloseStatus(err) == websocket.StatusGoingAway {
+				return
 			}
+			// Check for context cancellation (client disconnect)
+			if client.ctx.Err() != nil {
+				return
+			}
+			// Timeout is ok, continue reading
+			if err == context.DeadlineExceeded {
+				continue
+			}
+			log.Printf("WebSocket read error: %v", err)
 			return
 		}
 
 		// Parse request
 		var req Request
-		if err := json.Unmarshal(message, &req); err != nil {
-			s.sendError(conn, 0, -32700, "Parse error")
+		if err := json.Unmarshal(data, &req); err != nil {
+			s.sendError(client, 0, -32700, "Parse error")
 			continue
 		}
 
 		// Handle request
-		s.handleRequest(conn, &req)
+		s.handleRequest(client, &req)
 	}
 }
 
 // handleRequest dispatches a request to the appropriate handler
-func (s *Server) handleRequest(conn *websocket.Conn, req *Request) {
+func (s *Server) handleRequest(client *Client, req *Request) {
 	var result interface{}
 	var err error
 
@@ -222,16 +240,16 @@ func (s *Server) handleRequest(conn *websocket.Conn, req *Request) {
 	case "fs.exists":
 		result, err = s.handleExists(req.Params)
 	default:
-		s.sendError(conn, req.ID, -32601, fmt.Sprintf("Method not found: %s", req.Method))
+		s.sendError(client, req.ID, -32601, fmt.Sprintf("Method not found: %s", req.Method))
 		return
 	}
 
 	if err != nil {
-		s.sendError(conn, req.ID, -32000, err.Error())
+		s.sendError(client, req.ID, -32000, err.Error())
 		return
 	}
 
-	s.sendResponse(conn, req.ID, result)
+	s.sendResponse(client, req.ID, result)
 }
 
 // Parameter types for each method
@@ -374,17 +392,17 @@ func (s *Server) handleExists(params json.RawMessage) (interface{}, error) {
 }
 
 // sendResponse sends a successful response
-func (s *Server) sendResponse(conn *websocket.Conn, id uint64, result interface{}) {
+func (s *Server) sendResponse(client *Client, id uint64, result interface{}) {
 	msg := WebSocketMessage{
 		Type:   MsgTypeResponse,
 		ID:     id,
 		Result: result,
 	}
-	s.sendJSON(conn, msg)
+	s.sendJSON(client, msg)
 }
 
 // sendError sends an error response
-func (s *Server) sendError(conn *websocket.Conn, id uint64, code int, message string) {
+func (s *Server) sendError(client *Client, id uint64, code int, message string) {
 	msg := WebSocketMessage{
 		Type: MsgTypeError,
 		ID:   id,
@@ -393,17 +411,17 @@ func (s *Server) sendError(conn *websocket.Conn, id uint64, code int, message st
 			Message: message,
 		},
 	}
-	s.sendJSON(conn, msg)
+	s.sendJSON(client, msg)
 }
 
 // sendEvent sends an event to a specific connection
-func (s *Server) sendEvent(conn *websocket.Conn, eventType string, data interface{}) {
+func (s *Server) sendEvent(client *Client, eventType string, data interface{}) {
 	msg := WebSocketMessage{
 		Type:  MsgTypeEvent,
 		Event: eventType,
 		Data:  data,
 	}
-	s.sendJSON(conn, msg)
+	s.sendJSON(client, msg)
 }
 
 // broadcastEvent sends an event to all connected clients
@@ -417,20 +435,18 @@ func (s *Server) broadcastEvent(eventType string, data interface{}) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	for conn := range s.clients {
-		s.sendJSON(conn, msg)
+	for client := range s.clients {
+		s.sendJSON(client, msg)
 	}
 }
 
 // sendJSON sends a JSON message over WebSocket
-func (s *Server) sendJSON(conn *websocket.Conn, v interface{}) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		log.Printf("JSON marshal error: %v", err)
-		return
-	}
+// coder/websocket supports concurrent writes, no mutex needed
+func (s *Server) sendJSON(client *Client, v interface{}) {
+	ctx, cancel := context.WithTimeout(client.ctx, 5*time.Second)
+	defer cancel()
 
-	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+	if err := wsjson.Write(ctx, client.conn, v); err != nil {
 		log.Printf("WebSocket write error: %v", err)
 	}
 }
