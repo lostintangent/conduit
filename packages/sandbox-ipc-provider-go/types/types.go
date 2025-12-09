@@ -1,4 +1,4 @@
-// Package types defines the core data structures for the filesystem provider.
+// Package types defines the core data structures for the sandbox IPC provider.
 // These types match the TypeScript interface for API compatibility.
 package types
 

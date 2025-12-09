@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/types"
+	"sandbox-ipc-provider-go/types"
 )
 
 // AlwaysHidden contains names that are always filtered from directory listings.

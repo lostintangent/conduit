@@ -1,5 +1,4 @@
-// Package watcher provides file system watching with rename detection.
-package watcher
+package fs
 
 import (
 	"os"
@@ -9,7 +8,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/types"
+	"sandbox-ipc-provider-go/types"
 )
 
 // DefaultIgnorePatterns contains patterns to ignore for performance.

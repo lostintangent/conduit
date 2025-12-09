@@ -7,19 +7,19 @@ all: build
 
 # Build the binary
 build:
-	go build -ldflags="-w -s" -o $(BINARY_NAME) ./cmd/server
+	go build -ldflags="-w -s" -o $(BINARY_NAME) .
 
 # Build with version
 build-version:
-	go build -ldflags="-w -s -X main.version=$(VERSION)" -o $(BINARY_NAME) ./cmd/server
+	go build -ldflags="-w -s -X main.version=$(VERSION)" -o $(BINARY_NAME) .
 
 # Run the server
 run:
-	go run ./cmd/server
+	go run .
 
 # Run with a specific workspace
 run-workspace:
-	go run ./cmd/server --workspace $(WORKSPACE)
+	go run . --workspace $(WORKSPACE)
 
 # Run tests
 test:
@@ -43,8 +43,11 @@ deps:
 
 # Build for all platforms
 build-all:
-	chmod +x scripts/build.sh
-	./scripts/build.sh
+	mkdir -p dist
+	GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/sandbox-ipc-linux-amd64 .
+	GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/sandbox-ipc-linux-arm64 .
+	GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o dist/sandbox-ipc-darwin-amd64 .
+	GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s" -o dist/sandbox-ipc-darwin-arm64 .
 
 # Docker build
 docker:

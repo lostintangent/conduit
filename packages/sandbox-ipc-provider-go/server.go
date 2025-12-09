@@ -1,5 +1,4 @@
-// Package server provides HTTP API for filesystem operations.
-package server
+package main
 
 import (
 	"encoding/json"
@@ -8,17 +7,15 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/cache"
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/fs"
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/types"
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/watcher"
+	"sandbox-ipc-provider-go/fs"
+	"sandbox-ipc-provider-go/types"
 )
 
 // Server is the HTTP API server for filesystem operations.
 type Server struct {
 	provider *fs.Provider
-	watcher  *watcher.Watcher
-	cache    *cache.DirectoryCache
+	watcher  *fs.Watcher
+	cache    *fs.DirectoryCache
 	mux      *http.ServeMux
 
 	// SSE clients
@@ -35,13 +32,13 @@ func NewServer(workspacePath string) (*Server, error) {
 
 	s := &Server{
 		provider:   provider,
-		cache:      cache.NewDirectoryCache(500),
+		cache:      fs.NewDirectoryCache(500),
 		mux:        http.NewServeMux(),
 		sseClients: make(map[chan types.FSEvent]struct{}),
 	}
 
 	// Create watcher with server as event handler
-	w, err := watcher.NewWatcher(workspacePath, s)
+	w, err := fs.NewWatcher(workspacePath, s)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +57,7 @@ func (s *Server) Start(addr string) error {
 		return err
 	}
 
-	fmt.Printf("🚀 Filesystem server running at http://%s\n", addr)
+	fmt.Printf("🚀 Sandbox IPC server running at http://%s\n", addr)
 	fmt.Printf("📁 Workspace: %s\n", s.provider.CWD())
 	fmt.Println("\nEndpoints:")
 	fmt.Println("  GET  /api/events          - SSE event stream")

@@ -1,12 +1,11 @@
-// Package cache provides an LRU cache for directory listings.
-package cache
+package fs
 
 import (
 	"container/list"
 	"sync"
 	"time"
 
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/types"
+	"sandbox-ipc-provider-go/types"
 )
 
 // CacheEntry holds cached directory entries with metadata.

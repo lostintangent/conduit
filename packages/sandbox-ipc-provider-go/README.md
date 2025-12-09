@@ -21,7 +21,7 @@ A high-performance, single-binary service that runs inside VMs backing cloud ter
 ```bash
 # Clone and build
 cd packages/sandbox-ipc-provider-go
-go build -o sandbox-ipc ./cmd/server
+go build -o sandbox-ipc .
 
 # Run
 ./sandbox-ipc --workspace /path/to/project
@@ -119,31 +119,29 @@ events.addEventListener("fileDeleted", (e) => {
 Build for multiple platforms:
 
 ```bash
-# Make build script executable
-chmod +x scripts/build.sh
-
 # Build all platforms
-./scripts/build.sh
+make build-all
 
 # Or build specific platform
-GOOS=linux GOARCH=amd64 go build -o sandbox-ipc-linux ./cmd/server
-GOOS=darwin GOARCH=arm64 go build -o sandbox-ipc-darwin ./cmd/server
+GOOS=linux GOARCH=amd64 go build -o sandbox-ipc-linux .
+GOOS=darwin GOARCH=arm64 go build -o sandbox-ipc-darwin .
 ```
 
 ## Architecture
 
 ```
 sandbox-ipc-provider-go/
-├── cmd/server/          # Main entry point
-├── internal/
-│   ├── types/           # Shared type definitions
-│   ├── fs/              # Filesystem operations + gitignore
-│   ├── watcher/         # File watcher with rename detection
-│   ├── cache/           # LRU directory cache
-│   └── server/          # HTTP/SSE server
+├── main.go              # Entry point
+├── server.go            # HTTP/SSE server
+├── types/
+│   └── types.go         # Shared type definitions
+├── fs/
+│   ├── provider.go      # Filesystem operations
+│   ├── gitignore.go     # Gitignore filtering
+│   ├── watcher.go       # File watcher with rename detection
+│   └── cache.go         # LRU directory cache
 ├── Dockerfile           # Multi-stage Docker build
-├── docker-compose.yml   # Docker Compose for development
-└── scripts/build.sh     # Cross-platform build script
+└── Makefile             # Build commands
 ```
 
 ## Performance Comparison

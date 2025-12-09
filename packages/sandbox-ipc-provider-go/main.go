@@ -1,6 +1,6 @@
-// sandbox-ipc-provider-go - Standalone filesystem provider for cloud editor functionality.
+// sandbox-ipc-provider-go - Standalone IPC provider for cloud editor functionality.
 //
-// This is the main entry point for the filesystem server.
+// This is the main entry point for the sandbox IPC server.
 // It provides unified file operations with integrated change watching
 // designed to run in VMs backing cloud terminals.
 package main
@@ -11,8 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/lostintangent/conduit/packages/sandbox-ipc-provider-go/internal/server"
 )
 
 func main() {
@@ -37,7 +35,7 @@ func main() {
 	}
 
 	// Create server
-	srv, err := server.NewServer(workspacePath)
+	srv, err := NewServer(workspacePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating server: %v\n", err)
 		os.Exit(1)
