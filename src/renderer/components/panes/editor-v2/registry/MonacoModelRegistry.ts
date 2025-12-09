@@ -1040,6 +1040,13 @@ export class MonacoModelRegistry {
           return;
         }
 
+        // Skip reload if content is identical (e.g., our own save triggered the watcher)
+        // This prevents cursor position reset from setValue()
+        const currentContent = entry.model.getValue();
+        if (currentContent === content) {
+          return;
+        }
+
         // Still clean - safe to auto-reload
         entry.model.setValue(content);
 
