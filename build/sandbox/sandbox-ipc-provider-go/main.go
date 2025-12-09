@@ -21,7 +21,7 @@ var (
 
 func main() {
 	// Parse command-line flags
-	port := flag.Int("port", 3000, "Port to listen on")
+	port := flag.Int("port", 9876, "Port to listen on")
 	host := flag.String("host", "0.0.0.0", "Host to bind to")
 	workspace := flag.String("workspace", "", "Workspace directory to serve (defaults to current directory)")
 	showVersion := flag.Bool("version", false, "Show version information")

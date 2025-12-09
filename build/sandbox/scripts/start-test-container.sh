@@ -5,7 +5,7 @@ set -e
 
 CONTAINER_NAME="conduit-sandbox-test"
 IMAGE_NAME="conduit-sandbox"
-PORT="${SANDBOX_PORT:-3000}"
+PORT="${SANDBOX_PORT:-9876}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-$(mktemp -d)}"
 
 # Colors for output
@@ -35,7 +35,7 @@ echo -e "${GREEN}Workspace directory: ${WORKSPACE_DIR}${NC}"
 # Start the container
 docker run -d \
     --name "${CONTAINER_NAME}" \
-    -p "${PORT}:3000" \
+    -p "${PORT}:9876" \
     -v "${WORKSPACE_DIR}:/workspace" \
     "${IMAGE_NAME}"
 

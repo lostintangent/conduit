@@ -56,7 +56,7 @@ docker:
 
 # Docker run
 docker-run:
-	docker run -p 3000:3000 -v $(PWD)/workspace:/workspace sandbox-ipc
+	docker run -p 9876:9876 -v $(PWD)/workspace:/workspace sandbox-ipc
 
 # Format code
 fmt:

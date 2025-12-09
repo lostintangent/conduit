@@ -1,20 +1,24 @@
 /**
  * Integration tests for sandbox-ipc-provider running in Docker container
  *
- * These tests communicate with a running sandbox-ipc server via WebSocket
- * to test the full end-to-end flow.
+ * These tests automatically build and start the sandbox container,
+ * then communicate with it via WebSocket to test the full end-to-end flow.
  *
- * Prerequisites:
- *   npm run test:sandbox:start  (starts the container)
- *   npm run test:sandbox        (runs these tests)
- *   npm run test:sandbox:stop   (stops the container)
+ * The container is automatically cleaned up after tests complete.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
+import { execSync, spawn } from "child_process";
+import { mkdtempSync, writeFileSync, mkdirSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
-const SANDBOX_URL = process.env.SANDBOX_URL || "ws://localhost:3000/ws";
-const WORKSPACE_PATH = process.env.WORKSPACE_PATH || "/workspace";
+const CONTAINER_NAME = "conduit-sandbox-integration-test";
+const IMAGE_NAME = "conduit-sandbox";
+const PORT = 9876;
+const SANDBOX_URL = `ws://localhost:${PORT}/ws`;
+const WORKSPACE_PATH = "/workspace";
 
 interface WebSocketMessage {
   type: "request" | "response" | "error" | "event";
@@ -176,25 +180,180 @@ class SandboxClient {
   }
 }
 
-describe("Sandbox IPC Integration Tests", () => {
+// Check if Docker is available
+function isDockerAvailable(): boolean {
+  try {
+    execSync("docker info", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Build the Docker image
+async function buildDockerImage(): Promise<void> {
+  console.log("🔨 Building sandbox Docker image...");
+  return new Promise((resolve, reject) => {
+    const build = spawn(
+      "docker",
+      ["build", "-t", IMAGE_NAME, "-f", "build/sandbox/Dockerfile", "."],
+      { stdio: "inherit" },
+    );
+    build.on("close", (code) => {
+      if (code === 0) {
+        console.log("✅ Docker image built successfully");
+        resolve();
+      } else {
+        reject(new Error(`Docker build failed with code ${code}`));
+      }
+    });
+    build.on("error", reject);
+  });
+}
+
+// Start the sandbox container
+async function startContainer(workspaceDir: string): Promise<void> {
+  // Stop and remove existing container if it exists
+  try {
+    execSync(`docker stop ${CONTAINER_NAME}`, { stdio: "ignore" });
+    execSync(`docker rm ${CONTAINER_NAME}`, { stdio: "ignore" });
+  } catch {
+    // Container doesn't exist, that's fine
+  }
+
+  console.log("🚀 Starting sandbox container...");
+  return new Promise((resolve, reject) => {
+    const run = spawn(
+      "docker",
+      [
+        "run",
+        "-d",
+        "--name",
+        CONTAINER_NAME,
+        "-p",
+        `${PORT}:${PORT}`,
+        "-v",
+        `${workspaceDir}:/workspace`,
+        IMAGE_NAME,
+      ],
+      { stdio: "inherit" },
+    );
+    run.on("close", (code) => {
+      if (code === 0) {
+        console.log("✅ Container started");
+        resolve();
+      } else {
+        reject(new Error(`Docker run failed with code ${code}`));
+      }
+    });
+    run.on("error", reject);
+  });
+}
+
+// Wait for the sandbox to be ready
+async function waitForSandbox(
+  maxRetries = 30,
+  delayMs = 1000,
+): Promise<boolean> {
+  console.log("⏳ Waiting for sandbox to be ready...");
+  for (let i = 0; i < maxRetries; i++) {
+    const isReady = await new Promise<boolean>((resolve) => {
+      const ws = new WebSocket(SANDBOX_URL);
+      const timeout = setTimeout(() => {
+        ws.close();
+        resolve(false);
+      }, 2000);
+
+      ws.on("open", () => {
+        clearTimeout(timeout);
+        ws.close();
+        resolve(true);
+      });
+
+      ws.on("error", () => {
+        clearTimeout(timeout);
+        resolve(false);
+      });
+    });
+
+    if (isReady) {
+      console.log("✅ Sandbox is ready");
+      return true;
+    }
+
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return false;
+}
+
+// Stop and remove the container
+function stopContainer(): void {
+  console.log("🛑 Stopping sandbox container...");
+  try {
+    execSync(`docker stop ${CONTAINER_NAME}`, { stdio: "ignore" });
+    execSync(`docker rm ${CONTAINER_NAME}`, { stdio: "ignore" });
+    console.log("✅ Container stopped and removed");
+  } catch {
+    // Ignore errors
+  }
+}
+
+// Create a temporary workspace with test files
+function createTestWorkspace(): string {
+  const workspaceDir = mkdtempSync(join(tmpdir(), "sandbox-test-"));
+  writeFileSync(
+    join(workspaceDir, "test-file.txt"),
+    "Hello from integration test",
+  );
+  mkdirSync(join(workspaceDir, "test-dir"));
+  writeFileSync(
+    join(workspaceDir, "test-dir", "nested.txt"),
+    "Nested file content",
+  );
+  console.log(`📁 Created test workspace: ${workspaceDir}`);
+  return workspaceDir;
+}
+
+// Check if Docker is available, skip tests if not
+const dockerAvailable = isDockerAvailable();
+
+describe.skipIf(!dockerAvailable)("Sandbox IPC Integration Tests", () => {
   let client: SandboxClient;
+  let workspaceDir: string;
 
   beforeAll(async () => {
-    client = new SandboxClient();
-    try {
-      await client.connect();
-    } catch (error) {
-      console.error(
-        "Failed to connect to sandbox. Make sure the container is running:",
-      );
-      console.error("  npm run test:sandbox:start");
-      throw error;
+    // Create test workspace
+    workspaceDir = createTestWorkspace();
+
+    // Build the Docker image
+    await buildDockerImage();
+
+    // Start the container
+    await startContainer(workspaceDir);
+
+    // Wait for sandbox to be ready
+    const ready = await waitForSandbox();
+    if (!ready) {
+      throw new Error("Sandbox failed to start within timeout");
     }
-  }, 30000);
+
+    // Connect the client
+    client = new SandboxClient();
+    await client.connect();
+  }, 300000); // 5 minute timeout for build + start
 
   afterAll(() => {
-    client.close();
+    client?.close();
+    stopContainer();
   });
+
+  // Log skip reason if Docker not available
+  if (!dockerAvailable) {
+    console.log(
+      "\n⏭️  Skipping sandbox integration tests - Docker not available",
+    );
+    console.log("   Please install Docker to run integration tests.\n");
+  }
 
   describe("File System Operations", () => {
     it("should read a directory", async () => {

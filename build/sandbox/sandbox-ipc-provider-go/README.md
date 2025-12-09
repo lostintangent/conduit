@@ -81,7 +81,7 @@ go build -o sandbox-ipc .
 docker build -t sandbox-ipc .
 
 # Run container
-docker run -p 3000:3000 -v /path/to/project:/workspace sandbox-ipc
+docker run -p 9876:9876 -v /path/to/project:/workspace sandbox-ipc
 ```
 
 ## Usage
@@ -92,7 +92,7 @@ docker run -p 3000:3000 -v /path/to/project:/workspace sandbox-ipc
 Usage: sandbox-ipc [options]
 
 Options:
-  -port int       Port to listen on (default 3000)
+  -port int       Port to listen on (default 9876)
   -host string    Host to bind to (default "0.0.0.0")
   -workspace      Default workspace directory (default: current directory)
 
@@ -106,7 +106,7 @@ WebSocket Connection:
 
 ### WebSocket API
 
-Connect to `ws://localhost:3000/ws` for bidirectional communication.
+Connect to `ws://localhost:9876/ws` for bidirectional communication.
 
 #### Protocol
 
@@ -211,7 +211,7 @@ GET /health
 ### Example Client
 
 ```javascript
-const ws = new WebSocket("ws://localhost:3000/ws");
+const ws = new WebSocket("ws://localhost:9876/ws");
 
 // Request helper
 let requestId = 0;

@@ -38,12 +38,12 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Default port
-EXPOSE 3000
+EXPOSE 9876
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:9876/health || exit 1
 
 # Default command
 ENTRYPOINT ["/app/sandbox-ipc"]
-CMD ["--port", "3000", "--host", "0.0.0.0"]
+CMD ["--port", "9876", "--host", "0.0.0.0"]
