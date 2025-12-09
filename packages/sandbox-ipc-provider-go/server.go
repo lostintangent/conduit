@@ -73,9 +73,11 @@ type Client struct {
 
 // Server is the WebSocket server for filesystem operations
 type Server struct {
-	provider *fs.Provider
-	watcher  *fs.Watcher
-	cache    *fs.DirectoryCache
+	provider   *fs.Provider
+	watcher    *fs.Watcher
+	cache      *fs.DirectoryCache
+	prefetcher *fs.Prefetcher
+	verifier   *fs.CacheVerifier
 
 	// WebSocket clients
 	clients map[*Client]bool
@@ -89,11 +91,24 @@ func NewServer(workspacePath string) (*Server, error) {
 		return nil, err
 	}
 
+	cache := fs.NewDirectoryCache(500)
+	
 	s := &Server{
-		provider: provider,
-		cache:    fs.NewDirectoryCache(500),
-		clients:  make(map[*Client]bool),
+		provider:   provider,
+		cache:      cache,
+		prefetcher: fs.NewPrefetcher(provider, cache),
+		verifier:   fs.NewCacheVerifier(provider, cache),
+		clients:    make(map[*Client]bool),
 	}
+
+	// Set up cache verification callback to emit events
+	s.verifier.SetStaleCallback(func(path string, entries []types.DirectoryEntry) {
+		// Emit directoryChanged event when cache becomes stale
+		s.broadcastEvent("directoryChanged", map[string]interface{}{
+			"path":    path,
+			"entries": entries,
+		})
+	})
 
 	// Create watcher with server as event handler
 	w, err := fs.NewWatcher(workspacePath, s)
@@ -287,6 +302,10 @@ func (s *Server) handleReadDirectory(params json.RawMessage) (interface{}, error
 
 	// Check cache first
 	if cached := s.cache.Get(path); cached != nil {
+		// Schedule cache verification in background
+		s.verifier.ScheduleVerify(path)
+		// Prefetch child directories in background
+		go s.prefetcher.PrefetchChildren(path, cached.Entries)
 		return map[string]interface{}{"entries": cached.Entries}, nil
 	}
 
@@ -297,6 +316,9 @@ func (s *Server) handleReadDirectory(params json.RawMessage) (interface{}, error
 
 	// Cache the result
 	s.cache.Set(path, entries)
+
+	// Prefetch child directories in background
+	go s.prefetcher.PrefetchChildren(path, entries)
 
 	return map[string]interface{}{"entries": entries}, nil
 }

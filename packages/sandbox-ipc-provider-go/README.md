@@ -11,8 +11,34 @@ A high-performance, single-binary service that runs inside VMs backing cloud ter
 - **Fast Startup** - ~5ms cold start
 - **Real-time Watching** - Native fsnotify with rename detection
 - **Smart Caching** - LRU cache for directory listings
+- **Background Prefetch** - Proactively caches child directories
+- **Cache Verification** - Validates cache freshness with cooldown
 - **Git Integration** - Automatic gitignore filtering
 - **WebSocket Events** - Bidirectional real-time communication via [coder/websocket](https://github.com/coder/websocket)
+
+## Performance Optimizations
+
+The server includes several optimizations for responsive file browsing:
+
+### Directory Cache (LRU)
+
+- Caches up to 500 directory listings
+- Automatically invalidated on file system events
+- Provides instant responses for repeated directory reads
+
+### Background Prefetch
+
+- After reading a directory, child directories are prefetched in the background
+- Uses a semaphore to limit to 10 concurrent prefetch operations
+- Skips directories that are already cached or being prefetched
+- Results in near-instant navigation when browsing directory trees
+
+### Cache Verification
+
+- When serving from cache, schedules a background verification
+- Compares cached entries with actual filesystem state
+- Uses a 2-second cooldown per directory to prevent excessive verification
+- Emits `directoryChanged` event if cache becomes stale
 
 ## Quick Start
 
@@ -237,14 +263,17 @@ The test suite covers:
 ```
 sandbox-ipc-provider-go/
 ├── main.go              # Entry point
-├── server.go            # HTTP/SSE server
+├── server.go            # WebSocket server
 ├── types/
 │   └── types.go         # Shared type definitions
 ├── fs/
 │   ├── provider.go      # Filesystem operations
 │   ├── gitignore.go     # Gitignore filtering
 │   ├── watcher.go       # File watcher with rename detection
-│   └── cache.go         # LRU directory cache
+│   ├── cache.go         # LRU directory cache
+│   ├── prefetch.go      # Background prefetching
+│   └── verify.go        # Cache verification
+├── test/                # TypeScript test suite
 ├── Dockerfile           # Multi-stage Docker build
 └── Makefile             # Build commands
 ```
