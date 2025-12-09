@@ -45,7 +45,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install macOS dependencies
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         run: |
           # Install build tools for native modules
           npm install -g node-gyp
