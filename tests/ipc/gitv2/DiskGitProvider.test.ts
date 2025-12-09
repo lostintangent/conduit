@@ -3,6 +3,13 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 
 // ============================================================================
+// Hoisted Mocks (must be defined before vi.mock calls)
+// ============================================================================
+
+// Create a mockable fs/promises stat function
+const mockFsStat = vi.fn();
+
+// ============================================================================
 // Mocks
 // ============================================================================
 
@@ -80,6 +87,15 @@ vi.mock("node:fs", async () => {
       isFile: () => false,
       isDirectory: () => true,
     }),
+  };
+});
+
+// Mock fs/promises stat for getMostRecentCommittedFile tests
+vi.mock("node:fs/promises", async () => {
+  const actual = await vi.importActual("node:fs/promises");
+  return {
+    ...actual,
+    stat: (...args: unknown[]) => mockFsStat(...args),
   };
 });
 
@@ -815,13 +831,75 @@ describe("DiskGitProvider", () => {
 
     it("should return null when no files in commits", async () => {
       mockGit.log.mockResolvedValue({
-        all: [{ hash: "abc123", body: "" }],
+        all: [{ hash: "abc123", diff: { files: [] } }],
       });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const result = await provider.getMostRecentCommittedFile();
 
       expect(result).toBeNull();
+    });
+
+    it("should return null when diff property is missing", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [{ hash: "abc123" }],
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentCommittedFile();
+
+      expect(result).toBeNull();
+    });
+
+    it("should extract files from diff.files array", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [
+          {
+            hash: "abc123",
+            diff: {
+              files: [
+                { file: "src/file1.ts", changes: 10 },
+                { file: "src/file2.ts", changes: 5 },
+              ],
+            },
+          },
+        ],
+      });
+
+      // Mock fs.stat to return stats for the files
+      mockFsStat.mockResolvedValue({ mtimeMs: 1000 });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentCommittedFile();
+
+      // Should return one of the files (whichever has latest mtime)
+      expect(result).toBe("src/file1.ts");
+    });
+
+    it("should return most recently modified file", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [
+          {
+            hash: "abc123",
+            diff: {
+              files: [{ file: "src/old.ts" }, { file: "src/new.ts" }],
+            },
+          },
+        ],
+      });
+
+      // Mock fs.stat to return different mtimes
+      mockFsStat.mockImplementation(async (filePath: string) => {
+        if (filePath.includes("new.ts")) {
+          return { mtimeMs: 2000 }; // newer
+        }
+        return { mtimeMs: 1000 }; // older
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentCommittedFile();
+
+      expect(result).toBe("src/new.ts");
     });
   });
 

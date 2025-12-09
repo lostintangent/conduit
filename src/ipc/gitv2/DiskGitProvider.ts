@@ -606,14 +606,17 @@ export class DiskGitProvider implements GitProvider {
         "--name-only": null,
       });
 
-      // Collect unique file paths
+      // Collect unique file paths from diff.files
+      // simple-git puts --name-only results in the diff.files array, not body
       const filesSet = new Set<string>();
       for (const commit of log.all) {
-        // The diff property contains changed files
-        const body = (commit as any).body || "";
-        const files = body.split("\n").filter(Boolean);
-        for (const file of files) {
-          filesSet.add(file);
+        const diff = (commit as any).diff;
+        if (diff?.files && Array.isArray(diff.files)) {
+          for (const fileEntry of diff.files) {
+            if (fileEntry.file) {
+              filesSet.add(fileEntry.file);
+            }
+          }
         }
       }
 
