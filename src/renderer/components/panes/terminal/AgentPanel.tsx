@@ -1,4 +1,10 @@
-import { ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  GripHorizontal,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 interface AgentPanelProps {
@@ -11,6 +17,8 @@ interface AgentPanelProps {
   error?: string;
 }
 
+type PanelPosition = "top" | "bottom";
+
 export const AgentPanel: React.FC<AgentPanelProps> = ({
   isOpen,
   isProcessing,
@@ -22,8 +30,12 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [promptValue, setPromptValue] = useState("");
+  const [position, setPosition] = useState<PanelPosition>("bottom");
+  const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef<number>(0);
+  const dragStartPosition = useRef<PanelPosition>("bottom");
 
   // Focus input when panel opens
   useEffect(() => {
@@ -72,23 +84,66 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     }
   };
 
+  const handleDragStart = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    dragStartY.current = e.clientY;
+    dragStartPosition.current = position;
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleDragMove = (e: MouseEvent) => {
+      const deltaY = e.clientY - dragStartY.current;
+      const threshold = 100; // pixels to drag before switching position
+
+      if (dragStartPosition.current === "bottom" && deltaY < -threshold) {
+        setPosition("top");
+      } else if (dragStartPosition.current === "top" && deltaY > threshold) {
+        setPosition("bottom");
+      }
+    };
+
+    const handleDragEnd = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleDragMove);
+    document.addEventListener("mouseup", handleDragEnd);
+
+    return () => {
+      document.removeEventListener("mousemove", handleDragMove);
+      document.removeEventListener("mouseup", handleDragEnd);
+    };
+  }, [isDragging, position]);
+
   if (!isOpen) return null;
 
   const minimizedHeight = "200px";
   const maximizedHeight = "calc(100% - 48px)";
 
+  const positionStyles =
+    position === "bottom" ? { bottom: "8px" } : { top: "8px" };
+
   return (
     <div
-      className="absolute left-2 right-2 z-50 flex flex-col rounded-lg border border-border bg-surface/95 backdrop-blur-sm shadow-lg overflow-hidden"
+      className="absolute left-2 right-2 z-50 flex flex-col rounded-lg border border-border bg-background/98 backdrop-blur-md shadow-lg overflow-hidden"
       style={{
-        bottom: "8px",
+        ...positionStyles,
         height: isMaximized ? maximizedHeight : minimizedHeight,
-        transition: "height 0.2s ease-in-out",
+        transition: isDragging
+          ? "none"
+          : "height 0.2s ease-in-out, top 0.3s ease-in-out, bottom 0.3s ease-in-out",
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-elevated/50">
+      <div
+        className="flex items-center justify-between px-3 py-2 border-b border-border bg-elevated/50 cursor-move"
+        onMouseDown={handleDragStart}
+      >
         <div className="flex items-center gap-2">
+          <GripHorizontal size={14} className="text-foreground/30" />
           <span className="text-xs font-medium text-accent">❯</span>
           <span className="text-xs font-medium text-foreground/70">Agent</span>
           {isProcessing && (
