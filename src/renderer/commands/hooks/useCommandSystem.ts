@@ -165,6 +165,22 @@ export function useCommandSystem(
         openAgents: () => {
           setShowAgentsEditor(true);
         },
+        openKeyboardShortcuts: () => {
+          setShowKeybindingsEditor(true);
+        },
+        openSettings: (
+          tab?: "keyboard" | "paneActions" | "agents" | "preferences",
+        ) => {
+          if (tab === "keyboard") {
+            setShowKeybindingsEditor(true);
+          } else if (tab === "paneActions") {
+            setShowPaneActionsEditor(true);
+          } else if (tab === "agents") {
+            setShowAgentsEditor(true);
+          } else {
+            setShowKeybindingsEditor(true); // Default to keyboard for now
+          }
+        },
       },
 
       // Agent service

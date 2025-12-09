@@ -41,6 +41,8 @@ export type LaunchGroup = {
 // Legacy type alias for backwards compatibility
 export type Team = LaunchGroup;
 
+export type PlayButtonTarget = "hyper" | "newPane";
+
 export type UserSettings = {
   // UI/Layout settings
   tabPosition: TabPosition;
@@ -63,6 +65,11 @@ export type UserSettings = {
 
   // Workspace settings
   autoSaveWorkspaces: boolean;
+
+  // Repository shortcuts
+  showLaunchButton?: boolean;
+  showPlayButton?: boolean;
+  playButtonTarget?: PlayButtonTarget;
 
   // History/State
   commandHistory: string[];

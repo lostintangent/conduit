@@ -18,14 +18,12 @@ import {
   updateTerminalFonts,
   updateTerminalThemes,
 } from "@/components/panes/terminal/xtermCache";
-import { AgentsEditor } from "@/components/shell/agents/AgentsEditor";
-import { KeybindingsEditor } from "@/components/shell/keybindings/KeybindingsEditor";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
-import { PaneActionsEditor } from "@/components/shell/paneActions";
+import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
@@ -85,6 +83,7 @@ export function App() {
   const setKeybindings = useSetAtom(keybindingsAtom);
   const [hyperTerminal, setHyperTerminal] = useAtom(hyperTerminalAtom);
 
+  const userSettings = useUserSettings();
   const {
     tabPosition,
     alwaysShowTabs,
@@ -99,7 +98,7 @@ export function App() {
     updateSettings,
     addCommandHistoryEntry: recordCommandHistoryEntry,
     removeCommandHistoryEntry,
-  } = useUserSettings();
+  } = userSettings;
 
   // Apply theme on mount and when it changes
   useEffect(() => {
@@ -140,9 +139,9 @@ export function App() {
     AgentSessionInfo[] | null
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
-  const [showKeybindingsEditor, setShowKeybindingsEditor] = useState(false);
-  const [showPaneActionsEditor, setShowPaneActionsEditor] = useState(false);
-  const [showAgentsEditor, setShowAgentsEditor] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<
+    "keyboard" | "paneActions" | "agents" | "preferences" | null
+  >(null);
   const [showAgentLauncher, setShowAgentLauncher] = useState(false);
   const [showTerminalFontSettings, setShowTerminalFontSettings] =
     useState(false);
@@ -187,9 +186,12 @@ export function App() {
     hasCustomLayout,
     hasLastWorkspace,
     // UI state setters
-    setShowKeybindingsEditor,
-    setShowPaneActionsEditor,
-    setShowAgentsEditor,
+    setShowKeybindingsEditor: (show: boolean) =>
+      setSettingsTab(show ? "keyboard" : null),
+    setShowPaneActionsEditor: (show: boolean) =>
+      setSettingsTab(show ? "paneActions" : null),
+    setShowAgentsEditor: (show: boolean) =>
+      setSettingsTab(show ? "agents" : null),
     setShowAgentLauncher,
     setIsCommandPaletteOpenOverride,
     setShowRenameWorkspaceDialog,
@@ -803,10 +805,7 @@ export function App() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
-      <TitleBar
-        onUpdateSettings={updateSettings}
-        onOpenTerminalFontSettings={() => setShowTerminalFontSettings(true)}
-      />
+      <TitleBar />
 
       <TabContentPortalProvider>
         {/* Global container for editor panes - keeps editors alive across tab switches */}
@@ -853,7 +852,7 @@ export function App() {
               handleBrowserUpdate={handleBrowserUpdate}
               handleEditorUpdate={handleEditorUpdate}
               onOpenQuickPane={handleOpenQuickPane}
-              onOpenPaneActions={() => setShowPaneActionsEditor(true)}
+              onOpenPaneActions={() => setSettingsTab("paneActions")}
             />
           </div>
 
@@ -1042,25 +1041,27 @@ export function App() {
         onSubmit={handleVMRepoSubmit}
       />
 
-      {showKeybindingsEditor && commandSystem && homeDirectory ? (
-        <KeybindingsEditor
-          onClose={() => setShowKeybindingsEditor(false)}
+      {settingsTab && commandSystem && paneActionsSystem && homeDirectory ? (
+        <SettingsDialog
+          onClose={() => setSettingsTab(null)}
           commandRegistry={commandSystem.commandRegistry}
           keybindingRegistry={commandSystem.keybindingRegistry}
           homeDirectory={homeDirectory}
+          initialTab={settingsTab}
           onOpenQuickPane={handleOpenQuickPane}
+          onUpdateSettings={userSettings.updateSettings}
+          onOpenTerminalFontSettings={() => setShowTerminalFontSettings(true)}
+          userSettings={userSettings}
         />
-      ) : showKeybindingsEditor ? (
+      ) : settingsTab ? (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
-            <h2 className="text-white text-xl mb-4">
-              Command system not initialized
-            </h2>
+            <h2 className="text-white text-xl mb-4">System not initialized</h2>
             <p className="text-gray-400 mb-4">
-              The command system is still initializing. Please try again.
+              The system is still initializing. Please try again.
             </p>
             <button
-              onClick={() => setShowKeybindingsEditor(false)}
+              onClick={() => setSettingsTab(null)}
               className="bg-blue-500 text-white px-4 py-2 rounded"
             >
               Close
@@ -1068,35 +1069,6 @@ export function App() {
           </div>
         </div>
       ) : null}
-
-      {showPaneActionsEditor && paneActionsSystem && homeDirectory ? (
-        <PaneActionsEditor
-          onClose={() => setShowPaneActionsEditor(false)}
-          homeDirectory={homeDirectory}
-          onOpenQuickPane={handleOpenQuickPane}
-        />
-      ) : showPaneActionsEditor ? (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-8">
-            <h2 className="text-white text-xl mb-4">
-              Pane actions system not initialized
-            </h2>
-            <p className="text-gray-400 mb-4">
-              The pane actions system is still initializing. Please try again.
-            </p>
-            <button
-              onClick={() => setShowPaneActionsEditor(false)}
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {showAgentsEditor && (
-        <AgentsEditor onClose={() => setShowAgentsEditor(false)} />
-      )}
 
       <AgentLauncherDialog
         isOpen={showAgentLauncher}
