@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	"sandbox-ipc-provider-go/git"
 	"sandbox-ipc-provider-go/types"
 	"sandbox-ipc-provider-go/workspace"
+
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 )
 
 // Message types for WebSocket protocol
