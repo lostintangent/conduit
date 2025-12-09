@@ -81,6 +81,15 @@ function joinPath(base: string, name: string): string {
 }
 
 /**
+ * Get the parent directory path.
+ */
+function getParentPath(filePath: string): string | null {
+  const lastSlash = filePath.lastIndexOf("/");
+  if (lastSlash <= 0) return null;
+  return filePath.slice(0, lastSlash);
+}
+
+/**
  * Get relative path from cwd.
  */
 function getRelativePath(fullPath: string, cwd: string): string {
@@ -90,6 +99,19 @@ function getRelativePath(fullPath: string, cwd: string): string {
     return relative.startsWith("/") ? relative.slice(1) : relative;
   }
   return fullPath;
+}
+
+/**
+ * Sort directory entries: directories first, then alphabetically by name.
+ * This must match the order used in renderDirectory for visiblePaths to be correct.
+ */
+function sortEntries(entries: DirectoryEntry[]): DirectoryEntry[] {
+  return [...entries].sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === "directory" ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
 }
 
 /**
@@ -130,6 +152,62 @@ export function FileTreeNormal({
   const [isLoading, setIsLoading] = useState(true);
 
   // ---------------------------------------------------------------------------
+  // Keyboard Navigation State
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Currently focused path for keyboard navigation.
+   * Distinct from selectedFile - focus is transient for navigation,
+   * selection indicates the file open in the editor.
+   */
+  const [focusedPath, setFocusedPath] = useState<string | null>(null);
+
+  /**
+   * Flat list of all currently visible paths in display order.
+   * Used for efficient arrow key navigation.
+   */
+  const visiblePaths = useMemo(() => {
+    const paths: string[] = [];
+
+    function collectVisible(dirPath: string): void {
+      const entries = directoryCache[normalizePathForKey(dirPath)];
+      if (!entries) return;
+
+      const sorted = sortEntries(entries);
+      for (const entry of sorted) {
+        const entryPath = joinPath(dirPath, entry.name);
+        paths.push(entryPath);
+
+        // Recursively collect children of expanded directories
+        if (entry.type === "directory" && isPathExpanded(entryPath)) {
+          collectVisible(entryPath);
+        }
+      }
+    }
+
+    collectVisible(cwd);
+    return paths;
+  }, [directoryCache, isPathExpanded, cwd]);
+
+  /**
+   * Get the entry type for a given path.
+   */
+  const getEntryTypeForPath = useCallback(
+    (path: string): "file" | "directory" | null => {
+      const parentPath = getParentPath(path);
+      if (!parentPath) return null;
+
+      const entries = directoryCache[normalizePathForKey(parentPath)];
+      if (!entries) return null;
+
+      const name = path.split("/").pop();
+      const entry = entries.find((e) => e.name === name);
+      return entry?.type ?? null;
+    },
+    [directoryCache],
+  );
+
+  // ---------------------------------------------------------------------------
   // CWD Change Handler
   // ---------------------------------------------------------------------------
 
@@ -145,6 +223,7 @@ export function FileTreeNormal({
       resetExpandedPaths([cwd]);
       setInternalGitStatus(null);
       expandedToFileRef.current = null;
+      setFocusedPath(null); // Reset focus when cwd changes
       prevCwdRef.current = cwd;
     }
   }, [cwd, resetExpandedPaths]);
@@ -335,6 +414,243 @@ export function FileTreeNormal({
   );
 
   // ---------------------------------------------------------------------------
+  // Keyboard Navigation Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle ArrowRight key:
+   * - If folder is collapsed: expand it
+   * - If folder is expanded: move focus to first child
+   * - If file: no-op
+   */
+  const handleArrowRight = useCallback(
+    (path: string) => {
+      const entryType = getEntryTypeForPath(path);
+      if (entryType !== "directory") return;
+
+      if (!isPathExpanded(path)) {
+        // Expand the folder
+        handleToggleExpand(path);
+      } else {
+        // Move focus to first child
+        const children = directoryCache[normalizePathForKey(path)];
+        if (children && children.length > 0) {
+          const sorted = sortEntries(children);
+          setFocusedPath(joinPath(path, sorted[0].name));
+        }
+      }
+    },
+    [getEntryTypeForPath, isPathExpanded, handleToggleExpand, directoryCache],
+  );
+
+  /**
+   * Handle ArrowLeft key:
+   * - If folder is expanded: collapse it
+   * - If folder is collapsed or file: move focus to parent
+   */
+  const handleArrowLeft = useCallback(
+    (path: string) => {
+      const entryType = getEntryTypeForPath(path);
+
+      if (entryType === "directory" && isPathExpanded(path)) {
+        // Collapse the folder
+        handleToggleExpand(path);
+      } else {
+        // Move focus to parent folder
+        const parentPath = getParentPath(path);
+        if (parentPath && !pathsEqual(parentPath, cwd)) {
+          setFocusedPath(parentPath);
+        }
+      }
+    },
+    [getEntryTypeForPath, isPathExpanded, handleToggleExpand, cwd],
+  );
+
+  /**
+   * Handle Space key: open file or toggle folder.
+   */
+  const handleSpaceKey = useCallback(
+    (path: string) => {
+      const entryType = getEntryTypeForPath(path);
+      if (entryType === "file") {
+        const name = path.split("/").pop() ?? "";
+        onFileSelect({ path, name, type: "file" });
+      } else if (entryType === "directory") {
+        handleToggleExpand(path);
+      }
+    },
+    [getEntryTypeForPath, onFileSelect, handleToggleExpand],
+  );
+
+  /**
+   * Main keyboard event handler for the tree container.
+   */
+  const handleTreeKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      // If no focus, set focus to first item on any navigation key
+      if (!focusedPath) {
+        if (
+          [
+            "ArrowUp",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight",
+            "Home",
+            "End",
+          ].includes(e.key)
+        ) {
+          e.preventDefault();
+          if (visiblePaths.length > 0) {
+            setFocusedPath(visiblePaths[0]);
+          }
+        }
+        return;
+      }
+
+      const currentIndex = visiblePaths.indexOf(focusedPath);
+      if (currentIndex === -1) {
+        // Focused path no longer visible, reset to first
+        if (visiblePaths.length > 0) {
+          setFocusedPath(visiblePaths[0]);
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowUp":
+          e.preventDefault();
+          if (currentIndex > 0) {
+            setFocusedPath(visiblePaths[currentIndex - 1]);
+          }
+          break;
+
+        case "ArrowDown":
+          e.preventDefault();
+          if (currentIndex < visiblePaths.length - 1) {
+            setFocusedPath(visiblePaths[currentIndex + 1]);
+          }
+          break;
+
+        case "ArrowRight":
+          e.preventDefault();
+          handleArrowRight(focusedPath);
+          break;
+
+        case "ArrowLeft":
+          e.preventDefault();
+          handleArrowLeft(focusedPath);
+          break;
+
+        case "Home":
+          e.preventDefault();
+          if (visiblePaths.length > 0) {
+            setFocusedPath(visiblePaths[0]);
+          }
+          break;
+
+        case "End":
+          e.preventDefault();
+          if (visiblePaths.length > 0) {
+            setFocusedPath(visiblePaths[visiblePaths.length - 1]);
+          }
+          break;
+
+        case " ": // Space
+          e.preventDefault();
+          handleSpaceKey(focusedPath);
+          break;
+      }
+    },
+    [
+      focusedPath,
+      visiblePaths,
+      handleArrowRight,
+      handleArrowLeft,
+      handleSpaceKey,
+    ],
+  );
+
+  /**
+   * Handle click on an item - also sets focus.
+   */
+  const handleItemClick = useCallback(
+    (path: string, type: "file" | "directory") => {
+      setFocusedPath(path);
+      if (type === "file") {
+        handleSelect(path, type);
+      }
+      // For directories, the click handler in FileTreeItem calls onToggleExpand
+    },
+    [handleSelect],
+  );
+
+  /**
+   * Handle focus entering the tree container.
+   * Sets focus to the first item if nothing is focused.
+   */
+  const handleTreeFocus = useCallback(() => {
+    if (!focusedPath && visiblePaths.length > 0) {
+      // If there's a selected file, focus that; otherwise focus first item
+      if (selectedFile?.path && visiblePaths.includes(selectedFile.path)) {
+        setFocusedPath(selectedFile.path);
+      } else {
+        setFocusedPath(visiblePaths[0]);
+      }
+    }
+  }, [focusedPath, visiblePaths, selectedFile?.path]);
+
+  // ---------------------------------------------------------------------------
+  // Focus Management & Scroll Into View
+  // ---------------------------------------------------------------------------
+
+  /**
+   * When a folder is collapsed and the focused item was inside it,
+   * move focus to the collapsed folder.
+   */
+  useEffect(() => {
+    if (focusedPath && !visiblePaths.includes(focusedPath)) {
+      // Focused path is no longer visible - find nearest visible parent
+      let parentPath = getParentPath(focusedPath);
+      while (parentPath) {
+        if (visiblePaths.includes(parentPath)) {
+          setFocusedPath(parentPath);
+          return;
+        }
+        parentPath = getParentPath(parentPath);
+      }
+      // No parent found, focus first item
+      if (visiblePaths.length > 0) {
+        setFocusedPath(visiblePaths[0]);
+      } else {
+        setFocusedPath(null);
+      }
+    }
+  }, [focusedPath, visiblePaths]);
+
+  /**
+   * When focusedPath changes:
+   * 1. Focus the DOM element (for roving tabindex)
+   * 2. Scroll it into view
+   */
+  useEffect(() => {
+    if (focusedPath) {
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        const element = document.querySelector(
+          `[data-path="${CSS.escape(focusedPath)}"]`,
+        ) as HTMLElement | null;
+
+        if (element) {
+          // Focus the element for keyboard navigation
+          element.focus({ preventScroll: true });
+          // Scroll into view after focusing
+          element.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      });
+    }
+  }, [focusedPath]);
+
+  // ---------------------------------------------------------------------------
   // Git Status Maps
   // ---------------------------------------------------------------------------
 
@@ -375,13 +691,8 @@ export function FileTreeNormal({
       const entries = directoryCache[normalizePathForKey(dirPath)];
       if (!entries) return null;
 
-      // Sort entries: directories first, then alphabetically
-      const sorted = [...entries].sort((a, b) => {
-        if (a.type !== b.type) {
-          return a.type === "directory" ? -1 : 1;
-        }
-        return a.name.localeCompare(b.name);
-      });
+      // Sort entries using shared helper (must match visiblePaths order)
+      const sorted = sortEntries(entries);
 
       return sorted.map((entry) => {
         const entryPath = joinPath(dirPath, entry.name);
@@ -399,8 +710,9 @@ export function FileTreeNormal({
             gitStatus={status}
             gitStatusMap={relativeGitStatusMap}
             isSelected={pathsEqual(selectedFile?.path, entryPath)}
+            isFocused={pathsEqual(focusedPath, entryPath)}
             isExpanded={isExpanded}
-            onSelect={handleSelect}
+            onSelect={handleItemClick}
             onToggleExpand={handleToggleExpand}
             onDirectoryChange={onDirectoryChange}
           >
@@ -417,7 +729,8 @@ export function FileTreeNormal({
       gitStatusMap,
       relativeGitStatusMap,
       selectedFile?.path,
-      handleSelect,
+      focusedPath,
+      handleItemClick,
       handleToggleExpand,
       onDirectoryChange,
       cwd,
@@ -440,10 +753,17 @@ export function FileTreeNormal({
   return (
     <nav
       ref={scrollContainerRef}
-      className="overflow-auto h-full px-3 text-[13px] text-white/80"
+      role="tree"
+      aria-label="File tree"
+      tabIndex={focusedPath ? -1 : 0}
+      className="overflow-auto h-full px-3 text-[13px] text-white/80 focus:outline-none"
       data-testid="file-tree-normal"
+      onKeyDown={handleTreeKeyDown}
+      onFocus={handleTreeFocus}
     >
-      <ul className="space-y-0.5">{renderDirectory(cwd, 0)}</ul>
+      <ul role="group" className="space-y-0.5">
+        {renderDirectory(cwd, 0)}
+      </ul>
     </nav>
   );
 }

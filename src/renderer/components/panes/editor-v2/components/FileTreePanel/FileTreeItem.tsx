@@ -56,8 +56,15 @@ export interface FileTreeItemProps {
   /** Git status map for folder aggregation (relative paths) */
   gitStatusMap?: Map<string, GitFileStatus> | null;
 
-  /** Whether this item is currently selected */
+  /** Whether this item is currently selected (file open in editor) */
   isSelected: boolean;
+
+  /**
+   * Whether this item has keyboard focus.
+   * Distinct from isSelected - focus is for keyboard navigation,
+   * selection indicates the file open in the editor.
+   */
+  isFocused?: boolean;
 
   /** Whether this directory is expanded (only for directories) */
   isExpanded?: boolean;
@@ -94,6 +101,7 @@ export const FileTreeItem = memo(function FileTreeItem({
   gitStatus,
   gitStatusMap,
   isSelected,
+  isFocused = false,
   isExpanded = false,
   onSelect,
   onToggleExpand,
@@ -172,14 +180,21 @@ export const FileTreeItem = memo(function FileTreeItem({
   const iconColorClass = fileStatusConfig?.textColorClass ?? "text-foreground";
 
   return (
-    <li data-testid="file-tree-item">
+    <li
+      role="treeitem"
+      aria-selected={isFocused}
+      aria-expanded={isDirectory ? isExpanded : undefined}
+      data-testid="file-tree-item"
+    >
       {/* Item row */}
       <div
-        role="button"
-        tabIndex={0}
+        tabIndex={isFocused ? 0 : -1}
         className={cn(
           "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
-          "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+          "focus:outline-none",
+          // Focus styling (keyboard navigation) - subtle ring
+          isFocused && "ring-1 ring-accent/60",
+          // Selection styling (file open in editor) - background highlight
           isSelected
             ? "bg-accent/20 hover:bg-accent/25"
             : "hover:bg-foreground/10",
@@ -251,7 +266,9 @@ export const FileTreeItem = memo(function FileTreeItem({
 
       {/* Children (expanded directory contents) - with vertical connecting line */}
       {isDirectory && isExpanded && (
-        <ul className="mt-0.5 border-l border-border pl-2">{children}</ul>
+        <ul role="group" className="mt-0.5 border-l border-border pl-2">
+          {children}
+        </ul>
       )}
     </li>
   );
