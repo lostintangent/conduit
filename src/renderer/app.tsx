@@ -282,12 +282,13 @@ export function App() {
 
       // Handle floating terminal exit
       setHyperTerminal((current) => {
-        if (!current || current.terminalId !== sessionId) {
+        const terminal = current.find((t) => t.terminalId === sessionId);
+        if (!terminal) {
           return current;
         }
 
         disposeSession(sessionId);
-        return null;
+        return current.filter((t) => t.terminalId !== sessionId);
       });
     });
 
@@ -741,7 +742,10 @@ export function App() {
 
         current.onClose?.();
 
-        setHyperTerminal({ terminalId, paneId, cwd });
+        setHyperTerminal((terminals) => [
+          ...terminals,
+          { terminalId, paneId, cwd },
+        ]);
 
         return null;
       });
@@ -751,29 +755,35 @@ export function App() {
 
   const handleOpenHyperTerminal = useCallback(
     (terminalId: string, paneId: string, cwd: string | null) => {
-      // Directly open terminal in floating overlay.
-      setHyperTerminal({ terminalId, paneId, cwd });
+      // Add a new terminal to the floating overlays array.
+      setHyperTerminal((current) => [...current, { terminalId, paneId, cwd }]);
     },
     [setHyperTerminal],
   );
 
-  const handleCloseHyperTerminal = useCallback(() => {
-    setHyperTerminal((current) => {
-      if (!current) {
-        return current;
-      }
+  const handleCloseHyperTerminal = useCallback(
+    (terminalId: string) => {
+      setHyperTerminal((current) => {
+        const terminal = current.find((t) => t.terminalId === terminalId);
+        if (!terminal) {
+          return current;
+        }
 
-      api.closeTerminal(current.terminalId);
-      disposeSession(current.terminalId);
+        api.closeTerminal(terminal.terminalId);
+        disposeSession(terminal.terminalId);
 
-      return null;
-    });
-  }, [setHyperTerminal]);
+        return current.filter((t) => t.terminalId !== terminalId);
+      });
+    },
+    [setHyperTerminal],
+  );
 
   const handleMaximizeHyperTerminal = useCallback(
     (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay back to quick dialog.
-      setHyperTerminal(null);
+      setHyperTerminal((current) =>
+        current.filter((t) => t.terminalId !== terminalId),
+      );
       setQuickPaneState({
         type: "terminal",
         sessionId: terminalId,
@@ -786,7 +796,9 @@ export function App() {
   const handleOpenHyperTerminalAsTab = useCallback(
     async (terminalId: string, cwd: string | null) => {
       // Transfer terminal from floating overlay to new tab.
-      setHyperTerminal(null);
+      setHyperTerminal((current) =>
+        current.filter((t) => t.terminalId !== terminalId),
+      );
 
       const { openTabFromExistingSession } = await import(
         "@/store/actions/tab"
@@ -941,26 +953,21 @@ export function App() {
         />
       )}
 
-      {hyperTerminal && (
+      {hyperTerminal.map((terminal) => (
         <HyperTerminal
-          terminalId={hyperTerminal.terminalId}
-          paneId={hyperTerminal.paneId}
-          cwd={hyperTerminal.cwd}
-          onClose={handleCloseHyperTerminal}
+          key={terminal.terminalId}
+          terminalId={terminal.terminalId}
+          paneId={terminal.paneId}
+          cwd={terminal.cwd}
+          onClose={() => handleCloseHyperTerminal(terminal.terminalId)}
           onMaximize={() =>
-            handleMaximizeHyperTerminal(
-              hyperTerminal.terminalId,
-              hyperTerminal.cwd,
-            )
+            handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
           }
           onOpenAsTab={() =>
-            handleOpenHyperTerminalAsTab(
-              hyperTerminal.terminalId,
-              hyperTerminal.cwd,
-            )
+            handleOpenHyperTerminalAsTab(terminal.terminalId, terminal.cwd)
           }
         />
-      )}
+      ))}
 
       <InputDialog
         isOpen={isUrlDialogOpen}

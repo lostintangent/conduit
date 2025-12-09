@@ -6,7 +6,7 @@ export type PaneResolutionContext = {
   tabs: Tab[];
   sessionId: string;
   activeTab?: Tab;
-  hyperTerminal?: { terminalId: string };
+  hyperTerminal?: Array<{ terminalId: string }>;
 };
 
 export function findCallingTerminalTab({
@@ -21,7 +21,10 @@ export function findCallingTerminalTab({
     ),
   );
 
-  if (!matchingTab && hyperTerminal?.terminalId === sessionId) {
+  if (
+    !matchingTab &&
+    hyperTerminal?.some((t) => t.terminalId === sessionId)
+  ) {
     matchingTab = activeTab ?? undefined;
   }
 
@@ -74,7 +77,7 @@ export function resolveTerminalSessions(
       ([, pane]) => pane.type === "terminal" && pane.sessionId !== sessionId,
     ) as [string, TerminalPane][];
 
-  const isHyperTerminal = hyperTerminal?.terminalId === sessionId;
+  const isHyperTerminal = hyperTerminal?.some((t) => t.terminalId === sessionId);
 
   if (all || (isHyperTerminal && !paneId)) {
     const terminalPanes = getOtherTerminalPanes();
