@@ -7,7 +7,7 @@ import {
 } from "@/cli/utils";
 import { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
-import { activeTabAtom, hyperTerminalAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, hyperTerminalsAtom, tabsAtom } from "@/store/atoms";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
@@ -54,7 +54,7 @@ type UseCliClientOptions = {
 export function useCliClient({ onOpenFile }: UseCliClientOptions) {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const hyperTerminal = useAtomValue(hyperTerminalAtom);
+  const hyperTerminals = useAtomValue(hyperTerminalsAtom);
 
   const moveCommandMap = useCommandMap({
     left: ApplicationCommands.PANE_MOVE_LEFT,
@@ -107,7 +107,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       const resolutionContext = {
         tabs,
         sessionId,
-        hyperTerminal,
+        hyperTerminal: hyperTerminals,
         activeTab,
       } as const;
 
@@ -128,7 +128,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
         sessionId,
         activeTab,
         tabs,
-        hyperTerminal,
+        hyperTerminal: hyperTerminals,
         suppressResponse,
         findCallingTerminalTab: () => findCallingTerminalTab(resolutionContext),
         resolveTerminalSessions: (paneId?: string, all?: boolean) =>
