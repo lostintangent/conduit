@@ -21,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { openHyperTerminal } from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
   enqueueNotification,
@@ -69,11 +70,6 @@ type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
-  onOpenHyperTerminal?: (
-    terminalId: string,
-    paneId: string,
-    cwd: string | null,
-  ) => void;
   position?: TabPosition;
 };
 
@@ -81,7 +77,6 @@ export const TabStrip = ({
   onOpenCommandPalette,
   onTabContextMenu,
   onOpenQuickPane,
-  onOpenHyperTerminal,
   position = "top",
 }: TabStripProps) => {
   const tabLabels = useAtomValue(tabLabelsAtom);
@@ -534,15 +529,14 @@ export const TabStrip = ({
   ]);
 
   const handleOpenHyperTerminal = useCallback(async () => {
-    if (!onOpenHyperTerminal) return;
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
     if (!result) return;
 
     const paneId = generateId();
-    onOpenHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
-  }, [activeTab, homeDirectory, onOpenHyperTerminal]);
+    openHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
+  }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
     if (!onOpenQuickPane) return;
