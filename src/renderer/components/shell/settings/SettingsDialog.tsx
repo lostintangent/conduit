@@ -9,12 +9,12 @@
  */
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import type { UserSettings } from "@shared/types";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ICommandRegistry } from "../../../commands/core/CommandRegistry";
 import type { KeybindingRegistry } from "../../../commands/keybindings/KeybindingRegistry";
-import { useUserSettings } from "@/hooks/useUserSettings";
-import type { UserSettings } from "@shared/types";
 import { AdvancedTab } from "./tabs/AdvancedTab";
 import { AgentsTab } from "./tabs/AgentsTab";
 import { KeyboardShortcutsTab } from "./tabs/KeyboardShortcutsTab";
@@ -94,7 +94,7 @@ export function SettingsDialog({
         >
           <div className="px-6 py-2 border-b border-gray-700 flex-shrink-0">
             <TabsList className="flex-shrink-0 border-b-0 w-auto">
-              <TabsTrigger value="keyboard">Keyboard</TabsTrigger>
+              <TabsTrigger value="keyboard">Keybindings</TabsTrigger>
               <TabsTrigger value="paneActions">Actions</TabsTrigger>
               <TabsTrigger value="agents">Agents</TabsTrigger>
               <TabsTrigger value="advanced">Advanced</TabsTrigger>
