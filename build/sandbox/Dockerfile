@@ -16,6 +16,16 @@ RUN npm install -g yarn pnpm \
  && curl -fsSL https://bun.sh/install | bash \
  && ln -s /root/.bun/bin/bun /usr/local/bin/bun
 
+# Install Go
+RUN curl -fsSL https://go.dev/dl/go1.25.5.linux-amd64.tar.gz | tar -C /usr/local -xzf - \
+ && ln -s /usr/local/go/bin/go /usr/local/bin/go
+
+# Build and install sandbox-ipc-provider
+COPY build/sandbox/sandbox-ipc-provider-go /tmp/sandbox-ipc-provider-go
+RUN cd /tmp/sandbox-ipc-provider-go \
+ && go build -ldflags="-w -s -X main.version=1.0.0 -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o /usr/local/bin/sandbox-ipc . \
+ && rm -rf /tmp/sandbox-ipc-provider-go
+
 # Install gh cli
 RUN mkdir -p -m 755 /etc/apt/keyrings \
     && out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
@@ -46,3 +56,9 @@ RUN echo 'export PATH="/root/.bun/bin:$PATH"' >> /etc/profile.d/bun.sh
 
 # Verify installations
 RUN node --version && npm --version && yarn --version && bun --version
+
+# Expose the sandbox-ipc server port
+EXPOSE 3000
+
+# Default command: start the sandbox-ipc server
+CMD ["sandbox-ipc", "-workspace", "/workspace"]
