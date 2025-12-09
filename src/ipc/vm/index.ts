@@ -6,7 +6,6 @@ import type {
   ListVMsPayload,
 } from "../../shared/types";
 import {
-  applyDiffToVM,
   configureVMForGitPush,
   createVM as createVMClient,
   deleteVM as deleteVMClient,
@@ -16,6 +15,18 @@ import {
   listVMs as listVMsClient,
   reloadConfig,
 } from "./client";
+import { getSandboxIPCUrl } from "./sandbox-ipc-client";
+import {
+  acquireVM,
+  addForwardedPort,
+  connectSandbox,
+  disconnectSandbox,
+  disposeAllSessions,
+  getAllVMSessions,
+  getVMSession,
+  releaseVM,
+  type VMConsumerType,
+} from "./store";
 
 /**
  * Initialize IPC handlers for VM operations
@@ -85,21 +96,6 @@ export function initializeVMHandlers() {
     },
   );
 
-  // Apply diff patch to VM
-  ipcMain.handle(
-    "vm:apply-diff",
-    async (
-      _,
-      {
-        vmId,
-        diffPatch,
-        repoPath,
-      }: { vmId: string; diffPatch: Buffer; repoPath: string },
-    ) => {
-      return await applyDiffToVM(vmId, diffPatch, repoPath);
-    },
-  );
-
   // Forward a port from a VM
   ipcMain.handle(
     "vm:forward-port",
@@ -111,30 +107,165 @@ export function initializeVMHandlers() {
         description,
       }: { vmId: string; port: number; description?: string },
     ) => {
-      const { addPortForward } = await import("./client");
-
-      // Find the terminal session for this VM
-      const terminals = (await import("../terminal/store")).getAllTerminals();
-      let terminal;
-      for (const [_, term] of terminals) {
-        if (term.cloudEnvironment?.vmId === vmId) {
-          terminal = term;
-          break;
-        }
-      }
+      const { addPortForward: addPortForwardAPI } = await import("./client");
 
       // Call the VM API to forward the port
-      const result = await addPortForward(vmId, port, description);
+      const result = await addPortForwardAPI(vmId, port, description);
 
-      // Update the terminal's forwarded ports map
-      if (terminal?.cloudEnvironment) {
-        terminal.cloudEnvironment.forwardedPorts.set(
-          port,
-          result.connection_url,
-        );
+      // Update the VM store's forwarded ports
+      addForwardedPort(vmId, port, result.connection_url);
+
+      // Also update terminal's forwarded ports for backward compatibility
+      const terminals = (await import("../terminal/store")).getAllTerminals();
+      for (const [_, term] of terminals) {
+        if (term.cloudEnvironment?.vmId === vmId) {
+          term.cloudEnvironment.forwardedPorts.set(port, result.connection_url);
+          break;
+        }
       }
 
       return result;
     },
   );
+
+  // ============================================================================
+  // VM Store Handlers
+  // ============================================================================
+
+  // Acquire a VM session (for panes that want to connect to a VM)
+  ipcMain.handle(
+    "vm:acquire",
+    async (
+      _,
+      {
+        vmId,
+        consumerId,
+        consumerType,
+        connectSandbox: shouldConnect,
+      }: {
+        vmId: string;
+        consumerId: string;
+        consumerType: VMConsumerType;
+        connectSandbox?: boolean;
+      },
+    ) => {
+      try {
+        const session = await acquireVM(vmId, {
+          consumerId,
+          consumerType,
+          connectSandbox: shouldConnect,
+        });
+        return {
+          success: true,
+          vmId: session.vmId,
+          connectionState: session.connectionState,
+          sshHost: session.sshHost,
+          sshPort: session.sshPort,
+          forwardedPorts: Object.fromEntries(session.forwardedPorts),
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { success: false, error: message };
+      }
+    },
+  );
+
+  // Release a VM session
+  ipcMain.handle(
+    "vm:release",
+    async (_, { vmId, consumerId }: { vmId: string; consumerId: string }) => {
+      releaseVM(vmId, consumerId);
+      return { success: true };
+    },
+  );
+
+  // Get VM session info
+  ipcMain.handle("vm:session", async (_, vmId: string) => {
+    const session = getVMSession(vmId);
+    if (!session) {
+      return { success: false, error: "No session found" };
+    }
+    return {
+      success: true,
+      vmId: session.vmId,
+      connectionState: session.connectionState,
+      sshHost: session.sshHost,
+      sshPort: session.sshPort,
+      consumerCount: session.consumers.size,
+      forwardedPorts: Object.fromEntries(session.forwardedPorts),
+    };
+  });
+
+  // List all active VM sessions
+  ipcMain.handle("vm:sessions", async () => {
+    const sessions = getAllVMSessions();
+    return Array.from(sessions.values()).map((s) => ({
+      vmId: s.vmId,
+      connectionState: s.connectionState,
+      consumerCount: s.consumers.size,
+    }));
+  });
+
+  // ============================================================================
+  // Sandbox IPC Handlers
+  // ============================================================================
+
+  // Get sandbox-ipc WebSocket URL for a VM
+  ipcMain.handle("vm:sandbox-ipc-url", async (_, vmId: string) => {
+    const vm = await getVMClient(vmId);
+    const url = getSandboxIPCUrl(vm);
+    return { url, available: !!url };
+  });
+
+  // Apply patches via sandbox-ipc (preferred method)
+  ipcMain.handle(
+    "vm:sandbox-apply-patches",
+    async (
+      _,
+      {
+        vmId,
+        patches,
+      }: {
+        vmId: string;
+        patches: {
+          staged?: Buffer | null;
+          unstaged?: Buffer | null;
+          untracked?: Buffer | null;
+        };
+      },
+    ) => {
+      try {
+        const client = await connectSandbox(vmId);
+        return await client.applyPatches(patches);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { success: false, error: message };
+      }
+    },
+  );
+
+  // Get git status via sandbox-ipc
+  ipcMain.handle("vm:sandbox-git-status", async (_, vmId: string) => {
+    try {
+      const client = await connectSandbox(vmId);
+      const status = await client.getGitStatus();
+      return { success: true, status };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { success: false, error: message };
+    }
+  });
+
+  // Close sandbox-ipc connection for a VM (but keep session alive)
+  ipcMain.handle("vm:sandbox-disconnect", async (_, vmId: string) => {
+    disconnectSandbox(vmId);
+    return { success: true };
+  });
+}
+
+/**
+ * Cleanup all VM-related resources
+ */
+export function cleanupVMHandlers(): void {
+  disposeAllSessions();
 }
