@@ -17,7 +17,7 @@ jobs:
             artifact_path: |
               out/make/zip/darwin/arm64/*.zip
               out/make/dmg/arm64/*.dmg
-          - os: macos-13
+          - os: macos-15
             arch: x64
             artifact_name: Conduit-darwin-x64
             artifact_path: |
