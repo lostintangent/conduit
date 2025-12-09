@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  sandbox-ipc:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./workspace:/workspace:rw
+    environment:
+      - WORKSPACE_PATH=/workspace
+    restart: unless-stopped

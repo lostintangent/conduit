@@ -1,0 +1,7 @@
+{
+  "composes": {
+    "dev": {
+      "docker-compose": "docker-compose.yml"
+    }
+  }
+}
