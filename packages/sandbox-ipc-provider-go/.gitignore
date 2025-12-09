@@ -1,6 +1,6 @@
 # Binaries
-fs-provider
-fs-provider-*
+sandbox-ipc
+sandbox-ipc-*
 *.exe
 
 # Build output
