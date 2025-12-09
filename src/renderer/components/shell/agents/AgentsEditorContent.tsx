@@ -20,17 +20,23 @@ import {
   Terminal,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { DEFAULT_AGENTS } from "./defaultAgents";
 
 interface AgentsEditorContentProps {
   userSettings: ReturnType<typeof useUserSettings>;
 }
 
-export function AgentsEditorContent({
-  userSettings,
-}: AgentsEditorContentProps) {
+export interface AgentsEditorContentHandle {
+  hasUnsavedChanges: () => boolean;
+}
+
+export const AgentsEditorContent = forwardRef<
+  AgentsEditorContentHandle,
+  AgentsEditorContentProps
+>(function AgentsEditorContent({ userSettings }, ref) {
   const [activeTab, setActiveTab] = useState("agents");
   const [agents, setAgents] = useState<AgentConfig[]>(
     userSettings.agents || [],
@@ -73,6 +79,11 @@ export function AgentsEditorContent({
     }
     return false;
   };
+
+  // Expose hasUnsavedChanges to parent via ref
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges,
+  }));
 
   const handleEditAgent = (index: number) => {
     if (hasUnsavedChanges()) {
@@ -987,4 +998,4 @@ export function AgentsEditorContent({
       </div>
     </>
   );
-}
+});

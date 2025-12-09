@@ -272,6 +272,7 @@ describe("FileChangeDiff", () => {
 describe("ChangesReviewPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetStatus.mockReset();
     mockOnStatusChanged.mockReturnValue(() => {});
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
