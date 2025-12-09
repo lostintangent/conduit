@@ -13,6 +13,20 @@ let sendToRenderer: SendToRendererFn;
 let stateListener: () => void;
 let updateCheckTimer: NodeJS.Timeout | null = null;
 
+// Store event listener references for cleanup
+let checkingForUpdateListener: (() => void) | null = null;
+let updateNotAvailableListener: (() => void) | null = null;
+let updateAvailableListener: (() => void) | null = null;
+let updateDownloadedListener:
+  | ((
+      event: Electron.Event,
+      releaseNotes: string,
+      releaseName: string,
+    ) => void)
+  | null = null;
+let beforeQuitForUpdateListener: (() => void) | null = null;
+let errorListener: (() => void) | null = null;
+
 function determineSupport() {
   return app.isPackaged && SUPPORTED_PLATFORMS.has(process.platform);
 }
@@ -28,43 +42,43 @@ function updateState(state: UpdateState) {
 }
 
 function wireAutoUpdaterEvents() {
-  autoUpdater.on("checking-for-update", () =>
+  checkingForUpdateListener = () =>
     updateState({
       status: "checking",
-    }),
-  );
+    });
+  autoUpdater.on("checking-for-update", checkingForUpdateListener);
 
-  autoUpdater.on("update-not-available", () =>
+  updateNotAvailableListener = () =>
     updateState({
       status: "idle",
-    }),
-  );
+    });
+  autoUpdater.on("update-not-available", updateNotAvailableListener);
 
-  autoUpdater.on("update-available", () =>
+  updateAvailableListener = () =>
     updateState({
       status: "downloading",
-    }),
-  );
+    });
+  autoUpdater.on("update-available", updateAvailableListener);
 
-  autoUpdater.on("update-downloaded", (_, releaseNotes, releaseName) =>
+  updateDownloadedListener = (_, releaseNotes, releaseName) =>
     updateState({
       status: "downloaded",
       releaseName,
       releaseNotes,
-    }),
-  );
+    });
+  autoUpdater.on("update-downloaded", updateDownloadedListener);
 
-  autoUpdater.on("before-quit-for-update", () =>
+  beforeQuitForUpdateListener = () =>
     updateState({
       status: "installing",
-    }),
-  );
+    });
+  autoUpdater.on("before-quit-for-update", beforeQuitForUpdateListener);
 
-  autoUpdater.on("error", () =>
+  errorListener = () =>
     updateState({
       status: "idle",
-    }),
-  );
+    });
+  autoUpdater.on("error", errorListener);
 }
 
 export function initializeUpdateHandlers(
@@ -104,8 +118,41 @@ export function getUpdateStatus() {
 }
 
 export function cleanupUpdateHandlers() {
+  // Clear update check timer
   if (updateCheckTimer) {
     clearInterval(updateCheckTimer);
     updateCheckTimer = null;
+  }
+
+  // Remove all autoUpdater event listeners to prevent memory leaks
+  if (checkingForUpdateListener) {
+    autoUpdater.removeListener("checking-for-update", checkingForUpdateListener);
+    checkingForUpdateListener = null;
+  }
+  if (updateNotAvailableListener) {
+    autoUpdater.removeListener(
+      "update-not-available",
+      updateNotAvailableListener,
+    );
+    updateNotAvailableListener = null;
+  }
+  if (updateAvailableListener) {
+    autoUpdater.removeListener("update-available", updateAvailableListener);
+    updateAvailableListener = null;
+  }
+  if (updateDownloadedListener) {
+    autoUpdater.removeListener("update-downloaded", updateDownloadedListener);
+    updateDownloadedListener = null;
+  }
+  if (beforeQuitForUpdateListener) {
+    autoUpdater.removeListener(
+      "before-quit-for-update",
+      beforeQuitForUpdateListener,
+    );
+    beforeQuitForUpdateListener = null;
+  }
+  if (errorListener) {
+    autoUpdater.removeListener("error", errorListener);
+    errorListener = null;
   }
 }

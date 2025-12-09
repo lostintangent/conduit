@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   cleanupTerminalSessions,
   cleanupUpdateHandlers,
+  cleanupBrowserHandlers,
   initializeIpcHandlers,
   shutdownCliServer,
 } from "./ipc";
@@ -104,6 +105,7 @@ async function createWindow() {
   mainWindow.on("closed", () => {
     cleanupTerminalSessions();
     cleanupUpdateHandlers();
+    cleanupBrowserHandlers();
     shutdownCliServer();
 
     app.quit();

@@ -25,3 +25,9 @@ export function initializeBrowserHandlers() {
     },
   );
 }
+
+export function cleanupBrowserHandlers() {
+  // Remove IPC handlers to prevent memory leaks
+  ipcMain.removeHandler("browser:capture-screenshot");
+  ipcMain.removeHandler("browser:show-devtools");
+}

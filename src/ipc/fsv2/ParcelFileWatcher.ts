@@ -96,6 +96,10 @@ class RenameDetector {
   /** Pending CREATE events: path → timestamp */
   private pendingCreates = new Map<string, number>();
 
+  /** Active timers for cleanup to prevent memory leaks */
+  private deleteTimers = new Map<string, NodeJS.Timeout>();
+  private createTimers = new Map<string, NodeJS.Timeout>();
+
   /** Time window for correlating events (ms) */
   private readonly correlationWindow = 500;
 
@@ -105,10 +109,19 @@ class RenameDetector {
   recordDelete(filePath: string): void {
     this.pendingDeletes.set(filePath, Date.now());
 
+    // Clear any existing timer for this path
+    const existingTimer = this.deleteTimers.get(filePath);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
     // Auto-cleanup after correlation window
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       this.pendingDeletes.delete(filePath);
+      this.deleteTimers.delete(filePath);
     }, this.correlationWindow);
+
+    this.deleteTimers.set(filePath, timer);
   }
 
   /**
@@ -117,10 +130,19 @@ class RenameDetector {
   recordCreate(filePath: string): void {
     this.pendingCreates.set(filePath, Date.now());
 
+    // Clear any existing timer for this path
+    const existingTimer = this.createTimers.get(filePath);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
     // Auto-cleanup after correlation window
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       this.pendingCreates.delete(filePath);
+      this.createTimers.delete(filePath);
     }, this.correlationWindow);
+
+    this.createTimers.set(filePath, timer);
   }
 
   /**
@@ -192,11 +214,21 @@ class RenameDetector {
   }
 
   /**
-   * Clear all pending events.
+   * Clear all pending events and timers.
    */
   clear(): void {
+    // Clear all pending timers to prevent memory leaks
+    for (const timer of this.deleteTimers.values()) {
+      clearTimeout(timer);
+    }
+    for (const timer of this.createTimers.values()) {
+      clearTimeout(timer);
+    }
+
     this.pendingDeletes.clear();
     this.pendingCreates.clear();
+    this.deleteTimers.clear();
+    this.createTimers.clear();
   }
 }
 

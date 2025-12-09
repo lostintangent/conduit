@@ -172,7 +172,8 @@ function setupTerminalListeners(
 ) {
   const { id, pty } = terminal;
 
-  pty.onData((data) => {
+  // Store cleanup functions for proper disposal
+  const onDataDisposable = pty.onData((data) => {
     // Handle SSH connection state tracking for cloud terminals
     if (terminal.cloudEnvironment) {
       const currentState = terminal.cloudEnvironment.connectionState;
@@ -261,7 +262,7 @@ function setupTerminalListeners(
     }
   });
 
-  pty.onExit(async ({ exitCode, signal }) => {
+  const onExitDisposable = pty.onExit(async ({ exitCode, signal }) => {
     removeTerminal(id);
 
     // Clean up VM if this was a VM session
@@ -296,6 +297,12 @@ function setupTerminalListeners(
       signal: signal ?? null,
     });
   });
+
+  // Store cleanup function to dispose event listeners when terminal is killed
+  terminal.cleanupListeners = () => {
+    onDataDisposable.dispose();
+    onExitDisposable.dispose();
+  };
 }
 
 export async function killTerminal(terminalId: string) {
@@ -325,6 +332,15 @@ export async function killTerminal(terminalId: string) {
           error,
         );
       }
+    }
+  }
+
+  // Clean up event listeners to prevent memory leaks
+  if (terminal.cleanupListeners) {
+    try {
+      terminal.cleanupListeners();
+    } catch (error) {
+      console.error("Failed to cleanup terminal listeners", error);
     }
   }
 

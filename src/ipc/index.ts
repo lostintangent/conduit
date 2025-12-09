@@ -2,7 +2,10 @@ import { app, BrowserWindow } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { initializeAgentHandlers } from "./agent";
-import { initializeBrowserHandlers } from "./browser";
+import {
+  initializeBrowserHandlers,
+  cleanupBrowserHandlers,
+} from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { initializeFsHandlers } from "./fs";
 import { initializeFileWatcherHandlers } from "./fs/watcher";
@@ -84,6 +87,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 export {
   cleanupTerminalSessions,
   cleanupUpdateHandlers,
+  cleanupBrowserHandlers,
   cleanupFileSystemV2Handlers,
   cleanupGitV2Handlers,
   initializeIpcHandlers,

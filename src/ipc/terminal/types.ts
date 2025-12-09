@@ -10,6 +10,9 @@ export type TerminalInstance = {
   isRendererReady: boolean;
   bufferedOutput: string[];
 
+  // Event listener cleanup functions
+  cleanupListeners?: () => void;
+
   // VM metadata (only present for remote VM sessions)
   cloudEnvironment?: CloudEnvironment;
 };

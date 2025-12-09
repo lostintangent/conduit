@@ -606,23 +606,37 @@ export async function applyDiffPatch(
 
       let stderr = "";
 
-      gitApply.stderr.on("data", (data) => {
+      const stderrHandler = (data: Buffer) => {
         stderr += data.toString();
-      });
+      };
 
-      gitApply.on("close", (code) => {
+      const closeHandler = (code: number | null) => {
+        // Clean up event listeners to prevent memory leaks
+        gitApply.stderr.removeListener("data", stderrHandler);
+        gitApply.removeListener("close", closeHandler);
+        gitApply.removeListener("error", errorHandler);
+
         if (code === 0) {
           resolve(true);
         } else {
           console.error("Failed to apply patch:", stderr);
           resolve(false);
         }
-      });
+      };
 
-      gitApply.on("error", (error) => {
+      const errorHandler = (error: Error) => {
+        // Clean up event listeners to prevent memory leaks
+        gitApply.stderr.removeListener("data", stderrHandler);
+        gitApply.removeListener("close", closeHandler);
+        gitApply.removeListener("error", errorHandler);
+
         console.error("Failed to spawn git apply:", error);
         resolve(false);
-      });
+      };
+
+      gitApply.stderr.on("data", stderrHandler);
+      gitApply.on("close", closeHandler);
+      gitApply.on("error", errorHandler);
     });
   } catch (error) {
     console.error("Failed to apply diff patch:", error);
