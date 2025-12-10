@@ -72,6 +72,7 @@ import {
 } from "@/store/actions/tab";
 import { walkLayout } from "@/utils/layout";
 import { ApplicationCommands } from "@shared/commands";
+import { registerFileTreeCommands } from "./fileTreeCommands";
 
 // Re-export for convenience
 export { ApplicationCommands };
@@ -1376,6 +1377,9 @@ export function registerApplicationCommands(
       }
     },
   });
+
+  // Register file tree commands
+  registerFileTreeCommands(commandRegistry);
 }
 
 /**

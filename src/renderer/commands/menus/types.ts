@@ -11,6 +11,7 @@ export enum MenuId {
   TitleBar = "TitleBar",
   EditorContext = "EditorContext",
   TerminalContext = "TerminalContext",
+  FileTreeContext = "FileTreeContext",
 }
 
 /**

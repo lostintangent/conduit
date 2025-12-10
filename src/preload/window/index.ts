@@ -215,6 +215,9 @@ const conduitAPI = {
   isWindowMaximized: () =>
     ipcRenderer.invoke("ui:window-is-maximized") as Promise<boolean>,
 
+  showItemInFolder: (path: string) =>
+    ipcRenderer.invoke("ui:show-item-in-folder", path) as Promise<void>,
+
   /* Agent session management */
 
   spawnAgentSession: (payload: AgentSessionSpawnRequest) =>

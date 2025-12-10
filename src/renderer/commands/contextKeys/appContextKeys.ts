@@ -108,3 +108,58 @@ export const tabHasWorktrees = new ContextKey<boolean>(
   "tabHasWorktrees",
   false,
 );
+
+// ============================================================================
+// File Tree Context Keys
+// ============================================================================
+
+/**
+ * Whether the file tree panel is focused
+ * Used by: file tree commands (keybindings activation)
+ */
+export const fileTreeFocused = new ContextKey<boolean>(
+  "fileTreeFocused",
+  false,
+);
+
+/**
+ * Whether a file tree item is currently focused
+ * Used by: file tree context menu commands
+ */
+export const fileTreeItemFocused = new ContextKey<boolean>(
+  "fileTreeItemFocused",
+  false,
+);
+
+/**
+ * Whether the focused file tree item is a file
+ * Used by: "Open" command (only show for files)
+ */
+export const fileTreeItemIsFile = new ContextKey<boolean>(
+  "fileTreeItemIsFile",
+  false,
+);
+
+/**
+ * Whether the focused file tree item is a directory
+ * Used by: commands that behave differently for directories
+ */
+export const fileTreeItemIsDirectory = new ContextKey<boolean>(
+  "fileTreeItemIsDirectory",
+  false,
+);
+
+/**
+ * The absolute path of the file tree item being acted upon
+ * Set when context menu is opened or keyboard shortcut is triggered
+ */
+export const fileTreeTargetPath = new ContextKey<string>(
+  "fileTreeTargetPath",
+  "",
+);
+
+/**
+ * The current working directory of the file tree
+ * Used for computing relative paths
+ */
+export const fileTreeCwd = new ContextKey<string>("fileTreeCwd", "");
