@@ -31,7 +31,13 @@ import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { FileSystemProviderService } from "./FileSystemProviderService";
-import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
+import { GitIgnoreCache } from "./GitIgnoreCache";
+import {
+  ALWAYS_HIDDEN,
+  type DeleteOptions,
+  type DirectoryEntry,
+  type FileStat,
+} from "./types";
 
 // ============================================================================
 // Types
@@ -113,20 +119,39 @@ function getService(): FileSystemProviderService {
 
 /**
  * Read directory contents directly from disk.
+ * Filters out:
+ * - Always-hidden entries (.git, node_modules)
+ * - Gitignored files (via .gitignore)
  * Returns DirectoryEntry[] with name, path, and type.
  */
 async function readDirectoryDirect(dirPath: string): Promise<DirectoryEntry[]> {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  return entries.map((entry) => {
-    // Treat symlinks as files for simplicity - the public API only exposes "file" | "directory"
-    const type: "file" | "directory" = entry.isDirectory()
-      ? "directory"
-      : "file";
-    return {
+  const rawEntries = await fs.readdir(dirPath, { withFileTypes: true });
+
+  // Filter out always-hidden entries and map to DirectoryEntry
+  let entries: DirectoryEntry[] = rawEntries
+    .filter((entry) => !ALWAYS_HIDDEN.has(entry.name))
+    .map((entry) => ({
       name: entry.name,
       path: path.join(dirPath, entry.name),
-      type,
-    };
+      // Treat symlinks as files - the public API only exposes "file" | "directory"
+      type: entry.isDirectory() ? "directory" : "file",
+    }));
+
+  // Filter gitignored entries (using shared cache)
+  const gitIgnored = await GitIgnoreCache.getIgnoredEntries(
+    dirPath,
+    entries.map((e) => ({ name: e.name, isDirectory: e.type === "directory" })),
+  );
+  if (gitIgnored.size > 0) {
+    entries = entries.filter((e) => !gitIgnored.has(e.name));
+  }
+
+  // Sort: directories first, then files, alphabetically
+  return entries.sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === "directory" ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
 }
 

@@ -79,6 +79,7 @@
     "commander": "^14.0.2",
     "date-fns": "^4.1.0",
     "electron-squirrel-startup": "^1.0.1",
+    "ignore": "^7.0.5",
     "immer": "^10.2.0",
     "jotai": "^2.15.0",
     "jotai-immer": "^0.4.1",
