@@ -102,7 +102,8 @@ export async function createTerminal(
       const sshInfo = getSSHConnectionInfo(vm);
 
       // Spawn a regular local shell
-      const homeDirectory = process.env.HOME ?? process.cwd();
+      const homeDirectory =
+        process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
       const pty = spawnTerminalProcess(id, homeDirectory);
 
       const session: TerminalInstance = {
@@ -146,7 +147,9 @@ export async function createTerminal(
   }
 
   // Regular local session
-  const cwd = options?.cwd ?? path.resolve(process.env.HOME ?? process.cwd());
+  const cwd =
+    options?.cwd ??
+    path.resolve(process.env.HOME ?? process.env.USERPROFILE ?? process.cwd());
   const pty = spawnTerminalProcess(id, cwd);
 
   const terminal: TerminalInstance = {
