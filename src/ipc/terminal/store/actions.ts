@@ -33,12 +33,6 @@ export async function createTerminal(
 
   // Check if this should be a remote VM session
   if (options?.isRemoteVM || options?.existingVMId) {
-    console.log(
-      options?.existingVMId
-        ? `[VM] Connecting to existing VM ${options.existingVMId}`
-        : "[VM] Creating remote VM terminal session",
-    );
-
     try {
       let vm;
 
@@ -46,7 +40,6 @@ export async function createTerminal(
         // Connect to an existing VM
         const { getVM } = await import("../../vm/client");
         vm = await getVM(options.existingVMId);
-        console.log(`[VM] Connected to existing VM ${vm.id}`);
       } else {
         // Create the VM with conduitVM label
         const labels = options.vmLabels
@@ -152,13 +145,25 @@ export async function createTerminal(
     path.resolve(process.env.HOME ?? process.env.USERPROFILE ?? process.cwd());
   const pty = spawnTerminalProcess(id, cwd);
 
+  let pendingCommand = options?.command;
+  const shell = resolveShell();
+
+  // If the command is the same as the shell, we don't need to run it
+  // This happens when restoring a terminal that was just a shell
+  if (
+    pendingCommand &&
+    (pendingCommand === shell || pendingCommand === path.basename(shell))
+  ) {
+    pendingCommand = undefined;
+  }
+
   const terminal: TerminalInstance = {
     id,
     pty,
     lastProcessName: pty.process,
     isRendererReady: false,
     bufferedOutput: [],
-    pendingCommand: options?.command,
+    pendingCommand,
   };
 
   storeTerminal(terminal);
