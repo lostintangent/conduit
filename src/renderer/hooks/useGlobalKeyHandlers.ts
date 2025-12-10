@@ -36,10 +36,12 @@ export function useGlobalKeyHandlers(): UseGlobalKeyHandlersResult {
       return;
     }
 
-    // The remaining shortcuts all require the Meta (Cmd) key,
+    // The remaining shortcuts all require the primary modifier (Cmd on Mac, Ctrl on Windows/Linux),
     // and should not trigger when the command palette is open
     // or when the Shift key is held.
-    if (isCommandPaletteOpen || !event.metaKey || event.shiftKey) {
+    const isMac = navigator.platform.toLowerCase().includes("mac");
+    const primaryModifier = isMac ? event.metaKey : event.ctrlKey;
+    if (isCommandPaletteOpen || !primaryModifier || event.shiftKey) {
       return;
     }
 

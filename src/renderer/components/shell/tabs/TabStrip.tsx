@@ -120,6 +120,12 @@ export const TabStrip = ({
   );
   const launchAgentsCmd = useCommand(ApplicationCommands.AGENT_LAUNCH);
 
+  const showCommandPaletteCmd = useCommand(
+    ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
+  );
+
+  const newTabCmd = useCommand(ApplicationCommands.TAB_NEW);
+
   // Track if active pane is in a git repo
   const [isInGitRepo, setIsInGitRepo] = useState(false);
 
@@ -664,7 +670,7 @@ export const TabStrip = ({
               <button
                 type="button"
                 className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-                aria-label="New tab"
+                aria-label={newTabCmd.title}
                 onClick={() => {
                   void openTab();
                 }}
@@ -672,7 +678,9 @@ export const TabStrip = ({
                 <PlusSquare size={18} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">New tab (⌘T)</TooltipContent>
+            <TooltipContent side="bottom">
+              {getCommandDisplayTitle(newTabCmd)}
+            </TooltipContent>
           </Tooltip>
 
           {/* Overview button - only when multiple tabs */}
@@ -707,7 +715,7 @@ export const TabStrip = ({
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Show command palette (⌘⇧P)
+              {getCommandDisplayTitle(showCommandPaletteCmd)}
             </TooltipContent>
           </Tooltip>
 

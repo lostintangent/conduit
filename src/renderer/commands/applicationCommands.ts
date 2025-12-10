@@ -94,6 +94,7 @@ export function registerApplicationCommands(
     category: "View",
     keybinding: {
       key: "Cmd+Shift+F",
+      win: "Ctrl+Shift+F",
     },
     run: (context) => {
       if (context.activeTab) {
@@ -110,6 +111,7 @@ export function registerApplicationCommands(
     category: "View",
     keybinding: {
       key: "Cmd+D",
+      win: "Ctrl+D",
     },
     run: (context) => {
       handleToggleDesignMode(
@@ -127,6 +129,7 @@ export function registerApplicationCommands(
     category: "View",
     keybinding: {
       key: "Cmd+K Cmd+S",
+      win: "Ctrl+K Ctrl+S",
     },
     run: (context) => {
       handleOpenKeyboardShortcuts(context.setShowKeybindingsEditor);
@@ -163,6 +166,7 @@ export function registerApplicationCommands(
     category: "View",
     keybinding: {
       key: "Cmd+Shift+P",
+      win: "Ctrl+Shift+P",
     },
     run: (context) => {
       handleShowCommandPalette(context.setIsCommandPaletteOpenOverride);
@@ -177,6 +181,7 @@ export function registerApplicationCommands(
     category: "Workspace",
     keybinding: {
       key: "Cmd+K Cmd+W",
+      win: "Ctrl+K Ctrl+W",
     },
     run: (context) => {
       void handleSaveWorkspace(
@@ -195,6 +200,7 @@ export function registerApplicationCommands(
     category: "Workspace",
     keybinding: {
       key: "Cmd+K Cmd+R",
+      win: "Ctrl+K Ctrl+R",
     },
     when: hasWorkspace.isTrue(),
     run: (context) => {
@@ -226,6 +232,7 @@ export function registerApplicationCommands(
     category: "Workspace",
     keybinding: {
       key: "Cmd+K Cmd+C",
+      win: "Ctrl+K Ctrl+C",
     },
     when: hasWorkspace.isTrue(),
     run: (context) => {
@@ -243,6 +250,7 @@ export function registerApplicationCommands(
     category: "Workspace",
     keybinding: {
       key: "Cmd+K Cmd+O",
+      win: "Ctrl+K Ctrl+O",
     },
     run: (context) => {
       handleOpenWorkspace(context.setShowWorkspacePicker);
@@ -283,6 +291,7 @@ export function registerApplicationCommands(
     category: "Tab",
     keybinding: {
       key: "Cmd+T",
+      win: "Ctrl+T",
     },
     run: () => {
       void openTab();
@@ -297,6 +306,7 @@ export function registerApplicationCommands(
     category: "Tab",
     keybinding: {
       key: "Cmd+W",
+      win: "Ctrl+W",
     },
     when: When.and(tabCount.greaterThan(1), tabIsLocked.isFalse()),
     menu: {
@@ -320,6 +330,7 @@ export function registerApplicationCommands(
     category: "Tab",
     keybinding: {
       key: "Cmd+Shift+D",
+      win: "Ctrl+Shift+D",
     },
     menu: {
       id: MenuId.TabContext,
@@ -343,6 +354,7 @@ export function registerApplicationCommands(
     category: "Tab",
     keybinding: {
       key: "Cmd+Alt+D",
+      win: "Ctrl+Alt+D",
     },
     menu: {
       id: MenuId.TabContext,
@@ -367,6 +379,7 @@ export function registerApplicationCommands(
     category: "Tab",
     keybinding: {
       key: "Cmd+Alt+W",
+      win: "Ctrl+Alt+W",
     },
     when: When.and(hasGitRepo.isTrue()),
     menu: {
@@ -583,6 +596,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Left",
+      win: "Ctrl+Shift+Left",
     },
     when: paneActionsEnabled,
     menu: {
@@ -607,6 +621,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Right",
+      win: "Ctrl+Shift+Right",
     },
     when: paneActionsEnabled,
     menu: {
@@ -631,6 +646,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Up",
+      win: "Ctrl+Shift+Up",
     },
     when: paneActionsEnabled,
     menu: {
@@ -655,6 +671,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Down",
+      win: "Ctrl+Shift+Down",
     },
     when: paneActionsEnabled,
     menu: {
@@ -679,6 +696,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Left",
+      win: "Ctrl+Shift+Alt+Left",
     },
     when: paneActionsEnabled,
     menu: {
@@ -706,6 +724,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Right",
+      win: "Ctrl+Shift+Alt+Right",
     },
     when: paneActionsEnabled,
     menu: {
@@ -732,6 +751,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Up",
+      win: "Ctrl+Shift+Alt+Up",
     },
     when: paneActionsEnabled,
     menu: {
@@ -763,6 +783,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+Ctrl+Down",
+      win: "Ctrl+Shift+Alt+Down",
     },
     when: paneActionsEnabled,
     menu: {
@@ -789,6 +810,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Alt+Left",
+      win: "Ctrl+Alt+Left",
     },
     when: paneActionsEnabled,
     menu: {
@@ -813,6 +835,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Alt+Right",
+      win: "Ctrl+Alt+Right",
     },
     when: paneActionsEnabled,
     menu: {
@@ -837,6 +860,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Alt+Up",
+      win: "Ctrl+Alt+Up",
     },
     when: paneActionsEnabled,
     menu: {
@@ -861,6 +885,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Alt+Down",
+      win: "Ctrl+Alt+Down",
     },
     when: paneActionsEnabled,
     menu: {
@@ -885,6 +910,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Alt+T",
+      win: "Ctrl+Alt+T",
     },
     when: paneActionsEnabled,
     menu: {
@@ -929,6 +955,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+L",
+      win: "Ctrl+L",
     },
     when: hasActivePane.isTrue(),
     run: (context) => {
@@ -944,6 +971,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+B+Left",
+      win: "Ctrl+Shift+B+Left",
     },
     when: paneActionsEnabled,
     menu: {
@@ -969,6 +997,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+B+Right",
+      win: "Ctrl+Shift+B+Right",
     },
     when: paneActionsEnabled,
     menu: {
@@ -994,6 +1023,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+B+Up",
+      win: "Ctrl+Shift+B+Up",
     },
     when: paneActionsEnabled,
     menu: {
@@ -1025,6 +1055,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+B+Down",
+      win: "Ctrl+Shift+B+Down",
     },
     when: paneActionsEnabled,
     menu: {
@@ -1056,6 +1087,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+E+Left",
+      win: "Ctrl+Shift+E+Left",
     },
     when: paneActionsEnabled,
     menu: {
@@ -1088,6 +1120,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+E+Right",
+      win: "Ctrl+Shift+E+Right",
     },
     when: paneActionsEnabled,
     menu: {
@@ -1120,6 +1153,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+E+Up",
+      win: "Ctrl+Shift+E+Up",
     },
     when: paneActionsEnabled,
     menu: {
@@ -1152,6 +1186,7 @@ export function registerApplicationCommands(
     category: "Pane",
     keybinding: {
       key: "Cmd+Shift+E+Down",
+      win: "Ctrl+Shift+E+Down",
     },
     when: paneActionsEnabled,
     menu: {
@@ -1209,6 +1244,7 @@ export function registerApplicationCommands(
     category: "Agent",
     keybinding: {
       key: "Cmd+I",
+      win: "Ctrl+I",
     },
     when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
     run: (context) => {
@@ -1352,6 +1388,7 @@ export function registerApplicationCommands(
     category: "Editor",
     keybinding: {
       key: "Cmd+B",
+      win: "Ctrl+B",
     },
     when: activePaneType.equals("editor"),
     run: (context) => {
@@ -1369,6 +1406,7 @@ export function registerApplicationCommands(
     category: "Editor",
     keybinding: {
       key: "Cmd+Shift+E",
+      win: "Ctrl+Shift+E",
     },
     when: activePaneType.equals("editor"),
     run: (context) => {
