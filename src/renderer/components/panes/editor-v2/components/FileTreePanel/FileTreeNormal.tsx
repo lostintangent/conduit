@@ -453,13 +453,12 @@ export function FileTreeNormal({
         });
       } else {
         // Expanding: load fresh directory contents
-        fs.readDirectory(path)
-          .then((entries) => {
-            setDirectoryCache((cache) => ({ ...cache, [cacheKey]: entries }));
-          })
-          .catch((error) => {
-            console.error(`Failed to load directory ${path}:`, error);
-          });
+        try {
+          const entries = await fs.readDirectory(path);
+          setDirectoryCache((cache) => ({ ...cache, [cacheKey]: entries }));
+        } catch (error) {
+          console.error(`Failed to load directory ${path}:`, error);
+        }
       }
 
       toggleExpanded(path);
@@ -663,30 +662,30 @@ export function FileTreeNormal({
    * Begin creating a new file in the specified directory.
    */
   const beginCreateFile = useCallback(
-    (parentPath: string) => {
-      // Expand the directory if not already expanded
+    async (parentPath: string) => {
+      // Expand the directory if not already expanded (this also loads contents)
       if (!isPathExpanded(parentPath)) {
-        toggleExpanded(parentPath);
+        await handleToggleExpand(parentPath);
       }
       setCreatingInPath(parentPath);
       setCreatingType("file");
     },
-    [isPathExpanded, toggleExpanded],
+    [isPathExpanded, handleToggleExpand],
   );
 
   /**
    * Begin creating a new folder in the specified directory.
    */
   const beginCreateFolder = useCallback(
-    (parentPath: string) => {
-      // Expand the directory if not already expanded
+    async (parentPath: string) => {
+      // Expand the directory if not already expanded (this also loads contents)
       if (!isPathExpanded(parentPath)) {
-        toggleExpanded(parentPath);
+        await handleToggleExpand(parentPath);
       }
       setCreatingInPath(parentPath);
       setCreatingType("folder");
     },
-    [isPathExpanded, toggleExpanded],
+    [isPathExpanded, handleToggleExpand],
   );
 
   /**
