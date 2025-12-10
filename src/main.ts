@@ -74,14 +74,14 @@ async function createWindow() {
     // Windows uses titleBarOverlay for native min/max/close buttons
     frame: false,
     transparent: !isWindows,
-    backgroundColor: isWindows ? "#1a1a1a" : "#00000000",
+    backgroundColor: "#00000000",
     // Windows: use native window controls overlay (like VSCode)
     // This gives us proper snap/resize behavior with custom titlebar
     ...(isWindows && {
       titleBarOverlay: {
         color: "rgba(0,0,0,0)",
         symbolColor: "#a1a1aa",
-        height: 35,
+        height: 34,
       },
     }),
   });

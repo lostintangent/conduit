@@ -611,7 +611,7 @@ export const TabStrip = ({
     ? position === "top"
       ? "mb-[1px]"
       : isWindows
-        ? "mt-[1px]"
+        ? "mt-[1px] rounded-b"
         : "mt-[1px] rounded-b-xl"
     : "";
 

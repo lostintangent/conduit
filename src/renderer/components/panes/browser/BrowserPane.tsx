@@ -366,11 +366,10 @@ export function BrowserPane({
   useEffect(() => {
     if (!webviewRef.current) return;
 
-    // On Windows, Windows 11 handles rounded corners
-    // On other platforms, apply rounded corners in focus mode
+    // Regular size rounding on windows-11, xl-rounded on macOS/Linux
     webviewRef.current.classList.toggle(
-      "rounded-b-xl",
-      applicationMode === "focus" && !isWindows,
+      isWindows ? "rounded-b" : "rounded-b-xl",
+      applicationMode === "focus",
     );
   }, [applicationMode]);
 

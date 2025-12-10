@@ -18,10 +18,10 @@ const isMac = api.platform === "darwin";
 export const TitleBar = () => {
   const workspaceName = useAtomValue(workspaceNameAtom);
 
-  // Windows: no rounded corners in css (Windows 11 handles rounding), add padding for overlay (~140px)
-  // macOS/Linux: rounded corners on both top sides
+  // Windows: add padding for overlay (~140px), regular size rounding to match system
+  // macOS/Linux: xl-rounded corners on both top sides
   const titleBarClasses = isWindows
-    ? "h-[30px] flex items-center justify-between pl-3 pr-[140px] pl-[140px] text-[0.8rem] font-medium bg-elevated mb-[1px] [app-region:drag]"
+    ? "h-[30px] flex items-center justify-between pl-3 pr-[140px] pl-[140px] text-[0.8rem] rounded-tl rounded-tr font-medium bg-elevated mb-[1px] [app-region:drag]"
     : "h-[30px] flex items-center justify-between px-3 text-[0.8rem] font-medium rounded-tl-xl rounded-tr-xl bg-elevated mb-[1px] [app-region:drag]";
 
   return (

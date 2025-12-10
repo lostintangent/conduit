@@ -17,8 +17,8 @@ const isWindows = api.platform === "win32";
 function AppWrapper() {
   const { useGradientBorders } = useAtomValue(userSettingsAtom);
 
-  // Use rounded corners only on macOS/Linux where we have transparent frameless window
-  const roundedClass = isWindows ? "" : "rounded-xl";
+  // Use use rounded-xl on macOS/Linux, windows-11 rounding matches system w/rounded
+  const roundedClass = isWindows ? "rounded" : "rounded-xl";
 
   return (
     <TooltipProvider delayDuration={200}>
