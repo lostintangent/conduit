@@ -62,6 +62,12 @@ vi.mock("../../../../../src/renderer/components/panes/editor-v2/hooks", () => ({
     isDirty: false,
     isOrphaned: false,
   })),
+  useEditorTheme: vi.fn(() => "vs-dark"),
+  useAutoSizeEditor: vi.fn(() => ({
+    height: 100,
+    enabled: false,
+    containerStyle: { height: "100%", width: "100%" },
+  })),
 }));
 
 // Mock monaco-editor - The component uses monaco.editor.create directly

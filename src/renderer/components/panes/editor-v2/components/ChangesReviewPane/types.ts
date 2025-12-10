@@ -5,12 +5,6 @@
 import type { editor } from "monaco-editor";
 
 /**
- * Fixed height for expanded diff views (in pixels).
- * Used consistently across all FileChangeDiff instances.
- */
-export const DIFF_VIEW_HEIGHT = 300;
-
-/**
  * Default diff editor options for inline diff views.
  * These options optimize for read-only diff viewing within the changes review.
  */

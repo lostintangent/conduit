@@ -10,7 +10,7 @@
  *
  * Also exports hooks and types for extensibility:
  * - useExpandedFiles: File expansion state management
- * - DIFF_VIEW_HEIGHT, DIFF_EDITOR_OPTIONS: Shared constants
+ * - DIFF_EDITOR_OPTIONS: Shared constants
  */
 
 // Main orchestrator
@@ -39,7 +39,6 @@ export type { UseExpandedFilesResult } from "./hooks";
 
 // Types and constants
 export {
-  DIFF_VIEW_HEIGHT,
   DIFF_EDITOR_OPTIONS,
   type ChangesSectionType,
   type FileChangeDiffPassthroughProps,

@@ -32,12 +32,15 @@ import {
 } from "lucide-react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
-import { DiffEditorWrapper } from "../EditorViewPanel";
+import {
+  DiffEditorWrapper,
+  RegularEditorWrapper,
+  DEFAULT_AUTO_SIZE_CONFIG,
+} from "../EditorViewPanel";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
 import { GitBadge } from "../shared";
-import { DIFF_VIEW_HEIGHT } from "./types";
 
 export interface FileChangeDiffProps {
   /** Relative file path from git root */
@@ -190,9 +193,6 @@ export function FileChangeDiff({
           <span className="flex-1 truncate text-sm" title={filePath}>
             {filePath}
           </span>
-
-          {/* Git Status Badge */}
-          <GitBadge status={status} />
         </div>
 
         {/* Action Buttons */}
@@ -235,23 +235,32 @@ export function FileChangeDiff({
             </>
           )}
         </div>
+
+        {/* Git Status Badge */}
+        <GitBadge status={status} />
       </div>
 
-      {/* Diff Editor (expanded only) */}
+      {/* Editor (expanded only) - height is auto-sized */}
+      {/* Use regular editor for new files (untracked/added), diff editor for modified files */}
       {isExpanded && (
-        <div
-          className="bg-background"
-          style={{ height: DIFF_VIEW_HEIGHT }}
-          data-testid="file-change-diff-content"
-        >
+        <div className="bg-background" data-testid="file-change-diff-content">
           <EditorErrorBoundary filePath={filePath}>
-            <DiffEditorWrapper
-              editorId={editorId}
-              cwd={cwd}
-              filePath={fullFilePath}
-              baseBranch={baseBranch}
-              readOnly={true}
-            />
+            {status.status === "untracked" || status.status === "added" ? (
+              <RegularEditorWrapper
+                editorId={editorId}
+                cwd={cwd}
+                filePath={fullFilePath}
+                autoSize={DEFAULT_AUTO_SIZE_CONFIG}
+              />
+            ) : (
+              <DiffEditorWrapper
+                editorId={editorId}
+                cwd={cwd}
+                filePath={fullFilePath}
+                baseBranch={baseBranch}
+                autoSize={DEFAULT_AUTO_SIZE_CONFIG}
+              />
+            )}
           </EditorErrorBoundary>
         </div>
       )}

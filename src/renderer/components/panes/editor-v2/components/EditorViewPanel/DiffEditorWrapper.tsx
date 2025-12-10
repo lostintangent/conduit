@@ -26,9 +26,15 @@
 
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef } from "react";
-import { useDiffContent, useMonacoModel, useEditorTheme } from "../../hooks";
+import {
+  useDiffContent,
+  useMonacoModel,
+  useEditorTheme,
+  useAutoSizeEditor,
+} from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage } from "../../utils/languageDetection";
+import type { AutoSizeConfig } from "./constants";
 
 export interface DiffEditorWrapperProps {
   /** Unique ID for this diff editor instance */
@@ -54,6 +60,13 @@ export interface DiffEditorWrapperProps {
 
   /** Callback when diff editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
+
+  /**
+   * Auto-size configuration. When provided, the editor height adjusts
+   * based on content between minHeight and maxHeight bounds.
+   * If not provided, auto-sizing is enabled with default values.
+   */
+  autoSize?: AutoSizeConfig;
 }
 
 // ============================================================================
@@ -72,6 +85,11 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
     automaticLayout: true,
     fontSize: 13,
     wordWrap: "on",
+    // Scrollbar options for better scroll behavior in lists
+    scrollbar: {
+      // Allow scroll events to bubble to parent when editor can't scroll
+      alwaysConsumeMouseWheel: false,
+    },
     // Disable language features that cause issues
     occurrencesHighlight: "off",
     selectionHighlight: false,
@@ -98,6 +116,7 @@ export function DiffEditorWrapper({
   readOnly = false,
   onChange,
   onMount,
+  autoSize,
 }: DiffEditorWrapperProps) {
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
@@ -138,6 +157,13 @@ export function DiffEditorWrapper({
 
   // Detect language from file path
   const language = detectLanguage(filePath);
+
+  // Auto-sizing hook - adjusts height based on content
+  const { containerStyle } = useAutoSizeEditor({
+    diffEditor: diffEditorRef.current,
+    config: autoSize,
+    deps: [diffContent.isLoading, modifiedModel],
+  });
 
   // ---------------------------------------------------------------------------
   // Diff Editor Setup
@@ -325,7 +351,7 @@ export function DiffEditorWrapper({
   }, []);
 
   return (
-    <div className="h-full w-full relative">
+    <div className="relative" style={containerStyle}>
       {/* Diff editor container */}
       <div
         ref={containerRef}

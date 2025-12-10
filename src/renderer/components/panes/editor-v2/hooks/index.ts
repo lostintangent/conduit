@@ -34,3 +34,8 @@ export type {
   UseFileTreeContextMenuOptions,
   UseFileTreeContextMenuResult,
 } from "./useFileTreeContextMenu";
+export { useAutoSizeEditor } from "./useAutoSizeEditor";
+export type {
+  UseAutoSizeEditorOptions,
+  UseAutoSizeEditorResult,
+} from "./useAutoSizeEditor";
