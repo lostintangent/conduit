@@ -592,6 +592,8 @@ interface SectionProps {
   onToggle: () => void;
   /** Children to render when expanded */
   children: React.ReactNode;
+  /** Optional action buttons to show on hover */
+  actions?: React.ReactNode;
 }
 
 /**
@@ -603,23 +605,31 @@ function Section({
   isExpanded,
   onToggle,
   children,
+  actions,
 }: SectionProps) {
   return (
     <div data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}>
-      <button
-        type="button"
-        className="flex items-center gap-1.5 w-full py-1 px-1.5 hover:bg-foreground/10 rounded-md text-[13px] font-medium text-foreground transition cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
-        onClick={onToggle}
-        data-testid="section-toggle"
-      >
-        {isExpanded ? (
-          <ChevronDown className="text-foreground" size={12} />
-        ) : (
-          <ChevronRight className="text-foreground" size={12} />
+      <div className="group flex items-center gap-1.5 w-full py-1 px-1.5 hover:bg-foreground/10 rounded-md text-[13px] font-medium text-foreground transition cursor-pointer">
+        <button
+          type="button"
+          className="flex items-center gap-1.5 flex-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+          onClick={onToggle}
+          data-testid="section-toggle"
+        >
+          {isExpanded ? (
+            <ChevronDown className="text-foreground" size={12} />
+          ) : (
+            <ChevronRight className="text-foreground" size={12} />
+          )}
+          <span>{title}</span>
+          <span className="text-foreground/50 ml-1">({count})</span>
+        </button>
+        {actions && (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+            {actions}
+          </div>
         )}
-        <span>{title}</span>
-        <span className="text-foreground/50 ml-1">({count})</span>
-      </button>
+      </div>
       {isExpanded && <ul className="space-y-0.5 ml-2">{children}</ul>}
     </div>
   );
@@ -1006,6 +1016,38 @@ export function FileTreeChanges({
     [git],
   );
 
+  const handleStageAll = useCallback(() => {
+    if (unstagedFiles.length === 0) return;
+    const paths = unstagedFiles.map(([path]) => path);
+    // Apply optimistic updates for all files
+    for (const path of paths) {
+      applyOptimisticUpdate(path, "stage");
+    }
+    git.stage(paths).catch((error) => {
+      console.error("Failed to stage all files:", error);
+      // Revert optimistic updates on failure
+      for (const path of paths) {
+        revertOptimisticUpdate(path);
+      }
+    });
+  }, [git, unstagedFiles, applyOptimisticUpdate, revertOptimisticUpdate]);
+
+  const handleUnstageAll = useCallback(() => {
+    if (stagedFiles.length === 0) return;
+    const paths = stagedFiles.map(([path]) => path);
+    // Apply optimistic updates for all files
+    for (const path of paths) {
+      applyOptimisticUpdate(path, "unstage");
+    }
+    git.unstage(paths).catch((error) => {
+      console.error("Failed to unstage all files:", error);
+      // Revert optimistic updates on failure
+      for (const path of paths) {
+        revertOptimisticUpdate(path);
+      }
+    });
+  }, [git, stagedFiles, applyOptimisticUpdate, revertOptimisticUpdate]);
+
   /**
    * Auto-expand folders in nested view mode.
    *
@@ -1218,6 +1260,30 @@ export function FileTreeChanges({
             count={stagedFiles.length}
             isExpanded={stagedExpanded}
             onToggle={() => setStagedExpanded(!stagedExpanded)}
+            actions={
+              showActionButtons && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUnstageAll();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleUnstageAll();
+                    }
+                  }}
+                  className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+                  title="Unstage All"
+                  data-testid="unstage-all-button"
+                >
+                  <Minus size={12} />
+                </div>
+              )
+            }
           >
             {viewMode === "flat"
               ? renderFlatFiles(stagedFiles, true)
@@ -1234,6 +1300,30 @@ export function FileTreeChanges({
             count={unstagedFiles.length}
             isExpanded={changesExpanded}
             onToggle={() => setChangesExpanded(!changesExpanded)}
+            actions={
+              showActionButtons && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStageAll();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleStageAll();
+                    }
+                  }}
+                  className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+                  title="Stage All"
+                  data-testid="stage-all-button"
+                >
+                  <Plus size={12} />
+                </div>
+              )
+            }
           >
             {viewMode === "flat"
               ? renderFlatFiles(unstagedFiles, false)
