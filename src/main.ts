@@ -75,6 +75,8 @@ async function createWindow() {
     frame: false,
     transparent: !isWindows,
     backgroundColor: "#00000000",
+    // Don't show until content is ready to avoid blank window flash
+    show: false,
     // Windows: use native window controls overlay (like VSCode)
     // This gives us proper snap/resize behavior with custom titlebar
     ...(isWindows && {
@@ -84,6 +86,11 @@ async function createWindow() {
         height: 34,
       },
     }),
+  });
+
+  // Show window only when content is ready to avoid blank screen
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
