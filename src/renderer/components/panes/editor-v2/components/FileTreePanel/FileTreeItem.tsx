@@ -184,9 +184,6 @@ export const FileTreeItem = memo(function FileTreeItem({
   // Choose appropriate icon
   const Icon = isDirectory ? (isExpanded ? FolderOpen : Folder) : FileText;
 
-  // Depth is no longer used for padding - indentation comes from nested ul elements
-  void depth;
-
   // ---------------------------------------------------------------------------
   // Git Status Styling
   // ---------------------------------------------------------------------------
@@ -212,6 +209,7 @@ export const FileTreeItem = memo(function FileTreeItem({
       role="treeitem"
       aria-selected={isFocused}
       aria-expanded={isDirectory ? isExpanded : undefined}
+      aria-level={depth + 1}
       data-testid="file-tree-item"
     >
       {/* Item row */}

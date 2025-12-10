@@ -40,6 +40,7 @@ import type { FileNode } from "../../types";
 import { FileTreeItem } from "./FileTreeItem";
 import { FileTreeItemRename } from "./FileTreeItemRename";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { enqueueNotification } from "@/store/actions/notifications";
 
 export interface FileTreeNormalProps {
   /** Editor pane ID (for scroll persistence) */
@@ -601,7 +602,12 @@ export function FileTreeNormal({
         setPendingFocusPath(newPath);
       } catch (error) {
         console.error("Rename failed:", error);
-        // TODO: Show error notification
+        const itemName = renamingPath.split("/").pop() ?? "item";
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to rename "${itemName}"`,
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
         setRenamingPath(null);
       }
     },
@@ -735,7 +741,12 @@ export function FileTreeNormal({
         setPendingFocusPath(newPath);
       } catch (error) {
         console.error("Create failed:", error);
-        // TODO: Show error notification
+        const itemType = creatingType === "file" ? "file" : "folder";
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to create ${itemType}`,
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
         setCreatingInPath(null);
         setCreatingType(null);
       }
@@ -834,7 +845,12 @@ export function FileTreeNormal({
       }
     } catch (error) {
       console.error("Delete failed:", error);
-      // TODO: Show error notification
+      const itemName = deletingPath?.split("/").pop() ?? "item";
+      enqueueNotification({
+        kind: "error",
+        message: `Failed to delete "${itemName}"`,
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
       setDeletingPath(null);
     }
   }, [deletingPath, getEntryTypeForPath, getNextFocusAfterDelete, fs]);
