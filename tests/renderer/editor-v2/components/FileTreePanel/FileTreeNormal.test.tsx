@@ -6,17 +6,92 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // ============================================================================
+// Polyfills for jsdom
+// ============================================================================
+
+// CSS.escape is not available in jsdom
+if (typeof CSS === "undefined") {
+  (globalThis as any).CSS = {};
+}
+if (typeof CSS.escape !== "function") {
+  CSS.escape = (str: string) => str.replace(/([^\w-])/g, "\\$1");
+}
+
+// scrollIntoView is not available in jsdom
+Element.prototype.scrollIntoView = vi.fn();
+
+// ============================================================================
 // Mocks - MUST BE BEFORE COMPONENT IMPORT
 // ============================================================================
+
+// Mock window.conduit for context menu
+const mockOnContextMenuCommand = vi.fn(() => () => {});
+const mockShowContextMenu = vi.fn();
+
+// @ts-ignore
+globalThis.window.conduit = {
+  onContextMenuCommand: mockOnContextMenuCommand,
+  showContextMenu: mockShowContextMenu,
+  platform: "darwin",
+};
+
+// Mock the command system
+vi.mock("@/commands", () => ({
+  getContextKeyService: () => ({
+    setGlobal: vi.fn(),
+    getAll: () => ({}),
+  }),
+  getCommandRegistry: () => ({
+    getCommand: () => null,
+    executeCommand: vi.fn(),
+  }),
+  getMenuRegistry: () => ({
+    getSortedMenuItems: () => [],
+  }),
+  getKeybindingRegistry: () => ({
+    getKeybindingsForCommand: () => [],
+  }),
+  When: {
+    and: () => ({ evaluate: () => true }),
+    never: () => ({ evaluate: () => false }),
+  },
+}));
+
+// Mock the fileTreeCommands
+vi.mock("@/commands/fileTreeCommands", () => ({
+  registerFileTreeCallbacks: vi.fn(() => () => {}),
+  FileTreeCommands: {
+    NEW_FILE: "fileTree.newFile",
+    NEW_FOLDER: "fileTree.newFolder",
+    RENAME: "fileTree.rename",
+    DELETE: "fileTree.delete",
+    COPY_PATH: "fileTree.copyPath",
+    COPY_RELATIVE_PATH: "fileTree.copyRelativePath",
+    REVEAL_IN_FINDER: "fileTree.revealInFinder",
+  },
+}));
+
+// Mock notifications
+vi.mock("@/store/actions/notifications", () => ({
+  enqueueNotification: vi.fn(),
+}));
 
 // Mock fs API - use stable references
 const mockReadDirectory = vi.fn();
 const mockOnDirectoryListingChanged = vi.fn();
+const mockWriteFile = vi.fn();
+const mockCreateDirectory = vi.fn();
+const mockDelete = vi.fn();
+const mockRename = vi.fn();
 
 // Create stable fs API object (passed as prop)
 const mockFsAPI = {
   readDirectory: mockReadDirectory,
   onDirectoryListingChanged: mockOnDirectoryListingChanged,
+  writeFile: mockWriteFile,
+  createDirectory: mockCreateDirectory,
+  delete: mockDelete,
+  rename: mockRename,
 };
 
 // Mock git API - use stable references
