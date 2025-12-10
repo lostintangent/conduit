@@ -29,3 +29,8 @@ export type {
   UseExpandedPathsOptions,
   UseExpandedPathsResult,
 } from "./useExpandedPaths";
+export { useFileTreeContextMenu } from "./useFileTreeContextMenu";
+export type {
+  UseFileTreeContextMenuOptions,
+  UseFileTreeContextMenuResult,
+} from "./useFileTreeContextMenu";

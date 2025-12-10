@@ -266,4 +266,8 @@ export function initializeUIHandlers(window: BrowserWindow) {
   ipcMain.handle("ui:window-is-maximized", () => {
     return window.isMaximized();
   });
+
+  ipcMain.handle("ui:show-item-in-folder", (_, path: string) => {
+    shell.showItemInFolder(path);
+  });
 }

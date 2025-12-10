@@ -23,15 +23,22 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useScrollPersistence, useExpandedPaths } from "../../hooks";
+import { FileText, Folder } from "lucide-react";
+import {
+  useScrollPersistence,
+  useExpandedPaths,
+  useFileTreeContextMenu,
+} from "../../hooks";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { pathsEqual, getParentPaths, normalizePathForKey } from "../../utils";
+import { cn } from "@/utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 import { FileTreeItem } from "./FileTreeItem";
+import { FileTreeItemRename } from "./FileTreeItemRename";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export interface FileTreeNormalProps {
@@ -236,6 +243,22 @@ export function FileTreeNormal({
    * Path of the item currently being renamed, or null if not renaming.
    */
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // New File/Folder Creation State
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Path of the parent directory where a new item is being created, or null.
+   */
+  const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
+
+  /**
+   * Type of item being created: 'file' or 'folder'.
+   */
+  const [creatingType, setCreatingType] = useState<"file" | "folder" | null>(
+    null,
+  );
 
   // ---------------------------------------------------------------------------
   // CWD Change Handler
@@ -610,6 +633,116 @@ export function FileTreeNormal({
     [directoryCache],
   );
 
+  /**
+   * Check if a name conflicts with existing items in a directory.
+   * Used for new file/folder creation.
+   */
+  const createNewItemConflictChecker = useCallback(
+    (parentPath: string): ((name: string) => boolean) => {
+      return (name: string): boolean => {
+        const entries = directoryCache[normalizePathForKey(parentPath)];
+        if (!entries) return false;
+
+        return entries.some((e) => e.name.toLowerCase() === name.toLowerCase());
+      };
+    },
+    [directoryCache],
+  );
+
+  // ---------------------------------------------------------------------------
+  // New File/Folder Creation Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Begin creating a new file in the specified directory.
+   */
+  const beginCreateFile = useCallback(
+    (parentPath: string) => {
+      // Expand the directory if not already expanded
+      if (!isPathExpanded(parentPath)) {
+        toggleExpanded(parentPath);
+      }
+      setCreatingInPath(parentPath);
+      setCreatingType("file");
+    },
+    [isPathExpanded, toggleExpanded],
+  );
+
+  /**
+   * Begin creating a new folder in the specified directory.
+   */
+  const beginCreateFolder = useCallback(
+    (parentPath: string) => {
+      // Expand the directory if not already expanded
+      if (!isPathExpanded(parentPath)) {
+        toggleExpanded(parentPath);
+      }
+      setCreatingInPath(parentPath);
+      setCreatingType("folder");
+    },
+    [isPathExpanded, toggleExpanded],
+  );
+
+  /**
+   * Cancel the current creation operation.
+   */
+  const cancelCreate = useCallback(() => {
+    setCreatingInPath(null);
+    setCreatingType(null);
+  }, []);
+
+  /**
+   * Commit the creation of a new file or folder.
+   */
+  const commitCreate = useCallback(
+    async (name: string) => {
+      if (!creatingInPath || !creatingType) return;
+
+      const newPath = joinPath(creatingInPath, name);
+
+      try {
+        if (creatingType === "file") {
+          // Create empty file
+          await fs.writeFile(newPath, new Uint8Array(0));
+        } else {
+          // Create directory
+          await fs.createDirectory(newPath);
+        }
+
+        // Optimistic update: add new entry to directory cache
+        const cacheKey = normalizePathForKey(creatingInPath);
+        setDirectoryCache((prev) => {
+          const entries = prev[cacheKey];
+          if (!entries) return prev;
+          const newEntry = {
+            name,
+            type:
+              creatingType === "file"
+                ? ("file" as const)
+                : ("directory" as const),
+          };
+          return {
+            ...prev,
+            [cacheKey]: [...entries, newEntry],
+          };
+        });
+
+        // Clear creation state
+        setCreatingInPath(null);
+        setCreatingType(null);
+
+        // Set pending focus to the new item
+        setPendingFocusPath(newPath);
+      } catch (error) {
+        console.error("Create failed:", error);
+        // TODO: Show error notification
+        setCreatingInPath(null);
+        setCreatingType(null);
+      }
+    },
+    [creatingInPath, creatingType, fs],
+  );
+
   // ---------------------------------------------------------------------------
   // Delete Handlers
   // ---------------------------------------------------------------------------
@@ -705,6 +838,79 @@ export function FileTreeNormal({
       setDeletingPath(null);
     }
   }, [deletingPath, getEntryTypeForPath, getNextFocusAfterDelete, fs]);
+
+  // ---------------------------------------------------------------------------
+  // Context Menu (via command system)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle new file from context menu command.
+   */
+  const handleNewFileCommand = useCallback(
+    (parentPath: string) => {
+      beginCreateFile(parentPath);
+    },
+    [beginCreateFile],
+  );
+
+  /**
+   * Handle new folder from context menu command.
+   */
+  const handleNewFolderCommand = useCallback(
+    (parentPath: string) => {
+      beginCreateFolder(parentPath);
+    },
+    [beginCreateFolder],
+  );
+
+  /**
+   * Handle rename from context menu command.
+   */
+  const handleRenameCommand = useCallback(
+    (path: string) => {
+      setFocusedPath(path);
+      beginRename(path);
+    },
+    [beginRename],
+  );
+
+  /**
+   * Handle delete from context menu command.
+   */
+  const handleDeleteCommand = useCallback(
+    (path: string) => {
+      setFocusedPath(path);
+      handleDelete(path);
+    },
+    [handleDelete],
+  );
+
+  /**
+   * Context menu hook - integrates with command system.
+   */
+  const { showContextMenu, setFocusState } = useFileTreeContextMenu({
+    cwd,
+    onNewFile: handleNewFileCommand,
+    onNewFolder: handleNewFolderCommand,
+    onRename: handleRenameCommand,
+    onDelete: handleDeleteCommand,
+  });
+
+  /**
+   * Handle right-click on a file tree item.
+   */
+  const handleContextMenu = useCallback(
+    (path: string, e: React.MouseEvent) => {
+      // Also set focus to the right-clicked item
+      setFocusedPath(path);
+
+      const entryType = getEntryTypeForPath(path);
+      const isFile = entryType === "file";
+
+      showContextMenu(path, isFile, e);
+    },
+    [getEntryTypeForPath, showContextMenu],
+  );
 
   /**
    * Main keyboard event handler for the tree container.
@@ -935,6 +1141,15 @@ export function FileTreeNormal({
     }
   }, [focusedPath]);
 
+  /**
+   * Sync focus state with context keys for command system.
+   * This enables keybindings and context menu commands to work correctly.
+   */
+  useEffect(() => {
+    const entryType = focusedPath ? getEntryTypeForPath(focusedPath) : null;
+    setFocusState(focusedPath !== null, focusedPath, entryType);
+  }, [focusedPath, getEntryTypeForPath, setFocusState]);
+
   // ---------------------------------------------------------------------------
   // Git Status Maps
   // ---------------------------------------------------------------------------
@@ -969,6 +1184,54 @@ export function FileTreeNormal({
   // ---------------------------------------------------------------------------
 
   /**
+   * Render placeholder for new file/folder creation.
+   * Matches the structure of FileTreeItem for consistent styling.
+   */
+  const renderCreationPlaceholder = useCallback(
+    (parentPath: string): React.ReactNode => {
+      if (!creatingInPath || !creatingType || creatingInPath !== parentPath) {
+        return null;
+      }
+
+      const isDirectory = creatingType === "folder";
+      const Icon = isDirectory ? Folder : FileText;
+
+      return (
+        <li key="__creating__" role="treeitem">
+          <div
+            className={cn(
+              "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition",
+              "ring-1 ring-accent/60", // Always show focus ring for creation input
+            )}
+          >
+            {/* Spacer to align with files (matches FileTreeItem file spacer) */}
+            <div style={{ width: 12 }} />
+
+            {/* Icon */}
+            <Icon className="flex-shrink-0 text-foreground" size={12} />
+
+            {/* Inline input */}
+            <FileTreeItemRename
+              initialName=""
+              isDirectory={isDirectory}
+              onCommit={commitCreate}
+              onCancel={cancelCreate}
+              checkNameConflict={createNewItemConflictChecker(parentPath)}
+            />
+          </div>
+        </li>
+      );
+    },
+    [
+      creatingInPath,
+      creatingType,
+      commitCreate,
+      cancelCreate,
+      createNewItemConflictChecker,
+    ],
+  );
+
+  /**
    * Recursively render directory contents.
    */
   const renderDirectory = useCallback(
@@ -979,7 +1242,22 @@ export function FileTreeNormal({
       // Sort entries using shared helper (must match visiblePaths order)
       const sorted = sortEntries(entries);
 
-      return sorted.map((entry) => {
+      // Check if we're creating a new item in this directory
+      const isCreatingHere = creatingInPath === dirPath;
+      const creationPlaceholder = renderCreationPlaceholder(dirPath);
+
+      // Find index where files start (after all directories)
+      const firstFileIndex = sorted.findIndex((e) => e.type === "file");
+      const fileStartIndex =
+        firstFileIndex === -1 ? sorted.length : firstFileIndex;
+
+      // Determine where to insert placeholder:
+      // - New folder: at the start (index 0)
+      // - New file: after all folders (at fileStartIndex)
+      const placeholderIndex =
+        isCreatingHere && creatingType === "file" ? fileStartIndex : 0;
+
+      const renderItem = (entry: DirectoryEntry) => {
         const entryPath = joinPath(dirPath, entry.name);
         const isExpanded = isPathExpanded(entryPath);
         // Suppress git status for paths involved in a recent rename
@@ -1013,13 +1291,25 @@ export function FileTreeNormal({
             checkNameConflict={
               isItemRenaming ? createNameConflictChecker(entryPath) : undefined
             }
+            onContextMenu={handleContextMenu}
           >
             {entry.type === "directory" &&
               isExpanded &&
               renderDirectory(entryPath, depth + 1)}
           </FileTreeItem>
         );
-      });
+      };
+
+      return (
+        <>
+          {/* Render items before placeholder position */}
+          {sorted.slice(0, placeholderIndex).map(renderItem)}
+          {/* Show creation placeholder at the appropriate position */}
+          {creationPlaceholder}
+          {/* Render items after placeholder position */}
+          {sorted.slice(placeholderIndex).map(renderItem)}
+        </>
+      );
     },
     [
       directoryCache,
@@ -1036,7 +1326,11 @@ export function FileTreeNormal({
       commitRename,
       cancelRename,
       createNameConflictChecker,
+      handleContextMenu,
       cwd,
+      renderCreationPlaceholder,
+      creatingInPath,
+      creatingType,
     ],
   );
 

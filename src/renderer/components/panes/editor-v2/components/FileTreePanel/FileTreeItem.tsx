@@ -106,6 +106,12 @@ export interface FileTreeItemProps {
    * Used for validation during rename.
    */
   checkNameConflict?: (name: string) => boolean;
+
+  /**
+   * Callback when user right-clicks on the item.
+   * Provides the item's path and the mouse event.
+   */
+  onContextMenu?: (path: string, e: React.MouseEvent) => void;
 }
 
 /**
@@ -132,6 +138,7 @@ export const FileTreeItem = memo(function FileTreeItem({
   onRenameCommit,
   onRenameCancel,
   checkNameConflict,
+  onContextMenu,
 }: FileTreeItemProps) {
   const isDirectory = entry.type === "directory";
 
@@ -164,6 +171,14 @@ export const FileTreeItem = memo(function FileTreeItem({
       onDirectoryChange?.(path);
     },
     [path, onDirectoryChange],
+  );
+
+  // Handle right-click context menu
+  const handleRightClick = useCallback(
+    (e: React.MouseEvent) => {
+      onContextMenu?.(path, e);
+    },
+    [path, onContextMenu],
   );
 
   // Choose appropriate icon
@@ -213,6 +228,7 @@ export const FileTreeItem = memo(function FileTreeItem({
             : "hover:bg-foreground/10",
         )}
         onClick={handleRowClick}
+        onContextMenu={handleRightClick}
         data-testid={`tree-item-${entry.name}`}
         data-path={path}
         data-type={entry.type}
