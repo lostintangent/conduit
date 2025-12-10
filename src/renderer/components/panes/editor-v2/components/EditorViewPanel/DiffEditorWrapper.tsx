@@ -26,7 +26,7 @@
 
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef } from "react";
-import { useDiffContent, useMonacoModel } from "../../hooks";
+import { useDiffContent, useMonacoModel, useEditorTheme } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage } from "../../utils/languageDetection";
 
@@ -94,11 +94,15 @@ export function DiffEditorWrapper({
   cwd,
   filePath,
   baseBranch,
-  theme = "vs-dark",
+  theme: themeProp,
   readOnly = false,
   onChange,
   onMount,
 }: DiffEditorWrapperProps) {
+  // Use provided theme or fall back to user's preferred theme
+  const defaultTheme = useEditorTheme();
+  const theme = themeProp ?? defaultTheme;
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(
@@ -211,34 +215,40 @@ export function DiffEditorWrapper({
       return;
     }
 
-    // Create original model (read-only, we own this)
-    // Dispose previous if exists - must reset diff editor model first
-    if (originalModelRef.current) {
-      // Reset diff editor model before disposing to prevent race condition
-      try {
-        diffEditor.setModel(null);
-      } catch {
-        // Ignore if already disposed
+    // Wrap in try-catch to prevent any errors from crashing the app
+    try {
+      // Create original model (read-only, we own this)
+      // Dispose previous if exists - must reset diff editor model first
+      if (originalModelRef.current) {
+        // Reset diff editor model before disposing to prevent race condition
+        try {
+          diffEditor.setModel(null);
+        } catch {
+          // Ignore if already disposed
+        }
+        originalModelRef.current.dispose();
       }
-      originalModelRef.current.dispose();
+
+      // Use editorId in URI to ensure uniqueness across multiple diff editors
+      // showing the same file (e.g., different panes comparing same file)
+      const originalUri = monaco.Uri.parse(
+        `inmemory://original/${editorId}/${filePath}`,
+      );
+      originalModelRef.current = monaco.editor.createModel(
+        diffContent.original,
+        language,
+        originalUri,
+      );
+
+      // Set the diff models
+      diffEditor.setModel({
+        original: originalModelRef.current,
+        modified: modifiedModel,
+      });
+    } catch (error) {
+      console.error("Error setting up diff editor models:", error);
+      return;
     }
-
-    // Use editorId in URI to ensure uniqueness across multiple diff editors
-    // showing the same file (e.g., different panes comparing same file)
-    const originalUri = monaco.Uri.parse(
-      `inmemory://original/${editorId}/${filePath}`,
-    );
-    originalModelRef.current = monaco.editor.createModel(
-      diffContent.original,
-      language,
-      originalUri,
-    );
-
-    // Set the diff models
-    diffEditor.setModel({
-      original: originalModelRef.current,
-      modified: modifiedModel,
-    });
 
     // Restore ViewState for the modified editor (scroll position, cursor, etc.)
     const modifiedEditor = diffEditor.getModifiedEditor();

@@ -778,6 +778,25 @@ export function EditorPaneV2({
   );
 
   /**
+   * Handle entering changes review mode.
+   * Switches the view mode to show all changes with inline diffs.
+   */
+  const handleReviewChanges = useCallback(() => {
+    setViewMode({
+      type: "changesReview",
+      baseBranch: baseBranch ?? undefined,
+    });
+  }, [baseBranch]);
+
+  /**
+   * Handle exiting changes review mode.
+   * Returns to the regular editor view.
+   */
+  const handleExitReviewMode = useCallback(() => {
+    setViewMode({ type: "editor" });
+  }, []);
+
+  /**
    * Determine if the current file is git-modified (eligible for diff toggle).
    */
   const isCurrentFileGitModified = useMemo(() => {
@@ -949,6 +968,9 @@ export function EditorPaneV2({
           // Changes View Mode Props
           changesViewMode={changesViewMode}
           onChangesViewModeChange={setChangesViewMode}
+          // Review Mode Props
+          isReviewModeActive={viewMode.type === "changesReview"}
+          onReviewChanges={handleReviewChanges}
         />
       </div>
 
@@ -986,6 +1008,7 @@ export function EditorPaneV2({
           showDiffToggle={isCurrentFileGitModified}
           isDiffMode={viewMode.type === "diff"}
           onToggleDiffMode={handleToggleDiffMode}
+          onExitReview={handleExitReviewMode}
         />
       </div>
 

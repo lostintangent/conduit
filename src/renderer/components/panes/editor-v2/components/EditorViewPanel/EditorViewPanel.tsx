@@ -92,6 +92,9 @@ export interface EditorViewPanelProps {
 
   /** Handler for toggling between diff and edit modes */
   onToggleDiffMode?: (isDiff: boolean) => void;
+
+  /** Handler for exiting changes review mode */
+  onExitReview?: () => void;
 }
 
 /**
@@ -118,6 +121,7 @@ export function EditorViewPanel({
   showDiffToggle = false,
   isDiffMode = false,
   onToggleDiffMode,
+  onExitReview,
 }: EditorViewPanelProps) {
   // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -449,7 +453,12 @@ export function EditorViewPanel({
           </EditorErrorBoundary>
         ) : viewMode.type === "changesReview" && git ? (
           // Changes review pane
-          <ChangesReviewPane cwd={cwd} git={git} baseBranch={baseBranch} />
+          <ChangesReviewPane
+            cwd={cwd}
+            git={git}
+            baseBranch={baseBranch}
+            onExitReview={onExitReview}
+          />
         ) : null}
       </div>
     </div>

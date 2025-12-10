@@ -406,7 +406,25 @@ export function useDiffContent(
       }
     };
 
-    loadContent();
+    // Call loadContent with error handling to prevent unhandled rejections
+    loadContent().catch((error) => {
+      // Handle any unexpected errors that weren't caught inside loadContent
+      console.error("Unexpected error loading diff content:", error);
+      if (isMountedRef.current && !isStale) {
+        setState({
+          original: null,
+          modified: null,
+          isLoading: false,
+          error: {
+            type: "unknown",
+            message:
+              error instanceof Error ? error.message : "Failed to load diff",
+          },
+          errorMessage:
+            error instanceof Error ? error.message : "Failed to load diff",
+        });
+      }
+    });
 
     // Cleanup: mark this effect as stale when dependencies change
     // This prevents older fetches from overwriting newer results

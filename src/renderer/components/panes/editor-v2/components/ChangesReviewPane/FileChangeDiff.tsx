@@ -33,9 +33,11 @@ import {
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import { DiffEditorWrapper } from "../EditorViewPanel";
+import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
 import { GitBadge } from "../shared";
+import { DIFF_VIEW_HEIGHT } from "./types";
 
 export interface FileChangeDiffProps {
   /** Relative file path from git root */
@@ -59,9 +61,6 @@ export interface FileChangeDiffProps {
   /** Toggle expansion callback */
   onToggle: () => void;
 }
-
-/** Fixed height for expanded diff view */
-const DIFF_HEIGHT = 300;
 
 /**
  * Individual file diff with collapsible header and action buttons.
@@ -119,9 +118,23 @@ export function FileChangeDiff({
     [git, filePath],
   );
 
+  /**
+   * Handle revert with confirmation dialog.
+   * Only reverts if user confirms the action.
+   */
   const handleRevert = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
+
+      // Show confirmation dialog before reverting
+      const confirmed = window.confirm(
+        `Discard changes to "${filePath}"?\n\nThis action cannot be undone.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
       try {
         await git.revert([filePath]);
       } catch (error) {
@@ -130,6 +143,10 @@ export function FileChangeDiff({
     },
     [git, filePath],
   );
+
+  // Determine if revert button should be shown
+  // Don't show revert for untracked files (they have nothing to revert to)
+  const canRevert = status.status !== "untracked";
 
   return (
     <div
@@ -203,16 +220,18 @@ export function FileChangeDiff({
               >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={handleRevert}
-                title="Discard Changes"
-                data-testid="revert-button"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </Button>
+              {canRevert && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 hover:text-destructive"
+                  onClick={handleRevert}
+                  title="Discard Changes"
+                  data-testid="revert-button"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -222,16 +241,18 @@ export function FileChangeDiff({
       {isExpanded && (
         <div
           className="bg-background"
-          style={{ height: DIFF_HEIGHT }}
+          style={{ height: DIFF_VIEW_HEIGHT }}
           data-testid="file-change-diff-content"
         >
-          <DiffEditorWrapper
-            editorId={editorId}
-            cwd={cwd}
-            filePath={fullFilePath}
-            baseBranch={baseBranch}
-            readOnly={true}
-          />
+          <EditorErrorBoundary filePath={filePath}>
+            <DiffEditorWrapper
+              editorId={editorId}
+              cwd={cwd}
+              filePath={fullFilePath}
+              baseBranch={baseBranch}
+              readOnly={true}
+            />
+          </EditorErrorBoundary>
         </div>
       )}
     </div>
