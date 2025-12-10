@@ -22,7 +22,7 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
 
   // Default to the user's home directory if no CWD is provided
   if (!cwd) {
-    cwd = process.env.HOME ?? process.cwd();
+    cwd = process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
   }
 
   // Determine the shell integration script to source
