@@ -1,3 +1,4 @@
+import type { TerminalCreateOptions } from "@shared/types";
 import { ipcMain } from "electron";
 import type {
   TerminalInputPayload,
@@ -12,7 +13,7 @@ import {
   killTerminal,
   markTerminalReady,
 } from "./store/actions";
-import type { CreateTerminalOptions, SendToRendererFn } from "./types";
+import type { SendToRendererFn } from "./types";
 
 const CHANNEL = "terminal";
 export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
@@ -20,7 +21,7 @@ export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
 
   ipcMain.handle(
     `${CHANNEL}:create`,
-    async (_, payload: CreateTerminalOptions) => {
+    async (_, payload: TerminalCreateOptions) => {
       const terminal = await createTerminal(sendToRenderer, payload);
       return {
         sessionId: terminal.id,

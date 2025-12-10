@@ -62,6 +62,7 @@ export interface CloudTerminalOptions {
 
 export type TerminalCreateOptions = {
   cwd?: string;
+  command?: string; // Command to execute when the terminal is ready
   existingVMId?: string; // Connect to an existing VM instead of creating one
   vmIdleTimeout?: number;
 } & CloudTerminalOptions;

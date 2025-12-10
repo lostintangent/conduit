@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
+import type { TerminalCreateOptions } from "@shared/types";
 import { detectPorts } from "@shared/utils/portDetection";
 import { getTerminal, removeTerminal, storeTerminal } from ".";
 import { createVM, getSSHConnectionInfo } from "../../vm/client";
@@ -10,11 +11,7 @@ import {
   setupSSHKeyInVM,
 } from "../../vm/ssh-keys";
 import { resolveShell, spawnTerminalProcess } from "../pty";
-import type {
-  CreateTerminalOptions,
-  SendToRendererFn,
-  TerminalInstance,
-} from "../types";
+import type { SendToRendererFn, TerminalInstance } from "../types";
 
 const describeProcess = (session: TerminalInstance) => {
   if (session.cloudEnvironment) {
@@ -30,7 +27,7 @@ const describeProcess = (session: TerminalInstance) => {
 
 export async function createTerminal(
   sendToRenderer: SendToRendererFn,
-  options?: CreateTerminalOptions,
+  options?: TerminalCreateOptions,
 ) {
   const id = randomUUID();
 
@@ -158,6 +155,7 @@ export async function createTerminal(
     lastProcessName: pty.process,
     isRendererReady: false,
     bufferedOutput: [],
+    pendingCommand: options?.command,
   };
 
   storeTerminal(terminal);
@@ -346,12 +344,17 @@ export function markTerminalReady(
 
   terminal.isRendererReady = true;
 
+  // Flush all buffered output as a single message to avoid race conditions
   if (terminal.bufferedOutput.length > 0) {
-    terminal.bufferedOutput.forEach((data) =>
-      sendToRenderer("terminal:data", { sessionId: terminal.id, data }),
-    );
-
+    const data = terminal.bufferedOutput.join("");
+    sendToRenderer("terminal:data", { sessionId: terminal.id, data });
     terminal.bufferedOutput = [];
+  }
+
+  // Execute any pending command (from workspace restore)
+  if (terminal.pendingCommand) {
+    terminal.pty.write(`${terminal.pendingCommand}\r`);
+    terminal.pendingCommand = undefined;
   }
 
   // If this is a VM session, send the SSH command now that the terminal is ready

@@ -433,22 +433,16 @@ export const TerminalPane = ({
       if (!currentTab) return;
 
       const command = `npm i && npm run ${scriptName}`;
-      let targetSessionId: string;
 
       if (playButtonTarget === "hyper") {
-        // Open a new hyper terminal
-        const result = await api.createTerminal({ cwd });
+        // Open a new hyper terminal with command
+        const result = await api.createTerminal({ cwd, command });
         openHyperTerminal(result.sessionId, generateId(), result.cwd);
-
-        targetSessionId = result.sessionId;
       } else {
-        const newPane = await splitPane(currentTab.id, paneId, "row");
-        targetSessionId = newPane.sessionId;
+        await splitPane(currentTab.id, paneId, "row", false, {
+          terminalOptions: { cwd, command },
+        });
       }
-
-      // Wait for the terminal to be ready and then send the command
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      await api.sendKeypress(targetSessionId, `${command}\r`);
     },
     [currentTab, cwd, paneId, playButtonTarget],
   );

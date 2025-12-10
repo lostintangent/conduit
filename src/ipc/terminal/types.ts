@@ -1,4 +1,4 @@
-import type { CloudTerminalOptions, SSHConnectionState } from "@shared/types";
+import type { SSHConnectionState } from "@shared/types";
 import type { IPty } from "node-pty";
 
 export type TerminalInstance = {
@@ -10,15 +10,12 @@ export type TerminalInstance = {
   isRendererReady: boolean;
   bufferedOutput: string[];
 
+  // Command to execute when the terminal becomes ready (for workspace restore)
+  pendingCommand?: string;
+
   // VM metadata (only present for remote VM sessions)
   cloudEnvironment?: CloudEnvironment;
 };
-
-export type CreateTerminalOptions = {
-  cwd?: string;
-  existingVMId?: string; // Connect to an existing VM instead of creating one
-  vmIdleTimeout?: number;
-} & CloudTerminalOptions;
 
 export type CloudEnvironment = {
   vmId: string;

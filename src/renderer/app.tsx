@@ -441,18 +441,13 @@ export function App() {
           ? options.cwd
           : undefined;
 
-      const result = await api.createTerminal(
-        requestedCwd ? { cwd: requestedCwd } : undefined,
-      );
+      const result = await api.createTerminal({
+        cwd: requestedCwd,
+        command,
+      });
       if (!result) {
         return;
       }
-
-      const commandWithNewline =
-        command.endsWith("\n") || command.endsWith("\r")
-          ? command
-          : `${command}\n`;
-      api.sendKeypress(result.sessionId, commandWithNewline);
 
       setQuickPaneState({
         type: "terminal",
@@ -606,13 +601,6 @@ export function App() {
       enqueueNotification,
       updateNotification,
     ],
-  );
-
-  const handleShellCommand = useCallback(
-    async (rawCommand: string) => {
-      await runShellCommand(rawCommand, { trackHistory: true });
-    },
-    [runShellCommand],
   );
 
   const handleOpenWebPage = useCallback(
@@ -847,7 +835,9 @@ export function App() {
           setIsCommandPaletteOpenOverride(false);
         }}
         commandItems={commandItems}
-        onRunShellCommand={handleShellCommand}
+        onRunShellCommand={(command) =>
+          runShellCommand(command, { trackHistory: true })
+        }
         shellHistory={commandHistory}
         onRemoveShellHistoryEntry={removeCommandHistoryEntry}
         cwd={activeTab ? getActiveTabCwd(activeTab, homeDirectory) : null}

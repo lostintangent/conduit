@@ -1,4 +1,3 @@
-import { contextBridge, ipcRenderer } from "electron";
 import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
@@ -35,12 +34,13 @@ import type {
   UserSettings,
   VMInfo,
 } from "@shared/types";
+import { contextBridge, ipcRenderer } from "electron";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
-import configureUpdatesModule from "./modules/updates";
-import configureWorkspaceModule from "./modules/workspace";
 import fsv2Module from "./modules/fsv2";
 import gitv2Module from "./modules/gitv2";
+import configureUpdatesModule from "./modules/updates";
+import configureWorkspaceModule from "./modules/workspace";
 import { createEventListener } from "./utils";
 
 const conduitAPI = {
