@@ -2,6 +2,13 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Mock window.conduit before importing modules that use it
+// @ts-ignore
+window.conduit = {
+  platform: "darwin",
+};
+
 import { renderHook, waitFor } from "@testing-library/react";
 import { Provider, createStore } from "jotai";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";

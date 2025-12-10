@@ -1,3 +1,13 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Mock window.conduit before importing modules that use it
+// @ts-ignore
+globalThis.window = globalThis.window || {};
+// @ts-ignore
+globalThis.window.conduit = {
+  platform: "darwin",
+};
+
 import {
   ApplicationCommands,
   registerApplicationCommands,
@@ -7,7 +17,6 @@ import type { CommandContext, CommandDescriptor } from "@/commands/core/types";
 import * as handlers from "@/commands/handlers";
 import * as focusModeActions from "@/store/actions/focusMode";
 import * as tabActions from "@/store/actions/tab";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock store actions
 vi.mock("@/store/actions/focusMode");
@@ -43,7 +52,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(58);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(65);
 
       // View commands
       expect(
