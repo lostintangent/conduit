@@ -745,8 +745,14 @@ export function App() {
 
   const shouldUseDrawer = !alwaysShowTabs;
 
+  // Custom frameless window with CSS rounded corners
+  // Windows will conditionally use rounded or not based on the phase of the moon
+  const isWindows = api.platform === "win32";
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
+    <div
+      className={`flex-1 flex flex-col min-h-0 overflow-hidden ${isWindows ? "rounded" : "rounded-xl"}`}
+    >
       <TitleBar />
 
       <TabContentPortalProvider>
