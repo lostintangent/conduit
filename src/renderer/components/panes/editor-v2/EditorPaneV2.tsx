@@ -581,15 +581,16 @@ export function EditorPaneV2({
         setPanelView("editor");
       }
 
+      // Compute relative path and git status for this file
+      const relativePath = file.path.startsWith(currentCwd)
+        ? file.path.slice(currentCwd.length).replace(/^\//, "")
+        : file.path;
+      const fileStatus = gitStatus?.get(relativePath);
+
       // Update view mode, but preserve review mode if active
       // (review mode handles file selection by scrolling to the file)
       setViewModePreservingReview(() => {
-        // Determine the appropriate view mode based on git status and user preference
         // Only "modified" files get diff view option, not "added" files
-        const relativePath = file.path.startsWith(currentCwd)
-          ? file.path.slice(currentCwd.length).replace(/^\//, "")
-          : file.path;
-        const fileStatus = gitStatus?.get(relativePath);
         if (fileStatus?.status === "modified" && preferDiffForModified) {
           return {
             type: "diff",
@@ -603,8 +604,12 @@ export function EditorPaneV2({
       // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
       // File selection within the editor just updates selectedFile state
 
-      // Load file content and notify parent
-      if (onFileChange && file.type === "file") {
+      // Load file content and notify parent (skip for deleted files - they don't exist on disk)
+      if (
+        onFileChange &&
+        file.type === "file" &&
+        fileStatus?.status !== "deleted"
+      ) {
         try {
           const content = await fs.readTextFile(file.path);
           onFileChange({
