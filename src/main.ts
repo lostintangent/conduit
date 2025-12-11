@@ -24,6 +24,22 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 // GUI-launched builds often miss PATH; hydrate env so spawned terminals see user tools.
 function hydrateEnvFromLoginShell() {
   if (process.platform === "win32") {
+    try {
+      // On Windows, get the full user PATH from PowerShell
+      const output = execFileSync(
+        "pwsh.exe",
+        ["-NoProfile", "-Command", "$env:PATH"],
+        { encoding: "utf8" },
+      );
+      if (output && output.trim()) {
+        process.env.PATH = output.trim();
+      }
+    } catch (error) {
+      console.warn(
+        "Failed to read PowerShell PATH, continuing with defaults.",
+        error,
+      );
+    }
     return;
   }
 
