@@ -1,5 +1,5 @@
 const CLUSTER_URL = "https://green.sandbox.githubnext.com/";
-const IMAGE_ID = "image_custom_aaa73c26-1093-f85d-93a7-99ad22232a6d";
+const IMAGE_ID = "image_custom_756deba8-98cf-fc82-788d-2af2e4664e22";
 
 export type VMConfig = {
   managerUrl: string;
@@ -23,7 +23,7 @@ export async function loadConfig(): Promise<VMConfig> {
     config.token = process.env.GITHUB_TOKEN;
   } else {
     throw new Error(
-      "In oder to use cloud VMs, you must define a GitHub PAT via the GITHUB_TOKEN environment variable.",
+      "In order to use cloud VMs, you must define a GitHub PAT via the GITHUB_TOKEN environment variable.",
     );
   }
 

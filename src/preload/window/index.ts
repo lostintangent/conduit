@@ -531,13 +531,6 @@ const conduitAPI = {
       repoPath,
     }) as Promise<{ success: boolean; error?: string }>,
 
-  applyDiffToVM: (vmId: string, diffPatch: Buffer, repoPath: string) =>
-    ipcRenderer.invoke("vm:apply-diff", {
-      vmId,
-      diffPatch,
-      repoPath,
-    }) as Promise<{ success: boolean; error?: string }>,
-
   forwardPort: (vmId: string, port: number, description?: string) =>
     ipcRenderer.invoke("vm:forward-port", {
       vmId,

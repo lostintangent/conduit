@@ -14,6 +14,8 @@ import type { FolderNode } from "../utils/types";
 export interface NestedFolderItemProps {
   /** Folder node with path, name, files, and subfolders */
   folder: FolderNode;
+  /** Working directory (for building absolute path in tooltip) */
+  cwd: string;
   /** Set of expanded folder paths */
   expandedFolders: Set<string>;
   /** Toggle folder expansion */
@@ -40,6 +42,7 @@ export interface NestedFolderItemProps {
 
 export function NestedFolderItem({
   folder,
+  cwd,
   expandedFolders,
   onToggleFolder,
   selectedPath,
@@ -84,7 +87,7 @@ export function NestedFolderItem({
       <button
         type="button"
         className={cn(
-          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
           "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
           isFolderSelected
             ? "bg-accent/20 hover:bg-accent/25"
@@ -129,12 +132,13 @@ export function NestedFolderItem({
 
       {/* Children (when expanded) */}
       {isExpanded && (
-        <ul className="mt-0.5 border-l border-border pl-2 space-y-0.5">
+        <ul className="border-l border-border pl-2">
           {/* Subfolders first */}
           {sortedFolders.map((subfolder) => (
             <NestedFolderItem
               key={subfolder.path}
               folder={subfolder}
+              cwd={cwd}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
               selectedPath={selectedPath}
@@ -152,6 +156,7 @@ export function NestedFolderItem({
             <NestedFileItem
               key={file.path}
               file={file}
+              cwd={cwd}
               isSelected={pathsEqual(selectedPath, file.path)}
               isMultiSelected={multiSelectedPaths.has(file.path)}
               isStaged={isStaged}

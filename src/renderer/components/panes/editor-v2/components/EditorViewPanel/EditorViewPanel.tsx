@@ -103,6 +103,25 @@ export interface EditorViewPanelProps {
 
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
+
+  // ---------------------------------------------------------------------------
+  // Remote Operations (for ChangesReviewPane)
+  // ---------------------------------------------------------------------------
+
+  /** Whether the current branch has an upstream tracking branch */
+  hasUpstream?: boolean;
+
+  /** Whether a pull operation is in progress */
+  isPulling?: boolean;
+
+  /** Whether a push operation is in progress */
+  isPushing?: boolean;
+
+  /** Callback to trigger a pull operation */
+  onPull?: () => void;
+
+  /** Callback to trigger a push operation */
+  onPush?: () => void;
 }
 
 /**
@@ -131,6 +150,12 @@ export function EditorViewPanel({
   onToggleDiffMode,
   onExitReview,
   isFileDeleted = false,
+  // Remote operations for ChangesReviewPane
+  hasUpstream = true,
+  isPulling = false,
+  isPushing = false,
+  onPull,
+  onPush,
 }: EditorViewPanelProps) {
   // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -323,6 +348,11 @@ export function EditorViewPanel({
           baseBranch={baseBranch}
           onExitReview={onExitReview}
           selectedFilePath={displayFilePath || undefined}
+          hasUpstream={hasUpstream}
+          isPulling={isPulling}
+          isPushing={isPushing}
+          onPull={onPull ?? (() => {})}
+          onPush={onPush ?? (() => {})}
         />
       </div>
     );
@@ -446,6 +476,11 @@ export function EditorViewPanel({
             baseBranch={baseBranch}
             onExitReview={onExitReview}
             selectedFilePath={displayFilePath || undefined}
+            hasUpstream={hasUpstream}
+            isPulling={isPulling}
+            isPushing={isPushing}
+            onPull={onPull ?? (() => {})}
+            onPush={onPush ?? (() => {})}
           />
         ) : null}
       </div>

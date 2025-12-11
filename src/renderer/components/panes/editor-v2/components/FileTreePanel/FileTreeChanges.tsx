@@ -122,7 +122,7 @@ function Section({
           </div>
         )}
       </div>
-      {isExpanded && <ul className="space-y-0.5 ml-2">{children}</ul>}
+      {isExpanded && <ul className="ml-2">{children}</ul>}
     </div>
   );
 }
@@ -602,6 +602,7 @@ export function FileTreeChanges({
         key={path}
         path={path}
         status={status}
+        cwd={cwd}
         isSelected={pathsEqual(selectedRelativePath, path)}
         isMultiSelected={multiSelectedPaths.has(path)}
         isStaged={isStaged}
@@ -630,6 +631,7 @@ export function FileTreeChanges({
           <NestedFolderItem
             key={folder.path}
             folder={folder}
+            cwd={cwd}
             expandedFolders={expandedFolders}
             onToggleFolder={toggleFolder}
             selectedPath={selectedRelativePath}
@@ -647,6 +649,7 @@ export function FileTreeChanges({
             <NestedFileItem
               key={file.path}
               file={file}
+              cwd={cwd}
               isSelected={pathsEqual(selectedRelativePath, file.path)}
               isMultiSelected={multiSelectedPaths.has(file.path)}
               isStaged={isStaged}

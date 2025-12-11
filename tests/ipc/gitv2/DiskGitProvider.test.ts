@@ -67,6 +67,8 @@ const mockGit = {
   reset: vi.fn().mockResolvedValue(undefined),
   commit: vi.fn().mockResolvedValue(undefined),
   checkout: vi.fn().mockResolvedValue(undefined),
+  push: vi.fn().mockResolvedValue(undefined),
+  pull: vi.fn().mockResolvedValue(undefined),
   log: vi.fn(),
   diff: vi.fn(),
   show: vi.fn(),
@@ -607,6 +609,110 @@ describe("DiskGitProvider", () => {
           currentHead: "new-commit-hash",
         }),
       );
+    });
+  });
+
+  // ===========================================================================
+  // push
+  // ===========================================================================
+
+  describe("push()", () => {
+    it("should push to remote with default options", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push();
+
+      expect(mockGit.push).toHaveBeenCalledWith([]);
+    });
+
+    it("should push with force-with-lease when force is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push(true);
+
+      expect(mockGit.push).toHaveBeenCalledWith(["--force-with-lease"]);
+    });
+
+    it("should push with set-upstream when setUpstream is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push(false, true);
+
+      expect(mockGit.push).toHaveBeenCalledWith([
+        "--set-upstream",
+        "origin",
+        "HEAD",
+      ]);
+    });
+
+    it("should combine force and setUpstream options", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push(true, true);
+
+      expect(mockGit.push).toHaveBeenCalledWith([
+        "--force-with-lease",
+        "--set-upstream",
+        "origin",
+        "HEAD",
+      ]);
+    });
+  });
+
+  // ===========================================================================
+  // pull
+  // ===========================================================================
+
+  describe("pull()", () => {
+    it("should pull from remote with default options", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.pull();
+
+      expect(mockGit.pull).toHaveBeenCalled();
+    });
+
+    it("should pull with rebase when rebase is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.pull(true);
+
+      expect(mockGit.pull).toHaveBeenCalledWith(["--rebase"]);
+    });
+  });
+
+  // ===========================================================================
+  // hasUpstream
+  // ===========================================================================
+
+  describe("hasUpstream()", () => {
+    it("should return true when upstream is configured", async () => {
+      mockGit.raw.mockResolvedValue("origin/main\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const hasUpstream = await provider.hasUpstream();
+
+      expect(hasUpstream).toBe(true);
+      expect(mockGit.raw).toHaveBeenCalledWith([
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "@{u}",
+      ]);
+    });
+
+    it("should return false when no upstream is configured", async () => {
+      mockGit.raw.mockRejectedValue(
+        new Error("fatal: no upstream configured for branch"),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const hasUpstream = await provider.hasUpstream();
+
+      expect(hasUpstream).toBe(false);
+    });
+
+    it("should return false when result is empty", async () => {
+      mockGit.raw.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const hasUpstream = await provider.hasUpstream();
+
+      expect(hasUpstream).toBe(false);
     });
   });
 

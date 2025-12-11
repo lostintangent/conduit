@@ -216,7 +216,7 @@ export const FileTreeItem = memo(function FileTreeItem({
       <div
         tabIndex={isFocused ? 0 : -1}
         className={cn(
-          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
           "focus:outline-none",
           // Focus styling (keyboard navigation) - subtle ring
           isFocused && "ring-1 ring-accent/60",

@@ -502,11 +502,40 @@ export async function createDiffPatch(cwd: string): Promise<{
       "status",
       "--porcelain",
     ]);
-    const untrackedFiles = statusOutput
+    const untrackedEntries = statusOutput
       .split("\n")
       .filter((line) => line.startsWith("??"))
       .map((line) => line.substring(3).trim())
-      .filter((file) => file.length > 0);
+      .filter((entry) => entry.length > 0);
+
+    // Expand directories to individual files
+    const untrackedFiles: string[] = [];
+    for (const entry of untrackedEntries) {
+      if (entry.endsWith("/")) {
+        // It's a directory - find all files inside it
+        try {
+          const dirPath = entry.slice(0, -1); // Remove trailing slash
+          const { stdout: filesInDir } = await runGit(repoRoot, [
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            dirPath,
+          ]);
+          const files = filesInDir
+            .split("\n")
+            .map((f) => f.trim())
+            .filter((f) => f.length > 0);
+          untrackedFiles.push(...files);
+          console.log(
+            `[Git] Expanded directory ${entry} to ${files.length} files`,
+          );
+        } catch (error) {
+          console.warn(`[Git] Failed to expand directory ${entry}:`, error);
+        }
+      } else {
+        untrackedFiles.push(entry);
+      }
+    }
 
     if (untrackedFiles.length > 0) {
       console.log(

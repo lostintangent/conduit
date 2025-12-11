@@ -23,6 +23,11 @@
  *   git={git}
  *   baseBranch="main"
  *   onExitReview={() => setViewMode({ type: 'editor' })}
+ *   hasUpstream={hasUpstream}
+ *   isPulling={isPulling}
+ *   isPushing={isPushing}
+ *   onPull={handlePull}
+ *   onPush={handlePush}
  * />
  * ```
  */
@@ -51,6 +56,25 @@ export interface ChangesReviewPaneProps {
 
   /** Selected file path from tree (relative path) - will expand and scroll to this file */
   selectedFilePath?: string;
+
+  // ---------------------------------------------------------------------------
+  // Remote Operations (controlled by parent - EditorPaneV2)
+  // ---------------------------------------------------------------------------
+
+  /** Whether the current branch has an upstream tracking branch */
+  hasUpstream: boolean;
+
+  /** Whether a pull operation is in progress */
+  isPulling: boolean;
+
+  /** Whether a push operation is in progress */
+  isPushing: boolean;
+
+  /** Callback to trigger a pull operation */
+  onPull: () => void;
+
+  /** Callback to trigger a push operation */
+  onPush: () => void;
 }
 
 /**
@@ -62,6 +86,11 @@ export function ChangesReviewPane({
   baseBranch,
   onExitReview,
   selectedFilePath,
+  hasUpstream,
+  isPulling,
+  isPushing,
+  onPull,
+  onPush,
 }: ChangesReviewPaneProps) {
   // Ref for the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -79,14 +108,6 @@ export function ChangesReviewPane({
   const [commitMessage, setCommitMessage] = useState("");
   const [isCommitting, setIsCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // ---------------------------------------------------------------------------
-  // Pull/Push State
-  // ---------------------------------------------------------------------------
-
-  const [isPulling, setIsPulling] = useState(false);
-  const [isPushing, setIsPushing] = useState(false);
-  const [hasUpstream, setHasUpstream] = useState(true);
 
   // ---------------------------------------------------------------------------
   // Section Expansion State
@@ -169,16 +190,6 @@ export function ChangesReviewPane({
         if (!cancelled) {
           setGitStatus(status);
         }
-
-        // Check if upstream is configured
-        try {
-          const branchInfo = await git.getBranches();
-          if (!cancelled && branchInfo.current) {
-            setHasUpstream(branchInfo.current.upstream !== null);
-          }
-        } catch {
-          // Ignore branch info errors
-        }
       } catch (err) {
         console.error("Failed to load git status:", err);
       } finally {
@@ -231,44 +242,6 @@ export function ChangesReviewPane({
       setIsCommitting(false);
     }
   }, [git, commitMessage, stagedFiles.length]);
-
-  // ---------------------------------------------------------------------------
-  // Handlers: Pull/Push
-  // ---------------------------------------------------------------------------
-
-  const handlePull = useCallback(async () => {
-    setIsPulling(true);
-    setError(null);
-
-    try {
-      await git.pull();
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to pull: ${errorMessage}`);
-      console.error("Failed to pull:", err);
-    } finally {
-      setIsPulling(false);
-    }
-  }, [git]);
-
-  const handlePush = useCallback(async () => {
-    setIsPushing(true);
-    setError(null);
-
-    try {
-      await git.push();
-      // If push succeeds, we now have an upstream
-      setHasUpstream(true);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to push: ${errorMessage}`);
-      console.error("Failed to push:", err);
-    } finally {
-      setIsPushing(false);
-    }
-  }, [git]);
 
   // ---------------------------------------------------------------------------
   // Handlers: Bulk Stage/Unstage
@@ -366,8 +339,8 @@ export function ChangesReviewPane({
         canCommit={canCommit}
         isCommitting={isCommitting}
         stagedCount={stagedFiles.length}
-        onPull={handlePull}
-        onPush={handlePush}
+        onPull={onPull}
+        onPush={onPush}
         isPulling={isPulling}
         isPushing={isPushing}
         hasUpstream={hasUpstream}
