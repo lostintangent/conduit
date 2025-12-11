@@ -20,11 +20,8 @@ export interface CloudTerminalHandlerResult {
     defaultBranch: string;
   };
   localRepoCwd?: string;
-  diffPatches?: {
-    staged: Buffer | null;
-    unstaged: Buffer | null;
-    untracked: Buffer | null;
-  };
+  syncLocalGitState?: boolean; // Whether to sync uncommitted changes (created in main process)
+  hasUnpushedCommits?: boolean; // Whether there are commits to push via SSH
   error?: string;
 }
 
@@ -81,49 +78,28 @@ export async function detectGitHubRepoHandler(
     ]);
 
     let localRepoCwd: string | undefined;
-    let diffPatches:
-      | {
-          staged: Buffer | null;
-          unstaged: Buffer | null;
-          untracked: Buffer | null;
-        }
-      | undefined;
+    let syncLocalGitState = false;
+    let hasUnpushedCommits = false;
 
-    // Store local repo path for SSH push if there are unpushed commits
+    // Store local repo path for creating patches and/or SSH push
+    if (hasUnpushed || hasUncommitted) {
+      localRepoCwd = cwd;
+    }
+
+    // Set flag for unpushed commits (will push via SSH)
     if (hasUnpushed) {
       console.log(
         "[CloudTerminal] Unpushed commits detected, will push via SSH",
       );
-      localRepoCwd = cwd;
+      hasUnpushedCommits = true;
     }
 
-    // Create diff patches for working tree changes (preserving staging state)
+    // Set flag for uncommitted changes (patches created in main process)
     if (hasUncommitted) {
       console.log(
-        "[CloudTerminal] Uncommitted changes detected, creating patches...",
+        "[CloudTerminal] Uncommitted changes detected, will sync via conduit-server",
       );
-
-      const patches = await api.createDiffPatch(cwd);
-
-      if (patches) {
-        diffPatches = {
-          staged: patches.stagedPatch,
-          unstaged: patches.unstagedPatch,
-          untracked: patches.untrackedPatch,
-        };
-        const parts = [];
-        if (patches.stagedPatch)
-          parts.push(`staged: ${patches.stagedPatch.length}b`);
-        if (patches.unstagedPatch)
-          parts.push(`unstaged: ${patches.unstagedPatch.length}b`);
-        if (patches.untrackedPatch)
-          parts.push(`untracked: ${patches.untrackedPatch.length}b`);
-        console.log(`[CloudTerminal] Created patches: ${parts.join(", ")}`);
-      } else {
-        console.warn(
-          "[CloudTerminal] Failed to create patches despite detected changes",
-        );
-      }
+      syncLocalGitState = true;
     }
 
     if (!hasUncommitted && !hasUnpushed) {
@@ -134,7 +110,8 @@ export async function detectGitHubRepoHandler(
       success: true,
       githubRepo: repoInfo,
       localRepoCwd,
-      diffPatches,
+      syncLocalGitState,
+      hasUnpushedCommits,
     };
   } catch (error) {
     // If anything goes wrong, just treat as no repo found
@@ -176,30 +153,29 @@ export function buildCloudTerminalResult(
     );
   }
 
-  // Add local repo path if there are unpushed commits (for SSH push)
+  // Add local repo path if there are changes to sync
   if (handlerResult.localRepoCwd) {
     terminalOptions.localRepoCwd = handlerResult.localRepoCwd;
     console.log(
-      `[CloudTerminal] Will push commits from: ${handlerResult.localRepoCwd}`,
+      `[CloudTerminal] Will sync from: ${handlerResult.localRepoCwd}`,
     );
   }
 
-  // Add working tree patches if there are uncommitted changes
-  if (handlerResult.diffPatches) {
-    terminalOptions.diffPatches = handlerResult.diffPatches;
-    const parts = [];
-    if (handlerResult.diffPatches.staged)
-      parts.push(`staged: ${handlerResult.diffPatches.staged.length}b`);
-    if (handlerResult.diffPatches.unstaged)
-      parts.push(`unstaged: ${handlerResult.diffPatches.unstaged.length}b`);
-    if (handlerResult.diffPatches.untracked)
-      parts.push(`untracked: ${handlerResult.diffPatches.untracked.length}b`);
+  // Add flag for unpushed commits (will push via SSH)
+  if (handlerResult.hasUnpushedCommits) {
+    terminalOptions.hasUnpushedCommits = true;
+    console.log(`[CloudTerminal] Will push commits via SSH`);
+  }
+
+  // Add flag for uncommitted changes (patches created in main process)
+  if (handlerResult.syncLocalGitState) {
+    terminalOptions.syncLocalGitState = true;
     console.log(
-      `[CloudTerminal] Including working tree patches: ${parts.join(", ")}`,
+      `[CloudTerminal] Will sync uncommitted changes via conduit-server`,
     );
   }
 
-  if (!handlerResult.localRepoCwd && !handlerResult.diffPatches) {
+  if (!handlerResult.localRepoCwd && !handlerResult.syncLocalGitState) {
     console.log(`[CloudTerminal] No local changes to sync`);
   }
 

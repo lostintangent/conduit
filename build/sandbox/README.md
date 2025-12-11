@@ -3,7 +3,11 @@ This Dockerfile forms the base for our remote and local sandboxes. This is built
 ## Building the Image
 
 ```bash
-docker build -t conduit-sandbox -f build/sandbox/Dockerfile .
+docker buildx build --platform linux/amd64 -t conduit-sandbox -f build/sandbox/Dockerfile . --load
+
+
+# push to ghcr container registry and then building the uVM custom image
+./build/sandbox/scripts/create-conduit-microVM-image.sh latest
 ```
 
 A current snapshot of the image is published to docker hub as `nickdepinet/conduit-sandbox`
