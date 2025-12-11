@@ -344,9 +344,17 @@ async function startGoServer(workspaceDir: string): Promise<void> {
     ["--port", PORT.toString(), "--workspace", workspaceDir],
     {
       cwd: GO_SERVER_DIR,
-      stdio: "inherit",
+      stdio: "pipe", // Use pipe to capture output without blocking
     },
   );
+
+  // Log server output
+  goServerProcess.stdout?.on("data", (data) => {
+    process.stdout.write(data);
+  });
+  goServerProcess.stderr?.on("data", (data) => {
+    process.stderr.write(data);
+  });
 
   goServerProcess.on("error", (err) => {
     console.error("Go server error:", err);
@@ -364,21 +372,15 @@ async function startGoServer(workspaceDir: string): Promise<void> {
 function stopGoServer(): void {
   console.log("🛑 Stopping Go server...");
   if (goServerProcess) {
-    // Send SIGTERM for graceful shutdown
-    goServerProcess.kill("SIGTERM");
+    const pid = goServerProcess.pid;
+    try {
+      goServerProcess.kill("SIGTERM");
+      console.log(`✅ Go server (PID: ${pid}) stopped`);
+    } catch {
+      // Process may already be dead
+      console.log("Go server already stopped");
+    }
     goServerProcess = null;
-    console.log("✅ Go server stopped");
-  }
-  // Also clean up any orphaned processes
-  try {
-    execSync(
-      `lsof -ti :${PORT} | xargs kill -15 2>/dev/null || lsof -ti :${PORT} | xargs kill -9`,
-      {
-        stdio: "ignore",
-      },
-    );
-  } catch {
-    // No process on port
   }
 }
 
