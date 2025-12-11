@@ -19,6 +19,10 @@ const { mockGitv2 } = vi.hoisted(() => {
     getCurrentBranch: vi.fn(),
     getBranches: vi.fn(),
     checkout: vi.fn(),
+    // Remote operations
+    push: vi.fn(),
+    pull: vi.fn(),
+    hasUpstream: vi.fn(),
     findRoot: vi.fn(),
     // New comparison operations
     getChangedFilesFromBranch: vi.fn(),
@@ -479,6 +483,98 @@ describe("GitV2API", () => {
         "/test/project",
         "feature/new",
       );
+
+      api.release();
+    });
+  });
+
+  // ===========================================================================
+  // Remote Operations
+  // ===========================================================================
+
+  describe("push", () => {
+    it("should push with default options", async () => {
+      mockGitv2.push.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.push();
+
+      expect(mockGitv2.push).toHaveBeenCalledWith(
+        "/test/project",
+        false,
+        false,
+      );
+
+      api.release();
+    });
+
+    it("should push with force option", async () => {
+      mockGitv2.push.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.push(true);
+
+      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", true, false);
+
+      api.release();
+    });
+
+    it("should push with setUpstream option for new branches", async () => {
+      mockGitv2.push.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.push(false, true);
+
+      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", false, true);
+
+      api.release();
+    });
+  });
+
+  describe("pull", () => {
+    it("should pull with default options", async () => {
+      mockGitv2.pull.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.pull();
+
+      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", false);
+
+      api.release();
+    });
+
+    it("should pull with rebase option", async () => {
+      mockGitv2.pull.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.pull(true);
+
+      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", true);
+
+      api.release();
+    });
+  });
+
+  describe("hasUpstream", () => {
+    it("should return true when upstream is configured", async () => {
+      mockGitv2.hasUpstream.mockResolvedValue(true);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.hasUpstream();
+
+      expect(mockGitv2.hasUpstream).toHaveBeenCalledWith("/test/project");
+      expect(result).toBe(true);
+
+      api.release();
+    });
+
+    it("should return false when no upstream", async () => {
+      mockGitv2.hasUpstream.mockResolvedValue(false);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.hasUpstream();
+
+      expect(result).toBe(false);
 
       api.release();
     });

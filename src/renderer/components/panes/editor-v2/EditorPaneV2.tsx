@@ -345,13 +345,28 @@ export function EditorPaneV2({
     const statusCleanup = git.onStatusChanged((event) => {
       if (!cancelled) {
         updateGitStatusState(event.status);
+        // Also update upstream status from the fresh status
+        if (event.status) {
+          setHasUpstream(!!event.status.upstream);
+        }
       }
     });
 
     // Subscribe to branch changes
-    const branchCleanup = git.onBranchChanged((event) => {
+    const branchCleanup = git.onBranchChanged(async (event) => {
       if (!cancelled) {
         setCurrentBranch(event.currentBranch);
+
+        // Re-check upstream status when branch changes
+        // (different branches may have different upstream configurations)
+        try {
+          const upstream = await git.hasUpstream();
+          if (!cancelled) {
+            setHasUpstream(upstream);
+          }
+        } catch {
+          // Ignore errors - keep previous upstream state
+        }
       }
     });
 
@@ -732,13 +747,13 @@ export function EditorPaneV2({
 
     setIsPulling(true);
     try {
-      await window.conduit.gitPull(currentCwd, false);
+      await git.pull();
     } catch (error) {
       console.error("[EditorPaneV2] Pull failed:", error);
     } finally {
       setIsPulling(false);
     }
-  }, [currentCwd, isPulling, isPushing, isCommitting]);
+  }, [git, isPulling, isPushing, isCommitting]);
 
   /**
    * Handle push action (or publish if no upstream).
@@ -748,8 +763,9 @@ export function EditorPaneV2({
 
     setIsPushing(true);
     try {
+      // If no upstream exists, push with --set-upstream to create/track remote branch
       const isPublishing = !hasUpstream;
-      await window.conduit.gitPush(currentCwd, false, isPublishing);
+      await git.push(false, isPublishing);
 
       if (isPublishing) {
         setHasUpstream(true);
@@ -762,7 +778,7 @@ export function EditorPaneV2({
     } finally {
       setIsPushing(false);
     }
-  }, [currentCwd, hasUpstream, isPulling, isPushing, isCommitting]);
+  }, [git, hasUpstream, isPulling, isPushing, isCommitting]);
 
   /**
    * Whether navigation up is possible.
@@ -1036,6 +1052,12 @@ export function EditorPaneV2({
           onToggleDiffMode={handleToggleDiffMode}
           onExitReview={exitReviewMode}
           isFileDeleted={isCurrentFileDeleted}
+          // Remote operations
+          hasUpstream={hasUpstream}
+          isPulling={isPulling}
+          isPushing={isPushing}
+          onPull={handlePull}
+          onPush={handlePush}
         />
       </div>
 

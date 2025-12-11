@@ -429,6 +429,28 @@ export interface GitProvider {
    */
   checkout(ref: string): Promise<void>;
 
+  /**
+   * Push commits to remote.
+   *
+   * @param force - If true, use --force-with-lease for safer force push
+   * @param setUpstream - If true, set upstream tracking (for new branches)
+   */
+  push(force?: boolean, setUpstream?: boolean): Promise<void>;
+
+  /**
+   * Pull changes from remote.
+   *
+   * @param rebase - If true, use rebase instead of merge
+   */
+  pull(rebase?: boolean): Promise<void>;
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch configured.
+   *
+   * @returns true if an upstream is configured, false otherwise
+   */
+  hasUpstream(): Promise<boolean>;
+
   // -------------------------------------------------------------------------
   // Events
   // -------------------------------------------------------------------------

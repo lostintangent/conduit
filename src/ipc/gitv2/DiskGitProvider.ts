@@ -778,6 +778,66 @@ export class DiskGitProvider implements GitProvider {
     }
   }
 
+  /**
+   * Push commits to remote.
+   *
+   * @param force - If true, use --force-with-lease for safer force push
+   * @param setUpstream - If true, set upstream tracking (for new branches)
+   */
+  async push(force = false, setUpstream = false): Promise<void> {
+    await this.withOperationTracking(async () => {
+      const options: string[] = [];
+
+      if (force) {
+        options.push("--force-with-lease");
+      }
+
+      if (setUpstream) {
+        // Push with --set-upstream to create/track remote branch
+        options.push("--set-upstream", "origin", "HEAD");
+      }
+
+      await this.git.push(options);
+    });
+  }
+
+  /**
+   * Pull changes from remote.
+   *
+   * @param rebase - If true, use rebase instead of merge
+   */
+  async pull(rebase = false): Promise<void> {
+    await this.withOperationTracking(async () => {
+      if (rebase) {
+        await this.git.pull(["--rebase"]);
+      } else {
+        await this.git.pull();
+      }
+    });
+  }
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch configured.
+   *
+   * @returns true if an upstream is configured, false otherwise
+   */
+  async hasUpstream(): Promise<boolean> {
+    try {
+      // Use rev-parse to check for upstream ref
+      // This will fail if no upstream is set
+      const result = await this.git.raw([
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "@{u}",
+      ]);
+      return result.trim().length > 0;
+    } catch {
+      // Command fails if no upstream is set
+      return false;
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Internal: State Management
   // -------------------------------------------------------------------------

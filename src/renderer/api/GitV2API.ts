@@ -542,6 +542,51 @@ export class GitV2API {
   }
 
   // ---------------------------------------------------------------------------
+  // Remote Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Push commits to remote.
+   *
+   * When setUpstream is true, this will create/track the remote branch,
+   * useful for pushing new branches that don't exist on the remote yet.
+   *
+   * @param force - If true, use --force-with-lease for safer force push
+   * @param setUpstream - If true, set upstream tracking (for new branches)
+   * @throws {Error} If the API has been released
+   * @throws {Error} If push fails (no remote, auth issues, etc.)
+   */
+  async push(force = false, setUpstream = false): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.push(this.cwd, force, setUpstream);
+  }
+
+  /**
+   * Pull changes from remote.
+   *
+   * @param rebase - If true, use rebase instead of merge
+   * @throws {Error} If the API has been released
+   * @throws {Error} If pull fails (merge conflicts, no upstream, etc.)
+   */
+  async pull(rebase = false): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.pull(this.cwd, rebase);
+  }
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch.
+   *
+   * Use this to determine whether to show "Push" or "Publish" UI.
+   *
+   * @returns true if an upstream is configured, false otherwise
+   * @throws {Error} If the API has been released
+   */
+  async hasUpstream(): Promise<boolean> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.hasUpstream(this.cwd);
+  }
+
+  // ---------------------------------------------------------------------------
   // Utility
   // ---------------------------------------------------------------------------
 

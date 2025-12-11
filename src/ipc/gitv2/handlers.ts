@@ -27,6 +27,9 @@
  * - `git-v2:branch` - Get current branch
  * - `git-v2:branches` - Get all branches
  * - `git-v2:checkout` - Checkout a branch or ref
+ * - `git-v2:push` - Push commits to remote (with optional setUpstream for new branches)
+ * - `git-v2:pull` - Pull changes from remote
+ * - `git-v2:has-upstream` - Check if branch has upstream tracking
  * - `git-v2:has-uncommitted-changes` - Check if repo has uncommitted changes
  * - `git-v2:has-unpushed-commits` - Check if repo has unpushed commits
  * - `git-v2:changed-files-from-branch` - Get files changed from base branch
@@ -582,6 +585,58 @@ export function initializeGitV2Handlers(): void {
     async (_, params: { cwd: string; ref: string }): Promise<void> => {
       const { provider } = await requireProvider(params.cwd);
       await provider.checkout(params.ref);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Remote Operations
+  //
+  // Operations for pushing and pulling from remote repositories.
+  // These may trigger status change events when successful.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Push commits to remote.
+   * Optionally force push with --force-with-lease or set upstream for new branches.
+   * Triggers status change events on success.
+   */
+  ipcMain.handle(
+    "git-v2:push",
+    async (
+      _,
+      params: { cwd: string; force?: boolean; setUpstream?: boolean },
+    ): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
+      await provider.push(params.force, params.setUpstream);
+    },
+  );
+
+  /**
+   * Pull changes from remote.
+   * Optionally use rebase instead of merge.
+   * Triggers status change events on success.
+   */
+  ipcMain.handle(
+    "git-v2:pull",
+    async (_, params: { cwd: string; rebase?: boolean }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
+      await provider.pull(params.rebase);
+    },
+  );
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch.
+   * Returns true if upstream is configured, false otherwise.
+   * Returns false if no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:has-upstream",
+    async (_, params: { cwd: string }): Promise<boolean> => {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
+        return false;
+      }
+      return result.provider.hasUpstream();
     },
   );
 
