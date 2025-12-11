@@ -71,6 +71,11 @@ vi.mock(
         Mock Regular Editor for {filePath}
       </div>
     ),
+    DeletedFileViewer: ({ filePath }: any) => (
+      <div data-testid="mock-deleted-file-viewer" data-filepath={filePath}>
+        Mock Deleted File Viewer for {filePath}
+      </div>
+    ),
     DEFAULT_AUTO_SIZE_CONFIG: { minHeight: 100, maxHeight: 400 },
   }),
 );

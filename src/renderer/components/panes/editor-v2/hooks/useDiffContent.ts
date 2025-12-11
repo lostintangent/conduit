@@ -393,6 +393,9 @@ export function useDiffContent(
         diffError = null;
       }
 
+      // Note: Deleted files are handled by DeletedFileViewer, not the diff editor.
+      // The DeletedFileViewer shows a read-only editor with the git content.
+
       // Only update state if still mounted AND this effect is still current
       // The isStale check prevents race conditions when rapidly switching files
       if (isMountedRef.current && !isStale) {

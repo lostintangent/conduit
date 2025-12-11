@@ -39,6 +39,7 @@ import type { GitV2API } from "@/api/GitV2API";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
+import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
@@ -99,6 +100,9 @@ export interface EditorViewPanelProps {
 
   /** Handler for exiting changes review mode */
   onExitReview?: () => void;
+
+  /** Whether the selected file is a deleted file (shows read-only git content) */
+  isFileDeleted?: boolean;
 }
 
 /**
@@ -126,6 +130,7 @@ export function EditorViewPanel({
   isDiffMode = false,
   onToggleDiffMode,
   onExitReview,
+  isFileDeleted = false,
 }: EditorViewPanelProps) {
   // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -399,6 +404,17 @@ export function EditorViewPanel({
           >
             Loading...
           </div>
+        ) : isFileDeleted ? (
+          // Deleted file viewer - shows read-only content from git
+          <EditorErrorBoundary filePath={filePath}>
+            <DeletedFileViewer
+              editorId={`${editorId}-deleted`}
+              cwd={cwd}
+              filePath={filePath}
+              baseBranch={baseBranch}
+              onMount={handleEditorMount}
+            />
+          </EditorErrorBoundary>
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
           <EditorErrorBoundary filePath={filePath}>

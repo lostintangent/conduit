@@ -818,6 +818,20 @@ export function EditorPaneV2({
   }, [selectedFile, currentCwd, gitStatus]);
 
   /**
+   * Determine if the current file is deleted (needs special viewer).
+   */
+  const isCurrentFileDeleted = useMemo(() => {
+    if (!selectedFile) return false;
+
+    const relativePath = selectedFile.path.startsWith(currentCwd)
+      ? selectedFile.path.slice(currentCwd.length).replace(/^\//, "")
+      : selectedFile.path;
+
+    const fileStatus = gitStatus?.get(relativePath);
+    return fileStatus?.status === "deleted";
+  }, [selectedFile, currentCwd, gitStatus]);
+
+  /**
    * Handle changing the current working directory to a specific folder.
    * Similar to navigateUp but navigates to the clicked directory instead.
    */
@@ -1016,6 +1030,7 @@ export function EditorPaneV2({
           isDiffMode={viewMode.type === "diff"}
           onToggleDiffMode={handleToggleDiffMode}
           onExitReview={exitReviewMode}
+          isFileDeleted={isCurrentFileDeleted}
         />
       </div>
 

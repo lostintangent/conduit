@@ -36,6 +36,7 @@ import type { GitV2API } from "@/api/GitV2API";
 import {
   DiffEditorWrapper,
   RegularEditorWrapper,
+  DeletedFileViewer,
   DEFAULT_AUTO_SIZE_CONFIG,
 } from "../EditorViewPanel";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
@@ -112,9 +113,13 @@ export function FileChangeDiff({
   // Once activated, controls remain visible even after save
   const [controlsActivated, setControlsActivated] = useState(false);
 
-  // Show diff toggle for modified files (not untracked/added which have no original to diff against)
+  // Show diff toggle for modified files only
+  // - Not for untracked/added (no original to diff against)
+  // - Not for deleted (file doesn't exist, shown as read-only from git)
   const showDiffToggle =
-    status.status !== "untracked" && status.status !== "added";
+    status.status !== "untracked" &&
+    status.status !== "added" &&
+    status.status !== "deleted";
 
   // Diff/edit mode transition with height preservation
   const {
@@ -139,8 +144,9 @@ export function FileChangeDiff({
     }
   }, [isDirty, controlsActivated]);
 
-  // Show controls if dirty or previously activated
-  const showEditorControls = isDirty || controlsActivated;
+  // Show controls if dirty or previously activated (but not for deleted files which are read-only)
+  const showEditorControls =
+    status.status !== "deleted" && (isDirty || controlsActivated);
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -381,6 +387,7 @@ export function FileChangeDiff({
       </div>
 
       {/* Editor (expanded only) - height is auto-sized */}
+      {/* Use deleted file viewer for deleted files (read-only, shows git content) */}
       {/* Use regular editor for new files (untracked/added) or when in edit mode */}
       {/* Use diff editor for modified files when in diff mode */}
       {isExpanded && (
@@ -391,9 +398,18 @@ export function FileChangeDiff({
           data-testid="file-change-diff-content"
         >
           <EditorErrorBoundary filePath={filePath}>
-            {status.status === "untracked" ||
-            status.status === "added" ||
-            !isDiffMode ? (
+            {status.status === "deleted" ? (
+              <DeletedFileViewer
+                editorId={editorId}
+                cwd={cwd}
+                filePath={fullFilePath}
+                baseBranch={baseBranch}
+                autoSize={autoSizeConfig}
+                onMount={handleEditorMount}
+              />
+            ) : status.status === "untracked" ||
+              status.status === "added" ||
+              !isDiffMode ? (
               <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
