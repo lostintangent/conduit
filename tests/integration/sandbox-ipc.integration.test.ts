@@ -1,10 +1,17 @@
 /**
- * Integration tests for conduit-server-provider running in Docker container
+ * Integration tests for conduit-server
  *
- * These tests automatically build and start the sandbox container,
- * then communicate with it via WebSocket to test the full end-to-end flow.
+ * By default, tests run against Docker container.
  *
- * The container is automatically cleaned up after tests complete.
+ * NOTE: Go server direct testing requires the `workspace` Go package which is
+ * currently not in the repository. Once added, set SANDBOX_USE_GO=1 for faster tests.
+ *
+ * Usage:
+ *   npm run test:sandbox          # Docker container (default)
+ *   npm run test:sandbox:docker   # Explicitly Docker
+ *
+ * Or start the server manually first:
+ *   npm run test:sandbox:start    # Start Docker container
  */
 
 import { execSync, spawn } from "child_process";
@@ -14,11 +21,15 @@ import { join } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
-const CONTAINER_NAME = "conduit-sandbox-integration-test";
+// Configuration - Docker is default since Go workspace package is not in repo
+const USE_DOCKER = process.env.SANDBOX_USE_GO !== "1";
+const CONTAINER_NAME = "conduit-sandbox-test";
 const IMAGE_NAME = "conduit-sandbox";
 const PORT = 9876;
 const SANDBOX_URL = `ws://localhost:${PORT}/ws`;
-const WORKSPACE_PATH = "/workspace";
+
+// Dynamic workspace path - set during test setup
+let WORKSPACE_PATH = "/workspace";
 
 interface WebSocketMessage {
   type: "request" | "response" | "error" | "event";
@@ -59,6 +70,11 @@ interface StatResult {
 // Helper to decode base64
 function decodeBase64(base64: string): string {
   return Buffer.from(base64, "base64").toString("utf-8");
+}
+
+// Helper to encode to base64
+function encodeBase64(text: string): string {
+  return Buffer.from(text, "utf-8").toString("base64");
 }
 
 class SandboxClient {
@@ -304,26 +320,119 @@ function createTestWorkspace(): string {
   return workspaceDir;
 }
 
-// Skip integration tests - they require Docker with the sandbox image built
-// TODO: Re-enable when CI has proper Docker support
-describe.skip("Sandbox IPC Integration Tests", () => {
+// ============================================================================
+// Go Server Functions (default - fast)
+// ============================================================================
+
+let goServerProcess: ReturnType<typeof spawn> | null = null;
+
+// Build and start the Go server directly
+async function startGoServer(workspaceDir: string): Promise<void> {
+  const serverDir = join(
+    __dirname,
+    "../../build/sandbox/sandbox-conduit-server",
+  );
+
+  console.log("🔨 Building Go server...");
+
+  // Build the server
+  try {
+    execSync("go build -o conduit-server .", {
+      cwd: serverDir,
+      stdio: "inherit",
+    });
+  } catch {
+    throw new Error("Failed to build Go server. Is Go installed?");
+  }
+
+  console.log("🚀 Starting Go server...");
+
+  // Kill any existing process on the port
+  try {
+    execSync(`lsof -ti :${PORT} | xargs kill -9`, { stdio: "ignore" });
+  } catch {
+    // No process to kill
+  }
+
+  // Start the server
+  goServerProcess = spawn(
+    "./conduit-server",
+    ["-port", String(PORT), "-workspace", workspaceDir],
+    {
+      cwd: serverDir,
+      stdio: "inherit",
+      detached: false,
+    },
+  );
+
+  goServerProcess.on("error", (err) => {
+    console.error("Go server error:", err);
+  });
+}
+
+// Stop the Go server
+function stopGoServer(): void {
+  console.log("🛑 Stopping Go server...");
+  if (goServerProcess) {
+    goServerProcess.kill("SIGTERM");
+    goServerProcess = null;
+  }
+  // Also kill by port as backup
+  try {
+    execSync(`lsof -ti :${PORT} | xargs kill -9`, { stdio: "ignore" });
+  } catch {
+    // Ignore
+  }
+  console.log("✅ Go server stopped");
+}
+
+// ============================================================================
+// Test Suite
+// ============================================================================
+
+describe("Sandbox IPC Integration Tests", () => {
   let client: SandboxClient;
   let workspaceDir: string;
+  let weStartedServer = false;
 
   beforeAll(async () => {
-    // Create test workspace
-    workspaceDir = createTestWorkspace();
+    console.log(
+      `\n🧪 Running in ${USE_DOCKER ? "Docker" : "Go server"} mode\n`,
+    );
 
-    // Build the Docker image
-    await buildDockerImage();
+    // Check if server is already running
+    const serverRunning = await waitForSandbox(3, 500);
 
-    // Start the container
-    await startContainer(workspaceDir);
+    if (!serverRunning) {
+      // Create test workspace
+      workspaceDir = createTestWorkspace();
+      weStartedServer = true;
 
-    // Wait for sandbox to be ready
-    const ready = await waitForSandbox();
-    if (!ready) {
-      throw new Error("Sandbox failed to start within timeout");
+      if (USE_DOCKER) {
+        // Docker mode
+        await buildDockerImage();
+        await startContainer(workspaceDir);
+        WORKSPACE_PATH = "/workspace";
+      } else {
+        // Go server mode (default)
+        await startGoServer(workspaceDir);
+        WORKSPACE_PATH = workspaceDir;
+      }
+
+      // Wait for server to be ready
+      const ready = await waitForSandbox();
+      if (!ready) {
+        throw new Error("Server failed to start within timeout");
+      }
+    } else {
+      console.log("✅ Using already running server");
+      // When server is pre-started, use /workspace for Docker or detect workspace
+      if (USE_DOCKER) {
+        WORKSPACE_PATH = "/workspace";
+      } else {
+        // For pre-started Go server, assume /workspace or temp dir
+        WORKSPACE_PATH = process.env.SANDBOX_WORKSPACE || "/workspace";
+      }
     }
 
     // Connect the client
@@ -333,7 +442,14 @@ describe.skip("Sandbox IPC Integration Tests", () => {
 
   afterAll(() => {
     client?.close();
-    stopContainer();
+    // Only stop server if we started it
+    if (weStartedServer) {
+      if (USE_DOCKER) {
+        stopContainer();
+      } else {
+        stopGoServer();
+      }
+    }
   });
 
   describe("File System Operations", () => {
@@ -382,7 +498,7 @@ describe.skip("Sandbox IPC Integration Tests", () => {
 
       await client.request("fs.writeFile", {
         path: `${WORKSPACE_PATH}/write-test.txt`,
-        content: testContent,
+        content: encodeBase64(testContent),
       });
 
       // Verify by reading it back
@@ -422,7 +538,7 @@ describe.skip("Sandbox IPC Integration Tests", () => {
       // Create a file to rename
       await client.request("fs.writeFile", {
         path: `${WORKSPACE_PATH}/to-rename.txt`,
-        content: "rename me",
+        content: encodeBase64("rename me"),
       });
 
       // Rename it
@@ -448,7 +564,7 @@ describe.skip("Sandbox IPC Integration Tests", () => {
       // Create a file to delete
       await client.request("fs.writeFile", {
         path: `${WORKSPACE_PATH}/to-delete.txt`,
-        content: "delete me",
+        content: encodeBase64("delete me"),
       });
 
       // Delete it
