@@ -7,14 +7,19 @@
  * - size={14} icons
  */
 
-import { FolderUp, PanelLeftClose } from "lucide-react";
-import { useAtomValue } from "jotai";
-import { userSettingsAtom } from "@/store/atoms";
+import { ApplicationCommands } from "@/commands/applicationCommands";
+import {
+  getCommandDisplayTitle,
+  useCommand,
+} from "@/commands/hooks/useCommand";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { userSettingsAtom } from "@/store/atoms";
+import { useAtomValue } from "jotai";
+import { FolderUp, PanelLeftClose } from "lucide-react";
 
 export interface FileTreeToolbarProps {
   /** Current working directory */
@@ -106,6 +111,10 @@ export function FileTreeToolbar({
   const buttonClass =
     "p-1 rounded hover:bg-white/10 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed";
 
+  const toggleSideBarCmd = useCommand(
+    ApplicationCommands.EDITOR_TOGGLE_SIDEBAR,
+  );
+
   return (
     <div
       className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-border"
@@ -128,10 +137,7 @@ export function FileTreeToolbar({
             </TooltipTrigger>
             <TooltipContent>
               <div className="flex items-center gap-2">
-                <span>Toggle sidebar</span>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                  ⌘B
-                </kbd>
+                {getCommandDisplayTitle(toggleSideBarCmd)}
               </div>
             </TooltipContent>
           </Tooltip>
