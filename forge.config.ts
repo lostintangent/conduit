@@ -64,7 +64,12 @@ const config: ForgeConfig = {
       icon: path.resolve(__dirname, "build/assets/icon.icns"),
       name: "Conduit",
     }),
-    new MakerSquirrel({}),
+    new MakerSquirrel({
+      name: "Conduit",
+      setupIcon: path.resolve(__dirname, "build/assets/icon.ico"),
+      iconUrl:
+        "https://raw.githubusercontent.com/lostintangent/conduit/main/build/assets/icon.ico",
+    }),
     new MakerRpm({}),
     new MakerDeb({}),
   ],
