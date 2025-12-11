@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"sandbox-conduit-server/git"
-	"sandbox-conduit-server/types"
 	"sandbox-conduit-server/session"
+	"sandbox-conduit-server/types"
 
 	"github.com/gorilla/websocket"
 )
