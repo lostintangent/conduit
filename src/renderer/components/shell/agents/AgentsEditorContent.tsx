@@ -410,7 +410,7 @@ export const AgentsEditorContent = forwardRef<
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col min-h-0"
       >
-        <div className="flex items-center justify-between px-6 py-2 border-b border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-2 border-b border-tinted-border flex-shrink-0">
           <TabsList className="flex-shrink-0 border-b-0 w-auto">
             <TabsTrigger value="agents">Agents</TabsTrigger>
             <TabsTrigger value="groups">Teams</TabsTrigger>
@@ -422,7 +422,7 @@ export const AgentsEditorContent = forwardRef<
               <>
                 <button
                   onClick={handleResetToDefaults}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 rounded transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-tinted-foreground/10 hover:bg-tinted-foreground/20 text-tinted-foreground/60 rounded transition-colors"
                   title="Reset to default agents"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -430,7 +430,7 @@ export const AgentsEditorContent = forwardRef<
                 </button>
                 <button
                   onClick={handleAddAgent}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-accent/10 hover:bg-accent/20 text-accent rounded transition-colors"
                 >
                   <Plus className="w-3 h-3" />
                   Add Agent
@@ -439,7 +439,7 @@ export const AgentsEditorContent = forwardRef<
             ) : (
               <button
                 onClick={handleAddGroup}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-accent/10 hover:bg-accent/20 text-accent rounded transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 Add Team
@@ -462,14 +462,14 @@ export const AgentsEditorContent = forwardRef<
                 return (
                   <div
                     key={agent.id}
-                    className="bg-gray-800/50 border border-gray-700 rounded-lg p-3"
+                    className="bg-tinted-muted border border-tinted-border rounded-lg p-3"
                   >
                     {editingIndex === index && editedAgent ? (
                       // Edit mode
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-xs text-gray-400 block mb-1">
+                            <label className="text-xs text-tinted-foreground/60 block mb-1">
                               Slash Command ID
                             </label>
                             <input
@@ -481,15 +481,15 @@ export const AgentsEditorContent = forwardRef<
                                   id: e.target.value,
                                 })
                               }
-                              className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
+                              className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
                               placeholder="e.g., claude, codex"
                             />
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-tinted-foreground/50">
                               Use /{editedAgent.id} in prompt mode
                             </p>
                           </div>
                           <div>
-                            <label className="text-xs text-gray-400 block mb-1">
+                            <label className="text-xs text-tinted-foreground/60 block mb-1">
                               Display Name
                             </label>
                             <input
@@ -501,14 +501,14 @@ export const AgentsEditorContent = forwardRef<
                                   name: e.target.value,
                                 })
                               }
-                              className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
+                              className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
                               placeholder="e.g., Claude, Codex"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-xs text-gray-400 block mb-1">
+                          <label className="text-xs text-tinted-foreground/60 block mb-1">
                             Non-Interactive Launch Command
                           </label>
                           <input
@@ -520,12 +520,12 @@ export const AgentsEditorContent = forwardRef<
                                 command: e.target.value,
                               })
                             }
-                            className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                            className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
                             placeholder="e.g., copilot -p {arg}"
                           />
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-tinted-foreground/50">
                             Used for Cmd+P prompt mode. Use{" "}
-                            <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
+                            <code className="px-1 py-0.5 bg-tinted-muted rounded text-tinted-foreground/60">
                               {"{arg}"}
                             </code>{" "}
                             as a placeholder for the prompt, or omit it to use
@@ -534,7 +534,7 @@ export const AgentsEditorContent = forwardRef<
                         </div>
 
                         <div>
-                          <label className="text-xs text-gray-400 block mb-1">
+                          <label className="text-xs text-tinted-foreground/60 block mb-1">
                             Interactive Launch Command (Optional)
                           </label>
                           <input
@@ -546,10 +546,10 @@ export const AgentsEditorContent = forwardRef<
                                 interactiveCommand: e.target.value,
                               })
                             }
-                            className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+                            className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
                             placeholder="e.g., copiot"
                           />
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-tinted-foreground/50">
                             Command to launch when creating an agent session.
                             Leave empty to use default shell
                           </p>
@@ -566,9 +566,9 @@ export const AgentsEditorContent = forwardRef<
                                   isDefault: e.target.checked,
                                 })
                               }
-                              className="w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                              className="w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
                             />
-                            <span className="text-sm text-gray-300">
+                            <span className="text-sm text-tinted-foreground/80">
                               Default agent
                             </span>
                           </label>
@@ -595,14 +595,14 @@ export const AgentsEditorContent = forwardRef<
                       // View mode - Compact
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-white truncate">
+                          <h4 className="text-sm font-medium text-tinted-foreground truncate">
                             {agent.name}
                           </h4>
-                          <code className="px-1.5 py-0.5 text-xs bg-gray-700 rounded text-gray-300 flex-shrink-0">
+                          <code className="px-1.5 py-0.5 text-xs bg-tinted rounded text-tinted-foreground/80 flex-shrink-0">
                             /{agent.id}
                           </code>
                           {agent.isDefault && (
-                            <span className="px-1.5 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded flex-shrink-0">
+                            <span className="px-1.5 py-0.5 text-xs bg-accent/20 text-accent rounded flex-shrink-0">
                               default
                             </span>
                           )}
@@ -610,7 +610,7 @@ export const AgentsEditorContent = forwardRef<
                           <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                             {agent.command && (
                               <div
-                                className="flex items-center gap-1 text-xs text-gray-500"
+                                className="flex items-center gap-1 text-xs text-tinted-foreground/50"
                                 title="Has non-interactive command"
                               >
                                 <Terminal className="w-3 h-3" />
@@ -618,7 +618,7 @@ export const AgentsEditorContent = forwardRef<
                             )}
                             {agent.interactiveCommand && (
                               <div
-                                className="flex items-center gap-1 text-xs text-gray-500"
+                                className="flex items-center gap-1 text-xs text-tinted-foreground/50"
                                 title="Has interactive command"
                               >
                                 <MessageSquare className="w-3 h-3" />
@@ -630,7 +630,7 @@ export const AgentsEditorContent = forwardRef<
                           {!agent.isDefault && (
                             <button
                               onClick={() => handleSetDefault(index)}
-                              className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                              className="px-2 py-1 text-xs bg-tinted hover:bg-tinted-foreground/10 text-tinted-foreground/80 rounded transition-colors"
                               title="Set as default"
                             >
                               Set Default
@@ -638,14 +638,14 @@ export const AgentsEditorContent = forwardRef<
                           )}
                           <button
                             onClick={() => handleEditAgent(index)}
-                            className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                            className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors"
                             title="Edit agent"
                           >
-                            <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                            <Edit2 className="w-3.5 h-3.5 text-tinted-foreground/60" />
                           </button>
                           <button
                             onClick={() => handleDeleteAgent(index)}
-                            className="p-1.5 hover:bg-white/10 rounded transition-colors text-red-400"
+                            className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors text-red-400"
                             title="Delete agent"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -660,9 +660,9 @@ export const AgentsEditorContent = forwardRef<
           </div>
 
           {/* Terminal Context - Fixed at bottom */}
-          <div className="px-6 py-4 border-t border-gray-700 bg-gray-800/30 flex-shrink-0">
+          <div className="px-6 py-4 border-t border-tinted-border bg-tinted-muted/50 flex-shrink-0">
             <div className="flex items-center gap-4">
-              <label className="text-xs text-gray-400 font-medium whitespace-nowrap">
+              <label className="text-xs text-tinted-foreground/60 font-medium whitespace-nowrap">
                 Terminal Buffer Lines
               </label>
               <input
@@ -676,9 +676,9 @@ export const AgentsEditorContent = forwardRef<
                     handleUpdateBufferLines(value);
                   }
                 }}
-                className="w-24 px-3 py-1.5 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-24 px-3 py-1.5 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
               />
-              <p className="text-xs text-gray-500 flex-1">
+              <p className="text-xs text-tinted-foreground/50 flex-1">
                 Lines to include as context (default: 100)
               </p>
             </div>
@@ -690,7 +690,7 @@ export const AgentsEditorContent = forwardRef<
           {/* Scrollable Groups List */}
           <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
             {launchGroups.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-tinted-foreground/50">
                 <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">No teams yet</p>
                 <p className="text-xs mt-1">
@@ -711,13 +711,13 @@ export const AgentsEditorContent = forwardRef<
                   return (
                     <div
                       key={group.id}
-                      className="bg-gray-800/50 border border-gray-700 rounded-lg p-3"
+                      className="bg-tinted-muted border border-tinted-border rounded-lg p-3"
                     >
                       {editingGroupIndex === index && editedGroup ? (
                         // Edit mode
                         <div className="space-y-3">
                           <div>
-                            <label className="text-xs text-gray-400 block mb-1">
+                            <label className="text-xs text-tinted-foreground/60 block mb-1">
                               Team Name
                             </label>
                             <input
@@ -729,13 +729,13 @@ export const AgentsEditorContent = forwardRef<
                                   name: e.target.value,
                                 })
                               }
-                              className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500"
+                              className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
                               placeholder="e.g., Full Stack Team"
                             />
                           </div>
 
                           <div>
-                            <label className="text-xs text-gray-400 block mb-2">
+                            <label className="text-xs text-tinted-foreground/60 block mb-2">
                               Team Members
                             </label>
                             <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -752,16 +752,16 @@ export const AgentsEditorContent = forwardRef<
 
                                 return (
                                   <div key={agent.id} className="space-y-2">
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-900 rounded">
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-tinted rounded">
                                       <input
                                         type="checkbox"
                                         checked={isSelected}
                                         onChange={() =>
                                           toggleAgentInGroup(agent.id)
                                         }
-                                        className="w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                                        className="w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
                                       />
-                                      <span className="text-sm text-gray-300 flex-1">
+                                      <span className="text-sm text-tinted-foreground/80 flex-1">
                                         {agent.name}
                                       </span>
 
@@ -776,12 +776,12 @@ export const AgentsEditorContent = forwardRef<
                                               )
                                             }
                                             disabled={instanceData.count <= 1}
-                                            className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed rounded text-gray-300 text-sm"
+                                            className="w-6 h-6 flex items-center justify-center bg-tinted-muted hover:bg-tinted-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed rounded text-tinted-foreground/80 text-sm"
                                             title="Decrease instances"
                                           >
                                             −
                                           </button>
-                                          <span className="text-xs text-gray-400 w-8 text-center">
+                                          <span className="text-xs text-tinted-foreground/60 w-8 text-center">
                                             {instanceData.count}
                                           </span>
                                           <button
@@ -791,7 +791,7 @@ export const AgentsEditorContent = forwardRef<
                                                 1,
                                               )
                                             }
-                                            className="w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded text-gray-300 text-sm"
+                                            className="w-6 h-6 flex items-center justify-center bg-tinted-muted hover:bg-tinted-foreground/10 rounded text-tinted-foreground/80 text-sm"
                                             title="Increase instances"
                                           >
                                             +
@@ -827,7 +827,7 @@ export const AgentsEditorContent = forwardRef<
                                                     instanceId,
                                                   )
                                                 }
-                                                className="flex items-center gap-2 w-full px-2 py-1 hover:bg-gray-800/50 rounded transition-colors text-left"
+                                                className="flex items-center gap-2 w-full px-2 py-1 hover:bg-tinted-muted/50 rounded transition-colors text-left"
                                                 title={
                                                   isExpanded
                                                     ? "Collapse instructions"
@@ -835,16 +835,16 @@ export const AgentsEditorContent = forwardRef<
                                                 }
                                               >
                                                 {isExpanded ? (
-                                                  <ChevronDown className="w-3 h-3 text-gray-500" />
+                                                  <ChevronDown className="w-3 h-3 text-tinted-foreground/50" />
                                                 ) : (
-                                                  <ChevronRight className="w-3 h-3 text-gray-500" />
+                                                  <ChevronRight className="w-3 h-3 text-tinted-foreground/50" />
                                                 )}
                                                 {hasInstructions ? (
-                                                  <Edit3 className="w-3 h-3 text-blue-400" />
+                                                  <Edit3 className="w-3 h-3 text-accent" />
                                                 ) : (
-                                                  <Edit2 className="w-3 h-3 text-gray-500" />
+                                                  <Edit2 className="w-3 h-3 text-tinted-foreground/50" />
                                                 )}
-                                                <span className="text-xs text-gray-500">
+                                                <span className="text-xs text-tinted-foreground/50">
                                                   {instanceData.count > 1
                                                     ? `Instance ${idx + 1} - `
                                                     : ""}
@@ -870,7 +870,7 @@ export const AgentsEditorContent = forwardRef<
                                                       )
                                                     }
                                                     placeholder={`Custom instructions for this ${agent.name} ${instanceData.count > 1 ? `instance...` : "instance..."}`}
-                                                    className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-white focus:outline-none focus:border-blue-500 resize-none"
+                                                    className="w-full px-2 py-1.5 bg-tinted-muted border border-tinted-border rounded text-xs text-tinted-foreground focus:outline-none focus:border-accent resize-none"
                                                     rows={3}
                                                   />
                                                 </div>
@@ -883,7 +883,7 @@ export const AgentsEditorContent = forwardRef<
                                 );
                               })}
                             </div>
-                            <p className="mt-2 text-xs text-gray-500">
+                            <p className="mt-2 text-xs text-tinted-foreground/50">
                               Selected: {editedGroup.agentIds.length} agent(s)
                             </p>
                           </div>
@@ -910,14 +910,14 @@ export const AgentsEditorContent = forwardRef<
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <Users className="w-4 h-4 text-gray-400" />
-                              <h4 className="text-sm font-medium text-white">
+                              <Users className="w-4 h-4 text-tinted-foreground/60" />
+                              <h4 className="text-sm font-medium text-tinted-foreground">
                                 {group.name}
                               </h4>
                             </div>
                             <div className="space-y-1">
                               {group.agentIds.length === 0 ? (
-                                <span className="text-xs text-gray-600 italic">
+                                <span className="text-xs text-tinted-foreground/40 italic">
                                   No agents selected
                                 </span>
                               ) : (
@@ -932,11 +932,11 @@ export const AgentsEditorContent = forwardRef<
 
                                     return (
                                       <div key={id} className="text-xs">
-                                        <span className="text-gray-400">
+                                        <span className="text-tinted-foreground/60">
                                           {agent ? agent.name : id}
                                         </span>
                                         {count > 1 && (
-                                          <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded text-xs">
+                                          <span className="ml-1 px-1.5 py-0.5 bg-accent/20 text-accent rounded text-xs">
                                             ×{count}
                                           </span>
                                         )}
@@ -950,14 +950,14 @@ export const AgentsEditorContent = forwardRef<
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleEditGroup(index)}
-                              className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                              className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors"
                               title="Edit team"
                             >
-                              <Edit2 className="w-4 h-4 text-gray-400" />
+                              <Edit2 className="w-4 h-4 text-tinted-foreground/60" />
                             </button>
                             <button
                               onClick={() => handleDeleteGroup(index)}
-                              className="p-1.5 hover:bg-white/10 rounded transition-colors text-red-400"
+                              className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors text-red-400"
                               title="Delete team"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -975,22 +975,22 @@ export const AgentsEditorContent = forwardRef<
       </Tabs>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-700 bg-gray-800/50 flex-shrink-0">
+      <div className="px-6 py-4 border-t border-tinted-border bg-tinted-muted/50 flex-shrink-0">
         {activeTab === "agents" ? (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-tinted-foreground/50">
             Agents can be invoked in terminal prompt mode (Cmd+P) using slash
             commands like{" "}
-            <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
+            <code className="px-1 py-0.5 bg-tinted-muted rounded text-tinted-foreground/60">
               /claude
             </code>{" "}
             or{" "}
-            <code className="px-1 py-0.5 bg-gray-800 rounded text-gray-400">
+            <code className="px-1 py-0.5 bg-tinted-muted rounded text-tinted-foreground/60">
               /codex
             </code>
             . The default agent is used when no slash command is specified.
           </p>
         ) : (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-tinted-foreground/50">
             Teams allow you to start multiple agent sessions at once. Use them
             to quickly assemble your preferred development team.
           </p>

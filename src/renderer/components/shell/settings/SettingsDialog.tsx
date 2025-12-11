@@ -66,18 +66,20 @@ export function SettingsDialog({
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[900px] h-[80vh] flex flex-col"
+        className="bg-tinted border border-tinted-border rounded-lg shadow-2xl w-[900px] h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700 flex-shrink-0">
-          <h2 className="text-lg font-semibold text-white">Settings</h2>
+        <div className="flex items-center justify-between px-6 py-3 border-b border-tinted-border flex-shrink-0">
+          <h2 className="text-lg font-semibold text-tinted-foreground">
+            Settings
+          </h2>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-white/10 rounded transition-colors"
+            className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors"
             title="Close (Esc)"
           >
-            <X className="w-4 h-4 text-gray-400" />
+            <X className="w-4 h-4 text-tinted-foreground/60" />
           </button>
         </div>
 
@@ -87,7 +89,7 @@ export function SettingsDialog({
           onValueChange={setActiveTab}
           className="flex-1 flex flex-col min-h-0"
         >
-          <div className="px-6 py-2 border-b border-gray-700 flex-shrink-0">
+          <div className="px-6 py-2 border-b border-tinted-border flex-shrink-0">
             <TabsList className="flex-shrink-0 border-b-0 w-auto">
               <TabsTrigger value="keyboard">Keybindings</TabsTrigger>
               <TabsTrigger value="paneActions">Actions</TabsTrigger>
