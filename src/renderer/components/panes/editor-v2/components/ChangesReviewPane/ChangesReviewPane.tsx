@@ -336,6 +336,7 @@ export function ChangesReviewPane({
     >
       {/* Toolbar with commit controls */}
       <ChangesReviewToolbar
+        totalFileCount={totalCount}
         commitMessage={commitMessage}
         onCommitMessageChange={setCommitMessage}
         onCommit={handleCommit}

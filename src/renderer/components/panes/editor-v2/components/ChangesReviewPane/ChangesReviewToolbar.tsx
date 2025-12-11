@@ -33,15 +33,6 @@
  * ```
  */
 
-import {
-  GitCommit,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Send,
-  SquareArrowOutDownLeft,
-  AlertCircle,
-  X,
-} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -49,8 +40,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
+import {
+  AlertCircle,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  GitCommit,
+  Send,
+  SquareArrowOutDownLeft,
+  X,
+} from "lucide-react";
 
 export interface ChangesReviewToolbarProps {
+  // Title
+  /** Total number of changed files (for title display) */
+  totalFileCount: number;
+
   // Commit controls
   /** Current commit message */
   commitMessage: string;
@@ -102,6 +106,7 @@ export interface ChangesReviewToolbarProps {
  * Header toolbar with commit controls and actions.
  */
 export function ChangesReviewToolbar({
+  totalFileCount,
   commitMessage,
   onCommitMessageChange,
   onCommit,
@@ -153,6 +158,16 @@ export function ChangesReviewToolbar({
           )}
         </div>
       )}
+
+      {/* Title bar - styled to match FileTreeToolbar and EditorToolbar */}
+      <div
+        className="flex items-center justify-between px-3 py-[7.25px] bg-elevated text-[13px] border-b border-border"
+        data-testid="review-title-bar"
+      >
+        <span className="truncate" data-testid="review-title">
+          Review Changes ({totalFileCount})
+        </span>
+      </div>
 
       {/* Main Toolbar - Single row layout like v1 */}
       <div className="px-3 py-2 bg-muted/30 border-b border-border">

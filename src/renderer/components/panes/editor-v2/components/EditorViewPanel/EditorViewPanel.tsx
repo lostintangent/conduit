@@ -352,6 +352,24 @@ export function EditorViewPanel({
     registry.clearExternalChanges(pathToUri(filePath));
   }, [filePath]);
 
+  // Changes review mode - render full-height pane with its own toolbar
+  // This is checked first because review mode doesn't require a selected file
+  if (viewMode.type === "changesReview" && git) {
+    return (
+      <div
+        className="flex flex-col h-full w-full bg-background"
+        data-testid="editor-view-panel"
+      >
+        <ChangesReviewPane
+          cwd={cwd}
+          git={git}
+          baseBranch={baseBranch}
+          onExitReview={onExitReview}
+        />
+      </div>
+    );
+  }
+
   // Empty state - no file selected
   if (!selectedFile || !filePath) {
     return (
