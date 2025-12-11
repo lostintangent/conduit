@@ -1215,7 +1215,7 @@ export function FileTreeNormal({
         <li key="__creating__" role="treeitem">
           <div
             className={cn(
-              "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition",
+              "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition",
               "ring-1 ring-accent/60", // Always show focus ring for creation input
             )}
           >
@@ -1380,9 +1380,7 @@ export function FileTreeNormal({
         onKeyDown={handleTreeKeyDown}
         onFocus={handleTreeFocus}
       >
-        <ul role="group" className="space-y-0.5">
-          {renderDirectory(cwd, 0)}
-        </ul>
+        <ul role="group">{renderDirectory(cwd, 0)}</ul>
       </nav>
 
       {/* Delete confirmation dialog */}

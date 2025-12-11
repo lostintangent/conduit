@@ -87,7 +87,7 @@ export function NestedFolderItem({
       <button
         type="button"
         className={cn(
-          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
           "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
           isFolderSelected
             ? "bg-accent/20 hover:bg-accent/25"
@@ -132,7 +132,7 @@ export function NestedFolderItem({
 
       {/* Children (when expanded) */}
       {isExpanded && (
-        <ul className="mt-0.5 border-l border-border pl-2 space-y-0.5">
+        <ul className="border-l border-border pl-2">
           {/* Subfolders first */}
           {sortedFolders.map((subfolder) => (
             <NestedFolderItem

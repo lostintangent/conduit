@@ -72,7 +72,7 @@ export function NestedFileItem({
             <button
               type="button"
               className={cn(
-                "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[13px] text-left transition cursor-pointer",
+                "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
                 "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
                 isHighlighted
                   ? "bg-accent/20 hover:bg-accent/25"

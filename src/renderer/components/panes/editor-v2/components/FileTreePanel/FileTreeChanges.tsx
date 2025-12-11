@@ -122,7 +122,7 @@ function Section({
           </div>
         )}
       </div>
-      {isExpanded && <ul className="space-y-0.5 ml-2">{children}</ul>}
+      {isExpanded && <ul className="ml-2">{children}</ul>}
     </div>
   );
 }
