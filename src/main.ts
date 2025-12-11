@@ -9,7 +9,10 @@ import {
   shutdownCliServer,
 } from "./ipc";
 
-// Handle Squirrel events on Windows (install/uninstall/update)
+// Handle Squirrel events on Windows (install/uninstall/update).
+// When the installer runs (via Squirrel), it launches the app with special flags
+// to perform setup tasks. We need to quit immediately in these cases to let
+// the installer complete, rather than showing the main window.
 if (squirrelStartup) {
   app.quit();
 }
