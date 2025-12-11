@@ -1,10 +1,19 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useAutoSizeEditor } from "../../../../src/renderer/components/panes/editor-v2/hooks/useAutoSizeEditor";
 import type { AutoSizeConfig } from "../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel/constants";
+
+// Use fake timers to control debounce behavior
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 // ============================================================================
 // Mock Factories
@@ -155,6 +164,11 @@ describe("useAutoSizeEditor", () => {
         }),
       );
 
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
       expect(result.current.containerStyle).toEqual({
         height: 200,
         width: "100%",
@@ -182,6 +196,11 @@ describe("useAutoSizeEditor", () => {
         }),
       );
 
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
       expect(result.current.height).toBe(250);
     });
 
@@ -195,6 +214,11 @@ describe("useAutoSizeEditor", () => {
         }),
       );
 
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
       expect(result.current.height).toBe(100); // minHeight
     });
 
@@ -207,6 +231,11 @@ describe("useAutoSizeEditor", () => {
           config,
         }),
       );
+
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
 
       expect(result.current.height).toBe(400); // maxHeight
     });
@@ -262,6 +291,11 @@ describe("useAutoSizeEditor", () => {
         }),
       );
 
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
       expect(result.current.height).toBe(250); // max of 150 and 250
     });
 
@@ -274,6 +308,11 @@ describe("useAutoSizeEditor", () => {
           config,
         }),
       );
+
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
 
       expect(result.current.height).toBe(300);
     });
@@ -371,6 +410,11 @@ describe("useAutoSizeEditor", () => {
         }),
       );
 
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
       expect(result.current.height).toBe(200);
     });
 
@@ -386,6 +430,11 @@ describe("useAutoSizeEditor", () => {
         }),
       );
 
+      // Advance timers to allow debounced height update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
       expect(result.current.height).toBe(200);
 
       // Change the mock return value and deps
@@ -393,6 +442,11 @@ describe("useAutoSizeEditor", () => {
       dep = 2;
 
       rerender();
+
+      // Advance timers again for the new update
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
 
       expect(result.current.height).toBe(350);
     });

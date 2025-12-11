@@ -21,7 +21,8 @@
  * ```
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import * as monaco from "monaco-editor";
 import {
   ChevronRight,
   ChevronDown,
@@ -40,7 +41,14 @@ import {
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
-import { GitBadge } from "../shared";
+import { GitBadge, EditorActionButtons, DiffModeToggle } from "../shared";
+import {
+  useModelState,
+  useEditorActions,
+  useEditorSaveKeybinding,
+  useDiffModeTransition,
+} from "../../hooks";
+import { MonacoModelRegistry, pathToUri } from "../../registry";
 
 export interface FileChangeDiffProps {
   /** Relative file path from git root */
@@ -92,6 +100,87 @@ export function FileChangeDiff({
   }, [filePath]);
 
   const isStaged = status.staged;
+
+  // ---------------------------------------------------------------------------
+  // Editor Controls State
+  // ---------------------------------------------------------------------------
+
+  // Editor ref for actions
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  // Track if editor controls have been "activated" (shown due to dirty state)
+  // Once activated, controls remain visible even after save
+  const [controlsActivated, setControlsActivated] = useState(false);
+
+  // Show diff toggle for modified files (not untracked/added which have no original to diff against)
+  const showDiffToggle =
+    status.status !== "untracked" && status.status !== "added";
+
+  // Diff/edit mode transition with height preservation
+  const {
+    isDiffMode,
+    handleToggle: handleToggleDiffMode,
+    autoSizeConfig,
+    containerRef: editorContainerRef,
+    transitionStyle,
+  } = useDiffModeTransition({
+    defaultConfig: DEFAULT_AUTO_SIZE_CONFIG,
+    initialMode: true,
+  });
+
+  // Get model state for this file
+  const modelState = useModelState(fullFilePath);
+  const isDirty = modelState?.isDirty ?? false;
+
+  // Activate controls when file becomes dirty
+  useEffect(() => {
+    if (isDirty && !controlsActivated) {
+      setControlsActivated(true);
+    }
+  }, [isDirty, controlsActivated]);
+
+  // Show controls if dirty or previously activated
+  const showEditorControls = isDirty || controlsActivated;
+
+  // Save handler
+  const handleSave = useCallback(async () => {
+    if (!fullFilePath) return;
+
+    try {
+      const registry = MonacoModelRegistry.getInstance();
+      await registry.saveModel(pathToUri(fullFilePath));
+    } catch (error) {
+      console.error("Failed to save file:", error);
+    }
+  }, [fullFilePath]);
+
+  // Keybinding hook for Cmd+S
+  const { registerSaveKeybinding } = useEditorSaveKeybinding(
+    handleSave,
+    editorId,
+  );
+
+  // Editor actions hook
+  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+
+  // Handle editor mount - store ref and register keybindings
+  const handleEditorMount = useCallback(
+    (editor: monaco.editor.IStandaloneCodeEditor) => {
+      editorRef.current = editor;
+      registerSaveKeybinding(editor);
+    },
+    [registerSaveKeybinding],
+  );
+
+  // Handle diff editor mount - get modified editor and register keybindings
+  const handleDiffEditorMount = useCallback(
+    (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
+      const modifiedEditor = diffEditor.getModifiedEditor();
+      editorRef.current = modifiedEditor;
+      registerSaveKeybinding(modifiedEditor);
+    },
+    [registerSaveKeybinding],
+  );
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -166,36 +255,78 @@ export function FileChangeDiff({
         )}
         data-testid="file-change-diff-header"
       >
-        {/* Clickable area for expand/collapse */}
-        <div
-          className="flex items-center gap-2 flex-1 min-w-0"
-          onClick={onToggle}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onToggle();
-            }
-          }}
-        >
-          {/* Expand/Collapse Icon */}
-          {isExpanded ? (
-            <ChevronDown className="flex-shrink-0 w-4 h-4" />
-          ) : (
-            <ChevronRight className="flex-shrink-0 w-4 h-4" />
+        {/* Left side: expand/collapse + file info + editor controls */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Clickable area for expand/collapse */}
+          <div
+            className="flex items-center gap-2 min-w-0"
+            onClick={onToggle}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggle();
+              }
+            }}
+          >
+            {/* Expand/Collapse Icon */}
+            {isExpanded ? (
+              <ChevronDown className="flex-shrink-0 w-4 h-4" />
+            ) : (
+              <ChevronRight className="flex-shrink-0 w-4 h-4" />
+            )}
+
+            {/* Dirty indicator */}
+            {isDirty && (
+              <div
+                className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"
+                title="Unsaved changes"
+                data-testid="dirty-indicator"
+              />
+            )}
+
+            {/* File Icon */}
+            <File className="flex-shrink-0 w-4 h-4 text-muted-foreground" />
+
+            {/* File Path */}
+            <span className="truncate text-sm" title={filePath}>
+              {filePath}
+            </span>
+          </div>
+
+          {/* Diff/Edit mode toggle for modified files */}
+          {showDiffToggle && (
+            <>
+              <div className="h-4 w-px bg-border mx-1 flex-shrink-0" />
+              <DiffModeToggle
+                isDiffMode={isDiffMode}
+                onToggle={handleToggleDiffMode}
+                variant="compact"
+              />
+            </>
           )}
 
-          {/* File Icon */}
-          <File className="flex-shrink-0 w-4 h-4 text-muted-foreground" />
-
-          {/* File Path */}
-          <span className="flex-1 truncate text-sm" title={filePath}>
-            {filePath}
-          </span>
+          {/* Editor Controls (shown when dirty or previously activated) */}
+          {showEditorControls && (
+            <>
+              {/* Separator before editor controls */}
+              <div className="h-4 w-px bg-border mx-1 flex-shrink-0" />
+              <EditorActionButtons
+                onUndo={editorActions.undo}
+                onRedo={editorActions.redo}
+                onSave={editorActions.save}
+                onFind={editorActions.find}
+                canUndo={editorActions.canUndo}
+                canRedo={editorActions.canRedo}
+                canSave={isDirty}
+                variant="compact"
+              />
+            </>
+          )}
         </div>
 
-        {/* Action Buttons */}
+        {/* Git Action Buttons */}
         <div className="flex-shrink-0 flex items-center gap-1">
           {isStaged ? (
             <Button
@@ -241,16 +372,25 @@ export function FileChangeDiff({
       </div>
 
       {/* Editor (expanded only) - height is auto-sized */}
-      {/* Use regular editor for new files (untracked/added), diff editor for modified files */}
+      {/* Use regular editor for new files (untracked/added) or when in edit mode */}
+      {/* Use diff editor for modified files when in diff mode */}
       {isExpanded && (
-        <div className="bg-background" data-testid="file-change-diff-content">
+        <div
+          ref={editorContainerRef}
+          className="bg-background"
+          style={transitionStyle}
+          data-testid="file-change-diff-content"
+        >
           <EditorErrorBoundary filePath={filePath}>
-            {status.status === "untracked" || status.status === "added" ? (
+            {status.status === "untracked" ||
+            status.status === "added" ||
+            !isDiffMode ? (
               <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
                 filePath={fullFilePath}
-                autoSize={DEFAULT_AUTO_SIZE_CONFIG}
+                autoSize={autoSizeConfig}
+                onMount={handleEditorMount}
               />
             ) : (
               <DiffEditorWrapper
@@ -258,7 +398,8 @@ export function FileChangeDiff({
                 cwd={cwd}
                 filePath={fullFilePath}
                 baseBranch={baseBranch}
-                autoSize={DEFAULT_AUTO_SIZE_CONFIG}
+                autoSize={autoSizeConfig}
+                onMount={handleDiffEditorMount}
               />
             )}
           </EditorErrorBoundary>

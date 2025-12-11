@@ -7,16 +7,7 @@
  * - size={14} icons
  */
 
-import {
-  Save,
-  Undo,
-  Redo,
-  Search,
-  ChevronLeft,
-  PanelLeftOpen,
-  Columns2,
-  FileCode,
-} from "lucide-react";
+import { ChevronLeft, PanelLeftOpen } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -24,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { ModelState } from "../../types";
+import { EditorActionButtons, DiffModeToggle } from "../shared";
 
 export interface EditorToolbarProps {
   /** Current model state (dirty, orphaned, etc.) */
@@ -188,21 +180,11 @@ export function EditorToolbar({
               orientation="vertical"
               className="h-4 mx-1 bg-elevated-border"
             />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => onToggleDiffMode(!isDiffMode)}
-                  className={buttonClass}
-                  data-testid="diff-mode-toggle"
-                >
-                  {isDiffMode ? <FileCode size={14} /> : <Columns2 size={14} />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isDiffMode ? "Switch to editor view" : "Switch to diff view"}
-              </TooltipContent>
-            </Tooltip>
+            <DiffModeToggle
+              isDiffMode={isDiffMode}
+              onToggle={() => onToggleDiffMode(!isDiffMode)}
+              variant="toolbar"
+            />
           </>
         )}
 
@@ -213,104 +195,16 @@ export function EditorToolbar({
               orientation="vertical"
               className="h-4 mx-1 bg-elevated-border"
             />
-
-            {/* Undo */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onUndo}
-                  disabled={!canUndo}
-                  className={buttonClass}
-                  data-testid="undo-button"
-                >
-                  <Undo size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="flex items-center gap-2">
-                  <span>Undo</span>
-                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                    ⌘Z
-                  </kbd>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Redo */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onRedo}
-                  disabled={!canRedo}
-                  className={buttonClass}
-                  data-testid="redo-button"
-                >
-                  <Redo size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="flex items-center gap-2">
-                  <span>Redo</span>
-                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                    ⌘⇧Z
-                  </kbd>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Separator
-              orientation="vertical"
-              className="h-4 mx-1 bg-elevated-border"
+            <EditorActionButtons
+              onUndo={onUndo}
+              onRedo={onRedo}
+              onSave={onSave}
+              onFind={onFind}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              canSave={isDirty}
+              variant="toolbar"
             />
-
-            {/* Save */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onSave}
-                  disabled={!isDirty}
-                  className={buttonClass}
-                  data-testid="save-button"
-                >
-                  <Save size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="flex items-center gap-2">
-                  <span>Save</span>
-                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                    ⌘S
-                  </kbd>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Find */}
-            {onFind && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={onFind}
-                    className={buttonClass}
-                    data-testid="find-button"
-                  >
-                    <Search size={14} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="flex items-center gap-2">
-                    <span>Find in file</span>
-                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                      ⌘F
-                    </kbd>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            )}
           </>
         )}
       </div>

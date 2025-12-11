@@ -31,6 +31,7 @@ import {
   useMonacoModel,
   useEditorTheme,
   useAutoSizeEditor,
+  usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage } from "../../utils/languageDetection";
@@ -345,6 +346,9 @@ export function DiffEditorWrapper({
   // ---------------------------------------------------------------------------
   // Focus Handler
   // ---------------------------------------------------------------------------
+
+  // Prevent browser's automatic scroll-into-view when clicking the editor
+  usePreventFocusScroll(containerRef);
 
   const handleContainerClick = useCallback(() => {
     diffEditorRef.current?.getModifiedEditor().focus();

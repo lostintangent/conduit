@@ -39,3 +39,11 @@ export type {
   UseAutoSizeEditorOptions,
   UseAutoSizeEditorResult,
 } from "./useAutoSizeEditor";
+export { useEditorSaveKeybinding } from "./useEditorSaveKeybinding";
+export type { UseEditorSaveKeybindingResult } from "./useEditorSaveKeybinding";
+export { usePreventFocusScroll } from "./usePreventFocusScroll";
+export { useDiffModeTransition } from "./useDiffModeTransition";
+export type {
+  UseDiffModeTransitionOptions,
+  UseDiffModeTransitionResult,
+} from "./useDiffModeTransition";

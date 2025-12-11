@@ -28,7 +28,12 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import * as monaco from "monaco-editor";
-import { useMonacoModel, useEditorTheme, useAutoSizeEditor } from "../../hooks";
+import {
+  useMonacoModel,
+  useEditorTheme,
+  useAutoSizeEditor,
+  usePreventFocusScroll,
+} from "../../hooks";
 import { ViewStateRegistry } from "../../registry";
 import type { AutoSizeConfig } from "./constants";
 
@@ -390,6 +395,9 @@ export function RegularEditorWrapper({
   // ---------------------------------------------------------------------------
   // Focus Handler
   // ---------------------------------------------------------------------------
+
+  // Prevent browser's automatic scroll-into-view when clicking the editor
+  usePreventFocusScroll(containerRef);
 
   const handleContainerClick = useCallback(() => {
     editorRef.current?.focus();

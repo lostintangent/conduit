@@ -109,8 +109,52 @@ export function useAutoSizeEditor({
   // Height state - starts at minHeight
   const [height, setHeight] = useState(minHeight);
 
+  // Track previous height to detect actual changes
+  const previousHeightRef = useRef(minHeight);
+
   // Track disposables for cleanup
   const disposablesRef = useRef<monaco.IDisposable[]>([]);
+
+  // Debounce timer ref for height updates
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track if mouse is currently pressed (to skip height updates during clicks)
+  const isMouseDownRef = useRef(false);
+
+  // Track pending height update while mouse is down
+  const pendingUpdateRef = useRef(false);
+
+  // Set up global mouse tracking to prevent height updates during mouse interactions
+  useEffect(() => {
+    const handleMouseDown = () => {
+      isMouseDownRef.current = true;
+    };
+
+    const handleMouseUp = () => {
+      isMouseDownRef.current = false;
+      // If there was a pending update while mouse was down, apply it now
+      if (pendingUpdateRef.current) {
+        pendingUpdateRef.current = false;
+        // Trigger a re-check after a short delay
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+          // The actual update will happen via the content size change listener
+          // We just need to signal that updates are allowed again
+        }, 50);
+      }
+    };
+
+    // Use capture phase to catch events before Monaco
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("mouseup", handleMouseUp, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("mouseup", handleMouseUp, true);
+    };
+  }, []);
 
   // Compute height from editor content
   useEffect(() => {
@@ -122,27 +166,57 @@ export function useAutoSizeEditor({
 
     // Function to calculate and update height
     const updateHeight = () => {
-      let contentHeight = 0;
-
-      if (diffEditor) {
-        // For diff editors, use the larger of the two sides
-        const modifiedHeight = diffEditor
-          .getModifiedEditor()
-          .getContentHeight();
-        const originalHeight = diffEditor
-          .getOriginalEditor()
-          .getContentHeight();
-        contentHeight = Math.max(modifiedHeight, originalHeight);
-      } else if (editor) {
-        contentHeight = editor.getContentHeight();
+      // Skip updates while mouse is down to prevent content shifting during clicks
+      if (isMouseDownRef.current) {
+        pendingUpdateRef.current = true;
+        return;
       }
 
-      // Clamp between min and max
-      const clampedHeight = Math.min(
-        Math.max(contentHeight, minHeight),
-        maxHeight,
-      );
-      setHeight(clampedHeight);
+      // Clear any pending update
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Small debounce to batch rapid changes
+      debounceTimerRef.current = setTimeout(() => {
+        // Double-check mouse isn't down (could have changed during timeout)
+        if (isMouseDownRef.current) {
+          pendingUpdateRef.current = true;
+          return;
+        }
+
+        let contentHeight = 0;
+
+        if (diffEditor) {
+          // For diff editors, use the larger of the two sides
+          const modifiedHeight = diffEditor
+            .getModifiedEditor()
+            .getContentHeight();
+          const originalHeight = diffEditor
+            .getOriginalEditor()
+            .getContentHeight();
+          contentHeight = Math.max(modifiedHeight, originalHeight);
+        } else if (editor) {
+          contentHeight = editor.getContentHeight();
+        }
+
+        // Clamp between min and max
+        const clampedHeight = Math.min(
+          Math.max(contentHeight, minHeight),
+          maxHeight,
+        );
+
+        // Only update if height actually changed to avoid unnecessary re-renders
+        if (clampedHeight === previousHeightRef.current) {
+          return;
+        }
+
+        previousHeightRef.current = clampedHeight;
+        setHeight(clampedHeight);
+
+        // Note: Monaco's automaticLayout:true option handles calling layout()
+        // when the container size changes, so we don't need to do it manually.
+      }, 50); // Short debounce to batch rapid changes
     };
 
     // Set up listeners based on editor type
@@ -170,6 +244,12 @@ export function useAutoSizeEditor({
 
     // Cleanup on unmount or dependency change
     return () => {
+      // Clear debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      // Dispose Monaco listeners
       disposablesRef.current.forEach((d) => d.dispose());
       disposablesRef.current = [];
     };
