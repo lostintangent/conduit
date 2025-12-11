@@ -103,9 +103,7 @@ export function SandboxIndicator({
                 <GitMerge size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" align="center">
-              Merge changes
-            </TooltipContent>
+            <TooltipContent side="top">Merge changes</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -117,9 +115,7 @@ export function SandboxIndicator({
                 <Trash2 size={16} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" align="center">
-              Delete worktree
-            </TooltipContent>
+            <TooltipContent side="top">Delete worktree</TooltipContent>
           </Tooltip>
         </div>
       )}

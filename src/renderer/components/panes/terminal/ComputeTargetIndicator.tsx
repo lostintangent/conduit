@@ -96,7 +96,7 @@ export function ComputeTargetIndicator({
   }
 
   return (
-    <div className="pointer-events-none absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-10">
+    <div className="pointer-events-none absolute bottom-3 right-3 flex flex-col items-end gap-2 text-white z-10">
       <SandboxIndicator
         vmId={vmId}
         agentSessionId={agentSessionId}
