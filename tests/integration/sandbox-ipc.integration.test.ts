@@ -645,4 +645,169 @@ describe.skip("Sandbox IPC Integration Tests", () => {
       }
     });
   });
+
+  describe("WebSocket Keepalive", () => {
+    /**
+     * Creates a WebSocket client that tracks ping frames received from the server.
+     * This allows us to verify that the server's keepalive mechanism is working.
+     */
+    function createPingTrackingClient(): {
+      ws: WebSocket;
+      pingCount: number;
+      pongCount: number;
+      lastPingTime: number | null;
+      connectionClosed: boolean;
+      closeCode: number | null;
+      closeReason: string;
+    } {
+      const state = {
+        ws: null as unknown as WebSocket,
+        pingCount: 0,
+        pongCount: 0,
+        lastPingTime: null as number | null,
+        connectionClosed: false,
+        closeCode: null as number | null,
+        closeReason: "",
+      };
+
+      state.ws = new WebSocket(SANDBOX_URL);
+
+      // Track ping frames from server
+      state.ws.on("ping", () => {
+        state.pingCount++;
+        state.lastPingTime = Date.now();
+      });
+
+      // Track pong frames (response to our pings, if any)
+      state.ws.on("pong", () => {
+        state.pongCount++;
+      });
+
+      state.ws.on("close", (code, reason) => {
+        state.connectionClosed = true;
+        state.closeCode = code;
+        state.closeReason = reason?.toString() || "";
+      });
+
+      return state;
+    }
+
+    it("should receive ping frames from server at expected intervals", async () => {
+      // Server pings every 15 seconds. Wait 20 seconds to ensure we receive at least 1 ping.
+      const testDuration = 20000; // 20 seconds
+      const expectedMinPings = 1;
+
+      const tracker = createPingTrackingClient();
+
+      // Wait for connection to open
+      await new Promise<void>((resolve, reject) => {
+        tracker.ws.on("open", resolve);
+        tracker.ws.on("error", reject);
+      });
+
+      console.log(`⏳ Monitoring for pings over ${testDuration / 1000}s...`);
+      const startTime = Date.now();
+
+      // Wait for test duration
+      await new Promise((resolve) => setTimeout(resolve, testDuration));
+
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.log(
+        `📊 Results after ${elapsed}s: ${tracker.pingCount} pings received`,
+      );
+
+      // Verify we received expected pings
+      expect(tracker.connectionClosed).toBe(false);
+      expect(tracker.pingCount).toBeGreaterThanOrEqual(expectedMinPings);
+
+      // Clean up
+      tracker.ws.close(1000, "Test complete");
+    }, 30000);
+
+    it("should maintain connection through multiple ping cycles", async () => {
+      // Test 35 seconds - should receive at least 2 pings (at 15s and 30s)
+      const testDuration = 35000;
+      const expectedMinPings = 2;
+
+      const tracker = createPingTrackingClient();
+
+      await new Promise<void>((resolve, reject) => {
+        tracker.ws.on("open", resolve);
+        tracker.ws.on("error", reject);
+      });
+
+      console.log(
+        `⏳ Testing ${testDuration / 1000}s idle period (expect ${expectedMinPings}+ pings)...`,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, testDuration));
+
+      console.log(
+        `📊 Pings received: ${tracker.pingCount}, Connection alive: ${!tracker.connectionClosed}`,
+      );
+
+      // Assertions
+      expect(tracker.connectionClosed).toBe(false);
+      expect(tracker.pingCount).toBeGreaterThanOrEqual(expectedMinPings);
+
+      tracker.ws.close(1000, "Test complete");
+    }, 45000);
+
+    it("should survive past the old 60-second timeout boundary", async () => {
+      // This test specifically validates the fix for the 60-second disconnect bug.
+      // Previously, coder/websocket would close the connection at exactly 60s.
+      const testDuration = 70000; // 70 seconds - past the danger zone
+      const expectedMinPings = 4; // At 15s, 30s, 45s, 60s
+
+      const tracker = createPingTrackingClient();
+
+      await new Promise<void>((resolve, reject) => {
+        tracker.ws.on("open", resolve);
+        tracker.ws.on("error", reject);
+      });
+
+      console.log(
+        "⏳ Testing 70s idle period (regression test for 60s timeout bug)...",
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, testDuration));
+
+      console.log(
+        `📊 Results: ${tracker.pingCount} pings, closed=${tracker.connectionClosed}, code=${tracker.closeCode}`,
+      );
+
+      // Critical assertions - connection must survive past 60s
+      expect(tracker.connectionClosed).toBe(false);
+      expect(tracker.pingCount).toBeGreaterThanOrEqual(expectedMinPings);
+
+      // If we got here, the 60s bug is fixed!
+      console.log("✅ Connection survived past 60-second boundary");
+
+      tracker.ws.close(1000, "Test complete");
+    }, 90000);
+
+    it("should allow requests after extended idle period", async () => {
+      // Verify the connection is fully functional after being idle
+      const idleDuration = 35000; // 35 seconds
+
+      const idleClient = new SandboxClient();
+      await idleClient.connect();
+
+      console.log(
+        `⏳ Idle for ${idleDuration / 1000}s, then verify request works...`,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, idleDuration));
+
+      // Make a real request to verify connection is functional
+      const result = await idleClient.request<ExistsResult>("fs.exists", {
+        path: `${WORKSPACE_PATH}/test-file.txt`,
+      });
+
+      expect(result.exists).toBe(true);
+      console.log("✅ Request succeeded after idle period");
+
+      idleClient.close();
+    }, 50000);
+  });
 });
