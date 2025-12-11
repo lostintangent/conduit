@@ -29,7 +29,7 @@ func main() {
 
 	// Handle version flag
 	if *showVersion {
-		fmt.Printf("sandbox-ipc version %s (built %s)\n", version, buildTime)
+		fmt.Printf("conduit-server version %s (built %s)\n", version, buildTime)
 		os.Exit(0)
 	}
 

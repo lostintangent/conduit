@@ -20,10 +20,10 @@ RUN npm install -g yarn pnpm \
 RUN curl -fsSL https://go.dev/dl/go1.25.5.linux-amd64.tar.gz | tar -C /usr/local -xzf - \
  && ln -s /usr/local/go/bin/go /usr/local/bin/go
 
-# Build and install sandbox-ipc-provider
+# Build and install conduit-server-provider
 COPY build/sandbox/sandbox-conduit-server /tmp/sandbox-conduit-server
 RUN cd /tmp/sandbox-conduit-server \
- && go build -ldflags="-w -s -X main.version=1.0.0 -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o /usr/local/bin/sandbox-ipc . \
+ && go build -ldflags="-w -s -X main.version=1.0.0 -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o /usr/local/bin/conduit-server . \
  && rm -rf /tmp/sandbox-conduit-server
 
 # Install gh cli
@@ -57,8 +57,8 @@ RUN echo 'export PATH="/root/.bun/bin:$PATH"' >> /etc/profile.d/bun.sh
 # Verify installations
 RUN node --version && npm --version && yarn --version && bun --version
 
-# Expose the sandbox-ipc server port
+# Expose the conduit-server port
 EXPOSE 9876
 
-# Default command: start the sandbox-ipc server
-CMD ["sandbox-ipc", "-workspace", "/workspace"]
+# Default command: start the conduit-server
+CMD ["conduit-server", "-workspace", "/workspace"]

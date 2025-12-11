@@ -217,7 +217,7 @@ export function initializeVMHandlers() {
     return { url, available: !!url };
   });
 
-  // Apply patches via sandbox-ipc (preferred method)
+  // Apply patches via conduit-server (preferred method)
   ipcMain.handle(
     "vm:sandbox-apply-patches",
     async (
@@ -244,7 +244,7 @@ export function initializeVMHandlers() {
     },
   );
 
-  // Get git status via sandbox-ipc
+  // Get git status via conduit-server
   ipcMain.handle("vm:sandbox-git-status", async (_, vmId: string) => {
     try {
       const client = await connectSandbox(vmId);
@@ -256,7 +256,7 @@ export function initializeVMHandlers() {
     }
   });
 
-  // Close sandbox-ipc connection for a VM (but keep session alive)
+  // Close conduit-server connection for a VM (but keep session alive)
   ipcMain.handle("vm:sandbox-disconnect", async (_, vmId: string) => {
     disconnectSandbox(vmId);
     return { success: true };

@@ -1,6 +1,6 @@
 # Binaries
-sandbox-ipc
-sandbox-ipc-*
+conduit-server
+conduit-server-*
 *.exe
 
 # Build output

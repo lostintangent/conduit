@@ -68,20 +68,20 @@ The server includes several optimizations for responsive file browsing:
 ```bash
 # Clone and build
 cd packages/sandbox-conduit-server
-go build -o sandbox-ipc .
+go build -o conduit-server .
 
 # Run
-./sandbox-ipc --workspace /path/to/project
+./conduit-server --workspace /path/to/project
 ```
 
 ### Using Docker
 
 ```bash
 # Build image
-docker build -t sandbox-ipc .
+docker build -t conduit-server .
 
 # Run container
-docker run -p 9876:9876 -v /path/to/project:/workspace sandbox-ipc
+docker run -p 9876:9876 -v /path/to/project:/workspace conduit-server
 ```
 
 ## Usage
@@ -89,7 +89,7 @@ docker run -p 9876:9876 -v /path/to/project:/workspace sandbox-ipc
 ### Command Line Options
 
 ```
-Usage: sandbox-ipc [options]
+Usage: conduit-server [options]
 
 Options:
   -port int       Port to listen on (default 9876)
@@ -260,8 +260,8 @@ Build for multiple platforms:
 make build-all
 
 # Or build specific platform
-GOOS=linux GOARCH=amd64 go build -o sandbox-ipc-linux .
-GOOS=darwin GOARCH=arm64 go build -o sandbox-ipc-darwin .
+GOOS=linux GOARCH=amd64 go build -o conduit-server-linux .
+GOOS=darwin GOARCH=arm64 go build -o conduit-server-darwin .
 ```
 
 ## Testing
@@ -272,11 +272,11 @@ A comprehensive TypeScript test suite is provided in the `test/` directory.
 
 ```bash
 # Build the server
-go build -o sandbox-ipc .
+go build -o conduit-server .
 
 # Start the server with a test workspace
-mkdir -p /tmp/sandbox-ipc-test
-./sandbox-ipc --port 3002 --workspace /tmp/sandbox-ipc-test &
+mkdir -p /tmp/conduit-server-test
+./conduit-server --port 3002 --workspace /tmp/conduit-server-test &
 
 # Install test dependencies
 cd test
@@ -359,7 +359,7 @@ This server provides the IPC bridge between the Conduit editor and sandbox VMs. 
 ┌─────────────────────────────────────────┐
 │  Cloud VM / Sandbox                     │
 │  ┌───────────────────────────────────┐  │
-│  │  sandbox-ipc (~8MB binary)        │  │
+│  │  conduit-server (~8MB binary)        │  │
 │  │  - Filesystem operations          │  │
 │  │  - File watching (fsnotify)       │  │
 │  │  - Git operations (planned)       │  │

@@ -1,5 +1,5 @@
 /**
- * Integration tests for sandbox-ipc-provider running in Docker container
+ * Integration tests for conduit-server-provider running in Docker container
  *
  * These tests automatically build and start the sandbox container,
  * then communicate with it via WebSocket to test the full end-to-end flow.

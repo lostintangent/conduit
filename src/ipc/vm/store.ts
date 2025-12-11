@@ -8,7 +8,7 @@
  * Design:
  * - Each VM has a single VMSession that tracks its state
  * - Panes "acquire" a VM session and "release" when done
- * - The sandbox-ipc WebSocket connection is shared across all consumers
+ * - The conduit-server WebSocket connection is shared across all consumers
  * - VMs are cleaned up when no consumers remain (with optional grace period)
  */
 
@@ -107,7 +107,7 @@ export interface AcquireVMOptions {
   consumerId: string;
   /** Type of consumer */
   consumerType: VMConsumerType;
-  /** Whether to connect sandbox-ipc immediately */
+  /** Whether to connect conduit-server immediately */
   connectSandbox?: boolean;
   /** Whether SSH key auth should be used */
   useSSHKey?: boolean;
@@ -406,7 +406,7 @@ export function disposeAllSessions(): void {
 // ============================================================================
 
 /**
- * Connect to the sandbox-ipc server for a VM
+ * Connect to the conduit-server for a VM
  */
 export async function connectSandbox(vmId: string): Promise<SandboxIPCClient> {
   const session = vmSessions.get(vmId);
@@ -421,12 +421,12 @@ export async function connectSandbox(vmId: string): Promise<SandboxIPCClient> {
 
   if (!session.sandboxUrl) {
     throw new Error(
-      `VM ${vmId} does not have sandbox-ipc port forwarded. ` +
-        `Expected port 9876 with label "sandbox-ipc server"`,
+      `VM ${vmId} does not have conduit-server port forwarded. ` +
+        `Expected port 9876 with label "conduit-server"`,
     );
   }
 
-  console.log(`[VMStore] Connecting to sandbox-ipc for VM ${vmId}`);
+  console.log(`[VMStore] Connecting to conduit-server for VM ${vmId}`);
   updateConnectionState(vmId, "connecting");
 
   try {
@@ -472,7 +472,7 @@ export async function getSandboxClient(
 }
 
 /**
- * Disconnect sandbox-ipc for a VM (but keep session alive)
+ * Disconnect conduit-server for a VM (but keep session alive)
  */
 export function disconnectSandbox(vmId: string): void {
   const session = vmSessions.get(vmId);
@@ -480,7 +480,7 @@ export function disconnectSandbox(vmId: string): void {
     return;
   }
 
-  console.log(`[VMStore] Disconnecting sandbox-ipc for VM ${vmId}`);
+  console.log(`[VMStore] Disconnecting conduit-server for VM ${vmId}`);
   session.sandboxClient.disconnect();
   session.sandboxClient = null;
   updateConnectionState(vmId, "disconnected");
@@ -718,7 +718,7 @@ export async function syncGitStateToVM(
         }
 
         console.log(
-          `[VMStore] Successfully applied patches via sandbox-ipc`,
+          `[VMStore] Successfully applied patches via conduit-server`,
           patchResult.applied ? `(${patchResult.applied.join(", ")})` : "",
         );
       }

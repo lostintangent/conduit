@@ -65,9 +65,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${MANAGER_URL}/api/images/custom
         \"labels\": [\"conduit\", \"sandbox\", \"Conduit Latest Image\"],
         \"size\": \"8G\",
         \"ports\": {
-            \"9876\": \"sandbox-ipc server\"
+            \"9876\": \"conduit-server\"
         },
-        \"post_create_command\": \"/usr/local/bin/sandbox-ipc -workspace /workspace\",
+        \"post_create_command\": \"/usr/local/bin/conduit-server -workspace /workspace\",
         \"public\": true
     }")
 

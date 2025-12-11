@@ -1,9 +1,9 @@
 /**
- * SandboxIPCClient - WebSocket client for connecting to the sandbox-ipc-provider
+ * SandboxIPCClient - WebSocket client for connecting to the conduit-server-provider
  * running inside a cloud VM.
  *
- * The sandbox-ipc server runs on port 9876 inside the VM and is automatically
- * forwarded with the label "sandbox-ipc server" when the VM is created.
+ * The conduit-server runs on port 9876 inside the VM and is automatically
+ * forwarded with the label "conduit-server" when the VM is created.
  */
 
 import WebSocket from "ws";
@@ -107,16 +107,16 @@ interface WSResponse {
 // ============================================================================
 
 const SANDBOX_IPC_PORT = 9876;
-const SANDBOX_IPC_LABEL = "sandbox-ipc server";
+const SANDBOX_IPC_LABEL = "conduit-server";
 const DEFAULT_TIMEOUT_MS = 30000;
 const CHUNK_SIZE = 64 * 1024; // 64KB chunks
 const LARGE_PATCH_THRESHOLD = 512 * 1024; // 512KB - use chunked for larger
 
 /**
- * Get the sandbox-ipc WebSocket URL from a VM's forwarded ports
+ * Get the conduit-server WebSocket URL from a VM's forwarded ports
  */
 export function getSandboxIPCUrl(vm: VM): string | null {
-  // Find the port with label "sandbox-ipc server"
+  // Find the port with label "conduit-server"
   for (const [port, info] of Object.entries(vm.forwarded_ports)) {
     if (
       info.description === SANDBOX_IPC_LABEL ||
@@ -144,7 +144,7 @@ export function getSandboxIPCUrl(vm: VM): string | null {
 const activeConnections = new Map<string, SandboxIPCClient>();
 
 /**
- * Get or create a connection to a VM's sandbox-ipc server
+ * Get or create a connection to a VM's conduit-server
  * @deprecated Use VM store's acquireVM/getSandboxClient instead
  */
 export async function getConnection(vm: VM): Promise<SandboxIPCClient> {
@@ -156,7 +156,7 @@ export async function getConnection(vm: VM): Promise<SandboxIPCClient> {
   const url = getSandboxIPCUrl(vm);
   if (!url) {
     throw new Error(
-      `VM ${vm.id} does not have sandbox-ipc port forwarded. ` +
+      `VM ${vm.id} does not have conduit-server port forwarded. ` +
         `Expected port ${SANDBOX_IPC_PORT} with label "${SANDBOX_IPC_LABEL}"`,
     );
   }
@@ -215,7 +215,7 @@ export class SandboxIPCClient {
   ) {}
 
   /**
-   * Connect to the sandbox-ipc server
+   * Connect to the conduit-server
    */
   async connect(): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -317,7 +317,7 @@ export class SandboxIPCClient {
   }
 
   /**
-   * Make an RPC call to the sandbox-ipc server
+   * Make an RPC call to the conduit-server
    */
   async call<T>(
     method: string,
@@ -325,7 +325,7 @@ export class SandboxIPCClient {
     timeoutMs = DEFAULT_TIMEOUT_MS,
   ): Promise<T> {
     if (!this.isConnected()) {
-      throw new Error("Not connected to sandbox-ipc server");
+      throw new Error("Not connected to conduit-server");
     }
 
     const id = ++this.requestId;

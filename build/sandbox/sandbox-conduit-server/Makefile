@@ -1,6 +1,6 @@
 .PHONY: build run test clean docker docker-run all
 
-BINARY_NAME=sandbox-ipc
+BINARY_NAME=conduit-server
 VERSION?=dev
 BUILD_TIME?=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -45,18 +45,18 @@ deps:
 # Build for all platforms
 build-all:
 	mkdir -p dist
-	GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/sandbox-ipc-linux-amd64 .
-	GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/sandbox-ipc-linux-arm64 .
-	GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o dist/sandbox-ipc-darwin-amd64 .
-	GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s" -o dist/sandbox-ipc-darwin-arm64 .
+	GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/conduit-server-linux-amd64 .
+	GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/conduit-server-linux-arm64 .
+	GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o dist/conduit-server-darwin-amd64 .
+	GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s" -o dist/conduit-server-darwin-arm64 .
 
 # Docker build
 docker:
-	docker build -t sandbox-ipc .
+	docker build -t conduit-server .
 
 # Docker run
 docker-run:
-	docker run -p 9876:9876 -v $(PWD)/workspace:/workspace sandbox-ipc
+	docker run -p 9876:9876 -v $(PWD)/workspace:/workspace conduit-server
 
 # Format code
 fmt:

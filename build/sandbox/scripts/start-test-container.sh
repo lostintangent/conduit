@@ -40,7 +40,7 @@ docker run -d \
     "${IMAGE_NAME}"
 
 # Wait for the server to be ready
-echo -e "${YELLOW}Waiting for sandbox-ipc server to be ready...${NC}"
+echo -e "${YELLOW}Waiting for conduit-server to be ready...${NC}"
 MAX_RETRIES=30
 RETRY_COUNT=0
 
