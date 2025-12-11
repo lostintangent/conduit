@@ -2,7 +2,7 @@ import type { UpdateState } from "@shared/types";
 import { app, autoUpdater, ipcMain } from "electron";
 import { SendToRendererFn } from "../terminal/types";
 
-const SUPPORTED_PLATFORMS = new Set(["darwin"]);
+const SUPPORTED_PLATFORMS = new Set(["darwin", "win32"]);
 const CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 let currentState: UpdateState = {

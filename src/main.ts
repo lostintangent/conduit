@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from "electron";
+import squirrelStartup from "electron-squirrel-startup";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import {
@@ -7,6 +8,14 @@ import {
   initializeIpcHandlers,
   shutdownCliServer,
 } from "./ipc";
+
+// Handle Squirrel events on Windows (install/uninstall/update).
+// When the installer runs (via Squirrel), it launches the app with special flags
+// to perform setup tasks. We need to quit immediately in these cases to let
+// the installer complete, rather than showing the main window.
+if (squirrelStartup) {
+  app.quit();
+}
 
 // Build-time constants injected by @electron-forge/plugin-vite.
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
