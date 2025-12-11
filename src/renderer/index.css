@@ -70,6 +70,12 @@
   --git-conflict: oklch(63.36% 0.1629 17.04);
   --git-type-changed: oklch(82.83% 0.0932 82.23);
   --git-submodule: oklch(74.53% 0.0959 241.87);
+
+  /* Tinted surfaces - blue-tinted backgrounds for special panels */
+  --tinted: oklch(22% 0.025 260);
+  --tinted-foreground: oklch(87% 0 0);
+  --tinted-muted: oklch(26% 0.02 260);
+  --tinted-border: oklch(35% 0.035 260);
 }
 
 :root[data-theme="light"] {
@@ -127,6 +133,12 @@
   --git-conflict: oklch(44.05% 0.1837 27.24);
   --git-type-changed: oklch(44.64% 0.1234 56.08);
   --git-submodule: oklch(42.57% 0.1487 264.04);
+
+  /* Tinted surfaces - pale blue-tinted backgrounds for special panels */
+  --tinted: oklch(97% 0.025 260);
+  --tinted-foreground: oklch(20% 0 0);
+  --tinted-muted: oklch(94% 0.03 260);
+  --tinted-border: oklch(88% 0.04 260);
 }
 
 @theme {
@@ -189,6 +201,11 @@
   --color-git-conflict: var(--git-conflict);
   --color-git-type-changed: var(--git-type-changed);
   --color-git-submodule: var(--git-submodule);
+
+  --color-tinted: var(--tinted);
+  --color-tinted-foreground: var(--tinted-foreground);
+  --color-tinted-muted: var(--tinted-muted);
+  --color-tinted-border: var(--tinted-border);
 
   --radius: 0.5rem;
   --radius-sm: calc(var(--radius) - 4px);
