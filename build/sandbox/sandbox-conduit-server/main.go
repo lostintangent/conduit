@@ -1,4 +1,4 @@
-// sandbox-ipc-provider-go - Standalone IPC provider for cloud editor functionality.
+// sandbox-conduit-server - Standalone IPC provider for cloud editor functionality.
 //
 // This is the main entry point for the sandbox IPC server.
 // It provides unified file operations with integrated change watching

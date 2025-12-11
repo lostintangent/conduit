@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"sandbox-ipc-provider-go/types"
+	"sandbox-conduit-server/types"
 )
 
 const (

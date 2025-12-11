@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"sandbox-ipc-provider-go/types"
+	"sandbox-conduit-server/types"
 )
 
 // ChunkedPatchSession manages the assembly of chunked patch data

@@ -21,10 +21,10 @@ RUN curl -fsSL https://go.dev/dl/go1.25.5.linux-amd64.tar.gz | tar -C /usr/local
  && ln -s /usr/local/go/bin/go /usr/local/bin/go
 
 # Build and install sandbox-ipc-provider
-COPY build/sandbox/sandbox-ipc-provider-go /tmp/sandbox-ipc-provider-go
-RUN cd /tmp/sandbox-ipc-provider-go \
+COPY build/sandbox/sandbox-conduit-server /tmp/sandbox-conduit-server
+RUN cd /tmp/sandbox-conduit-server \
  && go build -ldflags="-w -s -X main.version=1.0.0 -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o /usr/local/bin/sandbox-ipc . \
- && rm -rf /tmp/sandbox-ipc-provider-go
+ && rm -rf /tmp/sandbox-conduit-server
 
 # Install gh cli
 RUN mkdir -p -m 755 /etc/apt/keyrings \

@@ -1,4 +1,4 @@
-module sandbox-ipc-provider-go
+module sandbox-conduit-server
 
 go 1.23
 

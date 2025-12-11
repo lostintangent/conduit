@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"sandbox-ipc-provider-go/types"
+	"sandbox-conduit-server/types"
 )
 
 const (

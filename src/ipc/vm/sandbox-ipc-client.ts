@@ -10,7 +10,7 @@ import WebSocket from "ws";
 import type { VM } from "./client";
 
 // ============================================================================
-// Types matching sandbox-ipc-provider-go/types/types.go
+// Types matching sandbox-conduit-server/types/types.go
 // ============================================================================
 
 export type PatchType = "staged" | "unstaged" | "untracked";

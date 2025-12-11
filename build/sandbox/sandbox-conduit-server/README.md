@@ -1,4 +1,4 @@
-# sandbox-ipc-provider-go
+# sandbox-conduit-server
 
 Standalone IPC provider for Conduit sandbox/VM environments, written in Go.
 
@@ -67,7 +67,7 @@ The server includes several optimizations for responsive file browsing:
 
 ```bash
 # Clone and build
-cd packages/sandbox-ipc-provider-go
+cd packages/sandbox-conduit-server
 go build -o sandbox-ipc .
 
 # Run
@@ -313,7 +313,7 @@ The test suite covers:
 ## Architecture
 
 ```
-sandbox-ipc-provider-go/
+sandbox-conduit-server/
 ├── main.go              # Entry point
 ├── server.go            # WebSocket server
 ├── types/

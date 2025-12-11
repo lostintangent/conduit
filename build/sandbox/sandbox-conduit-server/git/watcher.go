@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"sandbox-conduit-server/types"
+
 	"github.com/fsnotify/fsnotify"
-	"sandbox-ipc-provider-go/types"
 )
 
 const (

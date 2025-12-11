@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"sandbox-ipc-provider-go/git"
-	"sandbox-ipc-provider-go/types"
-	"sandbox-ipc-provider-go/workspace"
+	"sandbox-conduit-server/git"
+	"sandbox-conduit-server/types"
+	"sandbox-conduit-server/workspace"
 
 	"github.com/gorilla/websocket"
 )

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"sandbox-ipc-provider-go/types"
+	"sandbox-conduit-server/types"
 )
 
 // CacheEntry holds cached directory entries with metadata.

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"sandbox-ipc-provider-go/types"
+	"sandbox-conduit-server/types"
 )
 
 // AlwaysHidden contains names that are always filtered from directory listings.

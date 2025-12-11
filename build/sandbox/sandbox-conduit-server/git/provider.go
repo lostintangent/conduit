@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"sandbox-ipc-provider-go/types"
+	"sandbox-conduit-server/types"
 )
 
 // Provider implements git operations using the git CLI.
