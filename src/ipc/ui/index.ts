@@ -6,6 +6,7 @@ import type {
   UserSettings,
 } from "../../shared/types";
 import { updateApplicationMenu } from "./applicationMenu";
+import { initializeCloudTerminalHandlers } from "./cloudTerminal";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
 import { loadSettings, saveSettings } from "./settings";
 
@@ -48,6 +49,9 @@ export async function initializeUserSettings(
  * Registers the IPC handlers for the UI channel.
  */
 export function initializeUIHandlers(window: BrowserWindow) {
+  // Initialize cloud terminal status handlers
+  initializeCloudTerminalHandlers();
+
   ipcMain.handle("ui:get-settings", () => requireUserSettings());
 
   ipcMain.handle(

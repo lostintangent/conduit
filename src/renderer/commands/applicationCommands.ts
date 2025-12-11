@@ -11,6 +11,7 @@ import {
   activePaneType,
   hasActivePane,
   hasCustomLayout,
+  cloudTerminalEnabled,
   hasCwd,
   hasGitRepo,
   hasLastWorkspace,
@@ -1217,7 +1218,7 @@ export function registerApplicationCommands(
     title: "New Cloud Terminal",
     description: "Create a new cloud terminal",
     category: "Terminal",
-    when: hasActivePane.isTrue(),
+    when: When.and(hasActivePane.isTrue(), cloudTerminalEnabled.isTrue()),
     run: () => {
       void handleCreateVM();
     },

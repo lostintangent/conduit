@@ -37,6 +37,7 @@ import {
   activeTabAtom,
   activeTabIdAtom,
   applicationModeAtom,
+  cloudTerminalEnabledAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
@@ -91,6 +92,7 @@ export const TabStrip = ({
       : null;
   const { homeDirectory, alwaysShowTabs, showLaunchButton, playButtonTarget } =
     useAtomValue(userSettingsAtom);
+  const cloudTerminalEnabled = useAtomValue(cloudTerminalEnabledAtom);
   const shouldShowLaunchButton = showLaunchButton ?? false;
   const scriptTarget = playButtonTarget ?? "newPane";
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
@@ -755,10 +757,12 @@ export const TabStrip = ({
                   <Terminal size={16} className="mr-3" />
                   Quick Terminal (Local)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
-                  <Cloud size={16} className="mr-3" />
-                  Quick Terminal (Cloud)
-                </DropdownMenuItem>
+                {cloudTerminalEnabled && (
+                  <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
+                    <Cloud size={16} className="mr-3" />
+                    Quick Terminal (Cloud)
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
                   <FolderTree size={16} className="mr-3" />

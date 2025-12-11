@@ -95,3 +95,14 @@ export const hyperTerminalsAtom = atomWithImmer<
     cwd: string | null;
   }>
 >([]);
+
+/**
+ * Cloud terminal enabled state
+ *
+ * This is set to true only when:
+ * 1. A GITHUB_TOKEN environment variable is present
+ * 2. The token belongs to a GitHub staff member (site_admin = true)
+ *
+ * The value is fetched from the main process on app startup and cached.
+ */
+export const cloudTerminalEnabledAtom = atom<boolean>(false);

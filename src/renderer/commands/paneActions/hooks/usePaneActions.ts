@@ -6,7 +6,7 @@
 
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
-import { paneActionsAtom } from "@/store/atoms";
+import { cloudTerminalEnabledAtom, paneActionsAtom } from "@/store/atoms";
 import type { Action } from "../core/types";
 
 /**
@@ -24,16 +24,33 @@ export function usePaneActions(): Action[] {
  * Get only enabled pane actions
  *
  * Filters actions to return only those with enabled=true.
+ * Also filters out cloud terminal actions if cloud terminal is not enabled for the user.
  * Most UI components should use this hook.
  *
  * @returns Enabled actions only
  */
 export function useEnabledPaneActions(): Action[] {
   const actions = useAtomValue(paneActionsAtom);
+  const cloudTerminalEnabled = useAtomValue(cloudTerminalEnabledAtom);
 
   return useMemo(() => {
-    return actions.filter((action) => action.enabled);
-  }, [actions]);
+    return actions.filter((action) => {
+      if (!action.enabled) {
+        return false;
+      }
+
+      // Filter out cloud terminal action if cloud terminal is not enabled
+      if (
+        !cloudTerminalEnabled &&
+        "preCommandId" in action.config &&
+        action.config.preCommandId === "detect-github-repo-for-cloud"
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [actions, cloudTerminalEnabled]);
 }
 
 /**

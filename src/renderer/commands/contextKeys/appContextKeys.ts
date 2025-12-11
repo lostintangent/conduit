@@ -109,6 +109,16 @@ export const tabHasWorktrees = new ContextKey<boolean>(
   false,
 );
 
+/**
+ * Whether cloud terminal is enabled for the current user
+ * Requires GITHUB_TOKEN env var and user must be a GitHub staff member (site_admin)
+ * Used by: terminal.createCloud command
+ */
+export const cloudTerminalEnabled = new ContextKey<boolean>(
+  "cloudTerminalEnabled",
+  false,
+);
+
 // ============================================================================
 // File Tree Context Keys
 // ============================================================================

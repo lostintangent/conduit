@@ -25,6 +25,8 @@ import type {
 } from "@/commands/paneActions/core/types";
 import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
 import { usePreCommands } from "@/commands/preCommands";
+import { cloudTerminalEnabledAtom } from "@/store/atoms";
+import { useAtomValue } from "jotai";
 import {
   Check,
   ChevronDown,
@@ -36,7 +38,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const api = window.conduit;
 
@@ -52,15 +54,34 @@ interface PaneActionsEditorContentProps {
 // Available icon IDs for dropdown
 const AVAILABLE_ICONS = getAvailableIconIds();
 
+/**
+ * Check if an action is a cloud terminal action
+ */
+function isCloudTerminalAction(action: Action): boolean {
+  return (
+    "preCommandId" in action.config &&
+    action.config.preCommandId === "detect-github-repo-for-cloud"
+  );
+}
+
 export function PaneActionsEditorContent({
   homeDirectory,
   onOpenQuickPane,
 }: PaneActionsEditorContentProps) {
-  const actions = usePaneActions();
+  const allActions = usePaneActions();
+  const cloudTerminalEnabled = useAtomValue(cloudTerminalEnabledAtom);
   const preCommands = usePreCommands();
   const [expandedActions, setExpandedActions] = useState<Set<string>>(
     new Set(),
   );
+
+  // Filter out cloud terminal action if cloud terminal is not enabled
+  const actions = useMemo(() => {
+    if (cloudTerminalEnabled) {
+      return allActions;
+    }
+    return allActions.filter((action) => !isCloudTerminalAction(action));
+  }, [allActions, cloudTerminalEnabled]);
 
   const [editingActionIndex, setEditingActionIndex] = useState<number | null>(
     null,
@@ -818,14 +839,21 @@ export function PaneActionsEditorContent({
                                             className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent appearance-none pr-8"
                                           >
                                             <option value="">None</option>
-                                            {preCommands.map((preCommand) => (
-                                              <option
-                                                key={preCommand.id}
-                                                value={preCommand.id}
-                                              >
-                                                {preCommand.label}
-                                              </option>
-                                            ))}
+                                            {preCommands
+                                              .filter(
+                                                (preCommand) =>
+                                                  cloudTerminalEnabled ||
+                                                  preCommand.id !==
+                                                    "detect-github-repo-for-cloud",
+                                              )
+                                              .map((preCommand) => (
+                                                <option
+                                                  key={preCommand.id}
+                                                  value={preCommand.id}
+                                                >
+                                                  {preCommand.label}
+                                                </option>
+                                              ))}
                                           </select>
                                           <ChevronDown className="w-4 h-4 text-tinted-foreground/60 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                                         </div>

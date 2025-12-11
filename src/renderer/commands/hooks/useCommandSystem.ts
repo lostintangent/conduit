@@ -18,8 +18,8 @@ import {
 } from "@/commands/keybindings/userKeybindings";
 import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
 import type { ApplicationMode } from "@/store/atoms";
-import { keybindingsAtom } from "@/store/atoms";
-import { useSetAtom } from "jotai";
+import { cloudTerminalEnabledAtom, keybindingsAtom } from "@/store/atoms";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 
 export interface CommandSystemState {
@@ -93,6 +93,7 @@ export function useCommandSystem(
     setTitleModal,
   } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
+  const cloudTerminalEnabled = useAtomValue(cloudTerminalEnabledAtom);
 
   const [commandSystem, setCommandSystem] = useState<{
     commandRegistry: ICommandRegistry;
@@ -256,6 +257,7 @@ export function useCommandSystem(
     );
     contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
     contextKeyService.setGlobal("tabIsLocked", Boolean(activeTab?.locked));
+    contextKeyService.setGlobal("cloudTerminalEnabled", cloudTerminalEnabled);
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {
@@ -300,6 +302,7 @@ export function useCommandSystem(
     activeTab,
     hasCustomLayout,
     applicationMode,
+    cloudTerminalEnabled,
   ]);
 
   // Watch keybindings file for external changes

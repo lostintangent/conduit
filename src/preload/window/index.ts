@@ -548,6 +548,19 @@ const conduitAPI = {
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,
 
+  // Cloud terminal status
+  getCloudTerminalStatus: () =>
+    ipcRenderer.invoke("ui:get-cloud-terminal-status") as Promise<{
+      enabled: boolean;
+      reason?: string;
+    }>,
+
+  refreshCloudTerminalStatus: () =>
+    ipcRenderer.invoke("ui:refresh-cloud-terminal-status") as Promise<{
+      enabled: boolean;
+      reason?: string;
+    }>,
+
   browser: configureBrowserModule,
   cli: configureCliModule,
   updates: configureUpdatesModule,

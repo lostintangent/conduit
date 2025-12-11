@@ -64,6 +64,7 @@ import {
 import {
   activeTabAtom,
   applicationModeAtom,
+  cloudTerminalEnabledAtom,
   hyperTerminalsAtom,
   keybindingsAtom,
   tabsAtom,
@@ -83,6 +84,7 @@ export function App() {
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setKeybindings = useSetAtom(keybindingsAtom);
+  const setCloudTerminalEnabled = useSetAtom(cloudTerminalEnabledAtom);
   const hyperTerminals = useAtomValue(hyperTerminalsAtom);
 
   const userSettings = useUserSettings();
@@ -217,6 +219,13 @@ export function App() {
   useEffect(() => {
     registerDefaultPreCommands();
   }, []);
+
+  // Load cloud terminal enabled status on startup
+  useEffect(() => {
+    api.getCloudTerminalStatus().then((status) => {
+      setCloudTerminalEnabled(status.enabled);
+    });
+  }, [setCloudTerminalEnabled]);
 
   useKeybindingDispatch(
     commandSystem?.commandRegistry,
