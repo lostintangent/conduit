@@ -17,11 +17,7 @@ import {
   type VMGitSyncState,
 } from "../../vm/store";
 import { resolveShell, spawnTerminalProcess } from "../pty";
-import type {
-  CreateTerminalOptions,
-  SendToRendererFn,
-  TerminalInstance,
-} from "../types";
+import type { SendToRendererFn, TerminalInstance } from "../types";
 
 export async function createTerminal(
   sendToRenderer: SendToRendererFn,
