@@ -602,6 +602,7 @@ export function FileTreeChanges({
         key={path}
         path={path}
         status={status}
+        cwd={cwd}
         isSelected={pathsEqual(selectedRelativePath, path)}
         isMultiSelected={multiSelectedPaths.has(path)}
         isStaged={isStaged}
@@ -630,6 +631,7 @@ export function FileTreeChanges({
           <NestedFolderItem
             key={folder.path}
             folder={folder}
+            cwd={cwd}
             expandedFolders={expandedFolders}
             onToggleFolder={toggleFolder}
             selectedPath={selectedRelativePath}
@@ -647,6 +649,7 @@ export function FileTreeChanges({
             <NestedFileItem
               key={file.path}
               file={file}
+              cwd={cwd}
               isSelected={pathsEqual(selectedRelativePath, file.path)}
               isMultiSelected={multiSelectedPaths.has(file.path)}
               isStaged={isStaged}

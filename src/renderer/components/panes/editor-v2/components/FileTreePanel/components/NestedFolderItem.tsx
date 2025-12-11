@@ -14,6 +14,8 @@ import type { FolderNode } from "../utils/types";
 export interface NestedFolderItemProps {
   /** Folder node with path, name, files, and subfolders */
   folder: FolderNode;
+  /** Working directory (for building absolute path in tooltip) */
+  cwd: string;
   /** Set of expanded folder paths */
   expandedFolders: Set<string>;
   /** Toggle folder expansion */
@@ -40,6 +42,7 @@ export interface NestedFolderItemProps {
 
 export function NestedFolderItem({
   folder,
+  cwd,
   expandedFolders,
   onToggleFolder,
   selectedPath,
@@ -135,6 +138,7 @@ export function NestedFolderItem({
             <NestedFolderItem
               key={subfolder.path}
               folder={subfolder}
+              cwd={cwd}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
               selectedPath={selectedPath}
@@ -152,6 +156,7 @@ export function NestedFolderItem({
             <NestedFileItem
               key={file.path}
               file={file}
+              cwd={cwd}
               isSelected={pathsEqual(selectedPath, file.path)}
               isMultiSelected={multiSelectedPaths.has(file.path)}
               isStaged={isStaged}
