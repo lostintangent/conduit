@@ -51,6 +51,9 @@ export interface UseExpandedFilesResult {
   /** Toggle a single file's expansion state */
   toggleFile: (path: string) => void;
 
+  /** Expand a single file (no-op if already expanded) */
+  expandFile: (path: string) => void;
+
   /** Expand all specified files */
   expandAll: (files: string[]) => void;
 
@@ -108,6 +111,18 @@ export function useExpandedFiles(
   }, []);
 
   /**
+   * Expand a single file (no-op if already expanded).
+   */
+  const expandFile = useCallback((path: string) => {
+    setExpandedFiles((prev) => {
+      if (prev.has(path)) return prev;
+      const next = new Set(prev);
+      next.add(path);
+      return next;
+    });
+  }, []);
+
+  /**
    * Expand all specified files.
    */
   const expandAll = useCallback((files: string[]) => {
@@ -139,6 +154,7 @@ export function useExpandedFiles(
   return {
     expandedFiles,
     toggleFile,
+    expandFile,
     expandAll,
     collapseAll,
     allExpanded,

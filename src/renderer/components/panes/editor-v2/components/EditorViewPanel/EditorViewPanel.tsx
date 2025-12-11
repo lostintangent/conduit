@@ -317,6 +317,7 @@ export function EditorViewPanel({
           git={git}
           baseBranch={baseBranch}
           onExitReview={onExitReview}
+          selectedFilePath={displayFilePath || undefined}
         />
       </div>
     );
@@ -428,6 +429,7 @@ export function EditorViewPanel({
             git={git}
             baseBranch={baseBranch}
             onExitReview={onExitReview}
+            selectedFilePath={displayFilePath || undefined}
           />
         ) : null}
       </div>

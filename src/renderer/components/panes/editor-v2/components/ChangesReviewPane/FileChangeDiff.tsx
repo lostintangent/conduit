@@ -26,7 +26,7 @@ import * as monaco from "monaco-editor";
 import {
   ChevronRight,
   ChevronDown,
-  File,
+  FileText,
   Plus,
   Minus,
   RotateCcw,
@@ -249,9 +249,9 @@ export function FileChangeDiff({
       {/* Collapsible Header */}
       <div
         className={cn(
-          "flex items-center gap-2 w-full py-2 px-3",
+          "flex items-center gap-2 w-full py-1 px-3",
           "hover:bg-accent/50 transition-colors",
-          "cursor-pointer",
+          "cursor-pointer text-[13px]",
         )}
         data-testid="file-change-diff-header"
       >
@@ -272,9 +272,15 @@ export function FileChangeDiff({
           >
             {/* Expand/Collapse Icon */}
             {isExpanded ? (
-              <ChevronDown className="flex-shrink-0 w-4 h-4" />
+              <ChevronDown
+                className="text-foreground flex-shrink-0"
+                size={12}
+              />
             ) : (
-              <ChevronRight className="flex-shrink-0 w-4 h-4" />
+              <ChevronRight
+                className="text-foreground flex-shrink-0"
+                size={12}
+              />
             )}
 
             {/* Dirty indicator */}
@@ -287,10 +293,13 @@ export function FileChangeDiff({
             )}
 
             {/* File Icon */}
-            <File className="flex-shrink-0 w-4 h-4 text-muted-foreground" />
+            <FileText
+              className="flex-shrink-0 text-muted-foreground"
+              size={12}
+            />
 
             {/* File Path */}
-            <span className="truncate text-sm" title={filePath}>
+            <span className="truncate" title={filePath}>
               {filePath}
             </span>
           </div>

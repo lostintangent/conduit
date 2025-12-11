@@ -27,8 +27,12 @@ import { cn } from "@/utils";
 import type { Branch } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorViewPanel, FileTreePanel, TreeResizer } from "./components";
-import { useEditorTheme, useResponsiveLayout } from "./hooks";
-import type { FileNode, TreeViewMode, ViewMode } from "./types";
+import {
+  useEditorTheme,
+  useResponsiveLayout,
+  useReviewModeState,
+} from "./hooks";
+import type { FileNode, TreeViewMode } from "./types";
 import { detectLanguage } from "./utils/languageDetection";
 
 /**
@@ -218,8 +222,16 @@ export function EditorPaneV2({
     return null;
   });
 
-  // View mode for editor panel
-  const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
+  // Review mode state management
+  const {
+    viewMode,
+    isReviewMode,
+    enterReviewMode,
+    exitReviewMode,
+    setViewMode,
+    setViewModePreservingReview,
+    handleTreeViewModeTransition,
+  } = useReviewModeState();
 
   // Changes view mode (flat or nested) for FileTreeChanges
   const [changesViewMode, setChangesViewMode] = useState<"flat" | "nested">(
@@ -569,23 +581,24 @@ export function EditorPaneV2({
         setPanelView("editor");
       }
 
-      // Set initial view mode based on git status and user preference
-      // Only "modified" files get diff view option, not "added" files (added files have no base to diff against)
-      // Note: gitStatus uses relative paths, so we need to convert the absolute file.path
-      const relativePath = file.path.startsWith(currentCwd)
-        ? file.path.slice(currentCwd.length).replace(/^\//, "")
-        : file.path;
-      const fileStatus = gitStatus?.get(relativePath);
-      if (fileStatus?.status === "modified" && preferDiffForModified) {
-        // User prefers diff view for modified files
-        setViewMode({
-          type: "diff",
-          filePath: file.path,
-          baseBranch: baseBranch ?? undefined,
-        });
-      } else {
-        setViewMode({ type: "editor" });
-      }
+      // Update view mode, but preserve review mode if active
+      // (review mode handles file selection by scrolling to the file)
+      setViewModePreservingReview(() => {
+        // Determine the appropriate view mode based on git status and user preference
+        // Only "modified" files get diff view option, not "added" files
+        const relativePath = file.path.startsWith(currentCwd)
+          ? file.path.slice(currentCwd.length).replace(/^\//, "")
+          : file.path;
+        const fileStatus = gitStatus?.get(relativePath);
+        if (fileStatus?.status === "modified" && preferDiffForModified) {
+          return {
+            type: "diff",
+            filePath: file.path,
+            baseBranch: baseBranch ?? undefined,
+          };
+        }
+        return { type: "editor" };
+      });
 
       // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
       // File selection within the editor just updates selectedFile state
@@ -620,11 +633,13 @@ export function EditorPaneV2({
       baseBranch,
       currentCwd,
       preferDiffForModified,
+      setViewModePreservingReview,
     ],
   );
 
   /**
    * Handle tree view mode change (files/changes).
+   * Delegates to useReviewModeState for review mode transitions.
    */
   const handleTreeViewModeChange = useCallback(
     (mode: TreeViewMode) => {
@@ -635,8 +650,11 @@ export function EditorPaneV2({
 
       // Notify parent - map internal mode to external format
       onTreeModeChange?.(mode === "changes" ? "changes" : "all");
+
+      // Handle review mode transitions (exit/restore)
+      handleTreeViewModeTransition(mode);
     },
-    [onTreeModeChange],
+    [onTreeModeChange, handleTreeViewModeTransition],
   );
 
   /**
@@ -782,19 +800,8 @@ export function EditorPaneV2({
    * Switches the view mode to show all changes with inline diffs.
    */
   const handleReviewChanges = useCallback(() => {
-    setViewMode({
-      type: "changesReview",
-      baseBranch: baseBranch ?? undefined,
-    });
-  }, [baseBranch]);
-
-  /**
-   * Handle exiting changes review mode.
-   * Returns to the regular editor view.
-   */
-  const handleExitReviewMode = useCallback(() => {
-    setViewMode({ type: "editor" });
-  }, []);
+    enterReviewMode(baseBranch ?? undefined);
+  }, [baseBranch, enterReviewMode]);
 
   /**
    * Determine if the current file is git-modified (eligible for diff toggle).
@@ -969,7 +976,7 @@ export function EditorPaneV2({
           changesViewMode={changesViewMode}
           onChangesViewModeChange={setChangesViewMode}
           // Review Mode Props
-          isReviewModeActive={viewMode.type === "changesReview"}
+          isReviewModeActive={isReviewMode}
           onReviewChanges={handleReviewChanges}
         />
       </div>
@@ -1008,7 +1015,7 @@ export function EditorPaneV2({
           showDiffToggle={isCurrentFileGitModified}
           isDiffMode={viewMode.type === "diff"}
           onToggleDiffMode={handleToggleDiffMode}
-          onExitReview={handleExitReviewMode}
+          onExitReview={exitReviewMode}
         />
       </div>
 

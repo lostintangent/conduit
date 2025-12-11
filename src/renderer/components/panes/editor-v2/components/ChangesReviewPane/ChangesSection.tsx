@@ -104,21 +104,21 @@ export function ChangesSection({
       {/* Section Header */}
       <div
         className={cn(
-          "flex items-center gap-2 w-full py-2 px-3",
-          "bg-muted/50 hover:bg-muted/70 transition-colors",
+          "flex items-center gap-2 w-full py-1 px-3",
+          "bg-elevated hover:bg-elevated/80 transition-colors",
           "border-b border-border",
         )}
       >
         {/* Clickable expand/collapse area */}
         <button
-          className="flex items-center gap-2 flex-1 text-sm font-medium text-left"
+          className="flex items-center gap-2 flex-1 text-[13px] font-medium text-left"
           onClick={onToggle}
           data-testid="section-toggle"
         >
           {isExpanded ? (
-            <ChevronDown className="w-4 h-4 flex-shrink-0" />
+            <ChevronDown className="text-foreground flex-shrink-0" size={12} />
           ) : (
-            <ChevronRight className="w-4 h-4 flex-shrink-0" />
+            <ChevronRight className="text-foreground flex-shrink-0" size={12} />
           )}
           <span className={iconColorClass}>{icon}</span>
           <span>{title}</span>

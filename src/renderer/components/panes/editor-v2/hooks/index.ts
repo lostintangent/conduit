@@ -47,3 +47,5 @@ export type {
   UseDiffModeTransitionOptions,
   UseDiffModeTransitionResult,
 } from "./useDiffModeTransition";
+export { useReviewModeState } from "./useReviewModeState";
+export type { UseReviewModeStateResult } from "./useReviewModeState";

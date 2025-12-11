@@ -27,14 +27,14 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { GitCommit, Check, Minus } from "lucide-react";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
 import { ChangesFooter } from "./ChangesFooter";
-import { useExpandedFiles } from "./hooks";
+import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
@@ -48,6 +48,9 @@ export interface ChangesReviewPaneProps {
 
   /** Callback to exit review mode (optional) */
   onExitReview?: () => void;
+
+  /** Selected file path from tree (relative path) - will expand and scroll to this file */
+  selectedFilePath?: string;
 }
 
 /**
@@ -58,7 +61,10 @@ export function ChangesReviewPane({
   git,
   baseBranch,
   onExitReview,
+  selectedFilePath,
 }: ChangesReviewPaneProps) {
+  // Ref for the scrollable container
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   // ---------------------------------------------------------------------------
   // Git Status State
   // ---------------------------------------------------------------------------
@@ -125,7 +131,24 @@ export function ChangesReviewPane({
   // ---------------------------------------------------------------------------
 
   // Auto-expand files by default to match v1 behavior
-  const { expandedFiles, toggleFile } = useExpandedFiles(allFilePaths, true);
+  const { expandedFiles, toggleFile, expandFile } = useExpandedFiles(
+    allFilePaths,
+    true,
+  );
+
+  // ---------------------------------------------------------------------------
+  // Selected File Scroll & Expand (via hook)
+  // ---------------------------------------------------------------------------
+
+  useScrollToSelectedFile({
+    selectedFilePath,
+    scrollContainerRef,
+    stagedFiles,
+    unstagedFiles,
+    expandFile,
+    setStagedSectionExpanded,
+    setUnstagedSectionExpanded,
+  });
 
   // ---------------------------------------------------------------------------
   // Initial Load
@@ -354,7 +377,11 @@ export function ChangesReviewPane({
       />
 
       {/* Scrollable File List */}
-      <div className="flex-1 overflow-auto" data-testid="changes-list">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto"
+        data-testid="changes-list"
+      >
         {/* Staged Changes Section */}
         <ChangesSection
           title="Staged Changes"
