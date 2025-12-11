@@ -13,7 +13,7 @@ import (
 
 	"sandbox-conduit-server/git"
 	"sandbox-conduit-server/types"
-	"sandbox-conduit-server/workspace"
+	"sandbox-conduit-server/session"
 
 	"github.com/gorilla/websocket"
 )
@@ -65,7 +65,7 @@ type Client struct {
 	conn      *websocket.Conn
 	ctx       context.Context
 	cancel    context.CancelFunc
-	session   *workspace.Session
+	session   *session.Session
 	release   func() // Release the workspace session
 	writeMu   sync.Mutex // Protects writes to the connection
 	lastPong  time.Time  // Tracks last pong receipt for keepalive monitoring
@@ -74,7 +74,7 @@ type Client struct {
 
 // Server is the WebSocket server that manages per-client workspace sessions
 type Server struct {
-	manager          *workspace.Manager
+	manager          *session.Manager
 	defaultWorkspace string // Default workspace if client doesn't specify one
 	clients          map[*Client]bool
 	chunkManager     *git.ChunkedPatchManager // Manages chunked patch sessions
@@ -84,7 +84,7 @@ type Server struct {
 // NewServer creates a new server with workspace manager
 func NewServer(defaultWorkspace string) *Server {
 	return &Server{
-		manager:          workspace.NewManager(),
+		manager:          session.NewManager(),
 		defaultWorkspace: defaultWorkspace,
 		clients:          make(map[*Client]bool),
 		chunkManager:     git.NewChunkedPatchManager(),
@@ -436,7 +436,7 @@ type GitMostRecentCommittedFileParams struct {
 // Filesystem Handlers
 // ============================================================================
 
-func (s *Server) handleReadDirectory(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleReadDirectory(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p PathParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -465,7 +465,7 @@ func (s *Server) handleReadDirectory(session *workspace.Session, params json.Raw
 	return map[string]interface{}{"entries": entries}, nil
 }
 
-func (s *Server) handleStat(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleStat(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p PathParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -473,7 +473,7 @@ func (s *Server) handleStat(session *workspace.Session, params json.RawMessage) 
 	return session.Provider.Stat(p.Path)
 }
 
-func (s *Server) handleReadFile(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleReadFile(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p PathParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -486,7 +486,7 @@ func (s *Server) handleReadFile(session *workspace.Session, params json.RawMessa
 	return map[string]interface{}{"content": content}, nil
 }
 
-func (s *Server) handleWriteFile(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleWriteFile(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p WriteFileParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -504,7 +504,7 @@ func (s *Server) handleWriteFile(session *workspace.Session, params json.RawMess
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleCreateDirectory(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleCreateDirectory(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p PathParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -516,7 +516,7 @@ func (s *Server) handleCreateDirectory(session *workspace.Session, params json.R
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleDelete(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleDelete(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p DeleteParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -528,7 +528,7 @@ func (s *Server) handleDelete(session *workspace.Session, params json.RawMessage
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleRename(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleRename(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p RenameParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -540,7 +540,7 @@ func (s *Server) handleRename(session *workspace.Session, params json.RawMessage
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleExists(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleExists(session *session.Session, params json.RawMessage) (interface{}, error) {
 	var p PathParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -552,14 +552,14 @@ func (s *Server) handleExists(session *workspace.Session, params json.RawMessage
 // Git Handlers
 // ============================================================================
 
-func (s *Server) handleGitStatus(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitStatus(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
 	return session.GitProvider.GetStatus()
 }
 
-func (s *Server) handleGitFileStatus(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitFileStatus(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -570,7 +570,7 @@ func (s *Server) handleGitFileStatus(session *workspace.Session, params json.Raw
 	return session.GitProvider.GetFileStatus(p.Path)
 }
 
-func (s *Server) handleGitBranch(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitBranch(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -581,7 +581,7 @@ func (s *Server) handleGitBranch(session *workspace.Session, params json.RawMess
 	return map[string]string{"branch": branch}, nil
 }
 
-func (s *Server) handleGitBranches(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitBranches(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -592,7 +592,7 @@ func (s *Server) handleGitBranches(session *workspace.Session, params json.RawMe
 	return map[string]interface{}{"branches": branches}, nil
 }
 
-func (s *Server) handleGitDiff(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitDiff(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -607,7 +607,7 @@ func (s *Server) handleGitDiff(session *workspace.Session, params json.RawMessag
 	return map[string]string{"diff": diff}, nil
 }
 
-func (s *Server) handleGitFileAtRef(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitFileAtRef(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -622,7 +622,7 @@ func (s *Server) handleGitFileAtRef(session *workspace.Session, params json.RawM
 	return map[string]string{"content": content}, nil
 }
 
-func (s *Server) handleGitStage(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitStage(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -639,7 +639,7 @@ func (s *Server) handleGitStage(session *workspace.Session, params json.RawMessa
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleGitUnstage(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitUnstage(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -656,7 +656,7 @@ func (s *Server) handleGitUnstage(session *workspace.Session, params json.RawMes
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleGitCommit(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitCommit(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -674,7 +674,7 @@ func (s *Server) handleGitCommit(session *workspace.Session, params json.RawMess
 	return map[string]interface{}{"commit": commit}, nil
 }
 
-func (s *Server) handleGitCheckout(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitCheckout(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -691,7 +691,7 @@ func (s *Server) handleGitCheckout(session *workspace.Session, params json.RawMe
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleGitRevert(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitRevert(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -708,7 +708,7 @@ func (s *Server) handleGitRevert(session *workspace.Session, params json.RawMess
 	return map[string]bool{"success": true}, nil
 }
 
-func (s *Server) handleGitHasUncommittedChanges(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitHasUncommittedChanges(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -719,7 +719,7 @@ func (s *Server) handleGitHasUncommittedChanges(session *workspace.Session, para
 	return map[string]bool{"hasChanges": hasChanges}, nil
 }
 
-func (s *Server) handleGitHasUnpushedCommits(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitHasUnpushedCommits(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -730,7 +730,7 @@ func (s *Server) handleGitHasUnpushedCommits(session *workspace.Session, params 
 	return map[string]bool{"hasUnpushed": hasUnpushed}, nil
 }
 
-func (s *Server) handleGitChangedFilesFromBranch(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitChangedFilesFromBranch(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -745,14 +745,14 @@ func (s *Server) handleGitChangedFilesFromBranch(session *workspace.Session, par
 	return map[string]interface{}{"files": files}, nil
 }
 
-func (s *Server) handleGitUncommittedDiffStats(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitUncommittedDiffStats(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
 	return session.GitProvider.GetUncommittedDiffStats()
 }
 
-func (s *Server) handleGitMostRecentDirtyFile(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitMostRecentDirtyFile(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -763,7 +763,7 @@ func (s *Server) handleGitMostRecentDirtyFile(session *workspace.Session, params
 	return map[string]interface{}{"file": file}, nil
 }
 
-func (s *Server) handleGitStatusFromBranch(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitStatusFromBranch(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -774,7 +774,7 @@ func (s *Server) handleGitStatusFromBranch(session *workspace.Session, params js
 	return session.GitProvider.GetStatusFromBranch(p.BaseBranch)
 }
 
-func (s *Server) handleGitMostRecentCommittedFile(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitMostRecentCommittedFile(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -793,7 +793,7 @@ func (s *Server) handleGitMostRecentCommittedFile(session *workspace.Session, pa
 	return map[string]interface{}{"file": file}, nil
 }
 
-func (s *Server) handleGitApplyPatches(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitApplyPatches(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}
@@ -840,7 +840,7 @@ func (s *Server) handleGitSendPatchChunk(params json.RawMessage) (interface{}, e
 }
 
 // handleGitFinalizeChunkedPatch assembles chunks and applies the patches
-func (s *Server) handleGitFinalizeChunkedPatch(session *workspace.Session, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleGitFinalizeChunkedPatch(session *session.Session, params json.RawMessage) (interface{}, error) {
 	if session.GitProvider == nil {
 		return nil, fmt.Errorf("not a git repository")
 	}

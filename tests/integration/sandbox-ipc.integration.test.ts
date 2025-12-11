@@ -1,35 +1,38 @@
 /**
  * Integration tests for conduit-server
  *
- * By default, tests run against Docker container.
- *
- * NOTE: Go server direct testing requires the `workspace` Go package which is
- * currently not in the repository. Once added, set SANDBOX_USE_GO=1 for faster tests.
+ * These tests can run in two modes:
+ * 1. Go mode (default, fast): Runs against the Go server binary directly
+ * 2. Docker mode: Runs against the sandbox Docker container
  *
  * Usage:
- *   npm run test:sandbox          # Docker container (default)
- *   npm run test:sandbox:docker   # Explicitly Docker
+ *   npm run test:sandbox           # Fast - uses Go server
+ *   npm run test:sandbox:docker    # Slow - uses Docker container
  *
- * Or start the server manually first:
- *   npm run test:sandbox:start    # Start Docker container
+ * Or manually:
+ *   SANDBOX_USE_DOCKER=1 npm run test:sandbox  # Force Docker mode
  */
 
-import { execSync, spawn } from "child_process";
+import { ChildProcess, execSync, spawn } from "child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, resolve } from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
-// Configuration - Docker is default since Go workspace package is not in repo
-const USE_DOCKER = process.env.SANDBOX_USE_GO !== "1";
+// Configuration - can be overridden by environment variables
+const USE_DOCKER = process.env.SANDBOX_USE_DOCKER === "1";
 const CONTAINER_NAME = "conduit-sandbox-test";
 const IMAGE_NAME = "conduit-sandbox";
-const PORT = 9876;
+const PORT = parseInt(process.env.SANDBOX_PORT || "9876", 10);
 const SANDBOX_URL = `ws://localhost:${PORT}/ws`;
 
-// Dynamic workspace path - set during test setup
-let WORKSPACE_PATH = "/workspace";
+// Project paths for Go server
+const PROJECT_ROOT = resolve(__dirname, "../..");
+const GO_SERVER_DIR = join(
+  PROJECT_ROOT,
+  "build/sandbox/sandbox-conduit-server",
+);
 
 interface WebSocketMessage {
   type: "request" | "response" | "error" | "event";
@@ -304,6 +307,81 @@ function stopContainer(): void {
   }
 }
 
+// Build the Go server binary
+async function buildGoServer(): Promise<void> {
+  console.log("🔨 Building Go server...");
+  return new Promise((resolve, reject) => {
+    const build = spawn("go", ["build", "-o", "conduit-server", "."], {
+      cwd: GO_SERVER_DIR,
+      stdio: "inherit",
+    });
+    build.on("close", (code) => {
+      if (code === 0) {
+        console.log("✅ Go server built successfully");
+        resolve();
+      } else {
+        reject(new Error(`Go build failed with code ${code}`));
+      }
+    });
+    build.on("error", reject);
+  });
+}
+
+// Start the Go server directly
+let goServerProcess: ChildProcess | null = null;
+
+async function startGoServer(workspaceDir: string): Promise<void> {
+  // Kill any existing process on the port
+  try {
+    execSync(`lsof -ti :${PORT} | xargs kill -9`, { stdio: "ignore" });
+  } catch {
+    // No process on port
+  }
+
+  console.log("🚀 Starting Go server...");
+  goServerProcess = spawn(
+    "./conduit-server",
+    ["--port", PORT.toString(), "--workspace", workspaceDir],
+    {
+      cwd: GO_SERVER_DIR,
+      stdio: "inherit",
+    },
+  );
+
+  goServerProcess.on("error", (err) => {
+    console.error("Go server error:", err);
+  });
+
+  goServerProcess.on("exit", (code) => {
+    if (code !== 0 && code !== null) {
+      console.error(`Go server exited with code ${code}`);
+    }
+    goServerProcess = null;
+  });
+}
+
+// Stop the Go server
+function stopGoServer(): void {
+  console.log("🛑 Stopping Go server...");
+  if (goServerProcess) {
+    // Send SIGTERM for graceful shutdown
+    goServerProcess.kill("SIGTERM");
+    goServerProcess = null;
+    console.log("✅ Go server stopped");
+  }
+  // Also clean up any orphaned processes
+  try {
+    execSync(
+      `lsof -ti :${PORT} | xargs kill -15 2>/dev/null || lsof -ti :${PORT} | xargs kill -9`,
+      {
+        stdio: "ignore",
+      },
+    );
+  } catch {
+    // No process on port
+  }
+}
+
 // Create a temporary workspace with test files
 function createTestWorkspace(): string {
   const workspaceDir = mkdtempSync(join(tmpdir(), "sandbox-test-"));
@@ -320,103 +398,39 @@ function createTestWorkspace(): string {
   return workspaceDir;
 }
 
-// ============================================================================
-// Go Server Functions (default - fast)
-// ============================================================================
-
-let goServerProcess: ReturnType<typeof spawn> | null = null;
-
-// Build and start the Go server directly
-async function startGoServer(workspaceDir: string): Promise<void> {
-  const serverDir = join(
-    __dirname,
-    "../../build/sandbox/sandbox-conduit-server",
-  );
-
-  console.log("🔨 Building Go server...");
-
-  // Build the server
-  try {
-    execSync("go build -o conduit-server .", {
-      cwd: serverDir,
-      stdio: "inherit",
-    });
-  } catch {
-    throw new Error("Failed to build Go server. Is Go installed?");
-  }
-
-  console.log("🚀 Starting Go server...");
-
-  // Kill any existing process on the port
-  try {
-    execSync(`lsof -ti :${PORT} | xargs kill -9`, { stdio: "ignore" });
-  } catch {
-    // No process to kill
-  }
-
-  // Start the server
-  goServerProcess = spawn(
-    "./conduit-server",
-    ["-port", String(PORT), "-workspace", workspaceDir],
-    {
-      cwd: serverDir,
-      stdio: "inherit",
-      detached: false,
-    },
-  );
-
-  goServerProcess.on("error", (err) => {
-    console.error("Go server error:", err);
-  });
+// Get the workspace path for test assertions
+function getTestWorkspacePath(workspaceDir: string): string {
+  // In Docker mode, workspace is mounted at /workspace
+  // In Go mode, we use the actual temp directory path
+  return USE_DOCKER ? "/workspace" : workspaceDir;
 }
 
-// Stop the Go server
-function stopGoServer(): void {
-  console.log("🛑 Stopping Go server...");
-  if (goServerProcess) {
-    goServerProcess.kill("SIGTERM");
-    goServerProcess = null;
-  }
-  // Also kill by port as backup
-  try {
-    execSync(`lsof -ti :${PORT} | xargs kill -9`, { stdio: "ignore" });
-  } catch {
-    // Ignore
-  }
-  console.log("✅ Go server stopped");
-}
-
-// ============================================================================
-// Test Suite
-// ============================================================================
-
+// Integration tests for conduit-server
+// Default: runs against Go server (fast)
+// With SANDBOX_USE_DOCKER=1: runs against Docker container
 describe("Sandbox IPC Integration Tests", () => {
   let client: SandboxClient;
   let workspaceDir: string;
-  let weStartedServer = false;
+  let testWorkspacePath: string; // The path to use in test assertions
 
   beforeAll(async () => {
-    console.log(
-      `\n🧪 Running in ${USE_DOCKER ? "Docker" : "Go server"} mode\n`,
-    );
+    console.log(`🔧 Running in ${USE_DOCKER ? "Docker" : "Go"} mode`);
 
-    // Check if server is already running
+    // Check if server is already running (started externally)
     const serverRunning = await waitForSandbox(3, 500);
 
     if (!serverRunning) {
       // Create test workspace
       workspaceDir = createTestWorkspace();
-      weStartedServer = true;
 
       if (USE_DOCKER) {
-        // Docker mode
+        // Docker mode: build image and start container
         await buildDockerImage();
         await startContainer(workspaceDir);
-        WORKSPACE_PATH = "/workspace";
       } else {
-        // Go server mode (default)
+        // Go mode: build and start server directly
+        await buildGoServer();
         await startGoServer(workspaceDir);
-        WORKSPACE_PATH = workspaceDir;
       }
 
       // Wait for server to be ready
@@ -426,14 +440,10 @@ describe("Sandbox IPC Integration Tests", () => {
       }
     } else {
       console.log("✅ Using already running server");
-      // When server is pre-started, use /workspace for Docker or detect workspace
-      if (USE_DOCKER) {
-        WORKSPACE_PATH = "/workspace";
-      } else {
-        // For pre-started Go server, assume /workspace or temp dir
-        WORKSPACE_PATH = process.env.SANDBOX_WORKSPACE || "/workspace";
-      }
     }
+
+    // Set the workspace path for test assertions
+    testWorkspacePath = getTestWorkspacePath(workspaceDir || "/workspace");
 
     // Connect the client
     client = new SandboxClient();
@@ -442,8 +452,8 @@ describe("Sandbox IPC Integration Tests", () => {
 
   afterAll(() => {
     client?.close();
-    // Only stop server if we started it
-    if (weStartedServer) {
+    // Only stop server if we started it (workspaceDir is set)
+    if (workspaceDir) {
       if (USE_DOCKER) {
         stopContainer();
       } else {
@@ -452,12 +462,16 @@ describe("Sandbox IPC Integration Tests", () => {
     }
   });
 
+  // Helper function to get workspace path (uses testWorkspacePath from closure)
+  const wsPath = (subpath?: string) =>
+    subpath ? `${testWorkspacePath}/${subpath}` : testWorkspacePath;
+
   describe("File System Operations", () => {
     it("should read a directory", async () => {
       const result = await client.request<ReadDirectoryResult>(
         "fs.readDirectory",
         {
-          path: WORKSPACE_PATH,
+          path: wsPath(),
         },
       );
 
@@ -473,7 +487,7 @@ describe("Sandbox IPC Integration Tests", () => {
 
     it("should stat a file", async () => {
       const result = await client.request<StatResult>("fs.stat", {
-        path: `${WORKSPACE_PATH}/test-file.txt`,
+        path: `${wsPath()}/test-file.txt`,
       });
 
       expect(result).toBeDefined();
@@ -483,7 +497,7 @@ describe("Sandbox IPC Integration Tests", () => {
 
     it("should read a file", async () => {
       const result = await client.request<ReadFileResult>("fs.readFile", {
-        path: `${WORKSPACE_PATH}/test-file.txt`,
+        path: `${wsPath()}/test-file.txt`,
       });
 
       expect(result).toBeDefined();
@@ -497,13 +511,13 @@ describe("Sandbox IPC Integration Tests", () => {
       const testContent = `Test content written at ${Date.now()}`;
 
       await client.request("fs.writeFile", {
-        path: `${WORKSPACE_PATH}/write-test.txt`,
+        path: `${wsPath()}/write-test.txt`,
         content: encodeBase64(testContent),
       });
 
       // Verify by reading it back
       const result = await client.request<ReadFileResult>("fs.readFile", {
-        path: `${WORKSPACE_PATH}/write-test.txt`,
+        path: `${wsPath()}/write-test.txt`,
       });
 
       const decoded = decodeBase64(result.content);
@@ -512,11 +526,11 @@ describe("Sandbox IPC Integration Tests", () => {
 
     it("should create a directory", async () => {
       await client.request("fs.createDirectory", {
-        path: `${WORKSPACE_PATH}/new-test-dir`,
+        path: `${wsPath()}/new-test-dir`,
       });
 
       const result = await client.request<StatResult>("fs.stat", {
-        path: `${WORKSPACE_PATH}/new-test-dir`,
+        path: `${wsPath()}/new-test-dir`,
       });
 
       expect(result.type).toBe("directory");
@@ -524,12 +538,12 @@ describe("Sandbox IPC Integration Tests", () => {
 
     it("should check if a file exists", async () => {
       const existsResult = await client.request<ExistsResult>("fs.exists", {
-        path: `${WORKSPACE_PATH}/test-file.txt`,
+        path: `${wsPath()}/test-file.txt`,
       });
       expect(existsResult.exists).toBe(true);
 
       const notExistsResult = await client.request<ExistsResult>("fs.exists", {
-        path: `${WORKSPACE_PATH}/non-existent-file.txt`,
+        path: `${wsPath()}/non-existent-file.txt`,
       });
       expect(notExistsResult.exists).toBe(false);
     });
@@ -537,25 +551,25 @@ describe("Sandbox IPC Integration Tests", () => {
     it("should rename a file", async () => {
       // Create a file to rename
       await client.request("fs.writeFile", {
-        path: `${WORKSPACE_PATH}/to-rename.txt`,
+        path: `${wsPath()}/to-rename.txt`,
         content: encodeBase64("rename me"),
       });
 
       // Rename it
       await client.request("fs.rename", {
-        oldPath: `${WORKSPACE_PATH}/to-rename.txt`,
-        newPath: `${WORKSPACE_PATH}/renamed.txt`,
+        oldPath: `${wsPath()}/to-rename.txt`,
+        newPath: `${wsPath()}/renamed.txt`,
       });
 
       // Verify old path doesn't exist
       const oldExists = await client.request<ExistsResult>("fs.exists", {
-        path: `${WORKSPACE_PATH}/to-rename.txt`,
+        path: `${wsPath()}/to-rename.txt`,
       });
       expect(oldExists.exists).toBe(false);
 
       // Verify new path exists
       const newExists = await client.request<ExistsResult>("fs.exists", {
-        path: `${WORKSPACE_PATH}/renamed.txt`,
+        path: `${wsPath()}/renamed.txt`,
       });
       expect(newExists.exists).toBe(true);
     });
@@ -563,18 +577,18 @@ describe("Sandbox IPC Integration Tests", () => {
     it("should delete a file", async () => {
       // Create a file to delete
       await client.request("fs.writeFile", {
-        path: `${WORKSPACE_PATH}/to-delete.txt`,
+        path: `${wsPath()}/to-delete.txt`,
         content: encodeBase64("delete me"),
       });
 
       // Delete it
       await client.request("fs.delete", {
-        path: `${WORKSPACE_PATH}/to-delete.txt`,
+        path: `${wsPath()}/to-delete.txt`,
       });
 
       // Verify it's gone
       const exists = await client.request<ExistsResult>("fs.exists", {
-        path: `${WORKSPACE_PATH}/to-delete.txt`,
+        path: `${wsPath()}/to-delete.txt`,
       });
       expect(exists.exists).toBe(false);
     });
@@ -583,7 +597,7 @@ describe("Sandbox IPC Integration Tests", () => {
       const result = await client.request<ReadDirectoryResult>(
         "fs.readDirectory",
         {
-          path: `${WORKSPACE_PATH}/test-dir`,
+          path: `${wsPath()}/test-dir`,
         },
       );
 
@@ -601,7 +615,7 @@ describe("Sandbox IPC Integration Tests", () => {
     it("should return error for non-existent file read", async () => {
       await expect(
         client.request("fs.readFile", {
-          path: `${WORKSPACE_PATH}/definitely-does-not-exist.txt`,
+          path: `${wsPath()}/definitely-does-not-exist.txt`,
         }),
       ).rejects.toThrow();
     });
@@ -624,7 +638,7 @@ describe("Sandbox IPC Integration Tests", () => {
   describe("Advanced File Operations", () => {
     it("should stat a directory", async () => {
       const result = await client.request<StatResult>("fs.stat", {
-        path: `${WORKSPACE_PATH}/test-dir`,
+        path: `${wsPath()}/test-dir`,
       });
 
       expect(result).toBeDefined();
@@ -634,28 +648,28 @@ describe("Sandbox IPC Integration Tests", () => {
     it("should delete a directory recursively", async () => {
       // Create directory structure to delete
       await client.request("fs.createDirectory", {
-        path: `${WORKSPACE_PATH}/dir-to-delete/nested`,
+        path: `${wsPath()}/dir-to-delete/nested`,
       });
 
       await client.request("fs.writeFile", {
-        path: `${WORKSPACE_PATH}/dir-to-delete/file1.txt`,
+        path: `${wsPath()}/dir-to-delete/file1.txt`,
         content: "content1",
       });
 
       await client.request("fs.writeFile", {
-        path: `${WORKSPACE_PATH}/dir-to-delete/nested/file2.txt`,
+        path: `${wsPath()}/dir-to-delete/nested/file2.txt`,
         content: "content2",
       });
 
       // Delete recursively
       await client.request("fs.delete", {
-        path: `${WORKSPACE_PATH}/dir-to-delete`,
+        path: `${wsPath()}/dir-to-delete`,
         recursive: true,
       });
 
       // Verify it's gone
       const exists = await client.request<ExistsResult>("fs.exists", {
-        path: `${WORKSPACE_PATH}/dir-to-delete`,
+        path: `${wsPath()}/dir-to-delete`,
       });
       expect(exists.exists).toBe(false);
     });
@@ -917,7 +931,7 @@ describe("Sandbox IPC Integration Tests", () => {
 
       // Make a real request to verify connection is functional
       const result = await idleClient.request<ExistsResult>("fs.exists", {
-        path: `${WORKSPACE_PATH}/test-file.txt`,
+        path: `${wsPath()}/test-file.txt`,
       });
 
       expect(result.exists).toBe(true);
