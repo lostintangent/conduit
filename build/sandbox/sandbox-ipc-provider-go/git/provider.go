@@ -84,7 +84,9 @@ func (p *Provider) runGit(args ...string) (string, error) {
 // GetStatus returns the complete repository status.
 func (p *Provider) GetStatus() (*types.GitStatus, error) {
 	// Get porcelain status
-	output, err := p.runGit("status", "--porcelain=v2", "--branch")
+	// --untracked-files=all ensures we list individual files in untracked directories
+	// instead of just showing the directory with a trailing slash
+	output, err := p.runGit("status", "--porcelain=v2", "--branch", "--untracked-files=all")
 	if err != nil {
 		return nil, err
 	}

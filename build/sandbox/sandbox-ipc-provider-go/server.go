@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,8 +15,7 @@ import (
 	"sandbox-ipc-provider-go/types"
 	"sandbox-ipc-provider-go/workspace"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
+	"github.com/gorilla/websocket"
 )
 
 // Message types for WebSocket protocol
@@ -51,6 +51,15 @@ type WebSocketMessage struct {
 	Data   interface{} `json:"data,omitempty"`
 }
 
+// WebSocket upgrader with permissive settings for cross-origin connections
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins
+	},
+}
+
 // Client represents a connected WebSocket client with its workspace session
 type Client struct {
 	conn      *websocket.Conn
@@ -58,6 +67,8 @@ type Client struct {
 	cancel    context.CancelFunc
 	session   *workspace.Session
 	release   func() // Release the workspace session
+	writeMu   sync.Mutex // Protects writes to the connection
+	lastPong  time.Time  // Tracks last pong receipt for keepalive monitoring
 	mu        sync.Mutex
 }
 
@@ -105,7 +116,8 @@ func (s *Server) Start(addr string) error {
 func (s *Server) Stop() {
 	s.mu.Lock()
 	for client := range s.clients {
-		client.conn.Close(websocket.StatusGoingAway, "server shutdown")
+		client.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, "server shutdown"))
+		client.conn.Close()
 		if client.release != nil {
 			client.release()
 		}
@@ -115,11 +127,9 @@ func (s *Server) Stop() {
 
 // handleWebSocket handles new WebSocket connections
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true,
-	})
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket accept error: %v", err)
+		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
 
@@ -150,7 +160,8 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		s.sendEvent(client, "error", map[string]string{
 			"message": fmt.Sprintf("Failed to open workspace: %v", err),
 		})
-		conn.Close(websocket.StatusInternalError, "workspace error")
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "workspace error"))
+		conn.Close()
 		return
 	}
 
@@ -169,8 +180,55 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		"hasGit":       session.GitProvider != nil,
 	})
 
+	// Start ping loop to keep connection alive
+	go s.pingLoop(client)
+
 	// Handle messages (blocks until disconnect)
 	s.handleConnection(client)
+}
+
+// pingLoop sends periodic pings to keep the WebSocket connection alive.
+// This prevents proxies and load balancers from closing idle connections.
+// Pongs are received asynchronously via SetPongHandler in handleConnection.
+func (s *Server) pingLoop(client *Client) {
+	const pingInterval = 15 * time.Second
+	const pongTimeout = 45 * time.Second // Allow 3 ping cycles before considering connection dead
+
+	ticker := time.NewTicker(pingInterval)
+	defer ticker.Stop()
+
+	// Initialize lastPong to now so we don't immediately fail
+	client.mu.Lock()
+	client.lastPong = time.Now()
+	client.mu.Unlock()
+
+	for {
+		select {
+		case <-client.ctx.Done():
+			return
+		case <-ticker.C:
+			// Check if we've received a pong recently
+			client.mu.Lock()
+			pongAge := time.Since(client.lastPong)
+			client.mu.Unlock()
+
+			if pongAge > pongTimeout {
+				log.Printf("No pong received in %v, closing connection", pongAge)
+				client.cancel()
+				return
+			}
+
+			// Send ping
+			client.writeMu.Lock()
+			err := client.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(pingInterval))
+			client.writeMu.Unlock()
+
+			if err != nil {
+				log.Printf("Ping write failed: %v", err)
+				// Don't immediately close - let pong timeout handle it
+			}
+		}
+	}
 }
 
 // handleConnection processes messages from a WebSocket connection
@@ -187,28 +245,39 @@ func (s *Server) handleConnection(client *Client) {
 		}
 
 		client.cancel()
-		client.conn.CloseNow()
+		client.conn.Close()
 		log.Printf("Client disconnected from workspace: %s", client.session.WorkspacePath)
 	}()
 
-	for {
-		ctx, cancel := context.WithTimeout(client.ctx, 60*time.Second)
-		_, data, err := client.conn.Read(ctx)
-		cancel()
+	// Set up pong handler to track connection liveness
+	client.conn.SetPongHandler(func(appData string) error {
+		client.mu.Lock()
+		client.lastPong = time.Now()
+		client.mu.Unlock()
+		return nil
+	})
 
+	for {
+		messageType, data, err := client.conn.ReadMessage()
 		if err != nil {
-			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
-				websocket.CloseStatus(err) == websocket.StatusGoingAway {
-				return
+			// Check for normal closure
+			if closeErr, ok := err.(*websocket.CloseError); ok {
+				if closeErr.Code == websocket.CloseNormalClosure ||
+					closeErr.Code == websocket.CloseGoingAway {
+					return
+				}
 			}
+			// Check if we initiated the close
 			if client.ctx.Err() != nil {
 				return
 			}
-			if err == context.DeadlineExceeded {
-				continue
-			}
 			log.Printf("WebSocket read error: %v", err)
 			return
+		}
+
+		// Only process text messages
+		if messageType != websocket.TextMessage {
+			continue
 		}
 
 		var req Request
@@ -423,7 +492,13 @@ func (s *Server) handleWriteFile(session *workspace.Session, params json.RawMess
 		return nil, err
 	}
 
-	if err := session.Provider.WriteFile(p.Path, []byte(p.Content)); err != nil {
+	// Content is sent as base64 from the TypeScript client
+	decoded, err := base64.StdEncoding.DecodeString(p.Content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+
+	if err := session.Provider.WriteFile(p.Path, decoded); err != nil {
 		return nil, err
 	}
 	return map[string]bool{"success": true}, nil
@@ -831,10 +906,13 @@ func (s *Server) sendEvent(client *Client, eventType string, data interface{}) {
 }
 
 func (s *Server) sendJSON(client *Client, v interface{}) {
-	ctx, cancel := context.WithTimeout(client.ctx, 5*time.Second)
-	defer cancel()
+	client.writeMu.Lock()
+	defer client.writeMu.Unlock()
 
-	if err := wsjson.Write(ctx, client.conn, v); err != nil {
+	// Set write deadline
+	client.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	
+	if err := client.conn.WriteJSON(v); err != nil {
 		log.Printf("WebSocket write error: %v", err)
 	}
 }
@@ -860,16 +938,19 @@ type clientEventHandler struct {
 func (h *clientEventHandler) OnCreated(event types.FileCreatedEvent) {
 	h.server.sendEvent(h.client, "fileCreated", event)
 	h.emitDirectoryChanged(event.Path)
+	h.triggerGitRefresh()
 }
 
 func (h *clientEventHandler) OnModified(event types.FileContentChangedEvent) {
 	h.server.sendEvent(h.client, "fileChanged", event)
+	h.triggerGitRefresh()
 }
 
 func (h *clientEventHandler) OnDeleted(event types.FileDeletedEvent) {
 	h.client.session.Cache.Delete(event.Path)
 	h.server.sendEvent(h.client, "fileDeleted", event)
 	h.emitDirectoryChanged(event.Path)
+	h.triggerGitRefresh()
 }
 
 func (h *clientEventHandler) OnRenamed(event types.FileRenamedEvent) {
@@ -877,6 +958,14 @@ func (h *clientEventHandler) OnRenamed(event types.FileRenamedEvent) {
 	h.server.sendEvent(h.client, "fileRenamed", event)
 	h.emitDirectoryChanged(event.OldPath)
 	h.emitDirectoryChanged(event.NewPath)
+	h.triggerGitRefresh()
+}
+
+// triggerGitRefresh triggers a git status refresh if git is available.
+func (h *clientEventHandler) triggerGitRefresh() {
+	if h.client.session.GitWatcher != nil {
+		h.client.session.GitWatcher.TriggerRefresh()
+	}
 }
 
 func (h *clientEventHandler) emitDirectoryChanged(filePath string) {
