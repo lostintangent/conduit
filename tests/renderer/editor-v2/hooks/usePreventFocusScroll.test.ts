@@ -6,63 +6,11 @@ import { renderHook } from "@testing-library/react";
 import { usePreventFocusScroll } from "../../../../src/renderer/components/panes/editor-v2/hooks/usePreventFocusScroll";
 
 // ============================================================================
-// Test Utilities
-// ============================================================================
-
-/**
- * Creates a mock DOM structure with a scrollable parent.
- */
-function createMockDOMStructure() {
-  // Create scrollable parent
-  const scrollableParent = document.createElement("div");
-  Object.defineProperty(scrollableParent, "scrollTop", {
-    value: 100,
-    writable: true,
-  });
-
-  // Mock getComputedStyle to return overflow: auto for scrollable parent
-  const originalGetComputedStyle = window.getComputedStyle;
-  vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
-    if (element === scrollableParent) {
-      return { overflowY: "auto" } as CSSStyleDeclaration;
-    }
-    return originalGetComputedStyle(element);
-  });
-
-  // Create container (child of scrollable parent)
-  const container = document.createElement("div");
-  scrollableParent.appendChild(container);
-  document.body.appendChild(scrollableParent);
-
-  return { container, scrollableParent };
-}
-
-/**
- * Dispatches a mouse event on an element.
- */
-function dispatchMouseEvent(
-  element: HTMLElement | Document,
-  type: "mousedown" | "mouseup",
-  options: { capture?: boolean } = {},
-) {
-  const event = new MouseEvent(type, {
-    bubbles: true,
-    cancelable: true,
-  });
-  element.dispatchEvent(event);
-}
-
-// ============================================================================
 // Tests
 // ============================================================================
 
 describe("usePreventFocusScroll", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
   afterEach(() => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
     document.body.innerHTML = "";
   });
@@ -79,33 +27,182 @@ describe("usePreventFocusScroll", () => {
         renderHook(() => usePreventFocusScroll(containerRef));
       }).not.toThrow();
     });
+  });
 
-    it("should add mousedown listener to container", () => {
-      const { container } = createMockDOMStructure();
+  // ===========================================================================
+  // Focus Patching
+  // ===========================================================================
+
+  describe("focus patching", () => {
+    it("should patch focus on input elements to use preventScroll", () => {
+      const container = document.createElement("div");
+      const input = document.createElement("input");
+      container.appendChild(input);
+      document.body.appendChild(container);
+
       const containerRef = { current: container };
-      const addEventListenerSpy = vi.spyOn(container, "addEventListener");
+
+      // Track focus calls
+      const originalFocus = HTMLElement.prototype.focus;
+      let focusOptions: FocusOptions | undefined;
+      vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+        this: HTMLElement,
+        options?: FocusOptions,
+      ) {
+        focusOptions = options;
+        originalFocus.call(this, options);
+      });
 
       renderHook(() => usePreventFocusScroll(containerRef));
 
-      expect(addEventListenerSpy).toHaveBeenCalledWith(
-        "mousedown",
-        expect.any(Function),
-        true,
-      );
+      input.focus();
+
+      expect(focusOptions?.preventScroll).toBe(true);
     });
 
-    it("should add mouseup listener to document", () => {
-      const { container } = createMockDOMStructure();
+    it("should patch focus on textarea elements", () => {
+      const container = document.createElement("div");
+      const textarea = document.createElement("textarea");
+      container.appendChild(textarea);
+      document.body.appendChild(container);
+
       const containerRef = { current: container };
-      const addEventListenerSpy = vi.spyOn(document, "addEventListener");
+
+      const originalFocus = HTMLElement.prototype.focus;
+      let focusOptions: FocusOptions | undefined;
+      vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+        this: HTMLElement,
+        options?: FocusOptions,
+      ) {
+        focusOptions = options;
+        originalFocus.call(this, options);
+      });
 
       renderHook(() => usePreventFocusScroll(containerRef));
 
-      expect(addEventListenerSpy).toHaveBeenCalledWith(
-        "mouseup",
-        expect.any(Function),
-        true,
-      );
+      textarea.focus();
+
+      expect(focusOptions?.preventScroll).toBe(true);
+    });
+
+    it("should patch focus on button elements", () => {
+      const container = document.createElement("div");
+      const button = document.createElement("button");
+      container.appendChild(button);
+      document.body.appendChild(container);
+
+      const containerRef = { current: container };
+
+      const originalFocus = HTMLElement.prototype.focus;
+      let focusOptions: FocusOptions | undefined;
+      vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+        this: HTMLElement,
+        options?: FocusOptions,
+      ) {
+        focusOptions = options;
+        originalFocus.call(this, options);
+      });
+
+      renderHook(() => usePreventFocusScroll(containerRef));
+
+      button.focus();
+
+      expect(focusOptions?.preventScroll).toBe(true);
+    });
+
+    it("should patch focus on elements with tabindex", () => {
+      const container = document.createElement("div");
+      const div = document.createElement("div");
+      div.setAttribute("tabindex", "0");
+      container.appendChild(div);
+      document.body.appendChild(container);
+
+      const containerRef = { current: container };
+
+      const originalFocus = HTMLElement.prototype.focus;
+      let focusOptions: FocusOptions | undefined;
+      vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+        this: HTMLElement,
+        options?: FocusOptions,
+      ) {
+        focusOptions = options;
+        originalFocus.call(this, options);
+      });
+
+      renderHook(() => usePreventFocusScroll(containerRef));
+
+      div.focus();
+
+      expect(focusOptions?.preventScroll).toBe(true);
+    });
+
+    it("should not double-patch elements", () => {
+      const container = document.createElement("div");
+      const input = document.createElement("input");
+      container.appendChild(input);
+      document.body.appendChild(container);
+
+      const containerRef = { current: container };
+
+      renderHook(() => usePreventFocusScroll(containerRef));
+
+      // Get the patched focus
+      const patchedFocus = input.focus;
+
+      // Trigger MutationObserver by adding/removing element
+      const temp = document.createElement("span");
+      container.appendChild(temp);
+      container.removeChild(temp);
+
+      // Focus should still be the same patched function
+      expect(input.focus).toBe(patchedFocus);
+    });
+
+    it("should preserve other focus options", () => {
+      const container = document.createElement("div");
+      const input = document.createElement("input");
+      container.appendChild(input);
+      document.body.appendChild(container);
+
+      const containerRef = { current: container };
+
+      const originalFocus = HTMLElement.prototype.focus;
+      let focusOptions: FocusOptions | undefined;
+      vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+        this: HTMLElement,
+        options?: FocusOptions,
+      ) {
+        focusOptions = options;
+        originalFocus.call(this, options);
+      });
+
+      renderHook(() => usePreventFocusScroll(containerRef));
+
+      // Call with additional options - preventScroll should be added
+      input.focus();
+
+      expect(focusOptions?.preventScroll).toBe(true);
+    });
+  });
+
+  // ===========================================================================
+  // MutationObserver Setup
+  // ===========================================================================
+
+  describe("MutationObserver", () => {
+    it("should observe container for dynamic elements", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const containerRef = { current: container };
+
+      const observeSpy = vi.spyOn(MutationObserver.prototype, "observe");
+
+      renderHook(() => usePreventFocusScroll(containerRef));
+
+      expect(observeSpy).toHaveBeenCalledWith(container, {
+        childList: true,
+        subtree: true,
+      });
     });
   });
 
@@ -114,103 +211,36 @@ describe("usePreventFocusScroll", () => {
   // ===========================================================================
 
   describe("cleanup", () => {
-    it("should remove mousedown listener on unmount", () => {
-      const { container } = createMockDOMStructure();
+    it("should disconnect MutationObserver on unmount", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
       const containerRef = { current: container };
-      const removeEventListenerSpy = vi.spyOn(container, "removeEventListener");
+
+      const disconnectSpy = vi.spyOn(MutationObserver.prototype, "disconnect");
 
       const { unmount } = renderHook(() => usePreventFocusScroll(containerRef));
+
       unmount();
 
-      expect(removeEventListenerSpy).toHaveBeenCalledWith(
-        "mousedown",
-        expect.any(Function),
-        true,
-      );
+      expect(disconnectSpy).toHaveBeenCalled();
     });
 
-    it("should remove mouseup listener on unmount", () => {
-      const { container } = createMockDOMStructure();
+    it("should restore original focus methods on unmount", () => {
+      const container = document.createElement("div");
+      const input = document.createElement("input");
+      container.appendChild(input);
+      document.body.appendChild(container);
+
       const containerRef = { current: container };
-      const removeEventListenerSpy = vi.spyOn(document, "removeEventListener");
 
       const { unmount } = renderHook(() => usePreventFocusScroll(containerRef));
+
+      const patchedFocus = input.focus;
+
       unmount();
 
-      expect(removeEventListenerSpy).toHaveBeenCalledWith(
-        "mouseup",
-        expect.any(Function),
-        true,
-      );
-    });
-  });
-
-  // ===========================================================================
-  // Scroll Prevention
-  // ===========================================================================
-
-  describe("scroll prevention", () => {
-    it("should capture scroll position on mousedown", () => {
-      const { container, scrollableParent } = createMockDOMStructure();
-      const containerRef = { current: container };
-
-      renderHook(() => usePreventFocusScroll(containerRef));
-
-      // Initial scroll position
-      expect(scrollableParent.scrollTop).toBe(100);
-
-      // Trigger mousedown
-      dispatchMouseEvent(container, "mousedown");
-
-      // Scroll position should still be captured (no change yet)
-      expect(scrollableParent.scrollTop).toBe(100);
-    });
-
-    it("should add scroll listener on mousedown", () => {
-      const { container, scrollableParent } = createMockDOMStructure();
-      const containerRef = { current: container };
-      const addEventListenerSpy = vi.spyOn(
-        scrollableParent,
-        "addEventListener",
-      );
-
-      renderHook(() => usePreventFocusScroll(containerRef));
-
-      dispatchMouseEvent(container, "mousedown");
-
-      expect(addEventListenerSpy).toHaveBeenCalledWith(
-        "scroll",
-        expect.any(Function),
-      );
-    });
-
-    it("should remove scroll listener after mouseup with delay", () => {
-      const { container, scrollableParent } = createMockDOMStructure();
-      const containerRef = { current: container };
-      const removeEventListenerSpy = vi.spyOn(
-        scrollableParent,
-        "removeEventListener",
-      );
-
-      renderHook(() => usePreventFocusScroll(containerRef));
-
-      // Mousedown then mouseup
-      dispatchMouseEvent(container, "mousedown");
-      dispatchMouseEvent(document, "mouseup");
-
-      // Should not be removed immediately
-      expect(removeEventListenerSpy).not.toHaveBeenCalledWith(
-        "scroll",
-        expect.any(Function),
-      );
-
-      // Advance timers past the 150ms delay
-      vi.advanceTimersByTime(200);
-
-      expect(removeEventListenerSpy).toHaveBeenCalledWith(
-        "scroll",
-        expect.any(Function),
-      );
+      // Focus should be different (restored to original)
+      expect(input.focus).not.toBe(patchedFocus);
     });
   });
 
@@ -219,47 +249,27 @@ describe("usePreventFocusScroll", () => {
   // ===========================================================================
 
   describe("edge cases", () => {
-    it("should handle container with no scrollable parent", () => {
-      // Create container with no scrollable parent
+    it("should handle container with no focusable elements", () => {
       const container = document.createElement("div");
+      container.innerHTML = "<span>No focusable elements</span>";
       document.body.appendChild(container);
-
-      // Mock getComputedStyle to never return scrollable overflow
-      vi.spyOn(window, "getComputedStyle").mockReturnValue({
-        overflowY: "visible",
-      } as CSSStyleDeclaration);
 
       const containerRef = { current: container };
 
-      // Should not throw
       expect(() => {
         renderHook(() => usePreventFocusScroll(containerRef));
-        dispatchMouseEvent(container, "mousedown");
-        dispatchMouseEvent(document, "mouseup");
-        vi.advanceTimersByTime(200);
       }).not.toThrow();
     });
 
-    it("should handle multiple mousedown events", () => {
-      const { container, scrollableParent } = createMockDOMStructure();
+    it("should handle empty container", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
       const containerRef = { current: container };
-      const addEventListenerSpy = vi.spyOn(
-        scrollableParent,
-        "addEventListener",
-      );
 
-      renderHook(() => usePreventFocusScroll(containerRef));
-
-      // Multiple mousedown events
-      dispatchMouseEvent(container, "mousedown");
-      dispatchMouseEvent(container, "mousedown");
-      dispatchMouseEvent(container, "mousedown");
-
-      // Should only add scroll listener once (scrollListenerActive flag)
-      const scrollListenerCalls = addEventListenerSpy.mock.calls.filter(
-        (call) => call[0] === "scroll",
-      );
-      expect(scrollListenerCalls.length).toBe(1);
+      expect(() => {
+        renderHook(() => usePreventFocusScroll(containerRef));
+      }).not.toThrow();
     });
   });
 });

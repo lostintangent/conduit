@@ -6,48 +6,15 @@
  * embedded in scrollable lists where clicking an editor that's partially
  * scrolled out of view would normally cause the parent to scroll.
  *
- * The hook works by:
- * 1. Capturing the parent's scroll position on mousedown (before focus)
- * 2. Setting up a temporary scroll listener that reverts any scroll changes
- * 3. Cleaning up after mouseup with a small delay for async scroll events
- *
- * @example
- * ```tsx
- * function EditorWrapper() {
- *   const containerRef = useRef<HTMLDivElement>(null);
- *   usePreventFocusScroll(containerRef);
- *
- *   return <div ref={containerRef}>...</div>;
- * }
- * ```
+ * Works by patching the `focus()` method on all focusable elements inside
+ * the container to always use `{ preventScroll: true }`.
  */
 
-import { useEffect, useCallback, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 
-/**
- * Finds the nearest ancestor element with scrollable overflow.
- */
-function findScrollableParent(element: HTMLElement | null): HTMLElement | null {
-  if (!element) return null;
+const FOCUSABLE_SELECTOR =
+  'input, textarea, button, [tabindex], [contenteditable="true"]';
 
-  let parent = element.parentElement;
-  while (parent) {
-    const style = getComputedStyle(parent);
-    const overflowY = style.overflowY;
-    if (overflowY === "auto" || overflowY === "scroll") {
-      return parent;
-    }
-    parent = parent.parentElement;
-  }
-  return null;
-}
-
-/**
- * Prevents browser's automatic scroll-into-view when focusing elements
- * inside the container.
- *
- * @param containerRef - Ref to the container element to protect from focus scroll
- */
 export function usePreventFocusScroll(
   containerRef: RefObject<HTMLElement | null>,
 ): void {
@@ -55,53 +22,54 @@ export function usePreventFocusScroll(
     const container = containerRef.current;
     if (!container) return;
 
-    let savedScrollTop: number | null = null;
-    let scrollableParent: HTMLElement | null = null;
-    let scrollListenerActive = false;
+    const patchedElements = new WeakSet<HTMLElement>();
+    const originalFocusMethods = new WeakMap<
+      HTMLElement,
+      typeof HTMLElement.prototype.focus
+    >();
 
-    // Revert any scroll that happens while listener is active
-    const handleScroll = () => {
-      if (scrollableParent && savedScrollTop !== null) {
-        scrollableParent.scrollTop = savedScrollTop;
-      }
+    const patchFocus = (element: HTMLElement) => {
+      if (patchedElements.has(element)) return;
+      patchedElements.add(element);
+
+      const originalFocus = element.focus.bind(element);
+      originalFocusMethods.set(element, originalFocus);
+
+      element.focus = function (options?: FocusOptions) {
+        originalFocus({ preventScroll: true, ...options });
+      };
     };
 
-    // Capture scroll position on mousedown BEFORE focus happens
-    const handleMouseDown = () => {
-      scrollableParent = findScrollableParent(container);
-      if (scrollableParent) {
-        savedScrollTop = scrollableParent.scrollTop;
+    const patchTree = (root: Element) => {
+      if (root instanceof HTMLElement && root.matches(FOCUSABLE_SELECTOR)) {
+        patchFocus(root);
+      }
+      root
+        .querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+        .forEach(patchFocus);
+    };
 
-        // Set up scroll listener to revert any scrolling
-        if (!scrollListenerActive) {
-          scrollListenerActive = true;
-          scrollableParent.addEventListener("scroll", handleScroll);
+    patchTree(container);
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element) {
+            patchTree(node);
+          }
         }
       }
-    };
-
-    // Clean up after mouseup
-    const handleMouseUp = () => {
-      // Keep restoring for a bit longer in case of delayed scroll
-      setTimeout(() => {
-        if (scrollableParent && scrollListenerActive) {
-          scrollableParent.removeEventListener("scroll", handleScroll);
-          scrollListenerActive = false;
-        }
-        savedScrollTop = null;
-      }, 150);
-    };
-
-    // Use capture phase to intercept before other handlers
-    container.addEventListener("mousedown", handleMouseDown, true);
-    document.addEventListener("mouseup", handleMouseUp, true);
+    });
+    observer.observe(container, { childList: true, subtree: true });
 
     return () => {
-      container.removeEventListener("mousedown", handleMouseDown, true);
-      document.removeEventListener("mouseup", handleMouseUp, true);
-      if (scrollableParent && scrollListenerActive) {
-        scrollableParent.removeEventListener("scroll", handleScroll);
-      }
+      observer.disconnect();
+      container
+        .querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+        .forEach((el) => {
+          const original = originalFocusMethods.get(el);
+          if (original) el.focus = original;
+        });
     };
   }, [containerRef]);
 }
