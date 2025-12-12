@@ -27,10 +27,10 @@
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef } from "react";
 import {
-  useDiffContent,
-  useMonacoModel,
-  useEditorTheme,
   useAutoSizeEditor,
+  useDiffContent,
+  useEditorTheme,
+  useMonacoModel,
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
@@ -49,6 +49,9 @@ export interface DiffEditorWrapperProps {
 
   /** Git ref for the original content (default: 'HEAD') */
   baseBranch?: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Monaco theme name */
   theme?: string;
@@ -113,6 +116,7 @@ export function DiffEditorWrapper({
   cwd,
   filePath,
   baseBranch,
+  sandboxId,
   theme: themeProp,
   readOnly = false,
   onChange,
@@ -150,7 +154,7 @@ export function DiffEditorWrapper({
   }, [onChange]);
 
   // Get diff content (original from git, modified from file system)
-  const diffContent = useDiffContent(filePath, baseBranch, cwd);
+  const diffContent = useDiffContent(filePath, baseBranch, cwd, sandboxId);
 
   // Get the shared model for the modified side
   // Pass editorId to ensure consistent reference counting with other registries

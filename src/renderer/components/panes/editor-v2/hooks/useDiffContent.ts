@@ -23,7 +23,7 @@
  * ```
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGitV2 } from "../../../../hooks/useGitV2";
 import { MonacoModelRegistry, pathToUri } from "../registry";
 
@@ -251,6 +251,7 @@ export function useDiffContent(
   filePath: string | null,
   baseBranch: string | undefined,
   cwd: string,
+  sandboxId?: string,
 ): DiffContent {
   const [state, setState] = useState<DiffContent>({
     original: null,
@@ -261,7 +262,7 @@ export function useDiffContent(
   });
 
   // Git API for fetching original content
-  const git = useGitV2(cwd);
+  const git = useGitV2(cwd, sandboxId);
 
   // Track mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true);

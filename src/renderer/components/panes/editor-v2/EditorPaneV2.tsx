@@ -181,6 +181,7 @@ export function EditorPaneV2({
     file: initialFilePath,
     filePath,
     treeMode,
+    sandboxId,
   } = pane as EditorPaneType & { filePath?: string };
 
   // Get editor theme from user settings
@@ -273,7 +274,7 @@ export function EditorPaneV2({
   const layout = useResponsiveLayout(containerRef);
 
   // Git API for checking file status
-  const git = useGitV2(currentCwd);
+  const git = useGitV2(currentCwd, sandboxId);
 
   // ---------------------------------------------------------------------------
   // Git State
@@ -543,7 +544,7 @@ export function EditorPaneV2({
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
   // FileSystem API for reading file content (for callbacks)
-  const fs = useFileSystemV2(currentCwd);
+  const fs = useFileSystemV2(currentCwd, sandboxId);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -1025,6 +1026,7 @@ export function EditorPaneV2({
         <EditorViewPanel
           editorId={editorId}
           cwd={currentCwd}
+          sandboxId={sandboxId}
           git={git}
           selectedFile={selectedFile}
           viewMode={viewMode}

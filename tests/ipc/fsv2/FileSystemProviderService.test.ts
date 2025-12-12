@@ -4,6 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Mocks
 // ============================================================================
 
+// Mock fs module to allow provider creation with non-existent paths
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual("node:fs");
+  return {
+    ...actual,
+    existsSync: vi.fn().mockReturnValue(true),
+  };
+});
+
 // Track created instances for test verification
 interface MockProviderInstance {
   cwd: string;

@@ -26,6 +26,7 @@
  * ```
  */
 
+import type { GitV2API } from "@/api/GitV2API";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -35,7 +36,6 @@ import {
 } from "../../hooks";
 import { MonacoModelRegistry, pathToUri } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
-import type { GitV2API } from "@/api/GitV2API";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
@@ -58,6 +58,9 @@ export interface EditorViewPanelProps {
 
   /** Working directory for file operations */
   cwd: string;
+
+  /** Sandbox/VM ID for remote operations (optional - if not provided, uses local filesystem) */
+  sandboxId?: string;
 
   /** Git API instance (shared from parent) */
   git?: GitV2API;
@@ -135,6 +138,7 @@ export interface EditorViewPanelProps {
 export function EditorViewPanel({
   editorId,
   cwd,
+  sandboxId,
   git,
   selectedFile,
   viewMode,
@@ -440,6 +444,7 @@ export function EditorViewPanel({
             <DeletedFileViewer
               editorId={`${editorId}-deleted`}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
               baseBranch={baseBranch}
               onMount={handleEditorMount}
@@ -462,6 +467,7 @@ export function EditorViewPanel({
             <DiffEditorWrapper
               editorId={`${editorId}-diff`}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
               baseBranch={baseBranch}
               theme={theme}
@@ -472,6 +478,7 @@ export function EditorViewPanel({
           // Changes review pane
           <ChangesReviewPane
             cwd={cwd}
+            sandboxId={sandboxId}
             git={git}
             baseBranch={baseBranch}
             onExitReview={onExitReview}

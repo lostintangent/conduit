@@ -83,6 +83,7 @@ export interface FileChangeDiffProps {
 export function FileChangeDiff({
   filePath,
   cwd,
+  sandboxId,
   git,
   status,
   baseBranch,
@@ -405,6 +406,7 @@ export function FileChangeDiff({
               <DeletedFileViewer
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
                 baseBranch={baseBranch}
                 autoSize={autoSizeConfig}
@@ -424,6 +426,7 @@ export function FileChangeDiff({
               <DiffEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
                 baseBranch={baseBranch}
                 autoSize={autoSizeConfig}
