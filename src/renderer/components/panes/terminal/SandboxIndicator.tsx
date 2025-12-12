@@ -67,7 +67,7 @@ export function SandboxIndicator({
   }
 
   return (
-    <>
+    <div className="pointer-events-none absolute bottom-3 right-3 w-fit h-fit flex flex-col items-end gap-2 text-white z-10">
       {showVmIndicator && (
         <div
           className="pointer-events-auto group flex items-center gap-2 rounded-full px-3 py-2 shadow-lg backdrop-blur text-white/90 transition-all duration-200 opacity-80"
@@ -119,6 +119,6 @@ export function SandboxIndicator({
           </Tooltip>
         </div>
       )}
-    </>
+    </div>
   );
 }
