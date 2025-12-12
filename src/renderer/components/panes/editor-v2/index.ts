@@ -55,7 +55,6 @@ export type { EditorPaneConfig, EditorPaneRegistryEvent } from "./registry";
 
 // Re-export components for advanced usage
 export {
-  BranchSelector,
   ChangesReviewPane,
   EditorToolbar,
   EditorViewPanel,

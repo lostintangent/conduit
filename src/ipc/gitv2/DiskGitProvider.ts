@@ -31,6 +31,7 @@ import type { Disposable, Event } from "../fsv2/types";
 import type {
   GitBranch,
   GitBranchChangedEvent,
+  GitCheckoutOptions,
   GitCommit,
   GitCommitCreatedEvent,
   GitCommitOptions,
@@ -749,13 +750,26 @@ export class DiskGitProvider implements GitProvider {
 
   /**
    * Checkout a branch or ref.
+   *
+   * @param ref - Branch name, tag, or commit hash
+   * @param options - Checkout options (force)
    */
-  async checkout(ref: string): Promise<void> {
+  async checkout(ref: string, options?: GitCheckoutOptions): Promise<void> {
     const previousBranch = await this.getCurrentBranch();
     const previousHead = await this.getHeadCommit();
 
     await this.withOperationTracking(async () => {
-      await this.git.checkout(ref);
+      const checkoutOptions: string[] = [];
+
+      if (options?.force) {
+        checkoutOptions.push("--force");
+      }
+
+      if (checkoutOptions.length > 0) {
+        await this.git.checkout([...checkoutOptions, ref]);
+      } else {
+        await this.git.checkout(ref);
+      }
     });
 
     // Check for branch/head changes
@@ -776,6 +790,34 @@ export class DiskGitProvider implements GitProvider {
         isBranchSwitch: previousBranch !== currentBranch,
       });
     }
+  }
+
+  /**
+   * Stash current uncommitted changes.
+   *
+   * Saves both staged and unstaged changes to the stash.
+   *
+   * @param message - Optional message for the stash entry
+   */
+  async stash(message?: string): Promise<void> {
+    await this.withOperationTracking(async () => {
+      if (message) {
+        await this.git.stash(["push", "-m", message]);
+      } else {
+        await this.git.stash(["push"]);
+      }
+    });
+  }
+
+  /**
+   * Apply and remove the most recent stash entry.
+   *
+   * Restores the previously stashed changes to the working directory.
+   */
+  async stashPop(): Promise<void> {
+    await this.withOperationTracking(async () => {
+      await this.git.stash(["pop"]);
+    });
   }
 
   /**

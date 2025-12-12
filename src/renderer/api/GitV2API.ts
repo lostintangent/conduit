@@ -533,12 +533,39 @@ export class GitV2API {
    * Checkout a branch or ref.
    *
    * @param ref - Branch name, tag, or commit hash
+   * @param force - If true, force checkout (discards local changes)
    * @throws {Error} If the API has been released
    * @throws {Error} If checkout fails (uncommitted changes, invalid ref, etc.)
    */
-  async checkout(ref: string): Promise<void> {
+  async checkout(ref: string, force = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.checkout(this.cwd, ref);
+    return window.conduit.gitv2.checkout(this.cwd, ref, force);
+  }
+
+  /**
+   * Stash current uncommitted changes.
+   *
+   * Saves both staged and unstaged changes to the stash.
+   *
+   * @param message - Optional message for the stash entry
+   * @throws {Error} If the API has been released
+   */
+  async stash(message?: string): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.stash(this.cwd, message);
+  }
+
+  /**
+   * Apply and remove the most recent stash entry.
+   *
+   * Restores the previously stashed changes to the working directory.
+   *
+   * @throws {Error} If the API has been released
+   * @throws {Error} If there are no stash entries or applying fails
+   */
+  async stashPop(): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.stashPop(this.cwd);
   }
 
   // ---------------------------------------------------------------------------

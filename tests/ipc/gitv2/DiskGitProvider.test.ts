@@ -69,6 +69,7 @@ const mockGit = {
   checkout: vi.fn().mockResolvedValue(undefined),
   push: vi.fn().mockResolvedValue(undefined),
   pull: vi.fn().mockResolvedValue(undefined),
+  stash: vi.fn().mockResolvedValue(undefined),
   log: vi.fn(),
   diff: vi.fn(),
   show: vi.fn(),
@@ -573,6 +574,13 @@ describe("DiskGitProvider", () => {
       expect(mockGit.checkout).toHaveBeenCalledWith("develop");
     });
 
+    it("should checkout with force option when force is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testCwd);
+      await provider.checkout("develop", { force: true });
+
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--force", "develop"]);
+    });
+
     it("should fire onBranchChanged when branch changes", async () => {
       // Setup: start on main, switch to develop
       // getCurrentBranch() is called twice: once before checkout, once after
@@ -713,6 +721,43 @@ describe("DiskGitProvider", () => {
       const hasUpstream = await provider.hasUpstream();
 
       expect(hasUpstream).toBe(false);
+    });
+  });
+
+  // ===========================================================================
+  // stash
+  // ===========================================================================
+
+  describe("stash()", () => {
+    it("should stash changes without message", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.stash();
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["push"]);
+    });
+
+    it("should stash changes with message", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.stash("WIP: feature work");
+
+      expect(mockGit.stash).toHaveBeenCalledWith([
+        "push",
+        "-m",
+        "WIP: feature work",
+      ]);
+    });
+  });
+
+  // ===========================================================================
+  // stashPop
+  // ===========================================================================
+
+  describe("stashPop()", () => {
+    it("should pop the most recent stash", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.stashPop();
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["pop"]);
     });
   });
 

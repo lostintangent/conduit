@@ -26,7 +26,9 @@
  * - `git-v2:commit` - Create a commit
  * - `git-v2:branch` - Get current branch
  * - `git-v2:branches` - Get all branches
- * - `git-v2:checkout` - Checkout a branch or ref
+ * - `git-v2:checkout` - Checkout a branch or ref (with optional force)
+ * - `git-v2:stash` - Stash uncommitted changes
+ * - `git-v2:stash-pop` - Apply and remove most recent stash
  * - `git-v2:push` - Push commits to remote (with optional setUpstream for new branches)
  * - `git-v2:pull` - Pull changes from remote
  * - `git-v2:has-upstream` - Check if branch has upstream tracking
@@ -578,13 +580,42 @@ export function initializeGitV2Handlers(): void {
   /**
    * Checkout a branch, tag, or commit.
    * Switches the working directory to the specified ref.
+   * Optionally force checkout to discard local changes.
    * Triggers branch change and HEAD change events for subscribers.
    */
   ipcMain.handle(
     "git-v2:checkout",
-    async (_, params: { cwd: string; ref: string }): Promise<void> => {
+    async (
+      _,
+      params: { cwd: string; ref: string; force?: boolean },
+    ): Promise<void> => {
       const { provider } = await requireProvider(params.cwd);
-      await provider.checkout(params.ref);
+      await provider.checkout(params.ref, { force: params.force });
+    },
+  );
+
+  /**
+   * Stash current uncommitted changes.
+   * Saves both staged and unstaged changes to the stash.
+   * Optionally includes a message to identify the stash.
+   */
+  ipcMain.handle(
+    "git-v2:stash",
+    async (_, params: { cwd: string; message?: string }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
+      await provider.stash(params.message);
+    },
+  );
+
+  /**
+   * Apply and remove the most recent stash entry.
+   * Restores the previously stashed changes to the working directory.
+   */
+  ipcMain.handle(
+    "git-v2:stash-pop",
+    async (_, params: { cwd: string }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
+      await provider.stashPop();
     },
   );
 

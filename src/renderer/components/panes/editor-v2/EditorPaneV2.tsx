@@ -781,6 +781,25 @@ export function EditorPaneV2({
   }, [git, hasUpstream, isPulling, isPushing, isCommitting]);
 
   /**
+   * Handle branch switch callback.
+   *
+   * The actual state updates (currentBranch, hasUpstream) happen through
+   * the onBranchChanged event subscription. This callback is for any
+   * additional actions needed when the user explicitly switches branches.
+   */
+  const handleBranchSwitch = useCallback(
+    (newBranch: string) => {
+      // Clear comparison mode when switching branches
+      // (comparison to old base branch doesn't make sense on new branch)
+      if (baseBranch !== null) {
+        setBaseBranch(null);
+      }
+      console.log(`[EditorPaneV2] Branch switched to: ${newBranch}`);
+    },
+    [baseBranch],
+  );
+
+  /**
    * Whether navigation up is possible.
    */
   const canNavigateUp = !isAtFilesystemRoot(currentCwd);
@@ -989,6 +1008,7 @@ export function EditorPaneV2({
           gitStatus={gitStatus}
           changedFilesCount={gitChangedFiles.size}
           onOpenBranchPicker={handleOpenBranchPicker}
+          onBranchSwitch={handleBranchSwitch}
           // Git Operations Props
           stagedCount={stagedCount}
           onPull={handlePull}

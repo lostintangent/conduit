@@ -120,6 +120,9 @@ export interface FileTreePanelProps {
   /** Callback for review changes action */
   onReviewChanges?: () => void;
 
+  /** Callback when branch is switched */
+  onBranchSwitch?: (newBranch: string) => void;
+
   // ---------------------------------------------------------------------------
   // Navigation Props
   // ---------------------------------------------------------------------------
@@ -185,6 +188,7 @@ export function FileTreePanel({
   onCommit,
   isCommitting = false,
   onReviewChanges,
+  onBranchSwitch,
   // Navigation Props
   canNavigateUp = false,
   onNavigateUp,
@@ -235,8 +239,10 @@ export function FileTreePanel({
       <GitBranchToolbar
         currentBranch={currentBranch ?? null}
         baseBranch={baseBranch ?? null}
+        git={git}
         showOnlyChangedFiles={treeViewMode === "changes"}
         isReviewModeActive={isReviewModeActive}
+        onBranchSwitch={onBranchSwitch}
         changedFilesCount={changedFilesCount}
         gitStatus={gitStatus}
         onFilterToggle={handleFilterToggle}

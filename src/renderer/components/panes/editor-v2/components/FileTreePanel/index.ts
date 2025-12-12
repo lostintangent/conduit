@@ -9,7 +9,6 @@
  * - FileTreeItem: Individual tree item component
  * - GitBranchToolbar: Git branch and operations toolbar
  * - GitStatusSummary: Compact git status badge summary
- * - BranchSelector: Dropdown for selecting comparison branch
  */
 
 export { FileTreePanel } from "./FileTreePanel";
@@ -32,6 +31,3 @@ export type { GitBranchToolbarProps } from "./GitBranchToolbar";
 
 export { GitStatusSummary } from "./GitStatusSummary";
 export type { GitStatusSummaryProps } from "./GitStatusSummary";
-
-export { BranchSelector } from "./BranchSelector";
-export type { BranchSelectorProps } from "./BranchSelector";

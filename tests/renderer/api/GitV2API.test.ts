@@ -19,6 +19,8 @@ const { mockGitv2 } = vi.hoisted(() => {
     getCurrentBranch: vi.fn(),
     getBranches: vi.fn(),
     checkout: vi.fn(),
+    stash: vi.fn(),
+    stashPop: vi.fn(),
     // Remote operations
     push: vi.fn(),
     pull: vi.fn(),
@@ -473,7 +475,7 @@ describe("GitV2API", () => {
   });
 
   describe("checkout", () => {
-    it("should checkout ref", async () => {
+    it("should checkout ref with default force=false", async () => {
       mockGitv2.checkout.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
@@ -482,7 +484,67 @@ describe("GitV2API", () => {
       expect(mockGitv2.checkout).toHaveBeenCalledWith(
         "/test/project",
         "feature/new",
+        false,
       );
+
+      api.release();
+    });
+
+    it("should checkout ref with force=true", async () => {
+      mockGitv2.checkout.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.checkout("feature/new", true);
+
+      expect(mockGitv2.checkout).toHaveBeenCalledWith(
+        "/test/project",
+        "feature/new",
+        true,
+      );
+
+      api.release();
+    });
+  });
+
+  // ===========================================================================
+  // Stash Operations
+  // ===========================================================================
+
+  describe("stash", () => {
+    it("should stash without message", async () => {
+      mockGitv2.stash.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.stash();
+
+      expect(mockGitv2.stash).toHaveBeenCalledWith("/test/project", undefined);
+
+      api.release();
+    });
+
+    it("should stash with message", async () => {
+      mockGitv2.stash.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.stash("WIP: feature work");
+
+      expect(mockGitv2.stash).toHaveBeenCalledWith(
+        "/test/project",
+        "WIP: feature work",
+      );
+
+      api.release();
+    });
+  });
+
+  describe("stashPop", () => {
+    it("should pop stash", async () => {
+      mockGitv2.stashPop.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.stashPop();
+
+      expect(mockGitv2.stashPop).toHaveBeenCalledWith("/test/project");
 
       api.release();
     });
