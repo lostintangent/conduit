@@ -218,7 +218,22 @@ export function PaneControlFanButtons({
             editorCwd = homeDir || ".";
           }
 
-          openEditorPane(tabId, paneId, editorCwd, direction, insertBefore);
+          // Get sandboxId from the current pane if it's a terminal or editor with VM
+          const sandboxId =
+            currentPane?.type === "terminal"
+              ? currentPane.sandboxId
+              : currentPane?.type === "editor"
+                ? currentPane.sandboxId
+                : undefined;
+
+          openEditorPane(
+            tabId,
+            paneId,
+            editorCwd,
+            direction,
+            insertBefore,
+            sandboxId,
+          );
         }
         break;
       }

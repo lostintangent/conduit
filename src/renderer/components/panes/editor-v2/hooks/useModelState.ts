@@ -22,8 +22,8 @@
  */
 
 import { useEffect, useState } from "react";
+import { MonacoModelRegistry, createModelKey } from "../registry";
 import type { ModelState, ModelStateEvent } from "../types";
-import { MonacoModelRegistry, pathToUri } from "../registry";
 
 /**
  * Hook to subscribe to model state changes for a file.
@@ -32,16 +32,20 @@ import { MonacoModelRegistry, pathToUri } from "../registry";
  * updates automatically when the state changes in the registry.
  *
  * @param filePath - Absolute path to the file, or null for no state
+ * @param sandboxId - Optional sandbox ID for cloud VM operations
  * @returns The current model state, or null if no model exists for this path
  */
-export function useModelState(filePath: string | null): ModelState | null {
+export function useModelState(
+  filePath: string | null,
+  sandboxId?: string,
+): ModelState | null {
   const [state, setState] = useState<ModelState | null>(() => {
     // Initialize with current state from registry
     if (filePath === null) return null;
 
     const registry = MonacoModelRegistry.getInstance();
-    const uri = pathToUri(filePath);
-    return registry.getModelState(uri);
+    const modelKey = createModelKey(filePath, sandboxId);
+    return registry.getModelState(modelKey);
   });
 
   useEffect(() => {
@@ -51,29 +55,29 @@ export function useModelState(filePath: string | null): ModelState | null {
     }
 
     const registry = MonacoModelRegistry.getInstance();
-    const uri = pathToUri(filePath);
+    const modelKey = createModelKey(filePath, sandboxId);
 
     // Get initial state
-    const initialState = registry.getModelState(uri);
+    const initialState = registry.getModelState(modelKey);
     setState(initialState);
 
     // Subscribe to state changes
     const disposable = registry.onModelStateChanged(
       (event: ModelStateEvent) => {
-        // Filter events by our file's URI
+        // Filter events by our file's model key
         // Note: renamed events have oldUri/newUri, not uri
         if (event.type === "renamed") {
           // Renamed events don't affect our model state tracking
           // The model registry handles renaming internally
           return;
         }
-        if (event.uri !== uri) return;
+        if (event.uri !== modelKey) return;
 
         // Update state based on event type
         setState((prevState) => {
           if (prevState === null) {
             // Model was just created - get full state
-            return registry.getModelState(uri);
+            return registry.getModelState(modelKey);
           }
 
           // Update the specific property that changed
@@ -114,7 +118,7 @@ export function useModelState(filePath: string | null): ModelState | null {
     return () => {
       disposable.dispose();
     };
-  }, [filePath]);
+  }, [filePath, sandboxId]);
 
   return state;
 }

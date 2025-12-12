@@ -24,14 +24,12 @@
  */
 
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
-import type { GitV2API } from "@/api/GitV2API";
-import type { FileSystemV2API } from "@/api/FileSystemV2API";
-import type { FileNode, TreeViewMode } from "../../types";
-import { FileTreeToolbar } from "./FileTreeToolbar";
-import { FileTreeNormal } from "./FileTreeNormal";
-import { FileTreeChanges } from "./FileTreeChanges";
-import { GitBranchToolbar } from "./GitBranchToolbar";
 import { cn } from "@/utils";
+import type { FileNode, TreeViewMode } from "../../types";
+import { FileTreeChanges } from "./FileTreeChanges";
+import { FileTreeNormal } from "./FileTreeNormal";
+import { FileTreeToolbar } from "./FileTreeToolbar";
+import { GitBranchToolbar } from "./GitBranchToolbar";
 
 export interface FileTreePanelProps {
   /** Editor pane ID (for scroll persistence) */
@@ -40,11 +38,8 @@ export interface FileTreePanelProps {
   /** Working directory (root of the tree) */
   cwd: string;
 
-  /** FileSystem API instance (shared from parent) */
-  fs: FileSystemV2API;
-
-  /** Git API instance (shared from parent) */
-  git: GitV2API;
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
@@ -162,8 +157,7 @@ export interface FileTreePanelProps {
 export function FileTreePanel({
   paneId,
   cwd,
-  fs,
-  git,
+  sandboxId,
   selectedFile,
   onFileSelect,
   treeViewMode,
@@ -274,8 +268,7 @@ export function FileTreePanel({
           <FileTreeNormal
             paneId={paneId}
             cwd={cwd}
-            fs={fs}
-            git={git}
+            sandboxId={sandboxId}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
             onDirectoryChange={onDirectoryChange}
@@ -293,7 +286,7 @@ export function FileTreePanel({
           <FileTreeChanges
             paneId={paneId}
             cwd={cwd}
-            git={git}
+            sandboxId={sandboxId}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
             viewMode={changesViewMode}

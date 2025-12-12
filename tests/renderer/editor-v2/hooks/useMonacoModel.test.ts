@@ -1,10 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMonacoModel } from "../../../../src/renderer/components/panes/editor-v2/hooks/useMonacoModel";
-import {
-  MonacoModelRegistry,
-  pathToUri,
-} from "../../../../src/renderer/components/panes/editor-v2/registry";
+import { createModelKey } from "../../../../src/renderer/components/panes/editor-v2/registry";
 
 // ============================================================================
 // Mocks
@@ -90,6 +87,7 @@ describe("useMonacoModel", () => {
       expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
         "/test/file.ts",
         "/test",
+        undefined,
       );
     });
 
@@ -115,7 +113,7 @@ describe("useMonacoModel", () => {
 
       await waitFor(() => {
         expect(mockRegistry.addReference).toHaveBeenCalledWith(
-          pathToUri("/test/file.ts"),
+          createModelKey("/test/file.ts", undefined),
           "my-editor-id",
         );
       });
@@ -133,7 +131,7 @@ describe("useMonacoModel", () => {
       unmount();
 
       expect(mockRegistry.removeReference).toHaveBeenCalledWith(
-        pathToUri("/test/file.ts"),
+        createModelKey("/test/file.ts", undefined),
         "my-editor-id",
       );
     });
@@ -173,7 +171,7 @@ describe("useMonacoModel", () => {
         expect(result.current).toBe(mockModel);
       });
 
-      const firstUri = pathToUri("/test/file1.ts");
+      const firstModelKey = createModelKey("/test/file1.ts", undefined);
 
       // Change to a different file
       rerender({
@@ -184,7 +182,7 @@ describe("useMonacoModel", () => {
 
       // Should remove reference from old file
       expect(mockRegistry.removeReference).toHaveBeenCalledWith(
-        firstUri,
+        firstModelKey,
         "editor-1",
       );
 
@@ -193,6 +191,7 @@ describe("useMonacoModel", () => {
         expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
           "/test/file2.ts",
           "/test",
+          undefined,
         );
       });
     });
@@ -219,7 +218,7 @@ describe("useMonacoModel", () => {
 
       // Should remove reference
       expect(mockRegistry.removeReference).toHaveBeenCalledWith(
-        pathToUri("/test/file.ts"),
+        createModelKey("/test/file.ts", undefined),
         "editor-1",
       );
 
@@ -257,6 +256,7 @@ describe("useMonacoModel", () => {
       expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
         "/test/file.ts",
         "/test",
+        undefined,
       );
     });
   });
@@ -306,7 +306,7 @@ describe("useMonacoModel", () => {
 
       // Verify the provided editorId was used
       expect(mockRegistry.addReference).toHaveBeenCalledWith(
-        pathToUri("/test/file.ts"),
+        createModelKey("/test/file.ts", undefined),
         "consistent-editor-id",
       );
 

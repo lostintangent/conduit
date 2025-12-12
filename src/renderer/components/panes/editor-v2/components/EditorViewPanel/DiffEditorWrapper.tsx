@@ -26,16 +26,9 @@
 
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef } from "react";
-import {
-  useDiffContent,
-  useMonacoModel,
-  useEditorTheme,
-  useAutoSizeEditor,
-  usePreventFocusScroll,
-} from "../../hooks";
+import { useDiffContent, useMonacoModel } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage } from "../../utils/languageDetection";
-import type { AutoSizeConfig } from "./constants";
 
 export interface DiffEditorWrapperProps {
   /** Unique ID for this diff editor instance */
@@ -43,6 +36,9 @@ export interface DiffEditorWrapperProps {
 
   /** Working directory for file and git operations */
   cwd: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Absolute path to the file to diff */
   filePath: string;
@@ -61,13 +57,6 @@ export interface DiffEditorWrapperProps {
 
   /** Callback when diff editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
-
-  /**
-   * Auto-size configuration. When provided, the editor height adjusts
-   * based on content between minHeight and maxHeight bounds.
-   * If not provided, auto-sizing is enabled with default values.
-   */
-  autoSize?: AutoSizeConfig;
 }
 
 // ============================================================================
@@ -86,11 +75,6 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
     automaticLayout: true,
     fontSize: 13,
     wordWrap: "on",
-    // Scrollbar options for better scroll behavior in lists
-    scrollbar: {
-      // Allow scroll events to bubble to parent when editor can't scroll
-      alwaysConsumeMouseWheel: false,
-    },
     // Disable language features that cause issues
     occurrencesHighlight: "off",
     selectionHighlight: false,
@@ -111,18 +95,14 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
 export function DiffEditorWrapper({
   editorId,
   cwd,
+  sandboxId,
   filePath,
-  baseBranch,
-  theme: themeProp,
+  baseBranch = "HEAD",
+  theme = "vs-dark",
   readOnly = false,
   onChange,
   onMount,
-  autoSize,
 }: DiffEditorWrapperProps) {
-  // Use provided theme or fall back to user's preferred theme
-  const defaultTheme = useEditorTheme();
-  const theme = themeProp ?? defaultTheme;
-
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(
@@ -150,21 +130,14 @@ export function DiffEditorWrapper({
   }, [onChange]);
 
   // Get diff content (original from git, modified from file system)
-  const diffContent = useDiffContent(filePath, baseBranch, cwd);
+  const diffContent = useDiffContent(filePath, baseBranch, cwd, sandboxId);
 
   // Get the shared model for the modified side
   // Pass editorId to ensure consistent reference counting with other registries
-  const modifiedModel = useMonacoModel(editorId, filePath, cwd);
+  const modifiedModel = useMonacoModel(editorId, filePath, cwd, sandboxId);
 
   // Detect language from file path
   const language = detectLanguage(filePath);
-
-  // Auto-sizing hook - adjusts height based on content
-  const { containerStyle } = useAutoSizeEditor({
-    diffEditor: diffEditorRef.current,
-    config: autoSize,
-    deps: [diffContent.isLoading, modifiedModel],
-  });
 
   // ---------------------------------------------------------------------------
   // Diff Editor Setup
@@ -242,40 +215,34 @@ export function DiffEditorWrapper({
       return;
     }
 
-    // Wrap in try-catch to prevent any errors from crashing the app
-    try {
-      // Create original model (read-only, we own this)
-      // Dispose previous if exists - must reset diff editor model first
-      if (originalModelRef.current) {
-        // Reset diff editor model before disposing to prevent race condition
-        try {
-          diffEditor.setModel(null);
-        } catch {
-          // Ignore if already disposed
-        }
-        originalModelRef.current.dispose();
+    // Create original model (read-only, we own this)
+    // Dispose previous if exists - must reset diff editor model first
+    if (originalModelRef.current) {
+      // Reset diff editor model before disposing to prevent race condition
+      try {
+        diffEditor.setModel(null);
+      } catch {
+        // Ignore if already disposed
       }
-
-      // Use editorId in URI to ensure uniqueness across multiple diff editors
-      // showing the same file (e.g., different panes comparing same file)
-      const originalUri = monaco.Uri.parse(
-        `inmemory://original/${editorId}/${filePath}`,
-      );
-      originalModelRef.current = monaco.editor.createModel(
-        diffContent.original,
-        language,
-        originalUri,
-      );
-
-      // Set the diff models
-      diffEditor.setModel({
-        original: originalModelRef.current,
-        modified: modifiedModel,
-      });
-    } catch (error) {
-      console.error("Error setting up diff editor models:", error);
-      return;
+      originalModelRef.current.dispose();
     }
+
+    // Use editorId in URI to ensure uniqueness across multiple diff editors
+    // showing the same file (e.g., different panes comparing same file)
+    const originalUri = monaco.Uri.parse(
+      `inmemory://original/${editorId}/${filePath}`,
+    );
+    originalModelRef.current = monaco.editor.createModel(
+      diffContent.original,
+      language,
+      originalUri,
+    );
+
+    // Set the diff models
+    diffEditor.setModel({
+      original: originalModelRef.current,
+      modified: modifiedModel,
+    });
 
     // Restore ViewState for the modified editor (scroll position, cursor, etc.)
     const modifiedEditor = diffEditor.getModifiedEditor();
@@ -347,15 +314,12 @@ export function DiffEditorWrapper({
   // Focus Handler
   // ---------------------------------------------------------------------------
 
-  // Prevent browser's automatic scroll-into-view when clicking the editor
-  usePreventFocusScroll(containerRef);
-
   const handleContainerClick = useCallback(() => {
     diffEditorRef.current?.getModifiedEditor().focus();
   }, []);
 
   return (
-    <div className="relative" style={containerStyle}>
+    <div className="h-full w-full relative">
       {/* Diff editor container */}
       <div
         ref={containerRef}

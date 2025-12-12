@@ -1,5 +1,3 @@
-import type { VMMetadata } from "./vm";
-
 export type TerminalPayload = {
   sessionId: string;
 };
@@ -7,7 +5,7 @@ export type TerminalPayload = {
 export type TerminalCreateResponse = TerminalPayload & {
   title: string;
   cwd: string;
-  vmMetadata?: VMMetadata;
+  vmId?: string;
 };
 
 export type TerminalCaptureCommandResponse = string | null;

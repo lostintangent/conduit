@@ -117,12 +117,17 @@ export async function createTerminal(
         process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
       const pty = spawnTerminalProcess(id, homeDirectory);
 
+      // For VM terminals, the cwd is the remote workspace path on the VM
+      // The sandbox-ipc server runs with workspace at /workspace by default
+      const remoteCwd = "/workspace";
+
       const session: TerminalInstance = {
         id,
         pty,
         lastProcessName: `VM ${vm.id}`,
         isRendererReady: false,
         bufferedOutput: [],
+        cwd: remoteCwd,
         cloudEnvironment: {
           vmId: vm.id,
           vmHost: sshInfo.host,
@@ -183,6 +188,7 @@ export async function createTerminal(
     isRendererReady: false,
     bufferedOutput: [],
     pendingCommand,
+    cwd,
   };
 
   storeTerminal(terminal);

@@ -12,6 +12,7 @@
  * - VMs are cleaned up when no consumers remain (with optional grace period)
  */
 
+import { withRetry } from "../utils/retry";
 import type { VM } from "./client";
 import { getVM } from "./client";
 import { getSandboxIPCUrl, SandboxIPCClient } from "./sandbox-ipc-client";
@@ -122,6 +123,9 @@ export interface AcquireVMOptions {
 // ============================================================================
 
 const vmSessions = new Map<string, VMSession>();
+
+/** Pending connection promises to prevent duplicate connections */
+const pendingConnections = new Map<string, Promise<SandboxIPCClient>>();
 
 // Event listeners for session state changes
 type SessionEventType =
@@ -406,7 +410,11 @@ export function disposeAllSessions(): void {
 // ============================================================================
 
 /**
- * Connect to the conduit-server for a VM
+ * Connect to the conduit-server server for a VM
+ *
+ * Uses a pending connection map to prevent duplicate concurrent connections
+ * to the same VM. Includes retry logic with exponential backoff for transient
+ * network failures.
  */
 export async function connectSandbox(vmId: string): Promise<SandboxIPCClient> {
   const session = vmSessions.get(vmId);
@@ -419,33 +427,83 @@ export async function connectSandbox(vmId: string): Promise<SandboxIPCClient> {
     return session.sandboxClient;
   }
 
+  // Check if there's already a pending connection for this VM
+  const pending = pendingConnections.get(vmId);
+  if (pending) {
+    console.log(
+      `[VMStore] Waiting for existing connection attempt for VM ${vmId}`,
+    );
+    return pending;
+  }
+
   if (!session.sandboxUrl) {
     throw new Error(
       `VM ${vmId} does not have conduit-server port forwarded. ` +
-        `Expected port 9876 with label "conduit-server"`,
+        `Expected port 9876 with label "conduit-server server"`,
     );
   }
 
   console.log(`[VMStore] Connecting to conduit-server for VM ${vmId}`);
   updateConnectionState(vmId, "connecting");
 
-  try {
-    const client = new SandboxIPCClient(vmId, session.sandboxUrl);
-    await client.connect();
+  // Create and track the connection promise with retries
+  const connectionPromise = withRetry(
+    async () => {
+      // Check if session was disposed while we were retrying
+      const currentSession = vmSessions.get(vmId);
+      if (!currentSession || currentSession.connectionState === "disposed") {
+        throw new Error(`VM ${vmId} session was disposed`);
+      }
 
-    session.sandboxClient = client;
-    updateConnectionState(vmId, "connected");
+      const client = new SandboxIPCClient(vmId, session.sandboxUrl!);
 
-    // Set up disconnect handler
-    // Note: The client will handle reconnection internally if needed
+      // Set up disconnection callback to update state when connection drops
+      client.onDisconnect((disconnectedVmId, reason) => {
+        console.log(
+          `[VMStore] Sandbox connection lost for VM ${disconnectedVmId}: ${reason}`,
+        );
+        const currentState = vmSessions.get(disconnectedVmId);
+        if (currentState && currentState.connectionState !== "disposed") {
+          updateConnectionState(disconnectedVmId, "disconnected");
+        }
+      });
 
-    return client;
-  } catch (error) {
+      await client.connect();
+
+      session.sandboxClient = client;
+      updateConnectionState(vmId, "connected");
+
+      return client;
+    },
+    {
+      maxRetries: 3,
+      shouldAbort: () => {
+        const s = vmSessions.get(vmId);
+        return !s || s.connectionState === "disposed";
+      },
+      onRetry: (attempt, error) => {
+        console.log(
+          `[VMStore] Connection attempt ${attempt}/3 failed for VM ${vmId}: ${error.message}. Retrying...`,
+        );
+      },
+    },
+  ).catch((error) => {
+    // Handle final failure
     const message = error instanceof Error ? error.message : String(error);
     session.lastError = message;
     updateConnectionState(vmId, "error");
+    console.error(`[VMStore] Failed to connect to VM ${vmId}: ${message}`);
     throw error;
-  }
+  });
+
+  pendingConnections.set(vmId, connectionPromise);
+
+  // Clean up pending connection when done (success or failure)
+  connectionPromise.finally(() => {
+    pendingConnections.delete(vmId);
+  });
+
+  return connectionPromise;
 }
 
 /**

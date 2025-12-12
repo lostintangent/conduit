@@ -9,6 +9,7 @@ export type TerminalInstance = {
 
   isRendererReady: boolean;
   bufferedOutput: string[];
+  cwd: string;
 
   // Command to execute when the terminal becomes ready (for workspace restore)
   pendingCommand?: string;

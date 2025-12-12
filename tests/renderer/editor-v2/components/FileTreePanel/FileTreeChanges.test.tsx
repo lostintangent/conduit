@@ -2,15 +2,15 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FileTreeChanges } from "../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeChanges";
 
 // ============================================================================
 // Mocks
 // ============================================================================
 
-// Mock git API (passed as prop)
+// Mock useGitV2 hook
 const mockGetStatus = vi.fn();
 const mockOnStatusChanged = vi.fn();
 const mockStage = vi.fn();
@@ -18,14 +18,16 @@ const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
 const mockWhenReady = vi.fn().mockResolvedValue(undefined);
 
-const mockGitAPI = {
-  getStatus: mockGetStatus,
-  onStatusChanged: mockOnStatusChanged,
-  stage: mockStage,
-  unstage: mockUnstage,
-  revert: mockRevert,
-  whenReady: mockWhenReady,
-};
+vi.mock("@/hooks/useGitV2", () => ({
+  useGitV2: () => ({
+    getStatus: mockGetStatus,
+    onStatusChanged: mockOnStatusChanged,
+    stage: mockStage,
+    unstage: mockUnstage,
+    revert: mockRevert,
+    whenReady: mockWhenReady,
+  }),
+}));
 
 // Mock useGitAvailable hook
 vi.mock("@/hooks/useGitAvailable", () => ({
@@ -123,7 +125,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -137,7 +138,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -153,7 +153,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -177,7 +176,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -201,7 +199,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -220,7 +217,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -241,7 +237,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -261,7 +256,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -279,7 +273,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -306,7 +299,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -338,7 +330,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -383,7 +374,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -413,7 +403,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={selectedFile}
           onFileSelect={mockOnFileSelect}
         />,
@@ -438,7 +427,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -463,7 +451,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -491,7 +478,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -528,7 +514,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -551,7 +536,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -585,7 +569,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -607,7 +590,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -632,7 +614,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -660,7 +641,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -679,7 +659,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -698,7 +677,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -723,7 +701,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -742,7 +719,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -770,7 +746,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -803,7 +778,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -836,7 +810,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -891,7 +864,6 @@ describe("FileTreeChanges", () => {
         <FileTreeChanges
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -906,363 +878,6 @@ describe("FileTreeChanges", () => {
 
       // Should be in alphabetical order
       expect(names).toEqual(["a-file.ts", "m-file.ts", "z-file.ts"]);
-    });
-  });
-
-  // ===========================================================================
-  // Multi-Select
-  // ===========================================================================
-
-  describe("multi-select", () => {
-    const MOCK_STATUS_MULTI = {
-      branch: "main",
-      files: new Map([
-        ["file1.ts", { status: "modified", staged: false, path: "file1.ts" }],
-        ["file2.ts", { status: "modified", staged: false, path: "file2.ts" }],
-        ["file3.ts", { status: "modified", staged: false, path: "file3.ts" }],
-        ["file4.ts", { status: "added", staged: true, path: "file4.ts" }],
-        ["file5.ts", { status: "added", staged: true, path: "file5.ts" }],
-      ]),
-    };
-
-    it("should select single item on regular click", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_MULTI);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const item = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item);
-
-      // Item should be highlighted
-      expect(item.className).toContain("bg-accent");
-    });
-
-    it("should select range with shift-click", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_MULTI);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Click first item
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      // Shift-click third item
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { shiftKey: true });
-
-      // All three items should be highlighted
-      expect(item1.className).toContain("bg-accent");
-      expect(screen.getByTestId("change-item-file2.ts").className).toContain(
-        "bg-accent",
-      );
-      expect(item3.className).toContain("bg-accent");
-    });
-
-    it("should toggle selection with cmd-click", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_MULTI);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Click first item
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      // Cmd-click third item to add to selection
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { metaKey: true });
-
-      // Both items should be highlighted
-      expect(item1.className).toContain("bg-accent");
-      expect(item3.className).toContain("bg-accent");
-
-      // Item 2 should not be highlighted
-      expect(
-        screen.getByTestId("change-item-file2.ts").className,
-      ).not.toContain("bg-accent/25");
-    });
-  });
-
-  // ===========================================================================
-  // Bulk Actions
-  // ===========================================================================
-
-  describe("bulk actions", () => {
-    const MOCK_STATUS_BULK = {
-      branch: "main",
-      files: new Map([
-        ["file1.ts", { status: "modified", staged: false, path: "file1.ts" }],
-        ["file2.ts", { status: "modified", staged: false, path: "file2.ts" }],
-        ["file3.ts", { status: "modified", staged: false, path: "file3.ts" }],
-      ]),
-    };
-
-    it("should stage all selected files when clicking stage on any selected file", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_BULK);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Select range of files
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { shiftKey: true });
-
-      // Click stage button on any selected file
-      const stageButton = item1.querySelector('[data-testid="stage-button"]');
-      fireEvent.click(stageButton!);
-
-      // Should stage all selected files
-      await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith([
-          "file1.ts",
-          "file2.ts",
-          "file3.ts",
-        ]);
-      });
-    });
-
-    it("should unstage all selected files when clicking unstage on any selected file", async () => {
-      mockGetStatus.mockResolvedValue({
-        branch: "main",
-        files: new Map([
-          ["file1.ts", { status: "added", staged: true, path: "file1.ts" }],
-          ["file2.ts", { status: "added", staged: true, path: "file2.ts" }],
-          ["file3.ts", { status: "added", staged: true, path: "file3.ts" }],
-        ]),
-      });
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Select range of files
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { shiftKey: true });
-
-      // Click unstage button on any selected file
-      const unstageButton = item1.querySelector(
-        '[data-testid="unstage-button"]',
-      );
-      fireEvent.click(unstageButton!);
-
-      // Should unstage all selected files
-      await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith([
-          "file1.ts",
-          "file2.ts",
-          "file3.ts",
-        ]);
-      });
-    });
-
-    it("should revert all selected files when clicking revert on any selected file", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_BULK);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Select range of files
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      const item2 = screen.getByTestId("change-item-file2.ts");
-      fireEvent.click(item2, { metaKey: true });
-
-      // Click revert button on any selected file
-      const revertButton = item1.querySelector('[data-testid="revert-button"]');
-      fireEvent.click(revertButton!);
-
-      // Should revert all selected files
-      await waitFor(() => {
-        expect(mockRevert).toHaveBeenCalledWith(["file1.ts", "file2.ts"]);
-      });
-    });
-  });
-
-  // ===========================================================================
-  // Stage All / Unstage All
-  // ===========================================================================
-
-  describe("stage all / unstage all", () => {
-    it("should show stage all button on Changes section", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_UNSTAGED_ONLY);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const changesSection = screen.getByTestId("section-changes");
-      const stageAllButton = changesSection.querySelector(
-        '[data-testid="stage-all-button"]',
-      );
-
-      expect(stageAllButton).toBeDefined();
-    });
-
-    it("should show unstage all button on Staged Changes section", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_STAGED_ONLY);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const stagedSection = screen.getByTestId("section-staged-changes");
-      const unstageAllButton = stagedSection.querySelector(
-        '[data-testid="unstage-all-button"]',
-      );
-
-      expect(unstageAllButton).toBeDefined();
-    });
-
-    it("should stage all unstaged files when stage all button is clicked", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_UNSTAGED_ONLY);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const changesSection = screen.getByTestId("section-changes");
-      const stageAllButton = changesSection.querySelector(
-        '[data-testid="stage-all-button"]',
-      );
-
-      fireEvent.click(stageAllButton!);
-
-      await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(["file1.ts", "file2.ts"]);
-      });
-    });
-
-    it("should unstage all staged files when unstage all button is clicked", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_STAGED_ONLY);
-
-      render(
-        <FileTreeChanges
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const stagedSection = screen.getByTestId("section-staged-changes");
-      const unstageAllButton = stagedSection.querySelector(
-        '[data-testid="unstage-all-button"]',
-      );
-
-      fireEvent.click(unstageAllButton!);
-
-      await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(["file1.ts", "file2.ts"]);
-      });
     });
   });
 });

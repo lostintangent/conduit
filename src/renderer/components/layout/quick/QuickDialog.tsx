@@ -94,15 +94,14 @@ export function QuickDialog({
 
   const isVmTerminal = useMemo(
     () =>
-      currentDescriptor.type === "terminal" &&
-      !!currentDescriptor.vmMetadata?.vmId,
+      currentDescriptor.type === "terminal" && !!currentDescriptor.sandboxId,
     [currentDescriptor],
   );
   const vmTitle = useMemo(() => {
     if (!isVmTerminal) {
       return undefined;
     }
-    return `Connected to VM ${currentDescriptor.vmMetadata?.vmId ?? ""}`;
+    return `Connected to VM ${currentDescriptor.sandboxId ?? ""}`;
   }, [currentDescriptor, isVmTerminal]);
 
   const handleOpenAsTabClick = useCallback(() => {
@@ -155,6 +154,7 @@ export function QuickDialog({
               cwd={currentDescriptor.cwd}
               file={currentDescriptor.file}
               treeMode={currentDescriptor.treeMode}
+              sandboxId={(currentDescriptor as EditorPaneType).sandboxId}
               agentSessionId={undefined}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
               onFileChange={({ file }) => handleEditorUpdate({ file })}

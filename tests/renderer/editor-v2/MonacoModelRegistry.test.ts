@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as monaco from "monaco-editor";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Mocks - Using vi.hoisted for proper module hoisting
@@ -97,6 +97,7 @@ const monacoMock = monaco as unknown as {
 // Import after mocks are set up
 import {
   MonacoModelRegistry,
+  createModelKey,
   pathToUri,
   uriToPath,
 } from "../../../src/renderer/components/panes/editor-v2/registry/MonacoModelRegistry";
@@ -475,6 +476,181 @@ describe("MonacoModelRegistry", () => {
       expect(model1.dispose).toHaveBeenCalled();
       expect(model2.dispose).toHaveBeenCalled();
       expect(registry.modelCount).toBe(0);
+    });
+  });
+
+  // ===========================================================================
+  // VM Isolation
+  // ===========================================================================
+
+  describe("VM isolation", () => {
+    describe("createModelKey", () => {
+      it("should create key without sandboxId suffix for local files", () => {
+        const key = createModelKey("/local/path/file.ts");
+        const expectedUri = pathToUri("/local/path/file.ts");
+
+        expect(key).toBe(expectedUri);
+        expect(key).not.toContain("::vm:");
+      });
+
+      it("should create key with sandboxId suffix for VM files", () => {
+        const key = createModelKey("/vm/path/file.ts", "vm-123");
+        const expectedUri = pathToUri("/vm/path/file.ts");
+
+        expect(key).toBe(`${expectedUri}::vm:vm-123`);
+        expect(key).toContain("::vm:vm-123");
+      });
+
+      it("should create different keys for same path with different sandboxIds", () => {
+        const path = "/shared/project/src/index.ts";
+        const key1 = createModelKey(path, "vm-001");
+        const key2 = createModelKey(path, "vm-002");
+
+        expect(key1).not.toBe(key2);
+        expect(key1).toContain("vm-001");
+        expect(key2).toContain("vm-002");
+      });
+
+      it("should create same key for same path and sandboxId", () => {
+        const path = "/shared/project/src/index.ts";
+        const sandboxId = "vm-abc";
+
+        const key1 = createModelKey(path, sandboxId);
+        const key2 = createModelKey(path, sandboxId);
+
+        expect(key1).toBe(key2);
+      });
+    });
+
+    describe("model separation", () => {
+      it("should create separate models for same path with different sandboxIds", async () => {
+        const registry = MonacoModelRegistry.getInstance();
+        const filePath = "/shared/project/src/main.ts";
+
+        // Create models for two different VMs with the same file path
+        const model1 = await registry.getOrCreateModel(filePath, "/", "vm-001");
+        const model2 = await registry.getOrCreateModel(filePath, "/", "vm-002");
+
+        // They should be different model instances
+        expect(model1).not.toBe(model2);
+
+        // Registry should have 2 models
+        expect(registry.modelCount).toBe(2);
+      });
+
+      it("should return same model for same path and sandboxId", async () => {
+        const registry = MonacoModelRegistry.getInstance();
+        const filePath = "/shared/project/src/main.ts";
+        const sandboxId = "vm-001";
+
+        const model1 = await registry.getOrCreateModel(
+          filePath,
+          "/",
+          sandboxId,
+        );
+        const model2 = await registry.getOrCreateModel(
+          filePath,
+          "/",
+          sandboxId,
+        );
+
+        expect(model1).toBe(model2);
+        expect(registry.modelCount).toBe(1);
+      });
+
+      it("should maintain independent content for same path with different sandboxIds", async () => {
+        const registry = MonacoModelRegistry.getInstance();
+        const filePath = "/shared/project/src/main.ts";
+
+        // Create models for two different VMs
+        const model1 = await registry.getOrCreateModel(filePath, "/", "vm-001");
+        const model2 = await registry.getOrCreateModel(filePath, "/", "vm-002");
+
+        // Simulate changing content in model1
+        const newContent = "// Modified content for VM 001";
+        model1.setValue(newContent);
+        model1.getValue.mockReturnValue(newContent);
+
+        // model2 should still have original content
+        expect(model1.getValue()).toBe(newContent);
+        expect(model2.getValue()).not.toBe(newContent);
+      });
+
+      it("should dispose VM model independently without affecting other VMs", async () => {
+        const registry = MonacoModelRegistry.getInstance();
+        const filePath = "/shared/project/src/main.ts";
+
+        const model1 = await registry.getOrCreateModel(filePath, "/", "vm-001");
+        const model2 = await registry.getOrCreateModel(filePath, "/", "vm-002");
+
+        // Dispose the first VM's model using disposeModel
+        const key1 = createModelKey(filePath, "vm-001");
+        registry.disposeModel(key1);
+
+        // model2 should still exist
+        const key2 = createModelKey(filePath, "vm-002");
+        const state2 = registry.getModelState(key2);
+
+        expect(model1.dispose).toHaveBeenCalled();
+        expect(model2.dispose).not.toHaveBeenCalled();
+        expect(state2).not.toBeNull();
+      });
+
+      it("should track dirty state independently per VM", async () => {
+        const registry = MonacoModelRegistry.getInstance();
+        const filePath = "/shared/project/src/main.ts";
+
+        const model1 = await registry.getOrCreateModel(filePath, "/", "vm-001");
+        await registry.getOrCreateModel(filePath, "/", "vm-002");
+
+        // Mark model1 as dirty by changing content
+        const contentChangeHandler =
+          monacoMock.__testHelpers.getContentChangeHandler();
+        expect(contentChangeHandler).not.toBeNull();
+
+        // Simulate content change on model1 (this triggers dirty state)
+        model1.setValue("modified content");
+
+        // Get states
+        const key1 = createModelKey(filePath, "vm-001");
+        const key2 = createModelKey(filePath, "vm-002");
+        const state1 = registry.getModelState(key1);
+        const state2 = registry.getModelState(key2);
+
+        // Both states should exist independently
+        expect(state1).not.toBeNull();
+        expect(state2).not.toBeNull();
+      });
+    });
+
+    describe("local vs VM model separation", () => {
+      it("should create separate models for local and VM files with same path", async () => {
+        const registry = MonacoModelRegistry.getInstance();
+        const filePath = "/project/src/main.ts";
+
+        // Create a local model (no sandboxId)
+        const localModel = await registry.getOrCreateModel(filePath, "/");
+        // Create a VM model with same path
+        const vmModel = await registry.getOrCreateModel(
+          filePath,
+          "/",
+          "vm-001",
+        );
+
+        expect(localModel).not.toBe(vmModel);
+        expect(registry.modelCount).toBe(2);
+      });
+
+      it("should correctly key local and VM models differently", () => {
+        const filePath = "/project/src/main.ts";
+
+        const localKey = createModelKey(filePath);
+        const vmKey = createModelKey(filePath, "vm-001");
+
+        expect(localKey).not.toBe(vmKey);
+        expect(localKey).not.toContain("::vm:");
+        expect(vmKey).toContain("::vm:vm-001");
+      });
     });
   });
 });

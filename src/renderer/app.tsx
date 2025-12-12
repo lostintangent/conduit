@@ -482,7 +482,7 @@ export function App() {
           sessionId: result.sessionId,
           cwd: result.cwd,
           title: result.title,
-          vmMetadata: result.vmMetadata ?? undefined,
+          sandboxId: result.vmId ?? undefined,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -847,11 +847,21 @@ export function App() {
           // Extract directory from file path
           const cwd = path.dirname(filePath);
 
+          // Get sandboxId from active pane if it's a terminal or editor with VM
+          const activePane = activeTab.panes[activeTab.activePaneId];
+          const sandboxId =
+            activePane?.type === "terminal"
+              ? activePane.sandboxId
+              : activePane?.type === "editor"
+                ? activePane.sandboxId
+                : undefined;
+
           // Create a quick pane with the file
           setQuickPaneState({
             type: "editor",
             cwd,
             file: filePath,
+            sandboxId,
           });
         }}
       />

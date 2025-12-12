@@ -7,10 +7,8 @@
  * - Stage/unstage/revert actions
  *
  * Also includes:
- * - Commit controls toolbar (message input, commit/push/pull buttons)
  * - Expand/collapse all controls
- * - Staged and unstaged sections with bulk actions
- * - Summary footer with file counts
+ * - Commit UI at the bottom (message input + commit button)
  * - Real-time updates via git status subscription
  *
  * This is an alternative to the file tree + single file view,
@@ -20,61 +18,153 @@
  * ```tsx
  * <ChangesReviewPane
  *   cwd="/project"
- *   git={git}
  *   baseBranch="main"
- *   onExitReview={() => setViewMode({ type: 'editor' })}
- *   hasUpstream={hasUpstream}
- *   isPulling={isPulling}
- *   isPushing={isPushing}
- *   onPull={handlePull}
- *   onPush={handlePush}
  * />
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { GitCommit, Check, Minus } from "lucide-react";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
-import type { GitV2API } from "@/api/GitV2API";
-import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
-import { ChangesSection } from "./ChangesSection";
-import { ChangesFooter } from "./ChangesFooter";
-import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
+import { Button } from "@/components/ui/button";
+import { useGitV2 } from "@/hooks/useGitV2";
+import { cn } from "@/utils";
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
+  GitCommit,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FileChangeDiff } from "./FileChangeDiff";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
   cwd: string;
 
-  /** Git API instance (shared from parent) */
-  git: GitV2API;
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Git ref for original content comparison (default: 'HEAD') */
   baseBranch?: string;
+}
 
-  /** Callback to exit review mode (optional) */
-  onExitReview?: () => void;
+// ============================================================================
+// Section Header Component
+// ============================================================================
 
-  /** Selected file path from tree (relative path) - will expand and scroll to this file */
-  selectedFilePath?: string;
+interface SectionHeaderProps {
+  /** Section title */
+  title: string;
 
-  // ---------------------------------------------------------------------------
-  // Remote Operations (controlled by parent - EditorPaneV2)
-  // ---------------------------------------------------------------------------
+  /** Number of files in section */
+  count: number;
 
-  /** Whether the current branch has an upstream tracking branch */
-  hasUpstream: boolean;
+  /** Whether section is expanded */
+  isExpanded: boolean;
 
-  /** Whether a pull operation is in progress */
-  isPulling: boolean;
+  /** Toggle section expansion */
+  onToggle: () => void;
+}
 
-  /** Whether a push operation is in progress */
-  isPushing: boolean;
+function SectionHeader({
+  title,
+  count,
+  isExpanded,
+  onToggle,
+}: SectionHeaderProps) {
+  return (
+    <button
+      className={cn(
+        "flex items-center gap-2 w-full py-2 px-3",
+        "bg-muted/50 hover:bg-muted/70 transition-colors",
+        "text-sm font-medium text-left",
+        "border-b border-border",
+      )}
+      onClick={onToggle}
+      data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}
+    >
+      {isExpanded ? (
+        <ChevronDown className="w-4 h-4" />
+      ) : (
+        <ChevronRight className="w-4 h-4" />
+      )}
+      <span>{title}</span>
+      <span className="text-muted-foreground">({count})</span>
+    </button>
+  );
+}
 
-  /** Callback to trigger a pull operation */
-  onPull: () => void;
+// ============================================================================
+// Commit Form Component
+// ============================================================================
 
-  /** Callback to trigger a push operation */
-  onPush: () => void;
+interface CommitFormProps {
+  /** Number of staged files */
+  stagedCount: number;
+
+  /** Callback to commit */
+  onCommit: (message: string) => Promise<void>;
+
+  /** Whether commit is in progress */
+  isCommitting: boolean;
+}
+
+function CommitForm({ stagedCount, onCommit, isCommitting }: CommitFormProps) {
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!message.trim() || stagedCount === 0) return;
+
+      await onCommit(message.trim());
+      setMessage("");
+    },
+    [message, stagedCount, onCommit],
+  );
+
+  const canCommit =
+    message.trim().length > 0 && stagedCount > 0 && !isCommitting;
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="border-t border-border p-3 bg-muted/30"
+      data-testid="commit-form"
+    >
+      <div className="flex flex-col gap-2">
+        {/* Commit message input */}
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Commit message..."
+          className={cn(
+            "w-full px-3 py-2 text-sm rounded-md resize-none",
+            "bg-background border border-input",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            "placeholder:text-muted-foreground",
+          )}
+          rows={3}
+          disabled={isCommitting}
+          data-testid="commit-message-input"
+        />
+
+        {/* Commit button */}
+        <Button
+          type="submit"
+          disabled={!canCommit}
+          className="w-full"
+          data-testid="commit-button"
+        >
+          <GitCommit className="w-4 h-4 mr-2" />
+          {isCommitting
+            ? "Committing..."
+            : `Commit ${stagedCount} file${stagedCount !== 1 ? "s" : ""}`}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 /**
@@ -82,94 +172,26 @@ export interface ChangesReviewPaneProps {
  */
 export function ChangesReviewPane({
   cwd,
-  git,
+  sandboxId,
   baseBranch,
-  onExitReview,
-  selectedFilePath,
-  hasUpstream,
-  isPulling,
-  isPushing,
-  onPull,
-  onPush,
 }: ChangesReviewPaneProps) {
-  // Ref for the scrollable container
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const git = useGitV2(cwd, sandboxId);
+
   // ---------------------------------------------------------------------------
-  // Git Status State
+  // State
   // ---------------------------------------------------------------------------
 
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // ---------------------------------------------------------------------------
-  // Commit State
-  // ---------------------------------------------------------------------------
-
-  const [commitMessage, setCommitMessage] = useState("");
   const [isCommitting, setIsCommitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [commitError, setCommitError] = useState<string | null>(null);
 
-  // ---------------------------------------------------------------------------
-  // Section Expansion State
-  // ---------------------------------------------------------------------------
+  // Section expansion state
+  const [stagedExpanded, setStagedExpanded] = useState(true);
+  const [changesExpanded, setChangesExpanded] = useState(true);
 
-  const [stagedSectionExpanded, setStagedSectionExpanded] = useState(true);
-  const [unstagedSectionExpanded, setUnstagedSectionExpanded] = useState(true);
-
-  // ---------------------------------------------------------------------------
-  // Computed: File Lists
-  // ---------------------------------------------------------------------------
-
-  const { stagedFiles, unstagedFiles, allFilePaths } = useMemo(() => {
-    const staged: Array<[string, GitFileStatus]> = [];
-    const unstaged: Array<[string, GitFileStatus]> = [];
-
-    if (gitStatus?.files) {
-      for (const [path, status] of gitStatus.files) {
-        if (status.staged) {
-          staged.push([path, status]);
-        } else {
-          unstaged.push([path, status]);
-        }
-      }
-    }
-
-    // Sort alphabetically by path
-    staged.sort((a, b) => a[0].localeCompare(b[0]));
-    unstaged.sort((a, b) => a[0].localeCompare(b[0]));
-
-    const allPaths = [...staged, ...unstaged].map(([path]) => path);
-
-    return {
-      stagedFiles: staged,
-      unstagedFiles: unstaged,
-      allFilePaths: allPaths,
-    };
-  }, [gitStatus]);
-
-  // ---------------------------------------------------------------------------
-  // File Expansion State (via hook)
-  // ---------------------------------------------------------------------------
-
-  // Auto-expand files by default to match v1 behavior
-  const { expandedFiles, toggleFile, expandFile } = useExpandedFiles(
-    allFilePaths,
-    true,
-  );
-
-  // ---------------------------------------------------------------------------
-  // Selected File Scroll & Expand (via hook)
-  // ---------------------------------------------------------------------------
-
-  useScrollToSelectedFile({
-    selectedFilePath,
-    scrollContainerRef,
-    stagedFiles,
-    unstagedFiles,
-    expandFile,
-    setStagedSectionExpanded,
-    setUnstagedSectionExpanded,
-  });
+  // Track which individual files are expanded
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 
   // ---------------------------------------------------------------------------
   // Initial Load
@@ -190,8 +212,8 @@ export function ChangesReviewPane({
         if (!cancelled) {
           setGitStatus(status);
         }
-      } catch (err) {
-        console.error("Failed to load git status:", err);
+      } catch (error) {
+        console.error("Failed to load git status:", error);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -218,74 +240,83 @@ export function ChangesReviewPane({
     return cleanup;
   }, [git]);
 
-  // ---------------------------------------------------------------------------
-  // Handlers: Commit
-  // ---------------------------------------------------------------------------
+  const { stagedFiles, unstagedFiles } = useMemo(() => {
+    const staged: Array<[string, GitFileStatus]> = [];
+    const unstaged: Array<[string, GitFileStatus]> = [];
 
-  const handleCommit = useCallback(async () => {
-    if (!commitMessage.trim() || stagedFiles.length === 0) {
-      return;
+    if (gitStatus?.files) {
+      for (const [path, status] of gitStatus.files) {
+        if (path.endsWith("/")) {
+          continue;
+        }
+        if (status.staged) {
+          staged.push([path, status]);
+        } else {
+          unstaged.push([path, status]);
+        }
+      }
     }
 
-    setIsCommitting(true);
-    setError(null);
+    // Sort alphabetically by path
+    staged.sort((a, b) => a[0].localeCompare(b[0]));
+    unstaged.sort((a, b) => a[0].localeCompare(b[0]));
 
-    try {
-      await git.commit(commitMessage.trim());
-      setCommitMessage("");
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to commit: ${errorMessage}`);
-      console.error("Failed to commit:", err);
-    } finally {
-      setIsCommitting(false);
-    }
-  }, [git, commitMessage, stagedFiles.length]);
+    return { stagedFiles: staged, unstagedFiles: unstaged };
+  }, [gitStatus]);
 
-  // ---------------------------------------------------------------------------
-  // Handlers: Bulk Stage/Unstage
-  // ---------------------------------------------------------------------------
+  const allFiles = useMemo(() => {
+    return [...stagedFiles, ...unstagedFiles].map(([path]) => path);
+  }, [stagedFiles, unstagedFiles]);
 
-  const handleStageAll = useCallback(async () => {
-    const paths = unstagedFiles.map(([path]) => path);
-    if (paths.length === 0) return;
-
-    try {
-      await git.stage(paths);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to stage files: ${errorMessage}`);
-      console.error("Failed to stage files:", err);
-    }
-  }, [git, unstagedFiles]);
-
-  const handleUnstageAll = useCallback(async () => {
-    const paths = stagedFiles.map(([path]) => path);
-    if (paths.length === 0) return;
-
-    try {
-      await git.unstage(paths);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to unstage files: ${errorMessage}`);
-      console.error("Failed to unstage files:", err);
-    }
-  }, [git, stagedFiles]);
+  const allExpanded =
+    allFiles.length > 0 && allFiles.every((f) => expandedFiles.has(f));
+  const noneExpanded = expandedFiles.size === 0;
 
   // ---------------------------------------------------------------------------
-  // Handlers: Error
+  // Handlers
   // ---------------------------------------------------------------------------
 
-  const handleDismissError = useCallback(() => {
-    setError(null);
+  const toggleFile = useCallback((filePath: string) => {
+    setExpandedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(filePath)) {
+        next.delete(filePath);
+      } else {
+        next.add(filePath);
+      }
+      return next;
+    });
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Render: Loading State
-  // ---------------------------------------------------------------------------
+  const expandAll = useCallback(() => {
+    setExpandedFiles(new Set(allFiles));
+  }, [allFiles]);
+
+  const collapseAll = useCallback(() => {
+    setExpandedFiles(new Set());
+  }, []);
+
+  const handleCommit = useCallback(
+    async (message: string) => {
+      setIsCommitting(true);
+      setCommitError(null);
+      try {
+        await git.commit(message);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        setCommitError(`Failed to commit: ${errorMessage}`);
+        console.error("Failed to commit:", error);
+      } finally {
+        setIsCommitting(false);
+      }
+    },
+    [git],
+  );
+
+  const handleDismissError = useCallback(() => {
+    setCommitError(null);
+  }, []);
 
   if (isLoading) {
     return (
@@ -297,10 +328,6 @@ export function ChangesReviewPane({
       </div>
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Render: Empty State
-  // ---------------------------------------------------------------------------
 
   const hasChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
 
@@ -316,85 +343,113 @@ export function ChangesReviewPane({
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Render: Main Content
-  // ---------------------------------------------------------------------------
-
-  const canCommit =
-    commitMessage.trim().length > 0 && stagedFiles.length > 0 && !isCommitting;
-
-  const totalCount = stagedFiles.length + unstagedFiles.length;
-
   return (
     <div
       className="flex flex-col h-full overflow-hidden"
       data-testid="changes-review-pane"
     >
-      {/* Toolbar with commit controls */}
-      <ChangesReviewToolbar
-        totalFileCount={totalCount}
-        commitMessage={commitMessage}
-        onCommitMessageChange={setCommitMessage}
-        onCommit={handleCommit}
-        canCommit={canCommit}
-        isCommitting={isCommitting}
-        stagedCount={stagedFiles.length}
-        onPull={onPull}
-        onPush={onPush}
-        isPulling={isPulling}
-        isPushing={isPushing}
-        hasUpstream={hasUpstream}
-        onExitReview={onExitReview}
-        error={error}
-        onDismissError={handleDismissError}
-      />
+      {/* Error Banner */}
+      {commitError && (
+        <div
+          className={cn(
+            "flex items-center gap-2 px-3 py-2",
+            "bg-destructive/10 text-destructive text-sm",
+            "border-b border-destructive/20",
+          )}
+          data-testid="commit-error-banner"
+        >
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1">{commitError}</span>
+          <button
+            className="p-1 hover:bg-destructive/20 rounded transition-colors"
+            onClick={handleDismissError}
+            title="Dismiss"
+            data-testid="dismiss-error"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
-      {/* Scrollable File List */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-auto"
-        data-testid="changes-list"
-      >
-        {/* Staged Changes Section */}
-        <ChangesSection
-          title="Staged Changes"
-          files={stagedFiles}
-          icon={<Check className="w-3.5 h-3.5" />}
-          iconColorClass="text-green-500"
-          isExpanded={stagedSectionExpanded}
-          onToggle={() => setStagedSectionExpanded(!stagedSectionExpanded)}
-          bulkActionLabel="Unstage all"
-          onBulkAction={handleUnstageAll}
-          cwd={cwd}
-          git={git}
-          baseBranch={baseBranch}
-          expandedFiles={expandedFiles}
-          onToggleFile={toggleFile}
-        />
-
-        {/* Unstaged Changes Section */}
-        <ChangesSection
-          title="Changes"
-          files={unstagedFiles}
-          icon={<Minus className="w-3.5 h-3.5" />}
-          iconColorClass="text-yellow-500"
-          isExpanded={unstagedSectionExpanded}
-          onToggle={() => setUnstagedSectionExpanded(!unstagedSectionExpanded)}
-          bulkActionLabel="Stage all"
-          onBulkAction={handleStageAll}
-          cwd={cwd}
-          git={git}
-          baseBranch={baseBranch}
-          expandedFiles={expandedFiles}
-          onToggleFile={toggleFile}
-        />
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+        <span className="text-sm font-medium">Changes Review</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={allExpanded ? collapseAll : expandAll}
+          title={allExpanded ? "Collapse All" : "Expand All"}
+          data-testid="toggle-all-button"
+        >
+          <ChevronsUpDown className="w-4 h-4 mr-1" />
+          {allExpanded ? "Collapse All" : "Expand All"}
+        </Button>
       </div>
 
-      {/* Summary Footer */}
-      <ChangesFooter
+      {/* Scrollable File List */}
+      <div className="flex-1 overflow-auto" data-testid="changes-list">
+        {/* Staged Changes Section */}
+        {stagedFiles.length > 0 && (
+          <div data-testid="staged-section">
+            <SectionHeader
+              title="Staged Changes"
+              count={stagedFiles.length}
+              isExpanded={stagedExpanded}
+              onToggle={() => setStagedExpanded(!stagedExpanded)}
+            />
+            {stagedExpanded && (
+              <div>
+                {stagedFiles.map(([path, status]) => (
+                  <FileChangeDiff
+                    key={path}
+                    filePath={path}
+                    cwd={cwd}
+                    sandboxId={sandboxId}
+                    status={status}
+                    baseBranch={baseBranch}
+                    isExpanded={expandedFiles.has(path)}
+                    onToggle={() => toggleFile(path)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Unstaged Changes Section */}
+        {unstagedFiles.length > 0 && (
+          <div data-testid="unstaged-section">
+            <SectionHeader
+              title="Changes"
+              count={unstagedFiles.length}
+              isExpanded={changesExpanded}
+              onToggle={() => setChangesExpanded(!changesExpanded)}
+            />
+            {changesExpanded && (
+              <div>
+                {unstagedFiles.map(([path, status]) => (
+                  <FileChangeDiff
+                    key={path}
+                    filePath={path}
+                    cwd={cwd}
+                    sandboxId={sandboxId}
+                    status={status}
+                    baseBranch={baseBranch}
+                    isExpanded={expandedFiles.has(path)}
+                    onToggle={() => toggleFile(path)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Commit Form */}
+      <CommitForm
         stagedCount={stagedFiles.length}
-        unstagedCount={unstagedFiles.length}
-        totalCount={totalCount}
+        onCommit={handleCommit}
+        isCommitting={isCommitting}
       />
     </div>
   );

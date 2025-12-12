@@ -27,13 +27,13 @@
  * @see docs/architecture/editor-global-container-plan.md
  */
 
-import { useEffect, useRef } from "react";
-import { useAtomValue } from "jotai";
 import { userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
 import type { FileTreeNode } from "@shared/types";
-import { EditorPane } from "./EditorPane";
+import { useAtomValue } from "jotai";
+import { useEffect, useRef } from "react";
 import { EditorPaneAnchor, EditorPaneRegistry } from "../editor-v2";
+import { EditorPane } from "./EditorPane";
 
 // ============================================================================
 // Types
@@ -54,6 +54,9 @@ export interface EditorPaneSwitcherProps {
 
   /** Tree view mode ('all' or 'changes') */
   treeMode?: EditorTreeMode;
+
+  /** sandbox ID for cloud editor panes (routes file ops through VM) */
+  sandboxId?: string;
 
   /** Callback when file changes */
   onFileChange?: (fileData: {
@@ -110,6 +113,7 @@ export function EditorPaneSwitcher({
   file,
   agentSessionId,
   treeMode,
+  sandboxId,
   onFileChange,
   onClearFile,
   onCwdChange,
@@ -156,6 +160,7 @@ export function EditorPaneSwitcher({
       file,
       treeMode,
       agentSessionId: agentSessionId ?? undefined,
+      sandboxId,
     };
 
     return (
@@ -183,6 +188,7 @@ export function EditorPaneSwitcher({
       file={file}
       agentSessionId={agentSessionId}
       treeMode={treeMode}
+      sandboxId={sandboxId}
       onFileChange={onFileChange}
       onClearFile={onClearFile}
       onCwdChange={onCwdChange}

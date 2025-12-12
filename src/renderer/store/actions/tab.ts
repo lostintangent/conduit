@@ -94,6 +94,7 @@ export async function openTab(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
+    sandboxId: result.vmId,
   };
 
   const layout: LayoutNode = {
@@ -145,12 +146,12 @@ export function openTabFromExistingSession({
   sessionId,
   cwd,
   title,
-  vmMetadata,
+  sandboxId,
 }: {
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
-  vmMetadata?: TerminalPane["vmMetadata"] | null;
+  sandboxId?: TerminalPane["sandboxId"] | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -160,7 +161,7 @@ export function openTabFromExistingSession({
     sessionId,
     cwd: cwd ?? null,
     processTitle: title ?? "Terminal",
-    vmMetadata: vmMetadata ?? undefined,
+    sandboxId: sandboxId ?? undefined,
   };
 
   return createTabWithPane(paneState);
@@ -456,7 +457,7 @@ export async function duplicateTab(
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
         processTitle: result.title,
-        vmMetadata: result.vmMetadata,
+        sandboxId: result.vmId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
@@ -510,6 +511,7 @@ export async function duplicateTab(
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         file: translatedFile,
+        sandboxId: sourcePane.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,

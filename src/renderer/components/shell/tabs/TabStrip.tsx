@@ -596,7 +596,7 @@ export const TabStrip = ({
           type: "terminal",
           sessionId: result.sessionId,
           cwd: result.cwd ?? null,
-          vmMetadata: result.vmMetadata ?? undefined,
+          sandboxId: result.vmId ?? undefined,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

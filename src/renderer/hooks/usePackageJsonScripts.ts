@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import path from "path-browserify";
+import { useEffect, useState } from "react";
 
 interface PackageJsonScripts {
   [key: string]: string;
@@ -13,9 +13,13 @@ interface PackageJson {
 /**
  * Hook to find and parse package.json in the current directory or parent directories
  * @param cwd - Current working directory
+ * @param sandboxId - Optional sandbox ID for remote filesystem operations
  * @returns Object containing scripts and the package.json path, or null if not found
  */
-export function usePackageJsonScripts(cwd: string | undefined) {
+export function usePackageJsonScripts(
+  cwd: string | undefined,
+  sandboxId?: string,
+) {
   const [result, setResult] = useState<{
     scripts: PackageJsonScripts;
     packageJsonPath: string;
@@ -30,36 +34,44 @@ export function usePackageJsonScripts(cwd: string | undefined) {
     }
 
     let cancelled = false;
+    let retryCount = 0;
+    const maxRetries = sandboxId ? 5 : 0; // Only retry for VMs (sandbox may not be connected yet)
+    const retryDelay = 2000; // 2 seconds between retries
 
-    async function findAndParsePackageJson() {
+    async function findAndParsePackageJson(): Promise<boolean> {
       try {
         let currentDir = cwd;
         const root = path.parse(currentDir).root;
 
         // Search up to 10 levels or until we hit root
         for (let i = 0; i < 10; i++) {
-          const packageJsonPath = path.join(currentDir, "package.json");
+          try {
+            const packageJsonPath = path.join(currentDir, "package.json");
 
-          // Check existence first to avoid Electron IPC error logging
-          const exists = await window.conduit.fsv2.exists(packageJsonPath);
-          if (exists) {
-            try {
-              const content =
-                await window.conduit.fsv2.readFile(packageJsonPath);
-              const text = new TextDecoder().decode(content);
-              const packageJson: PackageJson = JSON.parse(text);
+            // Try to read the file
+            // Note: sandboxId support for remote VMs would need fsv2 API changes
+            const content = await window.conduit.fsv2.readFile(packageJsonPath);
+            const text = new TextDecoder().decode(content);
+            const packageJson: PackageJson = JSON.parse(text);
 
-              if (!cancelled && packageJson.scripts) {
-                setResult({
-                  scripts: packageJson.scripts,
-                  packageJsonPath,
-                });
-                setLoading(false);
-                return;
-              }
-            } catch (err) {
-              // File exists but can't be read/parsed, continue up the directory tree
+            if (!cancelled && packageJson.scripts) {
+              setResult({
+                scripts: packageJson.scripts,
+                packageJsonPath,
+              });
+              setLoading(false);
+              return true; // Success
             }
+          } catch (err) {
+            // For VMs, check if the error is due to sandbox not being connected
+            // In that case, we'll retry later
+            const errorMessage =
+              err instanceof Error ? err.message : String(err);
+            if (sandboxId && errorMessage.includes("sandbox connection")) {
+              // Sandbox not connected yet - signal to retry
+              return false;
+            }
+            // File doesn't exist or can't be read, continue up the directory tree
           }
 
           // Check if we've reached the root
@@ -80,22 +92,40 @@ export function usePackageJsonScripts(cwd: string | undefined) {
           setResult(null);
           setLoading(false);
         }
+        return true; // Completed (even if no result found)
       } catch (error) {
         console.error("Error finding package.json:", error);
         if (!cancelled) {
           setResult(null);
           setLoading(false);
         }
+        return true; // Don't retry on general errors
       }
     }
 
-    setLoading(true);
-    findAndParsePackageJson();
+    async function attemptWithRetry() {
+      setLoading(true);
+
+      while (!cancelled && retryCount <= maxRetries) {
+        const success = await findAndParsePackageJson();
+        if (success || cancelled) {
+          break;
+        }
+
+        // Wait before retrying (for VM sandbox connection)
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        }
+      }
+    }
+
+    attemptWithRetry();
 
     return () => {
       cancelled = true;
     };
-  }, [cwd]);
+  }, [cwd, sandboxId]);
 
   return { ...result, loading };
 }

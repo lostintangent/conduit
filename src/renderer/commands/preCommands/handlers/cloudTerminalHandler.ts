@@ -97,7 +97,7 @@ export async function detectGitHubRepoHandler(
     // Set flag for uncommitted changes (patches created in main process)
     if (hasUncommitted) {
       console.log(
-        "[CloudTerminal] Uncommitted changes detected, will sync via conduit-server",
+        "[CloudTerminal] Uncommitted changes detected, will sync via sandbox-ipc",
       );
       syncLocalGitState = true;
     }
@@ -171,7 +171,7 @@ export function buildCloudTerminalResult(
   if (handlerResult.syncLocalGitState) {
     terminalOptions.syncLocalGitState = true;
     console.log(
-      `[CloudTerminal] Will sync uncommitted changes via conduit-server`,
+      `[CloudTerminal] Will sync uncommitted changes via sandbox-ipc`,
     );
   }
 

@@ -151,10 +151,11 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create event handler for this client
+	// The handler implements both fs.EventHandler and git.EventHandler
 	handler := &clientEventHandler{client: client, server: s}
 
-	// Acquire workspace session
-	session, release, err := s.manager.Acquire(workspacePath, client, handler)
+	// Acquire workspace session, passing handler for both fs and git events
+	session, release, err := s.manager.Acquire(workspacePath, client, handler, handler)
 	if err != nil {
 		log.Printf("Failed to acquire workspace session: %v", err)
 		s.sendEvent(client, "error", map[string]string{

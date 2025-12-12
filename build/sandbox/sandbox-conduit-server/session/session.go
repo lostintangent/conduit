@@ -77,10 +77,11 @@ func (m *Manager) GetStats() []SessionStats {
 
 // Acquire gets or creates a workspace session.
 // The client parameter is used for event dispatching.
-// The handler parameter receives filesystem and git events.
+// The fsHandler parameter receives filesystem events.
+// The gitHandler parameter receives git events (can be nil if git watching not needed).
 // Returns the session, a release function, and any error.
 // The release function MUST be called when the client is done with the session.
-func (m *Manager) Acquire(workspacePath string, client interface{}, handler fs.EventHandler) (*Session, func(), error) {
+func (m *Manager) Acquire(workspacePath string, client interface{}, fsHandler fs.EventHandler, gitHandler git.EventHandler) (*Session, func(), error) {
 	absPath, err := filepath.Abs(workspacePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid workspace path: %w", err)
@@ -109,7 +110,7 @@ func (m *Manager) Acquire(workspacePath string, client interface{}, handler fs.E
 	}
 
 	// Create new session
-	session, err := m.createSession(absPath, handler)
+	session, err := m.createSession(absPath, fsHandler, gitHandler)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -126,7 +127,7 @@ func (m *Manager) Acquire(workspacePath string, client interface{}, handler fs.E
 }
 
 // createSession creates a new workspace session with all components.
-func (m *Manager) createSession(workspacePath string, handler fs.EventHandler) (*Session, error) {
+func (m *Manager) createSession(workspacePath string, fsHandler fs.EventHandler, gitHandler git.EventHandler) (*Session, error) {
 	// Create filesystem provider
 	provider, err := fs.NewProvider(workspacePath)
 	if err != nil {
@@ -143,7 +144,7 @@ func (m *Manager) createSession(workspacePath string, handler fs.EventHandler) (
 	verifier := fs.NewCacheVerifier(provider, cache)
 
 	// Create file watcher
-	watcher, err := fs.NewWatcher(workspacePath, handler)
+	watcher, err := fs.NewWatcher(workspacePath, fsHandler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create watcher: %w", err)
 	}
@@ -169,16 +170,27 @@ func (m *Manager) createSession(workspacePath string, handler fs.EventHandler) (
 		Verifier:      verifier,
 	}
 
-	// Try to set up git provider
+	// Try to set up git provider and watcher
 	gitRoot := findGitRoot(workspacePath)
 	if gitRoot != "" {
 		gitProvider, err := git.NewProvider(gitRoot, workspacePath)
 		if err == nil {
 			session.GitProvider = gitProvider
 
-			// Create git watcher - note: we don't have a git EventHandler here,
-			// so we skip the git watcher for now. It will be set up by the server
-			// when a client connects.
+			// Create git watcher if we have a git handler
+			if gitHandler != nil {
+				gitWatcher, err := git.NewWatcher(gitRoot, gitProvider, gitHandler)
+				if err == nil {
+					if err := gitWatcher.Start(); err != nil {
+						log.Printf("Warning: failed to start git watcher: %v", err)
+					} else {
+						session.GitWatcher = gitWatcher
+						log.Printf("Git watcher started for %s", gitRoot)
+					}
+				} else {
+					log.Printf("Warning: failed to create git watcher: %v", err)
+				}
+			}
 		}
 	}
 

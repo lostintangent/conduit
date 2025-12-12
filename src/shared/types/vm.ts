@@ -1,11 +1,3 @@
-export type VMMetadata = {
-  vmId: string;
-  vmHost: string;
-  sshPort: number;
-  imageId: string;
-  useSSHKey?: boolean;
-};
-
 export type CreateVMPayload = {
   image?: string;
   labels?: string[];

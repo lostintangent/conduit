@@ -28,18 +28,12 @@
 
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  useEditorActions,
-  useEditorSaveKeybinding,
-  useModelState,
-} from "../../hooks";
-import { MonacoModelRegistry, pathToUri } from "../../registry";
+import { useEditorActions, useModelState } from "../../hooks";
+import { MonacoModelRegistry, createModelKey } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
-import type { GitV2API } from "@/api/GitV2API";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
-import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
@@ -59,8 +53,8 @@ export interface EditorViewPanelProps {
   /** Working directory for file operations */
   cwd: string;
 
-  /** Git API instance (shared from parent) */
-  git?: GitV2API;
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Currently selected file (null for empty state) */
   selectedFile: FileNode | null;
@@ -97,31 +91,6 @@ export interface EditorViewPanelProps {
 
   /** Handler for toggling between diff and edit modes */
   onToggleDiffMode?: (isDiff: boolean) => void;
-
-  /** Handler for exiting changes review mode */
-  onExitReview?: () => void;
-
-  /** Whether the selected file is a deleted file (shows read-only git content) */
-  isFileDeleted?: boolean;
-
-  // ---------------------------------------------------------------------------
-  // Remote Operations (for ChangesReviewPane)
-  // ---------------------------------------------------------------------------
-
-  /** Whether the current branch has an upstream tracking branch */
-  hasUpstream?: boolean;
-
-  /** Whether a pull operation is in progress */
-  isPulling?: boolean;
-
-  /** Whether a push operation is in progress */
-  isPushing?: boolean;
-
-  /** Callback to trigger a pull operation */
-  onPull?: () => void;
-
-  /** Callback to trigger a push operation */
-  onPush?: () => void;
 }
 
 /**
@@ -135,7 +104,7 @@ export interface EditorViewPanelProps {
 export function EditorViewPanel({
   editorId,
   cwd,
-  git,
+  sandboxId,
   selectedFile,
   viewMode,
   baseBranch = "HEAD",
@@ -148,17 +117,15 @@ export function EditorViewPanel({
   showDiffToggle = false,
   isDiffMode = false,
   onToggleDiffMode,
-  onExitReview,
-  isFileDeleted = false,
-  // Remote operations for ChangesReviewPane
-  hasUpstream = true,
-  isPulling = false,
-  isPushing = false,
-  onPull,
-  onPush,
 }: EditorViewPanelProps) {
   // Editor ref for actions
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  // Ref to store the Monaco keybinding disposable for cleanup
+  const saveKeybindingDisposableRef = useRef<monaco.IDisposable | null>(null);
+
+  // Ref to always access the latest handleSave (avoids stale closure in Monaco keybinding)
+  const handleSaveRef = useRef<() => void>(() => {});
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
@@ -186,7 +153,7 @@ export function EditorViewPanel({
   }, [filePath, cwd]);
 
   // Get model state for the current file
-  const modelState = useModelState(filePath);
+  const modelState = useModelState(filePath, sandboxId);
 
   // ---------------------------------------------------------------------------
   // Mode Transition Handling
@@ -251,24 +218,17 @@ export function EditorViewPanel({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.saveModel(pathToUri(filePath));
+      await registry.saveModel(createModelKey(filePath, sandboxId));
       onSave?.();
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, onSave]);
+  }, [filePath, sandboxId, onSave]);
 
-  // ---------------------------------------------------------------------------
-  // Editor Keybindings
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Hook to register Cmd+S keybinding on editors.
-   */
-  const { registerSaveKeybinding } = useEditorSaveKeybinding(
-    handleSave,
-    editorId,
-  );
+  // Keep ref updated so Monaco keybinding always calls the latest handleSave
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
 
   // ---------------------------------------------------------------------------
   // Editor Actions Hook
@@ -285,28 +245,81 @@ export function EditorViewPanel({
   // ---------------------------------------------------------------------------
 
   /**
-   * Handle editor mount - store ref for actions hook and register keybindings.
+   * Handle editor mount - store ref for actions hook and add Cmd+S keybinding.
    */
   const handleEditorMount = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
       editorRef.current = editor;
-      registerSaveKeybinding(editor);
+
+      // Clean up any existing keybinding
+      if (saveKeybindingDisposableRef.current) {
+        saveKeybindingDisposableRef.current.dispose();
+        saveKeybindingDisposableRef.current = null;
+      }
+
+      // Add Monaco action for Cmd+S to trigger save
+      // This ensures Cmd+S works even when the editor has focus
+      // We use handleSaveRef to always get the latest handleSave (avoids stale closure)
+      // Using addAction instead of addCommand because addAction returns an IDisposable
+      const actionDisposable = editor.addAction({
+        id: "conduit.save",
+        label: "Save",
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+        run: () => {
+          handleSaveRef.current();
+        },
+      });
+
+      // Store disposable for cleanup
+      saveKeybindingDisposableRef.current = actionDisposable;
     },
-    [registerSaveKeybinding],
+    [],
   );
 
   /**
-   * Handle diff editor mount - store ref and register keybindings on modified editor.
+   * Handle diff editor mount - store ref and add Cmd+S keybinding to modified editor.
    */
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       // For diff editor, we need to get the modified (right side) editor
       const modifiedEditor = diffEditor.getModifiedEditor();
       editorRef.current = modifiedEditor;
-      registerSaveKeybinding(modifiedEditor);
+
+      // Clean up any existing keybinding
+      if (saveKeybindingDisposableRef.current) {
+        saveKeybindingDisposableRef.current.dispose();
+        saveKeybindingDisposableRef.current = null;
+      }
+
+      // Add Monaco action for Cmd+S to trigger save
+      // We use handleSaveRef to always get the latest handleSave (avoids stale closure)
+      // Using addAction instead of addCommand because addAction returns an IDisposable
+      const actionDisposable = modifiedEditor.addAction({
+        id: "conduit.save",
+        label: "Save",
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+        run: () => {
+          handleSaveRef.current();
+        },
+      });
+
+      // Store disposable for cleanup
+      saveKeybindingDisposableRef.current = actionDisposable;
     },
-    [registerSaveKeybinding],
+    [],
   );
+
+  /**
+   * Cleanup keybinding on unmount.
+   */
+  useEffect(() => {
+    return () => {
+      if (saveKeybindingDisposableRef.current) {
+        saveKeybindingDisposableRef.current.dispose();
+        saveKeybindingDisposableRef.current = null;
+      }
+    };
+  }, []);
 
   /**
    * Handle reload from disk.
@@ -317,11 +330,11 @@ export function EditorViewPanel({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.reloadModel(pathToUri(filePath));
+      await registry.reloadModel(createModelKey(filePath, sandboxId));
     } catch (error) {
       console.error("Failed to reload file:", error);
     }
-  }, [filePath]);
+  }, [filePath, sandboxId]);
 
   /**
    * Handle keep changes - user acknowledges external changes but wants to keep editing.
@@ -331,32 +344,8 @@ export function EditorViewPanel({
     if (!filePath) return;
 
     const registry = MonacoModelRegistry.getInstance();
-    registry.clearExternalChanges(pathToUri(filePath));
-  }, [filePath]);
-
-  // Changes review mode - render full-height pane with its own toolbar
-  // This is checked first because review mode doesn't require a selected file
-  if (viewMode.type === "changesReview" && git) {
-    return (
-      <div
-        className="flex flex-col h-full w-full bg-background"
-        data-testid="editor-view-panel"
-      >
-        <ChangesReviewPane
-          cwd={cwd}
-          git={git}
-          baseBranch={baseBranch}
-          onExitReview={onExitReview}
-          selectedFilePath={displayFilePath || undefined}
-          hasUpstream={hasUpstream}
-          isPulling={isPulling}
-          isPushing={isPushing}
-          onPull={onPull ?? (() => {})}
-          onPush={onPush ?? (() => {})}
-        />
-      </div>
-    );
-  }
+    registry.clearExternalChanges(createModelKey(filePath, sandboxId));
+  }, [filePath, sandboxId]);
 
   // Empty state - no file selected
   if (!selectedFile || !filePath) {
@@ -434,23 +423,13 @@ export function EditorViewPanel({
           >
             Loading...
           </div>
-        ) : isFileDeleted ? (
-          // Deleted file viewer - shows read-only content from git
-          <EditorErrorBoundary filePath={filePath}>
-            <DeletedFileViewer
-              editorId={`${editorId}-deleted`}
-              cwd={cwd}
-              filePath={filePath}
-              baseBranch={baseBranch}
-              onMount={handleEditorMount}
-            />
-          </EditorErrorBoundary>
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
           <EditorErrorBoundary filePath={filePath}>
             <RegularEditorWrapper
               editorId={editorId}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
               theme={theme}
               onMount={handleEditorMount}
@@ -462,25 +441,19 @@ export function EditorViewPanel({
             <DiffEditorWrapper
               editorId={`${editorId}-diff`}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
               baseBranch={baseBranch}
               theme={theme}
               onMount={handleDiffEditorMount}
             />
           </EditorErrorBoundary>
-        ) : viewMode.type === "changesReview" && git ? (
+        ) : viewMode.type === "changesReview" ? (
           // Changes review pane
           <ChangesReviewPane
             cwd={cwd}
-            git={git}
+            sandboxId={sandboxId}
             baseBranch={baseBranch}
-            onExitReview={onExitReview}
-            selectedFilePath={displayFilePath || undefined}
-            hasUpstream={hasUpstream}
-            isPulling={isPulling}
-            isPushing={isPushing}
-            onPull={onPull ?? (() => {})}
-            onPush={onPush ?? (() => {})}
           />
         ) : null}
       </div>

@@ -1,16 +1,17 @@
 /**
- * SandboxIPCClient - WebSocket client for connecting to the conduit-server-provider
+ * SandboxIPCClient - WebSocket client for connecting to the sandbox-ipc-provider
  * running inside a cloud VM.
  *
- * The conduit-server runs on port 9876 inside the VM and is automatically
- * forwarded with the label "conduit-server" when the VM is created.
+ * The sandbox-ipc server runs on port 9876 inside the VM and is automatically
+ * forwarded with the label "sandbox-ipc server" when the VM is created.
  */
 
 import WebSocket from "ws";
+import { withRetry } from "../utils/retry";
 import type { VM } from "./client";
 
 // ============================================================================
-// Types matching sandbox-conduit-server/types/types.go
+// Types matching sandbox-ipc-provider-go/types/types.go
 // ============================================================================
 
 export type PatchType = "staged" | "unstaged" | "untracked";
@@ -34,11 +35,6 @@ export interface ChunkedPatchInfo {
   totalChunks: number;
 }
 
-export interface StartChunkedPatchRequest {
-  sessionId: string;
-  patches: ChunkedPatchInfo[];
-}
-
 export interface StartChunkedPatchResponse {
   sessionId: string;
   ready: boolean;
@@ -59,10 +55,6 @@ export interface PatchChunkAck {
   chunkIndex: number;
   received: boolean;
   error?: string;
-}
-
-export interface FinalizeChunkedPatchRequest {
-  sessionId: string;
 }
 
 export interface GitStatus {
@@ -107,16 +99,22 @@ interface WSResponse {
 // ============================================================================
 
 const SANDBOX_IPC_PORT = 9876;
-const SANDBOX_IPC_LABEL = "conduit-server";
+const SANDBOX_IPC_LABEL = "sandbox-ipc server";
 const DEFAULT_TIMEOUT_MS = 30000;
 const CHUNK_SIZE = 64 * 1024; // 64KB chunks
 const LARGE_PATCH_THRESHOLD = 512 * 1024; // 512KB - use chunked for larger
 
+// Heartbeat configuration to keep WebSocket connection alive
+// Note: The Go server also sends pings, so we're mainly tracking connection health here
+const HEARTBEAT_INTERVAL_MS = 30000; // Send ping every 30 seconds
+const HEARTBEAT_TIMEOUT_MS = 20000; // Wait 20 seconds for pong response (increased for cloud latency)
+const MAX_MISSED_PONGS = 3; // Close connection after this many missed pongs
+
 /**
- * Get the conduit-server WebSocket URL from a VM's forwarded ports
+ * Get the sandbox-ipc WebSocket URL from a VM's forwarded ports
  */
 export function getSandboxIPCUrl(vm: VM): string | null {
-  // Find the port with label "conduit-server"
+  // Find the port with label "sandbox-ipc server"
   for (const [port, info] of Object.entries(vm.forwarded_ports)) {
     if (
       info.description === SANDBOX_IPC_LABEL ||
@@ -130,65 +128,6 @@ export function getSandboxIPCUrl(vm: VM): string | null {
     }
   }
   return null;
-}
-
-// ============================================================================
-// Legacy Connection Manager (deprecated - use VM store instead)
-// These functions are kept for backward compatibility during migration.
-// New code should use the VM store (src/ipc/vm/store.ts) for connection management.
-// ============================================================================
-
-/**
- * @deprecated Use VM store's acquireVM/getSandboxClient instead
- */
-const activeConnections = new Map<string, SandboxIPCClient>();
-
-/**
- * Get or create a connection to a VM's conduit-server
- * @deprecated Use VM store's acquireVM/getSandboxClient instead
- */
-export async function getConnection(vm: VM): Promise<SandboxIPCClient> {
-  const existing = activeConnections.get(vm.id);
-  if (existing?.isConnected()) {
-    return existing;
-  }
-
-  const url = getSandboxIPCUrl(vm);
-  if (!url) {
-    throw new Error(
-      `VM ${vm.id} does not have conduit-server port forwarded. ` +
-        `Expected port ${SANDBOX_IPC_PORT} with label "${SANDBOX_IPC_LABEL}"`,
-    );
-  }
-
-  const client = new SandboxIPCClient(vm.id, url);
-  await client.connect();
-  activeConnections.set(vm.id, client);
-
-  return client;
-}
-
-/**
- * Close connection to a VM
- * @deprecated Use VM store's releaseVM/disconnectSandbox instead
- */
-export function closeConnection(vmId: string): void {
-  const client = activeConnections.get(vmId);
-  if (client) {
-    client.disconnect();
-    activeConnections.delete(vmId);
-  }
-}
-
-/**
- * Close all connections
- * @deprecated Use VM store's disposeAllSessions instead
- */
-export function closeAllConnections(): void {
-  for (const client of activeConnections.values()) {
-    client.disconnect();
-  }
-  activeConnections.clear();
 }
 
 // ============================================================================
@@ -209,13 +148,31 @@ export class SandboxIPCClient {
   private eventHandlers = new Map<string, Set<(data: unknown) => void>>();
   private connectionPromise: Promise<void> | null = null;
 
+  // Heartbeat state
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private heartbeatTimeout: NodeJS.Timeout | null = null;
+  private missedPongs = 0;
+
+  // Disconnection callback for external notification
+  private onDisconnectCallback:
+    | ((vmId: string, reason: string) => void)
+    | null = null;
+
   constructor(
     public readonly vmId: string,
     public readonly url: string,
   ) {}
 
   /**
-   * Connect to the conduit-server
+   * Set a callback to be notified when the connection is lost.
+   * This allows external code (like VM store) to react to disconnections.
+   */
+  onDisconnect(callback: (vmId: string, reason: string) => void): void {
+    this.onDisconnectCallback = callback;
+  }
+
+  /**
+   * Connect to the sandbox-ipc server
    */
   async connect(): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -256,14 +213,35 @@ export class SandboxIPCClient {
         }
       });
 
-      this.ws.on("close", () => {
-        console.log(`[SandboxIPC] Disconnected from VM ${this.vmId}`);
+      this.ws.on("close", (code, reason) => {
+        const reasonStr = reason?.toString() || "none";
+        console.log(
+          `[SandboxIPC] Disconnected from VM ${this.vmId} (code: ${code}, reason: ${reasonStr})`,
+        );
+
+        // Notify external listeners about disconnection
+        if (resolved && this.onDisconnectCallback) {
+          this.onDisconnectCallback(
+            this.vmId,
+            `code: ${code}, reason: ${reasonStr}`,
+          );
+        }
+
         if (!resolved) {
           resolved = true;
           clearTimeout(timeout);
           reject(new Error("Connection closed before server ready"));
         }
         this.cleanup();
+      });
+
+      // Handle pong responses to our ping
+      this.ws.on("pong", () => {
+        this.missedPongs = 0;
+        if (this.heartbeatTimeout) {
+          clearTimeout(this.heartbeatTimeout);
+          this.heartbeatTimeout = null;
+        }
       });
 
       this.ws.on("message", (data) => {
@@ -278,6 +256,8 @@ export class SandboxIPCClient {
                 `[SandboxIPC] Connected to VM ${this.vmId}`,
                 message.data?.hasGit ? "(git available)" : "(no git)",
               );
+              // Start heartbeat after connection is established
+              this.startHeartbeat();
               resolve();
             }
             // Still process the event for any registered handlers
@@ -317,15 +297,34 @@ export class SandboxIPCClient {
   }
 
   /**
-   * Make an RPC call to the conduit-server
+   * Make an RPC call to the sandbox-ipc server with automatic retry on transient errors.
+   * Retries are attempted for timeout, connection, and network errors.
    */
   async call<T>(
     method: string,
     params?: unknown,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   ): Promise<T> {
+    return withRetry(() => this.callOnce<T>(method, params, timeoutMs), {
+      maxRetries: 3,
+      onRetry: (attempt, error) => {
+        console.log(
+          `[SandboxIPC] Retrying ${method} (attempt ${attempt}/3): ${error.message}`,
+        );
+      },
+    });
+  }
+
+  /**
+   * Make a single RPC call without retry (internal use only).
+   */
+  private async callOnce<T>(
+    method: string,
+    params?: unknown,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  ): Promise<T> {
     if (!this.isConnected()) {
-      throw new Error("Not connected to conduit-server");
+      throw new Error("Not connected to sandbox-ipc server");
     }
 
     const id = ++this.requestId;
@@ -360,13 +359,15 @@ export class SandboxIPCClient {
   }
 
   /**
-   * Subscribe to events from the server
+   * Subscribe to events from the server.
    */
   on(event: string, handler: (data: unknown) => void): () => void {
-    if (!this.eventHandlers.has(event)) {
-      this.eventHandlers.set(event, new Set());
+    let handlers = this.eventHandlers.get(event);
+    if (!handlers) {
+      handlers = new Set();
+      this.eventHandlers.set(event, handlers);
     }
-    this.eventHandlers.get(event)!.add(handler);
+    handlers.add(handler);
 
     // Return unsubscribe function
     return () => {
@@ -610,7 +611,7 @@ export class SandboxIPCClient {
       // Handle event
       if (message.type === "event" && message.event) {
         const handlers = this.eventHandlers.get(message.event);
-        if (handlers) {
+        if (handlers && handlers.size > 0) {
           for (const handler of handlers) {
             try {
               handler(message.data);
@@ -628,9 +629,61 @@ export class SandboxIPCClient {
     }
   }
 
+  /**
+   * Start the heartbeat mechanism to keep the WebSocket connection alive.
+   * Sends periodic pings and expects pongs back within a timeout.
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat(); // Clear any existing heartbeat
+
+    this.heartbeatInterval = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        this.stopHeartbeat();
+        return;
+      }
+
+      // Send ping
+      this.ws.ping();
+
+      // Set timeout for pong response
+      this.heartbeatTimeout = setTimeout(() => {
+        this.missedPongs++;
+        console.warn(
+          `[SandboxIPC] Missed pong from VM ${this.vmId} (missed: ${this.missedPongs}/${MAX_MISSED_PONGS})`,
+        );
+
+        // After MAX_MISSED_PONGS missed pongs, consider connection dead
+        if (this.missedPongs >= MAX_MISSED_PONGS) {
+          console.error(
+            `[SandboxIPC] Connection to VM ${this.vmId} appears dead after ${this.missedPongs} missed pongs, closing`,
+          );
+          this.ws?.close(4000, "Heartbeat timeout");
+        }
+      }, HEARTBEAT_TIMEOUT_MS);
+    }, HEARTBEAT_INTERVAL_MS);
+  }
+
+  /**
+   * Stop the heartbeat mechanism
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    if (this.heartbeatTimeout) {
+      clearTimeout(this.heartbeatTimeout);
+      this.heartbeatTimeout = null;
+    }
+    this.missedPongs = 0;
+  }
+
   private cleanup(): void {
+    // Stop heartbeat
+    this.stopHeartbeat();
+
     // Reject all pending requests
-    for (const [_id, pending] of this.pendingRequests) {
+    for (const pending of this.pendingRequests.values()) {
       clearTimeout(pending.timeout);
       pending.reject(new Error("Connection closed"));
     }

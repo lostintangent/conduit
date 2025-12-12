@@ -10,7 +10,6 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import { TooltipProvider } from "../../../../../src/renderer/components/ui/tooltip";
 import { ChangesReviewPane } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/ChangesReviewPane";
 import { FileChangeDiff } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/FileChangeDiff";
 import type {
@@ -19,21 +18,10 @@ import type {
 } from "../../../../../src/ipc/gitv2/types";
 
 // ============================================================================
-// Test Utilities
-// ============================================================================
-
-/**
- * Custom render that wraps components with required providers.
- */
-function renderWithProviders(ui: React.ReactElement) {
-  return render(<TooltipProvider>{ui}</TooltipProvider>);
-}
-
-// ============================================================================
 // Mocks
 // ============================================================================
 
-// Mock git API (passed as prop)
+// Mock useGitV2 hook
 const mockGetStatus = vi.fn();
 const mockOnStatusChanged = vi.fn();
 const mockStage = vi.fn();
@@ -41,19 +29,21 @@ const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
 const mockCommit = vi.fn();
 
-const mockGitApi = {
-  whenReady: vi.fn().mockResolvedValue(undefined),
-  getStatus: mockGetStatus,
-  onStatusChanged: mockOnStatusChanged,
-  stage: mockStage,
-  unstage: mockUnstage,
-  revert: mockRevert,
-  commit: mockCommit,
-  getFileContent: vi.fn(),
-  getOriginalContent: vi.fn(),
-};
+vi.mock("../../../../../src/renderer/hooks/useGitV2", () => ({
+  useGitV2: () => ({
+    whenReady: vi.fn().mockResolvedValue(undefined),
+    getStatus: mockGetStatus,
+    onStatusChanged: mockOnStatusChanged,
+    stage: mockStage,
+    unstage: mockUnstage,
+    revert: mockRevert,
+    commit: mockCommit,
+    getFileContent: vi.fn(),
+    getOriginalContent: vi.fn(),
+  }),
+}));
 
-// Mock EditorViewPanel components - we don't need to test the actual editors
+// Mock DiffEditorWrapper - we don't need to test the actual diff editor
 vi.mock(
   "../../../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel",
   () => ({
@@ -66,17 +56,6 @@ vi.mock(
         Mock Diff Editor for {filePath}
       </div>
     ),
-    RegularEditorWrapper: ({ filePath }: any) => (
-      <div data-testid="mock-regular-editor" data-filepath={filePath}>
-        Mock Regular Editor for {filePath}
-      </div>
-    ),
-    DeletedFileViewer: ({ filePath }: any) => (
-      <div data-testid="mock-deleted-file-viewer" data-filepath={filePath}>
-        Mock Deleted File Viewer for {filePath}
-      </div>
-    ),
-    DEFAULT_AUTO_SIZE_CONFIG: { minHeight: 100, maxHeight: 400 },
   }),
 );
 
@@ -120,14 +99,11 @@ describe("FileChangeDiff", () => {
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
     mockRevert.mockResolvedValue(undefined);
-    // Mock window.confirm for revert confirmation
-    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   const defaultProps = {
     filePath: "src/test.ts",
     cwd: TEST_CWD,
-    git: mockGitApi as any,
     status: { path: "src/test.ts", status: "modified" as const, staged: false },
     isExpanded: false,
     onToggle: vi.fn(),
@@ -135,43 +111,44 @@ describe("FileChangeDiff", () => {
 
   describe("rendering", () => {
     it("should render the file header", () => {
-      renderWithProviders(<FileChangeDiff {...defaultProps} />);
+      render(<FileChangeDiff {...defaultProps} />);
 
       expect(screen.getByTestId("file-change-diff-header")).toBeDefined();
       expect(screen.getByText("src/test.ts")).toBeDefined();
     });
 
     it("should show git status badge", () => {
-      renderWithProviders(<FileChangeDiff {...defaultProps} />);
+      render(<FileChangeDiff {...defaultProps} />);
 
       // Modified status shows "M" badge
       expect(screen.getByTitle("Modified")).toBeDefined();
     });
 
     it("should not show diff editor when collapsed", () => {
-      renderWithProviders(
-        <FileChangeDiff {...defaultProps} isExpanded={false} />,
-      );
+      render(<FileChangeDiff {...defaultProps} isExpanded={false} />);
 
       expect(screen.queryByTestId("file-change-diff-content")).toBeNull();
     });
 
     it("should show diff editor when expanded", () => {
-      renderWithProviders(
-        <FileChangeDiff {...defaultProps} isExpanded={true} />,
-      );
+      render(<FileChangeDiff {...defaultProps} isExpanded={true} />);
 
       expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
       expect(screen.getByTestId("mock-diff-editor")).toBeDefined();
+    });
+
+    it("should pass readOnly=true to diff editor", () => {
+      render(<FileChangeDiff {...defaultProps} isExpanded={true} />);
+
+      const diffEditor = screen.getByTestId("mock-diff-editor");
+      expect(diffEditor.getAttribute("data-readonly")).toBe("true");
     });
   });
 
   describe("toggle", () => {
     it("should call onToggle when header is clicked", () => {
       const onToggle = vi.fn();
-      renderWithProviders(
-        <FileChangeDiff {...defaultProps} onToggle={onToggle} />,
-      );
+      render(<FileChangeDiff {...defaultProps} onToggle={onToggle} />);
 
       // Click on the file path text area (clickable part of header)
       fireEvent.click(screen.getByText("src/test.ts"));
@@ -182,19 +159,19 @@ describe("FileChangeDiff", () => {
 
   describe("action buttons - unstaged file", () => {
     it("should show stage button for unstaged files", () => {
-      renderWithProviders(<FileChangeDiff {...defaultProps} />);
+      render(<FileChangeDiff {...defaultProps} />);
 
       expect(screen.getByTestId("stage-button")).toBeDefined();
     });
 
     it("should show revert button for unstaged files", () => {
-      renderWithProviders(<FileChangeDiff {...defaultProps} />);
+      render(<FileChangeDiff {...defaultProps} />);
 
       expect(screen.getByTestId("revert-button")).toBeDefined();
     });
 
     it("should call git.stage when stage button is clicked", async () => {
-      renderWithProviders(<FileChangeDiff {...defaultProps} />);
+      render(<FileChangeDiff {...defaultProps} />);
 
       fireEvent.click(screen.getByTestId("stage-button"));
 
@@ -204,7 +181,7 @@ describe("FileChangeDiff", () => {
     });
 
     it("should call git.revert when revert button is clicked", async () => {
-      renderWithProviders(<FileChangeDiff {...defaultProps} />);
+      render(<FileChangeDiff {...defaultProps} />);
 
       fireEvent.click(screen.getByTestId("revert-button"));
 
@@ -225,20 +202,20 @@ describe("FileChangeDiff", () => {
     };
 
     it("should show unstage button for staged files", () => {
-      renderWithProviders(<FileChangeDiff {...stagedProps} />);
+      render(<FileChangeDiff {...stagedProps} />);
 
       expect(screen.getByTestId("unstage-button")).toBeDefined();
     });
 
     it("should not show stage or revert buttons for staged files", () => {
-      renderWithProviders(<FileChangeDiff {...stagedProps} />);
+      render(<FileChangeDiff {...stagedProps} />);
 
       expect(screen.queryByTestId("stage-button")).toBeNull();
       expect(screen.queryByTestId("revert-button")).toBeNull();
     });
 
     it("should call git.unstage when unstage button is clicked", async () => {
-      renderWithProviders(<FileChangeDiff {...stagedProps} />);
+      render(<FileChangeDiff {...stagedProps} />);
 
       fireEvent.click(screen.getByTestId("unstage-button"));
 
@@ -250,7 +227,7 @@ describe("FileChangeDiff", () => {
 
   describe("git status badges", () => {
     it("should show added status", () => {
-      renderWithProviders(
+      render(
         <FileChangeDiff
           {...defaultProps}
           status={{ path: "src/new.ts", status: "added", staged: true }}
@@ -261,7 +238,7 @@ describe("FileChangeDiff", () => {
     });
 
     it("should show deleted status", () => {
-      renderWithProviders(
+      render(
         <FileChangeDiff
           {...defaultProps}
           status={{ path: "src/old.ts", status: "deleted", staged: false }}
@@ -272,7 +249,7 @@ describe("FileChangeDiff", () => {
     });
 
     it("should show untracked status", () => {
-      renderWithProviders(
+      render(
         <FileChangeDiff
           {...defaultProps}
           status={{
@@ -295,7 +272,6 @@ describe("FileChangeDiff", () => {
 describe("ChangesReviewPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetStatus.mockReset();
     mockOnStatusChanged.mockReturnValue(() => {});
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
@@ -311,9 +287,7 @@ describe("ChangesReviewPane", () => {
     it("should show loading state initially", async () => {
       mockGetStatus.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       expect(screen.getByTestId("changes-review-pane-loading")).toBeDefined();
     });
@@ -323,9 +297,7 @@ describe("ChangesReviewPane", () => {
     it("should show empty state when no changes", async () => {
       mockGetStatus.mockResolvedValue(createMockStatus([]));
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane-empty")).toBeDefined();
@@ -343,9 +315,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -365,13 +335,11 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("section-staged-changes")).toBeDefined();
-        expect(screen.getByTestId("section-changes")).toBeDefined();
+        expect(screen.getByTestId("staged-section")).toBeDefined();
+        expect(screen.getByTestId("unstaged-section")).toBeDefined();
       });
 
       // Check section headers
@@ -381,51 +349,46 @@ describe("ChangesReviewPane", () => {
   });
 
   describe("expand/collapse individual files", () => {
-    it("should auto-expand files on mount and allow collapsing", async () => {
+    it("should expand file when header is clicked", async () => {
       mockGetStatus.mockResolvedValue(
         createMockStatus([
           { path: "src/file.ts", status: "modified", staged: false },
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
       });
 
-      // Files should auto-expand on mount
+      // File should start collapsed
+      expect(screen.queryByTestId("file-change-diff-content")).toBeNull();
+
+      // Click on file path to expand (the clickable area)
+      fireEvent.click(screen.getByText("src/file.ts"));
+
+      // Wait for expansion to occur
       await waitFor(() => {
         expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
       });
-
-      // Click on file path to collapse
-      fireEvent.click(screen.getByText("src/file.ts"));
-
-      // Wait for collapse to occur
-      await waitFor(() => {
-        expect(screen.queryByTestId("file-change-diff-content")).toBeNull();
-      });
     });
 
-    it("should re-expand file when header is clicked after collapse", async () => {
+    it("should collapse file when header is clicked again", async () => {
       mockGetStatus.mockResolvedValue(
         createMockStatus([
           { path: "src/file.ts", status: "modified", staged: false },
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
       });
 
-      // Files start expanded
+      // Expand
+      fireEvent.click(screen.getByText("src/file.ts"));
       await waitFor(() => {
         expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
       });
@@ -435,17 +398,11 @@ describe("ChangesReviewPane", () => {
       await waitFor(() => {
         expect(screen.queryByTestId("file-change-diff-content")).toBeNull();
       });
-
-      // Re-expand
-      fireEvent.click(screen.getByText("src/file.ts"));
-      await waitFor(() => {
-        expect(screen.getByTestId("file-change-diff-content")).toBeDefined();
-      });
     });
   });
 
   describe("expand/collapse all", () => {
-    it("should auto-expand all files on mount", async () => {
+    it("should expand all files when Expand All is clicked", async () => {
       mockGetStatus.mockResolvedValue(
         createMockStatus([
           { path: "src/file1.ts", status: "modified", staged: false },
@@ -453,15 +410,21 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
       });
 
-      // All files should auto-expand on mount
+      // All files start collapsed
+      expect(screen.queryAllByTestId("file-change-diff-content")).toHaveLength(
+        0,
+      );
+
+      // Click expand all
+      fireEvent.click(screen.getByTestId("toggle-all-button"));
+
+      // Wait for all files to be expanded
       await waitFor(() => {
         expect(screen.getAllByTestId("file-change-diff-content")).toHaveLength(
           2,
@@ -469,8 +432,7 @@ describe("ChangesReviewPane", () => {
       });
     });
 
-    // TODO: toggle-all-button doesn't exist in the component - feature not implemented
-    it.skip("should collapse all files when Collapse All is clicked", async () => {
+    it("should collapse all files when Collapse All is clicked", async () => {
       mockGetStatus.mockResolvedValue(
         createMockStatus([
           { path: "src/file1.ts", status: "modified", staged: false },
@@ -478,22 +440,21 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
       });
 
-      // Files start auto-expanded
+      // Expand all first
+      fireEvent.click(screen.getByTestId("toggle-all-button"));
       await waitFor(() => {
         expect(screen.getAllByTestId("file-change-diff-content")).toHaveLength(
           2,
         );
       });
 
-      // Click collapse all (toggle button acts as collapse when all are expanded)
+      // Click collapse all
       fireEvent.click(screen.getByTestId("toggle-all-button"));
 
       // Wait for all files to be collapsed
@@ -513,21 +474,17 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("section-staged-changes")).toBeDefined();
+        expect(screen.getByTestId("staged-section")).toBeDefined();
       });
 
-      // File should be visible (auto-expanded)
-      await waitFor(() => {
-        expect(screen.getByText("src/staged.ts")).toBeDefined();
-      });
+      // File should be visible
+      expect(screen.getByText("src/staged.ts")).toBeDefined();
 
-      // Click section header text to collapse (find toggle by text "Staged Changes")
-      fireEvent.click(screen.getByText("Staged Changes"));
+      // Click section header to collapse
+      fireEvent.click(screen.getByTestId("section-staged-changes"));
 
       // Wait for file to be hidden
       await waitFor(() => {
@@ -544,9 +501,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -566,9 +521,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -590,12 +543,10 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+        expect(screen.getByTestId("commit-form")).toBeDefined();
       });
 
       expect(screen.getByTestId("commit-message-input")).toBeDefined();
@@ -609,12 +560,10 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+        expect(screen.getByTestId("commit-form")).toBeDefined();
       });
 
       const commitButton = screen.getByTestId("commit-button");
@@ -628,12 +577,10 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+        expect(screen.getByTestId("commit-form")).toBeDefined();
       });
 
       const commitButton = screen.getByTestId("commit-button");
@@ -647,12 +594,10 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+        expect(screen.getByTestId("commit-form")).toBeDefined();
       });
 
       // Enter commit message
@@ -671,12 +616,10 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+        expect(screen.getByTestId("commit-form")).toBeDefined();
       });
 
       // Enter commit message
@@ -692,8 +635,7 @@ describe("ChangesReviewPane", () => {
       });
     });
 
-    // TODO: Test has timing issues - needs investigation
-    it.skip("should show committing state when committing", async () => {
+    it("should show committing state when committing", async () => {
       // Use a promise that stays pending to test loading state
       mockCommit.mockReturnValue(new Promise(() => {}));
 
@@ -703,12 +645,10 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+        expect(screen.getByTestId("commit-form")).toBeDefined();
       });
 
       // Enter commit message
@@ -730,9 +670,7 @@ describe("ChangesReviewPane", () => {
     it("should subscribe to git status changes", async () => {
       mockGetStatus.mockResolvedValue(createMockStatus([]));
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(mockOnStatusChanged).toHaveBeenCalled();
@@ -755,9 +693,7 @@ describe("ChangesReviewPane", () => {
         ]),
       );
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       // Wait for component to render
       await waitFor(() => {
@@ -782,9 +718,7 @@ describe("ChangesReviewPane", () => {
       );
       mockStage.mockRejectedValue(new Error("Stage failed"));
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
         expect(screen.getByTestId("changes-review-pane")).toBeDefined();
@@ -813,12 +747,10 @@ describe("ChangesReviewPane", () => {
       );
       mockCommit.mockRejectedValue(new Error("Commit failed"));
 
-      renderWithProviders(
-        <ChangesReviewPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
+      render(<ChangesReviewPane cwd={TEST_CWD} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+        expect(screen.getByTestId("commit-form")).toBeDefined();
       });
 
       fireEvent.change(screen.getByTestId("commit-message-input"), {
