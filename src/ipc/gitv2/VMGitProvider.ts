@@ -530,6 +530,59 @@ export class VMGitProvider implements GitProvider {
     await this.sandboxClient.call("git.checkout", { ref });
   }
 
+  /**
+   * Stash current uncommitted changes.
+   */
+  async stash(message?: string): Promise<void> {
+    this.ensureNotDisposed();
+
+    await this.sandboxClient.call("git.stash", { message: message ?? "" });
+  }
+
+  /**
+   * Apply and remove the most recent stash entry.
+   */
+  async stashPop(): Promise<void> {
+    this.ensureNotDisposed();
+
+    await this.sandboxClient.call("git.stashPop", {});
+  }
+
+  /**
+   * Push commits to remote.
+   */
+  async push(force?: boolean, setUpstream?: boolean): Promise<void> {
+    this.ensureNotDisposed();
+
+    await this.sandboxClient.call("git.push", {
+      force: force ?? false,
+      setUpstream: setUpstream ?? false,
+    });
+  }
+
+  /**
+   * Pull changes from remote.
+   */
+  async pull(rebase?: boolean): Promise<void> {
+    this.ensureNotDisposed();
+
+    await this.sandboxClient.call("git.pull", { rebase: rebase ?? false });
+  }
+
+  /**
+   * Check if the current branch has an upstream configured.
+   */
+  async hasUpstream(): Promise<boolean> {
+    this.ensureNotDisposed();
+
+    const result = await this.sandboxClient.call<{ hasUpstream: boolean }>(
+      "git.hasUpstream",
+      {},
+    );
+
+    return result.hasUpstream;
+  }
+
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------

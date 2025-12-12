@@ -52,7 +52,7 @@
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import { getSandboxClient } from "../vm/store";
+import { getSandboxClient, onSessionEvent } from "../vm/store";
 import { GitProviderService } from "./GitProviderService";
 import type {
   GitBranch,
@@ -254,6 +254,22 @@ async function getOrCreateVMProvider(
 }
 
 /**
+ * Clean up the VM git provider for a specific VM.
+ * Called when a VM session is disposed.
+ */
+export function disposeVMProvider(vmId: string): void {
+  const provider = vmProviders.get(vmId);
+  if (provider) {
+    try {
+      provider.dispose();
+    } catch (error) {
+      console.error(`[Git-V2] Error disposing VM provider for ${vmId}:`, error);
+    }
+    vmProviders.delete(vmId);
+  }
+}
+
+/**
  * Get the existing provider for a cwd, returning null if none exists.
  *
  * If vmId is provided, returns a VM git provider instead.
@@ -297,6 +313,24 @@ async function requireProvider(cwd: string, vmId?: string) {
  */
 export function initializeGitV2Handlers(): void {
   const service = getService();
+
+  // Subscribe to VM session events to clean up providers when VMs are disposed
+  onSessionEvent((vmId, _session, event) => {
+    if (event === "disposed") {
+      const provider = vmProviders.get(vmId);
+      if (provider) {
+        try {
+          provider.dispose();
+        } catch (error) {
+          console.error(
+            `[Git-V2] Error disposing VM provider for ${vmId}:`,
+            error,
+          );
+        }
+        vmProviders.delete(vmId);
+      }
+    }
+  });
 
   // -------------------------------------------------------------------------
   // Status Operations
@@ -987,6 +1021,17 @@ export function cleanupGitV2Handlers(): void {
   }
 
   subscriptions.clear();
+
+  // Dispose all VM git providers
+  for (const provider of vmProviders.values()) {
+    try {
+      provider.dispose();
+    } catch (error) {
+      console.error("[Git-V2] Error disposing VM provider:", error);
+    }
+  }
+
+  vmProviders.clear();
 }
 
 /**

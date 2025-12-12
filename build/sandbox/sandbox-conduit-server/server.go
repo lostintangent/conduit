@@ -355,6 +355,16 @@ func (s *Server) handleRequest(client *Client, req *Request) {
 		result, err = s.handleGitMostRecentCommittedFile(session, req.Params)
 	case "git.applyPatches":
 		result, err = s.handleGitApplyPatches(session, req.Params)
+	case "git.stash":
+		result, err = s.handleGitStash(session, req.Params)
+	case "git.stashPop":
+		result, err = s.handleGitStashPop(session, req.Params)
+	case "git.push":
+		result, err = s.handleGitPush(session, req.Params)
+	case "git.pull":
+		result, err = s.handleGitPull(session, req.Params)
+	case "git.hasUpstream":
+		result, err = s.handleGitHasUpstream(session, req.Params)
 
 	// Chunked patch methods for large files
 	case "git.startChunkedPatch":
@@ -431,6 +441,19 @@ type GitBranchParams struct {
 
 type GitMostRecentCommittedFileParams struct {
 	CommitLimit int `json:"commitLimit"`
+}
+
+type GitStashParams struct {
+	Message string `json:"message"`
+}
+
+type GitPushParams struct {
+	Force       bool `json:"force"`
+	SetUpstream bool `json:"setUpstream"`
+}
+
+type GitPullParams struct {
+	Rebase bool `json:"rebase"`
 }
 
 // ============================================================================
@@ -707,6 +730,78 @@ func (s *Server) handleGitRevert(session *session.Session, params json.RawMessag
 		session.GitWatcher.TriggerRefresh()
 	}
 	return map[string]bool{"success": true}, nil
+}
+
+func (s *Server) handleGitStash(session *session.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	var p GitStashParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+	if err := session.GitProvider.Stash(p.Message); err != nil {
+		return nil, err
+	}
+	if session.GitWatcher != nil {
+		session.GitWatcher.TriggerRefresh()
+	}
+	return map[string]bool{"success": true}, nil
+}
+
+func (s *Server) handleGitStashPop(session *session.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	if err := session.GitProvider.StashPop(); err != nil {
+		return nil, err
+	}
+	if session.GitWatcher != nil {
+		session.GitWatcher.TriggerRefresh()
+	}
+	return map[string]bool{"success": true}, nil
+}
+
+func (s *Server) handleGitPush(session *session.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	var p GitPushParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+	if err := session.GitProvider.Push(p.Force, p.SetUpstream); err != nil {
+		return nil, err
+	}
+	return map[string]bool{"success": true}, nil
+}
+
+func (s *Server) handleGitPull(session *session.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	var p GitPullParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, err
+	}
+	if err := session.GitProvider.Pull(p.Rebase); err != nil {
+		return nil, err
+	}
+	if session.GitWatcher != nil {
+		session.GitWatcher.TriggerRefresh()
+	}
+	return map[string]bool{"success": true}, nil
+}
+
+func (s *Server) handleGitHasUpstream(session *session.Session, params json.RawMessage) (interface{}, error) {
+	if session.GitProvider == nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
+	hasUpstream, err := session.GitProvider.HasUpstream()
+	if err != nil {
+		return nil, err
+	}
+	return map[string]bool{"hasUpstream": hasUpstream}, nil
 }
 
 func (s *Server) handleGitHasUncommittedChanges(session *session.Session, params json.RawMessage) (interface{}, error) {
