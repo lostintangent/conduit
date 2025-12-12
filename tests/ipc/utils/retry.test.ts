@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  calculateBackoffWithJitter,
   isRetryableError,
   withRetry,
   withRetrySafe,
@@ -123,6 +124,84 @@ describe("retry utility", () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.message).toBe("Authentication failed");
+    });
+  });
+
+  describe("calculateBackoffWithJitter", () => {
+    it("should return approximately initial delay for first attempt", () => {
+      const delays: number[] = [];
+      // Run multiple times due to jitter randomness
+      for (let i = 0; i < 100; i++) {
+        delays.push(calculateBackoffWithJitter(1, { initialDelayMs: 1000 }));
+      }
+
+      // All delays should be close to 1000ms (within jitter range of ±10%)
+      const min = Math.min(...delays);
+      const max = Math.max(...delays);
+      expect(min).toBeGreaterThanOrEqual(900); // 1000 - 10%
+      expect(max).toBeLessThanOrEqual(1100); // 1000 + 10%
+    });
+
+    it("should increase delay exponentially", () => {
+      // Use no jitter for predictable testing
+      const delay1 = calculateBackoffWithJitter(1, {
+        initialDelayMs: 1000,
+        multiplier: 2,
+        jitterFactor: 0,
+      });
+      const delay2 = calculateBackoffWithJitter(2, {
+        initialDelayMs: 1000,
+        multiplier: 2,
+        jitterFactor: 0,
+      });
+      const delay3 = calculateBackoffWithJitter(3, {
+        initialDelayMs: 1000,
+        multiplier: 2,
+        jitterFactor: 0,
+      });
+
+      expect(delay1).toBe(1000);
+      expect(delay2).toBe(2000);
+      expect(delay3).toBe(4000);
+    });
+
+    it("should cap delay at maxDelayMs", () => {
+      const delay = calculateBackoffWithJitter(10, {
+        initialDelayMs: 1000,
+        maxDelayMs: 5000,
+        multiplier: 2,
+        jitterFactor: 0,
+      });
+
+      expect(delay).toBe(5000);
+    });
+
+    it("should apply jitter to prevent thundering herd", () => {
+      const delays = new Set<number>();
+
+      // Generate many delays for the same attempt
+      for (let i = 0; i < 50; i++) {
+        delays.add(
+          Math.round(
+            calculateBackoffWithJitter(3, {
+              initialDelayMs: 1000,
+              multiplier: 1.5,
+              jitterFactor: 0.2,
+            }),
+          ),
+        );
+      }
+
+      // With jitter, we should get varied results
+      expect(delays.size).toBeGreaterThan(10);
+    });
+
+    it("should use sensible defaults", () => {
+      const delay = calculateBackoffWithJitter(1);
+
+      // Default initialDelayMs is 1000, jitterFactor is 0.2 (±10%)
+      expect(delay).toBeGreaterThanOrEqual(900);
+      expect(delay).toBeLessThanOrEqual(1100);
     });
   });
 });

@@ -7,7 +7,7 @@
  */
 
 import WebSocket from "ws";
-import { withRetry } from "../utils/retry";
+import { calculateBackoffWithJitter, withRetry } from "../utils/retry";
 import type { VM } from "./client";
 
 // ============================================================================
@@ -110,6 +110,47 @@ const HEARTBEAT_INTERVAL_MS = 30000; // Send ping every 30 seconds
 const HEARTBEAT_TIMEOUT_MS = 20000; // Wait 20 seconds for pong response (increased for cloud latency)
 const MAX_MISSED_PONGS = 3; // Close connection after this many missed pongs
 
+// Reconnection configuration
+const RECONNECT_INITIAL_DELAY_MS = 1000; // Start with 1 second delay
+const RECONNECT_MAX_DELAY_MS = 30000; // Max 30 seconds between attempts
+const RECONNECT_MAX_ATTEMPTS = 10; // Give up after 10 attempts
+const RECONNECT_BACKOFF_MULTIPLIER = 1.5; // Exponential backoff factor
+const RECONNECT_JITTER_FACTOR = 0.2; // ±10% jitter to prevent thundering herd
+
+// Operation queue configuration
+const MAX_OPERATION_QUEUE_SIZE = 100; // Prevent unbounded queue growth during outages
+const MIN_REMAINING_TIMEOUT_MS = 1000; // Minimum timeout for queued operations
+
+// ============================================================================
+// Connection State Types
+// ============================================================================
+
+export type ConnectionState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
+
+export interface ConnectionStatus {
+  state: ConnectionState;
+  lastConnectedAt?: Date;
+  lastDisconnectedAt?: Date;
+  reconnectAttempt?: number;
+  reconnectMaxAttempts?: number;
+  nextReconnectAt?: Date;
+  error?: string;
+}
+
+// Queued operation during reconnection
+interface QueuedOperation {
+  method: string;
+  params?: unknown;
+  timeoutMs: number;
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+  queuedAt: number;
+}
+
 /**
  * Get the sandbox-ipc WebSocket URL from a VM's forwarded ports
  */
@@ -158,6 +199,20 @@ export class SandboxIPCClient {
     | ((vmId: string, reason: string) => void)
     | null = null;
 
+  // Reconnection state
+  private connectionState: ConnectionState = "disconnected";
+  private reconnectAttempt = 0;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private lastConnectedAt?: Date;
+  private lastDisconnectedAt?: Date;
+  private operationQueue: QueuedOperation[] = [];
+  private isReconnectEnabled = true;
+  private wasConnectedBefore = false;
+
+  // Status change callback for UI updates
+  private onStatusChangeCallback: ((status: ConnectionStatus) => void) | null =
+    null;
+
   constructor(
     public readonly vmId: string,
     public readonly url: string,
@@ -172,6 +227,68 @@ export class SandboxIPCClient {
   }
 
   /**
+   * Set a callback to be notified when connection status changes.
+   * This enables UI to show reconnection progress.
+   */
+  onStatusChange(callback: (status: ConnectionStatus) => void): void {
+    this.onStatusChangeCallback = callback;
+  }
+
+  /**
+   * Get current connection status
+   */
+  getStatus(): ConnectionStatus {
+    const status: ConnectionStatus = {
+      state: this.connectionState,
+      lastConnectedAt: this.lastConnectedAt,
+      lastDisconnectedAt: this.lastDisconnectedAt,
+    };
+
+    if (this.connectionState === "reconnecting") {
+      status.reconnectAttempt = this.reconnectAttempt;
+      status.reconnectMaxAttempts = RECONNECT_MAX_ATTEMPTS;
+    }
+
+    return status;
+  }
+
+  /**
+   * Enable or disable automatic reconnection
+   */
+  setReconnectEnabled(enabled: boolean): void {
+    this.isReconnectEnabled = enabled;
+    if (!enabled) {
+      this.cancelReconnect();
+    }
+  }
+
+  /**
+   * Manually trigger a reconnection attempt.
+   * Useful for UI "Reconnect" buttons.
+   */
+  async reconnect(): Promise<void> {
+    // Cancel any pending automatic reconnect
+    this.cancelReconnect();
+
+    // Reset attempt counter for manual reconnection
+    this.reconnectAttempt = 0;
+
+    // Re-enable reconnection in case it was disabled
+    this.isReconnectEnabled = true;
+
+    // Close existing connection if any
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.cleanupConnection();
+
+    // Attempt fresh connection
+    this.updateConnectionState("reconnecting");
+    await this.connect();
+  }
+
+  /**
    * Connect to the sandbox-ipc server
    */
   async connect(): Promise<void> {
@@ -182,6 +299,11 @@ export class SandboxIPCClient {
     if (this.connectionPromise) {
       return this.connectionPromise;
     }
+
+    // Cancel any pending reconnect
+    this.cancelReconnect();
+
+    this.updateConnectionState("connecting");
 
     this.connectionPromise = new Promise<void>((resolve, reject) => {
       console.log(`[SandboxIPC] Connecting to ${this.url}`);
@@ -219,6 +341,9 @@ export class SandboxIPCClient {
           `[SandboxIPC] Disconnected from VM ${this.vmId} (code: ${code}, reason: ${reasonStr})`,
         );
 
+        // Track disconnection time
+        this.lastDisconnectedAt = new Date();
+
         // Notify external listeners about disconnection
         if (resolved && this.onDisconnectCallback) {
           this.onDisconnectCallback(
@@ -232,7 +357,23 @@ export class SandboxIPCClient {
           clearTimeout(timeout);
           reject(new Error("Connection closed before server ready"));
         }
-        this.cleanup();
+
+        // Clean up but don't reject queued operations yet - we might reconnect
+        this.cleanupConnection();
+
+        // Attempt reconnection if we were previously connected and it wasn't intentional
+        const wasIntentionalClose = code === 1000 || code === 1001;
+        if (
+          this.wasConnectedBefore &&
+          this.isReconnectEnabled &&
+          !wasIntentionalClose
+        ) {
+          this.scheduleReconnect();
+        } else {
+          // No reconnection - reject all queued operations
+          this.rejectQueuedOperations("Connection closed");
+          this.updateConnectionState("disconnected");
+        }
       });
 
       // Handle pong responses to our ping
@@ -256,8 +397,18 @@ export class SandboxIPCClient {
                 `[SandboxIPC] Connected to VM ${this.vmId}`,
                 message.data?.hasGit ? "(git available)" : "(no git)",
               );
+              // Mark successful connection
+              this.lastConnectedAt = new Date();
+              this.wasConnectedBefore = true;
+              this.reconnectAttempt = 0;
+              this.updateConnectionState("connected");
+
               // Start heartbeat after connection is established
               this.startHeartbeat();
+
+              // Process any queued operations
+              this.flushOperationQueue();
+
               resolve();
             }
             // Still process the event for any registered handlers
@@ -279,14 +430,19 @@ export class SandboxIPCClient {
   }
 
   /**
-   * Disconnect from the server
+   * Disconnect from the server (intentional disconnect - no reconnection)
    */
   disconnect(): void {
+    // Disable reconnection for intentional disconnects
+    this.isReconnectEnabled = false;
+    this.cancelReconnect();
+
     if (this.ws) {
-      this.ws.close();
+      this.ws.close(1000, "Client disconnect");
       this.ws = null;
     }
     this.cleanup();
+    this.updateConnectionState("disconnected");
   }
 
   /**
@@ -297,7 +453,15 @@ export class SandboxIPCClient {
   }
 
   /**
+   * Check if currently reconnecting
+   */
+  isReconnecting(): boolean {
+    return this.connectionState === "reconnecting";
+  }
+
+  /**
    * Make an RPC call to the sandbox-ipc server with automatic retry on transient errors.
+   * If reconnecting, the operation will be queued and executed after reconnection.
    * Retries are attempted for timeout, connection, and network errors.
    */
   async call<T>(
@@ -305,6 +469,11 @@ export class SandboxIPCClient {
     params?: unknown,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   ): Promise<T> {
+    // If we're reconnecting, queue the operation
+    if (this.connectionState === "reconnecting") {
+      return this.queueOperation<T>(method, params, timeoutMs);
+    }
+
     return withRetry(() => this.callOnce<T>(method, params, timeoutMs), {
       maxRetries: 3,
       onRetry: (attempt, error) => {
@@ -316,6 +485,41 @@ export class SandboxIPCClient {
   }
 
   /**
+   * Queue an operation to be executed after reconnection.
+   * Rejects immediately if queue is full to prevent unbounded memory growth.
+   */
+  private queueOperation<T>(
+    method: string,
+    params: unknown,
+    timeoutMs: number,
+  ): Promise<T> {
+    // Prevent unbounded queue growth during prolonged outages
+    if (this.operationQueue.length >= MAX_OPERATION_QUEUE_SIZE) {
+      return Promise.reject(
+        new Error(
+          `Operation queue full (${MAX_OPERATION_QUEUE_SIZE}). ` +
+            `Cannot queue ${method} during reconnection.`,
+        ),
+      );
+    }
+
+    return new Promise<T>((resolve, reject) => {
+      console.log(
+        `[SandboxIPC] Queueing operation ${method} during reconnection ` +
+          `(queue size: ${this.operationQueue.length + 1}/${MAX_OPERATION_QUEUE_SIZE})`,
+      );
+      this.operationQueue.push({
+        method,
+        params,
+        timeoutMs,
+        resolve: resolve as (value: unknown) => void,
+        reject,
+        queuedAt: Date.now(),
+      });
+    });
+  }
+
+  /**
    * Make a single RPC call without retry (internal use only).
    */
   private async callOnce<T>(
@@ -323,6 +527,11 @@ export class SandboxIPCClient {
     params?: unknown,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   ): Promise<T> {
+    // If reconnecting, queue the operation instead of failing immediately
+    if (this.connectionState === "reconnecting") {
+      return this.queueOperation<T>(method, params, timeoutMs);
+    }
+
     if (!this.isConnected()) {
       throw new Error("Not connected to sandbox-ipc server");
     }
@@ -642,8 +851,18 @@ export class SandboxIPCClient {
         return;
       }
 
-      // Send ping
-      this.ws.ping();
+      // Send ping - wrap in try-catch to handle race condition where
+      // socket closes between readyState check and ping call
+      try {
+        this.ws.ping();
+      } catch (error) {
+        console.warn(
+          `[SandboxIPC] Failed to send ping to VM ${this.vmId}:`,
+          error,
+        );
+        this.stopHeartbeat();
+        return;
+      }
 
       // Set timeout for pong response
       this.heartbeatTimeout = setTimeout(() => {
@@ -678,16 +897,176 @@ export class SandboxIPCClient {
     this.missedPongs = 0;
   }
 
-  private cleanup(): void {
+  /**
+   * Clean up connection state without rejecting queued operations
+   * Used when we might reconnect
+   */
+  private cleanupConnection(): void {
     // Stop heartbeat
     this.stopHeartbeat();
 
-    // Reject all pending requests
+    // Reject pending requests (they were in-flight and won't get responses)
     for (const pending of this.pendingRequests.values()) {
       clearTimeout(pending.timeout);
       pending.reject(new Error("Connection closed"));
     }
     this.pendingRequests.clear();
     this.connectionPromise = null;
+    this.ws = null;
+  }
+
+  /**
+   * Full cleanup including queued operations
+   * Used when not reconnecting
+   */
+  private cleanup(): void {
+    this.cleanupConnection();
+    this.rejectQueuedOperations("Connection closed");
+    this.cancelReconnect();
+  }
+
+  /**
+   * Update connection state and notify listeners
+   */
+  private updateConnectionState(state: ConnectionState): void {
+    this.connectionState = state;
+    if (this.onStatusChangeCallback) {
+      this.onStatusChangeCallback(this.getStatus());
+    }
+  }
+
+  /**
+   * Schedule a reconnection attempt with exponential backoff
+   */
+  private scheduleReconnect(): void {
+    if (!this.isReconnectEnabled) {
+      return;
+    }
+
+    if (this.reconnectAttempt >= RECONNECT_MAX_ATTEMPTS) {
+      console.error(
+        `[SandboxIPC] Max reconnection attempts (${RECONNECT_MAX_ATTEMPTS}) reached for VM ${this.vmId}`,
+      );
+      this.rejectQueuedOperations("Max reconnection attempts reached");
+      this.updateConnectionState("disconnected");
+      return;
+    }
+
+    this.reconnectAttempt++;
+    this.updateConnectionState("reconnecting");
+
+    // Calculate delay with exponential backoff and jitter to prevent thundering herd
+    const delay = calculateBackoffWithJitter(this.reconnectAttempt, {
+      initialDelayMs: RECONNECT_INITIAL_DELAY_MS,
+      maxDelayMs: RECONNECT_MAX_DELAY_MS,
+      multiplier: RECONNECT_BACKOFF_MULTIPLIER,
+      jitterFactor: RECONNECT_JITTER_FACTOR,
+    });
+
+    console.log(
+      `[SandboxIPC] Scheduling reconnection attempt ${this.reconnectAttempt}/${RECONNECT_MAX_ATTEMPTS} for VM ${this.vmId} in ${Math.round(delay)}ms`,
+    );
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.attemptReconnect();
+    }, delay);
+  }
+
+  /**
+   * Attempt to reconnect to the server
+   */
+  private async attemptReconnect(): Promise<void> {
+    console.log(
+      `[SandboxIPC] Attempting reconnection ${this.reconnectAttempt}/${RECONNECT_MAX_ATTEMPTS} to VM ${this.vmId}`,
+    );
+
+    try {
+      await this.connect();
+      console.log(
+        `[SandboxIPC] Successfully reconnected to VM ${this.vmId} after ${this.reconnectAttempt} attempts`,
+      );
+    } catch (error) {
+      console.error(
+        `[SandboxIPC] Reconnection attempt ${this.reconnectAttempt} failed:`,
+        error,
+      );
+      // Schedule next attempt
+      this.scheduleReconnect();
+    }
+  }
+
+  /**
+   * Cancel any pending reconnection attempt
+   */
+  private cancelReconnect(): void {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+  }
+
+  /**
+   * Flush the operation queue after successful reconnection.
+   *
+   * Uses callOnce instead of call to avoid:
+   * 1. Re-queueing if connection drops mid-flush (call checks reconnecting state)
+   * 2. Unnecessary retry wrapping (operations may have their own retry logic)
+   */
+  private async flushOperationQueue(): Promise<void> {
+    if (this.operationQueue.length === 0) {
+      return;
+    }
+
+    console.log(
+      `[SandboxIPC] Flushing ${this.operationQueue.length} queued operations after reconnection`,
+    );
+
+    // Take a copy and clear the queue
+    const queue = [...this.operationQueue];
+    this.operationQueue = [];
+
+    for (const op of queue) {
+      // Check if operation has expired (queued too long)
+      const elapsed = Date.now() - op.queuedAt;
+      if (elapsed > op.timeoutMs) {
+        console.log(
+          `[SandboxIPC] Queued operation ${op.method} expired after ${elapsed}ms`,
+        );
+        op.reject(
+          new Error(`Operation ${op.method} expired while reconnecting`),
+        );
+        continue;
+      }
+
+      // Calculate remaining timeout, ensuring a minimum to avoid edge cases
+      const remainingTimeout = Math.max(
+        MIN_REMAINING_TIMEOUT_MS,
+        op.timeoutMs - elapsed,
+      );
+
+      // Execute the operation using callOnce to avoid:
+      // - Re-queueing if we disconnect mid-flush (call() checks reconnecting state)
+      // - Double retry wrapping (the original caller may retry on failure)
+      try {
+        const result = await this.callOnce(
+          op.method,
+          op.params,
+          remainingTimeout,
+        );
+        op.resolve(result);
+      } catch (error) {
+        op.reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+  }
+
+  /**
+   * Reject all queued operations
+   */
+  private rejectQueuedOperations(reason: string): void {
+    for (const op of this.operationQueue) {
+      op.reject(new Error(reason));
+    }
+    this.operationQueue = [];
   }
 }

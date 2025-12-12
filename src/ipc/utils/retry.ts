@@ -222,3 +222,68 @@ export async function withRetrySafe<T>(
 
 // Re-export AbortError for consumers who need to abort programmatically
 export { AbortError } from "p-retry";
+
+// ============================================================================
+// Backoff Utilities
+// ============================================================================
+
+/**
+ * Configuration for exponential backoff calculation.
+ */
+export interface BackoffConfig {
+  /** Initial delay in milliseconds (default: 1000) */
+  initialDelayMs?: number;
+  /** Maximum delay in milliseconds (default: 30000) */
+  maxDelayMs?: number;
+  /** Backoff multiplier (default: 1.5) */
+  multiplier?: number;
+  /** Jitter factor 0-1, where 0.2 means ±10% (default: 0.2) */
+  jitterFactor?: number;
+}
+
+/**
+ * Calculate exponential backoff delay with optional jitter.
+ *
+ * Jitter helps prevent thundering herd problems when multiple clients
+ * reconnect simultaneously after a server outage.
+ *
+ * @param attempt - Current attempt number (1-based)
+ * @param config - Backoff configuration
+ * @returns Delay in milliseconds
+ *
+ * @example
+ * ```typescript
+ * // Simple usage
+ * const delay = calculateBackoffWithJitter(1); // ~1000ms ± jitter
+ * const delay2 = calculateBackoffWithJitter(3); // ~2250ms ± jitter
+ *
+ * // Custom configuration
+ * const delay = calculateBackoffWithJitter(2, {
+ *   initialDelayMs: 500,
+ *   maxDelayMs: 10000,
+ *   multiplier: 2,
+ *   jitterFactor: 0.3, // ±15% jitter
+ * });
+ * ```
+ */
+export function calculateBackoffWithJitter(
+  attempt: number,
+  config: BackoffConfig = {},
+): number {
+  const {
+    initialDelayMs = 1000,
+    maxDelayMs = 30000,
+    multiplier = 1.5,
+    jitterFactor = 0.2,
+  } = config;
+
+  // Calculate base delay with exponential backoff
+  const baseDelay = initialDelayMs * Math.pow(multiplier, attempt - 1);
+
+  // Apply jitter: ±(jitterFactor/2) of base delay
+  // e.g., jitterFactor=0.2 means ±10% jitter
+  const jitter = baseDelay * jitterFactor * (Math.random() - 0.5);
+
+  // Clamp to max delay
+  return Math.min(baseDelay + jitter, maxDelayMs);
+}
