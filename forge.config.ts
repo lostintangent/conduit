@@ -73,9 +73,6 @@ const config: ForgeConfig = {
         ? {
             certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
             certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
-            timestampServer:
-              process.env.WINDOWS_TIMESTAMP_SERVER ||
-              "https://timestamp.digicert.com",
           }
         : undefined,
     }),
