@@ -482,7 +482,7 @@ export function App() {
           sessionId: result.sessionId,
           cwd: result.cwd,
           title: result.title,
-          sandboxId: result.vmId ?? undefined,
+          sandboxId: result.sandboxId ?? undefined,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

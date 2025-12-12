@@ -5,7 +5,7 @@ export type TerminalPayload = {
 export type TerminalCreateResponse = TerminalPayload & {
   title: string;
   cwd: string;
-  vmId?: string;
+  sandboxId?: string;
 };
 
 export type TerminalCaptureCommandResponse = string | null;
@@ -63,7 +63,7 @@ export interface CloudTerminalOptions {
 export type TerminalCreateOptions = {
   cwd?: string;
   command?: string; // Command to execute when the terminal is ready
-  existingVMId?: string; // Connect to an existing VM instead of creating one
+  existingSandboxId?: string; // Connect to an existing sandbox instead of creating one
   vmIdleTimeout?: number;
 } & CloudTerminalOptions;
 

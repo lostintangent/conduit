@@ -94,7 +94,7 @@ export async function openTab(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
-    sandboxId: result.vmId,
+    sandboxId: result.sandboxId,
   };
 
   const layout: LayoutNode = {
@@ -457,7 +457,7 @@ export async function duplicateTab(
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
         processTitle: result.title,
-        sandboxId: result.vmId,
+        sandboxId: result.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,

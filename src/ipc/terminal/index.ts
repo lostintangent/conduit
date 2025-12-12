@@ -27,7 +27,7 @@ export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
         sessionId: terminal.id,
         title: terminal.lastProcessName,
         cwd: terminal.cwd,
-        vmId: terminal.cloudEnvironment?.vmId,
+        sandboxId: terminal.cloudEnvironment?.vmId,
       };
     },
   );

@@ -646,7 +646,7 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
-    sandboxId: result.vmId,
+    sandboxId: result.sandboxId,
     agentSessionId,
     agentBranchName,
     agentBaseBranch,

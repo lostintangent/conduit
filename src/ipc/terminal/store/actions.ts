@@ -26,14 +26,14 @@ export async function createTerminal(
   const id = randomUUID();
 
   // Check if this should be a remote VM session
-  if (options?.isRemoteVM || options?.existingVMId) {
+  if (options?.isRemoteVM || options?.existingSandboxId) {
     try {
       let vm;
 
-      if (options?.existingVMId) {
+      if (options?.existingSandboxId) {
         // Connect to an existing VM
         const { getVM } = await import("../../vm/client");
-        vm = await getVM(options.existingVMId);
+        vm = await getVM(options.existingSandboxId);
       } else {
         // Create the VM with conduitVM label
         const labels = options.vmLabels
@@ -61,7 +61,7 @@ export async function createTerminal(
       // Check if we have SSH keys and set them up in the VM (only for new VMs)
       let useSSHKey = false;
 
-      if (!options?.existingVMId) {
+      if (!options?.existingSandboxId) {
         const keysAvailable = await hasSSHKeys();
         if (keysAvailable) {
           const { loadConfig } = await import("../../vm/config");

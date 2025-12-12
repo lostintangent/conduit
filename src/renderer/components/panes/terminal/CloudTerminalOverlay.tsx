@@ -73,7 +73,7 @@ export const CloudTerminalOverlay = ({
 
       // Reconnect to the existing VM
       const result = await api.createTerminal({
-        existingVMId: sandboxId ?? undefined,
+        existingSandboxId: sandboxId ?? undefined,
       });
 
       if (!result) {
@@ -99,7 +99,7 @@ export const CloudTerminalOverlay = ({
               [paneId]: {
                 ...tab.panes[paneId],
                 sessionId: result.sessionId,
-                sandboxId: result.vmId ?? undefined,
+                sandboxId: result.sandboxId ?? undefined,
                 cwd: result.cwd,
                 title: result.title,
               },
