@@ -200,6 +200,12 @@ export function AgentLauncherDialog({
     const team = launchGroups.find((g) => g.id === teamId);
     if (!team) return;
 
+    console.log("[AgentLauncherDialog] Loading team:", {
+      teamId,
+      team,
+      agentInstances: team.agentInstances,
+    });
+
     setSelectedTeamId(teamId);
     setMode("team");
     setSelectedAgents(team.agentIds);
@@ -270,6 +276,12 @@ export function AgentLauncherDialog({
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     try {
+      console.log("[AgentLauncherDialog] Launching with payload:", {
+        prompt,
+        agentIds: selectedAgents,
+        agentInstances,
+        launchTarget,
+      });
       await onLaunch({
         prompt,
         agentIds: selectedAgents,

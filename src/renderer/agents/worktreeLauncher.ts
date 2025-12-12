@@ -57,6 +57,12 @@ export async function launchAgentsInWorktrees(
 ): Promise<void> {
   const { cwd, agents: agentConfigs, api, onClose } = options;
 
+  console.log("[WorktreeLauncher] Launching with config:", {
+    requestedAgents: payload.agentIds,
+    availableAgents: agentConfigs.map((a) => a.id),
+    agentConfigs: agentConfigs,
+  });
+
   // Calculate total number of agent instances to launch
   const totalInstances = payload.agentIds.reduce((sum, agentId) => {
     const count = payload.agentInstances?.[agentId]?.count ?? 1;
@@ -80,9 +86,14 @@ export async function launchAgentsInWorktrees(
     // Create the first worktree and tab
     const firstAgentId = payload.agentIds[0];
     const firstAgent = agentConfigs.find((a) => a.id === firstAgentId);
-    if (!firstAgent?.interactiveCommand) {
+    if (!firstAgent) {
       throw new Error(
-        `Agent ${firstAgent?.name ?? firstAgentId} has no interactive command configured`,
+        `Agent with ID "${firstAgentId}" not found in configuration. Available agents: ${agentConfigs.map((a) => a.id).join(", ")}`,
+      );
+    }
+    if (!firstAgent.interactiveCommand) {
+      throw new Error(
+        `Agent ${firstAgent.name} has no interactive command configured`,
       );
     }
 
@@ -142,12 +153,21 @@ export async function launchAgentsInWorktrees(
     const firstInstances = payload.agentInstances?.[firstAgentId]
       ?.instances ?? [{ id: "1" }];
     const firstInstanceInstructions = firstInstances[0]?.instructions;
+    const argumentText = firstInstanceInstructions
+      ? `${payload.prompt}\n\n${firstInstanceInstructions}`
+      : payload.prompt;
     const firstCommand = firstAgent.interactiveCommand.replace(
       "{arg}",
-      firstInstanceInstructions
-        ? `"${payload.prompt}"\n\n${firstInstanceInstructions}`
-        : `"${payload.prompt}"`,
+      `"${argumentText.replace(/"/g, '\\"')}"`,
     );
+
+    console.log("[WorktreeLauncher] First agent command:", {
+      agentId: firstAgentId,
+      agentName: firstAgent.name,
+      template: firstAgent.interactiveCommand,
+      instructions: firstInstanceInstructions,
+      finalCommand: firstCommand,
+    });
 
     setTimeout(() => {
       api.sendKeypress(firstTerminal.sessionId, firstCommand + "\r");
@@ -165,7 +185,13 @@ export async function launchAgentsInWorktrees(
     // Create remaining instances
     for (const agentId of payload.agentIds) {
       const agent = agentConfigs.find((a) => a.id === agentId);
-      if (!agent?.interactiveCommand) {
+      if (!agent) {
+        console.warn(
+          `Skipping agent ${agentId}: not found in configuration. Available: ${agentConfigs.map((a) => a.id).join(", ")}`,
+        );
+        continue;
+      }
+      if (!agent.interactiveCommand) {
         console.warn(`Skipping agent ${agentId}: no interactive command`);
         continue;
       }
@@ -214,13 +240,24 @@ export async function launchAgentsInWorktrees(
         }
 
         currentPaneId = newPane.id;
-
         // Send the interactive command with custom instructions
+        const argumentText = instance.instructions
+          ? `${payload.prompt}\n\n${instance.instructions}`
+          : payload.prompt;
         const command = agent.interactiveCommand.replace(
           "{arg}",
-          instance.instructions
-            ? `"${payload.prompt}"\n\n${instance.instructions}`
-            : `"${payload.prompt}"`,
+          `"${argumentText.replace(/"/g, '\\"')}"`,
+        );
+
+        console.log(
+          `[WorktreeLauncher] Agent ${agent.name} instance ${i + 1} command:`,
+          {
+            agentId,
+            agentName: agent.name,
+            template: agent.interactiveCommand,
+            instructions: instance.instructions,
+            finalCommand: command,
+          },
         );
 
         setTimeout(
@@ -262,6 +299,12 @@ export async function launchAgentsInSameFolder(
 ): Promise<void> {
   const { cwd, agents: agentConfigs, api, onClose } = options;
 
+  console.log("[SameFolderLauncher] Launching with config:", {
+    requestedAgents: payload.agentIds,
+    availableAgents: agentConfigs.map((a) => a.id),
+    agentConfigs: agentConfigs,
+  });
+
   // Calculate total number of agent instances to launch
   const totalInstances = payload.agentIds.reduce((sum, agentId) => {
     const count = payload.agentInstances?.[agentId]?.count ?? 1;
@@ -285,9 +328,14 @@ export async function launchAgentsInSameFolder(
     // Create the first terminal in the same folder
     const firstAgentId = payload.agentIds[0];
     const firstAgent = agentConfigs.find((a) => a.id === firstAgentId);
-    if (!firstAgent?.interactiveCommand) {
+    if (!firstAgent) {
       throw new Error(
-        `Agent ${firstAgent?.name ?? firstAgentId} has no interactive command configured`,
+        `Agent with ID "${firstAgentId}" not found in configuration. Available agents: ${agentConfigs.map((a) => a.id).join(", ")}`,
+      );
+    }
+    if (!firstAgent.interactiveCommand) {
+      throw new Error(
+        `Agent ${firstAgent.name} has no interactive command configured`,
       );
     }
 
@@ -314,11 +362,12 @@ export async function launchAgentsInSameFolder(
     const firstInstances = payload.agentInstances?.[firstAgentId]
       ?.instances ?? [{ id: "1" }];
     const firstInstanceInstructions = firstInstances[0]?.instructions;
+    const argumentText = firstInstanceInstructions
+      ? `${payload.prompt}\n\n${firstInstanceInstructions}`
+      : payload.prompt;
     const firstCommand = firstAgent.interactiveCommand.replace(
       "{arg}",
-      firstInstanceInstructions
-        ? `"${payload.prompt}"\n\n${firstInstanceInstructions}`
-        : `"${payload.prompt}"`,
+      `"${argumentText.replace(/"/g, '\\"')}"`,
     );
 
     setTimeout(() => {
@@ -334,7 +383,13 @@ export async function launchAgentsInSameFolder(
     // Create remaining instances
     for (const agentId of payload.agentIds) {
       const agent = agentConfigs.find((a) => a.id === agentId);
-      if (!agent?.interactiveCommand) {
+      if (!agent) {
+        console.warn(
+          `Skipping agent ${agentId}: not found in configuration. Available: ${agentConfigs.map((a) => a.id).join(", ")}`,
+        );
+        continue;
+      }
+      if (!agent.interactiveCommand) {
         console.warn(`Skipping agent ${agentId}: no interactive command`);
         continue;
       }
@@ -371,11 +426,23 @@ export async function launchAgentsInSameFolder(
         currentPaneId = newPane.id;
 
         // Send the interactive command with custom instructions
+        const argumentText = instance.instructions
+          ? `${payload.prompt}\n\n${instance.instructions}`
+          : payload.prompt;
         const command = agent.interactiveCommand.replace(
           "{arg}",
-          instance.instructions
-            ? `"${payload.prompt}"\n\n${instance.instructions}`
-            : `"${payload.prompt}"`,
+          `"${argumentText.replace(/"/g, '\\"')}"`,
+        );
+
+        console.log(
+          `[WorktreeLauncher] Agent ${agent.name} instance ${i + 1} command:`,
+          {
+            agentId,
+            agentName: agent.name,
+            template: agent.interactiveCommand,
+            instructions: instance.instructions,
+            finalCommand: command,
+          },
         );
 
         setTimeout(

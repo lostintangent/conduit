@@ -37,6 +37,10 @@ export const userSettingsAtom = atom<UserSettings>({
   // Workspace settings
   autoSaveWorkspaces: true,
 
+  // Agent settings
+  agents: [],
+  launchGroups: [],
+
   // History/State
   commandHistory: [],
   urlHistory: [],

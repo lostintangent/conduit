@@ -33,14 +33,6 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
   theme: "dark",
   terminalPromptBufferLines: 100,
-  agents: [
-    {
-      id: "copilot",
-      name: "GitHub Copilot",
-      command: "copilot -p {arg}",
-      isDefault: true,
-    },
-  ],
 };
 
 export async function loadSettings(
@@ -64,6 +56,12 @@ export async function loadSettings(
       ...savedSettings,
     };
 
+    console.log("[Settings] Loaded settings:", {
+      defaultAgents: defaultSettings.agents,
+      savedAgents: savedSettings.agents,
+      finalAgents: result.agents,
+    });
+
     // Environment variable takes precedence over saved settings for useEditorV2
     // This allows developers to easily test either version without modifying saved settings
     if (process.env.VITE_USE_EDITOR_V2 !== undefined) {
@@ -72,6 +70,7 @@ export async function loadSettings(
 
     return result;
   } catch {
+    console.log("[Settings] No saved settings, using defaults");
     return settings;
   }
 }

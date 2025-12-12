@@ -9,6 +9,10 @@ export function useUserSettings() {
 
   async function loadUserSettings() {
     const settings = await api.getSettings();
+    console.log("[useUserSettings] Loaded settings:", {
+      agents: settings.agents,
+      launchGroups: settings.launchGroups,
+    });
     setUserSettings(settings);
   }
 
