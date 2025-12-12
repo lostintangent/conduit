@@ -17,7 +17,66 @@ export async function fileExists(target: string): Promise<boolean> {
   }
 }
 
+/**
+ * Find the main repository root from any git directory (including worktrees).
+ * For worktrees, this returns the main repository path, not the worktree path.
+ * This ensures operations like `git worktree list/remove` work correctly.
+ */
 export async function findRepoRoot(startPath: string): Promise<string | null> {
+  try {
+    // Use git rev-parse --git-common-dir to find the main .git directory
+    // This works correctly for both regular repos and worktrees
+    const { stdout } = await execFileAsync(
+      "git",
+      ["rev-parse", "--git-common-dir"],
+      {
+        cwd: startPath,
+        env: {
+          ...process.env,
+          LC_ALL: "C",
+        },
+        windowsHide: true,
+      },
+    );
+
+    const gitCommonDir = stdout.trim();
+
+    // If gitCommonDir is ".git", we're in the main repo - find the toplevel
+    if (gitCommonDir === ".git") {
+      const { stdout: toplevel } = await execFileAsync(
+        "git",
+        ["rev-parse", "--show-toplevel"],
+        {
+          cwd: startPath,
+          env: {
+            ...process.env,
+            LC_ALL: "C",
+          },
+          windowsHide: true,
+        },
+      );
+      return toplevel.trim();
+    }
+
+    // Otherwise, gitCommonDir is an absolute or relative path to the main .git
+    // The main repo root is the parent of the .git directory
+    const absoluteGitDir = path.isAbsolute(gitCommonDir)
+      ? gitCommonDir
+      : path.resolve(startPath, gitCommonDir);
+
+    // The main repo root is the parent directory of .git
+    return path.dirname(absoluteGitDir);
+  } catch {
+    // Fall back to manual traversal if git command fails (e.g., not in a git repo)
+    return findRepoRootManual(startPath);
+  }
+}
+
+/**
+ * Manual fallback for finding repo root by traversing directories.
+ * Used when git commands fail (e.g., git not installed or not in a repo).
+ */
+async function findRepoRootManual(startPath: string): Promise<string | null> {
   let current = path.resolve(startPath);
 
   while (true) {

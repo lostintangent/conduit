@@ -80,7 +80,8 @@ async function loadExistingWorktrees(): Promise<void> {
         if (!stillExists) continue;
 
         try {
-          // Find the repo root for this worktree
+          // Find the main repo root for this worktree (not the worktree itself)
+          // This is critical for operations like `git worktree list` and `git worktree remove`
           const repoRoot = await findRepoRoot(worktreePath);
           if (!repoRoot) continue;
 
