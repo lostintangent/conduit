@@ -1,4 +1,7 @@
-import { launchAgentsInWorktrees } from "@/agents/worktreeLauncher";
+import {
+  launchAgentsInSameFolder,
+  launchAgentsInWorktrees,
+} from "@/agents/worktreeLauncher";
 import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
@@ -1020,13 +1023,20 @@ export function App() {
         onClose={() => setShowAgentLauncher(false)}
         onLaunch={async (payload) => {
           try {
-            if (payload.launchTarget === "worktree") {
-              const cwd = getActiveTabCwd(activeTab);
-              if (!cwd) {
-                throw new Error("No working directory found in active pane");
-              }
+            const cwd = getActiveTabCwd(activeTab);
+            if (!cwd) {
+              throw new Error("No working directory found in active pane");
+            }
 
+            if (payload.launchTarget === "worktree") {
               await launchAgentsInWorktrees(payload, {
+                cwd,
+                agents: agents || [],
+                api,
+                onClose: () => setShowAgentLauncher(false),
+              });
+            } else if (payload.launchTarget === "same-folder") {
+              await launchAgentsInSameFolder(payload, {
                 cwd,
                 agents: agents || [],
                 api,

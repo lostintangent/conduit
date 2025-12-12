@@ -1,7 +1,7 @@
 /**
  * Agent Worktree Launcher
  *
- * Handles launching multiple agent instances in worktrees with intelligent layout.
+ * Handles launching multiple agent instances in worktrees or same folder with intelligent layout.
  */
 
 import type { AgentConfig, AgentSessionInfo } from "@shared/types";
@@ -238,6 +238,161 @@ export async function launchAgentsInWorktrees(
     updateNotification(notifId, {
       kind: "success",
       message: `Launched ${totalInstances} agent${totalInstances > 1 ? "s" : ""} in ${createdSessions.length} worktree${createdSessions.length > 1 ? "s" : ""}`,
+    });
+  } catch (error) {
+    updateNotification(notifId, {
+      kind: "error",
+      message: `Launch failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Launch multiple agent instances in the same folder without creating worktrees
+ *
+ * @param payload - Launch configuration with agents and prompt
+ * @param options - Launch dependencies (cwd, agents, api, etc.)
+ */
+export async function launchAgentsInSameFolder(
+  payload: LaunchPayload,
+  options: Omit<WorktreeLaunchOptions, "api"> & {
+    api: Omit<WorktreeLaunchOptions["api"], "spawnAgentSession">;
+  },
+): Promise<void> {
+  const { cwd, agents: agentConfigs, api, onClose } = options;
+
+  // Calculate total number of agent instances to launch
+  const totalInstances = payload.agentIds.reduce((sum, agentId) => {
+    const count = payload.agentInstances?.[agentId]?.count ?? 1;
+    return sum + count;
+  }, 0);
+
+  if (totalInstances === 0) {
+    throw new Error("No agents selected to launch");
+  }
+
+  // Close the launcher dialog
+  onClose?.();
+
+  // Show progress notification
+  const notifId = enqueueNotification({
+    kind: "info",
+    message: `Launching ${totalInstances} agent${totalInstances > 1 ? "s" : ""}...`,
+  });
+
+  try {
+    // Create the first terminal in the same folder
+    const firstAgentId = payload.agentIds[0];
+    const firstAgent = agentConfigs.find((a) => a.id === firstAgentId);
+    if (!firstAgent?.interactiveCommand) {
+      throw new Error(
+        `Agent ${firstAgent?.name ?? firstAgentId} has no interactive command configured`,
+      );
+    }
+
+    const firstTerminal = await api.createTerminal({ cwd });
+    if (!firstTerminal) {
+      throw new Error("Failed to create first terminal");
+    }
+
+    // Create the initial tab with the first agent
+    const { openTabFromExistingSession } = await import("@/store/actions/tab");
+    const tabResult = await openTabFromExistingSession({
+      sessionId: firstTerminal.sessionId,
+      cwd,
+      title: firstAgent.name,
+    });
+    if (!tabResult) {
+      throw new Error("Failed to create tab");
+    }
+
+    const { tabId, paneId } = tabResult;
+    let currentPaneId = paneId;
+
+    // Send the interactive command for the first agent
+    const firstInstances = payload.agentInstances?.[firstAgentId]
+      ?.instances ?? [{ id: "1" }];
+    const firstInstanceInstructions = firstInstances[0]?.instructions;
+    const firstCommand = firstAgent.interactiveCommand.replace(
+      "{arg}",
+      firstInstanceInstructions
+        ? `"${payload.prompt}"\n\n${firstInstanceInstructions}`
+        : `"${payload.prompt}"`,
+    );
+
+    setTimeout(() => {
+      api.sendKeypress(firstTerminal.sessionId, firstCommand + "\r");
+    }, 100);
+
+    let instanceIndex = 1;
+
+    // Generate layout plan for all instances
+    const layoutPlan = generateAgentLayout(totalInstances);
+    let splitIndex = 0;
+
+    // Create remaining instances
+    for (const agentId of payload.agentIds) {
+      const agent = agentConfigs.find((a) => a.id === agentId);
+      if (!agent?.interactiveCommand) {
+        console.warn(`Skipping agent ${agentId}: no interactive command`);
+        continue;
+      }
+
+      const instanceConfig = payload.agentInstances?.[agentId];
+      const instances = instanceConfig?.instances ?? [{ id: "1" }];
+      const startIdx = agentId === firstAgentId ? 1 : 0;
+
+      for (let i = startIdx; i < instances.length; i++) {
+        const instance = instances[i];
+
+        // Get the split direction from layout plan
+        const splitDirection = layoutPlan[splitIndex]?.direction ?? "row";
+        splitIndex++;
+
+        // Split the current pane and create a new terminal in the same folder
+        const newPane = await splitPane(
+          tabId,
+          currentPaneId,
+          splitDirection,
+          false,
+          {
+            terminalOptions: { cwd },
+          },
+        );
+
+        if (!newPane) {
+          console.error(
+            `Failed to split pane for ${agent.name} instance ${i + 1}`,
+          );
+          continue;
+        }
+
+        currentPaneId = newPane.id;
+
+        // Send the interactive command with custom instructions
+        const command = agent.interactiveCommand.replace(
+          "{arg}",
+          instance.instructions
+            ? `"${payload.prompt}"\n\n${instance.instructions}`
+            : `"${payload.prompt}"`,
+        );
+
+        setTimeout(
+          () => {
+            api.sendKeypress(newPane.sessionId, command + "\r");
+          },
+          100 * (instanceIndex + 1),
+        );
+
+        instanceIndex++;
+      }
+    }
+
+    // Update notification
+    updateNotification(notifId, {
+      kind: "success",
+      message: `Launched ${totalInstances} agent${totalInstances > 1 ? "s" : ""} in same folder`,
     });
   } catch (error) {
     updateNotification(notifId, {
