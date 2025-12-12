@@ -49,14 +49,6 @@ export function useMonacoModel(
   cwd: string,
   sandboxId?: string,
 ): monaco.editor.ITextModel | null {
-  // Debug logging
-  console.log("[useMonacoModel] called:", {
-    editorId,
-    filePath,
-    cwd,
-    sandboxId,
-  });
-
   // State for the model - starts as null
   const [model, setModel] = useState<monaco.editor.ITextModel | null>(null);
 
