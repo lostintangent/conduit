@@ -25,10 +25,10 @@
  * ```
  */
 
-import { ChevronDown, ChevronRight } from "lucide-react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import { cn } from "@/utils";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { FileChangeDiff } from "./FileChangeDiff";
 
 export interface ChangesSectionProps {
@@ -63,6 +63,9 @@ export interface ChangesSectionProps {
   /** Working directory */
   cwd: string;
 
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
+
   /** Git API instance */
   git: GitV2API;
 
@@ -90,6 +93,7 @@ export function ChangesSection({
   onBulkAction,
   isBulkActionLoading = false,
   cwd,
+  sandboxId,
   git,
   baseBranch,
   expandedFiles,
@@ -147,6 +151,7 @@ export function ChangesSection({
               key={path}
               filePath={path}
               cwd={cwd}
+              sandboxId={sandboxId}
               git={git}
               status={status}
               baseBranch={baseBranch}

@@ -100,26 +100,10 @@ function pathToUri(filePath: string): string {
 }
 
 /**
- * Create a unique model key that includes sandboxId for cloud VM files.
- *
- * This prevents files with the same path from different VMs from
- * sharing the same Monaco model, which would cause incorrect content.
- *
- * For local files: file:///path/to/file.ts
- * For VM files: file:///path/to/file.ts::vm:vm-abc123
- */
-function createModelKey(filePath: string, sandboxId?: string): string {
-  const uri = pathToUri(filePath);
-  return sandboxId ? `${uri}::vm:${sandboxId}` : uri;
-}
-
-/**
  * Convert a Monaco URI string back to a file path.
  */
 function uriToPath(uri: string): string {
-  // Strip sandboxId suffix if present
-  const uriWithoutVm = uri.replace(/::vm:[^:]+$/, "");
-  return monaco.Uri.parse(uriWithoutVm).fsPath;
+  return monaco.Uri.parse(uri).fsPath;
 }
 
 // ============================================================================
@@ -250,31 +234,21 @@ export class MonacoModelRegistry {
    *
    * @param filePath - Absolute path to the file
    * @param cwd - Working directory (for FileSystemV2API)
-   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @returns The Monaco text model
    */
   async getOrCreateModel(
     filePath: string,
     cwd: string,
-    sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
     // Prevent new loads during disposal
     if (this.isDisposing) {
       throw new Error("Registry is being disposed, cannot create new models");
     }
 
-    // Use model key that includes sandboxId for VM files to prevent cross-VM model sharing
-    const modelKey = createModelKey(filePath, sandboxId);
-    const existing = this.models.get(modelKey);
+    const uri = pathToUri(filePath);
+    const existing = this.models.get(uri);
 
     if (existing) {
-      // Verify sandboxId matches to catch any inconsistencies
-      if (existing.sandboxId !== sandboxId) {
-        console.warn(
-          `[MonacoModelRegistry] Model key collision: key=${modelKey}, existing.sandboxId=${existing.sandboxId}, requested sandboxId=${sandboxId}`,
-        );
-      }
-
       // Cancel any pending disposal
       if (existing.disposeTimer) {
         clearTimeout(existing.disposeTimer);
@@ -287,13 +261,11 @@ export class MonacoModelRegistry {
       return existing.model;
     }
 
-    // Key includes cwd and sandboxId to prevent incorrect deduplication when same
-    // relative path exists in different working directories or VMs
-    const loadingKey = sandboxId
-      ? `${cwd}:${sandboxId}:${modelKey}`
-      : `${cwd}:${modelKey}`;
+    // Key includes cwd to prevent incorrect deduplication when same
+    // relative path exists in different working directories
+    const loadingKey = `${cwd}:${uri}`;
 
-    // Check if a load is already in progress for this URI+cwd+sandboxId
+    // Check if a load is already in progress for this URI+cwd
     const pendingLoad = this.loadingPromises.get(loadingKey);
     if (pendingLoad) {
       // Return the existing promise - don't start a second load
@@ -305,12 +277,7 @@ export class MonacoModelRegistry {
     this.loadingAbortControllers.set(loadingKey, abortController);
 
     // Start loading and track the promise
-    const loadPromise = this.createModel(
-      filePath,
-      cwd,
-      abortController.signal,
-      sandboxId,
-    )
+    const loadPromise = this.createModel(filePath, cwd, abortController.signal)
       .then((model) => {
         // Run LRU eviction after successful load
         this.evictLRU();
@@ -469,7 +436,7 @@ export class MonacoModelRegistry {
     const content = entry.model.getValue();
     const versionAtSave = entry.model.getAlternativeVersionId();
 
-    const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
+    const fsApi = this.getOrCreateFsApi(entry.cwd);
 
     await fsApi.writeTextFile(filePath, content);
 
@@ -513,7 +480,7 @@ export class MonacoModelRegistry {
     }
 
     const filePath = uriToPath(uri);
-    const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
+    const fsApi = this.getOrCreateFsApi(entry.cwd);
 
     const content = await fsApi.readTextFile(filePath);
 
@@ -617,6 +584,8 @@ export class MonacoModelRegistry {
       return;
     }
 
+    const cwd = entry.cwd;
+
     // Clear disposal timer
     if (entry.disposeTimer) {
       clearTimeout(entry.disposeTimer);
@@ -635,6 +604,29 @@ export class MonacoModelRegistry {
 
     // Remove from registry
     this.models.delete(uri);
+
+    // Check if any models still use this cwd
+    // If not, release the fsApi for this cwd
+    this.maybeReleaseFsApi(cwd);
+  }
+
+  /**
+   * Release fsApi for a cwd if no models are using it.
+   */
+  private maybeReleaseFsApi(cwd: string): void {
+    // Check if any remaining models use this cwd
+    for (const entry of this.models.values()) {
+      if (entry.cwd === cwd) {
+        return; // Still in use
+      }
+    }
+
+    // No models use this cwd anymore, release the fsApi
+    const fsApi = this.fsApis.get(cwd);
+    if (fsApi) {
+      FileSystemV2APIService.getInstance().release(cwd);
+      this.fsApis.delete(cwd);
+    }
   }
 
   /**
@@ -791,7 +783,6 @@ export class MonacoModelRegistry {
    * Create a new model and add it to the registry.
    *
    * @param signal - AbortSignal to cancel the load operation
-   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @throws {FileTooLargeError} If the file exceeds the maximum size limit
    * @throws {Error} If the load was aborted
    */
@@ -799,10 +790,9 @@ export class MonacoModelRegistry {
     filePath: string,
     cwd: string,
     signal: AbortSignal,
-    sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
-    const modelKey = createModelKey(filePath, sandboxId);
-    const fsApi = this.getOrCreateFsApi(cwd, sandboxId);
+    const uri = pathToUri(filePath);
+    const fsApi = this.getOrCreateFsApi(cwd);
 
     // Check if already aborted
     if (signal.aborted) {
@@ -854,7 +844,7 @@ export class MonacoModelRegistry {
     if (fileSize > WARNING_FILE_SIZE) {
       this._onModelStateChanged.fire({
         type: "fileSizeWarning",
-        uri: modelKey,
+        uri,
         fileSize,
       });
     }
@@ -883,8 +873,7 @@ export class MonacoModelRegistry {
 
     // Check for pre-existing Monaco model (can happen during HMR when our
     // registry resets but Monaco's internal model registry persists)
-    // Use modelKey which includes sandboxId to prevent cross-VM model sharing
-    const monacoUri = monaco.Uri.parse(modelKey);
+    const monacoUri = monaco.Uri.parse(uri);
     let model = monaco.editor.getModel(monacoUri);
 
     if (model && !model.isDisposed()) {
@@ -901,7 +890,6 @@ export class MonacoModelRegistry {
       model,
       references: new Set(),
       cwd,
-      sandboxId,
       filePath,
       savedVersionId: model.getAlternativeVersionId(),
       isDirty: false,
@@ -914,16 +902,15 @@ export class MonacoModelRegistry {
     };
 
     // Set up content change listener for dirty tracking
-    // Use modelKey (includes sandboxId) for our internal tracking
     entry.contentChangeDisposable = model.onDidChangeContent(() => {
-      this.handleContentChange(modelKey, entry);
+      this.handleContentChange(uri, entry);
     });
 
     // Set up file system event subscriptions
-    this.setupFileWatching(modelKey, filePath, entry, fsApi);
+    this.setupFileWatching(uri, filePath, entry, fsApi);
 
-    // Add to registry using modelKey (includes sandboxId for VM files)
-    this.models.set(modelKey, entry);
+    // Add to registry
+    this.models.set(uri, entry);
 
     return model;
   }
@@ -973,38 +960,16 @@ export class MonacoModelRegistry {
     entry: ModelEntry,
     fsApi: FileSystemV2API,
   ): void {
-    console.log(
-      "[MonacoModelRegistry] Setting up file watching for:",
-      entry.filePath,
-    );
-
     // Listen for file content changes
     // Derives URI from entry.filePath at call time to handle renames
     // Uses pathsEqual for case-insensitive comparison on macOS/Windows
     const contentCleanup = fsApi.onAnyFileContentChanged((changedPath) => {
-      const isMatch = pathsEqual(changedPath, entry.filePath);
-      console.log(
-        "[MonacoModelRegistry] File change event received:",
-        changedPath,
-        "watching:",
-        entry.filePath,
-        "match:",
-        isMatch,
-      );
-      if (isMatch) {
+      if (pathsEqual(changedPath, entry.filePath)) {
         const currentUri = pathToUri(entry.filePath);
-        console.log(
-          "[MonacoModelRegistry] Calling handleExternalFileChange for:",
-          currentUri,
-        );
         this.handleExternalFileChange(currentUri, entry);
       }
     });
     entry.fileWatchDisposables.push({ dispose: contentCleanup });
-    console.log(
-      "[MonacoModelRegistry] File watch listener registered, disposables count:",
-      entry.fileWatchDisposables.length,
-    );
 
     // Listen for file deletion
     // Uses pathsEqual for case-insensitive comparison on macOS/Windows
@@ -1042,26 +1007,13 @@ export class MonacoModelRegistry {
     uri: string,
     entry: ModelEntry,
   ): Promise<void> {
-    console.log(
-      "[MonacoModelRegistry] handleExternalFileChange called for:",
-      uri,
-      "isDirty:",
-      entry.isDirty,
-      "isReloading:",
-      entry.isReloading,
-    );
-
     // Skip if already reloading (prevents concurrent reload attempts)
     if (entry.isReloading) {
-      console.log("[MonacoModelRegistry] Skipping - already reloading");
       return;
     }
 
     if (entry.isDirty) {
       // Conflict: user has unsaved changes AND file changed externally
-      console.log(
-        "[MonacoModelRegistry] File is dirty - marking as having external changes (conflict)",
-      );
       entry.hasExternalChanges = true;
       this._onModelStateChanged.fire({
         type: "externalChange",
@@ -1070,25 +1022,15 @@ export class MonacoModelRegistry {
       });
     } else {
       // No conflict at start: attempt auto-reload
-      console.log(
-        "[MonacoModelRegistry] File is clean - auto-reloading content",
-      );
       entry.isReloading = true;
       try {
         // Use entry.filePath directly for consistency (avoids uri conversion)
-        const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
+        const fsApi = this.getOrCreateFsApi(entry.cwd);
         const content = await fsApi.readTextFile(entry.filePath);
-        console.log(
-          "[MonacoModelRegistry] Read new content, length:",
-          content.length,
-        );
 
         // Re-check isDirty after async read - user may have typed while loading
         if (entry.isDirty) {
           // User started editing during reload - treat as conflict
-          console.log(
-            "[MonacoModelRegistry] File became dirty during reload - treating as conflict",
-          );
           entry.hasExternalChanges = true;
           this._onModelStateChanged.fire({
             type: "externalChange",
@@ -1098,8 +1040,14 @@ export class MonacoModelRegistry {
           return;
         }
 
+        // Skip reload if content is identical (e.g., our own save triggered the watcher)
+        // This prevents cursor position reset from setValue()
+        const currentContent = entry.model.getValue();
+        if (currentContent === content) {
+          return;
+        }
+
         // Still clean - safe to auto-reload
-        console.log("[MonacoModelRegistry] Updating model with new content");
         entry.model.setValue(content);
 
         // Update saved version (file on disk is now this content)
@@ -1110,7 +1058,6 @@ export class MonacoModelRegistry {
           uri,
           hasConflict: false,
         });
-        console.log("[MonacoModelRegistry] Auto-reload complete");
       } catch (error) {
         console.error(
           `[MonacoModelRegistry] Failed to auto-reload ${uri}:`,
@@ -1250,30 +1197,17 @@ export class MonacoModelRegistry {
   }
 
   /**
-   * Get or create a FileSystemV2API for a CWD and optional VM.
+   * Get or create a FileSystemV2API for a CWD.
    *
    * Uses FileSystemV2APIService to share instances with other components
-   * using the same cwd+sandboxId, reducing duplicate IPC subscriptions.
-   *
-   * @param cwd - Working directory for file operations
-   * @param sandboxId - Optional sandbox ID for cloud VM operations
+   * using the same cwd, reducing duplicate IPC subscriptions.
    */
-  private getOrCreateFsApi(cwd: string, sandboxId?: string): FileSystemV2API {
-    // Create a key that includes sandboxId for cloud VM support
-    const key = sandboxId ? `${cwd}::vm:${sandboxId}` : cwd;
-    let fsApi = this.fsApis.get(key);
+  private getOrCreateFsApi(cwd: string): FileSystemV2API {
+    let fsApi = this.fsApis.get(cwd);
     if (!fsApi) {
-      // Acquire from service (increments refCount, pass sandboxId for cloud support)
-      console.log(
-        "[MonacoModelRegistry] Acquiring new fsApi for key:",
-        key,
-        "sandboxId:",
-        sandboxId,
-      );
-      fsApi = FileSystemV2APIService.getInstance().acquire(cwd, sandboxId);
-      this.fsApis.set(key, fsApi);
-    } else {
-      console.log("[MonacoModelRegistry] Reusing cached fsApi for key:", key);
+      // Acquire from service (increments refCount)
+      fsApi = FileSystemV2APIService.getInstance().acquire(cwd);
+      this.fsApis.set(cwd, fsApi);
     }
     return fsApi;
   }
@@ -1309,4 +1243,4 @@ export class MonacoModelRegistry {
 // Utility Exports
 // ============================================================================
 
-export { createModelKey, pathToUri, uriToPath };
+export { pathToUri, uriToPath };

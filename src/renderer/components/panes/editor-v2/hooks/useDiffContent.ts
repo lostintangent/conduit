@@ -23,9 +23,9 @@
  * ```
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useGitV2 } from "../../../../hooks/useGitV2";
-import { MonacoModelRegistry, createModelKey } from "../registry";
+import { MonacoModelRegistry, pathToUri } from "../registry";
 
 // ============================================================================
 // Error Types
@@ -251,7 +251,6 @@ export function useDiffContent(
   filePath: string | null,
   baseBranch: string | undefined,
   cwd: string,
-  sandboxId?: string,
 ): DiffContent {
   const [state, setState] = useState<DiffContent>({
     original: null,
@@ -262,7 +261,7 @@ export function useDiffContent(
   });
 
   // Git API for fetching original content
-  const git = useGitV2(cwd, sandboxId);
+  const git = useGitV2(cwd);
 
   // Track mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true);
@@ -301,7 +300,7 @@ export function useDiffContent(
 
     const loadContent = async () => {
       const registry = MonacoModelRegistry.getInstance();
-      const modelKey = createModelKey(filePath, sandboxId);
+      const uri = pathToUri(filePath);
       const ref = baseBranch || "HEAD";
 
       let originalContent: string | null = null;
@@ -336,20 +335,16 @@ export function useDiffContent(
         diffError.type === "not_tracked" ||
         diffError.type === "not_committed"
       ) {
-        const modelState = registry.getModelState(modelKey);
+        const modelState = registry.getModelState(uri);
 
         if (modelState !== undefined) {
           // Model exists - get content from it
-          const model = registry.getModel(modelKey);
+          const model = registry.getModel(uri);
           modifiedContent = model?.getValue() ?? null;
         } else {
           // Model doesn't exist - try to create it
           try {
-            const model = await registry.getOrCreateModel(
-              filePath,
-              cwd,
-              sandboxId,
-            );
+            const model = await registry.getOrCreateModel(filePath, cwd);
 
             // Check if effect was cleaned up during async operation
             if (isStale) return;

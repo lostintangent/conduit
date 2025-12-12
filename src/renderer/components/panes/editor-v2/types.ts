@@ -175,9 +175,6 @@ export interface ModelEntry {
   /** Working directory this model belongs to */
   cwd: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  sandboxId?: string;
-
   /** Absolute file path (updated on rename to keep callbacks working) */
   filePath: string;
 

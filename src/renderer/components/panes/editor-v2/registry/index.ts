@@ -11,19 +11,18 @@
  * @see docs/architecture/editor-global-container-plan.md
  */
 
+export { EditorRegistry } from "./EditorRegistry";
+export {
+  MonacoModelRegistry,
+  pathToUri,
+  uriToPath,
+} from "./MonacoModelRegistry";
+export { ViewStateRegistry } from "./ViewStateRegistry";
 export {
   EditorPaneRegistry,
   type EditorPaneConfig,
   type EditorPaneRegistryEvent,
 } from "./EditorPaneRegistry";
-export { EditorRegistry } from "./EditorRegistry";
-export {
-  MonacoModelRegistry,
-  createModelKey,
-  pathToUri,
-  uriToPath,
-} from "./MonacoModelRegistry";
-export { ViewStateRegistry } from "./ViewStateRegistry";
 
 // Re-export FileTooLargeError for convenience
 export { FileTooLargeError } from "../types";

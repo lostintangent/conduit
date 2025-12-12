@@ -24,12 +24,14 @@
  */
 
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
-import { cn } from "@/utils";
+import type { GitV2API } from "@/api/GitV2API";
+import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { FileNode, TreeViewMode } from "../../types";
-import { FileTreeChanges } from "./FileTreeChanges";
-import { FileTreeNormal } from "./FileTreeNormal";
 import { FileTreeToolbar } from "./FileTreeToolbar";
+import { FileTreeNormal } from "./FileTreeNormal";
+import { FileTreeChanges } from "./FileTreeChanges";
 import { GitBranchToolbar } from "./GitBranchToolbar";
+import { cn } from "@/utils";
 
 export interface FileTreePanelProps {
   /** Editor pane ID (for scroll persistence) */
@@ -38,8 +40,11 @@ export interface FileTreePanelProps {
   /** Working directory (root of the tree) */
   cwd: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  sandboxId?: string;
+  /** FileSystem API instance (shared from parent) */
+  fs: FileSystemV2API;
+
+  /** Git API instance (shared from parent) */
+  git: GitV2API;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
@@ -157,7 +162,8 @@ export interface FileTreePanelProps {
 export function FileTreePanel({
   paneId,
   cwd,
-  sandboxId,
+  fs,
+  git,
   selectedFile,
   onFileSelect,
   treeViewMode,
@@ -268,7 +274,8 @@ export function FileTreePanel({
           <FileTreeNormal
             paneId={paneId}
             cwd={cwd}
-            sandboxId={sandboxId}
+            fs={fs}
+            git={git}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
             onDirectoryChange={onDirectoryChange}
@@ -286,7 +293,7 @@ export function FileTreePanel({
           <FileTreeChanges
             paneId={paneId}
             cwd={cwd}
-            sandboxId={sandboxId}
+            git={git}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
             viewMode={changesViewMode}
