@@ -103,7 +103,7 @@ export function TabButton({
       className={cn(
         "group flex items-center gap-2 py-1.5 px-3 border-0 rounded-lg cursor-pointer text-[0.85rem] leading-none transition-colors duration-150 flex-none whitespace-nowrap select-none",
         tab.isActive
-          ? "bg-foreground/80 text-background"
+          ? "bg-gradient-to-br from-accent to-accent-2 text-accent-foreground hover:from-accent-2 hover:to-accent"
           : "bg-secondary hover:bg-foreground/30",
       )}
       onClick={(event) => {
