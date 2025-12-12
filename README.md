@@ -26,7 +26,7 @@ To enable code signing for Windows builds, set the following environment variabl
 
 - `WINDOWS_CERTIFICATE_FILE` - Path to your `.pfx` code signing certificate
 - `WINDOWS_CERTIFICATE_PASSWORD` - Password for the certificate
-- `WINDOWS_TIMESTAMP_SERVER` - (Optional) Timestamp server URL (defaults to `http://timestamp.digicert.com`)
+- `WINDOWS_TIMESTAMP_SERVER` - (Optional) Timestamp server URL (defaults to `https://timestamp.digicert.com`)
 
 If these environment variables are not set, the build will proceed without code signing.
 
