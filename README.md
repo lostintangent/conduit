@@ -12,6 +12,24 @@ Additionally, if you want to make use of cloud terminals, you need to also perfo
 1. Generate a [GitHub PAT](https://github.com/settings/personal-access-tokens/new)
 1. Define an environment variable called `GITHUB_TOKEN` with the value of the PAT
 
+## 📦 Building and Code Signing
+
+### macOS Code Signing
+
+To enable code signing and notarization for macOS builds, set the following environment variables:
+
+- `CONDUIT_APPLE_ID_PASSWORD` - Your Apple ID app-specific password
+
+### Windows Code Signing
+
+To enable code signing for Windows builds, set the following environment variables:
+
+- `WINDOWS_CERTIFICATE_FILE` - Path to your `.pfx` code signing certificate
+- `WINDOWS_CERTIFICATE_PASSWORD` - Password for the certificate
+- `WINDOWS_TIMESTAMP_SERVER` - (Optional) Timestamp server URL (defaults to `http://timestamp.digicert.com`)
+
+If these environment variables are not set, the build will proceed without code signing.
+
 ## 🧠 Fundamental assumptions
 
 Conduit was born out of the following key assumptions:
