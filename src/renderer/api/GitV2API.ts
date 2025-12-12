@@ -543,6 +543,29 @@ export class GitV2API {
   }
 
   /**
+   * Create a new branch and optionally switch to it.
+   *
+   * @param branchName - Name for the new branch
+   * @param checkout - Whether to switch to the new branch (default: true)
+   * @param startPoint - Optional ref to start the branch from (default: HEAD)
+   * @throws {Error} If the API has been released
+   * @throws {Error} If branch creation fails (name exists, invalid name, etc.)
+   */
+  async createBranch(
+    branchName: string,
+    checkout = true,
+    startPoint?: string,
+  ): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.createBranch(
+      this.cwd,
+      branchName,
+      checkout,
+      startPoint,
+    );
+  }
+
+  /**
    * Stash current uncommitted changes.
    *
    * Saves both staged and unstaged changes to the stash.

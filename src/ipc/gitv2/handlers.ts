@@ -27,6 +27,7 @@
  * - `git-v2:branch` - Get current branch
  * - `git-v2:branches` - Get all branches
  * - `git-v2:checkout` - Checkout a branch or ref (with optional force)
+ * - `git-v2:create-branch` - Create a new branch (with optional checkout)
  * - `git-v2:stash` - Stash uncommitted changes
  * - `git-v2:stash-pop` - Apply and remove most recent stash
  * - `git-v2:push` - Push commits to remote (with optional setUpstream for new branches)
@@ -591,6 +592,30 @@ export function initializeGitV2Handlers(): void {
     ): Promise<void> => {
       const { provider } = await requireProvider(params.cwd);
       await provider.checkout(params.ref, { force: params.force });
+    },
+  );
+
+  /**
+   * Create a new branch and optionally switch to it.
+   * Triggers branch change events when checkout is true.
+   */
+  ipcMain.handle(
+    "git-v2:create-branch",
+    async (
+      _,
+      params: {
+        cwd: string;
+        branchName: string;
+        checkout?: boolean;
+        startPoint?: string;
+      },
+    ): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
+      await provider.createBranch(
+        params.branchName,
+        params.checkout ?? true,
+        params.startPoint,
+      );
     },
   );
 

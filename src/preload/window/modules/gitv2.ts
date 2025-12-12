@@ -281,6 +281,27 @@ export default {
     ipcRenderer.invoke("git-v2:checkout", { cwd, ref, force }) as Promise<void>,
 
   /**
+   * Create a new branch and optionally switch to it.
+   *
+   * @param cwd - Working directory
+   * @param branchName - Name for the new branch
+   * @param checkout - Whether to switch to the new branch (default: true)
+   * @param startPoint - Optional ref to start the branch from (default: HEAD)
+   */
+  createBranch: (
+    cwd: string,
+    branchName: string,
+    checkout?: boolean,
+    startPoint?: string,
+  ) =>
+    ipcRenderer.invoke("git-v2:create-branch", {
+      cwd,
+      branchName,
+      checkout,
+      startPoint,
+    }) as Promise<void>,
+
+  /**
    * Stash current uncommitted changes.
    *
    * @param cwd - Working directory

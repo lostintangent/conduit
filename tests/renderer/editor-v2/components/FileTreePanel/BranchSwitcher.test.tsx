@@ -61,6 +61,7 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
     whenReady: vi.fn().mockResolvedValue(undefined),
     getBranches: vi.fn().mockResolvedValue(mockBranches),
     checkout: vi.fn().mockResolvedValue(undefined),
+    createBranch: vi.fn().mockResolvedValue(undefined),
     stash: vi.fn().mockResolvedValue(undefined),
     stashPop: vi.fn().mockResolvedValue(undefined),
     // Add other required methods as no-ops
@@ -306,6 +307,179 @@ describe("BranchSwitcher", () => {
 
       await waitFor(() => {
         expect(screen.getByText("Failed to load branches")).toBeDefined();
+      });
+    });
+  });
+
+  describe("create branch", () => {
+    it("should show create branch option", async () => {
+      const mockGit = createMockGitAPI();
+
+      render(
+        <BranchSwitcher
+          git={mockGit}
+          currentBranch="main"
+          onBranchSwitch={mockOnBranchSwitch}
+        />,
+      );
+
+      const trigger = screen.getByTestId("branch-switcher-trigger");
+      await act(async () => {
+        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("create-branch-option")).toBeDefined();
+      });
+
+      expect(screen.getByText("Create new branch...")).toBeDefined();
+    });
+
+    it("should show input when create branch option is clicked", async () => {
+      const mockGit = createMockGitAPI();
+
+      render(
+        <BranchSwitcher
+          git={mockGit}
+          currentBranch="main"
+          onBranchSwitch={mockOnBranchSwitch}
+        />,
+      );
+
+      const trigger = screen.getByTestId("branch-switcher-trigger");
+      await act(async () => {
+        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("create-branch-option")).toBeDefined();
+      });
+
+      const createOption = screen.getByTestId("create-branch-option");
+      await act(async () => {
+        fireEvent.click(createOption);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("create-branch-input")).toBeDefined();
+      });
+    });
+
+    it("should create branch and switch when enter is pressed", async () => {
+      const mockGit = createMockGitAPI();
+
+      render(
+        <BranchSwitcher
+          git={mockGit}
+          currentBranch="main"
+          onBranchSwitch={mockOnBranchSwitch}
+        />,
+      );
+
+      const trigger = screen.getByTestId("branch-switcher-trigger");
+      await act(async () => {
+        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("create-branch-option")).toBeDefined();
+      });
+
+      const createOption = screen.getByTestId("create-branch-option");
+      await act(async () => {
+        fireEvent.click(createOption);
+      });
+
+      const input = await screen.findByTestId("create-branch-input");
+      await act(async () => {
+        fireEvent.change(input, { target: { value: "feature/new-feature" } });
+        fireEvent.keyDown(input, { key: "Enter" });
+      });
+
+      await waitFor(() => {
+        expect(mockGit.createBranch).toHaveBeenCalledWith(
+          "feature/new-feature",
+        );
+        expect(mockOnBranchSwitch).toHaveBeenCalledWith("feature/new-feature");
+      });
+    });
+
+    it("should cancel create branch when escape is pressed", async () => {
+      const mockGit = createMockGitAPI();
+
+      render(
+        <BranchSwitcher
+          git={mockGit}
+          currentBranch="main"
+          onBranchSwitch={mockOnBranchSwitch}
+        />,
+      );
+
+      const trigger = screen.getByTestId("branch-switcher-trigger");
+      await act(async () => {
+        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("create-branch-option")).toBeDefined();
+      });
+
+      const createOption = screen.getByTestId("create-branch-option");
+      await act(async () => {
+        fireEvent.click(createOption);
+      });
+
+      const input = await screen.findByTestId("create-branch-input");
+      await act(async () => {
+        fireEvent.change(input, { target: { value: "test-branch" } });
+        fireEvent.keyDown(input, { key: "Escape" });
+      });
+
+      // Should go back to showing the create option
+      await waitFor(() => {
+        expect(screen.getByTestId("create-branch-option")).toBeDefined();
+      });
+
+      expect(mockGit.createBranch).not.toHaveBeenCalled();
+    });
+
+    it("should show error when branch creation fails", async () => {
+      const mockGit = createMockGitAPI({
+        createBranch: vi
+          .fn()
+          .mockRejectedValue(new Error("Branch already exists")),
+      });
+
+      render(
+        <BranchSwitcher
+          git={mockGit}
+          currentBranch="main"
+          onBranchSwitch={mockOnBranchSwitch}
+        />,
+      );
+
+      const trigger = screen.getByTestId("branch-switcher-trigger");
+      await act(async () => {
+        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("create-branch-option")).toBeDefined();
+      });
+
+      const createOption = screen.getByTestId("create-branch-option");
+      await act(async () => {
+        fireEvent.click(createOption);
+      });
+
+      const input = await screen.findByTestId("create-branch-input");
+      await act(async () => {
+        fireEvent.change(input, { target: { value: "main" } });
+        fireEvent.keyDown(input, { key: "Enter" });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("Branch already exists")).toBeDefined();
       });
     });
   });

@@ -793,6 +793,50 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
+   * Create a new branch and optionally switch to it.
+   *
+   * @param branchName - Name for the new branch
+   * @param checkout - Whether to switch to the new branch (default: true)
+   * @param startPoint - Optional ref to start the branch from (default: HEAD)
+   */
+  async createBranch(
+    branchName: string,
+    checkout = true,
+    startPoint?: string,
+  ): Promise<void> {
+    const previousBranch = await this.getCurrentBranch();
+
+    await this.withOperationTracking(async () => {
+      if (checkout) {
+        // Create and checkout in one command: git checkout -b <branch> [startPoint]
+        const args = ["-b", branchName];
+        if (startPoint) {
+          args.push(startPoint);
+        }
+        await this.git.checkout(args);
+      } else {
+        // Just create the branch: git branch <branch> [startPoint]
+        const args = [branchName];
+        if (startPoint) {
+          args.push(startPoint);
+        }
+        await this.git.branch(args);
+      }
+    });
+
+    // Fire branch changed event if we switched
+    if (checkout) {
+      const currentBranch = await this.getCurrentBranch();
+      if (previousBranch !== currentBranch) {
+        this._onBranchChanged.fire({
+          previousBranch,
+          currentBranch,
+        });
+      }
+    }
+  }
+
+  /**
    * Stash current uncommitted changes.
    *
    * Saves both staged and unstaged changes to the stash.
