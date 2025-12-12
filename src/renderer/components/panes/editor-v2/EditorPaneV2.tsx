@@ -19,14 +19,17 @@
 
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { registerEditorHandlers } from "@/commands/handlers";
-import { BranchSelector } from "@/components/panes/editor/BranchSelector";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import type { EditorPane as EditorPaneType } from "@/types";
 import { cn } from "@/utils";
-import type { Branch } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EditorViewPanel, FileTreePanel, TreeResizer } from "./components";
+import {
+  BranchSelector,
+  EditorViewPanel,
+  FileTreePanel,
+  TreeResizer,
+} from "./components";
 import {
   useEditorTheme,
   useResponsiveLayout,
@@ -303,7 +306,6 @@ export function EditorPaneV2({
 
   // Branch selector state
   const [isBranchSelectorOpen, setIsBranchSelectorOpen] = useState(false);
-  const [branches, setBranches] = useState<Branch[]>([]);
 
   // Helper to update git status state
   const updateGitStatusState = useCallback(
@@ -409,40 +411,6 @@ export function EditorPaneV2({
       branchCleanup();
     };
   }, [git, updateGitStatusState]);
-
-  // Load branches for the branch selector dialog
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadBranches = async () => {
-      try {
-        await git.whenReady();
-        if (cancelled) return;
-
-        const branchList = await git.getBranches();
-        if (!cancelled) {
-          // Convert to v1 Branch format for BranchSelector compatibility
-          const formattedBranches: Branch[] = branchList.map((b) => ({
-            name: b.name,
-            isCurrent: b.isCurrent,
-            isRemote: b.isRemote,
-            lastCommitDate: b.lastCommitDate ?? new Date(),
-            lastCommitHash: b.commit ?? "",
-            lastCommitMessage: b.lastCommitMessage ?? "",
-          }));
-          setBranches(formattedBranches);
-        }
-      } catch (error) {
-        console.error("[EditorPaneV2] Failed to load branches:", error);
-      }
-    };
-
-    loadBranches();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [git]);
 
   // Recompute git status when baseBranch changes
   // When baseBranch is set, fetch status relative to that branch
@@ -1083,8 +1051,8 @@ export function EditorPaneV2({
 
       {/* Branch Selector Dialog */}
       <BranchSelector
+        git={git}
         open={isBranchSelectorOpen}
-        branches={branches}
         currentBaseBranch={baseBranch}
         onSelectBranch={handleBranchSelect}
         onOpenChange={setIsBranchSelectorOpen}

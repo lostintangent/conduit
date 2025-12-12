@@ -9,6 +9,8 @@
  * - FileTreeItem: Individual tree item component
  * - GitBranchToolbar: Git branch and operations toolbar
  * - GitStatusSummary: Compact git status badge summary
+ * - BranchSwitcher: Dropdown for switching branches (checkout)
+ * - BranchSelector: Dialog for selecting base branch (comparison)
  */
 
 export { FileTreePanel } from "./FileTreePanel";
@@ -31,3 +33,9 @@ export type { GitBranchToolbarProps } from "./GitBranchToolbar";
 
 export { GitStatusSummary } from "./GitStatusSummary";
 export type { GitStatusSummaryProps } from "./GitStatusSummary";
+
+export { BranchSwitcher } from "./BranchSwitcher";
+export type { BranchSwitcherProps } from "./BranchSwitcher";
+
+export { BranchSelector } from "./BranchSelector";
+export type { BranchSelectorProps } from "./BranchSelector";

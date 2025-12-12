@@ -22,10 +22,9 @@
  * ```
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { GitBranch, ChevronDown, Check } from "lucide-react";
 import type { GitV2API } from "@/api/GitV2API";
-import type { GitBranch as GitBranchType } from "@/../../src/ipc/gitv2/types";
 import { cn } from "@/utils";
 import {
   DropdownMenu,
@@ -34,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CheckoutConflictDialog } from "./CheckoutConflictDialog";
+import { useBranches } from "./hooks/useBranches";
 
 export interface BranchSwitcherProps {
   /** Git API instance (shared from parent) */
@@ -59,81 +59,24 @@ export function BranchSwitcher({
   // ---------------------------------------------------------------------------
 
   const [isOpen, setIsOpen] = useState(false);
-  const [branches, setBranches] = useState<GitBranchType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // Use shared hook for branch loading
+  const {
+    branches: availableBranches,
+    isLoading,
+    error,
+  } = useBranches(git, {
+    enabled: isOpen,
+    includeRemote: false,
+    currentBranchFirst: true,
+    currentBranch,
+  });
 
   // Checkout conflict dialog state
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pendingBranch, setPendingBranch] = useState<string | null>(null);
   const [isSwitching, setIsSwitching] = useState(false);
-
-  // ---------------------------------------------------------------------------
-  // Load Branches
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let cancelled = false;
-
-    async function loadBranches() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        await git.whenReady();
-        if (cancelled) return;
-
-        const branchList = await git.getBranches();
-        if (!cancelled) {
-          setBranches(branchList);
-        }
-      } catch (err) {
-        console.error("Failed to load branches:", err);
-        if (!cancelled) {
-          setError("Failed to load branches");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadBranches();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [git, isOpen]);
-
-  // ---------------------------------------------------------------------------
-  // Available Branches (filtered)
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Filter branches for display.
-   * - Only show local branches
-   * - Sort by last commit date (most recent first), current branch always first
-   */
-  const availableBranches = useMemo(() => {
-    return branches
-      .filter((b) => !b.isRemote)
-      .sort((a, b) => {
-        // Current branch first
-        if (a.name === currentBranch) return -1;
-        if (b.name === currentBranch) return 1;
-
-        // Sort by last commit date (most recent first)
-        const dateA = a.lastCommitDate
-          ? new Date(a.lastCommitDate).getTime()
-          : 0;
-        const dateB = b.lastCommitDate
-          ? new Date(b.lastCommitDate).getTime()
-          : 0;
-        return dateB - dateA;
-      });
-  }, [branches, currentBranch]);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Checkout Handlers
@@ -148,7 +91,7 @@ export function BranchSwitcher({
       if (branch === currentBranch) return;
 
       setIsSwitching(true);
-      setError(null);
+      setCheckoutError(null);
 
       try {
         // Try normal checkout first
@@ -169,7 +112,7 @@ export function BranchSwitcher({
           setPendingBranch(branch);
           setShowConflictDialog(true);
         } else {
-          setError(`Failed to checkout: ${errorMessage}`);
+          setCheckoutError(`Failed to checkout: ${errorMessage}`);
         }
       } finally {
         setIsSwitching(false);
@@ -185,7 +128,7 @@ export function BranchSwitcher({
     if (!pendingBranch) return;
 
     setIsSwitching(true);
-    setError(null);
+    setCheckoutError(null);
 
     try {
       // Stash current changes
@@ -209,7 +152,7 @@ export function BranchSwitcher({
       onBranchSwitch?.(pendingBranch);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(`Failed to stash and checkout: ${errorMessage}`);
+      setCheckoutError(`Failed to stash and checkout: ${errorMessage}`);
     } finally {
       setIsSwitching(false);
     }
@@ -222,7 +165,7 @@ export function BranchSwitcher({
     if (!pendingBranch) return;
 
     setIsSwitching(true);
-    setError(null);
+    setCheckoutError(null);
 
     try {
       await git.checkout(pendingBranch, true); // force = true
@@ -232,7 +175,7 @@ export function BranchSwitcher({
       onBranchSwitch?.(pendingBranch);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(`Failed to force checkout: ${errorMessage}`);
+      setCheckoutError(`Failed to force checkout: ${errorMessage}`);
     } finally {
       setIsSwitching(false);
     }
@@ -283,8 +226,10 @@ export function BranchSwitcher({
             <div className="px-3 py-2 text-sm text-muted-foreground">
               Loading branches...
             </div>
-          ) : error ? (
-            <div className="px-3 py-2 text-sm text-destructive">{error}</div>
+          ) : error || checkoutError ? (
+            <div className="px-3 py-2 text-sm text-destructive">
+              {error || checkoutError}
+            </div>
           ) : availableBranches.length === 0 ? (
             <div className="px-3 py-2 text-sm text-muted-foreground">
               No branches found
