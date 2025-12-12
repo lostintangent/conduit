@@ -634,7 +634,12 @@ export class GitV2API {
    */
   async push(force = false, setUpstream = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.push(this.cwd, force, setUpstream);
+    return window.conduit.gitv2.push(
+      this.cwd,
+      force,
+      setUpstream,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -646,7 +651,7 @@ export class GitV2API {
    */
   async pull(rebase = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.pull(this.cwd, rebase);
+    return window.conduit.gitv2.pull(this.cwd, rebase, this.sandboxId);
   }
 
   /**
@@ -659,7 +664,7 @@ export class GitV2API {
    */
   async hasUpstream(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.hasUpstream(this.cwd);
+    return window.conduit.gitv2.hasUpstream(this.cwd, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------

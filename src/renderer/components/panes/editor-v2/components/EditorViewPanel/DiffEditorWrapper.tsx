@@ -158,7 +158,7 @@ export function DiffEditorWrapper({
 
   // Get the shared model for the modified side
   // Pass editorId to ensure consistent reference counting with other registries
-  const modifiedModel = useMonacoModel(editorId, filePath, cwd);
+  const modifiedModel = useMonacoModel(editorId, filePath, cwd, sandboxId);
 
   // Detect language from file path
   const language = detectLanguage(filePath);

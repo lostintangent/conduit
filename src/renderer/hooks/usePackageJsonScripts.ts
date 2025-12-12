@@ -49,8 +49,12 @@ export function usePackageJsonScripts(
             const packageJsonPath = path.join(currentDir, "package.json");
 
             // Try to read the file
-            // Note: sandboxId support for remote VMs would need fsv2 API changes
-            const content = await window.conduit.fsv2.readFile(packageJsonPath);
+            // Pass currentDir as cwd, packageJsonPath as the file to read, and sandboxId for VMs
+            const content = await window.conduit.fsv2.readFile(
+              currentDir,
+              packageJsonPath,
+              sandboxId,
+            );
             const text = new TextDecoder().decode(content);
             const packageJson: PackageJson = JSON.parse(text);
 

@@ -741,9 +741,14 @@ export function initializeGitV2Handlers(): void {
     "git-v2:push",
     async (
       _,
-      params: { cwd: string; force?: boolean; setUpstream?: boolean },
+      params: {
+        cwd: string;
+        force?: boolean;
+        setUpstream?: boolean;
+        vmId?: string;
+      },
     ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd);
+      const { provider } = await requireProvider(params.cwd, params.vmId);
       await provider.push(params.force, params.setUpstream);
     },
   );
@@ -755,8 +760,11 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:pull",
-    async (_, params: { cwd: string; rebase?: boolean }): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd);
+    async (
+      _,
+      params: { cwd: string; rebase?: boolean; vmId?: string },
+    ): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd, params.vmId);
       await provider.pull(params.rebase);
     },
   );
@@ -768,8 +776,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:has-upstream",
-    async (_, params: { cwd: string }): Promise<boolean> => {
-      const result = await getExistingProvider(params.cwd);
+    async (_, params: { cwd: string; vmId?: string }): Promise<boolean> => {
+      const result = await getExistingProvider(params.cwd, params.vmId);
       if (!result) {
         return false;
       }

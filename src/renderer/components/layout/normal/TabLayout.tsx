@@ -501,6 +501,7 @@ export function TabLayout({
                       type: "editor",
                       cwd: pane?.cwd,
                       file: node.path,
+                      sandboxId: pane?.sandboxId,
                     })
                   }
                   onHover={(isHovering) => {

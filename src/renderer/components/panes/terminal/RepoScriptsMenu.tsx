@@ -16,6 +16,7 @@ import { Play } from "lucide-react";
 
 type RepoScriptsMenuProps = {
   cwd?: string;
+  sandboxId?: string;
   onRunScript?: (script: string) => void;
 };
 
@@ -23,11 +24,15 @@ type RepoScriptsMenuProps = {
  * RepoScriptsMenu displays a play button that shows a dropdown of npm scripts
  * found in package.json. Only rendered when the showPlayButton setting is enabled.
  */
-export function RepoScriptsMenu({ cwd, onRunScript }: RepoScriptsMenuProps) {
+export function RepoScriptsMenu({
+  cwd,
+  sandboxId,
+  onRunScript,
+}: RepoScriptsMenuProps) {
   const userSettings = useAtomValue(userSettingsAtom);
   const showPlayButton = userSettings.showPlayButton ?? false;
 
-  const { scripts } = usePackageJsonScripts(cwd);
+  const { scripts } = usePackageJsonScripts(cwd, sandboxId);
   const hasScripts = scripts && Object.keys(scripts).length > 0;
 
   // Don't render if the setting is disabled or there are no scripts or no handler

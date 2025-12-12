@@ -41,7 +41,7 @@ import {
   useEditorSaveKeybinding,
   useModelState,
 } from "../../hooks";
-import { MonacoModelRegistry, pathToUri } from "../../registry";
+import { MonacoModelRegistry, createModelKey } from "../../registry";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import {
   DEFAULT_AUTO_SIZE_CONFIG,
@@ -138,7 +138,7 @@ export function FileChangeDiff({
   });
 
   // Get model state for this file
-  const modelState = useModelState(fullFilePath);
+  const modelState = useModelState(fullFilePath, sandboxId);
   const isDirty = modelState?.isDirty ?? false;
 
   // Activate controls when file becomes dirty
@@ -158,11 +158,12 @@ export function FileChangeDiff({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.saveModel(pathToUri(fullFilePath));
+      // Use composite key that includes sandboxId for VM file support
+      await registry.saveModel(createModelKey(fullFilePath, sandboxId));
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [fullFilePath]);
+  }, [fullFilePath, sandboxId]);
 
   // Keybinding hook for Cmd+S
   const { registerSaveKeybinding } = useEditorSaveKeybinding(

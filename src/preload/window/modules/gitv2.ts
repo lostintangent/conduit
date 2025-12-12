@@ -368,12 +368,14 @@ export default {
    * @param cwd - Working directory
    * @param force - If true, use --force-with-lease for safer force push
    * @param setUpstream - If true, set upstream tracking (for new branches)
+   * @param vmId - Optional VM ID for cloud git operations
    */
-  push: (cwd: string, force?: boolean, setUpstream?: boolean) =>
+  push: (cwd: string, force?: boolean, setUpstream?: boolean, vmId?: string) =>
     ipcRenderer.invoke("git-v2:push", {
       cwd,
       force,
       setUpstream,
+      vmId,
     }) as Promise<void>,
 
   /**
@@ -381,18 +383,23 @@ export default {
    *
    * @param cwd - Working directory
    * @param rebase - If true, use rebase instead of merge
+   * @param vmId - Optional VM ID for cloud git operations
    */
-  pull: (cwd: string, rebase?: boolean) =>
-    ipcRenderer.invoke("git-v2:pull", { cwd, rebase }) as Promise<void>,
+  pull: (cwd: string, rebase?: boolean, vmId?: string) =>
+    ipcRenderer.invoke("git-v2:pull", { cwd, rebase, vmId }) as Promise<void>,
 
   /**
    * Check if the current branch has an upstream (tracking) branch.
    *
    * @param cwd - Working directory
+   * @param vmId - Optional VM ID for cloud git operations
    * @returns true if upstream is configured, false otherwise
    */
-  hasUpstream: (cwd: string) =>
-    ipcRenderer.invoke("git-v2:has-upstream", { cwd }) as Promise<boolean>,
+  hasUpstream: (cwd: string, vmId?: string) =>
+    ipcRenderer.invoke("git-v2:has-upstream", {
+      cwd,
+      vmId,
+    }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
   // Comparison Operations

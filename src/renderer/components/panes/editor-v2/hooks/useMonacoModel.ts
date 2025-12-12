@@ -21,9 +21,9 @@
  * ```
  */
 
-import { useEffect, useRef, useState } from "react";
 import type * as monaco from "monaco-editor";
-import { MonacoModelRegistry, pathToUri } from "../registry";
+import { useEffect, useRef, useState } from "react";
+import { MonacoModelRegistry, createModelKey } from "../registry";
 
 /**
  * Hook to get a Monaco text model for a file.
@@ -40,13 +40,23 @@ import { MonacoModelRegistry, pathToUri } from "../registry";
  * @param editorId - Unique editor ID (must match EditorRegistry ID)
  * @param filePath - Absolute path to the file, or null for no model
  * @param cwd - Working directory for file operations
+ * @param sandboxId - Optional sandbox ID for VM file operations
  * @returns The Monaco text model, or null if filePath is null or loading
  */
 export function useMonacoModel(
   editorId: string,
   filePath: string | null,
   cwd: string,
+  sandboxId?: string,
 ): monaco.editor.ITextModel | null {
+  // Debug logging
+  console.log("[useMonacoModel] called:", {
+    editorId,
+    filePath,
+    cwd,
+    sandboxId,
+  });
+
   // State for the model - starts as null
   const [model, setModel] = useState<monaco.editor.ITextModel | null>(null);
 
@@ -75,8 +85,8 @@ export function useMonacoModel(
 
     // Release previous model reference if filePath changed
     if (prevFilePath !== null && prevFilePath !== filePath) {
-      const prevUri = pathToUri(prevFilePath);
-      registry.removeReference(prevUri, editorId);
+      const prevModelKey = createModelKey(prevFilePath, sandboxId);
+      registry.removeReference(prevModelKey, editorId);
     }
 
     // Update tracked filePath
@@ -88,13 +98,17 @@ export function useMonacoModel(
       return;
     }
 
-    const uri = pathToUri(filePath);
+    const modelKey = createModelKey(filePath, sandboxId);
 
     // Async function to get or create the model
     const loadModel = async () => {
       try {
         // Get or create the model
-        const newModel = await registry.getOrCreateModel(filePath, cwd);
+        const newModel = await registry.getOrCreateModel(
+          filePath,
+          cwd,
+          sandboxId,
+        );
 
         // Check if cleanup was called while we were loading
         if (cleanedUp) {
@@ -103,7 +117,7 @@ export function useMonacoModel(
         }
 
         // Add reference for this editor
-        registry.addReference(uri, editorId);
+        registry.addReference(modelKey, editorId);
         referenceAdded = true;
 
         // Only update state if still mounted and filePath hasn't changed
@@ -111,7 +125,7 @@ export function useMonacoModel(
           setModel(newModel);
         } else {
           // Either unmounted or file changed while loading - release the reference
-          registry.removeReference(uri, editorId);
+          registry.removeReference(modelKey, editorId);
           referenceAdded = false;
         }
       } catch (error) {
@@ -129,10 +143,10 @@ export function useMonacoModel(
       cleanedUp = true;
       // Only remove reference if we added one
       if (referenceAdded) {
-        registry.removeReference(uri, editorId);
+        registry.removeReference(modelKey, editorId);
       }
     };
-  }, [filePath, cwd, editorId]);
+  }, [filePath, cwd, editorId, sandboxId]);
 
   return model;
 }
@@ -140,4 +154,4 @@ export function useMonacoModel(
 /**
  * Re-export utilities for convenience
  */
-export { pathToUri, uriToPath } from "../registry";
+export { createModelKey, pathToUri, uriToPath } from "../registry";

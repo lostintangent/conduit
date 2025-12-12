@@ -34,7 +34,7 @@ import {
   useEditorSaveKeybinding,
   useModelState,
 } from "../../hooks";
-import { MonacoModelRegistry, pathToUri } from "../../registry";
+import { createModelKey, MonacoModelRegistry } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
@@ -190,7 +190,7 @@ export function EditorViewPanel({
   }, [filePath, cwd]);
 
   // Get model state for the current file
-  const modelState = useModelState(filePath);
+  const modelState = useModelState(filePath, sandboxId);
 
   // ---------------------------------------------------------------------------
   // Mode Transition Handling
@@ -255,12 +255,13 @@ export function EditorViewPanel({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.saveModel(pathToUri(filePath));
+      // Use composite key that includes sandboxId for VM file support
+      await registry.saveModel(createModelKey(filePath, sandboxId));
       onSave?.();
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, onSave]);
+  }, [filePath, sandboxId, onSave]);
 
   // ---------------------------------------------------------------------------
   // Editor Keybindings
@@ -321,11 +322,12 @@ export function EditorViewPanel({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.reloadModel(pathToUri(filePath));
+      // Use composite key that includes sandboxId for VM file support
+      await registry.reloadModel(createModelKey(filePath, sandboxId));
     } catch (error) {
       console.error("Failed to reload file:", error);
     }
-  }, [filePath]);
+  }, [filePath, sandboxId]);
 
   /**
    * Handle keep changes - user acknowledges external changes but wants to keep editing.
@@ -335,8 +337,9 @@ export function EditorViewPanel({
     if (!filePath) return;
 
     const registry = MonacoModelRegistry.getInstance();
-    registry.clearExternalChanges(pathToUri(filePath));
-  }, [filePath]);
+    // Use composite key that includes sandboxId for VM file support
+    registry.clearExternalChanges(createModelKey(filePath, sandboxId));
+  }, [filePath, sandboxId]);
 
   // Changes review mode - render full-height pane with its own toolbar
   // This is checked first because review mode doesn't require a selected file
@@ -456,6 +459,7 @@ export function EditorViewPanel({
             <RegularEditorWrapper
               editorId={editorId}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
               theme={theme}
               onMount={handleEditorMount}

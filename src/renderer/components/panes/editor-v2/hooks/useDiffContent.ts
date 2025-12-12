@@ -25,7 +25,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useGitV2 } from "../../../../hooks/useGitV2";
-import { MonacoModelRegistry, pathToUri } from "../registry";
+import { MonacoModelRegistry, createModelKey } from "../registry";
 
 // ============================================================================
 // Error Types
@@ -301,7 +301,7 @@ export function useDiffContent(
 
     const loadContent = async () => {
       const registry = MonacoModelRegistry.getInstance();
-      const uri = pathToUri(filePath);
+      const modelKey = createModelKey(filePath, sandboxId);
       const ref = baseBranch || "HEAD";
 
       let originalContent: string | null = null;
@@ -336,16 +336,20 @@ export function useDiffContent(
         diffError.type === "not_tracked" ||
         diffError.type === "not_committed"
       ) {
-        const modelState = registry.getModelState(uri);
+        const modelState = registry.getModelState(modelKey);
 
         if (modelState !== undefined) {
           // Model exists - get content from it
-          const model = registry.getModel(uri);
+          const model = registry.getModel(modelKey);
           modifiedContent = model?.getValue() ?? null;
         } else {
           // Model doesn't exist - try to create it
           try {
-            const model = await registry.getOrCreateModel(filePath, cwd);
+            const model = await registry.getOrCreateModel(
+              filePath,
+              cwd,
+              sandboxId,
+            );
 
             // Check if effect was cleaned up during async operation
             if (isStale) return;
