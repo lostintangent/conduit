@@ -1,11 +1,7 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
-import {
-  detachPane,
-  removePane,
-  updatePaneProperty,
-} from "@/store/actions/pane";
+import { detachPane, removePane } from "@/store/actions/pane";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
@@ -81,7 +77,10 @@ export async function openTab(
   const activeTab = store.get(activeTabAtom);
   const cwd = getActiveTabCwd(activeTab);
 
-  const result = await api.createTerminal(cwd ? { cwd } : undefined);
+  const result = await api.createTerminal({
+    cwd: cwd || undefined,
+    command: options?.command,
+  });
   if (!result) {
     return null;
   }
@@ -114,16 +113,6 @@ export async function openTab(
     },
   ]);
   focusTab(tabId);
-
-  const command = options?.command;
-  if (command && command.length > 0) {
-    const commandWithNewline =
-      command.endsWith("\n") || command.endsWith("\r")
-        ? command
-        : `${command}\n`;
-
-    api.sendKeypress(result.sessionId, commandWithNewline);
-  }
 
   return { tabId, paneId, sessionId: result.sessionId };
 }
@@ -441,9 +430,10 @@ export async function duplicateTab(
 
       // Create a new terminal session with the specified cwd or the source's cwd
       const cwdToUse = options?.cwd || sourcePane.cwd;
-      const result = await api.createTerminal(
-        cwdToUse ? { cwd: cwdToUse } : undefined,
-      );
+      const result = await api.createTerminal({
+        cwd: cwdToUse ?? undefined,
+        command: capturedCommand ?? undefined,
+      });
       if (!result) {
         continue;
       }
@@ -473,14 +463,6 @@ export async function duplicateTab(
         agentRepoRoot,
         agentWorktreePath,
       };
-
-      // Auto-execute the captured command in the new terminal
-      if (capturedCommand && capturedCommand.trim().length > 0) {
-        const commandWithNewline = capturedCommand.endsWith("\n")
-          ? capturedCommand
-          : `${capturedCommand}\n`;
-        api.sendKeypress(result.sessionId, commandWithNewline);
-      }
     } else if (sourcePane.type === "editor") {
       // Translate file path if duplicating into a worktree
       let translatedFile = sourcePane.file;

@@ -45,23 +45,26 @@ export interface CloudTerminalOptions {
 
   /**
    * Local repository working directory path
-   * Used to push commits via SSH after VM is created
+   * Used to push commits via SSH and create patches in main process
    */
   localRepoCwd?: string;
 
   /**
-   * Git diff patches for working tree changes
-   * Preserves staging state when applied to VM
+   * Whether to sync local git state (uncommitted changes) to the VM
+   * When true, patches are created and applied in the main process
+   * This avoids Buffer serialization issues through IPC
    */
-  diffPatches?: {
-    staged: Buffer | null;
-    unstaged: Buffer | null;
-    untracked: Buffer | null;
-  };
+  syncLocalGitState?: boolean;
+
+  /**
+   * Whether there are unpushed commits that need to be pushed via SSH
+   */
+  hasUnpushedCommits?: boolean;
 }
 
 export type TerminalCreateOptions = {
   cwd?: string;
+  command?: string; // Command to execute when the terminal is ready
   existingVMId?: string; // Connect to an existing VM instead of creating one
   vmIdleTimeout?: number;
 } & CloudTerminalOptions;

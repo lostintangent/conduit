@@ -43,7 +43,6 @@ export type { EditorToolbarProps } from "./Toolbar";
 
 // FileTreePanel components
 export {
-  BranchSelector,
   FileTreeChanges,
   FileTreeItem,
   FileTreeNormal,
@@ -51,7 +50,6 @@ export {
 } from "./FileTreePanel";
 
 export type {
-  BranchSelectorProps,
   FileTreeChangesProps,
   FileTreeItemProps,
   FileTreeNormalProps,

@@ -624,11 +624,11 @@ describe("duplicateTab", () => {
     // Verify command was captured from source terminal
     expect(mockApi.captureTerminalCommand).toHaveBeenCalledWith("session-1");
 
-    // Verify command was auto-executed in new terminal
-    expect(mockApi.sendKeypress).toHaveBeenCalledWith(
-      "session-2",
-      "npm run dev\n",
-    );
+    // Verify command was passed to createTerminal
+    expect(mockApi.createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user/project",
+      command: "npm run dev",
+    });
   });
 
   it("should handle terminals with no active command during duplication", async () => {
@@ -700,8 +700,11 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    // Command should have newline added
-    expect(mockApi.sendKeypress).toHaveBeenCalledWith("session-2", "top\n");
+    // Command should be passed to createTerminal (without newline - the IPC layer handles execution)
+    expect(mockApi.createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      command: "top",
+    });
   });
 
   it("should not add extra newline if command already has one", async () => {
@@ -734,10 +737,10 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    // Command should not have extra newline
-    expect(mockApi.sendKeypress).toHaveBeenCalledWith(
-      "session-2",
-      "vim file.txt\n",
-    );
+    // Command is passed through as-is (IPC layer handles execution)
+    expect(mockApi.createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      command: "vim file.txt\n",
+    });
   });
 });

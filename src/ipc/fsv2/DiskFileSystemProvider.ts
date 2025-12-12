@@ -20,27 +20,28 @@
  * ```
  */
 
-import { spawn } from "node:child_process";
 import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as nodePath from "node:path";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import { DirectoryCache } from "./DirectoryCache";
+import { GitIgnoreCache } from "./GitIgnoreCache";
 import {
   ParcelFileWatcher,
   type ParcelFileWatcherOptions,
 } from "./ParcelFileWatcher";
-import type {
-  DeleteOptions,
-  DirectoryEntry,
-  DirectoryListingChangedEvent,
-  Event,
-  FileContentChangedEvent,
-  FileDeletedEvent,
-  FileRenamedEvent,
-  FileStat,
-  FileSystemProvider,
+import {
+  ALWAYS_HIDDEN,
+  type DeleteOptions,
+  type DirectoryEntry,
+  type DirectoryListingChangedEvent,
+  type Event,
+  type FileContentChangedEvent,
+  type FileDeletedEvent,
+  type FileRenamedEvent,
+  type FileStat,
+  type FileSystemProvider,
 } from "./types";
 
 // ============================================================================
@@ -55,9 +56,6 @@ const MAX_CONCURRENT_PREFETCH = 10;
 
 /** Cooldown between cache verification checks for the same directory (ms) */
 const VERIFY_CACHE_COOLDOWN_MS = 2000;
-
-/** Names to always filter out from directory listings */
-const ALWAYS_HIDDEN = new Set([".git", "node_modules"]);
 
 // ============================================================================
 // DiskFileSystemProvider
@@ -106,11 +104,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   /** Last verification time per directory (for cooldown) */
   private lastVerifyTime = new Map<string, number>();
 
-  /** Cached git root path (null if not in a git repo, undefined if not yet checked) */
+  /** Cached git root for this cwd (null if not in repo, undefined if not yet checked) */
   private gitRoot: string | null | undefined = undefined;
-
-  /** Cache of gitignored paths (relative to git root) */
-  private gitIgnoreCache = new Map<string, boolean>();
 
   // -------------------------------------------------------------------------
   // Event Emitters
@@ -146,6 +141,19 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     // Initialize watcher and wire up events
     this.watcher = new ParcelFileWatcher(this.cwd, watcherOptions);
     this.setupWatcherEvents();
+
+    // Eagerly initialize git root so watcher filtering works immediately
+    this.initializeGitRoot();
+  }
+
+  /**
+   * Initialize git root asynchronously.
+   * Called from constructor to ensure gitRoot is available for watcher filtering.
+   */
+  private initializeGitRoot(): void {
+    GitIgnoreCache.getGitRoot(this.cwd).then((root) => {
+      this.gitRoot = root;
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -376,11 +384,39 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   // -------------------------------------------------------------------------
 
   /**
+   * Check if a path should be ignored (gitignored).
+   * Returns false if git root is not yet known (conservative - don't filter).
+   */
+  private isPathIgnored(filePath: string): boolean {
+    // Don't filter .gitignore files themselves - we need to process them
+    if (nodePath.basename(filePath) === ".gitignore") {
+      return false;
+    }
+
+    // If we don't know the git root yet, don't filter
+    if (!this.gitRoot) {
+      return false;
+    }
+
+    return GitIgnoreCache.isIgnored(this.gitRoot, filePath);
+  }
+
+  /**
    * Wire up watcher events to provider events.
    */
   private setupWatcherEvents(): void {
     // File/directory created
     this.watcher.onCreated((event) => {
+      // Handle .gitignore changes first (before filtering)
+      if (nodePath.basename(event.path) === ".gitignore") {
+        GitIgnoreCache.invalidateForGitignore(event.path);
+      }
+
+      // Skip events for gitignored paths
+      if (this.isPathIgnored(event.path)) {
+        return;
+      }
+
       const parentDir = nodePath.dirname(event.path);
       this.scheduleRefresh(parentDir);
 
@@ -392,11 +428,34 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // File modified
     this.watcher.onModified((event) => {
+      // Handle .gitignore changes first (before filtering)
+      if (nodePath.basename(event.path) === ".gitignore") {
+        GitIgnoreCache.invalidateForGitignore(event.path);
+        // Refresh the directory containing .gitignore to reflect changes
+        const parentDir = nodePath.dirname(event.path);
+        this.scheduleRefresh(parentDir);
+      }
+
+      // Skip events for gitignored paths
+      if (this.isPathIgnored(event.path)) {
+        return;
+      }
+
       this._onFileContentChanged.fire({ path: event.path });
     });
 
     // File/directory deleted
     this.watcher.onDeleted((event) => {
+      // Handle .gitignore changes first (before filtering)
+      if (nodePath.basename(event.path) === ".gitignore") {
+        GitIgnoreCache.invalidateForGitignore(event.path);
+      }
+
+      // Skip events for gitignored paths
+      if (this.isPathIgnored(event.path)) {
+        return;
+      }
+
       const parentDir = nodePath.dirname(event.path);
       this.scheduleRefresh(parentDir);
       this._onFileDeleted.fire(event);
@@ -412,6 +471,14 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // File/directory renamed
     this.watcher.onRenamed((event) => {
+      // Skip events for gitignored paths (check both old and new)
+      if (
+        this.isPathIgnored(event.oldPath) &&
+        this.isPathIgnored(event.newPath)
+      ) {
+        return;
+      }
+
       // Refresh both old and new parent directories
       const oldParentDir = nodePath.dirname(event.oldPath);
       const newParentDir = nodePath.dirname(event.newPath);
@@ -438,6 +505,17 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   // -------------------------------------------------------------------------
 
   /**
+   * Get the git root for this provider's cwd (lazy initialization).
+   * Cached after first lookup - only one git process spawn per provider lifetime.
+   */
+  private async getGitRoot(): Promise<string | null> {
+    if (this.gitRoot === undefined) {
+      this.gitRoot = await GitIgnoreCache.getGitRoot(this.cwd);
+    }
+    return this.gitRoot;
+  }
+
+  /**
    * Read directory contents from disk.
    *
    * Filters out:
@@ -457,8 +535,16 @@ export class DiskFileSystemProvider implements FileSystemProvider {
         type: dirent.isDirectory() ? "directory" : "file",
       }));
 
-    // Filter gitignored entries
-    const gitIgnored = await this.getGitIgnoredEntries(dirPath, entries);
+    // Filter gitignored entries (using shared cache with pre-resolved git root)
+    const gitRoot = await this.getGitRoot();
+    const gitIgnored = await GitIgnoreCache.getIgnoredEntries(
+      dirPath,
+      entries.map((e) => ({
+        name: e.name,
+        isDirectory: e.type === "directory",
+      })),
+      gitRoot,
+    );
     if (gitIgnored.size > 0) {
       entries = entries.filter((e) => !gitIgnored.has(e.name));
     }
@@ -682,143 +768,5 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     // Check if user has write permission
     // eslint-disable-next-line no-bitwise
     return (stats.mode & 0o200) === 0;
-  }
-
-  // -------------------------------------------------------------------------
-  // Internal: Git Ignore Filtering
-  // -------------------------------------------------------------------------
-
-  /**
-   * Find the git root for this provider's cwd.
-   *
-   * Result is cached after first call.
-   */
-  private async findGitRoot(): Promise<string | null> {
-    if (this.gitRoot !== undefined) {
-      return this.gitRoot;
-    }
-
-    return new Promise((resolve) => {
-      const child = spawn("git", ["rev-parse", "--show-toplevel"], {
-        cwd: this.cwd,
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-
-      let output = "";
-      child.stdout.on("data", (chunk) => {
-        output += chunk.toString();
-      });
-
-      child.once("error", () => {
-        this.gitRoot = null;
-        resolve(null);
-      });
-
-      child.once("close", (code) => {
-        if (code === 0 && output.trim()) {
-          this.gitRoot = output.trim();
-          resolve(this.gitRoot);
-        } else {
-          this.gitRoot = null;
-          resolve(null);
-        }
-      });
-    });
-  }
-
-  /**
-   * Check if files are gitignored using batch `git check-ignore`.
-   *
-   * @param dirPath - Directory containing the files
-   * @param entries - Entries to check
-   * @returns Set of gitignored entry names
-   */
-  private async getGitIgnoredEntries(
-    dirPath: string,
-    entries: DirectoryEntry[],
-  ): Promise<Set<string>> {
-    const gitRoot = await this.findGitRoot();
-    if (!gitRoot) {
-      return new Set();
-    }
-
-    const ignored = new Set<string>();
-
-    // Build list of paths to check (relative to git root)
-    const pathsToCheck: Array<{ name: string; relativePath: string }> = [];
-
-    for (const entry of entries) {
-      const fullPath = nodePath.join(dirPath, entry.name);
-      const relativePath = nodePath.relative(gitRoot, fullPath);
-
-      // Skip if outside git repo
-      if (relativePath.startsWith("..")) {
-        continue;
-      }
-
-      // Check cache first
-      const cached = this.gitIgnoreCache.get(relativePath);
-      if (cached !== undefined) {
-        if (cached) {
-          ignored.add(entry.name);
-        }
-        continue;
-      }
-
-      pathsToCheck.push({ name: entry.name, relativePath });
-    }
-
-    // If all entries were cached, return early
-    if (pathsToCheck.length === 0) {
-      return ignored;
-    }
-
-    // Batch check with git check-ignore
-    return new Promise((resolve) => {
-      const child = spawn("git", ["check-ignore", "--stdin"], {
-        cwd: gitRoot,
-        stdio: ["pipe", "pipe", "ignore"],
-      });
-
-      let output = "";
-      child.stdout.on("data", (chunk) => {
-        output += chunk.toString();
-      });
-
-      child.once("error", () => {
-        // On error, assume nothing is ignored
-        resolve(ignored);
-      });
-
-      child.once("close", () => {
-        // Parse output - each line is a path that IS ignored
-        const ignoredPaths = new Set(
-          output
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean),
-        );
-
-        // Update cache and results
-        for (const { name, relativePath } of pathsToCheck) {
-          // Normalize to forward slashes for comparison
-          const normalizedRelative = relativePath.split(nodePath.sep).join("/");
-          const isIgnored = ignoredPaths.has(normalizedRelative);
-          this.gitIgnoreCache.set(relativePath, isIgnored);
-          if (isIgnored) {
-            ignored.add(name);
-          }
-        }
-
-        resolve(ignored);
-      });
-
-      // Write paths to stdin (one per line, forward slashes)
-      const input = pathsToCheck
-        .map(({ relativePath }) => relativePath.split(nodePath.sep).join("/"))
-        .join("\n");
-      child.stdin.write(input);
-      child.stdin.end();
-    });
   }
 }

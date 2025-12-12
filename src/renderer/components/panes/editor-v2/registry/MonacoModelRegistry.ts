@@ -584,6 +584,8 @@ export class MonacoModelRegistry {
       return;
     }
 
+    const cwd = entry.cwd;
+
     // Clear disposal timer
     if (entry.disposeTimer) {
       clearTimeout(entry.disposeTimer);
@@ -602,6 +604,29 @@ export class MonacoModelRegistry {
 
     // Remove from registry
     this.models.delete(uri);
+
+    // Check if any models still use this cwd
+    // If not, release the fsApi for this cwd
+    this.maybeReleaseFsApi(cwd);
+  }
+
+  /**
+   * Release fsApi for a cwd if no models are using it.
+   */
+  private maybeReleaseFsApi(cwd: string): void {
+    // Check if any remaining models use this cwd
+    for (const entry of this.models.values()) {
+      if (entry.cwd === cwd) {
+        return; // Still in use
+      }
+    }
+
+    // No models use this cwd anymore, release the fsApi
+    const fsApi = this.fsApis.get(cwd);
+    if (fsApi) {
+      FileSystemV2APIService.getInstance().release(cwd);
+      this.fsApis.delete(cwd);
+    }
   }
 
   /**
@@ -935,38 +960,16 @@ export class MonacoModelRegistry {
     entry: ModelEntry,
     fsApi: FileSystemV2API,
   ): void {
-    console.log(
-      "[MonacoModelRegistry] Setting up file watching for:",
-      entry.filePath,
-    );
-
     // Listen for file content changes
     // Derives URI from entry.filePath at call time to handle renames
     // Uses pathsEqual for case-insensitive comparison on macOS/Windows
     const contentCleanup = fsApi.onAnyFileContentChanged((changedPath) => {
-      const isMatch = pathsEqual(changedPath, entry.filePath);
-      console.log(
-        "[MonacoModelRegistry] File change event received:",
-        changedPath,
-        "watching:",
-        entry.filePath,
-        "match:",
-        isMatch,
-      );
-      if (isMatch) {
+      if (pathsEqual(changedPath, entry.filePath)) {
         const currentUri = pathToUri(entry.filePath);
-        console.log(
-          "[MonacoModelRegistry] Calling handleExternalFileChange for:",
-          currentUri,
-        );
         this.handleExternalFileChange(currentUri, entry);
       }
     });
     entry.fileWatchDisposables.push({ dispose: contentCleanup });
-    console.log(
-      "[MonacoModelRegistry] File watch listener registered, disposables count:",
-      entry.fileWatchDisposables.length,
-    );
 
     // Listen for file deletion
     // Uses pathsEqual for case-insensitive comparison on macOS/Windows
@@ -1004,26 +1007,13 @@ export class MonacoModelRegistry {
     uri: string,
     entry: ModelEntry,
   ): Promise<void> {
-    console.log(
-      "[MonacoModelRegistry] handleExternalFileChange called for:",
-      uri,
-      "isDirty:",
-      entry.isDirty,
-      "isReloading:",
-      entry.isReloading,
-    );
-
     // Skip if already reloading (prevents concurrent reload attempts)
     if (entry.isReloading) {
-      console.log("[MonacoModelRegistry] Skipping - already reloading");
       return;
     }
 
     if (entry.isDirty) {
       // Conflict: user has unsaved changes AND file changed externally
-      console.log(
-        "[MonacoModelRegistry] File is dirty - marking as having external changes (conflict)",
-      );
       entry.hasExternalChanges = true;
       this._onModelStateChanged.fire({
         type: "externalChange",
@@ -1032,25 +1022,15 @@ export class MonacoModelRegistry {
       });
     } else {
       // No conflict at start: attempt auto-reload
-      console.log(
-        "[MonacoModelRegistry] File is clean - auto-reloading content",
-      );
       entry.isReloading = true;
       try {
         // Use entry.filePath directly for consistency (avoids uri conversion)
         const fsApi = this.getOrCreateFsApi(entry.cwd);
         const content = await fsApi.readTextFile(entry.filePath);
-        console.log(
-          "[MonacoModelRegistry] Read new content, length:",
-          content.length,
-        );
 
         // Re-check isDirty after async read - user may have typed while loading
         if (entry.isDirty) {
           // User started editing during reload - treat as conflict
-          console.log(
-            "[MonacoModelRegistry] File became dirty during reload - treating as conflict",
-          );
           entry.hasExternalChanges = true;
           this._onModelStateChanged.fire({
             type: "externalChange",
@@ -1060,8 +1040,14 @@ export class MonacoModelRegistry {
           return;
         }
 
+        // Skip reload if content is identical (e.g., our own save triggered the watcher)
+        // This prevents cursor position reset from setValue()
+        const currentContent = entry.model.getValue();
+        if (currentContent === content) {
+          return;
+        }
+
         // Still clean - safe to auto-reload
-        console.log("[MonacoModelRegistry] Updating model with new content");
         entry.model.setValue(content);
 
         // Update saved version (file on disk is now this content)
@@ -1072,7 +1058,6 @@ export class MonacoModelRegistry {
           uri,
           hasConflict: false,
         });
-        console.log("[MonacoModelRegistry] Auto-reload complete");
       } catch (error) {
         console.error(
           `[MonacoModelRegistry] Failed to auto-reload ${uri}:`,
@@ -1221,11 +1206,8 @@ export class MonacoModelRegistry {
     let fsApi = this.fsApis.get(cwd);
     if (!fsApi) {
       // Acquire from service (increments refCount)
-      console.log("[MonacoModelRegistry] Acquiring new fsApi for cwd:", cwd);
       fsApi = FileSystemV2APIService.getInstance().acquire(cwd);
       this.fsApis.set(cwd, fsApi);
-    } else {
-      console.log("[MonacoModelRegistry] Reusing cached fsApi for cwd:", cwd);
     }
     return fsApi;
   }

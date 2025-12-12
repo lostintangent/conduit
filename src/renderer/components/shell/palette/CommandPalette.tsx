@@ -399,13 +399,6 @@ export function CommandPalette({
       >
         <DialogTitle className="sr-only">Command Palette</DialogTitle>
 
-        {/* Mode indicator */}
-        {isShellMode && (
-          <div className="mb-2 px-2 py-1 rounded-md bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-medium">
-            💻 Shell Command Mode
-          </div>
-        )}
-
         <Input
           autoFocus
           value={inputValue}

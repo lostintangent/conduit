@@ -12,7 +12,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const OVERLAY_WIDTH = 400;
 const OVERLAY_HEIGHT = 300;
 const DEFAULT_MARGIN = 16;
-const POSITION_STORAGE_KEY = "hyperTerminalPosition";
+const POSITION_OFFSET = 32;
+const POSITION_STORAGE_KEY = "lastHyperTerminalPosition";
 
 type Position = { x: number; y: number };
 
@@ -20,6 +21,7 @@ type HyperTerminalProps = {
   terminalId: string;
   paneId: string;
   cwd: string | null;
+  index: number;
   onClose: () => void;
   onMaximize: () => void;
   onOpenAsTab: () => void;
@@ -69,24 +71,29 @@ const constrainPosition = (pos: Position): Position => {
   };
 };
 
-const getInitialPosition = (): Position => {
+const getInitialPosition = (index: number): Position => {
+  const offset = index * POSITION_OFFSET;
+
   try {
     const saved = localStorage.getItem(POSITION_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (validatePosition(parsed)) {
-        // Constrain to current viewport in case window was resized
-        return constrainPosition(parsed);
+        // Apply offset for multiple terminals and constrain to viewport
+        return constrainPosition({
+          x: parsed.x + offset,
+          y: parsed.y + offset,
+        });
       }
     }
   } catch (e) {
     console.error("Failed to load terminal position from localStorage", e);
   }
-  // Default position: bottom-left
-  return {
-    x: DEFAULT_MARGIN,
-    y: window.innerHeight - OVERLAY_HEIGHT - DEFAULT_MARGIN,
-  };
+  // Default position: bottom-left with offset
+  return constrainPosition({
+    x: DEFAULT_MARGIN + offset,
+    y: window.innerHeight - OVERLAY_HEIGHT - DEFAULT_MARGIN + offset,
+  });
 };
 
 const savePosition = (pos: Position) => {
@@ -101,11 +108,12 @@ export function HyperTerminal({
   terminalId,
   paneId,
   cwd,
+  index,
   onClose,
   onMaximize,
   onOpenAsTab,
 }: HyperTerminalProps) {
-  const [position, setPosition] = useState(getInitialPosition);
+  const [position, setPosition] = useState(() => getInitialPosition(index));
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const positionRef = useRef(position);

@@ -8,3 +8,7 @@
 export { GitBadge, getStatusConfig } from "./GitBadge";
 export type { GitBadgeProps, StatusConfig } from "./GitBadge";
 export { aggregateFolderStatus } from "./gitFolderAggregation";
+export { EditorActionButtons } from "./EditorActionButtons";
+export type { EditorActionButtonsProps } from "./EditorActionButtons";
+export { DiffModeToggle } from "./DiffModeToggle";
+export type { DiffModeToggleProps } from "./DiffModeToggle";

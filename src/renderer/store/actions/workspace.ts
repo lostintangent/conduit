@@ -14,8 +14,6 @@ type WorkspacePane = Workspace["tabs"][number]["panes"][number];
 type WorkspaceTerminalPane = WorkspacePane & SharedTerminalPane;
 
 export async function openWorkspace(workspace: Workspace) {
-  await closeWorkspace({ openReplacement: false });
-
   if (!workspace.tabs || workspace.tabs.length === 0) {
     return;
   }
@@ -34,22 +32,19 @@ export async function openWorkspace(workspace: Workspace) {
       let session = terminalSessions.get(cloneSourceId);
 
       if (!session) {
-        session = await api.createTerminal(
-          pane.cwd ? { cwd: pane.cwd } : undefined,
-        );
+        const command =
+          !pane.cloneOf && pane.command ? pane.command : undefined;
+
+        session = await api.createTerminal({
+          cwd: pane.cwd ?? undefined,
+          command,
+        });
 
         if (!session) {
           return;
         }
 
         terminalSessions.set(cloneSourceId, session);
-
-        if (!pane.cloneOf && pane.command?.trim().length) {
-          const commandWithNewline = pane.command.endsWith("\n")
-            ? pane.command
-            : `${pane.command}\n`;
-          api.sendKeypress(session.sessionId, commandWithNewline);
-        }
       }
 
       panes[pane.id] = {
@@ -81,23 +76,20 @@ export async function openWorkspace(workspace: Workspace) {
       await restoreTerminalPane(pane);
     }
 
-    // Only create the tab if we successfully restored at least one pane
-    if (Object.keys(panes).length > 0) {
-      const tab: Tab = {
-        ...workspaceTab,
-        panes,
-        layout: workspaceTab.layout as LayoutNode,
-      };
+    const tab: Tab = {
+      ...workspaceTab,
+      panes,
+      layout: workspaceTab.layout as LayoutNode,
+    };
 
-      workspaceTabs.push(tab);
-    }
+    workspaceTabs.push(tab);
   }
 
-  if (workspaceTabs.length > 0) {
-    store.set(tabsAtom, workspaceTabs);
-    store.set(activeTabIdAtom, workspace.activeTabId);
-    store.set(workspaceNameAtom, workspace.name);
-  }
+  await closeWorkspace({ openReplacement: false });
+
+  store.set(tabsAtom, workspaceTabs);
+  store.set(activeTabIdAtom, workspace.activeTabId);
+  store.set(workspaceNameAtom, workspace.name);
 }
 
 type CloseWorkspaceOptions = {

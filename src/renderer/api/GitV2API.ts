@@ -533,12 +533,84 @@ export class GitV2API {
    * Checkout a branch or ref.
    *
    * @param ref - Branch name, tag, or commit hash
+   * @param force - If true, force checkout (discards local changes)
    * @throws {Error} If the API has been released
    * @throws {Error} If checkout fails (uncommitted changes, invalid ref, etc.)
    */
-  async checkout(ref: string): Promise<void> {
+  async checkout(ref: string, force = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.checkout(this.cwd, ref);
+    return window.conduit.gitv2.checkout(this.cwd, ref, force);
+  }
+
+  /**
+   * Stash current uncommitted changes.
+   *
+   * Saves both staged and unstaged changes to the stash.
+   *
+   * @param message - Optional message for the stash entry
+   * @throws {Error} If the API has been released
+   */
+  async stash(message?: string): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.stash(this.cwd, message);
+  }
+
+  /**
+   * Apply and remove the most recent stash entry.
+   *
+   * Restores the previously stashed changes to the working directory.
+   *
+   * @throws {Error} If the API has been released
+   * @throws {Error} If there are no stash entries or applying fails
+   */
+  async stashPop(): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.stashPop(this.cwd);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Remote Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Push commits to remote.
+   *
+   * When setUpstream is true, this will create/track the remote branch,
+   * useful for pushing new branches that don't exist on the remote yet.
+   *
+   * @param force - If true, use --force-with-lease for safer force push
+   * @param setUpstream - If true, set upstream tracking (for new branches)
+   * @throws {Error} If the API has been released
+   * @throws {Error} If push fails (no remote, auth issues, etc.)
+   */
+  async push(force = false, setUpstream = false): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.push(this.cwd, force, setUpstream);
+  }
+
+  /**
+   * Pull changes from remote.
+   *
+   * @param rebase - If true, use rebase instead of merge
+   * @throws {Error} If the API has been released
+   * @throws {Error} If pull fails (merge conflicts, no upstream, etc.)
+   */
+  async pull(rebase = false): Promise<void> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.pull(this.cwd, rebase);
+  }
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch.
+   *
+   * Use this to determine whether to show "Push" or "Publish" UI.
+   *
+   * @returns true if an upstream is configured, false otherwise
+   * @throws {Error} If the API has been released
+   */
+  async hasUpstream(): Promise<boolean> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.hasUpstream(this.cwd);
   }
 
   // ---------------------------------------------------------------------------
@@ -892,6 +964,9 @@ export class GitV2API {
    *
    * Uses a promise to prevent multiple concurrent subscription requests.
    * If a subscription is already in progress, returns immediately.
+   *
+   * Handles the race condition where release() is called while the
+   * subscription IPC is in flight - in that case, immediately unsubscribes.
    */
   private ensureSubscribed(): void {
     // Already subscribed
@@ -911,6 +986,17 @@ export class GitV2API {
 
         if (!subscriptionId) {
           // Not a git repository - subscriptions won't work
+          return;
+        }
+
+        // Check if we were released while waiting for the subscription
+        // This handles the race condition where release() is called
+        // before the IPC completes
+        if (this.released) {
+          // Immediately unsubscribe since we're already released
+          window.conduit.gitv2.unsubscribe(subscriptionId).catch(() => {
+            // Ignore errors during cleanup
+          });
           return;
         }
 

@@ -3,7 +3,7 @@
   "productName": "Conduit",
   "description": "A terminal-centric IDE (a \"DIY-DE\"), that's built for task parallelization with coding agents.",
   "main": ".vite/build/main.js",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "start": "electron-forge start",
@@ -19,6 +19,13 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:sandbox": "vitest run --pool=threads tests/integration/sandbox-ipc.integration.test.ts",
+    "test:sandbox:docker": "cross-env SANDBOX_USE_DOCKER=1 vitest run --pool=threads tests/integration/sandbox-ipc.integration.test.ts",
+    "test:sandbox:go:start": "bash build/sandbox/scripts/start-go-server.sh",
+    "test:sandbox:go:stop": "bash build/sandbox/scripts/stop-go-server.sh",
+    "test:sandbox:docker:build": "docker build -t conduit-sandbox -f build/sandbox/Dockerfile .",
+    "test:sandbox:docker:start": "bash build/sandbox/scripts/start-test-container.sh",
+    "test:sandbox:docker:stop": "bash build/sandbox/scripts/stop-test-container.sh",
     "postinstall": "node build/scripts/setup-keys.js",
     "prepare": "husky",
     "premake": "npm run build:icon"
@@ -40,6 +47,7 @@
     "@types/path-browserify": "^1.0.3",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^5.0.4",
@@ -56,7 +64,8 @@
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
-    "vitest": "^4.0.4"
+    "vitest": "^4.0.4",
+    "ws": "^8.18.3"
   },
   "dependencies": {
     "@electron-forge/publisher-github": "^7.10.2",
@@ -79,6 +88,7 @@
     "commander": "^14.0.2",
     "date-fns": "^4.1.0",
     "electron-squirrel-startup": "^1.0.1",
+    "ignore": "^7.0.5",
     "immer": "^10.2.0",
     "jotai": "^2.15.0",
     "jotai-immer": "^0.4.1",

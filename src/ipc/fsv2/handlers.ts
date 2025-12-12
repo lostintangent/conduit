@@ -1,20 +1,18 @@
 /**
  * FileSystem v2 IPC Handlers - Main process handlers for filesystem operations.
  *
- * This module registers IPC handlers that expose the FileSystemProvider API
+ * This module registers IPC handlers that expose filesystem operations
  * to renderer processes. It handles:
  * - Request/response operations (readDirectory, readFile, etc.)
  * - Event subscriptions (directory changes, file changes)
  * - Provider lifecycle management via FileSystemProviderService
  *
  * Architecture:
- * - Subscriptions own the provider lifecycle - they acquire a provider
- *   reference on subscribe and release it on unsubscribe/window close.
- * - One-shot operations (read, write, etc.) prefer using an existing provider
- *   from an active subscription (no refCount change). If no subscription
- *   exists, they temporarily acquire a provider and release after the operation.
- * - This hybrid approach ensures operations work standalone while optimizing
- *   for the common case of having an active subscription.
+ * - Read/write operations are lightweight - they use direct fs calls and
+ *   NEVER create FileSystemProviders or file watchers.
+ * - Only explicit subscriptions create providers with watchers.
+ * - This ensures operations like searching for package.json in parent
+ *   directories don't accidentally create watchers for /Users or /.
  *
  * IPC Channels:
  * - `fs-v2:read-directory` - Read directory contents
@@ -25,13 +23,21 @@
  * - `fs-v2:create-directory` - Create directory
  * - `fs-v2:stat` - Get file/directory stats
  * - `fs-v2:exists` - Check if path exists
- * - `fs-v2:subscribe` - Subscribe to provider events
+ * - `fs-v2:subscribe` - Subscribe to provider events (creates watchers)
  * - `fs-v2:unsubscribe` - Unsubscribe from events
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { FileSystemProviderService } from "./FileSystemProviderService";
-import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
+import { GitIgnoreCache } from "./GitIgnoreCache";
+import {
+  ALWAYS_HIDDEN,
+  type DeleteOptions,
+  type DirectoryEntry,
+  type FileStat,
+} from "./types";
 
 // ============================================================================
 // Types
@@ -78,13 +84,6 @@ function generateSubscriptionId(): string {
 }
 
 /**
- * Serialize a FileStat for IPC transport.
- */
-function serializeFileStat(stat: FileStat): object {
-  return stat;
-}
-
-/**
  * Serialize directory entries for IPC transport.
  */
 function serializeDirectoryEntries(entries: DirectoryEntry[]): object[] {
@@ -111,40 +110,76 @@ function getService(): FileSystemProviderService {
   return FileSystemProviderService.getInstance();
 }
 
-/**
- * Result from getOrAcquireProvider - includes whether we need to release.
- */
-interface ProviderHandle {
-  provider: ReturnType<FileSystemProviderService["getExistingProvider"]>;
-  needsRelease: boolean;
-}
+// ============================================================================
+// Direct Filesystem Helpers
+//
+// These functions perform filesystem operations directly without creating
+// providers or watchers. Used by read/write handlers.
+// ============================================================================
 
 /**
- * Get a provider for an operation.
- *
- * If an active subscription exists, uses that provider without touching refCount.
- * Otherwise, temporarily acquires a provider which must be released after use.
+ * Read directory contents directly from disk.
+ * Filters out:
+ * - Always-hidden entries (.git, node_modules)
+ * - Gitignored files (via .gitignore)
+ * Returns DirectoryEntry[] with name, path, and type.
  */
-async function getOrAcquireProvider(cwd: string): Promise<ProviderHandle> {
-  const service = getService();
+async function readDirectoryDirect(dirPath: string): Promise<DirectoryEntry[]> {
+  const rawEntries = await fs.readdir(dirPath, { withFileTypes: true });
 
-  // First try existing provider (from an active subscription)
-  const existing = service.getExistingProvider(cwd);
-  if (existing) {
-    return { provider: existing, needsRelease: false };
+  // Filter out always-hidden entries and map to DirectoryEntry
+  let entries: DirectoryEntry[] = rawEntries
+    .filter((entry) => !ALWAYS_HIDDEN.has(entry.name))
+    .map((entry) => ({
+      name: entry.name,
+      path: path.join(dirPath, entry.name),
+      // Treat symlinks as files - the public API only exposes "file" | "directory"
+      type: entry.isDirectory() ? "directory" : "file",
+    }));
+
+  // Filter gitignored entries (using shared cache)
+  const gitIgnored = await GitIgnoreCache.getIgnoredEntries(
+    dirPath,
+    entries.map((e) => ({ name: e.name, isDirectory: e.type === "directory" })),
+  );
+  if (gitIgnored.size > 0) {
+    entries = entries.filter((e) => !gitIgnored.has(e.name));
   }
 
-  // No active subscription - acquire temporarily
-  const provider = await service.getProvider(cwd);
-  return { provider, needsRelease: true };
+  // Sort: directories first, then files, alphabetically
+  return entries.sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === "directory" ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  });
 }
 
 /**
- * Release a provider if it was temporarily acquired.
+ * Get file stats directly from disk.
+ * Returns FileStat with size, timestamps, and type.
  */
-function releaseIfNeeded(cwd: string, handle: ProviderHandle): void {
-  if (handle.needsRelease) {
-    getService().releaseProvider(cwd);
+async function statDirect(filePath: string): Promise<FileStat> {
+  const stats = await fs.stat(filePath);
+  // Treat symlinks as files for simplicity - the public API only exposes "file" | "directory"
+  const type: "file" | "directory" = stats.isDirectory() ? "directory" : "file";
+  return {
+    type,
+    size: stats.size,
+    mtime: stats.mtimeMs,
+    ctime: stats.ctimeMs,
+  };
+}
+
+/**
+ * Check if path exists directly.
+ */
+async function existsDirect(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -163,8 +198,9 @@ export function initializeFileSystemV2Handlers(): void {
   // -------------------------------------------------------------------------
   // Read Operations
   //
-  // Operations prefer using an existing provider from an active subscription.
-  // If no subscription exists, they temporarily acquire a provider.
+  // All read operations use direct fs calls and NEVER create providers.
+  // This ensures operations like searching for package.json don't create
+  // watchers for arbitrary directories.
   // -------------------------------------------------------------------------
 
   /**
@@ -173,14 +209,9 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:read-directory",
-    async (_, params: { cwd: string; dirPath: string }): Promise<object[]> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        const entries = await handle.provider.readDirectory(params.dirPath);
-        return serializeDirectoryEntries(entries);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+    async (_, params: { dirPath: string }): Promise<object[]> => {
+      const entries = await readDirectoryDirect(params.dirPath);
+      return serializeDirectoryEntries(entries);
     },
   );
 
@@ -190,16 +221,9 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:read-file",
-    async (
-      _,
-      params: { cwd: string; filePath: string },
-    ): Promise<Uint8Array> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        return await handle.provider.readFile(params.filePath);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+    async (_, params: { filePath: string }): Promise<Uint8Array> => {
+      const content = await fs.readFile(params.filePath);
+      return new Uint8Array(content);
     },
   );
 
@@ -209,14 +233,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:stat",
-    async (_, params: { cwd: string; path: string }): Promise<object> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        const stat = await handle.provider.stat(params.path);
-        return serializeFileStat(stat);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+    async (_, params: { path: string }): Promise<object> => {
+      return await statDirect(params.path);
     },
   );
 
@@ -226,96 +244,68 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:exists",
-    async (_, params: { cwd: string; path: string }): Promise<boolean> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        return await handle.provider.exists(params.path);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+    async (_, params: { path: string }): Promise<boolean> => {
+      return await existsDirect(params.path);
     },
   );
 
   // -------------------------------------------------------------------------
   // Write Operations
   //
-  // Write operations may trigger file system events that propagate to
-  // subscribed renderers via the event subscription system.
+  // Write operations use direct fs calls. Any active file watchers will
+  // detect the changes automatically via @parcel/watcher.
   // -------------------------------------------------------------------------
 
   /**
    * Write binary content to a file.
    * Creates parent directories if they don't exist.
-   * Triggers file content change events for subscribers.
    */
   ipcMain.handle(
     "fs-v2:write-file",
     async (
       _,
-      params: { cwd: string; filePath: string; content: Uint8Array },
+      params: { filePath: string; content: Uint8Array },
     ): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        await handle.provider.writeFile(params.filePath, params.content);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+      // Ensure parent directory exists
+      const dir = path.dirname(params.filePath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(params.filePath, params.content);
     },
   );
 
   /**
    * Delete a file or directory.
    * Options can specify recursive deletion for directories.
-   * Triggers file deleted events for subscribers.
    */
   ipcMain.handle(
     "fs-v2:delete",
     async (
       _,
-      params: { cwd: string; path: string; options?: DeleteOptions },
+      params: { path: string; options?: DeleteOptions },
     ): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        await handle.provider.delete(params.path, params.options);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+      const recursive = params.options?.recursive ?? false;
+      await fs.rm(params.path, { recursive, force: false });
     },
   );
 
   /**
    * Rename or move a file or directory.
-   * Triggers file renamed events for subscribers.
    */
   ipcMain.handle(
     "fs-v2:rename",
-    async (
-      _,
-      params: { cwd: string; oldPath: string; newPath: string },
-    ): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        await handle.provider.rename(params.oldPath, params.newPath);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+    async (_, params: { oldPath: string; newPath: string }): Promise<void> => {
+      await fs.rename(params.oldPath, params.newPath);
     },
   );
 
   /**
    * Create a directory.
    * Creates parent directories if they don't exist.
-   * Triggers directory listing change events for parent directory.
    */
   ipcMain.handle(
     "fs-v2:create-directory",
-    async (_, params: { cwd: string; dirPath: string }): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        await handle.provider.createDirectory(params.dirPath);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
+    async (_, params: { dirPath: string }): Promise<void> => {
+      await fs.mkdir(params.dirPath, { recursive: true });
     },
   );
 

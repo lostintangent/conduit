@@ -27,8 +27,12 @@ import { cn } from "@/utils";
 import type { Branch } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorViewPanel, FileTreePanel, TreeResizer } from "./components";
-import { useEditorTheme, useResponsiveLayout } from "./hooks";
-import type { FileNode, TreeViewMode, ViewMode } from "./types";
+import {
+  useEditorTheme,
+  useResponsiveLayout,
+  useReviewModeState,
+} from "./hooks";
+import type { FileNode, TreeViewMode } from "./types";
 import { detectLanguage } from "./utils/languageDetection";
 
 /**
@@ -164,7 +168,7 @@ export function EditorPaneV2({
   onFileChange,
   onClearFile,
   onCwdChange,
-  onFileOpen,
+  onFileOpen: _onFileOpen,
   onTreeModeChange,
   onSave,
   onHover,
@@ -218,8 +222,16 @@ export function EditorPaneV2({
     return null;
   });
 
-  // View mode for editor panel
-  const [viewMode, setViewMode] = useState<ViewMode>({ type: "editor" });
+  // Review mode state management
+  const {
+    viewMode,
+    isReviewMode,
+    enterReviewMode,
+    exitReviewMode,
+    setViewMode,
+    setViewModePreservingReview,
+    handleTreeViewModeTransition,
+  } = useReviewModeState();
 
   // Changes view mode (flat or nested) for FileTreeChanges
   const [changesViewMode, setChangesViewMode] = useState<"flat" | "nested">(
@@ -233,6 +245,22 @@ export function EditorPaneV2({
 
   // Panel view state (for single-column layout mode)
   const [panelView, setPanelView] = useState<"tree" | "editor">("tree");
+
+  // ---------------------------------------------------------------------------
+  // Prop → State Sync
+  // ---------------------------------------------------------------------------
+
+  // Sync pane.cwd prop to currentCwd state when it changes externally.
+  // This handles the case where the pane config is updated (e.g., registry update)
+  // while the component is still mounted. Without this, subscriptions would
+  // remain for the old cwd.
+  useEffect(() => {
+    if (initialCwd !== currentCwd) {
+      setCurrentCwd(initialCwd);
+    }
+    // Note: We intentionally exclude currentCwd from deps - we only want to sync
+    // when the PROP changes, not when internal navigation changes currentCwd
+  }, [initialCwd]);
 
   // ---------------------------------------------------------------------------
   // Hooks
@@ -317,13 +345,28 @@ export function EditorPaneV2({
     const statusCleanup = git.onStatusChanged((event) => {
       if (!cancelled) {
         updateGitStatusState(event.status);
+        // Also update upstream status from the fresh status
+        if (event.status) {
+          setHasUpstream(!!event.status.upstream);
+        }
       }
     });
 
     // Subscribe to branch changes
-    const branchCleanup = git.onBranchChanged((event) => {
+    const branchCleanup = git.onBranchChanged(async (event) => {
       if (!cancelled) {
         setCurrentBranch(event.currentBranch);
+
+        // Re-check upstream status when branch changes
+        // (different branches may have different upstream configurations)
+        try {
+          const upstream = await git.hasUpstream();
+          if (!cancelled) {
+            setHasUpstream(upstream);
+          }
+        } catch {
+          // Ignore errors - keep previous upstream state
+        }
       }
     });
 
@@ -553,29 +596,35 @@ export function EditorPaneV2({
         setPanelView("editor");
       }
 
-      // Set initial view mode based on git status and user preference
-      // Only "modified" files get diff view option, not "added" files (added files have no base to diff against)
-      // Note: gitStatus uses relative paths, so we need to convert the absolute file.path
+      // Compute relative path and git status for this file
       const relativePath = file.path.startsWith(currentCwd)
         ? file.path.slice(currentCwd.length).replace(/^\//, "")
         : file.path;
       const fileStatus = gitStatus?.get(relativePath);
-      if (fileStatus?.status === "modified" && preferDiffForModified) {
-        // User prefers diff view for modified files
-        setViewMode({
-          type: "diff",
-          filePath: file.path,
-          baseBranch: baseBranch ?? undefined,
-        });
-      } else {
-        setViewMode({ type: "editor" });
-      }
+
+      // Update view mode, but preserve review mode if active
+      // (review mode handles file selection by scrolling to the file)
+      setViewModePreservingReview(() => {
+        // Only "modified" files get diff view option, not "added" files
+        if (fileStatus?.status === "modified" && preferDiffForModified) {
+          return {
+            type: "diff",
+            filePath: file.path,
+            baseBranch: baseBranch ?? undefined,
+          };
+        }
+        return { type: "editor" };
+      });
 
       // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
       // File selection within the editor just updates selectedFile state
 
-      // Load file content and notify parent
-      if (onFileChange && file.type === "file") {
+      // Load file content and notify parent (skip for deleted files - they don't exist on disk)
+      if (
+        onFileChange &&
+        file.type === "file" &&
+        fileStatus?.status !== "deleted"
+      ) {
         try {
           const content = await fs.readTextFile(file.path);
           onFileChange({
@@ -604,11 +653,13 @@ export function EditorPaneV2({
       baseBranch,
       currentCwd,
       preferDiffForModified,
+      setViewModePreservingReview,
     ],
   );
 
   /**
    * Handle tree view mode change (files/changes).
+   * Delegates to useReviewModeState for review mode transitions.
    */
   const handleTreeViewModeChange = useCallback(
     (mode: TreeViewMode) => {
@@ -619,8 +670,11 @@ export function EditorPaneV2({
 
       // Notify parent - map internal mode to external format
       onTreeModeChange?.(mode === "changes" ? "changes" : "all");
+
+      // Handle review mode transitions (exit/restore)
+      handleTreeViewModeTransition(mode);
     },
-    [onTreeModeChange],
+    [onTreeModeChange, handleTreeViewModeTransition],
   );
 
   /**
@@ -693,13 +747,13 @@ export function EditorPaneV2({
 
     setIsPulling(true);
     try {
-      await window.conduit.gitPull(currentCwd, false);
+      await git.pull();
     } catch (error) {
       console.error("[EditorPaneV2] Pull failed:", error);
     } finally {
       setIsPulling(false);
     }
-  }, [currentCwd, isPulling, isPushing, isCommitting]);
+  }, [git, isPulling, isPushing, isCommitting]);
 
   /**
    * Handle push action (or publish if no upstream).
@@ -709,8 +763,9 @@ export function EditorPaneV2({
 
     setIsPushing(true);
     try {
+      // If no upstream exists, push with --set-upstream to create/track remote branch
       const isPublishing = !hasUpstream;
-      await window.conduit.gitPush(currentCwd, false, isPublishing);
+      await git.push(false, isPublishing);
 
       if (isPublishing) {
         setHasUpstream(true);
@@ -723,7 +778,26 @@ export function EditorPaneV2({
     } finally {
       setIsPushing(false);
     }
-  }, [currentCwd, hasUpstream, isPulling, isPushing, isCommitting]);
+  }, [git, hasUpstream, isPulling, isPushing, isCommitting]);
+
+  /**
+   * Handle branch switch callback.
+   *
+   * The actual state updates (currentBranch, hasUpstream) happen through
+   * the onBranchChanged event subscription. This callback is for any
+   * additional actions needed when the user explicitly switches branches.
+   */
+  const handleBranchSwitch = useCallback(
+    (newBranch: string) => {
+      // Clear comparison mode when switching branches
+      // (comparison to old base branch doesn't make sense on new branch)
+      if (baseBranch !== null) {
+        setBaseBranch(null);
+      }
+      console.log(`[EditorPaneV2] Branch switched to: ${newBranch}`);
+    },
+    [baseBranch],
+  );
 
   /**
    * Whether navigation up is possible.
@@ -762,6 +836,14 @@ export function EditorPaneV2({
   );
 
   /**
+   * Handle entering changes review mode.
+   * Switches the view mode to show all changes with inline diffs.
+   */
+  const handleReviewChanges = useCallback(() => {
+    enterReviewMode(baseBranch ?? undefined);
+  }, [baseBranch, enterReviewMode]);
+
+  /**
    * Determine if the current file is git-modified (eligible for diff toggle).
    */
   const isCurrentFileGitModified = useMemo(() => {
@@ -773,6 +855,20 @@ export function EditorPaneV2({
 
     const fileStatus = gitStatus?.get(relativePath);
     return fileStatus?.status === "modified";
+  }, [selectedFile, currentCwd, gitStatus]);
+
+  /**
+   * Determine if the current file is deleted (needs special viewer).
+   */
+  const isCurrentFileDeleted = useMemo(() => {
+    if (!selectedFile) return false;
+
+    const relativePath = selectedFile.path.startsWith(currentCwd)
+      ? selectedFile.path.slice(currentCwd.length).replace(/^\//, "")
+      : selectedFile.path;
+
+    const fileStatus = gitStatus?.get(relativePath);
+    return fileStatus?.status === "deleted";
   }, [selectedFile, currentCwd, gitStatus]);
 
   /**
@@ -899,6 +995,8 @@ export function EditorPaneV2({
         <FileTreePanel
           paneId={pane.id}
           cwd={currentCwd}
+          fs={fs}
+          git={git}
           selectedFile={selectedFile}
           onFileSelect={handleFileSelect}
           treeViewMode={treeViewMode}
@@ -910,6 +1008,7 @@ export function EditorPaneV2({
           gitStatus={gitStatus}
           changedFilesCount={gitChangedFiles.size}
           onOpenBranchPicker={handleOpenBranchPicker}
+          onBranchSwitch={handleBranchSwitch}
           // Git Operations Props
           stagedCount={stagedCount}
           onPull={handlePull}
@@ -931,6 +1030,9 @@ export function EditorPaneV2({
           // Changes View Mode Props
           changesViewMode={changesViewMode}
           onChangesViewModeChange={setChangesViewMode}
+          // Review Mode Props
+          isReviewModeActive={isReviewMode}
+          onReviewChanges={handleReviewChanges}
         />
       </div>
 
@@ -955,6 +1057,7 @@ export function EditorPaneV2({
         <EditorViewPanel
           editorId={editorId}
           cwd={currentCwd}
+          git={git}
           selectedFile={selectedFile}
           viewMode={viewMode}
           baseBranch={baseBranch ?? undefined}
@@ -967,6 +1070,14 @@ export function EditorPaneV2({
           showDiffToggle={isCurrentFileGitModified}
           isDiffMode={viewMode.type === "diff"}
           onToggleDiffMode={handleToggleDiffMode}
+          onExitReview={exitReviewMode}
+          isFileDeleted={isCurrentFileDeleted}
+          // Remote operations
+          hasUpstream={hasUpstream}
+          isPulling={isPulling}
+          isPushing={isPushing}
+          onPull={handlePull}
+          onPush={handlePush}
         />
       </div>
 

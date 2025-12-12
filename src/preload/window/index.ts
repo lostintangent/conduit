@@ -1,4 +1,3 @@
-import { contextBridge, ipcRenderer } from "electron";
 import type {
   AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
@@ -35,12 +34,13 @@ import type {
   UserSettings,
   VMInfo,
 } from "@shared/types";
+import { contextBridge, ipcRenderer } from "electron";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
-import configureUpdatesModule from "./modules/updates";
-import configureWorkspaceModule from "./modules/workspace";
 import fsv2Module from "./modules/fsv2";
 import gitv2Module from "./modules/gitv2";
+import configureUpdatesModule from "./modules/updates";
+import configureWorkspaceModule from "./modules/workspace";
 import { createEventListener } from "./utils";
 
 const conduitAPI = {
@@ -214,6 +214,9 @@ const conduitAPI = {
 
   isWindowMaximized: () =>
     ipcRenderer.invoke("ui:window-is-maximized") as Promise<boolean>,
+
+  showItemInFolder: (path: string) =>
+    ipcRenderer.invoke("ui:show-item-in-folder", path) as Promise<void>,
 
   /* Agent session management */
 
@@ -525,13 +528,6 @@ const conduitAPI = {
   configureVMForGitPush: (vmId: string, repoPath: string) =>
     ipcRenderer.invoke("vm:configure-git-push", {
       vmId,
-      repoPath,
-    }) as Promise<{ success: boolean; error?: string }>,
-
-  applyDiffToVM: (vmId: string, diffPatch: Buffer, repoPath: string) =>
-    ipcRenderer.invoke("vm:apply-diff", {
-      vmId,
-      diffPatch,
       repoPath,
     }) as Promise<{ success: boolean; error?: string }>,
 

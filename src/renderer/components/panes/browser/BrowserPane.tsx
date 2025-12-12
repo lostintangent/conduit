@@ -18,6 +18,7 @@ import { BrowserToolbar } from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
 
 const { browser } = window.conduit;
+const isWindows = window.conduit.platform === "win32";
 
 type BrowserPaneProps = {
   url: string;
@@ -365,8 +366,9 @@ export function BrowserPane({
   useEffect(() => {
     if (!webviewRef.current) return;
 
+    // Regular size rounding on windows-11, xl-rounded on macOS/Linux
     webviewRef.current.classList.toggle(
-      "rounded-b-xl",
+      isWindows ? "rounded-b" : "rounded-b-xl",
       applicationMode === "focus",
     );
   }, [applicationMode]);

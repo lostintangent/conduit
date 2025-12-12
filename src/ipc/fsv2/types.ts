@@ -13,6 +13,16 @@
 import type { Event } from "@shared/types";
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Entries that are always hidden from directory listings.
+ * These are filtered before gitignore checks for performance.
+ */
+export const ALWAYS_HIDDEN = new Set([".git", "node_modules"]);
+
+// ============================================================================
 // Core File System Types
 // ============================================================================
 

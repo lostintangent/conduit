@@ -28,8 +28,14 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import * as monaco from "monaco-editor";
-import { useMonacoModel } from "../../hooks";
+import {
+  useMonacoModel,
+  useEditorTheme,
+  useAutoSizeEditor,
+  usePreventFocusScroll,
+} from "../../hooks";
 import { ViewStateRegistry } from "../../registry";
+import type { AutoSizeConfig } from "./constants";
 
 /** Debounce delay for ViewState saves (ms) */
 const VIEWSTATE_SAVE_DEBOUNCE_MS = 300;
@@ -55,6 +61,13 @@ export interface RegularEditorWrapperProps {
 
   /** Callback when editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
+
+  /**
+   * Auto-size configuration. When provided, the editor height adjusts
+   * based on content between minHeight and maxHeight bounds.
+   * If not provided, the editor fills its container (h-full w-full).
+   */
+  autoSize?: AutoSizeConfig;
 }
 
 // ============================================================================
@@ -74,6 +87,11 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
     automaticLayout: true,
     fontSize: 13,
     wordWrap: "on",
+    // Scrollbar options for better scroll behavior in lists
+    scrollbar: {
+      // Allow scroll events to bubble to parent when editor can't scroll
+      alwaysConsumeMouseWheel: false,
+    },
     // Disable language features that cause issues with file:// URIs
     occurrencesHighlight: "off",
     selectionHighlight: false,
@@ -96,11 +114,16 @@ export function RegularEditorWrapper({
   editorId,
   cwd,
   filePath,
-  theme = "vs-dark",
+  theme: themeProp,
   readOnly = false,
   onChange,
   onMount,
+  autoSize,
 }: RegularEditorWrapperProps) {
+  // Use provided theme or fall back to user's preferred theme
+  const defaultTheme = useEditorTheme();
+  const theme = themeProp ?? defaultTheme;
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -127,6 +150,13 @@ export function RegularEditorWrapper({
   // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
   // as EditorRegistry for proper lifecycle coordination
   const model = useMonacoModel(editorId, filePath, cwd);
+
+  // Auto-sizing hook - adjusts height based on content when config is provided
+  const { containerStyle } = useAutoSizeEditor({
+    editor: editorRef.current,
+    config: autoSize,
+    deps: [model],
+  });
 
   // ---------------------------------------------------------------------------
   // ViewState Save Helper
@@ -366,16 +396,21 @@ export function RegularEditorWrapper({
   // Focus Handler
   // ---------------------------------------------------------------------------
 
+  // Prevent browser's automatic scroll-into-view when clicking the editor
+  usePreventFocusScroll(containerRef);
+
   const handleContainerClick = useCallback(() => {
     editorRef.current?.focus();
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-      onClick={handleContainerClick}
-      data-testid="monaco-editor-wrapper"
-    />
+    <div style={containerStyle}>
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        onClick={handleContainerClick}
+        data-testid="monaco-editor-wrapper"
+      />
+    </div>
   );
 }

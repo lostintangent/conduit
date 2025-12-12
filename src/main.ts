@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from "electron";
+import squirrelStartup from "electron-squirrel-startup";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import {
@@ -9,6 +10,14 @@ import {
   shutdownCliServer,
 } from "./ipc";
 
+// Handle Squirrel events on Windows (install/uninstall/update).
+// When the installer runs (via Squirrel), it launches the app with special flags
+// to perform setup tasks. We need to quit immediately in these cases to let
+// the installer complete, rather than showing the main window.
+if (squirrelStartup) {
+  app.quit();
+}
+
 // Build-time constants injected by @electron-forge/plugin-vite.
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -16,6 +25,22 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 // GUI-launched builds often miss PATH; hydrate env so spawned terminals see user tools.
 function hydrateEnvFromLoginShell() {
   if (process.platform === "win32") {
+    try {
+      // On Windows, get the full user PATH from PowerShell
+      const output = execFileSync(
+        "pwsh.exe",
+        ["-NoProfile", "-Command", "$env:PATH"],
+        { encoding: "utf8" },
+      );
+      if (output && output.trim()) {
+        process.env.PATH = output.trim();
+      }
+    } catch (error) {
+      console.warn(
+        "Failed to read PowerShell PATH, continuing with defaults.",
+        error,
+      );
+    }
     return;
   }
 
@@ -56,19 +81,42 @@ function hydrateEnvFromLoginShell() {
 hydrateEnvFromLoginShell();
 
 async function createWindow() {
+  const isWindows = process.platform === "win32";
+  const isMac = process.platform === "darwin";
+
   const mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+    // On macOS: hiddenInset gives traffic lights with custom titlebar area
+    // On Windows/Linux: hidden allows custom titlebar with native window controls overlay
+    titleBarStyle: isMac ? "hiddenInset" : "hidden",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
     },
+    // All platforms use frameless window with custom styling
+    // Windows uses titleBarOverlay for native min/max/close buttons
     frame: false,
-    transparent: true,
+    transparent: !isWindows,
     backgroundColor: "#00000000",
+    // Don't show until content is ready to avoid blank window flash
+    show: false,
+    // Windows: use native window controls overlay (like VSCode)
+    // This gives us proper snap/resize behavior with custom titlebar
+    ...(isWindows && {
+      titleBarOverlay: {
+        color: "rgba(0,0,0,0)",
+        symbolColor: "#a1a1aa",
+        height: 34,
+      },
+    }),
+  });
+
+  // Show window only when content is ready to avoid blank screen
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));

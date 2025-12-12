@@ -28,7 +28,7 @@ export function AdvancedTab({
   onOpenTerminalFontSettings,
 }: AdvancedTabProps) {
   const showLaunchButton = userSettings.showLaunchButton ?? false;
-  const showPlayButton = userSettings.showPlayButton ?? true;
+  const showPlayButton = userSettings.showPlayButton ?? false;
   const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
 
   return (
@@ -36,10 +36,14 @@ export function AdvancedTab({
       <div className="max-w-2xl space-y-6">
         {/* Theme Section */}
         <div>
-          <h3 className="text-sm font-semibold text-white mb-4">Appearance</h3>
-          <div className="space-y-4 bg-gray-800/30 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
+            Appearance
+          </h3>
+          <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
             <div>
-              <label className="text-sm text-gray-400 block mb-2">Theme</label>
+              <label className="text-sm text-tinted-foreground/60 block mb-2">
+                Theme
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 {Array.from(themeOptions.entries()).map(([value, Icon]) => (
                   <button
@@ -47,8 +51,8 @@ export function AdvancedTab({
                     onClick={() => onUpdateSettings({ theme: value })}
                     className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                       userSettings.theme === value
-                        ? "bg-blue-500/20 border-blue-500 text-blue-400"
-                        : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-600"
+                        ? "bg-accent/20 border-accent text-accent"
+                        : "bg-tinted border-tinted-border text-tinted-foreground/60 hover:border-tinted-foreground/30"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -66,16 +70,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ useGradientBorders: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="useGradientBorders"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Show gradient borders
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Display colorful gradient borders on panes and tabs
                 </p>
               </div>
@@ -85,10 +89,10 @@ export function AdvancedTab({
 
         {/* UI Settings Section */}
         <div>
-          <h3 className="text-sm font-semibold text-white mb-4">
+          <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
             User Interface
           </h3>
-          <div className="space-y-4 bg-gray-800/30 rounded-lg p-4">
+          <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
@@ -97,16 +101,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ alwaysShowTabs: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="alwaysShowTabs"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Always show tabs
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Show the tab bar even when there is only one tab
                 </p>
               </div>
@@ -116,8 +120,10 @@ export function AdvancedTab({
 
         {/* Terminal Settings Section */}
         <div>
-          <h3 className="text-sm font-semibold text-white mb-4">Terminal</h3>
-          <div className="space-y-4 bg-gray-800/30 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
+            Terminal
+          </h3>
+          <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
@@ -126,16 +132,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ showTerminalRuler: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="showTerminalRuler"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Show terminal ruler
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Display a ruler in terminal panes
                 </p>
               </div>
@@ -144,7 +150,7 @@ export function AdvancedTab({
             <div>
               <button
                 onClick={onOpenTerminalFontSettings}
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-gray-300 hover:border-gray-600 transition-colors text-left"
+                className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground/80 hover:border-tinted-foreground/30 transition-colors text-left"
               >
                 Terminal Font Settings...
               </button>
@@ -154,8 +160,10 @@ export function AdvancedTab({
 
         {/* Editor Settings Section */}
         <div>
-          <h3 className="text-sm font-semibold text-white mb-4">Editor</h3>
-          <div className="space-y-4 bg-gray-800/30 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
+            Editor
+          </h3>
+          <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
@@ -164,16 +172,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ useConduitAsEditor: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="useConduitAsEditor"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Use Conduit as $EDITOR
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Set Conduit as the default editor for command-line tools
                 </p>
               </div>
@@ -187,16 +195,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ useEditorV2: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="useEditorV2"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Use Editor v2
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Enable the new editor implementation (experimental)
                 </p>
               </div>
@@ -206,8 +214,10 @@ export function AdvancedTab({
 
         {/* Workspace Settings Section */}
         <div>
-          <h3 className="text-sm font-semibold text-white mb-4">Workspaces</h3>
-          <div className="space-y-4 bg-gray-800/30 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
+            Workspaces
+          </h3>
+          <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
@@ -216,16 +226,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ autoSaveWorkspaces: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="autoSaveWorkspaces"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Auto-save workspaces
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Automatically save workspace changes
                 </p>
               </div>
@@ -235,10 +245,10 @@ export function AdvancedTab({
 
         {/* Repository Shortcuts Section */}
         <div>
-          <h3 className="text-sm font-semibold text-white mb-4">
+          <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
             Repository Shortcuts
           </h3>
-          <div className="space-y-4 bg-gray-800/30 rounded-lg p-4">
+          <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
             {/* Show Launch Button */}
             <div className="flex items-start gap-3">
               <input
@@ -248,16 +258,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ showLaunchButton: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="showLaunchButton"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Show launch button when in a repository
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Display a quick launch button when the current directory is a
                   git repository
                 </p>
@@ -273,16 +283,16 @@ export function AdvancedTab({
                 onChange={(e) =>
                   onUpdateSettings({ showPlayButton: e.target.checked })
                 }
-                className="mt-0.5 w-4 h-4 bg-gray-900 border border-gray-700 rounded"
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
                   htmlFor="showPlayButton"
-                  className="text-sm text-gray-300 cursor-pointer"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
                   Show play button when in repo with package.json
                 </label>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinted-foreground/50 mt-1">
                   Display a play button to run npm scripts when package.json is
                   detected
                 </p>
@@ -291,7 +301,7 @@ export function AdvancedTab({
 
             {/* Play Button Target */}
             <div className="pl-7">
-              <label className="text-xs text-gray-400 block mb-2">
+              <label className="text-xs text-tinted-foreground/60 block mb-2">
                 Play button target
               </label>
               <div className="relative max-w-xs">
@@ -303,14 +313,14 @@ export function AdvancedTab({
                     })
                   }
                   disabled={!showPlayButton}
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-white focus:outline-none focus:border-blue-500 appearance-none pr-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent appearance-none pr-10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="newPane">New pane</option>
                   <option value="hyper">Hyper terminal</option>
                 </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-tinted-foreground/60 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-tinted-foreground/50 mt-2">
                 {playButtonTarget === "newPane"
                   ? "Opens npm scripts in a new pane within Conduit"
                   : "Opens npm scripts in the external Hyper terminal"}

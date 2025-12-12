@@ -63,56 +63,56 @@ export interface FileRenamedPayload {
 export default {
   // ---------------------------------------------------------------------------
   // Read Operations
+  //
+  // These operations are lightweight - they NEVER create file watchers.
+  // Use subscribe() explicitly if you need file change notifications.
   // ---------------------------------------------------------------------------
 
   /**
    * Read contents of a directory.
    *
-   * @param cwd - Working directory (provider scope)
    * @param dirPath - Absolute path to directory
    * @returns Array of directory entries
    */
-  readDirectory: (cwd: string, dirPath: string) =>
+  readDirectory: (dirPath: string) =>
     ipcRenderer.invoke("fs-v2:read-directory", {
-      cwd,
       dirPath,
     }) as Promise<DirectoryEntry[]>,
 
   /**
    * Read file contents as binary data.
    *
-   * @param cwd - Working directory (provider scope)
    * @param filePath - Absolute path to file
    * @returns File contents as Uint8Array
    */
-  readFile: (cwd: string, filePath: string) =>
+  readFile: (filePath: string) =>
     ipcRenderer.invoke("fs-v2:read-file", {
-      cwd,
       filePath,
     }) as Promise<Uint8Array>,
 
   /**
    * Get file or directory metadata.
    *
-   * @param cwd - Working directory (provider scope)
    * @param path - Absolute path to file/directory
    * @returns File stats
    */
-  stat: (cwd: string, path: string) =>
-    ipcRenderer.invoke("fs-v2:stat", { cwd, path }) as Promise<FileStat>,
+  stat: (path: string) =>
+    ipcRenderer.invoke("fs-v2:stat", { path }) as Promise<FileStat>,
 
   /**
    * Check if a path exists.
    *
-   * @param cwd - Working directory (provider scope)
    * @param path - Absolute path to check
    * @returns true if path exists
    */
-  exists: (cwd: string, path: string) =>
-    ipcRenderer.invoke("fs-v2:exists", { cwd, path }) as Promise<boolean>,
+  exists: (path: string) =>
+    ipcRenderer.invoke("fs-v2:exists", { path }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
   // Write Operations
+  //
+  // These operations are lightweight - they NEVER create file watchers.
+  // If you have an active subscription, the watcher will detect changes.
   // ---------------------------------------------------------------------------
 
   /**
@@ -121,13 +121,11 @@ export default {
    * Creates the file if it doesn't exist.
    * Creates parent directories if they don't exist.
    *
-   * @param cwd - Working directory (provider scope)
    * @param filePath - Absolute path to file
    * @param content - File contents as Uint8Array
    */
-  writeFile: (cwd: string, filePath: string, content: Uint8Array) =>
+  writeFile: (filePath: string, content: Uint8Array) =>
     ipcRenderer.invoke("fs-v2:write-file", {
-      cwd,
       filePath,
       content,
     }) as Promise<void>,
@@ -135,13 +133,11 @@ export default {
   /**
    * Delete a file or directory.
    *
-   * @param cwd - Working directory (provider scope)
    * @param path - Absolute path to delete
    * @param options - Delete options (recursive for directories)
    */
-  delete: (cwd: string, path: string, options?: DeleteOptions) =>
+  delete: (path: string, options?: DeleteOptions) =>
     ipcRenderer.invoke("fs-v2:delete", {
-      cwd,
       path,
       options,
     }) as Promise<void>,
@@ -149,13 +145,11 @@ export default {
   /**
    * Rename or move a file/directory.
    *
-   * @param cwd - Working directory (provider scope)
    * @param oldPath - Current absolute path
    * @param newPath - New absolute path
    */
-  rename: (cwd: string, oldPath: string, newPath: string) =>
+  rename: (oldPath: string, newPath: string) =>
     ipcRenderer.invoke("fs-v2:rename", {
-      cwd,
       oldPath,
       newPath,
     }) as Promise<void>,
@@ -165,12 +159,10 @@ export default {
    *
    * Creates parent directories if they don't exist.
    *
-   * @param cwd - Working directory (provider scope)
    * @param dirPath - Absolute path to create
    */
-  createDirectory: (cwd: string, dirPath: string) =>
+  createDirectory: (dirPath: string) =>
     ipcRenderer.invoke("fs-v2:create-directory", {
-      cwd,
       dirPath,
     }) as Promise<void>,
 

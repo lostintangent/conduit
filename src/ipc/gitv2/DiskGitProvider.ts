@@ -31,6 +31,7 @@ import type { Disposable, Event } from "../fsv2/types";
 import type {
   GitBranch,
   GitBranchChangedEvent,
+  GitCheckoutOptions,
   GitCommit,
   GitCommitCreatedEvent,
   GitCommitOptions,
@@ -606,14 +607,17 @@ export class DiskGitProvider implements GitProvider {
         "--name-only": null,
       });
 
-      // Collect unique file paths
+      // Collect unique file paths from diff.files
+      // simple-git puts --name-only results in the diff.files array, not body
       const filesSet = new Set<string>();
       for (const commit of log.all) {
-        // The diff property contains changed files
-        const body = (commit as any).body || "";
-        const files = body.split("\n").filter(Boolean);
-        for (const file of files) {
-          filesSet.add(file);
+        const diff = (commit as any).diff;
+        if (diff?.files && Array.isArray(diff.files)) {
+          for (const fileEntry of diff.files) {
+            if (fileEntry.file) {
+              filesSet.add(fileEntry.file);
+            }
+          }
         }
       }
 
@@ -746,13 +750,26 @@ export class DiskGitProvider implements GitProvider {
 
   /**
    * Checkout a branch or ref.
+   *
+   * @param ref - Branch name, tag, or commit hash
+   * @param options - Checkout options (force)
    */
-  async checkout(ref: string): Promise<void> {
+  async checkout(ref: string, options?: GitCheckoutOptions): Promise<void> {
     const previousBranch = await this.getCurrentBranch();
     const previousHead = await this.getHeadCommit();
 
     await this.withOperationTracking(async () => {
-      await this.git.checkout(ref);
+      const checkoutOptions: string[] = [];
+
+      if (options?.force) {
+        checkoutOptions.push("--force");
+      }
+
+      if (checkoutOptions.length > 0) {
+        await this.git.checkout([...checkoutOptions, ref]);
+      } else {
+        await this.git.checkout(ref);
+      }
     });
 
     // Check for branch/head changes
@@ -772,6 +789,94 @@ export class DiskGitProvider implements GitProvider {
         currentHead,
         isBranchSwitch: previousBranch !== currentBranch,
       });
+    }
+  }
+
+  /**
+   * Stash current uncommitted changes.
+   *
+   * Saves both staged and unstaged changes to the stash.
+   *
+   * @param message - Optional message for the stash entry
+   */
+  async stash(message?: string): Promise<void> {
+    await this.withOperationTracking(async () => {
+      if (message) {
+        await this.git.stash(["push", "-m", message]);
+      } else {
+        await this.git.stash(["push"]);
+      }
+    });
+  }
+
+  /**
+   * Apply and remove the most recent stash entry.
+   *
+   * Restores the previously stashed changes to the working directory.
+   */
+  async stashPop(): Promise<void> {
+    await this.withOperationTracking(async () => {
+      await this.git.stash(["pop"]);
+    });
+  }
+
+  /**
+   * Push commits to remote.
+   *
+   * @param force - If true, use --force-with-lease for safer force push
+   * @param setUpstream - If true, set upstream tracking (for new branches)
+   */
+  async push(force = false, setUpstream = false): Promise<void> {
+    await this.withOperationTracking(async () => {
+      const options: string[] = [];
+
+      if (force) {
+        options.push("--force-with-lease");
+      }
+
+      if (setUpstream) {
+        // Push with --set-upstream to create/track remote branch
+        options.push("--set-upstream", "origin", "HEAD");
+      }
+
+      await this.git.push(options);
+    });
+  }
+
+  /**
+   * Pull changes from remote.
+   *
+   * @param rebase - If true, use rebase instead of merge
+   */
+  async pull(rebase = false): Promise<void> {
+    await this.withOperationTracking(async () => {
+      if (rebase) {
+        await this.git.pull(["--rebase"]);
+      } else {
+        await this.git.pull();
+      }
+    });
+  }
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch configured.
+   *
+   * @returns true if an upstream is configured, false otherwise
+   */
+  async hasUpstream(): Promise<boolean> {
+    try {
+      // Use rev-parse to check for upstream ref
+      // This will fail if no upstream is set
+      const result = await this.git.raw([
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "@{u}",
+      ]);
+      return result.trim().length > 0;
+    } catch {
+      // Command fails if no upstream is set
+      return false;
     }
   }
 
@@ -1080,6 +1185,8 @@ export class DiskGitProvider implements GitProvider {
    *
    * On case-insensitive filesystems (macOS, Windows), handles the case where
    * the file path and git root have different casings but refer to the same location.
+   *
+   * Always returns paths with forward slashes for Git compatibility.
    */
   private toRelativePath(filePath: string): string {
     const absolutePath = path.isAbsolute(filePath)
@@ -1089,7 +1196,7 @@ export class DiskGitProvider implements GitProvider {
     // On case-insensitive filesystems, path.relative() can produce incorrect results
     // if the paths have different casings (e.g., /Project/Other vs /Project/other).
     // We detect this by checking if the relative path tries to escape the git root.
-    const relativePath = path.relative(this.gitRoot, absolutePath);
+    let relativePath = path.relative(this.gitRoot, absolutePath);
 
     // If the result starts with "..", the paths might have different casings
     if (
@@ -1105,11 +1212,12 @@ export class DiskGitProvider implements GitProvider {
         // Extract the relative portion using the lowercase match
         const relativePortion = absolutePath.slice(this.gitRoot.length);
         // Remove leading slash if present
-        return relativePortion.replace(/^[/\\]/, "");
+        relativePath = relativePortion.replace(/^[/\\]/, "");
       }
     }
 
-    return relativePath;
+    // Convert to forward slashes for Git compatibility
+    return relativePath.split(path.sep).join("/");
   }
 
   /**

@@ -3,6 +3,13 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 
 // ============================================================================
+// Hoisted Mocks (must be defined before vi.mock calls)
+// ============================================================================
+
+// Create a mockable fs/promises stat function
+const mockFsStat = vi.fn();
+
+// ============================================================================
 // Mocks
 // ============================================================================
 
@@ -60,6 +67,9 @@ const mockGit = {
   reset: vi.fn().mockResolvedValue(undefined),
   commit: vi.fn().mockResolvedValue(undefined),
   checkout: vi.fn().mockResolvedValue(undefined),
+  push: vi.fn().mockResolvedValue(undefined),
+  pull: vi.fn().mockResolvedValue(undefined),
+  stash: vi.fn().mockResolvedValue(undefined),
   log: vi.fn(),
   diff: vi.fn(),
   show: vi.fn(),
@@ -80,6 +90,15 @@ vi.mock("node:fs", async () => {
       isFile: () => false,
       isDirectory: () => true,
     }),
+  };
+});
+
+// Mock fs/promises stat for getMostRecentCommittedFile tests
+vi.mock("node:fs/promises", async () => {
+  const actual = await vi.importActual("node:fs/promises");
+  return {
+    ...actual,
+    stat: (...args: unknown[]) => mockFsStat(...args),
   };
 });
 
@@ -555,6 +574,13 @@ describe("DiskGitProvider", () => {
       expect(mockGit.checkout).toHaveBeenCalledWith("develop");
     });
 
+    it("should checkout with force option when force is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testCwd);
+      await provider.checkout("develop", { force: true });
+
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--force", "develop"]);
+    });
+
     it("should fire onBranchChanged when branch changes", async () => {
       // Setup: start on main, switch to develop
       // getCurrentBranch() is called twice: once before checkout, once after
@@ -591,6 +617,147 @@ describe("DiskGitProvider", () => {
           currentHead: "new-commit-hash",
         }),
       );
+    });
+  });
+
+  // ===========================================================================
+  // push
+  // ===========================================================================
+
+  describe("push()", () => {
+    it("should push to remote with default options", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push();
+
+      expect(mockGit.push).toHaveBeenCalledWith([]);
+    });
+
+    it("should push with force-with-lease when force is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push(true);
+
+      expect(mockGit.push).toHaveBeenCalledWith(["--force-with-lease"]);
+    });
+
+    it("should push with set-upstream when setUpstream is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push(false, true);
+
+      expect(mockGit.push).toHaveBeenCalledWith([
+        "--set-upstream",
+        "origin",
+        "HEAD",
+      ]);
+    });
+
+    it("should combine force and setUpstream options", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.push(true, true);
+
+      expect(mockGit.push).toHaveBeenCalledWith([
+        "--force-with-lease",
+        "--set-upstream",
+        "origin",
+        "HEAD",
+      ]);
+    });
+  });
+
+  // ===========================================================================
+  // pull
+  // ===========================================================================
+
+  describe("pull()", () => {
+    it("should pull from remote with default options", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.pull();
+
+      expect(mockGit.pull).toHaveBeenCalled();
+    });
+
+    it("should pull with rebase when rebase is true", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.pull(true);
+
+      expect(mockGit.pull).toHaveBeenCalledWith(["--rebase"]);
+    });
+  });
+
+  // ===========================================================================
+  // hasUpstream
+  // ===========================================================================
+
+  describe("hasUpstream()", () => {
+    it("should return true when upstream is configured", async () => {
+      mockGit.raw.mockResolvedValue("origin/main\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const hasUpstream = await provider.hasUpstream();
+
+      expect(hasUpstream).toBe(true);
+      expect(mockGit.raw).toHaveBeenCalledWith([
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "@{u}",
+      ]);
+    });
+
+    it("should return false when no upstream is configured", async () => {
+      mockGit.raw.mockRejectedValue(
+        new Error("fatal: no upstream configured for branch"),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const hasUpstream = await provider.hasUpstream();
+
+      expect(hasUpstream).toBe(false);
+    });
+
+    it("should return false when result is empty", async () => {
+      mockGit.raw.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const hasUpstream = await provider.hasUpstream();
+
+      expect(hasUpstream).toBe(false);
+    });
+  });
+
+  // ===========================================================================
+  // stash
+  // ===========================================================================
+
+  describe("stash()", () => {
+    it("should stash changes without message", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.stash();
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["push"]);
+    });
+
+    it("should stash changes with message", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.stash("WIP: feature work");
+
+      expect(mockGit.stash).toHaveBeenCalledWith([
+        "push",
+        "-m",
+        "WIP: feature work",
+      ]);
+    });
+  });
+
+  // ===========================================================================
+  // stashPop
+  // ===========================================================================
+
+  describe("stashPop()", () => {
+    it("should pop the most recent stash", async () => {
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.stashPop();
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["pop"]);
     });
   });
 
@@ -815,13 +982,75 @@ describe("DiskGitProvider", () => {
 
     it("should return null when no files in commits", async () => {
       mockGit.log.mockResolvedValue({
-        all: [{ hash: "abc123", body: "" }],
+        all: [{ hash: "abc123", diff: { files: [] } }],
       });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const result = await provider.getMostRecentCommittedFile();
 
       expect(result).toBeNull();
+    });
+
+    it("should return null when diff property is missing", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [{ hash: "abc123" }],
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentCommittedFile();
+
+      expect(result).toBeNull();
+    });
+
+    it("should extract files from diff.files array", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [
+          {
+            hash: "abc123",
+            diff: {
+              files: [
+                { file: "src/file1.ts", changes: 10 },
+                { file: "src/file2.ts", changes: 5 },
+              ],
+            },
+          },
+        ],
+      });
+
+      // Mock fs.stat to return stats for the files
+      mockFsStat.mockResolvedValue({ mtimeMs: 1000 });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentCommittedFile();
+
+      // Should return one of the files (whichever has latest mtime)
+      expect(result).toBe("src/file1.ts");
+    });
+
+    it("should return most recently modified file", async () => {
+      mockGit.log.mockResolvedValue({
+        all: [
+          {
+            hash: "abc123",
+            diff: {
+              files: [{ file: "src/old.ts" }, { file: "src/new.ts" }],
+            },
+          },
+        ],
+      });
+
+      // Mock fs.stat to return different mtimes
+      mockFsStat.mockImplementation(async (filePath: string) => {
+        if (filePath.includes("new.ts")) {
+          return { mtimeMs: 2000 }; // newer
+        }
+        return { mtimeMs: 1000 }; // older
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getMostRecentCommittedFile();
+
+      expect(result).toBe("src/new.ts");
     });
   });
 

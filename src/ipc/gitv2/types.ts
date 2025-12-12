@@ -123,6 +123,17 @@ export interface GitCommitOptions {
   signoff?: boolean;
 }
 
+/**
+ * Options for checking out a branch or ref.
+ */
+export interface GitCheckoutOptions {
+  /**
+   * Force checkout, discarding local changes.
+   * Use with caution - will discard uncommitted modifications.
+   */
+  force?: boolean;
+}
+
 // ============================================================================
 // Git Branch Types
 // ============================================================================
@@ -426,8 +437,49 @@ export interface GitProvider {
    * Checkout a branch or ref.
    *
    * @param ref - Branch name, tag, or commit hash
+   * @param options - Checkout options (force)
    */
-  checkout(ref: string): Promise<void>;
+  checkout(ref: string, options?: GitCheckoutOptions): Promise<void>;
+
+  /**
+   * Stash current uncommitted changes.
+   *
+   * Saves both staged and unstaged changes to the stash.
+   * Optionally includes a message to identify the stash.
+   *
+   * @param message - Optional message for the stash entry
+   */
+  stash(message?: string): Promise<void>;
+
+  /**
+   * Apply and remove the most recent stash entry.
+   *
+   * Restores the previously stashed changes to the working directory.
+   * Throws if there are no stash entries or if applying fails due to conflicts.
+   */
+  stashPop(): Promise<void>;
+
+  /**
+   * Push commits to remote.
+   *
+   * @param force - If true, use --force-with-lease for safer force push
+   * @param setUpstream - If true, set upstream tracking (for new branches)
+   */
+  push(force?: boolean, setUpstream?: boolean): Promise<void>;
+
+  /**
+   * Pull changes from remote.
+   *
+   * @param rebase - If true, use rebase instead of merge
+   */
+  pull(rebase?: boolean): Promise<void>;
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch configured.
+   *
+   * @returns true if an upstream is configured, false otherwise
+   */
+  hasUpstream(): Promise<boolean>;
 
   // -------------------------------------------------------------------------
   // Events

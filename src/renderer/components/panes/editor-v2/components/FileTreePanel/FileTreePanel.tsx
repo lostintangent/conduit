@@ -24,6 +24,8 @@
  */
 
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitV2API } from "@/api/GitV2API";
+import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { FileNode, TreeViewMode } from "../../types";
 import { FileTreeToolbar } from "./FileTreeToolbar";
 import { FileTreeNormal } from "./FileTreeNormal";
@@ -37,6 +39,12 @@ export interface FileTreePanelProps {
 
   /** Working directory (root of the tree) */
   cwd: string;
+
+  /** FileSystem API instance (shared from parent) */
+  fs: FileSystemV2API;
+
+  /** Git API instance (shared from parent) */
+  git: GitV2API;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
@@ -112,6 +120,9 @@ export interface FileTreePanelProps {
   /** Callback for review changes action */
   onReviewChanges?: () => void;
 
+  /** Callback when branch is switched */
+  onBranchSwitch?: (newBranch: string) => void;
+
   // ---------------------------------------------------------------------------
   // Navigation Props
   // ---------------------------------------------------------------------------
@@ -151,6 +162,8 @@ export interface FileTreePanelProps {
 export function FileTreePanel({
   paneId,
   cwd,
+  fs,
+  git,
   selectedFile,
   onFileSelect,
   treeViewMode,
@@ -175,6 +188,7 @@ export function FileTreePanel({
   onCommit,
   isCommitting = false,
   onReviewChanges,
+  onBranchSwitch,
   // Navigation Props
   canNavigateUp = false,
   onNavigateUp,
@@ -225,8 +239,10 @@ export function FileTreePanel({
       <GitBranchToolbar
         currentBranch={currentBranch ?? null}
         baseBranch={baseBranch ?? null}
+        git={git}
         showOnlyChangedFiles={treeViewMode === "changes"}
         isReviewModeActive={isReviewModeActive}
+        onBranchSwitch={onBranchSwitch}
         changedFilesCount={changedFilesCount}
         gitStatus={gitStatus}
         onFilterToggle={handleFilterToggle}
@@ -258,6 +274,8 @@ export function FileTreePanel({
           <FileTreeNormal
             paneId={paneId}
             cwd={cwd}
+            fs={fs}
+            git={git}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
             onDirectoryChange={onDirectoryChange}
@@ -275,6 +293,7 @@ export function FileTreePanel({
           <FileTreeChanges
             paneId={paneId}
             cwd={cwd}
+            git={git}
             selectedFile={selectedFile}
             onFileSelect={onFileSelect}
             viewMode={changesViewMode}

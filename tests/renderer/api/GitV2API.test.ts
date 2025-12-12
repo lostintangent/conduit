@@ -19,6 +19,12 @@ const { mockGitv2 } = vi.hoisted(() => {
     getCurrentBranch: vi.fn(),
     getBranches: vi.fn(),
     checkout: vi.fn(),
+    stash: vi.fn(),
+    stashPop: vi.fn(),
+    // Remote operations
+    push: vi.fn(),
+    pull: vi.fn(),
+    hasUpstream: vi.fn(),
     findRoot: vi.fn(),
     // New comparison operations
     getChangedFilesFromBranch: vi.fn(),
@@ -469,7 +475,7 @@ describe("GitV2API", () => {
   });
 
   describe("checkout", () => {
-    it("should checkout ref", async () => {
+    it("should checkout ref with default force=false", async () => {
       mockGitv2.checkout.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
@@ -478,7 +484,159 @@ describe("GitV2API", () => {
       expect(mockGitv2.checkout).toHaveBeenCalledWith(
         "/test/project",
         "feature/new",
+        false,
       );
+
+      api.release();
+    });
+
+    it("should checkout ref with force=true", async () => {
+      mockGitv2.checkout.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.checkout("feature/new", true);
+
+      expect(mockGitv2.checkout).toHaveBeenCalledWith(
+        "/test/project",
+        "feature/new",
+        true,
+      );
+
+      api.release();
+    });
+  });
+
+  // ===========================================================================
+  // Stash Operations
+  // ===========================================================================
+
+  describe("stash", () => {
+    it("should stash without message", async () => {
+      mockGitv2.stash.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.stash();
+
+      expect(mockGitv2.stash).toHaveBeenCalledWith("/test/project", undefined);
+
+      api.release();
+    });
+
+    it("should stash with message", async () => {
+      mockGitv2.stash.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.stash("WIP: feature work");
+
+      expect(mockGitv2.stash).toHaveBeenCalledWith(
+        "/test/project",
+        "WIP: feature work",
+      );
+
+      api.release();
+    });
+  });
+
+  describe("stashPop", () => {
+    it("should pop stash", async () => {
+      mockGitv2.stashPop.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.stashPop();
+
+      expect(mockGitv2.stashPop).toHaveBeenCalledWith("/test/project");
+
+      api.release();
+    });
+  });
+
+  // ===========================================================================
+  // Remote Operations
+  // ===========================================================================
+
+  describe("push", () => {
+    it("should push with default options", async () => {
+      mockGitv2.push.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.push();
+
+      expect(mockGitv2.push).toHaveBeenCalledWith(
+        "/test/project",
+        false,
+        false,
+      );
+
+      api.release();
+    });
+
+    it("should push with force option", async () => {
+      mockGitv2.push.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.push(true);
+
+      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", true, false);
+
+      api.release();
+    });
+
+    it("should push with setUpstream option for new branches", async () => {
+      mockGitv2.push.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.push(false, true);
+
+      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", false, true);
+
+      api.release();
+    });
+  });
+
+  describe("pull", () => {
+    it("should pull with default options", async () => {
+      mockGitv2.pull.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.pull();
+
+      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", false);
+
+      api.release();
+    });
+
+    it("should pull with rebase option", async () => {
+      mockGitv2.pull.mockResolvedValue(undefined);
+
+      const api = new GitV2API("/test/project");
+      await api.pull(true);
+
+      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", true);
+
+      api.release();
+    });
+  });
+
+  describe("hasUpstream", () => {
+    it("should return true when upstream is configured", async () => {
+      mockGitv2.hasUpstream.mockResolvedValue(true);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.hasUpstream();
+
+      expect(mockGitv2.hasUpstream).toHaveBeenCalledWith("/test/project");
+      expect(result).toBe(true);
+
+      api.release();
+    });
+
+    it("should return false when no upstream", async () => {
+      mockGitv2.hasUpstream.mockResolvedValue(false);
+
+      const api = new GitV2API("/test/project");
+      const result = await api.hasUpstream();
+
+      expect(result).toBe(false);
 
       api.release();
     });
@@ -963,6 +1121,38 @@ describe("GitV2API", () => {
       await expect(api.stage([])).rejects.toThrow();
       await expect(api.commit("msg")).rejects.toThrow();
       await expect(api.checkout("ref")).rejects.toThrow();
+    });
+
+    it("should unsubscribe if released while subscription is pending (race condition)", async () => {
+      // Set up a delayed subscription that we can control
+      let resolveSubscription: ((value: string) => void) | null = null;
+      mockGitv2.subscribe.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSubscription = resolve;
+          }),
+      );
+
+      const api = new GitV2API("/test/project");
+
+      // Release BEFORE the subscription completes - this is the race condition
+      api.release();
+
+      expect(api.isReleased).toBe(true);
+      // At this point, subscriptionId is still null because promise hasn't resolved
+      expect(mockGitv2.unsubscribe).not.toHaveBeenCalled();
+
+      // Now complete the subscription (simulates IPC finally returning)
+      resolveSubscription!("late-subscription-id");
+
+      // Wait for the promise chain to complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // The fix should have detected that we're already released
+      // and immediately unsubscribed
+      expect(mockGitv2.unsubscribe).toHaveBeenCalledWith(
+        "late-subscription-id",
+      );
     });
   });
 

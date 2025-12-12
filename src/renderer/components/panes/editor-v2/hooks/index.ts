@@ -29,3 +29,23 @@ export type {
   UseExpandedPathsOptions,
   UseExpandedPathsResult,
 } from "./useExpandedPaths";
+export { useFileTreeContextMenu } from "./useFileTreeContextMenu";
+export type {
+  UseFileTreeContextMenuOptions,
+  UseFileTreeContextMenuResult,
+} from "./useFileTreeContextMenu";
+export { useAutoSizeEditor } from "./useAutoSizeEditor";
+export type {
+  UseAutoSizeEditorOptions,
+  UseAutoSizeEditorResult,
+} from "./useAutoSizeEditor";
+export { useEditorSaveKeybinding } from "./useEditorSaveKeybinding";
+export type { UseEditorSaveKeybindingResult } from "./useEditorSaveKeybinding";
+export { usePreventFocusScroll } from "./usePreventFocusScroll";
+export { useDiffModeTransition } from "./useDiffModeTransition";
+export type {
+  UseDiffModeTransitionOptions,
+  UseDiffModeTransitionResult,
+} from "./useDiffModeTransition";
+export { useReviewModeState } from "./useReviewModeState";
+export type { UseReviewModeStateResult } from "./useReviewModeState";

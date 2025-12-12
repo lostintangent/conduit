@@ -21,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { openHyperTerminal } from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
   enqueueNotification,
@@ -65,15 +66,12 @@ import React, {
   useState,
 } from "react";
 
+const isWindows = window.conduit.platform === "win32";
+
 type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
-  onOpenHyperTerminal?: (
-    terminalId: string,
-    paneId: string,
-    cwd: string | null,
-  ) => void;
   position?: TabPosition;
 };
 
@@ -81,7 +79,6 @@ export const TabStrip = ({
   onOpenCommandPalette,
   onTabContextMenu,
   onOpenQuickPane,
-  onOpenHyperTerminal,
   position = "top",
 }: TabStripProps) => {
   const tabLabels = useAtomValue(tabLabelsAtom);
@@ -122,6 +119,12 @@ export const TabStrip = ({
     ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
   );
   const launchAgentsCmd = useCommand(ApplicationCommands.AGENT_LAUNCH);
+
+  const showCommandPaletteCmd = useCommand(
+    ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
+  );
+
+  const newTabCmd = useCommand(ApplicationCommands.TAB_NEW);
 
   // Track if active pane is in a git repo
   const [isInGitRepo, setIsInGitRepo] = useState(false);
@@ -534,15 +537,14 @@ export const TabStrip = ({
   ]);
 
   const handleOpenHyperTerminal = useCallback(async () => {
-    if (!onOpenHyperTerminal) return;
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
     if (!result) return;
 
     const paneId = generateId();
-    onOpenHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
-  }, [activeTab, homeDirectory, onOpenHyperTerminal]);
+    openHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
+  }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
     if (!onOpenQuickPane) return;
@@ -610,10 +612,13 @@ export const TabStrip = ({
   );
 
   // Use margins to create gaps that reveal the overlay underneath
+  // On Windows, no rounded corners (Windows 11 handles rounding)
   const marginClass = alwaysShowTabs
     ? position === "top"
       ? "mb-[1px]"
-      : "mt-[1px] rounded-b-xl"
+      : isWindows
+        ? "mt-[1px] rounded-b"
+        : "mt-[1px] rounded-b-xl"
     : "";
 
   return (
@@ -665,7 +670,7 @@ export const TabStrip = ({
               <button
                 type="button"
                 className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-                aria-label="New tab"
+                aria-label={newTabCmd.title}
                 onClick={() => {
                   void openTab();
                 }}
@@ -673,7 +678,9 @@ export const TabStrip = ({
                 <PlusSquare size={18} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">New tab (⌘T)</TooltipContent>
+            <TooltipContent side="bottom">
+              {getCommandDisplayTitle(newTabCmd)}
+            </TooltipContent>
           </Tooltip>
 
           {/* Overview button - only when multiple tabs */}
@@ -708,7 +715,7 @@ export const TabStrip = ({
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Show command palette (⌘⇧P)
+              {getCommandDisplayTitle(showCommandPaletteCmd)}
             </TooltipContent>
           </Tooltip>
 

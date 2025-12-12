@@ -275,9 +275,63 @@ export default {
    *
    * @param cwd - Working directory
    * @param ref - Branch name, tag, or commit hash
+   * @param force - If true, force checkout (discards local changes)
    */
-  checkout: (cwd: string, ref: string) =>
-    ipcRenderer.invoke("git-v2:checkout", { cwd, ref }) as Promise<void>,
+  checkout: (cwd: string, ref: string, force?: boolean) =>
+    ipcRenderer.invoke("git-v2:checkout", { cwd, ref, force }) as Promise<void>,
+
+  /**
+   * Stash current uncommitted changes.
+   *
+   * @param cwd - Working directory
+   * @param message - Optional message for the stash entry
+   */
+  stash: (cwd: string, message?: string) =>
+    ipcRenderer.invoke("git-v2:stash", { cwd, message }) as Promise<void>,
+
+  /**
+   * Apply and remove the most recent stash entry.
+   *
+   * @param cwd - Working directory
+   */
+  stashPop: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:stash-pop", { cwd }) as Promise<void>,
+
+  // ---------------------------------------------------------------------------
+  // Remote Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Push commits to remote.
+   *
+   * @param cwd - Working directory
+   * @param force - If true, use --force-with-lease for safer force push
+   * @param setUpstream - If true, set upstream tracking (for new branches)
+   */
+  push: (cwd: string, force?: boolean, setUpstream?: boolean) =>
+    ipcRenderer.invoke("git-v2:push", {
+      cwd,
+      force,
+      setUpstream,
+    }) as Promise<void>,
+
+  /**
+   * Pull changes from remote.
+   *
+   * @param cwd - Working directory
+   * @param rebase - If true, use rebase instead of merge
+   */
+  pull: (cwd: string, rebase?: boolean) =>
+    ipcRenderer.invoke("git-v2:pull", { cwd, rebase }) as Promise<void>,
+
+  /**
+   * Check if the current branch has an upstream (tracking) branch.
+   *
+   * @param cwd - Working directory
+   * @returns true if upstream is configured, false otherwise
+   */
+  hasUpstream: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:has-upstream", { cwd }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
   // Comparison Operations

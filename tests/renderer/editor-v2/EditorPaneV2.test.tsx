@@ -512,4 +512,55 @@ describe("EditorPaneV2", () => {
       });
     });
   });
+
+  // ===========================================================================
+  // Prop to State Sync
+  // ===========================================================================
+
+  describe("pane.cwd prop sync", () => {
+    it("should handle pane.cwd prop changes without crashing", async () => {
+      const initialPane = {
+        ...TEST_PANE,
+        cwd: "/project/initial",
+      };
+
+      const { rerender } = render(<EditorPaneV2 pane={initialPane} />);
+
+      // Verify initial render
+      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
+
+      // Update the pane prop with a new cwd
+      const updatedPane = {
+        ...TEST_PANE,
+        cwd: "/project/updated",
+      };
+
+      await act(async () => {
+        rerender(<EditorPaneV2 pane={updatedPane} />);
+      });
+
+      // Component should still be rendered after cwd change
+      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
+    });
+
+    it("should handle multiple cwd changes", async () => {
+      const { rerender } = render(
+        <EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/a" }} />,
+      );
+
+      // Change cwd multiple times rapidly
+      await act(async () => {
+        rerender(<EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/b" }} />);
+      });
+      await act(async () => {
+        rerender(<EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/c" }} />);
+      });
+      await act(async () => {
+        rerender(<EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/d" }} />);
+      });
+
+      // Component should still be rendered after multiple cwd changes
+      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
+    });
+  });
 });

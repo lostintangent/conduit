@@ -393,6 +393,9 @@ export function useDiffContent(
         diffError = null;
       }
 
+      // Note: Deleted files are handled by DeletedFileViewer, not the diff editor.
+      // The DeletedFileViewer shows a read-only editor with the git content.
+
       // Only update state if still mounted AND this effect is still current
       // The isStale check prevents race conditions when rapidly switching files
       if (isMountedRef.current && !isStale) {
@@ -406,7 +409,25 @@ export function useDiffContent(
       }
     };
 
-    loadContent();
+    // Call loadContent with error handling to prevent unhandled rejections
+    loadContent().catch((error) => {
+      // Handle any unexpected errors that weren't caught inside loadContent
+      console.error("Unexpected error loading diff content:", error);
+      if (isMountedRef.current && !isStale) {
+        setState({
+          original: null,
+          modified: null,
+          isLoading: false,
+          error: {
+            type: "unknown",
+            message:
+              error instanceof Error ? error.message : "Failed to load diff",
+          },
+          errorMessage:
+            error instanceof Error ? error.message : "Failed to load diff",
+        });
+      }
+    });
 
     // Cleanup: mark this effect as stale when dependencies change
     // This prevents older fetches from overwriting newer results

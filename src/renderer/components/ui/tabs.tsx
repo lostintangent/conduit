@@ -42,7 +42,7 @@ export function TabsList({ children, className }: TabsListProps) {
   return (
     <div
       className={cn(
-        "inline-flex items-center justify-start border-b border-gray-700 w-full",
+        "inline-flex items-center justify-start border-b border-tinted-border w-full",
         className,
       )}
     >
@@ -66,10 +66,10 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
       onClick={() => onValueChange(value)}
       className={cn(
         "px-4 py-2 text-sm font-medium transition-colors relative",
-        "hover:text-white",
+        "hover:text-tinted-foreground",
         isSelected
-          ? "text-white border-b-2 border-blue-500 -mb-[1px]"
-          : "text-gray-400 border-b-2 border-transparent",
+          ? "text-tinted-foreground border-b-2 border-accent -mb-[1px]"
+          : "text-tinted-foreground/60 border-b-2 border-transparent",
         className,
       )}
     >

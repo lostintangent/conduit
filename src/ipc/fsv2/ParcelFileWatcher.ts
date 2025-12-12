@@ -55,7 +55,7 @@ export interface FileCreatedEvent {
 export interface ParcelFileWatcherOptions {
   /**
    * Glob patterns to ignore.
-   * Defaults to common non-essential directories if not specified.
+   * Defaults to DEFAULT_IGNORED_PATTERNS (node_modules, .git, dist, etc.) if not specified.
    */
   ignored?: string[];
 }

@@ -22,7 +22,7 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
 
   // Default to the user's home directory if no CWD is provided
   if (!cwd) {
-    cwd = process.env.HOME ?? process.cwd();
+    cwd = process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
   }
 
   // Determine the shell integration script to source
@@ -81,11 +81,18 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
 
   // Add the Conduit CLI's directory to the $PATH so that commands
   // like `conduit editor-open` can be run from the terminal.
-  const currentPath = env.PATH ?? "";
+  // On Windows, PATH can be stored as "Path" or "PATH", so normalize it
+  const currentPath = env.PATH || env.Path || "";
   const pathSegments = currentPath
     .split(path.delimiter)
     .filter((segment) => segment.length > 0 && segment !== cliDirectory);
+
   env.PATH = [cliDirectory, ...pathSegments].join(path.delimiter);
+
+  // On Windows, also set Path to ensure compatibility
+  if (process.platform === "win32") {
+    delete env.Path;
+  }
 
   // Set Conduit as the default editor (if the user hasn't disabled this behavior)
   const { useConduitAsEditor } = getCurrentUserSettings();

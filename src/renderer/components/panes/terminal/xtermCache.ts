@@ -204,6 +204,10 @@ export function getOrCreate(
         } catch {
           cwd = match[1];
         }
+        // On Windows, file:// URLs have paths like /C:/path - strip the leading slash
+        if (/^\/[A-Za-z]:/.test(cwd)) {
+          cwd = cwd.slice(1);
+        }
         if (cwd !== lastKnownCwd) {
           lastKnownCwd = cwd;
           updatePaneProperty(sessionId, { cwd });

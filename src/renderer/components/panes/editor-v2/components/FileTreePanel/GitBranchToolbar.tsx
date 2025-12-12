@@ -50,7 +50,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitV2API } from "@/api/GitV2API";
 import { GitStatusSummary } from "./GitStatusSummary";
+import { BranchSwitcher } from "./BranchSwitcher";
 
 export interface GitBranchToolbarProps {
   /** Current branch name (null if no git repo) */
@@ -59,11 +61,17 @@ export interface GitBranchToolbarProps {
   /** Base branch for comparison (null = compare to HEAD) */
   baseBranch: string | null;
 
+  /** Git API instance for branch switching */
+  git?: GitV2API;
+
   /** Whether to show only changed files */
   showOnlyChangedFiles: boolean;
 
   /** Whether changes review mode is active */
   isReviewModeActive?: boolean;
+
+  /** Callback when branch is switched */
+  onBranchSwitch?: (newBranch: string) => void;
 
   /** Number of changed files */
   changedFilesCount?: number;
@@ -142,8 +150,10 @@ export interface GitBranchToolbarProps {
 export function GitBranchToolbar({
   currentBranch,
   baseBranch,
+  git,
   showOnlyChangedFiles,
   isReviewModeActive = false,
+  onBranchSwitch,
   changedFilesCount = 0,
   gitStatus = null,
   onFilterToggle,
@@ -205,10 +215,12 @@ export function GitBranchToolbar({
   }
 
   // ---------------------------------------------------------------------------
-  // Branch Label
+  // Branch Label / Switcher
   // ---------------------------------------------------------------------------
 
-  const branchLabel = isComparingBranch ? (
+  // When comparing branches, show both with an arrow
+  // When not comparing, show BranchSwitcher (if git available) or static label
+  const branchDisplay = isComparingBranch ? (
     <div className="flex items-center gap-1.5 overflow-hidden">
       <span title={baseBranch ?? ""}>{baseBranch}</span>
       <ArrowRight className="w-3 h-3 flex-shrink-0" />
@@ -216,6 +228,12 @@ export function GitBranchToolbar({
         {currentBranch}
       </span>
     </div>
+  ) : git ? (
+    <BranchSwitcher
+      git={git}
+      currentBranch={currentBranch}
+      onBranchSwitch={onBranchSwitch}
+    />
   ) : (
     <span className="truncate" title={currentBranch}>
       {currentBranch}
@@ -252,9 +270,9 @@ export function GitBranchToolbar({
           </TooltipContent>
         </Tooltip>
 
-        {/* Branch label + view mode toggle (grouped together) */}
+        {/* Branch label/switcher + view mode toggle (grouped together) */}
         <div className="flex flex-1 items-center gap-2 min-w-0">
-          <div className="truncate">{branchLabel}</div>
+          <div className="min-w-0">{branchDisplay}</div>
 
           {/* Changes view mode toggle (only shown when in changes view) */}
           {showOnlyChangedFiles && onChangesViewModeChange && (
