@@ -209,13 +209,20 @@ export default {
    * @param cwd - Working directory (provider scope)
    * @param type - Type of events to subscribe to
    * @param path - Optional path filter
+   * @param vmId - Optional VM ID for cloud filesystem operations
    * @returns Subscription ID for unsubscribing
    */
-  subscribe: (cwd: string, type: "directory" | "file" | "all", path?: string) =>
+  subscribe: (
+    cwd: string,
+    type: "directory" | "file" | "all",
+    path?: string,
+    vmId?: string,
+  ) =>
     ipcRenderer.invoke("fs-v2:subscribe", {
       cwd,
       type,
       path,
+      vmId,
     }) as Promise<string>,
 
   /**
