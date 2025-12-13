@@ -8,6 +8,7 @@
  * - CommitMeta.tsx: Author, timestamp, and hash display
  * - CommitSubject.tsx: Commit message with tooltip
  * - ViewAllButton.tsx: Button to open full commit review
+ * - utils.ts: Helper functions for formatting
  *
  * These components handle the right side of each commit row,
  * complementing the GraphCell on the left.
@@ -24,6 +25,33 @@
  * ```
  */
 
-// Phase 5: Commit display components
-// export { CommitSummary } from './CommitSummary';
-// export type { CommitSummaryProps } from './CommitSummary';
+// =============================================================================
+// Main Component (Public API)
+// =============================================================================
+
+export { CommitSummary } from "./CommitSummary";
+export type { CommitSummaryProps } from "./CommitSummary";
+
+// =============================================================================
+// Sub-components (for advanced usage)
+// =============================================================================
+
+export { CommitMeta } from "./CommitMeta";
+export type { CommitMetaProps } from "./CommitMeta";
+
+export { CommitSubject } from "./CommitSubject";
+export type { CommitSubjectProps } from "./CommitSubject";
+
+export { ViewAllButton } from "./ViewAllButton";
+export type { ViewAllButtonProps } from "./ViewAllButton";
+
+// =============================================================================
+// Utilities (for formatting)
+// =============================================================================
+
+export {
+  formatRelativeTime,
+  formatFullDate,
+  truncateText,
+  getFirstLine,
+} from "./utils";
