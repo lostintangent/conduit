@@ -71,9 +71,13 @@ export type {
 } from "./types";
 
 // =============================================================================
-// Component Exports (uncomment as implemented)
+// Component Exports
 // =============================================================================
 
-// Phase 11: Main panel component
+// Phase 9: Row component
+export { CommitGraphRow } from "./CommitGraphRow";
+export type { CommitGraphRowProps } from "./CommitGraphRow";
+
+// Phase 11: Main panel component (uncomment when implemented)
 // export { CommitGraphPanel } from './CommitGraphPanel';
 // export type { CommitGraphPanelProps } from './CommitGraphPanel';
