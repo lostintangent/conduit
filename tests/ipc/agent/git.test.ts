@@ -489,10 +489,48 @@ describe("gitRevert", () => {
     });
   });
 
+  // Helper to create a mock that handles both findRepoRoot and the actual git command
+  const setupExecFileMock = (
+    restoreCallback?: (args: string[]) => void,
+    restoreShouldFail = false,
+  ) => {
+    (execFile as any).mockImplementation(
+      (cmd: string, args: string[], opts: any, callback: any) => {
+        // Handle findRepoRoot's git rev-parse --git-common-dir call
+        if (args[0] === "rev-parse" && args[1] === "--git-common-dir") {
+          callback(null, { stdout: ".git\n", stderr: "" });
+          return;
+        }
+        // Handle findRepoRoot's git rev-parse --show-toplevel call
+        if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
+          callback(null, { stdout: "/test/repo\n", stderr: "" });
+          return;
+        }
+        // Handle git restore
+        if (args[0] === "restore") {
+          if (restoreCallback) restoreCallback(args);
+          if (restoreShouldFail) {
+            const error: any = new Error("git: 'restore' is not a git command");
+            error.code = 1;
+            callback(error);
+          } else {
+            callback(null, { stdout: "", stderr: "" });
+          }
+          return;
+        }
+        // Handle git checkout (fallback)
+        if (args[0] === "checkout") {
+          callback(null, { stdout: "", stderr: "" });
+          return;
+        }
+        // Default
+        callback(null, { stdout: "", stderr: "" });
+      },
+    );
+  };
+
   it("should use git restore for modern git versions", async () => {
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, { stdout: "", stderr: "" });
-    });
+    setupExecFileMock();
 
     await gitRevert("/test/repo", ["file1.ts"]);
 
@@ -505,32 +543,18 @@ describe("gitRevert", () => {
   });
 
   it("should fallback to git checkout if git restore fails", async () => {
-    let callCount = 0;
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callCount++;
-      if (callCount === 1 && args[0] === "restore") {
-        // First call with git restore fails (old git version)
-        const error: any = new Error("git: 'restore' is not a git command");
-        error.code = 1;
-        callback(error);
-      } else {
-        // Second call with git checkout succeeds
-        callback(null, { stdout: "", stderr: "" });
-      }
-    });
+    setupExecFileMock(undefined, true); // Make restore fail
 
     await gitRevert("/test/repo", ["file1.ts"]);
 
-    expect(execFile).toHaveBeenCalledTimes(2);
-    expect(execFile).toHaveBeenNthCalledWith(
-      1,
+    // Should have called: rev-parse --git-common-dir, rev-parse --show-toplevel, restore, checkout
+    expect(execFile).toHaveBeenCalledWith(
       "git",
       ["restore", "--", "file1.ts"],
       expect.objectContaining({ cwd: "/test/repo" }),
       expect.any(Function),
     );
-    expect(execFile).toHaveBeenNthCalledWith(
-      2,
+    expect(execFile).toHaveBeenCalledWith(
       "git",
       ["checkout", "--", "file1.ts"],
       expect.objectContaining({ cwd: "/test/repo" }),
@@ -539,9 +563,7 @@ describe("gitRevert", () => {
   });
 
   it("should handle multiple files", async () => {
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, { stdout: "", stderr: "" });
-    });
+    setupExecFileMock();
 
     await gitRevert("/test/repo", ["file1.ts", "file2.ts", "src/index.ts"]);
 
@@ -554,9 +576,7 @@ describe("gitRevert", () => {
   });
 
   it("should handle deleted files by restoring from index", async () => {
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, { stdout: "", stderr: "" });
-    });
+    setupExecFileMock();
 
     await gitRevert("/test/repo", ["deleted-file.ts"]);
 
@@ -570,9 +590,7 @@ describe("gitRevert", () => {
   });
 
   it("should sanitize Windows-style paths to forward slashes", async () => {
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, { stdout: "", stderr: "" });
-    });
+    setupExecFileMock();
 
     await gitRevert("/test/repo", ["src\\components\\Button.tsx"]);
 
@@ -586,9 +604,7 @@ describe("gitRevert", () => {
   });
 
   it("should convert absolute paths to relative paths from git root", async () => {
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, { stdout: "", stderr: "" });
-    });
+    setupExecFileMock();
 
     await gitRevert("/test/repo", ["/test/repo/src/file.ts"]);
 
@@ -602,19 +618,24 @@ describe("gitRevert", () => {
   });
 
   it("should work when called from a subdirectory", async () => {
-    // Mock stat to find .git at parent directory
-    (stat as any).mockImplementation((path: string) => {
-      if (path === "/test/repo/.git") {
-        return Promise.resolve({}); // .git exists at repo root
-      }
-      const error: any = new Error("ENOENT");
-      error.code = "ENOENT";
-      return Promise.reject(error);
-    });
-
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, { stdout: "", stderr: "" });
-    });
+    // Mock to return the subdirectory's repo root correctly
+    (execFile as any).mockImplementation(
+      (cmd: string, args: string[], opts: any, callback: any) => {
+        if (args[0] === "rev-parse" && args[1] === "--git-common-dir") {
+          callback(null, { stdout: ".git\n", stderr: "" });
+          return;
+        }
+        if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
+          callback(null, { stdout: "/test/repo\n", stderr: "" });
+          return;
+        }
+        if (args[0] === "restore") {
+          callback(null, { stdout: "", stderr: "" });
+          return;
+        }
+        callback(null, { stdout: "", stderr: "" });
+      },
+    );
 
     // Even if cwd is a subdirectory, it should find the git root
     await gitRevert("/test/repo/src/components", ["Button.tsx"]);
@@ -629,17 +650,11 @@ describe("gitRevert", () => {
   });
 
   it("should return stdout and stderr from git command", async () => {
-    const mockOutput = {
-      stdout: "",
-      stderr: "",
-    };
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, mockOutput);
-    });
+    setupExecFileMock();
 
     const result = await gitRevert("/test/repo", ["file1.ts"]);
 
-    expect(result).toEqual(mockOutput);
+    expect(result).toEqual({ stdout: "", stderr: "" });
   });
 
   it("should throw error if not in a git repository", async () => {
@@ -650,28 +665,59 @@ describe("gitRevert", () => {
       return Promise.reject(error);
     });
 
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(null, { stdout: "", stderr: "" });
-    });
+    // Mock execFile to fail for git rev-parse (simulating not in git repo)
+    (execFile as any).mockImplementation(
+      (cmd: string, args: string[], opts: any, callback: any) => {
+        if (args[0] === "rev-parse") {
+          const error: any = new Error(
+            "fatal: not a git repository (or any of the parent directories)",
+          );
+          error.code = 128;
+          callback(error);
+          return;
+        }
+        callback(null, { stdout: "", stderr: "" });
+      },
+    );
 
     // gitRevert should throw before calling execFile if findRepoRoot returns null
     await expect(gitRevert("/some/random/path", ["file.ts"])).rejects.toThrow(
       "Not in a git repository",
     );
-
-    // execFile should not be called
-    expect(execFile).not.toHaveBeenCalled();
   });
 
   it("should propagate errors from git command", async () => {
-    const error: any = new Error(
-      "error: pathspec 'file.ts' did not match any files",
+    (execFile as any).mockImplementation(
+      (cmd: string, args: string[], opts: any, callback: any) => {
+        if (args[0] === "rev-parse" && args[1] === "--git-common-dir") {
+          callback(null, { stdout: ".git\n", stderr: "" });
+          return;
+        }
+        if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
+          callback(null, { stdout: "/test/repo\n", stderr: "" });
+          return;
+        }
+        if (args[0] === "restore") {
+          const error: any = new Error(
+            "error: pathspec 'file.ts' did not match any files",
+          );
+          error.code = 1;
+          error.stderr = "error: pathspec 'file.ts' did not match any files";
+          callback(error);
+          return;
+        }
+        if (args[0] === "checkout") {
+          const error: any = new Error(
+            "error: pathspec 'file.ts' did not match any files",
+          );
+          error.code = 1;
+          error.stderr = "error: pathspec 'file.ts' did not match any files";
+          callback(error);
+          return;
+        }
+        callback(null, { stdout: "", stderr: "" });
+      },
     );
-    error.code = 1;
-    error.stderr = "error: pathspec 'file.ts' did not match any files";
-    (execFile as any).mockImplementation((cmd, args, opts, callback) => {
-      callback(error);
-    });
 
     await expect(gitRevert("/test/repo", ["file.ts"])).rejects.toThrow(
       "did not match any files",

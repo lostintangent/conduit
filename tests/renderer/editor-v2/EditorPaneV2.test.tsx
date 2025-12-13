@@ -16,14 +16,38 @@ import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor-v2/E
 // Mocks
 // ============================================================================
 
-// Mock useResponsiveLayout hook
+// Mock the hooks barrel (useResponsiveLayout, useEditorTheme, useReviewModeState)
 const mockLayout = vi.fn();
-vi.mock(
-  "../../../src/renderer/components/panes/editor-v2/hooks/useResponsiveLayout",
-  () => ({
-    useResponsiveLayout: () => mockLayout(),
+
+// Stateful mock for useReviewModeState
+let mockViewMode = { type: "editor" as const };
+const mockSetViewMode = vi.fn((newMode) => {
+  mockViewMode = newMode;
+});
+const mockSetViewModePreservingReview = vi.fn((fn) => {
+  const result = fn();
+  mockViewMode = result;
+  return result;
+});
+
+vi.mock("../../../src/renderer/components/panes/editor-v2/hooks", () => ({
+  useResponsiveLayout: () => mockLayout(),
+  useEditorTheme: () => "vs-dark",
+  useReviewModeState: () => ({
+    viewMode: mockViewMode,
+    isReviewMode: false,
+    enterReviewMode: vi.fn(),
+    exitReviewMode: vi.fn(),
+    setViewMode: mockSetViewMode,
+    setViewModePreservingReview: mockSetViewModePreservingReview,
+    handleTreeViewModeTransition: vi.fn(),
   }),
-);
+}));
+
+// Mock registerEditorHandlers
+vi.mock("../../../src/renderer/commands/handlers", () => ({
+  registerEditorHandlers: vi.fn(() => vi.fn()),
+}));
 
 // Mock useFileSystemV2 hook
 const mockFs = {
@@ -38,6 +62,7 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
 // Mock useGitV2 hook - returns git API with empty status
 const mockGit = {
   getStatus: vi.fn().mockResolvedValue({ files: new Map(), branch: "main" }),
+  getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
   onBranchChanged: vi.fn().mockReturnValue(() => {}),
   getCurrentBranch: vi.fn().mockResolvedValue("main"),
@@ -48,12 +73,15 @@ const mockGit = {
   release: vi.fn(),
   getBranches: vi.fn().mockResolvedValue([]),
   getChangedFilesFromBranch: vi.fn().mockResolvedValue([]),
+  hasUpstream: vi.fn().mockResolvedValue(true),
+  pull: vi.fn().mockResolvedValue(undefined),
+  push: vi.fn().mockResolvedValue(undefined),
 };
 vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
   useGitV2: () => mockGit,
 }));
 
-// Mock FileTreePanel
+// Mock FileTreePanel (including BranchSelector which is re-exported from this barrel)
 vi.mock(
   "../../../src/renderer/components/panes/editor-v2/components/FileTreePanel",
   () => ({
@@ -79,6 +107,22 @@ vi.mock(
           }
         >
           Toggle Mode
+        </button>
+      </div>
+    ),
+    BranchSelector: ({ open, onSelectBranch, onOpenChange }) => (
+      <div data-testid="mock-branch-selector" data-open={open}>
+        <button
+          data-testid="select-branch-button"
+          onClick={() => onSelectBranch("test-branch")}
+        >
+          Select Branch
+        </button>
+        <button
+          data-testid="close-branch-selector"
+          onClick={() => onOpenChange(false)}
+        >
+          Close
         </button>
       </div>
     ),
@@ -140,6 +184,9 @@ describe("EditorPaneV2", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset view mode state
+    mockViewMode = { type: "editor" as const };
 
     // Default to split layout
     mockLayout.mockReturnValue("split");
