@@ -52,11 +52,20 @@ import type {
   SerializedGitStatus,
   SerializedGitCommit,
   SerializedGitBranch,
+  SerializedHistoryCommit,
+  SerializedCommitFile,
+  SerializedCommitHistoryResult,
+  GetCommitHistoryOptions,
   StatusChangedPayload,
   BranchChangedPayload,
   CommitCreatedPayload,
   HeadChangedPayload,
 } from "../../preload/window/modules/gitv2";
+import type {
+  HistoryCommit,
+  CommitFile,
+  CommitHistoryResult,
+} from "../../ipc/gitv2/types";
 
 // ============================================================================
 // Types
@@ -143,6 +152,42 @@ function deserializeGitBranch(serialized: SerializedGitBranch): GitBranch {
       ? new Date(serialized.lastCommitDate)
       : undefined,
     lastCommitMessage: serialized.lastCommitMessage,
+  };
+}
+
+/**
+ * Convert serialized history commit to full HistoryCommit type.
+ *
+ * HistoryCommit uses primitive types (timestamp is already number),
+ * so this is mostly a type cast.
+ */
+function deserializeHistoryCommit(
+  serialized: SerializedHistoryCommit,
+): HistoryCommit {
+  return {
+    id: serialized.id,
+    shortId: serialized.shortId,
+    subject: serialized.subject,
+    message: serialized.message,
+    author: serialized.author,
+    authorEmail: serialized.authorEmail,
+    timestamp: serialized.timestamp,
+    parentIds: serialized.parentIds,
+    refs: serialized.refs,
+  };
+}
+
+/**
+ * Convert serialized commit file to full CommitFile type.
+ */
+function deserializeCommitFile(serialized: SerializedCommitFile): CommitFile {
+  return {
+    path: serialized.path,
+    status: serialized.status as CommitFile["status"],
+    originalPath: serialized.originalPath,
+    additions: serialized.additions,
+    deletions: serialized.deletions,
+    isBinary: serialized.isBinary,
   };
 }
 
@@ -754,6 +799,97 @@ export class GitV2API {
   async revert(files: string[]): Promise<void> {
     this.ensureNotReleased();
     return window.conduit.gitv2.revert(this.cwd, files);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Commit History Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get commit history with pagination support.
+   *
+   * Returns commits in topological order (newest first), which is required
+   * for correct swimlane graph computation.
+   *
+   * @param options - Pagination and filtering options
+   * @returns Paginated commit history result
+   * @throws {Error} If the API has been released
+   *
+   * @example
+   * ```typescript
+   * // Get first 50 commits
+   * const result = await git.getCommitHistory({ limit: 50 });
+   *
+   * // Load more commits
+   * if (result.hasMore) {
+   *   const more = await git.getCommitHistory({ limit: 50, skip: 50 });
+   * }
+   * ```
+   */
+  async getCommitHistory(
+    options?: GetCommitHistoryOptions,
+  ): Promise<CommitHistoryResult> {
+    this.ensureNotReleased();
+    const result = await window.conduit.gitv2.getCommitHistory(
+      this.cwd,
+      options,
+    );
+    return {
+      commits: result.commits.map(deserializeHistoryCommit),
+      hasMore: result.hasMore,
+      totalCount: result.totalCount,
+    };
+  }
+
+  /**
+   * Get a single commit by its hash.
+   *
+   * @param commitId - Full or short commit hash
+   * @returns The commit, or null if not found
+   * @throws {Error} If the API has been released
+   */
+  async getCommit(commitId: string): Promise<HistoryCommit | null> {
+    this.ensureNotReleased();
+    const result = await window.conduit.gitv2.getCommit(this.cwd, commitId);
+    return result ? deserializeHistoryCommit(result) : null;
+  }
+
+  /**
+   * Get files changed in a specific commit.
+   *
+   * Returns the list of files modified by the commit with their
+   * status (added/modified/deleted/renamed) and diff statistics.
+   *
+   * @param commitId - Full or short commit hash
+   * @returns Array of files changed in the commit
+   * @throws {Error} If the API has been released
+   */
+  async getCommitFiles(commitId: string): Promise<CommitFile[]> {
+    this.ensureNotReleased();
+    const result = await window.conduit.gitv2.getCommitFiles(
+      this.cwd,
+      commitId,
+    );
+    return result.map(deserializeCommitFile);
+  }
+
+  /**
+   * Get file content at a specific commit.
+   *
+   * Retrieves the content of a file as it existed at a particular commit.
+   * Used for displaying historical diffs.
+   *
+   * @param commitId - Full or short commit hash
+   * @param filePath - Relative path from git root
+   * @returns File content, or null if file doesn't exist at that commit
+   * @throws {Error} If the API has been released
+   */
+  async getFileAtCommit(
+    commitId: string,
+    filePath: string,
+  ): Promise<string | null> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getFileAtCommit(this.cwd, commitId, filePath);
   }
 
   // ---------------------------------------------------------------------------

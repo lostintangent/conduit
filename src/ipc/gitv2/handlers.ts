@@ -40,6 +40,10 @@
  * - `git-v2:most-recent-dirty-file` - Get most recently modified dirty file
  * - `git-v2:most-recent-committed-file` - Get most recently modified file from commits
  * - `git-v2:revert` - Discard local file changes
+ * - `git-v2:commit-history` - Get paginated commit history
+ * - `git-v2:commit` - Get a single commit by hash
+ * - `git-v2:commit-files` - Get files changed in a commit
+ * - `git-v2:file-at-commit` - Get file content at a specific commit
  * - `git-v2:subscribe` - Subscribe to git events
  * - `git-v2:unsubscribe` - Unsubscribe from events
  *
@@ -54,11 +58,15 @@
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
 import { GitProviderService } from "./GitProviderService";
 import type {
+  CommitFile,
+  GetCommitHistoryOptions,
   GitBranch,
   GitCommit,
   GitCommitOptions,
   GitFileStatus,
+  GitFileStatusCode,
   GitStatus,
+  HistoryCommit,
 } from "./types";
 
 /**
@@ -109,6 +117,42 @@ interface SerializedDiffStats {
   added: number;
   removed: number;
   files: number;
+}
+
+/**
+ * Serialized history commit for IPC transport.
+ */
+interface SerializedHistoryCommit {
+  id: string;
+  shortId: string;
+  subject: string;
+  message: string;
+  author: string;
+  authorEmail: string;
+  timestamp: number;
+  parentIds: string[];
+  refs?: string[];
+}
+
+/**
+ * Serialized commit file for IPC transport.
+ */
+interface SerializedCommitFile {
+  path: string;
+  status: GitFileStatusCode;
+  originalPath?: string;
+  additions: number;
+  deletions: number;
+  isBinary: boolean;
+}
+
+/**
+ * Serialized commit history result for IPC transport.
+ */
+interface SerializedCommitHistoryResult {
+  commits: SerializedHistoryCommit[];
+  hasMore: boolean;
+  totalCount?: number;
 }
 
 /**
@@ -195,6 +239,42 @@ function serializeGitBranch(branch: GitBranch): SerializedGitBranch {
     behind: branch.behind,
     lastCommitDate: branch.lastCommitDate?.getTime(),
     lastCommitMessage: branch.lastCommitMessage,
+  };
+}
+
+/**
+ * Serialize a HistoryCommit for IPC transport.
+ *
+ * HistoryCommit already uses primitive types (timestamp is already number),
+ * so this is mostly a type cast for consistency.
+ */
+function serializeHistoryCommit(
+  commit: HistoryCommit,
+): SerializedHistoryCommit {
+  return {
+    id: commit.id,
+    shortId: commit.shortId,
+    subject: commit.subject,
+    message: commit.message,
+    author: commit.author,
+    authorEmail: commit.authorEmail,
+    timestamp: commit.timestamp,
+    parentIds: commit.parentIds,
+    refs: commit.refs,
+  };
+}
+
+/**
+ * Serialize a CommitFile for IPC transport.
+ */
+function serializeCommitFile(file: CommitFile): SerializedCommitFile {
+  return {
+    path: file.path,
+    status: file.status,
+    originalPath: file.originalPath,
+    additions: file.additions,
+    deletions: file.deletions,
+    isBinary: file.isBinary,
   };
 }
 
@@ -478,6 +558,96 @@ export function initializeGitV2Handlers(): void {
         return null;
       }
       return result.provider.getFileAtRef(params.filePath, params.ref);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Commit History Operations
+  //
+  // Operations for retrieving commit history and related information.
+  // Used by the commit graph visualization.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get commit history with pagination support.
+   * Returns commits in topological order (newest first).
+   * Returns empty result if no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:commit-history",
+    async (
+      _,
+      params: { cwd: string; options?: GetCommitHistoryOptions },
+    ): Promise<SerializedCommitHistoryResult> => {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
+        return { commits: [], hasMore: false };
+      }
+      const historyResult = await result.provider.getCommitHistory(
+        params.options,
+      );
+      return {
+        commits: historyResult.commits.map(serializeHistoryCommit),
+        hasMore: historyResult.hasMore,
+        totalCount: historyResult.totalCount,
+      };
+    },
+  );
+
+  /**
+   * Get a single commit by its hash.
+   * Returns null if commit not found or no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:commit",
+    async (
+      _,
+      params: { cwd: string; commitId: string },
+    ): Promise<SerializedHistoryCommit | null> => {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
+        return null;
+      }
+      const commit = await result.provider.getCommit(params.commitId);
+      return commit ? serializeHistoryCommit(commit) : null;
+    },
+  );
+
+  /**
+   * Get files changed in a specific commit.
+   * Returns the list of files with their status and diff statistics.
+   * Returns empty array if no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:commit-files",
+    async (
+      _,
+      params: { cwd: string; commitId: string },
+    ): Promise<SerializedCommitFile[]> => {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
+        return [];
+      }
+      const files = await result.provider.getCommitFiles(params.commitId);
+      return files.map(serializeCommitFile);
+    },
+  );
+
+  /**
+   * Get file content at a specific commit.
+   * Returns null if file doesn't exist at that commit or no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:file-at-commit",
+    async (
+      _,
+      params: { cwd: string; commitId: string; filePath: string },
+    ): Promise<string | null> => {
+      const result = await getExistingProvider(params.cwd);
+      if (!result) {
+        return null;
+      }
+      return result.provider.getFileAtCommit(params.commitId, params.filePath);
     },
   );
 

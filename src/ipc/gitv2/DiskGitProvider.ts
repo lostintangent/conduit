@@ -29,6 +29,9 @@ import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
 import type { Disposable, Event } from "../fsv2/types";
 import type {
+  CommitFile,
+  CommitHistoryResult,
+  GetCommitHistoryOptions,
   GitBranch,
   GitBranchChangedEvent,
   GitCheckoutOptions,
@@ -41,6 +44,7 @@ import type {
   GitProvider,
   GitStatus,
   GitStatusChangedEvent,
+  HistoryCommit,
 } from "./types";
 
 // ============================================================================
@@ -647,6 +651,272 @@ export class DiskGitProvider implements GitProvider {
         error,
       );
       return null;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Commit History
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get commit history with pagination support.
+   *
+   * Returns commits in topological order (newest first) for correct
+   * swimlane graph computation.
+   */
+  async getCommitHistory(
+    options: GetCommitHistoryOptions = {},
+  ): Promise<CommitHistoryResult> {
+    const { limit = 50, skip = 0, ref } = options;
+
+    try {
+      // Request one extra commit to determine if there are more
+      const requestLimit = limit + 1;
+
+      // Build git log format for efficient parsing
+      // Format: hash|shortHash|subject|author|email|timestamp|parentHashes|refs
+      const format = "%H|%h|%s|%an|%ae|%at|%P|%D";
+
+      const args = [
+        "log",
+        `--format=${format}`,
+        "--topo-order", // Topological ordering for swimlane algorithm
+        `-n`,
+        String(requestLimit),
+        `--skip=${skip}`,
+      ];
+
+      if (ref) {
+        args.push(ref);
+      }
+
+      const result = await this.git.raw(args);
+      const lines = result.trim().split("\n").filter(Boolean);
+
+      // Check if there are more commits
+      const hasMore = lines.length > limit;
+      const commitLines = hasMore ? lines.slice(0, limit) : lines;
+
+      const commits: HistoryCommit[] = commitLines.map((line) => {
+        const parts = line.split("|");
+        const [
+          hash,
+          shortHash,
+          subject,
+          author,
+          email,
+          timestamp,
+          parents,
+          refs,
+        ] = parts;
+
+        return {
+          id: hash || "",
+          shortId: shortHash || "",
+          subject: subject || "",
+          message: subject || "", // Just subject for now, full message requires separate call
+          author: author || "",
+          authorEmail: email || "",
+          timestamp: parseInt(timestamp || "0", 10) * 1000, // Convert to milliseconds
+          parentIds: parents ? parents.split(" ").filter(Boolean) : [],
+          refs: refs ? refs.split(", ").filter(Boolean) : undefined,
+        };
+      });
+
+      return {
+        commits,
+        hasMore,
+      };
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get commit history:", error);
+      return {
+        commits: [],
+        hasMore: false,
+      };
+    }
+  }
+
+  /**
+   * Get a single commit by its hash.
+   */
+  async getCommit(commitId: string): Promise<HistoryCommit | null> {
+    try {
+      // Format: hash|shortHash|subject|body|author|email|timestamp|parentHashes|refs
+      const format = "%H|%h|%s|%b|%an|%ae|%at|%P|%D";
+
+      const result = await this.git.raw([
+        "log",
+        `-1`,
+        `--format=${format}`,
+        commitId,
+      ]);
+
+      if (!result.trim()) {
+        return null;
+      }
+
+      // Split by | but handle body which may contain | characters
+      // Body is the 4th field, so we need to be careful
+      const firstLine = result.split("\n")[0] || "";
+      const parts = firstLine.split("|");
+
+      if (parts.length < 8) {
+        return null;
+      }
+
+      const [hash, shortHash, subject, ...rest] = parts;
+      // Body might contain |, so join remaining parts except last 4
+      const bodyParts = rest.slice(0, -4);
+      const body = bodyParts.join("|");
+      const [author, email, timestamp, parents, refs] = rest.slice(-5);
+
+      const fullMessage = body ? `${subject}\n\n${body}` : subject || "";
+
+      return {
+        id: hash || "",
+        shortId: shortHash || "",
+        subject: subject || "",
+        message: fullMessage,
+        author: author || "",
+        authorEmail: email || "",
+        timestamp: parseInt(timestamp || "0", 10) * 1000,
+        parentIds: parents ? parents.split(" ").filter(Boolean) : [],
+        refs: refs ? refs.split(", ").filter(Boolean) : undefined,
+      };
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get commit:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get files changed in a specific commit.
+   */
+  async getCommitFiles(commitId: string): Promise<CommitFile[]> {
+    try {
+      // Use --numstat for additions/deletions, --name-status for status codes
+      // Combine with diff-tree for accurate results
+      const result = await this.git.raw([
+        "diff-tree",
+        "--no-commit-id",
+        "--name-status",
+        "-r",
+        "--find-renames",
+        "-M",
+        commitId,
+      ]);
+
+      // Also get numstat for additions/deletions
+      const numstatResult = await this.git.raw([
+        "diff-tree",
+        "--no-commit-id",
+        "--numstat",
+        "-r",
+        "--find-renames",
+        "-M",
+        commitId,
+      ]);
+
+      // Parse numstat for additions/deletions
+      const statsMap = new Map<
+        string,
+        { additions: number; deletions: number; isBinary: boolean }
+      >();
+      const numstatLines = numstatResult.trim().split("\n").filter(Boolean);
+
+      for (const line of numstatLines) {
+        const [additions, deletions, ...pathParts] = line.split("\t");
+        const filePath = pathParts.join("\t"); // Handle renamed files with tabs
+
+        // Binary files show as "-" for additions/deletions
+        const isBinary = additions === "-" || deletions === "-";
+
+        statsMap.set(filePath, {
+          additions: isBinary ? 0 : parseInt(additions || "0", 10),
+          deletions: isBinary ? 0 : parseInt(deletions || "0", 10),
+          isBinary,
+        });
+      }
+
+      // Parse name-status for status codes
+      const files: CommitFile[] = [];
+      const statusLines = result.trim().split("\n").filter(Boolean);
+
+      for (const line of statusLines) {
+        const parts = line.split("\t");
+        if (parts.length < 2) continue;
+
+        const statusCode = parts[0]?.charAt(0) || "M";
+        let filePath: string;
+        let originalPath: string | undefined;
+
+        // Handle renamed files (R100 oldpath newpath)
+        if (statusCode === "R" || statusCode === "C") {
+          originalPath = parts[1];
+          filePath = parts[2] || parts[1] || "";
+        } else {
+          filePath = parts[1] || "";
+        }
+
+        const stats = statsMap.get(filePath) || {
+          additions: 0,
+          deletions: 0,
+          isBinary: false,
+        };
+
+        files.push({
+          path: filePath,
+          status: this.statusCodeToFileStatus(statusCode),
+          originalPath,
+          additions: stats.additions,
+          deletions: stats.deletions,
+          isBinary: stats.isBinary,
+        });
+      }
+
+      return files;
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get commit files:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get file content at a specific commit.
+   */
+  async getFileAtCommit(
+    commitId: string,
+    filePath: string,
+  ): Promise<string | null> {
+    try {
+      const relativePath = this.toRelativePath(filePath);
+      const result = await this.git.show([`${commitId}:${relativePath}`]);
+      return result;
+    } catch (error) {
+      // File might not exist at this commit
+      return null;
+    }
+  }
+
+  /**
+   * Convert git status code to GitFileStatusCode.
+   */
+  private statusCodeToFileStatus(code: string): GitFileStatusCode {
+    switch (code) {
+      case "A":
+        return "added";
+      case "D":
+        return "deleted";
+      case "M":
+        return "modified";
+      case "R":
+        return "renamed";
+      case "C":
+        return "copied";
+      case "U":
+        return "unmerged";
+      default:
+        return "modified";
     }
   }
 

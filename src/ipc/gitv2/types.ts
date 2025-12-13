@@ -109,6 +109,108 @@ export interface GitCommit {
   parents: string[];
 }
 
+// ============================================================================
+// Commit History Types
+// ============================================================================
+
+/**
+ * Extended commit information for history display.
+ *
+ * This extends GitCommit with additional fields needed for
+ * commit graph visualization and history browsing.
+ */
+export interface HistoryCommit {
+  /** Full 40-character SHA hash */
+  id: string;
+
+  /** Short hash (first 7 characters) for display */
+  shortId: string;
+
+  /** Commit subject (first line of message) */
+  subject: string;
+
+  /** Full commit message including body */
+  message: string;
+
+  /** Author name */
+  author: string;
+
+  /** Author email */
+  authorEmail: string;
+
+  /** Commit timestamp (milliseconds since epoch) */
+  timestamp: number;
+
+  /** Parent commit hashes (empty for root commits, 2+ for merges) */
+  parentIds: string[];
+
+  /** Refs pointing to this commit (branch names, tags) */
+  refs?: string[];
+}
+
+/**
+ * File changed in a commit.
+ *
+ * Represents a single file modification within a commit,
+ * including its status (added/modified/deleted/renamed).
+ */
+export interface CommitFile {
+  /** Relative path from git root */
+  path: string;
+
+  /** Change status */
+  status: GitFileStatusCode;
+
+  /** Original path if renamed (undefined otherwise) */
+  originalPath?: string;
+
+  /** Lines added (0 for binary/deleted files) */
+  additions: number;
+
+  /** Lines removed (0 for binary/added files) */
+  deletions: number;
+
+  /** True if file is binary */
+  isBinary: boolean;
+}
+
+/**
+ * Options for fetching commit history.
+ */
+export interface GetCommitHistoryOptions {
+  /**
+   * Maximum number of commits to return.
+   * @default 50
+   */
+  limit?: number;
+
+  /**
+   * Number of commits to skip (for pagination).
+   * @default 0
+   */
+  skip?: number;
+
+  /**
+   * Branch or ref to get history for.
+   * Defaults to current HEAD.
+   */
+  ref?: string;
+}
+
+/**
+ * Result of fetching commit history.
+ */
+export interface CommitHistoryResult {
+  /** The commits (newest first) */
+  commits: HistoryCommit[];
+
+  /** Whether there are more commits available */
+  hasMore: boolean;
+
+  /** Total count of commits (if available) */
+  totalCount?: number;
+}
+
 /**
  * Options for creating a commit.
  */
@@ -405,6 +507,65 @@ export interface GitProvider {
    * @param files - Relative paths from git root
    */
   revert(files: string[]): Promise<void>;
+
+  // -------------------------------------------------------------------------
+  // Commit History
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get commit history with pagination support.
+   *
+   * Returns commits in topological order (newest first), which is required
+   * for correct swimlane graph computation.
+   *
+   * @param options - Pagination and filtering options
+   * @returns Paginated commit history result
+   *
+   * @example
+   * ```typescript
+   * // Get first 50 commits
+   * const result = await provider.getCommitHistory({ limit: 50 });
+   *
+   * // Load more commits
+   * if (result.hasMore) {
+   *   const more = await provider.getCommitHistory({ limit: 50, skip: 50 });
+   * }
+   * ```
+   */
+  getCommitHistory(
+    options?: GetCommitHistoryOptions,
+  ): Promise<CommitHistoryResult>;
+
+  /**
+   * Get a single commit by its hash.
+   *
+   * @param commitId - Full or short commit hash
+   * @returns The commit, or null if not found
+   */
+  getCommit(commitId: string): Promise<HistoryCommit | null>;
+
+  /**
+   * Get files changed in a specific commit.
+   *
+   * Returns the list of files modified by the commit with their
+   * status (added/modified/deleted/renamed) and diff statistics.
+   *
+   * @param commitId - Full or short commit hash
+   * @returns Array of files changed in the commit
+   */
+  getCommitFiles(commitId: string): Promise<CommitFile[]>;
+
+  /**
+   * Get file content at a specific commit.
+   *
+   * Retrieves the content of a file as it existed at a particular commit.
+   * Used for displaying historical diffs.
+   *
+   * @param commitId - Full or short commit hash
+   * @param filePath - Relative path from git root
+   * @returns File content, or null if file doesn't exist at that commit
+   */
+  getFileAtCommit(commitId: string, filePath: string): Promise<string | null>;
 
   // -------------------------------------------------------------------------
   // Operations
