@@ -71,6 +71,10 @@ export type {
   FileChangeDiffProps,
 } from "./ChangesReviewPane";
 
+// CommitReviewPane components
+export { CommitReviewPane } from "./CommitReviewPane";
+export type { CommitReviewPaneProps } from "./CommitReviewPane";
+
 // Shared components
 export { getStatusConfig, GitBadge } from "./shared";
 export type { GitBadgeProps } from "./shared";

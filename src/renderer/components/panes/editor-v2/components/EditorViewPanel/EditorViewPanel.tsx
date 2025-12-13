@@ -37,6 +37,7 @@ import { MonacoModelRegistry, pathToUri } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
 import type { GitV2API } from "@/api/GitV2API";
 import { ChangesReviewPane } from "../ChangesReviewPane";
+import { CommitReviewPane } from "../CommitReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar, CommitDiffToolbar } from "../Toolbar";
 import { DeletedFileViewer } from "./DeletedFileViewer";
@@ -105,6 +106,9 @@ export interface EditorViewPanelProps {
   /** Handler for exiting commit diff mode (back button) */
   onExitCommitDiff?: () => void;
 
+  /** Handler for exiting commit review mode (back button) */
+  onExitCommitReview?: () => void;
+
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
@@ -154,6 +158,7 @@ export function EditorViewPanel({
   onToggleDiffMode,
   onExitReview,
   onExitCommitDiff,
+  onExitCommitReview,
   isFileDeleted = false,
   // Remote operations for ChangesReviewPane
   hasUpstream = true,
@@ -405,6 +410,26 @@ export function EditorViewPanel({
             />
           </EditorErrorBoundary>
         </div>
+      </div>
+    );
+  }
+
+  // Commit review mode - read-only view of all changes in a commit
+  // This shows the full commit with all file diffs in a scrollable list
+  if (viewMode.type === "commitReview" && git) {
+    const { commitId, parentCommitId } = viewMode;
+
+    return (
+      <div
+        className="flex flex-col h-full w-full bg-background"
+        data-testid="editor-view-panel"
+      >
+        <CommitReviewPane
+          commitId={commitId}
+          parentCommitId={parentCommitId}
+          git={git}
+          onExit={onExitCommitReview}
+        />
       </div>
     );
   }

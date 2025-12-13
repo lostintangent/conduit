@@ -850,18 +850,45 @@ export function EditorPaneV2({
 
   /**
    * Handle "view all" on a commit from commit graph.
-   * Opens the commit review pane (Phase 14 - placeholder).
+   * Opens the commit review pane showing all files changed in that commit.
    */
-  const handleViewCommit = useCallback((_event: CommitViewEvent) => {
-    // Phase 14 will implement CommitReviewPane
-    // For now, just log
-    console.log("[EditorPaneV2] View commit (Phase 14):", _event.commitId);
-  }, []);
+  const handleViewCommit = useCallback(
+    (event: CommitViewEvent) => {
+      // Save current view mode so we can return to it
+      previousViewModeRef.current = viewMode;
+
+      // Set view mode to commit review
+      setViewMode({
+        type: "commitReview",
+        commitId: event.commitId,
+        parentCommitId: event.parentCommitId,
+      });
+
+      // In single layout, switch to editor view
+      if (layout === "single") {
+        setPanelView("editor");
+      }
+    },
+    [viewMode, layout, setViewMode],
+  );
 
   /**
    * Exit commit diff mode and return to previous view.
    */
   const handleExitCommitDiff = useCallback(() => {
+    // Return to previous view mode (or editor mode as fallback)
+    if (previousViewModeRef.current) {
+      setViewMode(previousViewModeRef.current);
+      previousViewModeRef.current = null;
+    } else {
+      setViewMode({ type: "editor" });
+    }
+  }, [setViewMode]);
+
+  /**
+   * Exit commit review mode and return to previous view.
+   */
+  const handleExitCommitReview = useCallback(() => {
     // Return to previous view mode (or editor mode as fallback)
     if (previousViewModeRef.current) {
       setViewMode(previousViewModeRef.current);
@@ -1103,6 +1130,7 @@ export function EditorPaneV2({
           onToggleDiffMode={handleToggleDiffMode}
           onExitReview={exitReviewMode}
           onExitCommitDiff={handleExitCommitDiff}
+          onExitCommitReview={handleExitCommitReview}
           isFileDeleted={isCurrentFileDeleted}
           // Remote operations
           hasUpstream={hasUpstream}
