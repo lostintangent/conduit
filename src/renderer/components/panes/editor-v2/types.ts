@@ -234,11 +234,40 @@ export interface FileNode {
  * The current view mode of the editor panel.
  *
  * Controls what is displayed in the main editor area.
+ *
+ * Modes are organized into categories:
+ *
+ * **Working Tree Modes** (current state):
+ * - `editor`: Standard code editor for viewing/editing files
+ * - `diff`: Side-by-side diff comparing file to a git ref
+ * - `changesReview`: Multi-file review of all working tree changes
+ *
+ * **Historical Modes** (read-only, viewing past commits):
+ * - `commitFileDiff`: Diff of a single file between commit and parent
+ * - `commitReview`: Multi-file review of all changes in a commit
  */
 export type ViewMode =
+  // Working tree modes
   | { type: "editor" }
   | { type: "diff"; filePath: string; baseBranch?: string }
-  | { type: "changesReview"; baseBranch?: string };
+  | { type: "changesReview"; baseBranch?: string }
+  // Historical commit modes (read-only)
+  | {
+      type: "commitFileDiff";
+      /** Absolute path to the file */
+      filePath: string;
+      /** Commit containing the change */
+      commitId: string;
+      /** Parent commit for comparison (first parent for merges) */
+      parentCommitId: string;
+    }
+  | {
+      type: "commitReview";
+      /** Commit to review */
+      commitId: string;
+      /** Parent commit for comparison */
+      parentCommitId: string;
+    };
 
 /**
  * Tree view mode - what the file tree displays.
