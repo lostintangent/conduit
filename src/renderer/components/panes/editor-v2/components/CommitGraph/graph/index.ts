@@ -4,8 +4,8 @@
  * This module contains the core graph computation and rendering logic:
  *
  * - swimlanes.ts: Algorithm to compute swimlane positions from commits
- * - GraphRenderer.ts: Pure functions for SVG path calculations
- * - GraphCell.tsx: React component that renders the SVG graph
+ * - GraphRenderer.ts: Pure functions for SVG path calculations (Phase 4)
+ * - GraphCell.tsx: React component that renders the SVG graph (Phase 4)
  * - colors.ts: Color palette and mapping utilities
  * - constants.ts: Rendering configuration constants
  *
@@ -17,25 +17,69 @@
  *
  * @example
  * ```tsx
- * import { computeSwimlanes, GraphCell, GRAPH_CONFIG } from './graph';
+ * import { computeSwimlanes, GRAPH_CONFIG, getColorCss } from './graph';
  *
- * const nodes = computeSwimlanes(commits, headCommitId);
- * return <GraphCell node={nodes[0]} config={GRAPH_CONFIG} />;
+ * const nodes = computeSwimlanes(commits, { headCommitId });
+ * const maxLanes = getMaxLaneCount(nodes);
  * ```
  */
 
-// Phase 2: Swimlane algorithm
-// export { computeSwimlanes } from './swimlanes';
+// =============================================================================
+// Swimlane Algorithm (Phase 2)
+// =============================================================================
 
-// Phase 2: Configuration constants
-// export { GRAPH_CONFIG } from './constants';
+export {
+  computeSwimlanes,
+  getMaxLaneCount,
+  findNodeByCommitId,
+  getLaneIndexForCommit,
+} from "./swimlanes";
 
-// Phase 2: Color utilities
-// export { GRAPH_COLORS, getNextColor, getColorCssVar } from './colors';
+export type { ComputeSwimlanesOptions } from "./swimlanes";
 
-// Phase 4: SVG rendering
+// =============================================================================
+// Configuration Constants (Phase 2)
+// =============================================================================
+
+export {
+  LANE_WIDTH,
+  ROW_HEIGHT,
+  CIRCLE_RADIUS,
+  CURVE_RADIUS,
+  STROKE_WIDTH,
+  MAX_VISIBLE_LANES,
+  MIN_GRAPH_WIDTH,
+  GRAPH_PADDING,
+  CIRCLE_CENTER_Y,
+  HEAD_OUTER_RADIUS,
+  GRAPH_CONFIG,
+  createConfig,
+} from "./constants";
+
+// =============================================================================
+// Color Utilities (Phase 2)
+// =============================================================================
+
+export {
+  BRANCH_COLOR_COUNT,
+  ROTATING_COLORS,
+  GRAPH_COLOR_CSS,
+  GRAPH_COLOR_CLASSES,
+  getNextColor,
+  getColorCss,
+  getColorClass,
+  isSemanticColor,
+} from "./colors";
+
+// =============================================================================
+// SVG Rendering (Phase 4 - Not yet implemented)
+// =============================================================================
+
 // export { calculateGraphCell, verticalLinePath, curvePath } from './GraphRenderer';
 
-// Phase 4: React component
+// =============================================================================
+// React Components (Phase 4 - Not yet implemented)
+// =============================================================================
+
 // export { GraphCell } from './GraphCell';
 // export type { GraphCellProps } from './GraphCell';
