@@ -4,8 +4,8 @@
  * This module contains the core graph computation and rendering logic:
  *
  * - swimlanes.ts: Algorithm to compute swimlane positions from commits
- * - GraphRenderer.ts: Pure functions for SVG path calculations (Phase 4)
- * - GraphCell.tsx: React component that renders the SVG graph (Phase 4)
+ * - renderer.ts: Pure functions for SVG path calculations
+ * - GraphCell.tsx: React component that renders the SVG graph
  * - colors.ts: Color palette and mapping utilities
  * - constants.ts: Rendering configuration constants
  *
@@ -17,10 +17,18 @@
  *
  * @example
  * ```tsx
- * import { computeSwimlanes, GRAPH_CONFIG, getColorCss } from './graph';
+ * import {
+ *   computeSwimlanes,
+ *   GRAPH_CONFIG,
+ *   GraphCell,
+ * } from './graph';
  *
  * const nodes = computeSwimlanes(commits, { headCommitId });
- * const maxLanes = getMaxLaneCount(nodes);
+ *
+ * // Render each node
+ * nodes.map(node => (
+ *   <GraphCell key={node.commit.id} node={node} height={44} config={GRAPH_CONFIG} />
+ * ));
  * ```
  */
 
@@ -72,14 +80,33 @@ export {
 } from "./colors";
 
 // =============================================================================
-// SVG Rendering (Phase 4 - Not yet implemented)
+// SVG Rendering (Phase 4)
 // =============================================================================
 
-// export { calculateGraphCell, verticalLinePath, curvePath } from './GraphRenderer';
+export {
+  // Position calculations
+  laneX,
+  rowCenterY,
+  // Path generation
+  verticalLinePath,
+  curvePathBetweenLanes,
+  pathFromAbove,
+  pathToBelow,
+  passThroughPath,
+  // Lane analysis
+  getPassThroughLanes,
+  findCommitInputLane,
+  // Circle calculation
+  calculateCircle,
+  // Complete cell calculation
+  calculateGraphCell,
+  // Utilities
+  calculateGraphWidth,
+} from "./renderer";
 
 // =============================================================================
-// React Components (Phase 4 - Not yet implemented)
+// React Components (Phase 4)
 // =============================================================================
 
-// export { GraphCell } from './GraphCell';
-// export type { GraphCellProps } from './GraphCell';
+export { GraphCell } from "./GraphCell";
+export type { GraphCellProps } from "./GraphCell";
