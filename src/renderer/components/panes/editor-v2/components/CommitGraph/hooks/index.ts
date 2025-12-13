@@ -27,8 +27,13 @@
  */
 
 // Phase 6: Main state hook
-// export { useCommitGraph } from './useCommitGraph';
-// export type { UseCommitGraphResult } from './useCommitGraph';
+export { useCommitGraph } from "./useCommitGraph";
+export type {
+  UseCommitGraphOptions,
+  UseCommitGraphResult,
+  CommitGraphState,
+  CommitGraphActions,
+} from "./useCommitGraph";
 
 // Phase 10: Keyboard navigation
 // export { useCommitGraphKeyboard } from './useCommitGraphKeyboard';
