@@ -28,6 +28,9 @@ export type { DeletedFileViewerProps } from "./DeletedFileViewer";
 export { ExternalChangeWarning } from "./ExternalChangeWarning";
 export type { ExternalChangeWarningProps } from "./ExternalChangeWarning";
 
+export { HistoricalDiffViewer } from "./HistoricalDiffViewer";
+export type { HistoricalDiffViewerProps } from "./HistoricalDiffViewer";
+
 // Constants
 export {
   EDITOR_MIN_HEIGHT,

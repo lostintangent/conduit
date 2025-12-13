@@ -35,7 +35,11 @@ import {
   useResponsiveLayout,
   useReviewModeState,
 } from "./hooks";
-import type { FileNode, TreeViewMode } from "./types";
+import type { FileNode, TreeViewMode, ViewMode } from "./types";
+import type {
+  CommitFileSelectEvent,
+  CommitViewEvent,
+} from "./components/CommitGraph/types";
 import { detectLanguage } from "./utils/languageDetection";
 
 /**
@@ -245,6 +249,9 @@ export function EditorPaneV2({
   const [baseBranch, setBaseBranch] = useState<string | null>(
     pane.agentBaseBranch ?? null,
   );
+
+  // Previous view mode (for returning from commit diff view)
+  const previousViewModeRef = useRef<ViewMode | null>(null);
 
   // Panel view state (for single-column layout mode)
   const [panelView, setPanelView] = useState<"tree" | "editor">("tree");
@@ -812,6 +819,59 @@ export function EditorPaneV2({
   }, [baseBranch, enterReviewMode]);
 
   /**
+   * Handle file selection from commit graph.
+   * Opens the historical diff view for the selected file.
+   */
+  const handleCommitFileSelect = useCallback(
+    (event: CommitFileSelectEvent) => {
+      // Save current view mode so we can return to it
+      previousViewModeRef.current = viewMode;
+
+      // Convert relative path to absolute path
+      const absolutePath = currentCwd.endsWith("/")
+        ? `${currentCwd}${event.file.path}`
+        : `${currentCwd}/${event.file.path}`;
+
+      // Set view mode to commit file diff
+      setViewMode({
+        type: "commitFileDiff",
+        filePath: absolutePath,
+        commitId: event.commitId,
+        parentCommitId: event.parentCommitId,
+      });
+
+      // In single layout, switch to editor view
+      if (layout === "single") {
+        setPanelView("editor");
+      }
+    },
+    [viewMode, currentCwd, layout, setViewMode],
+  );
+
+  /**
+   * Handle "view all" on a commit from commit graph.
+   * Opens the commit review pane (Phase 14 - placeholder).
+   */
+  const handleViewCommit = useCallback((_event: CommitViewEvent) => {
+    // Phase 14 will implement CommitReviewPane
+    // For now, just log
+    console.log("[EditorPaneV2] View commit (Phase 14):", _event.commitId);
+  }, []);
+
+  /**
+   * Exit commit diff mode and return to previous view.
+   */
+  const handleExitCommitDiff = useCallback(() => {
+    // Return to previous view mode (or editor mode as fallback)
+    if (previousViewModeRef.current) {
+      setViewMode(previousViewModeRef.current);
+      previousViewModeRef.current = null;
+    } else {
+      setViewMode({ type: "editor" });
+    }
+  }, [setViewMode]);
+
+  /**
    * Determine if the current file is git-modified (eligible for diff toggle).
    */
   const isCurrentFileGitModified = useMemo(() => {
@@ -1001,6 +1061,9 @@ export function EditorPaneV2({
           // Review Mode Props
           isReviewModeActive={isReviewMode}
           onReviewChanges={handleReviewChanges}
+          // Commit Graph Props
+          onCommitFileSelect={handleCommitFileSelect}
+          onViewCommit={handleViewCommit}
         />
       </div>
 
@@ -1039,6 +1102,7 @@ export function EditorPaneV2({
           isDiffMode={viewMode.type === "diff"}
           onToggleDiffMode={handleToggleDiffMode}
           onExitReview={exitReviewMode}
+          onExitCommitDiff={handleExitCommitDiff}
           isFileDeleted={isCurrentFileDeleted}
           // Remote operations
           hasUpstream={hasUpstream}

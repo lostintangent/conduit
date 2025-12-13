@@ -49,3 +49,9 @@ export type {
 } from "./useDiffModeTransition";
 export { useReviewModeState } from "./useReviewModeState";
 export type { UseReviewModeStateResult } from "./useReviewModeState";
+export { useHistoricalDiff } from "./useHistoricalDiff";
+export type {
+  HistoricalDiffContent,
+  HistoricalDiffError,
+  HistoricalDiffErrorType,
+} from "./useHistoricalDiff";

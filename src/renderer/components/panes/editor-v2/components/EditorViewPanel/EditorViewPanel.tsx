@@ -38,10 +38,11 @@ import type { FileNode, ModelState, ViewMode } from "../../types";
 import type { GitV2API } from "@/api/GitV2API";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
-import { EditorToolbar } from "../Toolbar/EditorToolbar";
+import { EditorToolbar, CommitDiffToolbar } from "../Toolbar";
 import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
+import { HistoricalDiffViewer } from "./HistoricalDiffViewer";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
 /**
@@ -101,6 +102,9 @@ export interface EditorViewPanelProps {
   /** Handler for exiting changes review mode */
   onExitReview?: () => void;
 
+  /** Handler for exiting commit diff mode (back button) */
+  onExitCommitDiff?: () => void;
+
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
@@ -149,6 +153,7 @@ export function EditorViewPanel({
   isDiffMode = false,
   onToggleDiffMode,
   onExitReview,
+  onExitCommitDiff,
   isFileDeleted = false,
   // Remote operations for ChangesReviewPane
   hasUpstream = true,
@@ -354,6 +359,52 @@ export function EditorViewPanel({
           onPull={onPull ?? (() => {})}
           onPush={onPush ?? (() => {})}
         />
+      </div>
+    );
+  }
+
+  // Commit file diff mode - read-only historical diff view
+  // Shows diff between parent commit and the commit
+  if (viewMode.type === "commitFileDiff" && git) {
+    const { filePath: commitFilePath, commitId, parentCommitId } = viewMode;
+
+    // Calculate display path for the commit file
+    const commitDisplayPath = (() => {
+      const normalizedFilePath = commitFilePath.replace(/\\/g, "/");
+      const normalizedCwd = cwd.replace(/\\/g, "/");
+      const cwdWithSlash = normalizedCwd.endsWith("/")
+        ? normalizedCwd
+        : `${normalizedCwd}/`;
+
+      if (normalizedFilePath.startsWith(cwdWithSlash)) {
+        return normalizedFilePath.slice(cwdWithSlash.length);
+      }
+      return commitFilePath;
+    })();
+
+    return (
+      <div
+        className="flex flex-col h-full w-full bg-background"
+        data-testid="editor-view-panel"
+      >
+        <CommitDiffToolbar
+          displayPath={commitDisplayPath}
+          filePath={commitFilePath}
+          commitShortId={commitId.slice(0, 7)}
+          onBack={onExitCommitDiff}
+        />
+        <div className="flex-1 min-h-0">
+          <EditorErrorBoundary filePath={commitFilePath}>
+            <HistoricalDiffViewer
+              editorId={`${editorId}-commit-diff`}
+              commitId={commitId}
+              parentCommitId={parentCommitId}
+              filePath={commitDisplayPath}
+              git={git}
+              theme={theme}
+            />
+          </EditorErrorBoundary>
+        </div>
       </div>
     );
   }
