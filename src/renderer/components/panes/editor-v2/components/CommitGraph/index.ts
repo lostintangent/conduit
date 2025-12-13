@@ -85,6 +85,6 @@ export type { CommitGraphHeaderProps } from "./CommitGraphHeader";
 export { CommitGraphList } from "./CommitGraphList";
 export type { CommitGraphListProps } from "./CommitGraphList";
 
-// Phase 11: Main panel component (uncomment when implemented)
-// export { CommitGraphPanel } from './CommitGraphPanel';
-// export type { CommitGraphPanelProps } from './CommitGraphPanel';
+// Phase 11: Main panel component
+export { CommitGraphPanel } from "./CommitGraphPanel";
+export type { CommitGraphPanelProps } from "./CommitGraphPanel";

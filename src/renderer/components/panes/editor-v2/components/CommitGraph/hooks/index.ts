@@ -35,8 +35,11 @@ export type {
   CommitGraphActions,
 } from "./useCommitGraph";
 
-// Phase 10: Keyboard navigation
-// export { useCommitGraphKeyboard } from './useCommitGraphKeyboard';
+// Phase 10: Keyboard navigation is integrated into CommitGraphList
 
 // Phase 11: Panel height persistence
-// export { usePanelHeight } from './usePanelHeight';
+export { usePanelHeight } from "./usePanelHeight";
+export type {
+  UsePanelHeightOptions,
+  UsePanelHeightResult,
+} from "./usePanelHeight";
