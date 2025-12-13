@@ -27,10 +27,17 @@ import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { FileNode, TreeViewMode } from "../../types";
+import type {
+  CommitFileSelectEvent,
+  CommitViewEvent,
+} from "../CommitGraph/types";
 import { FileTreeToolbar } from "./FileTreeToolbar";
 import { FileTreeNormal } from "./FileTreeNormal";
 import { FileTreeChanges } from "./FileTreeChanges";
 import { GitBranchToolbar } from "./GitBranchToolbar";
+import { PanelResizer } from "./PanelResizer";
+import { CommitGraphPanel } from "../CommitGraph";
+import { usePanelHeight } from "../CommitGraph/hooks";
 import { cn } from "@/utils";
 
 export interface FileTreePanelProps {
@@ -154,6 +161,16 @@ export interface FileTreePanelProps {
 
   /** Callback when changes view mode changes */
   onChangesViewModeChange?: (mode: "flat" | "nested") => void;
+
+  // ---------------------------------------------------------------------------
+  // Commit Graph Props
+  // ---------------------------------------------------------------------------
+
+  /** Callback when a file is selected in the commit graph */
+  onCommitFileSelect?: (event: CommitFileSelectEvent) => void;
+
+  /** Callback when "view all" is clicked on a commit */
+  onViewCommit?: (event: CommitViewEvent) => void;
 }
 
 /**
@@ -199,7 +216,25 @@ export function FileTreePanel({
   // Changes View Mode Props
   changesViewMode = "flat",
   onChangesViewModeChange,
+  // Commit Graph Props
+  onCommitFileSelect,
+  onViewCommit,
 }: FileTreePanelProps) {
+  // ---------------------------------------------------------------------------
+  // Commit Graph Height State
+  // ---------------------------------------------------------------------------
+
+  const {
+    height: commitGraphHeight,
+    setHeight: setCommitGraphHeight,
+    minHeight: minCommitGraphHeight,
+    maxHeight: maxCommitGraphHeight,
+  } = usePanelHeight({
+    storageKey: "commit-graph-height",
+    defaultHeight: 200,
+    minHeight: 100,
+    maxHeight: 400,
+  });
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
@@ -283,24 +318,46 @@ export function FileTreePanel({
           />
         </div>
 
-        {/* Changes view */}
+        {/* Changes view - includes file list and commit graph */}
         <div
           className={cn(
-            "absolute inset-0",
-            treeViewMode === "changes" ? "block" : "hidden",
+            "absolute inset-0 flex flex-col",
+            treeViewMode === "changes" ? "flex" : "hidden",
           )}
         >
-          <FileTreeChanges
-            paneId={paneId}
-            cwd={cwd}
-            git={git}
-            selectedFile={selectedFile}
-            onFileSelect={onFileSelect}
-            viewMode={changesViewMode}
-            gitStatus={gitStatus}
-            isComparingToBranch={isComparingToBranch}
-            baseBranchName={baseBranch}
+          {/* File changes list - takes remaining space */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            <FileTreeChanges
+              paneId={paneId}
+              cwd={cwd}
+              git={git}
+              selectedFile={selectedFile}
+              onFileSelect={onFileSelect}
+              viewMode={changesViewMode}
+              gitStatus={gitStatus}
+              isComparingToBranch={isComparingToBranch}
+              baseBranchName={baseBranch}
+            />
+          </div>
+
+          {/* Resizer between file list and commit graph */}
+          <PanelResizer
+            onResize={setCommitGraphHeight}
+            minHeight={minCommitGraphHeight}
+            maxHeight={maxCommitGraphHeight}
           />
+
+          {/* Commit history graph - fixed height at bottom */}
+          <div
+            className="shrink-0 overflow-hidden"
+            style={{ height: commitGraphHeight }}
+          >
+            <CommitGraphPanel
+              git={git}
+              onFileSelect={onCommitFileSelect}
+              onViewCommit={onViewCommit}
+            />
+          </div>
         </div>
       </div>
     </div>
