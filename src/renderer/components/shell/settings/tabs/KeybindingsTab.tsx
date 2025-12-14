@@ -14,7 +14,7 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ICommandRegistry } from "../../../../commands/core/CommandRegistry";
 import type { CommandDescriptor } from "../../../../commands/core/types";
 import type { KeybindingRegistry } from "../../../../commands/keybindings/KeybindingRegistry";
@@ -31,7 +31,7 @@ import {
 } from "../../../../commands/keybindings/utils";
 import { KeybindingRecorder } from "../../keybindings/KeybindingRecorder";
 
-interface KeyboardShortcutsTabProps {
+interface KeybindingsTabProps {
   commandRegistry: ICommandRegistry;
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
@@ -50,12 +50,12 @@ interface KeybindingRow {
   conflictingCommands: string[];
 }
 
-export function KeyboardShortcutsTab({
+export function KeybindingsTab({
   commandRegistry,
   keybindingRegistry,
   homeDirectory,
   onOpenQuickPane,
-}: KeyboardShortcutsTabProps) {
+}: KeybindingsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "user" | "conflicts">(
