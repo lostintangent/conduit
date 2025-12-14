@@ -1,7 +1,3 @@
-import {
-  defaultFontFamily,
-  defaultFontSize,
-} from "@/components/shell/title/TerminalFontSettingsDialog";
 import { updatePaneProperty } from "@/store/actions/pane";
 import { resolveColor } from "@/utils/theme";
 import { UserSettings } from "@shared/types";
@@ -104,8 +100,8 @@ export function getOrCreate(
       selectionBackground: resolveColor("selection"),
     };
 
-    const fontFamily = userSettings.terminalFontFamily ?? defaultFontFamily;
-    const fontSize = userSettings.terminalFontSize ?? defaultFontSize;
+    const fontFamily = userSettings.terminalFontFamily!;
+    const fontSize = userSettings.terminalFontSize!;
 
     const terminal = new Terminal({
       fontFamily,

@@ -19,7 +19,6 @@ import {
 import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import {
   disposeSession,
-  updateTerminalFonts,
   updateTerminalThemes,
 } from "@/components/panes/terminal/xtermCache";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
@@ -31,7 +30,6 @@ import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
-import { TerminalFontSettingsDialog } from "@/components/shell/title/TerminalFontSettingsDialog";
 import { TitleBar } from "@/components/shell/title/TitleBar";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
@@ -1061,20 +1059,6 @@ export function App() {
               message: `Launch failed: ${errorMessage}`,
             });
           }
-        }}
-      />
-
-      <TerminalFontSettingsDialog
-        isOpen={showTerminalFontSettings}
-        initialFontFamily={terminalFontFamily}
-        initialFontSize={terminalFontSize}
-        onClose={() => setShowTerminalFontSettings(false)}
-        onSave={async (fontFamily, fontSize) => {
-          await updateSettings({
-            terminalFontFamily: fontFamily,
-            terminalFontSize: fontSize,
-          });
-          updateTerminalFonts(fontFamily, fontSize);
         }}
       />
     </div>

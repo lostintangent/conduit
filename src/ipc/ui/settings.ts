@@ -33,6 +33,8 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
   theme: "dark",
   terminalPromptBufferLines: 100,
+  terminalFontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',
+  terminalFontSize: 13,
 };
 
 export async function loadSettings(
