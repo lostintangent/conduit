@@ -82,78 +82,90 @@ export type BrowserCaptureArgs = {
   paneId?: string;
 };
 
-export type BrowserAutomationAction =
-  | "query"
-  | "click"
-  | "hover"
-  | "focus"
-  | "type"
-  | "keys"
-  | "scroll"
-  | "waitFor";
+import type {
+  CliCommand,
+  CliCommandArgs,
+  CliCommandResult,
+  DefineCommand,
+} from "./types";
+
+// Re-export DefineCommand for external use
+export type { DefineCommand } from "./types";
 
 /**
- * Command-to-args-to-result mapping for browser automation.
- * Shared between renderer and preload webview.
+ * All browser command names from CliCommand.
  */
-export type BrowserAutomationCommand =
-  | {
-      command: "query";
-      args: BrowserQueryArgs;
-      result: BrowserElementDescriptor[];
-    }
-  | {
-      command: "click";
-      args: BrowserClickArgs;
-      result: BrowserElementDescriptor;
-    }
-  | {
-      command: "hover";
-      args: BrowserHoverArgs;
-      result: BrowserElementDescriptor;
-    }
-  | {
-      command: "focus";
-      args: BrowserFocusArgs;
-      result: BrowserElementDescriptor;
-    }
-  | {
-      command: "type";
-      args: BrowserTypeArgs;
-      result: BrowserElementDescriptor;
-    }
-  | { command: "keys"; args: BrowserKeysArgs; result: boolean }
-  | { command: "scroll"; args: BrowserScrollArgs; result: boolean }
-  | { command: "waitFor"; args: BrowserWaitArgs; result: boolean };
+type AllBrowserCliNames = Extract<
+  CliCommand,
+  { name: `browser-${string}` }
+>["name"];
 
 /**
- * Utility type to extract args for a specific browser automation command.
+ * Browser commands handled directly by renderer (not through webview automation).
  */
-export type BrowserAutomationArgs<
-  T extends BrowserAutomationCommand["command"],
-> = Extract<BrowserAutomationCommand, { command: T }>;
+type RendererBrowserCommands =
+  | "browser-capture"
+  | "browser-navigate"
+  | "browser-back"
+  | "browser-forward"
+  | "browser-refresh";
+
+/**
+ * Strip "browser-" prefix from a command name.
+ */
+type StripBrowserPrefix<T extends string> = T extends `browser-${infer Short}`
+  ? Short
+  : never;
+
+/**
+ * Browser automation action names, derived from CliCommand by excluding
+ * commands handled directly by the renderer.
+ */
+export type BrowserAutomationAction = StripBrowserPrefix<
+  Exclude<AllBrowserCliNames, RendererBrowserCommands>
+>;
+
+/**
+ * Derives BrowserAutomationCommand from CliCommand by extracting browser
+ * automation commands and stripping the "browser-" prefix from names.
+ */
+export type BrowserAutomationCommand = {
+  [K in BrowserAutomationAction]: Extract<
+    CliCommand,
+    { name: `browser-${K}` }
+  > extends DefineCommand<`browser-${K}`, infer Args, infer Result>
+    ? DefineCommand<K, Args, Result>
+    : never;
+}[BrowserAutomationAction];
+
+/* Type utilities for extracting command args and results */
+
+export type BrowserAutomationCommandArgs<Name extends BrowserAutomationAction> =
+  CliCommandArgs<`browser-${Name}`>;
+
+export type BrowserAutomationCommandResult<
+  Name extends BrowserAutomationAction,
+> = CliCommandResult<`browser-${Name}`>;
 
 /**
  * IPC request sent from renderer to preload webview to invoke an automation command.
  */
 export type BrowserAutomationRequest<
-  T extends
-    BrowserAutomationCommand["command"] = BrowserAutomationCommand["command"],
+  T extends BrowserAutomationAction = BrowserAutomationAction,
 > = {
   requestId: string;
-  command: T;
-  args: BrowserAutomationArgs<T>["args"];
+  name: T;
+  args: BrowserAutomationCommandArgs<T>;
 };
 
 /**
  * IPC response sent from preload webview back to renderer with the automation result.
  */
 export type BrowserAutomationResponse<
-  T extends
-    BrowserAutomationCommand["command"] = BrowserAutomationCommand["command"],
+  T extends BrowserAutomationAction = BrowserAutomationAction,
 > = {
   requestId: string;
-  result?: BrowserAutomationArgs<T>["result"];
+  result?: BrowserAutomationCommandResult<T>;
   error?: string;
 };
 
@@ -411,7 +423,7 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
           parser: "int",
         },
       ],
-      automation: "waitFor",
+      automation: "wait",
       buildArgs: ([selector], options) => ({
         paneId: options.pane,
         selector,

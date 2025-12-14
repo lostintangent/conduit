@@ -1,20 +1,20 @@
-import { ipcRenderer } from "electron";
 import type {
   BrowserAutomationRequest,
   BrowserAutomationResponse,
 } from "@shared/cli/browser";
+import { ipcRenderer } from "electron";
 import automation from "./api/automation";
 
 ipcRenderer.on(
   "browser:request",
   async (_, request: BrowserAutomationRequest) => {
-    const { requestId, command, args } = request ?? {};
-    if (!requestId || !command || !(command in automation)) {
+    const { requestId, name, args } = request ?? {};
+    if (!requestId || !name || !(name in automation)) {
       return;
     }
 
     try {
-      const result = await automation[command](args as never);
+      const result = await automation[name](args as never);
       const response: BrowserAutomationResponse = { requestId, result };
       ipcRenderer.sendToHost("browser:response", response);
     } catch (error: unknown) {
