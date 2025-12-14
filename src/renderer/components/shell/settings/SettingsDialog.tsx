@@ -17,7 +17,7 @@ import type { ICommandRegistry } from "../../../commands/core/CommandRegistry";
 import type { KeybindingRegistry } from "../../../commands/keybindings/KeybindingRegistry";
 import { AdvancedTab } from "./tabs/AdvancedTab";
 import { AgentsTab } from "./tabs/AgentsTab";
-import { KeyboardShortcutsTab } from "./tabs/KeyboardShortcutsTab";
+import { KeybindingsTab } from "./tabs/KeybindingsTab";
 import { PaneActionsTab } from "./tabs/PaneActionsTab";
 
 interface SettingsDialogProps {
@@ -32,7 +32,6 @@ interface SettingsDialogProps {
     filePath?: string;
   }) => void;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
-  onOpenTerminalFontSettings: () => void;
   userSettings: ReturnType<typeof useUserSettings>;
 }
 
@@ -44,7 +43,6 @@ export function SettingsDialog({
   initialTab = "keyboard",
   onOpenQuickPane,
   onUpdateSettings,
-  onOpenTerminalFontSettings,
   userSettings,
 }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -92,7 +90,7 @@ export function SettingsDialog({
           <div className="px-6 py-2 border-b border-tinted-border flex-shrink-0">
             <TabsList className="flex-shrink-0 border-b-0 w-auto">
               <TabsTrigger value="keyboard">Keybindings</TabsTrigger>
-              <TabsTrigger value="paneActions">Actions</TabsTrigger>
+              <TabsTrigger value="paneActions">Pane Actions</TabsTrigger>
               <TabsTrigger value="agents">Agents</TabsTrigger>
               <TabsTrigger value="advanced">Advanced</TabsTrigger>
             </TabsList>
@@ -103,7 +101,7 @@ export function SettingsDialog({
             value="keyboard"
             className="flex flex-col min-h-0 flex-1"
           >
-            <KeyboardShortcutsTab
+            <KeybindingsTab
               commandRegistry={commandRegistry}
               keybindingRegistry={keybindingRegistry}
               homeDirectory={homeDirectory}
@@ -135,7 +133,6 @@ export function SettingsDialog({
             <AdvancedTab
               userSettings={userSettings}
               onUpdateSettings={onUpdateSettings}
-              onOpenTerminalFontSettings={onOpenTerminalFontSettings}
             />
           </TabsContent>
         </Tabs>

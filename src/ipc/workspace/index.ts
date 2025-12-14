@@ -20,13 +20,16 @@ const WORKSPACE_FILE_FILTER = {
 let workspacesFilePath: string;
 let workspaceState: WorkspaceState = { workspaces: [] };
 
-export default async function (
+export default async function initializeWorkspaceHandlers(
   conduitStateDirectory: string,
   refreshApplicationMenu: () => Promise<void>,
 ) {
   // Initialize the workspace state
   workspacesFilePath = path.join(conduitStateDirectory, WORKSPACES_FILE_NAME);
   await loadWorkspaceState();
+
+  // Refresh the application menu now that workspaces are loaded
+  await refreshApplicationMenu();
 
   // Setup IPC handlers for workspace operations
   ipcMain.handle("workspace:get-state", () => workspaceState);

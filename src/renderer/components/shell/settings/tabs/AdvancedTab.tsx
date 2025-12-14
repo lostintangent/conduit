@@ -4,11 +4,12 @@
  * Advanced user preferences including theme, advanced settings, and repository shortcuts
  */
 
-import { ChevronDown, Monitor, Moon, Sun } from "lucide-react";
+import { updateTerminalFonts } from "@/components/panes/terminal/xtermCache";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { capitalize } from "@/utils";
 import type { PlayButtonTarget, ThemeMode, UserSettings } from "@shared/types";
 import type { LucideIcon } from "lucide-react";
+import { ChevronDown, Monitor, Moon, Sun } from "lucide-react";
 
 const themeOptions = new Map<ThemeMode, LucideIcon>([
   ["light", Sun],
@@ -19,13 +20,11 @@ const themeOptions = new Map<ThemeMode, LucideIcon>([
 interface AdvancedTabProps {
   userSettings: ReturnType<typeof useUserSettings>;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
-  onOpenTerminalFontSettings: () => void;
 }
 
 export function AdvancedTab({
   userSettings,
   onUpdateSettings,
-  onOpenTerminalFontSettings,
 }: AdvancedTabProps) {
   const showLaunchButton = userSettings.showLaunchButton ?? false;
   const showPlayButton = userSettings.showPlayButton ?? false;
@@ -65,6 +64,29 @@ export function AdvancedTab({
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
+                id="alwaysShowTabs"
+                checked={userSettings.alwaysShowTabs}
+                onChange={(e) =>
+                  onUpdateSettings({ alwaysShowTabs: e.target.checked })
+                }
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor="alwaysShowTabs"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
+                >
+                  Always show tabs
+                </label>
+                <p className="text-xs text-tinted-foreground/50 mt-1">
+                  Show the tab bar even when there is only one tab
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
                 id="useGradientBorders"
                 checked={userSettings.useGradientBorders}
                 onChange={(e) =>
@@ -87,43 +109,86 @@ export function AdvancedTab({
           </div>
         </div>
 
-        {/* UI Settings Section */}
-        <div>
-          <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
-            User Interface
-          </h3>
-          <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                id="alwaysShowTabs"
-                checked={userSettings.alwaysShowTabs}
-                onChange={(e) =>
-                  onUpdateSettings({ alwaysShowTabs: e.target.checked })
-                }
-                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
-              />
-              <div className="flex-1">
-                <label
-                  htmlFor="alwaysShowTabs"
-                  className="text-sm text-tinted-foreground/80 cursor-pointer"
-                >
-                  Always show tabs
-                </label>
-                <p className="text-xs text-tinted-foreground/50 mt-1">
-                  Show the tab bar even when there is only one tab
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Terminal Settings Section */}
         <div>
           <h3 className="text-sm font-semibold text-tinted-foreground mb-4">
             Terminal
           </h3>
           <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
+            <div>
+              <label
+                htmlFor="terminalShell"
+                className="text-sm text-tinted-foreground/80 block mb-2"
+              >
+                Shell
+              </label>
+              <input
+                type="text"
+                id="terminalShell"
+                value={userSettings.terminalShell ?? ""}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    terminalShell: e.target.value || undefined,
+                  })
+                }
+                placeholder="Default shell"
+                className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground placeholder:text-tinted-foreground/40 focus:outline-none focus:border-accent"
+              />
+              <p className="text-xs text-tinted-foreground/50 mt-1">
+                The shell to use for terminal panes (e.g., /bin/zsh, /bin/bash)
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="terminalFontFamily"
+                className="text-sm text-tinted-foreground/80 block mb-2"
+              >
+                Font Family
+              </label>
+              <input
+                type="text"
+                id="terminalFontFamily"
+                value={userSettings.terminalFontFamily ?? ""}
+                onChange={(e) => {
+                  const fontFamily = e.target.value;
+                  onUpdateSettings({ terminalFontFamily: fontFamily });
+                  updateTerminalFonts(
+                    fontFamily,
+                    userSettings.terminalFontSize!,
+                  );
+                }}
+                className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="terminalFontSize"
+                className="text-sm text-tinted-foreground/80 block mb-2"
+              >
+                Font Size
+              </label>
+              <input
+                type="number"
+                id="terminalFontSize"
+                value={userSettings.terminalFontSize ?? 13}
+                onChange={(e) => {
+                  const fontSize = parseInt(e.target.value, 10);
+                  if (!isNaN(fontSize) && fontSize > 0) {
+                    onUpdateSettings({ terminalFontSize: fontSize });
+                    updateTerminalFonts(
+                      userSettings.terminalFontFamily!,
+                      fontSize,
+                    );
+                  }
+                }}
+                min={8}
+                max={32}
+                className="w-24 px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
+              />
+            </div>
+
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
@@ -145,15 +210,6 @@ export function AdvancedTab({
                   Display a ruler in terminal panes
                 </p>
               </div>
-            </div>
-
-            <div>
-              <button
-                onClick={onOpenTerminalFontSettings}
-                className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground/80 hover:border-tinted-foreground/30 transition-colors text-left"
-              >
-                Terminal Font Settings...
-              </button>
             </div>
           </div>
         </div>

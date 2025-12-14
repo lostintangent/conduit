@@ -20,7 +20,6 @@ import type {
   GitFileStatus,
   ListVMsPayload,
   NotificationKind,
-  TabPosition,
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
   TerminalCreateResponse,
@@ -126,13 +125,6 @@ const conduitAPI = {
   onBeforeClose: (listener: () => void) =>
     createEventListener("app:before-close", listener),
 
-  // Notify when the user changes the tab position setting
-  onTabPositionChange: (listener: (position: TabPosition) => void) =>
-    createEventListener("ui:set-tab-position", listener),
-
-  onAlwaysShowTabsChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-always-show-tabs", listener),
-
   // Notify when showing a notification/toast message
   onShowNotification: (
     listener: (payload: {
@@ -141,15 +133,6 @@ const conduitAPI = {
       timeout?: number;
     }) => void,
   ) => createEventListener("notification:show", listener),
-
-  onShowTerminalRulerChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-show-terminal-ruler", listener),
-
-  onUseConduitAsEditorChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-use-conduit-editor", listener),
-
-  onOpenTerminalFontSettings: (listener: () => void) =>
-    createEventListener("ui:open-terminal-font-settings", listener),
 
   /* UI-related methods (UI->main) */
 

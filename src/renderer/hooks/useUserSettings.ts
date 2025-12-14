@@ -7,15 +7,6 @@ const api = window.conduit;
 export function useUserSettings() {
   const [userSettings, setUserSettings] = useAtom(userSettingsAtom);
 
-  async function loadUserSettings() {
-    const settings = await api.getSettings();
-    console.log("[useUserSettings] Loaded settings:", {
-      agents: settings.agents,
-      launchGroups: settings.launchGroups,
-    });
-    setUserSettings(settings);
-  }
-
   function updateSetting<K extends keyof typeof userSettings>(
     key: K,
     value: (typeof userSettings)[K],
@@ -26,26 +17,9 @@ export function useUserSettings() {
     }));
   }
 
-  // Load initial settings and set up listeners for changes
+  // Load initial settings
   useEffect(() => {
-    loadUserSettings();
-
-    const eventListeners = [
-      api.onTabPositionChange((position) =>
-        updateSetting("tabPosition", position),
-      ),
-      api.onAlwaysShowTabsChange((value) =>
-        updateSetting("alwaysShowTabs", value === true),
-      ),
-      api.onShowTerminalRulerChange((value) =>
-        updateSetting("showTerminalRuler", value === true),
-      ),
-      api.onUseConduitAsEditorChange((value) =>
-        updateSetting("useConduitAsEditor", value === true),
-      ),
-    ];
-
-    return () => eventListeners.forEach((unsubscribe) => unsubscribe());
+    api.getSettings().then(setUserSettings);
   }, []);
 
   async function updateCommandHistory(
@@ -89,19 +63,17 @@ export function useUserSettings() {
 
   return {
     ...userSettings,
-
     updateSettings,
 
+    // Command history management (for the terminal in the command palette)
     addCommandHistoryEntry: (command: string) =>
       updateCommandHistory(command, "add"),
-
     removeCommandHistoryEntry: (command: string) =>
       updateCommandHistory(command, "remove"),
 
+    // Browser pane state management
     addUrlToHistory: (url: string) => updateUrlHistory(url),
-
     removeUrlFromHistory: (url: string) => removeUrlFromHistory(url),
-
     addStarredPage,
     removeStarredPage,
   };

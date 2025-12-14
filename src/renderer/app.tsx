@@ -146,8 +146,6 @@ export function App() {
     "keyboard" | "paneActions" | "agents" | "preferences" | null
   >(null);
   const [showAgentLauncher, setShowAgentLauncher] = useState(false);
-  const [showTerminalFontSettings, setShowTerminalFontSettings] =
-    useState(false);
 
   const {
     workspaceName,
@@ -304,17 +302,10 @@ export function App() {
       }
     });
 
-    const unsubscribeOpenTerminalFontSettings = api.onOpenTerminalFontSettings(
-      () => {
-        setShowTerminalFontSettings(true);
-      },
-    );
-
     return () => {
       unsubscribeExit();
       unsubscribeNotification();
       unsubscribeBeforeClose();
-      unsubscribeOpenTerminalFontSettings();
     };
   }, [tabs, activeTab]);
 
@@ -993,7 +984,6 @@ export function App() {
           initialTab={settingsTab}
           onOpenQuickPane={handleOpenQuickPane}
           onUpdateSettings={userSettings.updateSettings}
-          onOpenTerminalFontSettings={() => setShowTerminalFontSettings(true)}
           userSettings={userSettings}
         />
       ) : settingsTab ? (

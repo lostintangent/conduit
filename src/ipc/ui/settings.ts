@@ -58,12 +58,6 @@ export async function loadSettings(
       ...savedSettings,
     };
 
-    console.log("[Settings] Loaded settings:", {
-      defaultAgents: defaultSettings.agents,
-      savedAgents: savedSettings.agents,
-      finalAgents: result.agents,
-    });
-
     // Environment variable takes precedence over saved settings for useEditorV2
     // This allows developers to easily test either version without modifying saved settings
     if (process.env.VITE_USE_EDITOR_V2 !== undefined) {

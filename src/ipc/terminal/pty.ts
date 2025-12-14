@@ -67,6 +67,11 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
 }
 
 export function resolveShell() {
+  const { terminalShell } = getCurrentUserSettings();
+  if (terminalShell) {
+    return terminalShell;
+  }
+
   if (process.platform === "win32") {
     return "pwsh.exe";
   }

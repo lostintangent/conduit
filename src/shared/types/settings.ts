@@ -54,10 +54,11 @@ export type UserSettings = {
   // Terminal settings
   showTerminalRuler: boolean;
   terminalPromptBufferLines?: number;
-  agents?: AgentConfig[];
-  launchGroups?: LaunchGroup[];
+  terminalShell?: string;
   terminalFontFamily?: string;
   terminalFontSize?: number;
+  agents?: AgentConfig[];
+  launchGroups?: LaunchGroup[];
 
   // Editor settings
   useConduitAsEditor: boolean;
