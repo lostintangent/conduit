@@ -105,12 +105,6 @@ const FILES_PANEL_PADDING = 14;
  */
 const MIN_FILES_PANEL_HEIGHT = 48;
 
-/**
- * Maximum number of files to show without scrolling.
- * Beyond this, the panel gets a max-height and scrolls.
- */
-const MAX_VISIBLE_FILES = 8;
-
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -134,9 +128,9 @@ function calculateFilesPanelHeight(
     return MIN_FILES_PANEL_HEIGHT;
   }
 
-  const visibleFiles = Math.min(files.length, MAX_VISIBLE_FILES);
+  // Calculate height for all files - graph lines need to extend through entire list
   const contentHeight =
-    FILES_HEADER_HEIGHT + visibleFiles * FILE_ITEM_HEIGHT + FILES_PANEL_PADDING;
+    FILES_HEADER_HEIGHT + files.length * FILE_ITEM_HEIGHT + FILES_PANEL_PADDING;
 
   return contentHeight;
 }
@@ -259,7 +253,7 @@ function CommitGraphRowComponent({
         data-testid="commit-summary-row"
       >
         {/* Graph - just the commit row portion */}
-        <div className="flex-shrink-0" data-testid="graph-column">
+        <div className="flex-shrink-0 pr-2" data-testid="graph-column">
           <GraphCell node={node} height={ROW_HEIGHT} config={config} />
         </div>
 
@@ -278,7 +272,7 @@ function CommitGraphRowComponent({
       {isExpanded && (
         <div className="flex items-stretch">
           {/* Graph continuation - just the lines going down */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 pr-2">
             <GraphCell
               node={node}
               height={filesPanelHeight}

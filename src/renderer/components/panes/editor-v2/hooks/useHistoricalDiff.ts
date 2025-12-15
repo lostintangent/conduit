@@ -206,6 +206,7 @@ function createHistoricalDiffError(
  * @param parentCommitId - The parent commit (left side)
  * @param filePath - Relative path to the file from git root
  * @param git - GitV2API instance for fetching content
+ * @param originalFilePath - Original path for renamed/copied files (used for parent commit)
  * @returns HistoricalDiffContent with original, modified, loading state, and error
  */
 export function useHistoricalDiff(
@@ -213,6 +214,7 @@ export function useHistoricalDiff(
   parentCommitId: string | null,
   filePath: string | null,
   git: GitV2API,
+  originalFilePath?: string | null,
 ): HistoricalDiffContent {
   const [state, setState] = useState<HistoricalDiffContent>({
     original: null,
@@ -278,9 +280,14 @@ export function useHistoricalDiff(
 
       // 3. Fetch original content from parent commit (left side)
       // Only if we don't have an error yet and have a parent commit
+      // For renamed/copied files, use originalFilePath to find the file in parent
       if (diffError === null && parentCommitId) {
+        const parentPath = originalFilePath || filePath;
         try {
-          originalContent = await git.getFileAtCommit(parentCommitId, filePath);
+          originalContent = await git.getFileAtCommit(
+            parentCommitId,
+            parentPath,
+          );
         } catch {
           // File might not exist in parent (new file added in this commit)
           // This is not an error - show empty original
@@ -341,7 +348,7 @@ export function useHistoricalDiff(
     return () => {
       isStale = true;
     };
-  }, [commitId, parentCommitId, filePath, git]);
+  }, [commitId, parentCommitId, filePath, git, originalFilePath]);
 
   return state;
 }

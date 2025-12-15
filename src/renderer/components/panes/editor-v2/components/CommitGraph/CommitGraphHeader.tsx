@@ -20,9 +20,10 @@
  * ```
  */
 
-import { memo, useCallback } from "react";
+import { memo } from "react";
 import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FillingIcon } from "@/components/ui/filling-icon";
+import { Toggle } from "@/components/ui/toggle";
 import {
   Tooltip,
   TooltipContent,
@@ -66,24 +67,15 @@ function CommitGraphHeaderComponent({
   title = "Commits",
   className,
 }: CommitGraphHeaderProps) {
-  const handleRefresh = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!isRefreshing) {
-        onRefresh?.();
-      }
-    },
-    [onRefresh, isRefreshing],
-  );
+  // Match GitBranchToolbar button styling
+  const toggleButtonClass = "[&_svg]:size-3.5";
 
   return (
     <div
       className={cn(
         "flex items-center justify-between",
         "px-3 py-1.5",
-        "border-b border-border",
-        "bg-elevated text-[13px]",
+        "text-[13px]",
         className,
       )}
       data-testid="commit-graph-header"
@@ -98,19 +90,17 @@ function CommitGraphHeaderComponent({
         {onRefresh && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={handleRefresh}
+              <Toggle
+                pressed={false}
+                onPressedChange={() => !isRefreshing && onRefresh()}
                 disabled={isRefreshing}
+                size="sm"
+                className={toggleButtonClass}
                 aria-label="Refresh commits"
                 data-testid="refresh-button"
               >
-                <RefreshCw
-                  className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")}
-                />
-              </Button>
+                <FillingIcon icon={RefreshCw} isAnimating={isRefreshing} />
+              </Toggle>
             </TooltipTrigger>
             <TooltipContent side="bottom">
               <p>Refresh commits</p>

@@ -260,6 +260,10 @@ export type ViewMode =
       commitId: string;
       /** Parent commit for comparison (first parent for merges) */
       parentCommitId: string;
+      /** File status (added, modified, deleted, etc.) */
+      fileStatus?: "added" | "modified" | "deleted" | "renamed" | "copied";
+      /** Original path before rename/copy (for renamed/copied files) */
+      originalPath?: string;
     }
   | {
       type: "commitReview";

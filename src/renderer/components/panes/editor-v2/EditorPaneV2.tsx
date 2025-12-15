@@ -873,6 +873,8 @@ export function EditorPaneV2({
         filePath: absolutePath,
         commitId: event.commitId,
         parentCommitId: event.parentCommitId,
+        fileStatus: event.file.status,
+        originalPath: event.file.originalPath,
       });
 
       // In single layout, switch to editor view

@@ -47,6 +47,9 @@ export interface HistoricalDiffViewerProps {
   /** Relative path to the file from git root */
   filePath: string;
 
+  /** Original path for renamed/copied files (path at parent commit) */
+  originalFilePath?: string;
+
   /** Git API instance for fetching content */
   git: GitV2API;
 
@@ -108,6 +111,7 @@ export function HistoricalDiffViewer({
   commitId,
   parentCommitId,
   filePath,
+  originalFilePath,
   git,
   theme: themeProp,
   onMount,
@@ -133,11 +137,13 @@ export function HistoricalDiffViewer({
   }, [onMount]);
 
   // Get historical diff content
+  // For renamed/copied files, pass originalFilePath so the hook uses it for parent commit
   const diffContent = useHistoricalDiff(
     commitId,
     parentCommitId,
     filePath,
     git,
+    originalFilePath,
   );
 
   // Detect language from file path

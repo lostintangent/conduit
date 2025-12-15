@@ -31,6 +31,9 @@ export type { ExternalChangeWarningProps } from "./ExternalChangeWarning";
 export { HistoricalDiffViewer } from "./HistoricalDiffViewer";
 export type { HistoricalDiffViewerProps } from "./HistoricalDiffViewer";
 
+export { HistoricalFileViewer } from "./HistoricalFileViewer";
+export type { HistoricalFileViewerProps } from "./HistoricalFileViewer";
+
 // Constants
 export {
   EDITOR_MIN_HEIGHT,

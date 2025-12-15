@@ -44,6 +44,7 @@ import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { HistoricalDiffViewer } from "./HistoricalDiffViewer";
+import { HistoricalFileViewer } from "./HistoricalFileViewer";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
 /**
@@ -367,7 +368,13 @@ export function EditorViewPanel({
   // Commit file diff mode - read-only historical diff view
   // Shows diff between parent commit and the commit
   if (viewMode.type === "commitFileDiff" && git) {
-    const { filePath: commitFilePath, commitId, parentCommitId } = viewMode;
+    const {
+      filePath: commitFilePath,
+      commitId,
+      parentCommitId,
+      fileStatus,
+      originalPath,
+    } = viewMode;
 
     // Calculate display path for the commit file
     const commitDisplayPath = (() => {
@@ -383,6 +390,16 @@ export function EditorViewPanel({
       return commitFilePath;
     })();
 
+    // For added/deleted/renamed/copied files, show a read-only single file viewer instead of diff
+    // Added files: show the file at the commit (no parent version exists)
+    // Deleted files: show the file at the parent commit (no commit version exists)
+    // Renamed/copied files: show the file at the commit (content at new location)
+    const showSingleFileViewer =
+      fileStatus === "added" ||
+      fileStatus === "deleted" ||
+      fileStatus === "renamed" ||
+      fileStatus === "copied";
+
     return (
       <div
         className="flex flex-col h-full w-full bg-background"
@@ -396,14 +413,34 @@ export function EditorViewPanel({
         />
         <div className="flex-1 min-h-0">
           <EditorErrorBoundary filePath={commitFilePath}>
-            <HistoricalDiffViewer
-              editorId={`${editorId}-commit-diff`}
-              commitId={commitId}
-              parentCommitId={parentCommitId}
-              filePath={commitDisplayPath}
-              git={git}
-              theme={theme}
-            />
+            {showSingleFileViewer ? (
+              // For added/renamed/copied files, show content at the commit
+              // For deleted files, show content at the parent commit
+              <HistoricalFileViewer
+                key={`${commitId}-${parentCommitId}-${commitDisplayPath}`}
+                editorId={`${editorId}-commit-file`}
+                commitId={fileStatus === "deleted" ? parentCommitId : commitId}
+                filePath={
+                  fileStatus === "deleted"
+                    ? originalPath || commitDisplayPath
+                    : commitDisplayPath
+                }
+                git={git}
+                theme={theme}
+              />
+            ) : (
+              // For modified files, show diff view
+              <HistoricalDiffViewer
+                key={`${commitId}-${parentCommitId}-${commitDisplayPath}`}
+                editorId={`${editorId}-commit-diff`}
+                commitId={commitId}
+                parentCommitId={parentCommitId}
+                filePath={commitDisplayPath}
+                originalFilePath={originalPath}
+                git={git}
+                theme={theme}
+              />
+            )}
           </EditorErrorBoundary>
         </div>
       </div>
