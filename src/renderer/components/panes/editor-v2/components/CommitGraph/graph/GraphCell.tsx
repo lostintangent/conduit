@@ -28,9 +28,8 @@ import type {
   GraphPath,
   GraphCircle,
 } from "../types";
-import { calculateGraphCell } from "./renderer";
+import { calculateGraphCell, calculateExpandedSection } from "./renderer";
 import { getColorCss } from "./colors";
-import { HEAD_OUTER_RADIUS } from "./constants";
 
 // =============================================================================
 // Props
@@ -51,6 +50,12 @@ export interface GraphCellProps {
 
   /** Optional className for the SVG element */
   className?: string;
+
+  /**
+   * If true, only render the lines (no circle).
+   * Used for the expanded section to continue the graph lines.
+   */
+  hideCircle?: boolean;
 }
 
 // =============================================================================
@@ -91,31 +96,49 @@ function GraphCircleElement({ circle, strokeWidth }: GraphCircleElementProps) {
   const color = getColorCss(circle.color);
 
   if (circle.style === "head") {
-    // HEAD commit: outer ring + filled inner circle
+    // HEAD commit: hollow circle (stroke only, no fill) like VS Code
+    const headRadius = circle.r * 1.25;
     return (
-      <g>
+      <circle
+        cx={circle.cx}
+        cy={circle.cy}
+        r={headRadius}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+      />
+    );
+  }
+
+  if (circle.style === "merge") {
+    // Merge commit: small center dot with outer ring, 25% bigger than normal
+    const scale = 1.25;
+    const outerRadius = circle.r * scale;
+    const innerRadius = (circle.r / 2) * 1.5;
+    return (
+      <>
         {/* Outer ring */}
         <circle
           cx={circle.cx}
           cy={circle.cy}
-          r={HEAD_OUTER_RADIUS}
+          r={outerRadius}
           fill="none"
           stroke={color}
-          strokeWidth={strokeWidth}
+          strokeWidth={1}
         />
-        {/* Inner filled circle */}
+        {/* Small center dot */}
         <circle
           cx={circle.cx}
           cy={circle.cy}
-          r={circle.r}
+          r={innerRadius}
           fill={color}
           stroke="none"
         />
-      </g>
+      </>
     );
   }
 
-  // Normal and merge commits: simple filled circle
+  // Normal commit: simple filled circle
   return (
     <circle
       cx={circle.cx}
@@ -153,11 +176,16 @@ function GraphCellComponent({
   height,
   config,
   className,
+  hideCircle = false,
 }: GraphCellProps) {
   // Calculate all render data
+  // Use different renderer for expanded section (just continuation lines)
   const renderData = useMemo(
-    () => calculateGraphCell(node, height, config),
-    [node, height, config],
+    () =>
+      hideCircle
+        ? calculateExpandedSection(node, height, config)
+        : calculateGraphCell(node, height, config),
+    [node, height, config, hideCircle],
   );
 
   return (
@@ -177,11 +205,13 @@ function GraphCellComponent({
         />
       ))}
 
-      {/* Render the commit circle */}
-      <GraphCircleElement
-        circle={renderData.circle}
-        strokeWidth={config.strokeWidth}
-      />
+      {/* Render the commit circle (unless hidden for expanded section) */}
+      {!hideCircle && (
+        <GraphCircleElement
+          circle={renderData.circle}
+          strokeWidth={config.strokeWidth}
+        />
+      )}
     </svg>
   );
 }

@@ -2,18 +2,16 @@
  * CommitSummary Component
  *
  * The main component for displaying commit information in a row.
- * Composes CommitSubject, CommitMeta, and ViewAllButton into a
- * cohesive layout.
+ * Uses a compact single-line layout matching VS Code's git graph.
  *
  * Layout:
  * ```
  * ┌─────────────────────────────────────────────────────┐
- * │ [HEAD] Fix authentication bug in login flow    [👁] │
- * │ 2h ago · John Doe · abc1234                        │
+ * │ Fix authentication bug in login flow  Author  [👁] │
  * └─────────────────────────────────────────────────────┘
  * ```
  *
- * The HEAD badge only appears for the current HEAD commit.
+ * The HEAD commit uses a hollow circle in the graph (handled by GraphCell).
  *
  * @example
  * ```tsx
@@ -28,8 +26,6 @@
 import { memo } from "react";
 import { cn } from "@/utils";
 import type { HistoryCommit } from "../types";
-import { CommitSubject } from "./CommitSubject";
-import { CommitMeta } from "./CommitMeta";
 import { ViewAllButton } from "./ViewAllButton";
 
 // =============================================================================
@@ -51,42 +47,16 @@ export interface CommitSummaryProps {
 }
 
 // =============================================================================
-// Sub-components
-// =============================================================================
-
-/**
- * Small badge indicating HEAD commit.
- * Styled to be subtle but visible.
- */
-function HeadBadge() {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center justify-center",
-        "px-1.5 py-0.5 rounded text-[10px] font-semibold",
-        "bg-primary/15 text-primary",
-        "flex-shrink-0",
-      )}
-      data-testid="head-badge"
-    >
-      HEAD
-    </span>
-  );
-}
-
-// =============================================================================
 // Component
 // =============================================================================
 
 /**
- * CommitSummary displays all commit information for a row.
+ * CommitSummary displays commit information in a compact single line.
  *
- * Structure:
- * - First line: [HEAD badge?] + Subject + [View All button]
- * - Second line: Meta info (time · author · hash)
+ * Structure: Subject + Author + [View All button on hover]
  *
- * The component uses `group` class to enable hover effects
- * on child components (e.g., showing the view all button).
+ * Uses CSS grid so author truncates first, then subject.
+ * Matches VS Code's compact git graph style for visual consistency.
  */
 function CommitSummaryComponent({
   commit,
@@ -96,28 +66,40 @@ function CommitSummaryComponent({
 }: CommitSummaryProps) {
   return (
     <div
-      className={cn("flex flex-col gap-0.5 min-w-0 py-1", className)}
+      className={cn("flex items-center gap-2 min-w-0", className)}
       data-testid="commit-summary"
     >
-      {/* First line: Subject with optional HEAD badge and view button */}
-      <div className="flex items-center gap-2 min-w-0">
-        {isHead && <HeadBadge />}
+      {/* Subject and Author - author truncates first, then subject */}
+      <div
+        className="min-w-0 flex-1 items-baseline gap-1.5"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, auto) minmax(0, 1fr)",
+        }}
+      >
+        {/* Subject - truncates second */}
+        <span
+          className={cn(
+            "truncate text-[13px]",
+            isHead ? "font-medium" : "font-normal",
+          )}
+          title={commit.subject}
+          data-testid="commit-subject"
+        >
+          {commit.subject}
+        </span>
 
-        <CommitSubject
-          subject={commit.subject}
-          message={commit.message}
-          className="flex-1 min-w-0"
-        />
-
-        {onViewAll && <ViewAllButton onClick={onViewAll} className="ml-auto" />}
+        {/* Author - truncates first */}
+        <span
+          className="truncate text-[13px] text-muted-foreground"
+          data-testid="commit-meta-author"
+        >
+          {commit.author}
+        </span>
       </div>
 
-      {/* Second line: Meta info */}
-      <CommitMeta
-        timestamp={commit.timestamp}
-        author={commit.author}
-        shortId={commit.shortId}
-      />
+      {/* View all button - appears on hover */}
+      {onViewAll && <ViewAllButton onClick={onViewAll} className="ml-auto" />}
     </div>
   );
 }

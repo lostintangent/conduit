@@ -152,10 +152,13 @@ function CommitGraphPanelComponent({
 
   /**
    * Handle commit row toggle (expand/collapse).
+   * Also selects the commit when clicked.
    */
   const handleToggleExpand = useCallback(
     (commitId: string) => {
       toggleExpand(commitId);
+      // Select the commit when clicking on it
+      setSelectedCommitId(commitId);
       // Clear file selection when toggling
       setSelectedFilePath(undefined);
     },
@@ -219,14 +222,14 @@ function CommitGraphPanelComponent({
 
   return (
     <div
-      className={cn("flex flex-col min-h-0", className)}
+      className={cn("flex flex-col h-full min-h-0", className)}
       data-testid="commit-graph-panel"
     >
       {/* Header */}
       <CommitGraphHeader onRefresh={handleRefresh} isRefreshing={isLoading} />
 
-      {/* Content area */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      {/* Content area - flex container for proper scroll behavior */}
+      <div className="flex-1 min-h-0 flex flex-col">
         {/* Loading state (initial load only) */}
         {isLoading && nodes.length === 0 && <LoadingState />}
 
@@ -252,7 +255,7 @@ function CommitGraphPanelComponent({
             onFileSelect={onFileSelect ? handleFileSelect : undefined}
             onLoadMore={loadMore}
             onSelectionChange={handleSelectionChange}
-            className="h-full"
+            className="flex-1 min-h-0"
           />
         )}
       </div>

@@ -103,11 +103,8 @@ export interface EditorViewPanelProps {
   /** Handler for exiting changes review mode */
   onExitReview?: () => void;
 
-  /** Handler for exiting commit diff mode (back button) */
-  onExitCommitDiff?: () => void;
-
-  /** Handler for exiting commit review mode (back button) */
-  onExitCommitReview?: () => void;
+  /** Handler for exiting any commit mode (diff or review) */
+  onExitCommitMode?: () => void;
 
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
@@ -157,8 +154,7 @@ export function EditorViewPanel({
   isDiffMode = false,
   onToggleDiffMode,
   onExitReview,
-  onExitCommitDiff,
-  onExitCommitReview,
+  onExitCommitMode,
   isFileDeleted = false,
   // Remote operations for ChangesReviewPane
   hasUpstream = true,
@@ -396,7 +392,7 @@ export function EditorViewPanel({
           displayPath={commitDisplayPath}
           filePath={commitFilePath}
           commitShortId={commitId.slice(0, 7)}
-          onBack={onExitCommitDiff}
+          onBack={onExitCommitMode}
         />
         <div className="flex-1 min-h-0">
           <EditorErrorBoundary filePath={commitFilePath}>
@@ -428,7 +424,7 @@ export function EditorViewPanel({
           commitId={commitId}
           parentCommitId={parentCommitId}
           git={git}
-          onExit={onExitCommitReview}
+          onExit={onExitCommitMode}
         />
       </div>
     );

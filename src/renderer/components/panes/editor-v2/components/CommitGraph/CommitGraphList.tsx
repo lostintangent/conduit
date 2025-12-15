@@ -222,7 +222,7 @@ function CommitGraphListComponent({
   return (
     <div
       ref={listRef}
-      className={cn("flex flex-col overflow-auto", className)}
+      className={cn("flex flex-col overflow-auto px-3", className)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="listbox"

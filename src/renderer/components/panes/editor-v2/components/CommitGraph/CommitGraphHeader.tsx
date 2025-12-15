@@ -81,18 +81,15 @@ function CommitGraphHeaderComponent({
     <div
       className={cn(
         "flex items-center justify-between",
-        "px-3 py-2",
-        "border-b border-border/50",
-        "bg-background/50",
+        "px-3 py-1.5",
+        "border-b border-border",
+        "bg-elevated text-[13px]",
         className,
       )}
       data-testid="commit-graph-header"
     >
       {/* Title */}
-      <h3
-        className="text-xs font-medium text-foreground"
-        data-testid="header-title"
-      >
+      <h3 className="font-medium text-foreground" data-testid="header-title">
         {title}
       </h3>
 

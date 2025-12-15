@@ -221,7 +221,7 @@ describe("GraphCell", () => {
       expect(circles.length).toBe(1);
     });
 
-    it("should render double circle for HEAD commit", () => {
+    it("should render hollow circle for HEAD commit", () => {
       const commit = createCommit("a", ["b"]);
       const node = createNode(
         commit,
@@ -232,12 +232,16 @@ describe("GraphCell", () => {
       );
 
       const { container } = render(
-        <GraphCell node={node} height={44} config={defaultConfig} />,
+        <GraphCell node={node} height={24} config={defaultConfig} />,
       );
 
-      // HEAD commits have outer ring + inner circle
+      // HEAD commits have a single hollow circle (stroke only, no fill)
       const circles = container.querySelectorAll("circle");
-      expect(circles.length).toBe(2);
+      expect(circles.length).toBe(1);
+      // Hollow circle has fill="none" and a stroke
+      const circle = circles[0];
+      expect(circle.getAttribute("fill")).toBe("none");
+      expect(circle.getAttribute("stroke")).toBeTruthy();
     });
 
     it("should position circle at correct coordinates", () => {
@@ -255,7 +259,7 @@ describe("GraphCell", () => {
 
       const circle = container.querySelector("circle");
       expect(circle?.getAttribute("cx")).toBe("24"); // lane 1 x position
-      expect(circle?.getAttribute("cy")).toBe("22"); // center of row
+      expect(circle?.getAttribute("cy")).toBe("12"); // always at ROW_HEIGHT / 2 = 24 / 2
     });
 
     it("should use correct circle radius", () => {
@@ -294,7 +298,7 @@ describe("GraphCell", () => {
       expect(svg?.getAttribute("height")).toBe("200");
     });
 
-    it("should center circle in expanded row", () => {
+    it("should keep circle at commit row level even when expanded", () => {
       const commit = createCommit("a", ["b"]);
       const node = createNode(
         commit,
@@ -308,7 +312,8 @@ describe("GraphCell", () => {
       );
 
       const circle = container.querySelector("circle");
-      expect(circle?.getAttribute("cy")).toBe("100"); // center of 200
+      // Circle stays at ROW_HEIGHT / 2, not centered in expanded container
+      expect(circle?.getAttribute("cy")).toBe("12");
     });
   });
 

@@ -233,7 +233,7 @@ export function FileTreePanel({
     storageKey: "commit-graph-height",
     defaultHeight: 200,
     minHeight: 100,
-    maxHeight: 400,
+    maxHeight: 600,
   });
   // ---------------------------------------------------------------------------
   // Handlers

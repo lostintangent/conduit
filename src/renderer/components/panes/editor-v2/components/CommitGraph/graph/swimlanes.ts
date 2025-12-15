@@ -145,10 +145,11 @@ export function computeSwimlanes(
       getNextColor(colorIndex++),
     );
 
-    // Step 5: Collapse lanes targeting the same commit
-    activeLanes = collapseDuplicateLanes(activeLanes);
-
-    // Step 6: Capture output swimlanes (immutable snapshot)
+    // Step 5: Capture output swimlanes
+    // NOTE: We do NOT collapse duplicate lanes here. When multiple lanes target
+    // the same commit (branch convergence), we keep them all so that when we
+    // process that commit, we can draw incoming curves for each converging branch.
+    // The lanes are naturally "consumed" when their target commit is processed.
     const outputSwimlanes = snapshotSwimlanes(activeLanes);
 
     // Build the graph node
@@ -196,9 +197,16 @@ function snapshotSwimlanes(lanes: MutableSwimlane[]): Swimlane[] {
 /**
  * Update lanes after processing a commit.
  *
- * - The lane at commitLaneIndex updates to target the first parent
- * - New lanes are added for additional parents (merge commits)
- * - If no parents (root commit), the lane is removed
+ * This follows VS Code's approach:
+ * - ALL lanes targeting the current commit are "consumed" (removed from output)
+ * - The first parent replaces one of those lanes (keeping its color)
+ * - Additional parents are added as new lanes
+ * - Other lanes (not targeting current commit) pass through unchanged
+ *
+ * This is crucial for proper branch visualization:
+ * - When multiple branches converge on a commit, all their lanes are in input
+ * - They all get consumed, so the renderer can draw curves for each
+ * - Only parent lane(s) continue in the output
  *
  * @param lanes - Current lanes (will be cloned, not mutated)
  * @param commitLaneIndex - Index of the lane containing this commit
@@ -212,26 +220,40 @@ function updateLanesForCommit(
   commit: HistoryCommit,
   getNewColor: () => GraphColor,
 ): MutableSwimlane[] {
-  // Clone lanes to avoid mutation
-  const newLanes = lanes.map((lane) => ({ ...lane }));
+  const outputLanes: MutableSwimlane[] = [];
+  let firstParentAdded = false;
 
-  if (commit.parentIds.length === 0) {
-    // Root commit - remove this lane entirely
-    newLanes.splice(commitLaneIndex, 1);
-  } else {
-    // Update this lane to target first parent
-    newLanes[commitLaneIndex].targetId = commit.parentIds[0];
+  // Process each input lane
+  for (let i = 0; i < lanes.length; i++) {
+    const lane = lanes[i];
 
-    // Add new lanes for additional parents (merge commits)
-    for (let i = 1; i < commit.parentIds.length; i++) {
-      newLanes.push({
-        targetId: commit.parentIds[i],
-        color: getNewColor(),
-      });
+    if (lane.targetId === commit.id) {
+      // This lane targets the current commit - consume it
+      // Add first parent in its place (once)
+      if (!firstParentAdded && commit.parentIds.length > 0) {
+        outputLanes.push({
+          targetId: commit.parentIds[0],
+          color: lane.color, // Keep the lane's color for the parent
+        });
+        firstParentAdded = true;
+      }
+      // Skip this lane (it's consumed)
+      continue;
     }
+
+    // Lane doesn't target current commit - pass it through
+    outputLanes.push({ ...lane });
   }
 
-  return newLanes;
+  // Add remaining parents as new lanes (for merge commits)
+  for (let i = firstParentAdded ? 1 : 0; i < commit.parentIds.length; i++) {
+    outputLanes.push({
+      targetId: commit.parentIds[i],
+      color: getNewColor(),
+    });
+  }
+
+  return outputLanes;
 }
 
 /**

@@ -113,12 +113,13 @@ describe("CommitReviewPane", () => {
   it("should show error state when commit fetch fails", async () => {
     const git = createMockGit({
       getCommit: vi.fn().mockRejectedValue(new Error("Network error")),
+      // Error state shows the actual error message
     });
 
     renderWithProvider(<CommitReviewPane {...defaultProps} git={git} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to load commit/i)).toBeTruthy();
+      expect(screen.getByText("Network error")).toBeTruthy();
     });
   });
 
@@ -185,6 +186,7 @@ describe("CommitReviewPane", () => {
     const onExit = vi.fn();
     const git = createMockGit({
       getCommit: vi.fn().mockRejectedValue(new Error("Network error")),
+      // Error state shows the error message
     });
 
     renderWithProvider(
@@ -192,7 +194,7 @@ describe("CommitReviewPane", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to load commit/i)).toBeTruthy();
+      expect(screen.getByText("Network error")).toBeTruthy();
     });
 
     const goBackButton = screen.getByRole("button", { name: /go back/i });

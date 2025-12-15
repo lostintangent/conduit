@@ -70,8 +70,10 @@ function ViewAllButtonComponent({
           className={cn(
             "h-6 w-6 flex-shrink-0",
             "text-muted-foreground hover:text-foreground",
-            "opacity-0 group-hover:opacity-100 focus:opacity-100",
-            "transition-opacity duration-150",
+            // Match file tree action button hover styling
+            "hover:bg-foreground/20",
+            // Hidden by default, only appears on row hover (doesn't take up space until shown)
+            "hidden group-hover:inline-flex focus:inline-flex",
             className,
           )}
           aria-label="View all changes in this commit"

@@ -173,9 +173,10 @@ function CommitFileItemComponent({
           "group flex w-full items-center gap-1.5 rounded-sm px-2 py-0.5",
           "text-[12px] text-left transition cursor-pointer",
           "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+          // Use same colors as FileTreeItem for selection
           isSelected
-            ? "bg-accent/30 hover:bg-accent/40"
-            : "hover:bg-foreground/10",
+            ? "bg-accent/20 hover:bg-accent/25"
+            : "hover:bg-foreground/5",
           className,
         )}
         onClick={handleClick}

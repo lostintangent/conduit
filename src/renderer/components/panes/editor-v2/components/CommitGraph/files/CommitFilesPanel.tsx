@@ -145,10 +145,7 @@ function CommitFilesPanelComponent({
   // Loading state
   if (isLoading) {
     return (
-      <div
-        className={cn("bg-background/50 rounded-sm", className)}
-        data-testid="commit-files-panel"
-      >
+      <div className={cn(className)} data-testid="commit-files-panel">
         <LoadingState />
       </div>
     );
@@ -157,10 +154,7 @@ function CommitFilesPanelComponent({
   // Empty state
   if (!files || files.length === 0) {
     return (
-      <div
-        className={cn("bg-background/50 rounded-sm", className)}
-        data-testid="commit-files-panel"
-      >
+      <div className={cn(className)} data-testid="commit-files-panel">
         <EmptyState />
       </div>
     );
@@ -168,10 +162,7 @@ function CommitFilesPanelComponent({
 
   // Populated state
   return (
-    <div
-      className={cn("bg-background/50 rounded-sm", className)}
-      data-testid="commit-files-panel"
-    >
+    <div className={cn(className)} data-testid="commit-files-panel">
       {/* Header with summary */}
       <CommitFilesHeader
         fileCount={files.length}

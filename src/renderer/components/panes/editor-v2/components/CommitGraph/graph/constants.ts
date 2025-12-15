@@ -30,23 +30,22 @@ export const LANE_WIDTH = 16;
 /**
  * Height of a standard (collapsed) commit row in pixels.
  *
- * This should match the height of the commit summary content
- * (approximately 2 lines of text with padding).
+ * This should match the height of a single line in the file tree
+ * for visual consistency. VS Code uses ~22px for commit rows.
  *
- * 44px accommodates:
- * - Subject line (~20px)
- * - Author/hash line (~16px)
- * - Vertical padding (~8px)
+ * 24px accommodates:
+ * - Single line with subject and author
+ * - Minimal vertical padding
  */
-export const ROW_HEIGHT = 44;
+export const ROW_HEIGHT = 24;
 
 /**
  * Radius of the commit circle in pixels.
  *
  * The circle is the visual anchor for each commit.
- * 5px provides good visibility without overwhelming the graph.
+ * 4px matches VS Code's compact graph style.
  */
-export const CIRCLE_RADIUS = 5;
+export const CIRCLE_RADIUS = 4;
 
 /**
  * Radius for curved paths when lanes merge or split.
@@ -59,9 +58,16 @@ export const CURVE_RADIUS = 6;
 /**
  * Stroke width for graph lines in pixels.
  *
- * 2px provides good visibility on both light and dark backgrounds.
+ * 1px matches VS Code's thin line style.
  */
-export const STROKE_WIDTH = 2;
+export const STROKE_WIDTH = 1;
+
+/**
+ * Gap between lines and commit circles in pixels.
+ *
+ * VS Code has a small gap between lines and circles.
+ */
+export const LINE_GAP = 2;
 
 // =============================================================================
 // Layout Constraints
@@ -129,6 +135,7 @@ export const GRAPH_CONFIG: GraphRenderConfig = {
   circleRadius: CIRCLE_RADIUS,
   curveRadius: CURVE_RADIUS,
   strokeWidth: STROKE_WIDTH,
+  lineGap: LINE_GAP,
 };
 
 /**

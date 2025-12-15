@@ -633,8 +633,22 @@ export function EditorPaneV2({
   );
 
   /**
+   * Exit any commit mode (diff or review) and return to previous view.
+   */
+  const handleExitCommitMode = useCallback(() => {
+    // Return to previous view mode (or editor mode as fallback)
+    if (previousViewModeRef.current) {
+      setViewMode(previousViewModeRef.current);
+      previousViewModeRef.current = null;
+    } else {
+      setViewMode({ type: "editor" });
+    }
+  }, [setViewMode]);
+
+  /**
    * Handle tree view mode change (files/changes).
    * Delegates to useReviewModeState for review mode transitions.
+   * Also exits commit review modes when switching away from "changes".
    */
   const handleTreeViewModeChange = useCallback(
     (mode: TreeViewMode) => {
@@ -648,8 +662,23 @@ export function EditorPaneV2({
 
       // Handle review mode transitions (exit/restore)
       handleTreeViewModeTransition(mode);
+
+      // Also exit commit modes when switching to "files" mode
+      if (mode === "files") {
+        if (
+          viewMode.type === "commitReview" ||
+          viewMode.type === "commitFileDiff"
+        ) {
+          handleExitCommitMode();
+        }
+      }
     },
-    [onTreeModeChange, handleTreeViewModeTransition],
+    [
+      onTreeModeChange,
+      handleTreeViewModeTransition,
+      viewMode,
+      handleExitCommitMode,
+    ],
   );
 
   /**
@@ -824,8 +853,14 @@ export function EditorPaneV2({
    */
   const handleCommitFileSelect = useCallback(
     (event: CommitFileSelectEvent) => {
-      // Save current view mode so we can return to it
-      previousViewModeRef.current = viewMode;
+      // Only save previous view mode if not already in a commit mode
+      // This prevents building a stack when clicking multiple files
+      if (
+        viewMode.type !== "commitFileDiff" &&
+        viewMode.type !== "commitReview"
+      ) {
+        previousViewModeRef.current = viewMode;
+      }
 
       // Convert relative path to absolute path
       const absolutePath = currentCwd.endsWith("/")
@@ -854,8 +889,14 @@ export function EditorPaneV2({
    */
   const handleViewCommit = useCallback(
     (event: CommitViewEvent) => {
-      // Save current view mode so we can return to it
-      previousViewModeRef.current = viewMode;
+      // Only save previous view mode if not already in a commit mode
+      // This prevents building a stack when switching between commit views
+      if (
+        viewMode.type !== "commitFileDiff" &&
+        viewMode.type !== "commitReview"
+      ) {
+        previousViewModeRef.current = viewMode;
+      }
 
       // Set view mode to commit review
       setViewMode({
@@ -871,32 +912,6 @@ export function EditorPaneV2({
     },
     [viewMode, layout, setViewMode],
   );
-
-  /**
-   * Exit commit diff mode and return to previous view.
-   */
-  const handleExitCommitDiff = useCallback(() => {
-    // Return to previous view mode (or editor mode as fallback)
-    if (previousViewModeRef.current) {
-      setViewMode(previousViewModeRef.current);
-      previousViewModeRef.current = null;
-    } else {
-      setViewMode({ type: "editor" });
-    }
-  }, [setViewMode]);
-
-  /**
-   * Exit commit review mode and return to previous view.
-   */
-  const handleExitCommitReview = useCallback(() => {
-    // Return to previous view mode (or editor mode as fallback)
-    if (previousViewModeRef.current) {
-      setViewMode(previousViewModeRef.current);
-      previousViewModeRef.current = null;
-    } else {
-      setViewMode({ type: "editor" });
-    }
-  }, [setViewMode]);
 
   /**
    * Determine if the current file is git-modified (eligible for diff toggle).
@@ -1129,8 +1144,7 @@ export function EditorPaneV2({
           isDiffMode={viewMode.type === "diff"}
           onToggleDiffMode={handleToggleDiffMode}
           onExitReview={exitReviewMode}
-          onExitCommitDiff={handleExitCommitDiff}
-          onExitCommitReview={handleExitCommitReview}
+          onExitCommitMode={handleExitCommitMode}
           isFileDeleted={isCurrentFileDeleted}
           // Remote operations
           hasUpstream={hasUpstream}

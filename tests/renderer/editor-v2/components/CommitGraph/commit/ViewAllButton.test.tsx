@@ -103,9 +103,9 @@ describe("ViewAllButton", () => {
     const onClick = vi.fn();
     renderWithProvider(<ViewAllButton onClick={onClick} />);
 
-    // Button should have opacity classes for hover effect
+    // Button should be hidden by default and shown on group hover
     const button = screen.getByTestId("view-all-button");
-    expect(button.className).toContain("opacity-0");
-    expect(button.className).toContain("group-hover:opacity-100");
+    expect(button.className).toContain("hidden");
+    expect(button.className).toContain("group-hover:inline-flex");
   });
 });

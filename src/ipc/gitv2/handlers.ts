@@ -41,7 +41,7 @@
  * - `git-v2:most-recent-committed-file` - Get most recently modified file from commits
  * - `git-v2:revert` - Discard local file changes
  * - `git-v2:commit-history` - Get paginated commit history
- * - `git-v2:commit` - Get a single commit by hash
+ * - `git-v2:get-commit` - Get a single commit by hash
  * - `git-v2:commit-files` - Get files changed in a commit
  * - `git-v2:file-at-commit` - Get file content at a specific commit
  * - `git-v2:subscribe` - Subscribe to git events
@@ -571,7 +571,8 @@ export function initializeGitV2Handlers(): void {
   /**
    * Get commit history with pagination support.
    * Returns commits in topological order (newest first).
-   * Returns empty result if no active provider.
+   * Creates a provider if one doesn't exist (unlike most operations).
+   * Returns empty result if not a git repository.
    */
   ipcMain.handle(
     "git-v2:commit-history",
@@ -579,8 +580,14 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; options?: GetCommitHistoryOptions },
     ): Promise<SerializedCommitHistoryResult> => {
-      const result = await getExistingProvider(params.cwd);
-      if (!result) {
+      // Use getProvider (not getExistingProvider) because commit history
+      // may be called before subscription completes. This ensures the
+      // provider is created if it doesn't exist yet.
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
+        // Not a git repository
         return { commits: [], hasMore: false };
       }
       const historyResult = await result.provider.getCommitHistory(
@@ -596,16 +603,19 @@ export function initializeGitV2Handlers(): void {
 
   /**
    * Get a single commit by its hash.
-   * Returns null if commit not found or no active provider.
+   * Creates a provider if one doesn't exist.
+   * Returns null if commit not found or not a git repository.
    */
   ipcMain.handle(
-    "git-v2:commit",
+    "git-v2:get-commit",
     async (
       _,
       params: { cwd: string; commitId: string },
     ): Promise<SerializedHistoryCommit | null> => {
-      const result = await getExistingProvider(params.cwd);
-      if (!result) {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
         return null;
       }
       const commit = await result.provider.getCommit(params.commitId);
@@ -616,7 +626,8 @@ export function initializeGitV2Handlers(): void {
   /**
    * Get files changed in a specific commit.
    * Returns the list of files with their status and diff statistics.
-   * Returns empty array if no active provider.
+   * Creates a provider if one doesn't exist.
+   * Returns empty array if not a git repository.
    */
   ipcMain.handle(
     "git-v2:commit-files",
@@ -624,8 +635,10 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; commitId: string },
     ): Promise<SerializedCommitFile[]> => {
-      const result = await getExistingProvider(params.cwd);
-      if (!result) {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
         return [];
       }
       const files = await result.provider.getCommitFiles(params.commitId);
@@ -635,7 +648,8 @@ export function initializeGitV2Handlers(): void {
 
   /**
    * Get file content at a specific commit.
-   * Returns null if file doesn't exist at that commit or no active provider.
+   * Creates a provider if one doesn't exist.
+   * Returns null if file doesn't exist at that commit or not a git repository.
    */
   ipcMain.handle(
     "git-v2:file-at-commit",
@@ -643,8 +657,10 @@ export function initializeGitV2Handlers(): void {
       _,
       params: { cwd: string; commitId: string; filePath: string },
     ): Promise<string | null> => {
-      const result = await getExistingProvider(params.cwd);
-      if (!result) {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
         return null;
       }
       return result.provider.getFileAtCommit(params.commitId, params.filePath);

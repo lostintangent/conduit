@@ -171,7 +171,7 @@ describe("CommitGraphRow", () => {
         />,
       );
       expect(
-        screen.getByTestId("commit-graph-row").getAttribute("aria-expanded"),
+        screen.getByTestId("commit-summary-row").getAttribute("aria-expanded"),
       ).toBe("false");
     });
   });
@@ -207,7 +207,7 @@ describe("CommitGraphRow", () => {
         <CommitGraphRow node={node} isExpanded={true} config={GRAPH_CONFIG} />,
       );
       expect(
-        screen.getByTestId("commit-graph-row").getAttribute("aria-expanded"),
+        screen.getByTestId("commit-summary-row").getAttribute("aria-expanded"),
       ).toBe("true");
     });
 
@@ -232,7 +232,7 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      fireEvent.click(screen.getByTestId("commit-graph-row"));
+      fireEvent.click(screen.getByTestId("commit-summary-row"));
       expect(onToggle).toHaveBeenCalledTimes(1);
     });
 
@@ -335,7 +335,7 @@ describe("CommitGraphRow", () => {
         />,
       );
       expect(
-        screen.getByTestId("commit-graph-row").getAttribute("tabIndex"),
+        screen.getByTestId("commit-summary-row").getAttribute("tabIndex"),
       ).toBe("0");
     });
 
@@ -350,7 +350,7 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      fireEvent.keyDown(screen.getByTestId("commit-graph-row"), {
+      fireEvent.keyDown(screen.getByTestId("commit-summary-row"), {
         key: "Enter",
       });
       expect(onToggle).toHaveBeenCalledTimes(1);
@@ -367,7 +367,7 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      fireEvent.keyDown(screen.getByTestId("commit-graph-row"), { key: " " });
+      fireEvent.keyDown(screen.getByTestId("commit-summary-row"), { key: " " });
       expect(onToggle).toHaveBeenCalledTimes(1);
     });
 
@@ -379,9 +379,9 @@ describe("CommitGraphRow", () => {
           config={GRAPH_CONFIG}
         />,
       );
-      expect(screen.getByTestId("commit-graph-row").getAttribute("role")).toBe(
-        "button",
-      );
+      expect(
+        screen.getByTestId("commit-summary-row").getAttribute("role"),
+      ).toBe("button");
     });
 
     it("should have aria-label with commit subject", () => {
@@ -390,7 +390,7 @@ describe("CommitGraphRow", () => {
         <CommitGraphRow node={node} isExpanded={false} config={GRAPH_CONFIG} />,
       );
       expect(
-        screen.getByTestId("commit-graph-row").getAttribute("aria-label"),
+        screen.getByTestId("commit-summary-row").getAttribute("aria-label"),
       ).toBe(`Commit: ${node.commit.subject}`);
     });
   });
@@ -406,8 +406,9 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      const row = screen.getByTestId("commit-graph-row");
-      expect(row.classList.contains("bg-accent")).toBe(true);
+      const summaryRow = screen.getByTestId("commit-summary-row");
+      // Uses same selected color as FileTreeItem
+      expect(summaryRow.classList.contains("bg-accent/20")).toBe(true);
     });
 
     it("should not apply selected styling when isSelected is false", () => {
@@ -420,26 +421,30 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      const row = screen.getByTestId("commit-graph-row");
-      expect(row.classList.contains("ring-1")).toBe(false);
+      const summaryRow = screen.getByTestId("commit-summary-row");
+      expect(summaryRow.classList.contains("bg-accent/20")).toBe(false);
     });
   });
 
   describe("HEAD commit", () => {
-    it("should show HEAD badge for HEAD commit", () => {
+    it("should style HEAD commit subject with font-medium", () => {
       const node = createNode({ isHead: true });
       renderWithProvider(
         <CommitGraphRow node={node} isExpanded={false} config={GRAPH_CONFIG} />,
       );
-      expect(screen.getByTestId("head-badge")).toBeTruthy();
+      expect(
+        screen.getByTestId("commit-subject").classList.contains("font-medium"),
+      ).toBe(true);
     });
 
-    it("should not show HEAD badge for non-HEAD commit", () => {
+    it("should not style non-HEAD commit subject with font-medium", () => {
       const node = createNode({ isHead: false });
       renderWithProvider(
         <CommitGraphRow node={node} isExpanded={false} config={GRAPH_CONFIG} />,
       );
-      expect(screen.queryByTestId("head-badge")).toBeNull();
+      expect(
+        screen.getByTestId("commit-subject").classList.contains("font-medium"),
+      ).toBe(false);
     });
   });
 
@@ -458,7 +463,7 @@ describe("CommitGraphRow", () => {
       expect(row.classList.contains("custom-class")).toBe(true);
     });
 
-    it("should have hover styling classes", () => {
+    it("should have hover styling classes on summary row", () => {
       renderWithProvider(
         <CommitGraphRow
           node={createNode()}
@@ -467,11 +472,14 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      const row = screen.getByTestId("commit-graph-row");
-      expect(row.classList.contains("hover:bg-accent/50")).toBe(true);
+      const summaryRow = screen.getByTestId("commit-summary-row");
+      // Uses same hover color as FileTreeItem
+      expect(summaryRow.classList.contains("hover:bg-foreground/10")).toBe(
+        true,
+      );
     });
 
-    it("should have cursor-pointer class", () => {
+    it("should have cursor-pointer class on summary row", () => {
       renderWithProvider(
         <CommitGraphRow
           node={createNode()}
@@ -480,8 +488,8 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      const row = screen.getByTestId("commit-graph-row");
-      expect(row.classList.contains("cursor-pointer")).toBe(true);
+      const summaryRow = screen.getByTestId("commit-summary-row");
+      expect(summaryRow.classList.contains("cursor-pointer")).toBe(true);
     });
   });
 

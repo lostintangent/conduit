@@ -20,7 +20,7 @@
  * ```
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Loader2, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import type { GitV2API } from "@/api/GitV2API";
 import { CommitReviewHeader } from "./CommitReviewHeader";
@@ -70,6 +70,17 @@ export function CommitReviewPane({
     // If a file is pre-selected, start with it expanded
     return selectedFilePath ? new Set([selectedFilePath]) : new Set();
   });
+
+  // Track if we've done the initial expansion
+  const [hasInitialExpanded, setHasInitialExpanded] = useState(false);
+
+  // Expand all files by default when first loaded
+  useEffect(() => {
+    if (!hasInitialExpanded && files.length > 0) {
+      setExpandedFiles(new Set(files.map((f) => f.path)));
+      setHasInitialExpanded(true);
+    }
+  }, [files, hasInitialExpanded]);
 
   // Toggle a file's expansion state
   const toggleFile = useCallback((filePath: string) => {

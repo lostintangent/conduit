@@ -114,12 +114,10 @@ function CommitFileStatusBadgeComponent({
   const config = STATUS_CONFIG[status];
 
   return (
-    <div
+    <span
       className={cn(
-        "flex-shrink-0 flex items-center justify-center",
-        "text-[10px] font-semibold leading-none",
-        "w-[14px] h-[14px] rounded-sm text-background",
-        config.bgColor,
+        "flex-shrink-0 text-[11px] font-medium",
+        config.textColor,
         className,
       )}
       title={config.label}
@@ -127,7 +125,7 @@ function CommitFileStatusBadgeComponent({
       data-status={status}
     >
       {config.letter}
-    </div>
+    </span>
   );
 }
 

@@ -165,9 +165,9 @@ describe("CommitGraphList", () => {
         />,
       );
 
-      const rows = screen.getAllByTestId("commit-graph-row");
-      expect(rows[0].getAttribute("aria-expanded")).toBe("true");
-      expect(rows[1].getAttribute("aria-expanded")).toBe("false");
+      const summaryRows = screen.getAllByTestId("commit-summary-row");
+      expect(summaryRows[0].getAttribute("aria-expanded")).toBe("true");
+      expect(summaryRows[1].getAttribute("aria-expanded")).toBe("false");
     });
   });
 
@@ -182,8 +182,9 @@ describe("CommitGraphList", () => {
         />,
       );
 
-      const rows = screen.getAllByTestId("commit-graph-row");
-      expect(rows[1].classList.contains("bg-accent")).toBe(true);
+      const summaryRows = screen.getAllByTestId("commit-summary-row");
+      // Uses same selected color as FileTreeItem
+      expect(summaryRows[1].classList.contains("bg-accent/20")).toBe(true);
     });
   });
 
@@ -282,7 +283,7 @@ describe("CommitGraphList", () => {
         />,
       );
 
-      fireEvent.click(screen.getAllByTestId("commit-graph-row")[0]);
+      fireEvent.click(screen.getAllByTestId("commit-summary-row")[0]);
 
       expect(onToggleExpand).toHaveBeenCalledWith("commit1");
     });

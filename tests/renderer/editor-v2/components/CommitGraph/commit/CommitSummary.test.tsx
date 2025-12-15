@@ -1,11 +1,11 @@
 /**
  * Tests for the CommitSummary component.
  *
- * These tests verify the main commit display component that
- * composes subject, meta, and view all button.
+ * These tests verify the compact commit display component that
+ * shows subject and author on a single line.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitSummary } from "@/components/panes/editor-v2/components/CommitGraph/commit/CommitSummary";
@@ -42,20 +42,9 @@ function createCommit(overrides: Partial<HistoryCommit> = {}): HistoryCommit {
 // =============================================================================
 
 describe("CommitSummary", () => {
-  const NOW = 1702400000000;
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   describe("Basic Rendering", () => {
     it("should render the component", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 - 3600 });
+      const commit = createCommit();
       renderWithProvider(<CommitSummary commit={commit} />);
 
       expect(screen.getByTestId("commit-summary")).toBeTruthy();
@@ -64,7 +53,6 @@ describe("CommitSummary", () => {
     it("should display the subject", () => {
       const commit = createCommit({
         subject: "Add new feature",
-        timestamp: NOW / 1000,
       });
       renderWithProvider(<CommitSummary commit={commit} />);
 
@@ -73,25 +61,19 @@ describe("CommitSummary", () => {
       );
     });
 
-    it("should display commit meta information", () => {
+    it("should display the author", () => {
       const commit = createCommit({
-        timestamp: NOW / 1000 - 7200, // 2 hours ago
         author: "Jane Smith",
-        shortId: "xyz9999",
       });
       renderWithProvider(<CommitSummary commit={commit} />);
 
-      expect(screen.getByTestId("commit-meta-time").textContent).toBe("2h ago");
       expect(screen.getByTestId("commit-meta-author").textContent).toBe(
         "Jane Smith",
-      );
-      expect(screen.getByTestId("commit-meta-hash").textContent).toBe(
-        "xyz9999",
       );
     });
 
     it("should apply custom className", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 });
+      const commit = createCommit();
       renderWithProvider(
         <CommitSummary commit={commit} className="custom-class" />,
       );
@@ -102,39 +84,45 @@ describe("CommitSummary", () => {
     });
   });
 
-  describe("HEAD Badge", () => {
-    it("should not show HEAD badge by default", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 });
+  describe("HEAD Commit Styling", () => {
+    it("should not have font-medium by default", () => {
+      const commit = createCommit();
       renderWithProvider(<CommitSummary commit={commit} />);
 
-      expect(screen.queryByTestId("head-badge")).toBeNull();
+      expect(
+        screen.getByTestId("commit-subject").classList.contains("font-medium"),
+      ).toBe(false);
     });
 
-    it("should show HEAD badge when isHead is true", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 });
+    it("should have font-medium when isHead is true", () => {
+      const commit = createCommit();
       renderWithProvider(<CommitSummary commit={commit} isHead />);
 
-      expect(screen.getByTestId("head-badge").textContent).toBe("HEAD");
+      expect(
+        screen.getByTestId("commit-subject").classList.contains("font-medium"),
+      ).toBe(true);
     });
 
-    it("should not show HEAD badge when isHead is false", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 });
+    it("should not have font-medium when isHead is false", () => {
+      const commit = createCommit();
       renderWithProvider(<CommitSummary commit={commit} isHead={false} />);
 
-      expect(screen.queryByTestId("head-badge")).toBeNull();
+      expect(
+        screen.getByTestId("commit-subject").classList.contains("font-medium"),
+      ).toBe(false);
     });
   });
 
   describe("View All Button", () => {
     it("should not show view all button when onViewAll is not provided", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 });
+      const commit = createCommit();
       renderWithProvider(<CommitSummary commit={commit} />);
 
       expect(screen.queryByTestId("view-all-button")).toBeNull();
     });
 
     it("should show view all button when onViewAll is provided", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 });
+      const commit = createCommit();
       const onViewAll = vi.fn();
       renderWithProvider(
         <CommitSummary commit={commit} onViewAll={onViewAll} />,
@@ -144,7 +132,7 @@ describe("CommitSummary", () => {
     });
 
     it("should call onViewAll when button is clicked", () => {
-      const commit = createCommit({ timestamp: NOW / 1000 });
+      const commit = createCommit();
       const onViewAll = vi.fn();
       renderWithProvider(
         <CommitSummary commit={commit} onViewAll={onViewAll} />,
@@ -159,9 +147,7 @@ describe("CommitSummary", () => {
     it("should show all elements for HEAD commit with onViewAll", () => {
       const commit = createCommit({
         subject: "Important fix",
-        timestamp: NOW / 1000 - 86400,
         author: "Developer",
-        shortId: "fix1234",
       });
       const onViewAll = vi.fn();
 
@@ -170,35 +156,17 @@ describe("CommitSummary", () => {
       );
 
       // Check all elements are present
-      expect(screen.getByTestId("head-badge")).toBeTruthy();
       expect(screen.getByTestId("commit-subject").textContent).toBe(
         "Important fix",
       );
-      expect(screen.getByTestId("view-all-button")).toBeTruthy();
-      expect(screen.getByTestId("commit-meta-time").textContent).toBe("1d ago");
       expect(screen.getByTestId("commit-meta-author").textContent).toBe(
         "Developer",
       );
-      expect(screen.getByTestId("commit-meta-hash").textContent).toBe(
-        "fix1234",
-      );
-    });
-  });
-
-  describe("Multi-line Messages", () => {
-    it("should handle commits with multi-line messages", () => {
-      const commit = createCommit({
-        subject: "Short subject",
-        message: "Short subject\n\nThis is the body of the commit message.",
-        timestamp: NOW / 1000,
-      });
-
-      renderWithProvider(<CommitSummary commit={commit} />);
-
-      // Subject should only show first line
-      expect(screen.getByTestId("commit-subject").textContent).toBe(
-        "Short subject",
-      );
+      expect(screen.getByTestId("view-all-button")).toBeTruthy();
+      // HEAD styling is font-medium on subject
+      expect(
+        screen.getByTestId("commit-subject").classList.contains("font-medium"),
+      ).toBe(true);
     });
   });
 
@@ -207,7 +175,6 @@ describe("CommitSummary", () => {
       const commit = createCommit({
         subject: "",
         message: "",
-        timestamp: NOW / 1000,
       });
 
       renderWithProvider(<CommitSummary commit={commit} />);
@@ -221,7 +188,6 @@ describe("CommitSummary", () => {
       const commit = createCommit({
         subject: longSubject,
         message: longSubject,
-        timestamp: NOW / 1000,
       });
 
       renderWithProvider(<CommitSummary commit={commit} />);
@@ -237,12 +203,11 @@ describe("CommitSummary", () => {
     it("should handle very long author name", () => {
       const commit = createCommit({
         author: "A Very Long Author Name That Should Be Truncated",
-        timestamp: NOW / 1000,
       });
 
       renderWithProvider(<CommitSummary commit={commit} />);
 
-      // Author element should have truncate class
+      // Author element should have truncate class (truncates first before subject)
       expect(
         screen.getByTestId("commit-meta-author").classList.contains("truncate"),
       ).toBe(true);

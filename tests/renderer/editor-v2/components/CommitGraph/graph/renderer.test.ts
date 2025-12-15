@@ -37,6 +37,7 @@ const defaultConfig: GraphRenderConfig = {
   circleRadius: 5,
   curveRadius: 6,
   strokeWidth: 2,
+  lineGap: 0,
 };
 
 function createCommit(id: string, parentIds: string[] = []): HistoryCommit {
@@ -155,12 +156,23 @@ describe("pathFromAbove", () => {
     expect(path).toBe("M 8 0 L 8 17"); // 22 - 5 (circle radius) = 17
   });
 
-  it("should generate curve when different lanes", () => {
+  it("should generate curve when different lanes (branch start from right)", () => {
     const path = pathFromAbove(1, 0, 22, defaultConfig);
-    // Should curve from lane 1 to lane 0
-    expect(path).toContain("M 24 0");
-    expect(path).toContain("Q");
-    expect(path).toContain("8 22");
+    // Should curve from lane 1 (right, branch) to lane 0 (left, parent) - branch start case
+    // Draws FROM the parent node's 3 o'clock position OUT to the branch lane
+    // circleRightEdge = toX + circleRadius = 8 + 5 = 13
+    // Path: starts at (13, 22) - node's 3 o'clock, curves to (24, 0) - branch lane at top
+    expect(path).toContain("M 13 22"); // Start at node's 3 o'clock
+    expect(path).toContain("Q 24 22 24 0"); // Bezier right then up to branch lane
+  });
+
+  it("should generate curve when different lanes (branch start from left)", () => {
+    const path = pathFromAbove(0, 1, 22, defaultConfig);
+    // Should curve from lane 0 (left) to lane 1 (right) - branch start case
+    // Starts at "3 o'clock" position: fromX + circleRadius = 8 + 5 = 13
+    // endY = 22 - 5 = 17
+    expect(path).toContain("M 13 0"); // Start at 3 o'clock of source lane
+    expect(path).toContain("Q 24 0 24 17"); // Bezier to target lane
   });
 });
 
@@ -173,11 +185,15 @@ describe("pathToBelow", () => {
 
   it("should generate curve when different lanes", () => {
     const path = pathToBelow(0, 1, 22, 44, defaultConfig);
-    // Should curve from lane 0 to lane 1
-    expect(path).toContain("M 8 22");
-    expect(path).toContain("Q");
-    expect(path).toContain("24");
-    expect(path).toContain("44");
+    // VS Code style: arc at target lane + horizontal connector
+    // arcStartX = toX - laneWidth/2 = 24 - 8 = 16 (left edge of lane 1)
+    // toX = 24 (center of lane 1)
+    // fromX = 8 (center of lane 0)
+    // arcRadius = laneWidth = 16
+    // Quadratic bezier from circle edge to target lane
+    // circleRightEdge = 8 + 5 + 0 = 13, toX = 24, centerY = 22, height = 44
+    expect(path).toContain("M 13 22"); // Starts at circle edge
+    expect(path).toContain("Q 24 22 24 44"); // Bezier to target lane at bottom
   });
 });
 
@@ -280,7 +296,7 @@ describe("calculateCircle", () => {
     const circle = calculateCircle(node, 44, defaultConfig);
 
     expect(circle.cx).toBe(8); // lane 0 x position
-    expect(circle.cy).toBe(22); // center of row
+    expect(circle.cy).toBe(12); // always at ROW_HEIGHT / 2 = 24 / 2
     expect(circle.r).toBe(5);
     expect(circle.style).toBe("normal");
     expect(circle.color).toBe("branch-1");
@@ -396,6 +412,78 @@ describe("calculateGraphCell", () => {
     expect(cell.circle.style).toBe("merge");
   });
 
+  it("should generate curve path to second parent in merge commit", () => {
+    // This test specifically verifies that merge commits draw a curve
+    // to their second parent (e.g., the feature branch being merged in)
+    const commit = createCommit("merge", ["first-parent", "second-parent"]);
+    const node = createNode(
+      commit,
+      0, // Merge is at lane 0
+      [createSwimlane("merge")],
+      [
+        createSwimlane("first-parent"), // Lane 0 targets first parent
+        createSwimlane("second-parent", "branch-2"), // Lane 1 targets second parent
+      ],
+      { isMerge: true },
+    );
+
+    const cell = calculateGraphCell(node, 44, defaultConfig);
+
+    // Should have 3 paths: incoming + straight down to first parent + curve to second parent
+    expect(cell.paths.length).toBe(3);
+
+    // Find the curve path (to lane 1) - bezier curve (Q command)
+    // Lane 0 x = 8, Lane 1 x = 24
+    const curvePath = cell.paths.find(
+      (p) => p.d.includes("Q") && p.d.includes("24"),
+    );
+    expect(curvePath).toBeDefined();
+    expect(curvePath!.color).toBe("branch-2");
+    expect(curvePath!.isPassThrough).toBe(false);
+
+    // Quadratic bezier from circle edge directly to target lane
+    // circleRightEdge = 8 + 5 + 0 = 13, toX = 24, centerY = 12 (ROW_HEIGHT/2), height = 44
+    expect(curvePath!.d).toContain("M 13"); // Starts at circle edge
+    expect(curvePath!.d).toContain("Q 24"); // Bezier control point at target lane
+  });
+
+  it("should draw incoming curves for ALL lanes targeting this commit", () => {
+    // This is the key scenario for branch convergence:
+    // Multiple branches (lanes) all target the same commit (branch point)
+    // We need to draw incoming curves for ALL of them, not just the first one
+    const commit = createCommit("branch-point", ["root"]);
+    const node = createNode(
+      commit,
+      0, // Branch point is at lane 0
+      [
+        createSwimlane("branch-point"), // Lane 0 - main lane targeting this commit
+        createSwimlane("branch-point", "branch-2"), // Lane 1 - another branch also targets this
+        createSwimlane("branch-point", "branch-3"), // Lane 2 - third branch also targets this
+      ],
+      [createSwimlane("root")], // After processing, only one lane remains
+    );
+
+    const cell = calculateGraphCell(node, 44, defaultConfig);
+
+    // Should have:
+    // - 1 straight incoming line (from lane 0)
+    // - 2 curved incoming lines (from lanes 1 and 2)
+    // - 1 outgoing line (to root)
+    const incomingPaths = cell.paths.filter(
+      (p) => !p.isPassThrough && p.d.startsWith("M") && !p.d.includes("H"),
+    );
+    // We expect at least 3 incoming paths (lanes 0, 1, 2 all target this commit)
+    // Plus the outgoing path
+    expect(cell.paths.length).toBeGreaterThanOrEqual(4);
+
+    // Verify curves exist from lanes 1 and 2 (branch convergence)
+    // These are the "branch start" indicators drawn at the parent commit
+    const curvesFromAbove = cell.paths.filter(
+      (p) => p.d.includes("Q") && p.d.includes("0"), // Quadratic curves going to lane 0
+    );
+    expect(curvesFromAbove.length).toBe(2); // One from lane 1, one from lane 2
+  });
+
   it("should include pass-through paths", () => {
     const commit = createCommit("a", ["b"]);
     const node = createNode(
@@ -444,7 +532,7 @@ describe("calculateGraphCell", () => {
     const cell = calculateGraphCell(node, 200, defaultConfig);
 
     expect(cell.height).toBe(200);
-    expect(cell.circle.cy).toBe(100); // center of expanded row
+    expect(cell.circle.cy).toBe(12); // always at ROW_HEIGHT / 2 = 24 / 2, not expanded center
   });
 
   it("should handle root commit (no output)", () => {

@@ -500,7 +500,7 @@ export default {
    * @returns The commit, or null if not found
    */
   getCommit: (cwd: string, commitId: string) =>
-    ipcRenderer.invoke("git-v2:commit", {
+    ipcRenderer.invoke("git-v2:get-commit", {
       cwd,
       commitId,
     }) as Promise<SerializedHistoryCommit | null>,

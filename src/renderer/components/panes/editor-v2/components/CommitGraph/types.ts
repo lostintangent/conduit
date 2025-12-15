@@ -226,6 +226,9 @@ export interface GraphRenderConfig {
 
   /** Stroke width for graph lines */
   strokeWidth: number;
+
+  /** Gap between lines and commit circles */
+  lineGap: number;
 }
 
 /**

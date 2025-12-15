@@ -15,7 +15,7 @@
  * <PanelResizer
  *   onResize={(height) => setHeight(height)}
  *   minHeight={100}
- *   maxHeight={400}
+ *   maxHeight={600}
  * />
  * ```
  */
@@ -29,7 +29,7 @@ export interface PanelResizerProps {
   /** Minimum height (default: 100) */
   minHeight?: number;
 
-  /** Maximum height (default: 400) */
+  /** Maximum height (default: 600) */
   maxHeight?: number;
 
   /** Callback when resize starts */
@@ -48,7 +48,7 @@ export interface PanelResizerProps {
 export function PanelResizer({
   onResize,
   minHeight = 100,
-  maxHeight = 400,
+  maxHeight = 600,
   onResizeStart,
   onResizeEnd,
 }: PanelResizerProps) {
@@ -134,7 +134,7 @@ export function PanelResizer({
 
       {/* Wider interactive handle that highlights on hover/drag */}
       <div
-        className={`h-1.5 absolute w-full cursor-row-resize transition-colors z-10 ${handleClass}`}
+        className={`h-1 absolute w-full cursor-row-resize transition-colors z-10 ${handleClass}`}
         onMouseDown={handleMouseDown}
       />
     </div>

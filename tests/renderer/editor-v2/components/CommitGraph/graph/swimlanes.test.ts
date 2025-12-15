@@ -181,6 +181,48 @@ describe("computeSwimlanes", () => {
       const colors = result[0].outputSwimlanes.map((s) => s.color);
       expect(colors[0]).not.toBe(colors[1]);
     });
+
+    it("should handle merge where second parent appears first in topo order", () => {
+      // This matches the real scenario where git --topo-order puts the
+      // second parent (feature branch) before the first parent (main branch)
+      // Graph:
+      //   merge (parents: [main-commit, feature-tip])
+      //   |  \
+      //   |   feature-tip
+      //   |   feature-commit
+      //   main-commit
+      //   |
+      //   root
+      const commits = [
+        createCommit("merge", ["main-commit", "feature-tip"]),
+        createCommit("feature-tip", ["feature-commit"]), // Second parent appears first!
+        createCommit("feature-commit", ["root"]),
+        createCommit("main-commit", ["root"]), // First parent appears later
+        createCommit("root"),
+      ];
+      const result = computeSwimlanes(commits);
+
+      // Merge is at lane 0
+      expect(result[0].laneIndex).toBe(0);
+      // Output should have 2 lanes: lane 0 → main-commit, lane 1 → feature-tip
+      expect(result[0].outputSwimlanes).toHaveLength(2);
+      expect(result[0].outputSwimlanes[0].targetId).toBe("main-commit");
+      expect(result[0].outputSwimlanes[1].targetId).toBe("feature-tip");
+
+      // feature-tip should be at lane 1 (found via outputSwimlanes[1])
+      expect(result[1].laneIndex).toBe(1);
+      expect(result[1].commit.id).toBe("feature-tip");
+
+      // feature-commit should also be at lane 1 (continues the feature branch)
+      expect(result[2].laneIndex).toBe(1);
+
+      // main-commit should be at lane 0
+      expect(result[3].laneIndex).toBe(0);
+      expect(result[3].commit.id).toBe("main-commit");
+
+      // root - lanes should converge
+      expect(result[4].laneIndex).toBe(0);
+    });
   });
 
   describe("Multiple Branches", () => {
@@ -216,7 +258,7 @@ describe("computeSwimlanes", () => {
       expect(result[3].laneIndex).toBe(2); // d in lane 2
     });
 
-    it("should collapse lanes when they target the same commit", () => {
+    it("should keep all lanes targeting the same commit for curve drawing", () => {
       // Graph:
       //   a
       //   |\
@@ -231,9 +273,14 @@ describe("computeSwimlanes", () => {
       ];
       const result = computeSwimlanes(commits);
 
-      // After processing 'c', lanes should collapse since both target 'd'
-      // When we reach 'd', there should only be one lane
-      expect(result[3].inputSwimlanes).toHaveLength(1);
+      // Both lanes should target 'd' so the renderer can draw converging curves
+      // This is the VS Code approach - we need all input lanes to draw curves
+      expect(result[3].inputSwimlanes).toHaveLength(2);
+      expect(result[3].inputSwimlanes[0].targetId).toBe("d");
+      expect(result[3].inputSwimlanes[1].targetId).toBe("d");
+
+      // After processing 'd', only one lane should remain (targeting nothing for root)
+      expect(result[3].outputSwimlanes).toHaveLength(0);
     });
   });
 

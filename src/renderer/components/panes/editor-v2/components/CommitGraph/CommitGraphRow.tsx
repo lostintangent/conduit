@@ -4,25 +4,24 @@
  * Renders a single row in the commit graph, combining the graph visualization
  * with the commit summary and optionally the expanded files panel.
  *
+ * Uses a compact single-line layout matching VS Code's git graph style.
+ *
  * Layout (collapsed):
  * ```
- * ┌────────┬──────────────────────────────────────────────┐
- * │ Graph  │ Fix authentication bug in login flow    [👁] │
- * │  (O)   │ 2h ago · John Doe · abc1234                  │
- * └────────┴──────────────────────────────────────────────┘
+ * ┌────┬────────────────────────────────────────────────┐
+ * │ ●  │ Fix authentication bug in login flow  John... │
+ * └────┴────────────────────────────────────────────────┘
  * ```
  *
  * Layout (expanded):
  * ```
- * ┌────────┬──────────────────────────────────────────────┐
- * │ Graph  │ Fix authentication bug in login flow    [👁] │
- * │  │     │ 2h ago · John Doe · abc1234                  │
- * │  │     ├──────────────────────────────────────────────┤
- * │  │     │ 3 files changed  +25 / -10                   │
- * │  │     │ 📄 src/index.ts           +12 -3  [M]        │
- * │  │     │ 📄 src/utils/helper.ts    +8 -5   [M]        │
- * │  │     │ 📄 README.md              +5 -2   [M]        │
- * └────────┴──────────────────────────────────────────────┘
+ * ┌────┬────────────────────────────────────────────────┐
+ * │ ●  │ Fix authentication bug in login flow  John... │
+ * │ │  ├────────────────────────────────────────────────┤
+ * │ │  │ 3 files changed  +25 / -10                     │
+ * │ │  │ 📄 src/index.ts           +12 -3  [M]          │
+ * │ │  │ 📄 src/utils/helper.ts    +8 -5   [M]          │
+ * └────┴────────────────────────────────────────────────┘
  * ```
  *
  * @example
@@ -85,20 +84,21 @@ export interface CommitGraphRowProps {
 
 /**
  * Height of each file item in the files panel (in pixels).
- * Based on CommitFileItem styling.
+ * Based on CommitFileItem styling: py-0.5 (4px) + text-[12px] (~18px) = ~22px
  */
-const FILE_ITEM_HEIGHT = 28;
+const FILE_ITEM_HEIGHT = 22;
 
 /**
  * Height of the files panel header (in pixels).
- * Based on CommitFilesHeader styling.
+ * Based on CommitFilesHeader styling: py-1 (8px) + text-[11px] (~16px) + border-b (1px) = ~25px
  */
-const FILES_HEADER_HEIGHT = 28;
+const FILES_HEADER_HEIGHT = 25;
 
 /**
  * Padding/margin within the files panel (in pixels).
+ * Includes: wrapper pb-2 (8px) + file list py-0.5 (4px) + buffer for sub-pixel rendering = 14px
  */
-const FILES_PANEL_PADDING = 8;
+const FILES_PANEL_PADDING = 14;
 
 /**
  * Minimum height for the files panel when loading or empty.
@@ -225,39 +225,46 @@ function CommitGraphRowComponent({
     [onToggle],
   );
 
+  // Calculate the height of the expanded files section
+  const filesPanelHeight = isExpanded
+    ? calculateFilesPanelHeight(node.files, node.isLoadingFiles ?? false)
+    : 0;
+
   return (
     <div
-      className={cn(
-        // Base layout
-        "flex items-stretch",
-        // Interactive styling
-        "cursor-pointer",
-        "hover:bg-accent/50",
-        "transition-colors duration-150",
-        // Selected state (for keyboard navigation)
-        isSelected && "bg-accent ring-1 ring-accent-foreground/20",
-        // Focus styling
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        className,
-      )}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
-      aria-expanded={isExpanded}
-      aria-label={`Commit: ${node.commit.subject}`}
+      className={cn("flex flex-col", className)}
       data-testid="commit-graph-row"
       data-commit-id={node.commit.id}
     >
-      {/* Graph column - fixed width based on lanes */}
-      <div className="flex-shrink-0" data-testid="graph-column">
-        <GraphCell node={node} height={rowHeight} config={config} />
-      </div>
+      {/* Commit summary row - graph + content, highlights on hover */}
+      <div
+        className={cn(
+          "flex items-stretch",
+          "cursor-pointer",
+          "rounded-md",
+          "transition-colors duration-150",
+          // Use same colors as FileTreeItem
+          isSelected
+            ? "bg-accent/20 hover:bg-accent/25"
+            : "hover:bg-foreground/10",
+          // Focus styling
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        )}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-expanded={isExpanded}
+        aria-label={`Commit: ${node.commit.subject}`}
+        data-testid="commit-summary-row"
+      >
+        {/* Graph - just the commit row portion */}
+        <div className="flex-shrink-0" data-testid="graph-column">
+          <GraphCell node={node} height={ROW_HEIGHT} config={config} />
+        </div>
 
-      {/* Content column - flexible width */}
-      <div className="flex-1 min-w-0 flex flex-col group">
-        {/* Commit summary (always visible) */}
-        <div className="h-[44px] flex items-center px-2">
+        {/* Commit summary - pt-px nudges text down 1px to align with graph dot */}
+        <div className="flex-1 min-w-0 h-6 flex items-center pr-2 pt-px group">
           <CommitSummary
             commit={node.commit}
             isHead={node.isHead}
@@ -265,10 +272,26 @@ function CommitGraphRowComponent({
             className="flex-1 min-w-0"
           />
         </div>
+      </div>
 
-        {/* Expanded files panel */}
-        {isExpanded && (
-          <div className="px-2 pb-2" data-testid="expanded-content">
+      {/* Expanded section - graph continuation + files panel, no hover */}
+      {isExpanded && (
+        <div className="flex items-stretch">
+          {/* Graph continuation - just the lines going down */}
+          <div className="flex-shrink-0">
+            <GraphCell
+              node={node}
+              height={filesPanelHeight}
+              config={config}
+              hideCircle
+            />
+          </div>
+
+          {/* Files panel - pr-2 to match commit summary row (no left padding) */}
+          <div
+            className="flex-1 min-w-0 pr-2 pb-2"
+            data-testid="expanded-content"
+          >
             <CommitFilesPanel
               files={node.files}
               isLoading={node.isLoadingFiles}
@@ -276,8 +299,8 @@ function CommitGraphRowComponent({
               onFileSelect={onFileSelect}
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

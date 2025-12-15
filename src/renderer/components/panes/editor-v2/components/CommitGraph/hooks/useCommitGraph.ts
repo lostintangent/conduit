@@ -199,7 +199,7 @@ export function useCommitGraph(
   options: UseCommitGraphOptions = {},
 ): UseCommitGraphResult {
   const {
-    headCommitId,
+    headCommitId: providedHeadCommitId,
     pageSize = DEFAULT_PAGE_SIZE,
     loadOnMount = true,
   } = options;
@@ -235,6 +235,10 @@ export function useCommitGraph(
 
   // Track if initial load has happened
   const hasLoadedRef = useRef(false);
+
+  // HEAD commit ID: use provided value, or assume first commit is HEAD
+  // (commits are loaded in topological order starting from HEAD)
+  const headCommitId = providedHeadCommitId ?? commits[0]?.id;
 
   // ---------------------------------------------------------------------------
   // Computed State: Swimlane Nodes
