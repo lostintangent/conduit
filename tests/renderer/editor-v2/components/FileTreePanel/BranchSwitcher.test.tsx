@@ -5,17 +5,17 @@
  * different branches with conflict handling.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { GitBranch } from "@/../../src/ipc/gitv2/types";
+import type { GitV2API } from "@/api/GitV2API";
+import { BranchSwitcher } from "@/components/panes/editor-v2/components/FileTreePanel/BranchSwitcher";
 import {
+  act,
+  fireEvent,
   render,
   screen,
   waitFor,
-  fireEvent,
-  act,
 } from "@testing-library/react";
-import { BranchSwitcher } from "@/components/panes/editor-v2/components/FileTreePanel/BranchSwitcher";
-import type { GitV2API } from "@/api/GitV2API";
-import type { GitBranch } from "@/../../src/ipc/gitv2/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Test Data
@@ -149,6 +149,9 @@ describe("BranchSwitcher", () => {
     });
 
     it("should show loading state while fetching branches", async () => {
+      // Use fake timers to control async timing
+      vi.useFakeTimers();
+
       const mockGit = createMockGitAPI({
         getBranches: vi
           .fn()
@@ -169,11 +172,22 @@ describe("BranchSwitcher", () => {
       );
 
       const trigger = screen.getByTestId("branch-switcher-trigger");
+
+      // Open dropdown without advancing timers
       await act(async () => {
         fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+        // Let microtasks (like whenReady) settle, but not setTimeout
+        await Promise.resolve();
       });
 
+      // Should show loading state while getBranches is pending
       expect(screen.getByText("Loading branches...")).toBeDefined();
+
+      // Cleanup: advance timers and restore
+      await act(async () => {
+        vi.advanceTimersByTime(100);
+      });
+      vi.useRealTimers();
     });
 
     it("should filter out remote branches", async () => {
