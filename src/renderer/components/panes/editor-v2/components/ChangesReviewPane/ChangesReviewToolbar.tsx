@@ -43,10 +43,10 @@ import { cn } from "@/utils";
 import {
   AlertCircle,
   ArrowDownToLine,
+  ArrowLeft,
   ArrowUpFromLine,
   GitCommit,
   Send,
-  SquareArrowOutDownLeft,
   X,
 } from "lucide-react";
 
@@ -122,16 +122,6 @@ export function ChangesReviewToolbar({
   error,
   onDismissError,
 }: ChangesReviewToolbarProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Cmd/Ctrl+Enter to commit
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      if (canCommit) {
-        onCommit();
-      }
-    }
-  };
-
   return (
     <div className="flex-shrink-0" data-testid="changes-review-toolbar">
       {/* Error Banner */}
@@ -161,12 +151,28 @@ export function ChangesReviewToolbar({
 
       {/* Title bar - styled to match FileTreeToolbar and EditorToolbar */}
       <div
-        className="flex items-center justify-between px-3 py-[7.25px] bg-elevated text-[13px] border-b border-border"
+        className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-border"
         data-testid="review-title-bar"
       >
-        <span className="truncate" data-testid="review-title">
-          Review Changes ({totalFileCount})
-        </span>
+        <div className="flex items-center gap-2">
+          {onExitReview && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onExitReview}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                  data-testid="exit-review-button"
+                >
+                  <ArrowLeft size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Exit review mode</TooltipContent>
+            </Tooltip>
+          )}
+          <span className="truncate" data-testid="review-title">
+            Review Changes ({totalFileCount})
+          </span>
+        </div>
       </div>
 
       {/* Main Toolbar - Single row layout like v1 */}
@@ -310,26 +316,6 @@ export function ChangesReviewToolbar({
                   </Tooltip>
                 )}
               </div>
-            </>
-          )}
-
-          {/* Exit review button - positioned like v1 */}
-          {onExitReview && (
-            <>
-              <Separator orientation="vertical" className="h-6" />
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={onExitReview}
-                    className="p-1.5 rounded hover:bg-primary/10 transition-colors"
-                    data-testid="exit-review-button"
-                  >
-                    <SquareArrowOutDownLeft className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Exit review mode</TooltipContent>
-              </Tooltip>
             </>
           )}
         </div>
