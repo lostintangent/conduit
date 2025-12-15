@@ -590,6 +590,7 @@ describe("GitV2API", () => {
         "/test/project",
         false,
         false,
+        undefined,
       );
 
       api.release();
@@ -601,7 +602,12 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.push(true);
 
-      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", true, false);
+      expect(mockGitv2.push).toHaveBeenCalledWith(
+        "/test/project",
+        true,
+        false,
+        undefined,
+      );
 
       api.release();
     });
@@ -612,7 +618,12 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.push(false, true);
 
-      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", false, true);
+      expect(mockGitv2.push).toHaveBeenCalledWith(
+        "/test/project",
+        false,
+        true,
+        undefined,
+      );
 
       api.release();
     });
@@ -625,7 +636,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.pull();
 
-      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", false);
+      expect(mockGitv2.pull).toHaveBeenCalledWith(
+        "/test/project",
+        false,
+        undefined,
+      );
 
       api.release();
     });
@@ -636,7 +651,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.pull(true);
 
-      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", true);
+      expect(mockGitv2.pull).toHaveBeenCalledWith(
+        "/test/project",
+        true,
+        undefined,
+      );
 
       api.release();
     });
@@ -649,7 +668,10 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       const result = await api.hasUpstream();
 
-      expect(mockGitv2.hasUpstream).toHaveBeenCalledWith("/test/project");
+      expect(mockGitv2.hasUpstream).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+      );
       expect(result).toBe(true);
 
       api.release();
