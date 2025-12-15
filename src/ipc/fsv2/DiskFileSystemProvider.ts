@@ -628,6 +628,12 @@ export class DiskFileSystemProvider implements FileSystemProvider {
         entries,
       });
     } catch (error) {
+      // Silently ignore permission errors (common when watching home directory
+      // and system directories like ~/Library have restricted access)
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EPERM" || code === "EACCES") {
+        return;
+      }
       console.error(
         `[DiskFileSystemProvider] Failed to refresh directory ${normalizedPath}:`,
         error,
@@ -658,6 +664,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // Verify in background (don't await)
     this.verifyCache(dirPath).catch((error) => {
+      // Silently ignore permission errors
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EPERM" || code === "EACCES") {
+        return;
+      }
       console.error(
         `[DiskFileSystemProvider] Cache verification failed for ${dirPath}:`,
         error,
