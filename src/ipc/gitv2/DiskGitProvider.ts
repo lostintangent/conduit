@@ -20,7 +20,6 @@
  * ```
  */
 
-import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
@@ -204,8 +203,8 @@ export class DiskGitProvider implements GitProvider {
     // Check if .git is a file (worktree) or directory
     let watchPath: string;
     try {
-      const gitStat = fs.statSync(gitDir);
-      watchPath = gitStat.isFile() ? this.resolveGitDir(gitDir) : gitDir;
+      const gitStat = await fsPromises.stat(gitDir);
+      watchPath = gitStat.isFile() ? await this.resolveGitDir(gitDir) : gitDir;
     } catch {
       // .git doesn't exist yet or is inaccessible
       return;
@@ -1270,9 +1269,9 @@ export class DiskGitProvider implements GitProvider {
    * When using git worktrees, .git is a file containing:
    * "gitdir: /path/to/actual/.git/worktrees/name"
    */
-  private resolveGitDir(gitFile: string): string {
+  private async resolveGitDir(gitFile: string): Promise<string> {
     try {
-      const content = fs.readFileSync(gitFile, "utf8");
+      const content = await fsPromises.readFile(gitFile, "utf8");
       const match = content.match(/gitdir:\s*(.+)/);
       if (match) {
         const gitDir = match[1].trim();

@@ -31,42 +31,44 @@ export function aggregateFolderStatus(
     ? folderRelativePath.slice(0, -1)
     : folderRelativePath;
 
-  // Collect all child file statuses under this folder
-  const childStatuses: GitFileStatus[] = [];
-
   // For root folder (empty string), match all files
   // For other folders, match files that start with "folder/"
   const folderPrefix = normalizedFolder === "" ? "" : normalizedFolder + "/";
 
-  for (const [relativePath, status] of gitStatusMap) {
-    // Check if this file is under the folder
-    const isUnderFolder =
-      normalizedFolder === ""
-        ? true // Root folder matches all files
-        : relativePath.startsWith(folderPrefix) ||
-          relativePath === normalizedFolder;
+  // Track the highest-weight status config found
+  // This avoids collecting all configs and then sorting
+  let maxConfig: StatusConfig | null = null;
+  let maxWeight = -1;
 
-    if (isUnderFolder) {
-      // Filter out deleted files - they don't propagate to parent folders
-      if (status.status !== "deleted") {
-        childStatuses.push(status);
+  for (const [relativePath, status] of gitStatusMap) {
+    // Early exit optimization: skip if path can't be under this folder
+    if (normalizedFolder !== "") {
+      // For non-root folders, path must start with prefix or match exactly
+      if (
+        !relativePath.startsWith(folderPrefix) &&
+        relativePath !== normalizedFolder
+      ) {
+        continue;
+      }
+    }
+
+    // Filter out deleted files - they don't propagate to parent folders
+    if (status.status === "deleted") {
+      continue;
+    }
+
+    // Get status config for this file
+    const config = getStatusConfig(status);
+    if (config && config.weight > maxWeight) {
+      maxConfig = config;
+      maxWeight = config.weight;
+
+      // Early exit: if we found max possible weight (conflict=4), no need to continue
+      if (maxWeight === 4) {
+        break;
       }
     }
   }
 
-  // If no child statuses, return null
-  if (childStatuses.length === 0) return null;
-
-  // Get status configs for all child files
-  const configs = childStatuses
-    .map((status) => getStatusConfig(status))
-    .filter((config): config is StatusConfig => config !== null);
-
-  if (configs.length === 0) return null;
-
-  // Sort by weight (highest priority first)
-  configs.sort((a, b) => b.weight - a.weight);
-
-  // Return the highest-weight status config
-  return configs[0];
+  return maxConfig;
 }

@@ -14,6 +14,7 @@
 import ignore, { type Ignore } from "ignore";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 
 // ============================================================================
@@ -111,7 +112,7 @@ class GitIgnoreCacheImpl {
    * Get or create the ignore matcher for a git root.
    * Automatically loads the root .gitignore if not already loaded.
    */
-  private getOrCreateMatcher(gitRoot: string): Ignore {
+  private async getOrCreateMatcher(gitRoot: string): Promise<Ignore> {
     let matcher = this.matcherCache.get(gitRoot);
     if (!matcher) {
       matcher = ignore();
@@ -119,7 +120,7 @@ class GitIgnoreCacheImpl {
       this.loadedGitignoreFiles.set(gitRoot, new Set());
 
       // Load root .gitignore
-      this.loadGitignoreFile(gitRoot, path.join(gitRoot, ".gitignore"));
+      await this.loadGitignoreFile(gitRoot, path.join(gitRoot, ".gitignore"));
     }
     return matcher;
   }
@@ -128,18 +129,24 @@ class GitIgnoreCacheImpl {
    * Load a .gitignore file and add its rules to the matcher.
    * Rules are prefixed with the relative directory path to handle nested .gitignore files.
    */
-  private loadGitignoreFile(gitRoot: string, gitignorePath: string): void {
+  private async loadGitignoreFile(
+    gitRoot: string,
+    gitignorePath: string,
+  ): Promise<void> {
     const loadedFiles = this.loadedGitignoreFiles.get(gitRoot);
     if (!loadedFiles || loadedFiles.has(gitignorePath)) {
       return; // Already loaded
     }
 
-    if (!fs.existsSync(gitignorePath)) {
-      return; // File doesn't exist
+    try {
+      // Check if file exists before reading (async stat)
+      await fsPromises.access(gitignorePath, fs.constants.R_OK);
+    } catch {
+      return; // File doesn't exist or isn't readable
     }
 
     try {
-      const content = fs.readFileSync(gitignorePath, "utf-8");
+      const content = await fsPromises.readFile(gitignorePath, "utf-8");
       const matcher = this.matcherCache.get(gitRoot);
       if (!matcher) return;
 
@@ -200,11 +207,11 @@ class GitIgnoreCacheImpl {
     }
 
     // Get the matcher (creates one if needed, loads root .gitignore)
-    const matcher = this.getOrCreateMatcher(resolvedGitRoot);
+    const matcher = await this.getOrCreateMatcher(resolvedGitRoot);
 
     // Check for .gitignore in this directory and load if present
     const localGitignore = path.join(dirPath, ".gitignore");
-    this.loadGitignoreFile(resolvedGitRoot, localGitignore);
+    await this.loadGitignoreFile(resolvedGitRoot, localGitignore);
 
     // Get relative path from git root to this directory
     const relativeDir = path.relative(resolvedGitRoot, dirPath);
@@ -245,8 +252,13 @@ class GitIgnoreCacheImpl {
       return false;
     }
 
-    // Get or create matcher (loads root .gitignore if needed)
-    const matcher = this.getOrCreateMatcher(gitRoot);
+    // Get existing matcher only (don't create if it doesn't exist)
+    // This is synchronous and only uses already-loaded rules
+    const matcher = this.matcherCache.get(gitRoot);
+    if (!matcher) {
+      // No matcher loaded yet, assume not ignored
+      return false;
+    }
     return matcher.ignores(relativePath);
   }
 

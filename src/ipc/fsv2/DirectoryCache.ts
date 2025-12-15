@@ -114,10 +114,11 @@ class DirectoryCacheImpl {
   private listeners = new Map<string, Set<CacheChangeListener>>();
 
   /**
-   * Tracks access order for LRU eviction.
-   * Most recently accessed paths are at the end.
+   * Tracks access order for LRU eviction using a Map.
+   * Map maintains insertion order, so we can efficiently move items to end.
+   * Key: normalized path, Value: true (value is unused, we just need the ordering)
    */
-  private accessOrder: string[] = [];
+  private accessOrder = new Map<string, true>();
 
   /**
    * Maximum number of entries before LRU eviction kicks in.
@@ -308,10 +309,7 @@ class DirectoryCacheImpl {
 
     if (this.cache.delete(normalizedPath)) {
       // Remove from access order
-      const index = this.accessOrder.indexOf(normalizedPath);
-      if (index !== -1) {
-        this.accessOrder.splice(index, 1);
-      }
+      this.accessOrder.delete(normalizedPath);
       this.notifyListeners(normalizedPath, null);
     }
   }
@@ -324,7 +322,7 @@ class DirectoryCacheImpl {
   clear(): void {
     const paths = [...this.cache.keys()];
     this.cache.clear();
-    this.accessOrder = [];
+    this.accessOrder.clear();
 
     // Notify all listeners
     for (const path of paths) {
@@ -417,25 +415,26 @@ class DirectoryCacheImpl {
    * Update access order for LRU tracking.
    *
    * Moves the path to the end of accessOrder (most recently used).
+   * Uses Map's delete+set to move to end, which is O(1) instead of O(n).
    */
   private updateAccessOrder(normalizedPath: string): void {
-    const index = this.accessOrder.indexOf(normalizedPath);
-    if (index !== -1) {
-      this.accessOrder.splice(index, 1);
-    }
-    this.accessOrder.push(normalizedPath);
+    // Delete and re-add to move to end (Map maintains insertion order)
+    this.accessOrder.delete(normalizedPath);
+    this.accessOrder.set(normalizedPath, true);
   }
 
   /**
    * Evict the least-recently-used entry.
    */
   private evictLRU(): void {
-    if (this.accessOrder.length === 0) {
+    if (this.accessOrder.size === 0) {
       return;
     }
 
-    const lruPath = this.accessOrder.shift();
+    // Get first key from Map (oldest entry)
+    const lruPath = this.accessOrder.keys().next().value;
     if (lruPath) {
+      this.accessOrder.delete(lruPath);
       this.cache.delete(lruPath);
       this.notifyListeners(lruPath, null);
     }

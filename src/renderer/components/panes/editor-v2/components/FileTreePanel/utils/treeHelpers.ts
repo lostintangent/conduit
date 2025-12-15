@@ -148,17 +148,26 @@ export function expandFoldersToFiles(
 ): string[] {
   const result = new Set<string>();
 
+  // Precompute which paths are folders (O(n) instead of O(n*m))
+  const folders = new Set<string>();
+  for (const filePath of allFilePaths) {
+    // Extract all parent folders from this file path
+    const parts = filePath.split("/");
+    let currentPath = "";
+    for (let i = 0; i < parts.length - 1; i++) {
+      currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+      folders.add(currentPath);
+    }
+  }
+
   for (const path of selectedPaths) {
-    // Check if any file path starts with this path + "/"
-    // If so, this is a folder selection
-    const isFolder = allFilePaths.some(
-      (fp) => fp.startsWith(path + "/") && fp !== path,
-    );
+    const isFolder = folders.has(path);
 
     if (isFolder) {
       // Add all files under this folder
+      const prefix = path + "/";
       for (const filePath of allFilePaths) {
-        if (filePath.startsWith(path + "/") || filePath === path) {
+        if (filePath.startsWith(prefix) || filePath === path) {
           result.add(filePath);
         }
       }
