@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Mocks
@@ -166,7 +166,10 @@ describe("useGitV2", () => {
     it("should acquire instance from service", () => {
       renderHook(() => useGitV2("/test/project"));
 
-      expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/test/project");
+      expect(mockServiceInstance.acquire).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+      );
     });
 
     it("should return the same instance on re-renders with same cwd", () => {
@@ -216,9 +219,15 @@ describe("useGitV2", () => {
       rerender({ cwd: "/project/b" });
 
       // Service should have been called to release the old cwd
-      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/a");
+      expect(mockServiceInstance.release).toHaveBeenCalledWith(
+        "/project/a",
+        undefined,
+      );
       // And acquire the new cwd
-      expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/project/b");
+      expect(mockServiceInstance.acquire).toHaveBeenCalledWith(
+        "/project/b",
+        undefined,
+      );
     });
 
     it("should keep same instance when cwd stays the same", () => {
@@ -247,7 +256,10 @@ describe("useGitV2", () => {
 
       unmount();
 
-      expect(mockServiceInstance.release).toHaveBeenCalledWith("/test/project");
+      expect(mockServiceInstance.release).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+      );
     });
 
     it("should handle multiple CWD changes then unmount", () => {
@@ -259,13 +271,22 @@ describe("useGitV2", () => {
       rerender({ cwd: "/project/c" });
 
       // First two should have been released from CWD changes
-      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/a");
-      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/b");
+      expect(mockServiceInstance.release).toHaveBeenCalledWith(
+        "/project/a",
+        undefined,
+      );
+      expect(mockServiceInstance.release).toHaveBeenCalledWith(
+        "/project/b",
+        undefined,
+      );
 
       unmount();
 
       // The last cwd should be released on unmount
-      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/c");
+      expect(mockServiceInstance.release).toHaveBeenCalledWith(
+        "/project/c",
+        undefined,
+      );
     });
   });
 
@@ -335,13 +356,17 @@ describe("useGitV2", () => {
       for (let i = 1; i < 10; i++) {
         expect(mockServiceInstance.release).toHaveBeenCalledWith(
           `/project/${i}`,
+          undefined,
         );
       }
 
       unmount();
 
       // Final cwd should be released on unmount
-      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/10");
+      expect(mockServiceInstance.release).toHaveBeenCalledWith(
+        "/project/10",
+        undefined,
+      );
     });
   });
 });

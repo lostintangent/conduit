@@ -27,6 +27,7 @@ export type EditorPane = {
   cwd?: string | null;
   file?: string;
   treeMode?: EditorTreeMode;
+  sandboxId?: string;
 };
 
 export type Pane = TerminalPane | BrowserPane | EditorPane;

@@ -26,12 +26,12 @@
  * ```
  */
 
-import { useEffect, useRef, useCallback } from "react";
 import * as monaco from "monaco-editor";
+import { useCallback, useEffect, useRef } from "react";
 import {
-  useMonacoModel,
-  useEditorTheme,
   useAutoSizeEditor,
+  useEditorTheme,
+  useMonacoModel,
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry";
@@ -46,6 +46,9 @@ export interface RegularEditorWrapperProps {
 
   /** Working directory for file operations */
   cwd: string;
+
+  /** Optional sandbox ID for VM file operations */
+  sandboxId?: string;
 
   /** Absolute path to the file to edit */
   filePath: string;
@@ -113,6 +116,7 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
 export function RegularEditorWrapper({
   editorId,
   cwd,
+  sandboxId,
   filePath,
   theme: themeProp,
   readOnly = false,
@@ -149,7 +153,7 @@ export function RegularEditorWrapper({
   // Get model from registry via hook
   // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
   // as EditorRegistry for proper lifecycle coordination
-  const model = useMonacoModel(editorId, filePath, cwd);
+  const model = useMonacoModel(editorId, filePath, cwd, sandboxId);
 
   // Auto-sizing hook - adjusts height based on content when config is provided
   const { containerStyle } = useAutoSizeEditor({

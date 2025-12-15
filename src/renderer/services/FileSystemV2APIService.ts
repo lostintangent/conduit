@@ -120,26 +120,38 @@ export class FileSystemV2APIService {
    * - If no instance exists, creates a new one
    *
    * @param cwd - Working directory to scope operations to
+   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @returns The FileSystemV2API instance
    */
-  acquire(cwd: string): FileSystemV2API {
-    const normalizedCwd = this.normalizePath(cwd);
-    const existing = this.instances.get(normalizedCwd);
+  acquire(cwd: string, sandboxId?: string): FileSystemV2API {
+    const key = this.makeKey(cwd, sandboxId);
+    const existing = this.instances.get(key);
 
     if (existing) {
       // Cancel any pending disposal
       if (existing.disposeTimer) {
         clearTimeout(existing.disposeTimer);
         existing.disposeTimer = undefined;
+        console.log(
+          "[FileSystemV2APIService] Cancelled disposal timer for:",
+          key,
+        );
       }
 
       existing.refCount++;
+      console.log(
+        "[FileSystemV2APIService] Reusing existing instance for:",
+        key,
+        "refCount:",
+        existing.refCount,
+      );
       return existing.api;
     }
 
     // Create new instance
-    const api = new FileSystemV2API(cwd);
-    this.instances.set(normalizedCwd, {
+    console.log("[FileSystemV2APIService] Creating NEW instance for:", key);
+    const api = new FileSystemV2API(cwd, sandboxId);
+    this.instances.set(key, {
       api,
       refCount: 1,
     });
@@ -154,10 +166,11 @@ export class FileSystemV2APIService {
    * timer. If not re-acquired during grace period, the instance is disposed.
    *
    * @param cwd - Working directory of the instance to release
+   * @param sandboxId - Optional sandbox ID for cloud VM operations
    */
-  release(cwd: string): void {
-    const normalizedCwd = this.normalizePath(cwd);
-    const managed = this.instances.get(normalizedCwd);
+  release(cwd: string, sandboxId?: string): void {
+    const key = this.makeKey(cwd, sandboxId);
+    const managed = this.instances.get(key);
 
     if (!managed) {
       // Already disposed or never existed - not an error
@@ -169,7 +182,7 @@ export class FileSystemV2APIService {
     if (managed.refCount <= 0) {
       // Start grace period
       managed.disposeTimer = setTimeout(() => {
-        this.dispose(normalizedCwd);
+        this.dispose(key);
       }, GRACE_PERIOD_MS);
     }
   }
@@ -179,22 +192,24 @@ export class FileSystemV2APIService {
    * Useful for debugging and testing.
    *
    * @param cwd - Working directory to check
+   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @returns Reference count, or 0 if no instance exists
    */
-  getRefCount(cwd: string): number {
-    const normalizedCwd = this.normalizePath(cwd);
-    return this.instances.get(normalizedCwd)?.refCount ?? 0;
+  getRefCount(cwd: string, sandboxId?: string): number {
+    const key = this.makeKey(cwd, sandboxId);
+    return this.instances.get(key)?.refCount ?? 0;
   }
 
   /**
    * Check if an instance exists for a cwd (even if in grace period).
    *
    * @param cwd - Working directory to check
+   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @returns True if instance exists
    */
-  hasInstance(cwd: string): boolean {
-    const normalizedCwd = this.normalizePath(cwd);
-    return this.instances.has(normalizedCwd);
+  hasInstance(cwd: string, sandboxId?: string): boolean {
+    const key = this.makeKey(cwd, sandboxId);
+    return this.instances.has(key);
   }
 
   /**
@@ -250,5 +265,13 @@ export class FileSystemV2APIService {
   private normalizePath(path: string): string {
     // Remove trailing slashes, then normalize for case sensitivity
     return normalizePathForKey(path.replace(/\/+$/, ""));
+  }
+
+  /**
+   * Create a unique key for the instance map that includes cwd and optional sandboxId.
+   */
+  private makeKey(cwd: string, sandboxId?: string): string {
+    const normalizedCwd = this.normalizePath(cwd);
+    return sandboxId ? `${normalizedCwd}::vm:${sandboxId}` : normalizedCwd;
   }
 }

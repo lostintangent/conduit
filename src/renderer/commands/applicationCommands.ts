@@ -1105,8 +1105,19 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "row", true);
+          openEditorPane(
+            targetTabId,
+            targetPaneId,
+            cwd,
+            "row",
+            true,
+            sandboxId,
+          );
         }
       }
     },
@@ -1138,8 +1149,19 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "row", false);
+          openEditorPane(
+            targetTabId,
+            targetPaneId,
+            cwd,
+            "row",
+            false,
+            sandboxId,
+          );
         }
       }
     },
@@ -1171,8 +1193,19 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "column", true);
+          openEditorPane(
+            targetTabId,
+            targetPaneId,
+            cwd,
+            "column",
+            true,
+            sandboxId,
+          );
         }
       }
     },
@@ -1204,8 +1237,19 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "column", false);
+          openEditorPane(
+            targetTabId,
+            targetPaneId,
+            cwd,
+            "column",
+            false,
+            sandboxId,
+          );
         }
       }
     },

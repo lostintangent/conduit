@@ -1,12 +1,12 @@
 import {
+  enqueueNotification,
+  updateNotification,
+} from "@/store/actions/notifications";
+import {
   completeAgentSession,
   deleteAgentSession,
   splitPane,
 } from "@/store/actions/pane";
-import {
-  enqueueNotification,
-  updateNotification,
-} from "@/store/actions/notifications";
 import { useCallback } from "react";
 
 type UseSandboxHandlersOptions = {
@@ -94,7 +94,7 @@ export async function handleDeleteAgentSessionAction(
 export async function handleForkVMAction(
   tabId: string,
   paneId: string,
-  vmId: string,
+  sandboxId: string,
 ) {
   const notificationId = enqueueNotification({
     kind: "info",
@@ -103,7 +103,7 @@ export async function handleForkVMAction(
   });
 
   try {
-    const forkedVM = await window.conduit.forkVM(vmId);
+    const forkedVM = await window.conduit.forkVM(sandboxId);
 
     if (!forkedVM) {
       throw new Error("Failed to fork VM");
@@ -111,7 +111,7 @@ export async function handleForkVMAction(
 
     await splitPane(tabId, paneId, "column", false, {
       terminalOptions: {
-        existingVMId: forkedVM.id,
+        existingSandboxId: forkedVM.id,
       },
     });
 
@@ -155,11 +155,11 @@ export function useSandboxHandlers({
   );
 
   const handleForkVM = useCallback(
-    async (vmId: string) => {
+    async (sandboxId: string) => {
       if (!paneId) {
         throw new Error("No pane ID available for forking VM");
       }
-      await handleForkVMAction(tabId, paneId, vmId);
+      await handleForkVMAction(tabId, paneId, sandboxId);
     },
     [tabId, paneId],
   );

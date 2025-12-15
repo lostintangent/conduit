@@ -106,6 +106,24 @@ function uriToPath(uri: string): string {
   return monaco.Uri.parse(uri).fsPath;
 }
 
+/**
+ * Create a model key that uniquely identifies a model.
+ *
+ * For local files, the key is simply the URI.
+ * For VM files (with sandboxId), the key includes the sandboxId suffix.
+ *
+ * @param filePath - Absolute path to the file
+ * @param sandboxId - Optional sandbox ID for VM files
+ * @returns A unique key for the model
+ */
+function createModelKey(filePath: string, sandboxId?: string): string {
+  const uri = pathToUri(filePath);
+  if (sandboxId) {
+    return `${uri}::vm:${sandboxId}`;
+  }
+  return uri;
+}
+
 // ============================================================================
 // MonacoModelRegistry
 // ============================================================================
@@ -239,14 +257,16 @@ export class MonacoModelRegistry {
   async getOrCreateModel(
     filePath: string,
     cwd: string,
+    sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
     // Prevent new loads during disposal
     if (this.isDisposing) {
       throw new Error("Registry is being disposed, cannot create new models");
     }
 
-    const uri = pathToUri(filePath);
-    const existing = this.models.get(uri);
+    // Create composite key that includes sandboxId for VM isolation
+    const modelKey = createModelKey(filePath, sandboxId);
+    const existing = this.models.get(modelKey);
 
     if (existing) {
       // Cancel any pending disposal
@@ -261,11 +281,11 @@ export class MonacoModelRegistry {
       return existing.model;
     }
 
-    // Key includes cwd to prevent incorrect deduplication when same
-    // relative path exists in different working directories
-    const loadingKey = `${cwd}:${uri}`;
+    // Key includes cwd and sandboxId to prevent incorrect deduplication when same
+    // relative path exists in different working directories or different sandboxes
+    const loadingKey = `${cwd}:${sandboxId || "local"}:${modelKey}`;
 
-    // Check if a load is already in progress for this URI+cwd
+    // Check if a load is already in progress for this URI+cwd+sandboxId
     const pendingLoad = this.loadingPromises.get(loadingKey);
     if (pendingLoad) {
       // Return the existing promise - don't start a second load
@@ -277,7 +297,12 @@ export class MonacoModelRegistry {
     this.loadingAbortControllers.set(loadingKey, abortController);
 
     // Start loading and track the promise
-    const loadPromise = this.createModel(filePath, cwd, abortController.signal)
+    const loadPromise = this.createModel(
+      filePath,
+      cwd,
+      abortController.signal,
+      sandboxId,
+    )
       .then((model) => {
         // Run LRU eviction after successful load
         this.evictLRU();
@@ -429,14 +454,16 @@ export class MonacoModelRegistry {
       throw new Error(`Model not found: ${uri}`);
     }
 
-    const filePath = uriToPath(uri);
+    // Use entry.filePath directly instead of uriToPath(uri) because
+    // uri is now a composite key (may include ::vm:sandboxId suffix)
+    const filePath = entry.filePath;
 
     // IMPORTANT: Capture both content AND version at the same time to avoid
     // race conditions if user edits during the async save operation.
     const content = entry.model.getValue();
     const versionAtSave = entry.model.getAlternativeVersionId();
 
-    const fsApi = this.getOrCreateFsApi(entry.cwd);
+    const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
 
     await fsApi.writeTextFile(filePath, content);
 
@@ -479,8 +506,10 @@ export class MonacoModelRegistry {
       throw new Error(`Model not found: ${uri}`);
     }
 
-    const filePath = uriToPath(uri);
-    const fsApi = this.getOrCreateFsApi(entry.cwd);
+    // Use entry.filePath directly instead of uriToPath(uri) because
+    // uri is now a composite key (may include ::vm:sandboxId suffix)
+    const filePath = entry.filePath;
+    const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
 
     const content = await fsApi.readTextFile(filePath);
 
@@ -790,9 +819,12 @@ export class MonacoModelRegistry {
     filePath: string,
     cwd: string,
     signal: AbortSignal,
+    sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
-    const uri = pathToUri(filePath);
-    const fsApi = this.getOrCreateFsApi(cwd);
+    // Composite key for registry storage AND Monaco model URI
+    // This includes sandboxId for VM isolation, ensuring each VM gets its own Monaco model
+    const modelKey = createModelKey(filePath, sandboxId);
+    const fsApi = this.getOrCreateFsApi(cwd, sandboxId);
 
     // Check if already aborted
     if (signal.aborted) {
@@ -844,7 +876,7 @@ export class MonacoModelRegistry {
     if (fileSize > WARNING_FILE_SIZE) {
       this._onModelStateChanged.fire({
         type: "fileSizeWarning",
-        uri,
+        uri: modelKey,
         fileSize,
       });
     }
@@ -873,7 +905,8 @@ export class MonacoModelRegistry {
 
     // Check for pre-existing Monaco model (can happen during HMR when our
     // registry resets but Monaco's internal model registry persists)
-    const monacoUri = monaco.Uri.parse(uri);
+    // Use modelKey (which includes sandboxId) to ensure VM isolation
+    const monacoUri = monaco.Uri.parse(modelKey);
     let model = monaco.editor.getModel(monacoUri);
 
     if (model && !model.isDisposed()) {
@@ -890,6 +923,7 @@ export class MonacoModelRegistry {
       model,
       references: new Set(),
       cwd,
+      sandboxId,
       filePath,
       savedVersionId: model.getAlternativeVersionId(),
       isDirty: false,
@@ -903,14 +937,14 @@ export class MonacoModelRegistry {
 
     // Set up content change listener for dirty tracking
     entry.contentChangeDisposable = model.onDidChangeContent(() => {
-      this.handleContentChange(uri, entry);
+      this.handleContentChange(modelKey, entry);
     });
 
     // Set up file system event subscriptions
-    this.setupFileWatching(uri, filePath, entry, fsApi);
+    this.setupFileWatching(modelKey, filePath, entry, fsApi);
 
     // Add to registry
-    this.models.set(uri, entry);
+    this.models.set(modelKey, entry);
 
     return model;
   }
@@ -1025,7 +1059,7 @@ export class MonacoModelRegistry {
       entry.isReloading = true;
       try {
         // Use entry.filePath directly for consistency (avoids uri conversion)
-        const fsApi = this.getOrCreateFsApi(entry.cwd);
+        const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
         const content = await fsApi.readTextFile(entry.filePath);
 
         // Re-check isDirty after async read - user may have typed while loading
@@ -1200,14 +1234,16 @@ export class MonacoModelRegistry {
    * Get or create a FileSystemV2API for a CWD.
    *
    * Uses FileSystemV2APIService to share instances with other components
-   * using the same cwd, reducing duplicate IPC subscriptions.
+   * using the same cwd and sandboxId, reducing duplicate IPC subscriptions.
    */
-  private getOrCreateFsApi(cwd: string): FileSystemV2API {
-    let fsApi = this.fsApis.get(cwd);
+  private getOrCreateFsApi(cwd: string, sandboxId?: string): FileSystemV2API {
+    // Use composite key to differentiate local vs VM file systems
+    const key = `${cwd}::${sandboxId || "local"}`;
+    let fsApi = this.fsApis.get(key);
     if (!fsApi) {
       // Acquire from service (increments refCount)
-      fsApi = FileSystemV2APIService.getInstance().acquire(cwd);
-      this.fsApis.set(cwd, fsApi);
+      fsApi = FileSystemV2APIService.getInstance().acquire(cwd, sandboxId);
+      this.fsApis.set(key, fsApi);
     }
     return fsApi;
   }
@@ -1243,4 +1279,4 @@ export class MonacoModelRegistry {
 // Utility Exports
 // ============================================================================
 
-export { pathToUri, uriToPath };
+export { createModelKey, pathToUri, uriToPath };

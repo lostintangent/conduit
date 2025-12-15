@@ -44,7 +44,7 @@ export function ComputeTargetIndicator({
     currentPane?.type === "terminal" ? currentPane : undefined;
 
   const agentSessionId = terminalPane?.agentSessionId ?? null;
-  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
+  const sandboxId = terminalPane?.sandboxId ?? null;
 
   // Use sandbox handlers from the shared hook
   const {
@@ -72,24 +72,24 @@ export function ComputeTargetIndicator({
   }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
 
   const handleForkVM = useCallback(async () => {
-    if (!vmId || !currentTab) {
+    if (!sandboxId || !currentTab) {
       return;
     }
-    await handleForkVMBase(vmId);
-  }, [vmId, currentTab, handleForkVMBase]);
+    await handleForkVMBase(sandboxId);
+  }, [sandboxId, currentTab, handleForkVMBase]);
 
   // Set up cloud VM port forwarding + link handler when in a VM
   useEffect(() => {
-    if (!vmId) return;
+    if (!sandboxId) return;
 
     // Cloud VM - intercept localhost URLs for port forwarding
     setLinkHandler((url: string) => {
       const port = extractPortFromMatch(url);
       if (port && currentTab) {
-        forwardPortAndOpen(currentTab.id, paneId, vmId, port);
+        forwardPortAndOpen(currentTab.id, paneId, sandboxId, port);
       }
     });
-  }, [vmId, currentTab, paneId, setLinkHandler]);
+  }, [sandboxId, currentTab, paneId, setLinkHandler]);
 
   if (hideIndividualSandboxIndicator) {
     return null;
@@ -97,11 +97,11 @@ export function ComputeTargetIndicator({
 
   return (
     <SandboxIndicator
-      vmId={vmId}
+      sandboxId={sandboxId}
       agentSessionId={agentSessionId}
       onCompleteAgentSession={handleCompleteAgentSession}
       onDeleteAgentSession={handleDeleteAgentSession}
-      onForkVM={vmId ? handleForkVM : undefined}
+      onForkVM={sandboxId ? handleForkVM : undefined}
     />
   );
 }

@@ -646,7 +646,7 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
-    vmMetadata: result.vmMetadata,
+    sandboxId: result.sandboxId,
     agentSessionId,
     agentBranchName,
     agentBaseBranch,
@@ -813,12 +813,14 @@ export function openEditorPane(
   cwd: string,
   direction: SplitDirection = "row",
   insertBefore = false,
+  sandboxId?: string,
 ) {
   const newPaneId = generateId();
   const newPaneState: Pane = {
     id: newPaneId,
     type: "editor",
     cwd,
+    sandboxId,
   };
 
   const newLayoutNode: LayoutNode = {
@@ -1098,7 +1100,7 @@ export function closePane(tabId: string, paneId: string) {
 export async function forwardPortAndOpen(
   tabId: string,
   paneId: string,
-  vmId: string,
+  sandboxId: string,
   port: number,
 ): Promise<void> {
   try {
@@ -1110,7 +1112,7 @@ export async function forwardPortAndOpen(
     });
 
     // Call the VM API to forward the port
-    const result = await api.forwardPort(vmId, port, `Port ${port}`);
+    const result = await api.forwardPort(sandboxId, port, `Port ${port}`);
 
     // Dismiss loading notification
     const { dismissNotification } = await import("./notifications");

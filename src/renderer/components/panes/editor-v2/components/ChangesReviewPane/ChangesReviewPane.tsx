@@ -32,18 +32,21 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { GitCommit, Check, Minus } from "lucide-react";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
+import { Check, GitCommit, Minus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangesFooter } from "./ChangesFooter";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
-import { ChangesFooter } from "./ChangesFooter";
 import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
   cwd: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Git API instance (shared from parent) */
   git: GitV2API;
@@ -82,6 +85,7 @@ export interface ChangesReviewPaneProps {
  */
 export function ChangesReviewPane({
   cwd,
+  sandboxId,
   git,
   baseBranch,
   onExitReview,
@@ -366,6 +370,7 @@ export function ChangesReviewPane({
           bulkActionLabel="Unstage all"
           onBulkAction={handleUnstageAll}
           cwd={cwd}
+          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
@@ -383,6 +388,7 @@ export function ChangesReviewPane({
           bulkActionLabel="Stage all"
           onBulkAction={handleStageAll}
           cwd={cwd}
+          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}

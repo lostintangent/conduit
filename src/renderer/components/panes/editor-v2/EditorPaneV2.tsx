@@ -19,10 +19,14 @@
 
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { registerEditorHandlers } from "@/commands/handlers";
+import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
+import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
+import { tabsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import { cn } from "@/utils";
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BranchSelector,
@@ -181,10 +185,47 @@ export function EditorPaneV2({
     file: initialFilePath,
     filePath,
     treeMode,
+    sandboxId,
+    agentSessionId,
   } = pane as EditorPaneType & { filePath?: string };
 
   // Get editor theme from user settings
   const editorTheme = useEditorTheme();
+
+  // Get current tab for sandbox handlers
+  const tabs = useAtomValue(tabsAtom);
+  const currentTab = useMemo(() => {
+    for (const tab of tabs) {
+      if (tab.panes[pane.id]) {
+        return tab;
+      }
+    }
+    return undefined;
+  }, [tabs, pane.id]);
+
+  // Use sandbox handlers from the shared hook
+  const {
+    handleCompleteAgentSession: handleCompleteAgentSessionBase,
+    handleDeleteAgentSession: handleDeleteAgentSessionBase,
+  } = useSandboxHandlers({
+    tabId: currentTab?.id ?? "",
+    paneId: pane.id,
+  });
+
+  // Wrap the base handlers to check for required values
+  const handleCompleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+    await handleCompleteAgentSessionBase(agentSessionId);
+  }, [agentSessionId, currentTab, handleCompleteAgentSessionBase]);
+
+  const handleDeleteAgentSession = useCallback(async () => {
+    if (!agentSessionId || !currentTab) {
+      return;
+    }
+    await handleDeleteAgentSessionBase(agentSessionId);
+  }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
 
   // Preference for showing diff vs regular editor for git-modified files
   // This is session-local state (like changesViewMode), not persisted
@@ -273,7 +314,7 @@ export function EditorPaneV2({
   const layout = useResponsiveLayout(containerRef);
 
   // Git API for checking file status
-  const git = useGitV2(currentCwd);
+  const git = useGitV2(currentCwd, sandboxId);
 
   // ---------------------------------------------------------------------------
   // Git State
@@ -543,7 +584,7 @@ export function EditorPaneV2({
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
   // FileSystem API for reading file content (for callbacks)
-  const fs = useFileSystemV2(currentCwd);
+  const fs = useFileSystemV2(currentCwd, sandboxId);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -1025,6 +1066,7 @@ export function EditorPaneV2({
         <EditorViewPanel
           editorId={editorId}
           cwd={currentCwd}
+          sandboxId={sandboxId}
           git={git}
           selectedFile={selectedFile}
           viewMode={viewMode}
@@ -1056,6 +1098,14 @@ export function EditorPaneV2({
         currentBaseBranch={baseBranch}
         onSelectBranch={handleBranchSelect}
         onOpenChange={setIsBranchSelectorOpen}
+      />
+
+      {/* Cloud VM / Agent Session Indicator */}
+      <SandboxIndicator
+        sandboxId={sandboxId ?? null}
+        agentSessionId={agentSessionId ?? null}
+        onCompleteAgentSession={handleCompleteAgentSession}
+        onDeleteAgentSession={handleDeleteAgentSession}
       />
     </div>
   );

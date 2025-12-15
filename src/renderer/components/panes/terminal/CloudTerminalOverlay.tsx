@@ -33,7 +33,7 @@ export const CloudTerminalOverlay = ({
   const terminalPane =
     currentPane?.type === "terminal" ? currentPane : undefined;
 
-  const vmId = terminalPane?.vmMetadata?.vmId ?? null;
+  const sandboxId = terminalPane?.sandboxId ?? null;
 
   const [sshConnectionState, setSSHConnectionState] =
     useState<SSHConnectionState | null>(null);
@@ -63,14 +63,17 @@ export const CloudTerminalOverlay = ({
   const handleReconnect = useCallback(async () => {
     // Reconnect to the existing VM instead of creating a new one
     try {
-      console.log("[CloudTerminalOverlay] Reconnecting to existing VM:", vmId);
+      console.log(
+        "[CloudTerminalOverlay] Reconnecting to existing VM:",
+        sandboxId,
+      );
 
       // Reset state
       setSSHConnectionState(null);
 
       // Reconnect to the existing VM
       const result = await api.createTerminal({
-        existingVMId: vmId ?? undefined,
+        existingSandboxId: sandboxId ?? undefined,
       });
 
       if (!result) {
@@ -96,7 +99,7 @@ export const CloudTerminalOverlay = ({
               [paneId]: {
                 ...tab.panes[paneId],
                 sessionId: result.sessionId,
-                vmMetadata: result.vmMetadata ?? undefined,
+                sandboxId: result.sandboxId ?? undefined,
                 cwd: result.cwd,
                 title: result.title,
               },
@@ -111,10 +114,10 @@ export const CloudTerminalOverlay = ({
     } catch (error) {
       console.error("[CloudTerminalOverlay] Failed to reconnect:", error);
     }
-  }, [currentTab, paneId, vmId]);
+  }, [currentTab, paneId, sandboxId]);
 
   // Don't render anything if this isn't a cloud VM
-  if (!vmId) {
+  if (!sandboxId) {
     return null;
   }
 

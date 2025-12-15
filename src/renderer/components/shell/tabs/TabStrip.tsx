@@ -30,6 +30,7 @@ import {
 import {
   focusTab,
   getActiveTabCwd,
+  getActiveTabSandboxId,
   moveTab,
   openTab,
 } from "@/store/actions/tab";
@@ -566,7 +567,8 @@ export const TabStrip = ({
 
   const handleOpenQuickFileExplorer = useCallback(() => {
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    onOpenQuickPane({ type: "editor", cwd });
+    const sandboxId = getActiveTabSandboxId(activeTab);
+    onOpenQuickPane({ type: "editor", cwd, sandboxId });
   }, [activeTab, homeDirectory, onOpenQuickPane]);
 
   const handleRepoSubmit = useCallback(
@@ -596,7 +598,7 @@ export const TabStrip = ({
           type: "terminal",
           sessionId: result.sessionId,
           cwd: result.cwd ?? null,
-          vmMetadata: result.vmMetadata ?? undefined,
+          sandboxId: result.sandboxId ?? undefined,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

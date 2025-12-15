@@ -171,7 +171,7 @@ export const TerminalPane = ({
   isTabSynchronized = false,
   fontSize,
 }: TerminalPaneProps) => {
-  const { id: paneId, sessionId: terminalId, cwd, cloneOf } = pane;
+  const { id: paneId, sessionId: terminalId, cwd, cloneOf, sandboxId } = pane;
   const settings = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
   const { showTerminalRuler } = settings;
@@ -628,7 +628,11 @@ export const TerminalPane = ({
 
       {/* Repository scripts menu */}
       <div className="pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-50">
-        <RepoScriptsMenu cwd={cwd} onRunScript={handleRunScript} />
+        <RepoScriptsMenu
+          cwd={cwd}
+          sandboxId={sandboxId}
+          onRunScript={handleRunScript}
+        />
       </div>
 
       {/* Cloud terminal SSH connection state overlays */}

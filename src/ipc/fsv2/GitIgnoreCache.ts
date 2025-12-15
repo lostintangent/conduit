@@ -74,27 +74,32 @@ class GitIgnoreCacheImpl {
 
   private findGitRoot(dirPath: string): Promise<string | null> {
     return new Promise((resolve) => {
-      const child = spawn("git", ["rev-parse", "--show-toplevel"], {
-        cwd: dirPath,
-        stdio: ["ignore", "pipe", "ignore"],
-      });
+      try {
+        const child = spawn("git", ["rev-parse", "--show-toplevel"], {
+          cwd: dirPath,
+          stdio: ["ignore", "pipe", "ignore"],
+        });
 
-      let output = "";
-      child.stdout.on("data", (chunk) => {
-        output += chunk.toString();
-      });
+        let output = "";
+        child.stdout.on("data", (chunk) => {
+          output += chunk.toString();
+        });
 
-      child.once("error", () => {
-        resolve(null);
-      });
-
-      child.once("close", (code) => {
-        if (code === 0 && output.trim()) {
-          resolve(output.trim());
-        } else {
+        child.once("error", () => {
           resolve(null);
-        }
-      });
+        });
+
+        child.once("close", (code) => {
+          if (code === 0 && output.trim()) {
+            resolve(output.trim());
+          } else {
+            resolve(null);
+          }
+        });
+      } catch {
+        // Handle spawn errors (e.g., ENOTDIR when cwd doesn't exist)
+        resolve(null);
+      }
     });
   }
 

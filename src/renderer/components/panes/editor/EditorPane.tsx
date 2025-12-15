@@ -230,6 +230,7 @@ type EditorPaneProps = {
   paneId: string;
   agentSessionId?: string | null;
   treeMode?: EditorTreeMode;
+  sandboxId?: string;
   onFileChange?: (fileData: {
     file: string;
     language: string;
@@ -255,6 +256,7 @@ export function EditorPane({
   paneId,
   agentSessionId,
   treeMode,
+  sandboxId,
   onFileChange,
   onClearFile: _onClearFile,
   onCwdChange,
@@ -2684,6 +2686,7 @@ export function EditorPane({
 
       {!hideIndividualSandboxIndicator && (
         <SandboxIndicator
+          sandboxId={sandboxId ?? null}
           agentSessionId={agentSessionId ?? null}
           onCompleteAgentSession={handleCompleteAgentSession}
           onDeleteAgentSession={handleDeleteAgentSession}

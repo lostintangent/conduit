@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Mocks
@@ -88,7 +88,11 @@ describe("FileSystemV2API", () => {
       const api = new FileSystemV2API("/test/project");
       const result = await api.readDirectory("/test/project/src");
 
-      expect(mockFsv2.readDirectory).toHaveBeenCalledWith("/test/project/src");
+      expect(mockFsv2.readDirectory).toHaveBeenCalledWith(
+        "/test/project",
+        "/test/project/src",
+        undefined,
+      );
       expect(result).toEqual(entries);
 
       api.release();
@@ -112,7 +116,11 @@ describe("FileSystemV2API", () => {
       const api = new FileSystemV2API("/test/project");
       const result = await api.readFile("/test/project/file.txt");
 
-      expect(mockFsv2.readFile).toHaveBeenCalledWith("/test/project/file.txt");
+      expect(mockFsv2.readFile).toHaveBeenCalledWith(
+        "/test/project",
+        "/test/project/file.txt",
+        undefined,
+      );
       expect(result).toEqual(content);
 
       api.release();
@@ -189,8 +197,10 @@ describe("FileSystemV2API", () => {
       await api.writeFile("/test/project/file.txt", content);
 
       expect(mockFsv2.writeFile).toHaveBeenCalledWith(
+        "/test/project",
         "/test/project/file.txt",
         content,
+        undefined,
       );
 
       api.release();
@@ -205,7 +215,7 @@ describe("FileSystemV2API", () => {
       await api.writeTextFile("/test/project/file.txt", "Hello");
 
       expect(mockFsv2.writeFile).toHaveBeenCalled();
-      const [, content] = mockFsv2.writeFile.mock.calls[0];
+      const [, , content] = mockFsv2.writeFile.mock.calls[0];
       expect(new TextDecoder().decode(content)).toBe("Hello");
 
       api.release();
@@ -220,7 +230,9 @@ describe("FileSystemV2API", () => {
       await api.delete("/test/project/file.txt");
 
       expect(mockFsv2.delete).toHaveBeenCalledWith(
+        "/test/project",
         "/test/project/file.txt",
+        undefined,
         undefined,
       );
 
@@ -233,9 +245,14 @@ describe("FileSystemV2API", () => {
       const api = new FileSystemV2API("/test/project");
       await api.delete("/test/project/folder", { recursive: true });
 
-      expect(mockFsv2.delete).toHaveBeenCalledWith("/test/project/folder", {
-        recursive: true,
-      });
+      expect(mockFsv2.delete).toHaveBeenCalledWith(
+        "/test/project",
+        "/test/project/folder",
+        {
+          recursive: true,
+        },
+        undefined,
+      );
 
       api.release();
     });
@@ -249,8 +266,10 @@ describe("FileSystemV2API", () => {
       await api.rename("/test/project/old.txt", "/test/project/new.txt");
 
       expect(mockFsv2.rename).toHaveBeenCalledWith(
+        "/test/project",
         "/test/project/old.txt",
         "/test/project/new.txt",
+        undefined,
       );
 
       api.release();
@@ -265,7 +284,9 @@ describe("FileSystemV2API", () => {
       await api.createDirectory("/test/project/new-folder");
 
       expect(mockFsv2.createDirectory).toHaveBeenCalledWith(
+        "/test/project",
         "/test/project/new-folder",
+        undefined,
       );
 
       api.release();
@@ -288,7 +309,12 @@ describe("FileSystemV2API", () => {
 
       // Should trigger IPC subscription
       await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockFsv2.subscribe).toHaveBeenCalledWith("/test/project", "all");
+      expect(mockFsv2.subscribe).toHaveBeenCalledWith(
+        "/test/project",
+        "all",
+        undefined,
+        undefined,
+      );
 
       // Cleanup should work
       expect(typeof cleanup).toBe("function");

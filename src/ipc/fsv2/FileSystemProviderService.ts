@@ -36,6 +36,7 @@
  * ```
  */
 
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { GitProviderService } from "../gitv2/GitProviderService";
 import { DiskFileSystemProvider } from "./DiskFileSystemProvider";
@@ -240,6 +241,16 @@ export class FileSystemProviderService {
   private async createProvider(
     normalizedPath: string,
   ): Promise<DiskFileSystemProvider> {
+    // Validate that the path exists before creating a provider
+    // This prevents attempting to watch paths that don't exist locally
+    // (e.g., VM paths like /workspace when vmId is not provided)
+    if (!fs.existsSync(normalizedPath)) {
+      throw new Error(
+        `Cannot create local filesystem provider for non-existent path: ${normalizedPath}. ` +
+          `If this is a remote/VM path, ensure sandboxId is passed through the component hierarchy.`,
+      );
+    }
+
     // Create new provider
     const provider = new DiskFileSystemProvider(normalizedPath);
 

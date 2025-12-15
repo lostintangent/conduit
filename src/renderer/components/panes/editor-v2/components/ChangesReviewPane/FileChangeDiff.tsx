@@ -21,35 +21,35 @@
  * ```
  */
 
-import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import * as monaco from "monaco-editor";
-import {
-  ChevronRight,
-  ChevronDown,
-  FileText,
-  Plus,
-  Minus,
-  RotateCcw,
-} from "lucide-react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
-import {
-  DiffEditorWrapper,
-  RegularEditorWrapper,
-  DeletedFileViewer,
-  DEFAULT_AUTO_SIZE_CONFIG,
-} from "../EditorViewPanel";
-import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
-import { GitBadge, EditorActionButtons, DiffModeToggle } from "../shared";
 import {
-  useModelState,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Minus,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
+import * as monaco from "monaco-editor";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useDiffModeTransition,
   useEditorActions,
   useEditorSaveKeybinding,
-  useDiffModeTransition,
+  useModelState,
 } from "../../hooks";
-import { MonacoModelRegistry, pathToUri } from "../../registry";
+import { MonacoModelRegistry, createModelKey } from "../../registry";
+import { EditorErrorBoundary } from "../EditorErrorBoundary";
+import {
+  DEFAULT_AUTO_SIZE_CONFIG,
+  DeletedFileViewer,
+  DiffEditorWrapper,
+  RegularEditorWrapper,
+} from "../EditorViewPanel";
+import { DiffModeToggle, EditorActionButtons, GitBadge } from "../shared";
 
 export interface FileChangeDiffProps {
   /** Relative file path from git root */
@@ -57,6 +57,9 @@ export interface FileChangeDiffProps {
 
   /** Working directory */
   cwd: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Git API instance (shared from parent) */
   git: GitV2API;
@@ -80,6 +83,7 @@ export interface FileChangeDiffProps {
 export function FileChangeDiff({
   filePath,
   cwd,
+  sandboxId,
   git,
   status,
   baseBranch,
@@ -134,7 +138,7 @@ export function FileChangeDiff({
   });
 
   // Get model state for this file
-  const modelState = useModelState(fullFilePath);
+  const modelState = useModelState(fullFilePath, sandboxId);
   const isDirty = modelState?.isDirty ?? false;
 
   // Activate controls when file becomes dirty
@@ -154,11 +158,12 @@ export function FileChangeDiff({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.saveModel(pathToUri(fullFilePath));
+      // Use composite key that includes sandboxId for VM file support
+      await registry.saveModel(createModelKey(fullFilePath, sandboxId));
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [fullFilePath]);
+  }, [fullFilePath, sandboxId]);
 
   // Keybinding hook for Cmd+S
   const { registerSaveKeybinding } = useEditorSaveKeybinding(
@@ -402,6 +407,7 @@ export function FileChangeDiff({
               <DeletedFileViewer
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
                 baseBranch={baseBranch}
                 autoSize={autoSizeConfig}
@@ -421,6 +427,7 @@ export function FileChangeDiff({
               <DiffEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
                 baseBranch={baseBranch}
                 autoSize={autoSizeConfig}

@@ -35,6 +35,26 @@ export function getActiveTabCwd(
 }
 
 /**
+ * Get the sandboxId from a tab's active pane (for VM operations)
+ * @param tab - The tab to get the sandboxId from
+ * @returns The sandboxId from the active pane, or undefined if not in a VM context
+ */
+export function getActiveTabSandboxId(
+  tab: Tab | null | undefined,
+): string | undefined {
+  if (!tab) {
+    return undefined;
+  }
+
+  const activePane = tab.panes[tab.activePaneId];
+  if (activePane?.type === "terminal" || activePane?.type === "editor") {
+    return activePane.sandboxId;
+  }
+
+  return undefined;
+}
+
+/**
  * Generate an incremented title for a duplicated tab
  * @param baseTitle - The title of the source tab
  * @param existingTabs - Array of existing tabs to check for conflicts
@@ -94,6 +114,7 @@ export async function openTab(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
+    sandboxId: result.sandboxId,
   };
 
   const layout: LayoutNode = {
@@ -145,12 +166,12 @@ export function openTabFromExistingSession({
   sessionId,
   cwd,
   title,
-  vmMetadata,
+  sandboxId,
 }: {
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
-  vmMetadata?: TerminalPane["vmMetadata"] | null;
+  sandboxId?: TerminalPane["sandboxId"] | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -160,7 +181,7 @@ export function openTabFromExistingSession({
     sessionId,
     cwd: cwd ?? null,
     processTitle: title ?? "Terminal",
-    vmMetadata: vmMetadata ?? undefined,
+    sandboxId: sandboxId ?? undefined,
   };
 
   return createTabWithPane(paneState);
@@ -456,7 +477,7 @@ export async function duplicateTab(
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
         processTitle: result.title,
-        vmMetadata: result.vmMetadata,
+        sandboxId: result.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
@@ -510,6 +531,7 @@ export async function duplicateTab(
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         file: translatedFile,
+        sandboxId: sourcePane.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,

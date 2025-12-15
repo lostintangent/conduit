@@ -10,7 +10,6 @@ import type {
   TerminalPane as SharedTerminalPane,
   SplitDirection,
   TabMetadata,
-  VMMetadata,
 } from "@shared/types";
 
 export type {
@@ -22,7 +21,6 @@ export type {
   NotificationKind,
   SplitDirection,
   TabMetadata,
-  VMMetadata,
 };
 
 /* Tab and pane types */
@@ -43,7 +41,7 @@ export type TerminalPane = Omit<SharedTerminalPane, "cwd"> &
     sessionId: string;
     cwd: string | null;
     processTitle: string;
-    vmMetadata?: VMMetadata;
+    sandboxId?: string;
   };
 
 export type BrowserPane = Omit<SharedBrowserPane, "url"> & {
@@ -54,6 +52,7 @@ export type BrowserPane = Omit<SharedBrowserPane, "url"> & {
 export type EditorPane = Omit<SharedEditorPane, "cwd"> &
   AgentPaneMetadata & {
     cwd: string;
+    sandboxId?: string;
   };
 
 export type Pane = TerminalPane | BrowserPane | EditorPane;

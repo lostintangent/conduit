@@ -19,10 +19,10 @@
  * ```
  */
 
+import { useGitV2 } from "@/hooks/useGitV2";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useGitV2 } from "@/hooks/useGitV2";
-import { useEditorTheme, useAutoSizeEditor } from "../../hooks";
+import { useAutoSizeEditor, useEditorTheme } from "../../hooks";
 import { detectLanguage } from "../../utils/languageDetection";
 import type { AutoSizeConfig } from "./constants";
 
@@ -38,6 +38,9 @@ export interface DeletedFileViewerProps {
 
   /** Git ref for the content (default: 'HEAD') */
   baseBranch?: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Auto-size configuration */
   autoSize?: AutoSizeConfig;
@@ -81,10 +84,11 @@ export function DeletedFileViewer({
   cwd,
   filePath,
   baseBranch,
+  sandboxId,
   autoSize,
   onMount,
 }: DeletedFileViewerProps) {
-  const git = useGitV2(cwd);
+  const git = useGitV2(cwd, sandboxId);
   const theme = useEditorTheme();
   const language = detectLanguage(filePath);
 

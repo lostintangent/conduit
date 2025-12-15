@@ -477,6 +477,7 @@ export function TabLayout({
                   paneId={pane.id}
                   cwd={pane.cwd}
                   file={pane.file}
+                  sandboxId={pane.sandboxId}
                   agentSessionId={pane.agentSessionId}
                   treeMode={pane.treeMode}
                   onFileChange={(fileData) =>
@@ -500,6 +501,7 @@ export function TabLayout({
                       type: "editor",
                       cwd: pane?.cwd,
                       file: node.path,
+                      sandboxId: pane?.sandboxId,
                     })
                   }
                   onHover={(isHovering) => {
@@ -852,7 +854,9 @@ export function TabLayout({
           {portalTarget ? createPortal(tabContent, portalTarget) : null}
           {unifiedSandbox && (
             <SandboxIndicator
-              vmId={unifiedSandbox.type === "vm" ? unifiedSandbox.vmId : null}
+              sandboxId={
+                unifiedSandbox.type === "vm" ? unifiedSandbox.sandboxId : null
+              }
               agentSessionId={
                 unifiedSandbox.type === "agent"
                   ? unifiedSandbox.agentSessionId
@@ -882,7 +886,7 @@ export function TabLayout({
                       handleForkVMAction(
                         tab.id,
                         tab.activePaneId,
-                        unifiedSandbox.vmId,
+                        unifiedSandbox.sandboxId,
                       )
                   : undefined
               }

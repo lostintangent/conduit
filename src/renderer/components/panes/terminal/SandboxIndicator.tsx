@@ -10,7 +10,7 @@ import { Cloud, GitFork, GitMerge, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
 type SandboxIndicatorProps = {
-  vmId?: string | null;
+  sandboxId?: string | null;
   agentSessionId?: string | null;
   onCompleteAgentSession?: () => void;
   onDeleteAgentSession?: () => void;
@@ -19,7 +19,7 @@ type SandboxIndicatorProps = {
 };
 
 export function SandboxIndicator({
-  vmId,
+  sandboxId,
   agentSessionId,
   onCompleteAgentSession,
   onDeleteAgentSession,
@@ -30,10 +30,10 @@ export function SandboxIndicator({
   const isSandboxVisibleMode =
     applicationMode === "normal" || applicationMode === "design";
 
-  const showVmIndicator = isSandboxVisibleMode && !!vmId;
+  const showVmIndicator = isSandboxVisibleMode && !!sandboxId;
   const showAgentControls = isSandboxVisibleMode && !!agentSessionId;
   const overlayKey = showVmIndicator
-    ? vmId
+    ? sandboxId
     : showAgentControls
       ? agentSessionId
       : null;
@@ -55,12 +55,12 @@ export function SandboxIndicator({
   );
 
   const vmTitle = useMemo(() => {
-    if (!showVmIndicator || !vmId) {
+    if (!showVmIndicator || !sandboxId) {
       return undefined;
     }
 
-    return `Connected to VM ${vmId}`;
-  }, [showVmIndicator, vmId]);
+    return `Connected to VM ${sandboxId}`;
+  }, [showVmIndicator, sandboxId]);
 
   if (!showVmIndicator && !showAgentControls) {
     return null;
