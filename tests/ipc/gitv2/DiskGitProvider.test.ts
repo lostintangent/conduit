@@ -81,6 +81,9 @@ vi.mock("simple-git", () => ({
   simpleGit: vi.fn().mockImplementation(() => mockGit),
 }));
 
+// Create a mockable fs/promises readFile function
+const mockFsReadFile = vi.fn();
+
 // Mock fs.statSync for .git directory check
 vi.mock("node:fs", async () => {
   const actual = await vi.importActual<typeof fs>("node:fs");
@@ -99,6 +102,7 @@ vi.mock("node:fs/promises", async () => {
   return {
     ...actual,
     stat: (...args: unknown[]) => mockFsStat(...args),
+    readFile: (...args: unknown[]) => mockFsReadFile(...args),
   };
 });
 
@@ -167,6 +171,13 @@ describe("DiskGitProvider", () => {
         refs: "",
       },
     });
+
+    // Setup default async file mocks
+    mockFsStat.mockResolvedValue({
+      isFile: () => false,
+      isDirectory: () => true,
+    });
+    mockFsReadFile.mockResolvedValue("");
   });
 
   afterEach(() => {

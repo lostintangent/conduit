@@ -5,14 +5,32 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 const mockSpawn = vi.hoisted(() => vi.fn());
 const mockExistsSync = vi.hoisted(() => vi.fn());
 const mockReadFileSync = vi.hoisted(() => vi.fn());
+const mockAccess = vi.hoisted(() => vi.fn());
+const mockReadFile = vi.hoisted(() => vi.fn());
 
 // Mock fs module
 vi.mock("node:fs", () => ({
   existsSync: mockExistsSync,
   readFileSync: mockReadFileSync,
+  constants: {
+    R_OK: 4,
+  },
   default: {
     existsSync: mockExistsSync,
     readFileSync: mockReadFileSync,
+    constants: {
+      R_OK: 4,
+    },
+  },
+}));
+
+// Mock fs/promises module
+vi.mock("node:fs/promises", () => ({
+  access: mockAccess,
+  readFile: mockReadFile,
+  default: {
+    access: mockAccess,
+    readFile: mockReadFile,
   },
 }));
 
@@ -87,6 +105,12 @@ describe("GitIgnoreCache", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     GitIgnoreCache.clear();
+    // Setup default async mock behaviors
+    mockAccess.mockResolvedValue(undefined); // File exists by default
+    mockReadFile.mockImplementation((path: string) => {
+      // Default to returning what readFileSync would return
+      return Promise.resolve(mockReadFileSync(path));
+    });
   });
 
   describe("getGitRoot()", () => {
@@ -347,12 +371,15 @@ describe("GitIgnoreCache", () => {
 
     it("should check if path is ignored synchronously", async () => {
       const cache = GitIgnoreCache;
-      mockExistsSync.mockReturnValue(true);
+      setupMockSpawnSuccess("/Users/me/project\n");
       mockReadFileSync.mockReturnValue("*.log\ndist\n");
 
-      // Trigger matcher creation
-      cache.isIgnored("/Users/me/project", "/Users/me/project/debug.log");
+      // Trigger matcher creation by calling getIgnoredEntries first (async)
+      await cache.getIgnoredEntries("/Users/me/project", [
+        { name: "debug.log", isDirectory: false },
+      ]);
 
+      // Now isIgnored should work synchronously using the cached matcher
       expect(
         cache.isIgnored("/Users/me/project", "/Users/me/project/debug.log"),
       ).toBe(true);
@@ -364,22 +391,20 @@ describe("GitIgnoreCache", () => {
       ).toBe(false);
     });
 
-    it("should create matcher if not exists", async () => {
+    it("should return false when matcher does not exist (no prior async loading)", async () => {
       const cache = GitIgnoreCache;
-      mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue("*.log\n");
 
-      // Call isIgnored without prior getIgnoredEntries
+      // Call isIgnored without prior getIgnoredEntries (no matcher loaded)
+      // Should return false since isIgnored is now synchronous-only
       const result = cache.isIgnored(
         "/Users/me/project",
         "/Users/me/project/debug.log",
       );
 
-      expect(result).toBe(true);
-      expect(mockReadFileSync).toHaveBeenCalledWith(
-        "/Users/me/project/.gitignore",
-        "utf-8",
-      );
+      expect(result).toBe(false);
+      // Should not try to load .gitignore synchronously
+      expect(mockReadFile).not.toHaveBeenCalled();
     });
   });
 
