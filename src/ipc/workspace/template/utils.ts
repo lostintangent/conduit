@@ -45,7 +45,8 @@ export function createBrowserPane(
   return {
     type: "browser",
     id: paneId,
-    url: url,
+    url,
+    ...(paneNode.chromeless && { chromeless: true }),
   };
 }
 

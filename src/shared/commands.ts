@@ -73,6 +73,9 @@ export const ApplicationCommands = {
   AGENT_TERMINATE: "agent.terminate",
   AGENT_DELETE_ALL_WORKTREES: "agent.deleteAllWorktrees",
 
+  // Browser commands
+  BROWSER_TOGGLE_TOOLBAR: "browser.toggleToolbar",
+
   // Editor commands
   EDITOR_TOGGLE_SIDEBAR: "editor.toggleSidebar",
   EDITOR_FOCUS_SIDEBAR: "editor.focusSidebar",

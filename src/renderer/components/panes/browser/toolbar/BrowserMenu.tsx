@@ -20,6 +20,7 @@ import {
   Code,
   Copy,
   ExternalLink,
+  EyeOff,
   Minimize2,
   MoreVertical,
   X,
@@ -32,6 +33,7 @@ type BrowserMenuProps = {
   currentPage: BrowserPage;
   isDevToolsOpen: boolean;
   onToggleDevTools: () => void;
+  onHideToolbar: () => void;
   onCaptureScreenshot: () => void;
 };
 
@@ -39,6 +41,7 @@ export function BrowserMenu({
   currentPage,
   isDevToolsOpen,
   onToggleDevTools,
+  onHideToolbar,
   onCaptureScreenshot,
 }: BrowserMenuProps) {
   const [showCheckmark, setShowCheckmark] = useState(false);
@@ -118,6 +121,10 @@ export function BrowserMenu({
         <DropdownMenuItem onClick={onToggleDevTools}>
           <Code size={12} />
           {isDevToolsOpen ? "Close dev tools" : "Open dev tools"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onHideToolbar}>
+          <EyeOff size={12} />
+          Hide toolbar
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={collapsePane.execute}>

@@ -59,6 +59,7 @@ import {
   setPaneCollapsed,
   splitPane,
   splitPaneWithAgentSession,
+  updatePaneProperty,
 } from "@/store/actions/pane";
 import {
   closeTab,
@@ -1417,6 +1418,25 @@ export function registerApplicationCommands(
           autoCloseMs: 5000,
         });
       }
+    },
+  });
+
+  // ============================================================================
+  // Browser Commands
+  // ============================================================================
+
+  // Browser: Toggle Browser Toolbar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.BROWSER_TOGGLE_TOOLBAR,
+    title: "Toggle Browser Toolbar",
+    description: "Show or hide the toolbar in the active browser pane",
+    category: "Browser",
+    when: activePaneType.equals("browser"),
+    run: ({ activeTab, activePaneId }) => {
+      const pane = activeTab.panes[activePaneId];
+      updatePaneProperty(activeTab.id, activePaneId, {
+        chromeless: !pane.chromeless,
+      });
     },
   });
 

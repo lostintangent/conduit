@@ -159,6 +159,7 @@ export function convertWorkspaceToTemplate(
         const canUseShorthand =
           pane.url &&
           !pane.devToolsFor &&
+          !pane.chromeless &&
           !needsActiveMarker &&
           !isCollapsed &&
           !needsExplicitId(pane.id, "browser");
@@ -229,6 +230,9 @@ export function convertWorkspaceToTemplate(
         }
         if (pane.url && !basePane.devToolsFor) {
           basePane.url = pane.url;
+        }
+        if (pane.chromeless) {
+          basePane.chromeless = true;
         }
         if (!basePane.url && !basePane.devToolsFor) {
           explicitTypeRequired = true;

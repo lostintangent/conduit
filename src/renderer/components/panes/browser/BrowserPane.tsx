@@ -35,8 +35,10 @@ type BrowserPaneProps = {
   disableInteraction: boolean;
   isInPreview: boolean;
   devToolsFor?: string;
+  chromeless?: boolean;
   isDevToolsOpen: boolean;
   onToggleDevTools: () => void;
+  onHideToolbar: () => void;
 };
 
 export function BrowserPane({
@@ -50,8 +52,10 @@ export function BrowserPane({
   disableInteraction = false,
   isInPreview = false,
   devToolsFor,
+  chromeless,
   isDevToolsOpen,
   onToggleDevTools,
+  onHideToolbar,
 }: BrowserPaneProps) {
   const applicationMode = useAtomValue(applicationModeAtom);
 
@@ -375,7 +379,7 @@ export function BrowserPane({
 
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background">
-      {!devToolsFor && (
+      {!(chromeless || devToolsFor) && (
         <BrowserToolbar
           currentPage={{ url: currentUrl, title: pageTitle }}
           isLoading={isLoading}
@@ -393,6 +397,7 @@ export function BrowserPane({
           onStop={() => webviewRef.current?.stop()}
           isDevToolsOpen={isDevToolsOpen}
           onToggleDevTools={onToggleDevTools}
+          onHideToolbar={onHideToolbar}
           onCaptureScreenshot={() => {
             const webContentsId = webviewRef.current?.getWebContentsId();
             browser.captureScreenshot(webContentsId);

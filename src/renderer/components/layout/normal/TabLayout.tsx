@@ -25,6 +25,7 @@ import {
   closePane,
   openBrowserPane,
   setPaneCollapsed,
+  updatePaneProperty,
 } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
@@ -541,6 +542,7 @@ export function TabLayout({
                     }
                   }}
                   devToolsFor={pane.devToolsFor}
+                  chromeless={pane.chromeless}
                   isDevToolsOpen={Object.values(tab.panes).some(
                     (p) => p.type === "browser" && p.devToolsFor === pane.id,
                   )}
@@ -561,6 +563,9 @@ export function TabLayout({
                       );
                     }
                   }}
+                  onHideToolbar={() =>
+                    updatePaneProperty(tab.id, pane.id, { chromeless: true })
+                  }
                 />
               </div>
             )}

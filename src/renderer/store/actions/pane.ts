@@ -317,35 +317,33 @@ function extractPaneNode(node: LayoutNode, paneId: string): ExtractPaneResult {
   };
 }
 
-export function updatePaneProperty(
+export function updatePaneProperty<T extends Pane>(
+  tabId: string,
+  paneId: string,
+  updates: Partial<T>,
+) {
+  store.set(tabsAtom, (tabs) => {
+    const tab = tabs.find(({ id }) => id === tabId);
+    const pane = tab?.panes[paneId];
+    if (!pane) return;
+
+    Object.assign(pane, updates);
+  });
+}
+
+export function updateTerminalSessionProperty(
   sessionId: string,
   updates: Partial<TerminalPane>,
 ) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      let updated = false;
-      const panes = { ...tab.panes };
-
-      Object.values(panes).forEach((pane) => {
+  store.set(tabsAtom, (tabs) => {
+    for (const tab of tabs) {
+      for (const pane of Object.values(tab.panes)) {
         if (pane.type === "terminal" && pane.sessionId === sessionId) {
-          panes[pane.id] = {
-            ...pane,
-            ...updates,
-          };
-          updated = true;
+          Object.assign(pane, updates);
         }
-      });
-
-      if (!updated) {
-        return tab;
       }
-
-      return {
-        ...tab,
-        panes,
-      };
-    }),
-  );
+    }
+  });
 }
 
 export function movePane(

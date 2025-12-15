@@ -17,6 +17,7 @@ export type BrowserPane = {
   type: "browser";
   url?: string;
   devToolsFor?: string;
+  chromeless?: boolean;
 };
 
 export type EditorTreeMode = "all" | "changes";

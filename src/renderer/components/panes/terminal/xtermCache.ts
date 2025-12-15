@@ -1,4 +1,4 @@
-import { updatePaneProperty } from "@/store/actions/pane";
+import { updateTerminalSessionProperty } from "@/store/actions/pane";
 import { resolveColor } from "@/utils/theme";
 import { UserSettings } from "@shared/types";
 import { FitAddon } from "@xterm/addon-fit";
@@ -206,7 +206,7 @@ export function getOrCreate(
         }
         if (cwd !== lastKnownCwd) {
           lastKnownCwd = cwd;
-          updatePaneProperty(sessionId, { cwd });
+          updateTerminalSessionProperty(sessionId, { cwd });
         }
       }
       return true; // Indicate the OSC was handled
@@ -216,7 +216,7 @@ export function getOrCreate(
     // This is triggered by OSC 0, 1, or 2 sequences from the shell
     const onTitleChangeDisposable = terminal.onTitleChange((title) => {
       if (title) {
-        updatePaneProperty(sessionId, { processTitle: title });
+        updateTerminalSessionProperty(sessionId, { processTitle: title });
       }
     });
 

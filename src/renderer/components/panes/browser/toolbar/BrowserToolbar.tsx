@@ -35,6 +35,7 @@ type BrowserToolbarProps = {
   onStop: () => void;
   isDevToolsOpen: boolean;
   onToggleDevTools: () => void;
+  onHideToolbar: () => void;
   onCaptureScreenshot: () => void;
 };
 
@@ -53,6 +54,7 @@ export function BrowserToolbar({
   onStop,
   isDevToolsOpen,
   onToggleDevTools,
+  onHideToolbar,
   onCaptureScreenshot,
 }: BrowserToolbarProps) {
   const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
@@ -368,6 +370,7 @@ export function BrowserToolbar({
         currentPage={currentPage}
         isDevToolsOpen={isDevToolsOpen}
         onToggleDevTools={onToggleDevTools}
+        onHideToolbar={onHideToolbar}
         onCaptureScreenshot={onCaptureScreenshot}
       />
     </div>
