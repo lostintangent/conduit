@@ -12,17 +12,12 @@
  * - Lines and curves show how branches connect
  * - The graph is computed from parent relationships
  *
- * ## Main Components
- *
- * - `CommitGraphPanel`: Top-level container for the entire feature
- *
  * ## Usage
  *
  * ```tsx
  * import { CommitGraphPanel } from './CommitGraph';
  *
  * <CommitGraphPanel
- *   cwd="/path/to/repo"
  *   git={gitApi}
  *   onFileSelect={({ file, commitId, parentCommitId }) => {
  *     // Open historical diff
@@ -39,10 +34,9 @@
  * - `./graph/` - Swimlane algorithm and SVG rendering
  * - `./commit/` - Commit info display components
  * - `./files/` - Expanded file list components
+ * - `./refs/` - Git reference (branch/tag) display
  * - `./states/` - Loading, empty, error states
  * - `./hooks/` - State management hooks
- *
- * @see docs/architecture/commit-graph-design.md
  */
 
 // =============================================================================
@@ -93,20 +87,31 @@ export {
 export type { RefBadgeProps, RefBadgeListProps } from "./refs";
 
 // =============================================================================
+// Graph Algorithm Utilities
+// =============================================================================
+
+export {
+  computeSwimlanes,
+  getMaxLaneCount,
+  findNodeByCommitId,
+  getLaneIndexForCommit,
+} from "./graph";
+export type { ComputeSwimlanesOptions } from "./graph";
+
+// =============================================================================
 // Component Exports
 // =============================================================================
 
-// Phase 9: Row component
+// Main panel component - primary entry point
+export { CommitGraphPanel } from "./CommitGraphPanel";
+export type { CommitGraphPanelProps } from "./CommitGraphPanel";
+
+// Supporting components for custom implementations
 export { CommitGraphRow } from "./CommitGraphRow";
 export type { CommitGraphRowProps } from "./CommitGraphRow";
 
-// Phase 10: Header and List components
 export { CommitGraphHeader } from "./CommitGraphHeader";
 export type { CommitGraphHeaderProps } from "./CommitGraphHeader";
 
 export { CommitGraphList } from "./CommitGraphList";
 export type { CommitGraphListProps } from "./CommitGraphList";
-
-// Phase 11: Main panel component
-export { CommitGraphPanel } from "./CommitGraphPanel";
-export type { CommitGraphPanelProps } from "./CommitGraphPanel";

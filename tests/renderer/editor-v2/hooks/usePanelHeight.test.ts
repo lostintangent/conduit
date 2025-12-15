@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { usePanelHeight } from "@/components/panes/editor-v2/components/CommitGraph/hooks/usePanelHeight";
+import { usePanelHeight } from "@/components/panes/editor-v2/hooks/usePanelHeight";
 
 // =============================================================================
 // Mock localStorage

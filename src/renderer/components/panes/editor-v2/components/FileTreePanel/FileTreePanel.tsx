@@ -37,7 +37,7 @@ import { FileTreeChanges } from "./FileTreeChanges";
 import { GitBranchToolbar } from "./GitBranchToolbar";
 import { PanelResizer } from "./PanelResizer";
 import { CommitGraphPanel } from "../CommitGraph";
-import { usePanelHeight } from "../CommitGraph/hooks";
+import { usePanelHeight } from "../../hooks";
 import { cn } from "@/utils";
 
 export interface FileTreePanelProps {

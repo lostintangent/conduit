@@ -1,11 +1,7 @@
 /**
  * Commit Graph Hooks Module
  *
- * This module contains React hooks for managing commit graph state:
- *
- * - useCommitGraph.ts: Main state hook managing commits, loading, expansion
- * - useCommitGraphKeyboard.ts: Keyboard navigation (arrow keys, enter, etc.)
- * - usePanelHeight.ts: Persisted panel height with resize support
+ * This module contains React hooks for managing commit graph state.
  *
  * The useCommitGraph hook is the central piece - it:
  * - Fetches commit history from the Git API
@@ -14,19 +10,22 @@
  * - Handles pagination (load more)
  * - Provides refresh functionality
  *
+ * Note: usePanelHeight has been moved to the shared editor-v2/hooks module
+ * as it's a general-purpose utility not specific to the commit graph.
+ *
  * @example
  * ```tsx
- * import { useCommitGraph, usePanelHeight } from './hooks';
+ * import { useCommitGraph } from './hooks';
+ * import { usePanelHeight } from '../../../hooks';
  *
  * function CommitGraphPanel({ git }) {
  *   const { nodes, isLoading, refresh, toggleExpand } = useCommitGraph(git);
- *   const { height, updateHeight } = usePanelHeight();
+ *   const { height, updateHeight } = usePanelHeight({ ... });
  *   // ...
  * }
  * ```
  */
 
-// Phase 6: Main state hook
 export { useCommitGraph } from "./useCommitGraph";
 export type {
   UseCommitGraphOptions,
@@ -35,11 +34,9 @@ export type {
   CommitGraphActions,
 } from "./useCommitGraph";
 
-// Phase 10: Keyboard navigation is integrated into CommitGraphList
-
-// Phase 11: Panel height persistence
-export { usePanelHeight } from "./usePanelHeight";
+// Re-export usePanelHeight from shared hooks for backward compatibility
+export { usePanelHeight } from "../../../hooks/usePanelHeight";
 export type {
   UsePanelHeightOptions,
   UsePanelHeightResult,
-} from "./usePanelHeight";
+} from "../../../hooks/usePanelHeight";

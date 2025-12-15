@@ -55,3 +55,8 @@ export type {
   HistoricalDiffError,
   HistoricalDiffErrorType,
 } from "./useHistoricalDiff";
+export { usePanelHeight } from "./usePanelHeight";
+export type {
+  UsePanelHeightOptions,
+  UsePanelHeightResult,
+} from "./usePanelHeight";
