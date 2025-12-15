@@ -25,6 +25,7 @@ export const userSettingsAtom = atom<UserSettings>({
   tabPosition: "bottom",
   alwaysShowTabs: true,
   useGradientBorders: true,
+  dimInactivePanes: false,
   theme: "dark",
 
   // Terminal settings

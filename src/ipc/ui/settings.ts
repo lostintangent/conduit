@@ -29,6 +29,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   showTerminalRuler: true,
   autoSaveWorkspaces: true,
   useGradientBorders: true,
+  dimInactivePanes: false,
   useConduitAsEditor: true,
   useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
   theme: "dark",

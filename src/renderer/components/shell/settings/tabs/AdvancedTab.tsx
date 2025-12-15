@@ -64,6 +64,29 @@ export function AdvancedTab({
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
+                id="dimInactivePanes"
+                checked={userSettings.dimInactivePanes}
+                onChange={(e) =>
+                  onUpdateSettings({ dimInactivePanes: e.target.checked })
+                }
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor="dimInactivePanes"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
+                >
+                  Dim inactive panes
+                </label>
+                <p className="text-xs text-tinted-foreground/50 mt-1">
+                  Slightly dim inactive panes to highlight the active one
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
                 id="alwaysShowTabs"
                 checked={userSettings.alwaysShowTabs}
                 onChange={(e) =>

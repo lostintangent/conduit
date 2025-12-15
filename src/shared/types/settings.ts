@@ -48,6 +48,7 @@ export type UserSettings = {
   tabPosition: TabPosition;
   alwaysShowTabs: boolean;
   useGradientBorders: boolean;
+  dimInactivePanes: boolean;
   theme: ThemeMode;
   themeOverrides?: ThemeOverrides;
 

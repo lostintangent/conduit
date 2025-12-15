@@ -34,6 +34,7 @@ import {
   activeTabAtom,
   applicationModeAtom,
   tabsAtom,
+  userSettingsAtom,
 } from "@/store/atoms";
 import type {
   EditorPane as EditorPaneType,
@@ -279,6 +280,8 @@ export function TabLayout({
   const applicationMode = useAtomValue(applicationModeAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
+
+  const { dimInactivePanes } = useAtomValue(userSettingsAtom);
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
@@ -571,9 +574,18 @@ export function TabLayout({
             )}
           </div>
 
+          {/* Pane-type-agnostic overlays... */}
+
           {isInDesignMode && (
             <div className="pointer-events-none absolute inset-0 z-10 bg-accent/20 backdrop-blur-[0.5px]" />
           )}
+
+          {/* Dim inactive panes overlay (only in normal mode) */}
+          {dimInactivePanes &&
+            applicationMode === "normal" &&
+            !isActivePane && (
+              <div className="pointer-events-none absolute inset-0 z-10 bg-black/30" />
+            )}
 
           {/* Pane highlight overlay */}
           <PaneHighlight paneId={pane.id} isResizing={resizingNode !== null} />
@@ -627,6 +639,7 @@ export function TabLayout({
       setHoveredPreviewPaneId,
       setApplicationMode,
       setPaneCollapsed,
+      dimInactivePanes,
     ],
   );
 
