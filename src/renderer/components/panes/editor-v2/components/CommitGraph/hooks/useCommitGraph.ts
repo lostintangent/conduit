@@ -155,6 +155,7 @@ function toLocalCommit(commit: IpcHistoryCommit): CommitGraphNode["commit"] {
     authorEmail: commit.authorEmail,
     timestamp: commit.timestamp,
     parentIds: commit.parentIds,
+    refs: commit.refs,
   };
 }
 

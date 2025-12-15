@@ -18,6 +18,42 @@
  */
 
 // ============================================================================
+// Ref Types - Branch and tag information
+// ============================================================================
+
+/**
+ * Type of git reference.
+ *
+ * - head: Local branch (refs/heads/*)
+ * - remote: Remote tracking branch (refs/remotes/*)
+ * - tag: Tag (refs/tags/*)
+ */
+export type RefType = "head" | "remote" | "tag";
+
+/**
+ * A parsed git reference (branch or tag).
+ *
+ * Git refs are parsed from the raw string format returned by git log --decorate.
+ * Examples of raw refs:
+ * - "HEAD -> main" → { type: "head", name: "main", isHead: true }
+ * - "origin/main" → { type: "remote", name: "main", remote: "origin" }
+ * - "tag: v1.0.0" → { type: "tag", name: "v1.0.0" }
+ */
+export interface GitRef {
+  /** Type of reference */
+  type: RefType;
+
+  /** Display name (branch name, tag name without prefix) */
+  name: string;
+
+  /** Remote name for remote refs (e.g., "origin") */
+  remote?: string;
+
+  /** True if this ref is HEAD (current branch) */
+  isHead?: boolean;
+}
+
+// ============================================================================
 // Commit Types - Raw data from Git
 // ============================================================================
 
@@ -101,6 +137,16 @@ export interface HistoryCommit {
    * - Multiple elements: Merge commit (first parent is mainline)
    */
   parentIds: string[];
+
+  /**
+   * Raw refs pointing to this commit (branch names, tags).
+   *
+   * These are the raw strings from git log --decorate format (%D).
+   * Examples: "HEAD -> main", "origin/main", "tag: v1.0.0"
+   *
+   * Use parseRefs() to convert to GitRef objects for display.
+   */
+  refs?: string[];
 
   /** Change statistics (may be lazy-loaded) */
   stats?: CommitStats;

@@ -50,6 +50,9 @@
 // =============================================================================
 
 export type {
+  // Ref types
+  RefType,
+  GitRef,
   // Commit types
   HistoryCommit,
   CommitFile,
@@ -69,6 +72,23 @@ export type {
   CommitFileSelectEvent,
   CommitViewEvent,
 } from "./types";
+
+// =============================================================================
+// Ref Utilities and Components
+// =============================================================================
+
+export {
+  parseRef,
+  parseRefs,
+  sortRefs,
+  filterRefsByType,
+  filterRefsForDisplay,
+  getHeadRef,
+  hasRefs,
+  RefBadge,
+  RefBadgeList,
+} from "./refs";
+export type { RefBadgeProps, RefBadgeListProps } from "./refs";
 
 // =============================================================================
 // Component Exports

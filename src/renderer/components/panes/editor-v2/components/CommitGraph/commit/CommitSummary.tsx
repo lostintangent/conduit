@@ -6,9 +6,9 @@
  *
  * Layout:
  * ```
- * ┌─────────────────────────────────────────────────────┐
- * │ Fix authentication bug in login flow  Author  [👁] │
- * └─────────────────────────────────────────────────────┘
+ * ┌────────────────────────────────────────────────────────────────────┐
+ * │ [main] [origin/main] Fix authentication bug in login  Author [👁] │
+ * └────────────────────────────────────────────────────────────────────┘
  * ```
  *
  * The HEAD commit uses a hollow circle in the graph (handled by GraphCell).
@@ -23,10 +23,11 @@
  * ```
  */
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { cn } from "@/utils";
 import type { HistoryCommit } from "../types";
 import { ViewAllButton } from "./ViewAllButton";
+import { parseRefs, filterRefsForDisplay, RefBadgeList } from "../refs";
 
 // =============================================================================
 // Props
@@ -53,7 +54,7 @@ export interface CommitSummaryProps {
 /**
  * CommitSummary displays commit information in a compact single line.
  *
- * Structure: Subject + Author + [View All button on hover]
+ * Structure: [Refs] + Subject + Author + [View All button on hover]
  *
  * Uses CSS grid so author truncates first, then subject.
  * Matches VS Code's compact git graph style for visual consistency.
@@ -64,6 +65,13 @@ function CommitSummaryComponent({
   onViewAll,
   className,
 }: CommitSummaryProps) {
+  // Parse refs and filter for display (VS Code style: HEAD commit shows current branch + upstream, others only tags)
+  const refs = useMemo(
+    () => filterRefsForDisplay(parseRefs(commit.refs)),
+    [commit.refs],
+  );
+  const hasRefBadges = refs.length > 0;
+
   return (
     <div
       className={cn("flex items-center gap-2 min-w-0", className)}
@@ -97,6 +105,11 @@ function CommitSummaryComponent({
           {commit.author}
         </span>
       </div>
+
+      {/* Ref badges - shown after subject/author */}
+      {hasRefBadges && (
+        <RefBadgeList refs={refs} maxVisible={2} className="flex-shrink-0" />
+      )}
 
       {/* View all button - appears on hover */}
       {onViewAll && <ViewAllButton onClick={onViewAll} className="ml-auto" />}
