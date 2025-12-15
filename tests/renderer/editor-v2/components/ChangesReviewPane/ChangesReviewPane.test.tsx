@@ -2,21 +2,15 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-} from "@testing-library/react";
-import { TooltipProvider } from "../../../../../src/renderer/components/ui/tooltip";
-import { ChangesReviewPane } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/ChangesReviewPane";
-import { FileChangeDiff } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/FileChangeDiff";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GitFileStatus,
   GitStatus,
 } from "../../../../../src/ipc/gitv2/types";
+import { ChangesReviewPane } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/ChangesReviewPane";
+import { FileChangeDiff } from "../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/FileChangeDiff";
+import { TooltipProvider } from "../../../../../src/renderer/components/ui/tooltip";
 
 // ============================================================================
 // Test Utilities

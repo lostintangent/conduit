@@ -351,6 +351,7 @@ export function EditorViewPanel({
       >
         <ChangesReviewPane
           cwd={cwd}
+          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           onExitReview={onExitReview}

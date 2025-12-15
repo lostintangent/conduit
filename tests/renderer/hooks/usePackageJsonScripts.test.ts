@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { renderHook } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing the hook - must be at module level
 const mockReadFile = vi.fn();
