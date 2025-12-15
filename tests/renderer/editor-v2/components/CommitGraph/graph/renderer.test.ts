@@ -74,6 +74,7 @@ function createNode(
     outputSwimlanes,
     isMerge: options.isMerge ?? false,
     isHead: options.isHead ?? false,
+    segmentType: null,
   };
 }
 

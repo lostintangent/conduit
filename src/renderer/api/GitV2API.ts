@@ -65,6 +65,7 @@ import type {
   HistoryCommit,
   CommitFile,
   CommitHistoryResult,
+  TrackedBranchInfo,
 } from "../../ipc/gitv2/types";
 
 // ============================================================================
@@ -890,6 +891,24 @@ export class GitV2API {
   ): Promise<string | null> {
     this.ensureNotReleased();
     return window.conduit.gitv2.getFileAtCommit(this.cwd, commitId, filePath);
+  }
+
+  /**
+   * Get tracked branch information for the current branch.
+   *
+   * Returns the current branch, its upstream (tracking) branch, and base branch
+   * along with their commit IDs. Used for VS Code-style branch coloring in the
+   * commit graph where:
+   * - Current branch commits are blue
+   * - Upstream branch commits are purple
+   * - Base branch commits are orange
+   *
+   * @returns Tracked branch info with current, upstream, and base branches
+   * @throws {Error} If the API has been released
+   */
+  async getTrackedBranches(): Promise<TrackedBranchInfo> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getTrackedBranches(this.cwd);
   }
 
   // ---------------------------------------------------------------------------

@@ -44,7 +44,9 @@ import type {
   CommitGraphNode,
   Swimlane,
   GraphColor,
+  SegmentColor,
 } from "../types";
+import type { TrackedBranchInfo } from "@/../../src/ipc/gitv2/types";
 import { getNextColor } from "./colors";
 
 // =============================================================================
@@ -58,6 +60,7 @@ import { getNextColor } from "./colors";
 interface MutableSwimlane {
   targetId: string;
   color: GraphColor;
+  segmentColor?: SegmentColor;
 }
 
 /**
@@ -76,6 +79,13 @@ export interface ComputeSwimlanesOptions {
    * @default 0
    */
   initialColorIndex?: number;
+
+  /**
+   * Tracked branch information for VS Code-style coloring.
+   * When provided, commits will have segmentType assigned based on
+   * their position relative to the current, upstream, and base branches.
+   */
+  trackedBranches?: TrackedBranchInfo;
 }
 
 // =============================================================================
@@ -109,7 +119,7 @@ export function computeSwimlanes(
   commits: HistoryCommit[],
   options: ComputeSwimlanesOptions = {},
 ): CommitGraphNode[] {
-  const { headCommitId, initialColorIndex = 0 } = options;
+  const { headCommitId, initialColorIndex = 0, trackedBranches } = options;
 
   // Handle empty input
   if (commits.length === 0) {
@@ -152,7 +162,7 @@ export function computeSwimlanes(
     // The lanes are naturally "consumed" when their target commit is processed.
     const outputSwimlanes = snapshotSwimlanes(activeLanes);
 
-    // Build the graph node
+    // Build the graph node (segmentType will be assigned in post-processing)
     result.push({
       commit,
       laneIndex,
@@ -160,10 +170,152 @@ export function computeSwimlanes(
       outputSwimlanes,
       isMerge: commit.parentIds.length > 1,
       isHead: commit.id === headCommitId,
+      segmentType: null, // Will be assigned by assignSegmentTypes
     });
   }
 
+  // Post-process to assign segment types based on tracked branches
+  assignSegmentTypes(result, trackedBranches);
+
   return result;
+}
+
+// =============================================================================
+// Segment Type Assignment
+// =============================================================================
+
+/**
+ * Assign segment types to nodes based on tracked branch information.
+ *
+ * Segments are assigned by walking the first-parent chain from HEAD:
+ * - Commits from HEAD to upstream: "current" (blue)
+ * - Commits from upstream to base: "upstream" (purple)
+ * - Commits from base onwards: "base" (orange)
+ * - Commits not on the main path: null (default colors)
+ *
+ * @param nodes - Graph nodes to update (mutated in place)
+ * @param trackedBranches - Tracked branch information
+ */
+function assignSegmentTypes(
+  nodes: CommitGraphNode[],
+  trackedBranches?: TrackedBranchInfo,
+): void {
+  // If no tracked branches, all nodes get null segment type (already set)
+  if (!trackedBranches) {
+    return;
+  }
+
+  if (nodes.length === 0) {
+    return;
+  }
+
+  const { upstream, base } = trackedBranches;
+  const upstreamId = upstream?.commitId;
+  const baseId = base?.commitId;
+
+  // Build a map for quick commit lookup
+  const nodeMap = new Map<string, CommitGraphNode>();
+  for (const node of nodes) {
+    nodeMap.set(node.commit.id, node);
+  }
+
+  // Find commits on the main path (first-parent chain from HEAD)
+  // The first commit in the list is HEAD (newest)
+  const mainPathIds = new Set<string>();
+  let currentId: string | undefined = nodes[0]?.commit.id;
+
+  while (currentId) {
+    const node = nodeMap.get(currentId);
+    if (!node) break;
+
+    mainPathIds.add(currentId);
+    // Follow first parent
+    currentId = node.commit.parentIds[0];
+  }
+
+  // Assign segment types to main path commits
+  // Track current segment, transitioning at tracked branch commits
+  let currentSegment: SegmentColor = "current";
+  let sawUpstream = false;
+  let sawBase = false;
+
+  for (const node of nodes) {
+    // Only main path commits get segment colors
+    if (!mainPathIds.has(node.commit.id)) {
+      node.segmentType = null;
+      continue;
+    }
+
+    // Check for segment transitions BEFORE assigning
+    // This ensures the tracked branch commit gets the NEW segment color
+    if (!sawUpstream && upstreamId && node.commit.id === upstreamId) {
+      sawUpstream = true;
+      currentSegment = "upstream";
+    } else if (!sawBase && baseId && node.commit.id === baseId) {
+      // This handles both cases:
+      // 1. Normal case: transitioning from upstream to base
+      // 2. No upstream case: transitioning directly from current to base
+      sawBase = true;
+      currentSegment = "base";
+    }
+
+    node.segmentType = currentSegment;
+  }
+
+  // Second pass: Propagate segment colors to swimlanes
+  // Track the "active segment" as we process nodes top-to-bottom.
+  // Pass-through lanes for the main branch should use the active segment,
+  // not the segment of their target (which might be further down in a different segment).
+
+  // Segment colors should ONLY apply to the main branch line.
+  // Side branches keep their swimlane colors throughout.
+  //
+  // Strategy: Track which lane index the main branch is at. Only swimlanes
+  // at that lane index get segment colors. All other lanes keep swimlane colors.
+
+  let activeSegment: SegmentColor | null = null;
+  let mainLaneIndex = 0; // Main branch is typically at lane 0
+
+  for (const node of nodes) {
+    if (node.segmentType) {
+      // This is a main path node - update tracking
+      const prevSegment = activeSegment ?? node.segmentType;
+      activeSegment = node.segmentType;
+      mainLaneIndex = node.laneIndex;
+
+      // Only assign segment color to swimlanes at the main lane index
+      for (let i = 0; i < node.inputSwimlanes.length; i++) {
+        if (i === mainLaneIndex) {
+          (
+            node.inputSwimlanes[i] as { segmentColor?: SegmentColor }
+          ).segmentColor = prevSegment;
+        }
+      }
+      for (let i = 0; i < node.outputSwimlanes.length; i++) {
+        if (i === mainLaneIndex) {
+          (
+            node.outputSwimlanes[i] as { segmentColor?: SegmentColor }
+          ).segmentColor = activeSegment;
+        }
+      }
+    } else if (activeSegment !== null) {
+      // Side branch node - only the pass-through at mainLaneIndex gets segment color
+      for (let i = 0; i < node.inputSwimlanes.length; i++) {
+        if (i === mainLaneIndex) {
+          (
+            node.inputSwimlanes[i] as { segmentColor?: SegmentColor }
+          ).segmentColor = activeSegment;
+        }
+      }
+      for (let i = 0; i < node.outputSwimlanes.length; i++) {
+        if (i === mainLaneIndex) {
+          (
+            node.outputSwimlanes[i] as { segmentColor?: SegmentColor }
+          ).segmentColor = activeSegment;
+        }
+      }
+    }
+  }
 }
 
 // =============================================================================
@@ -191,6 +343,7 @@ function snapshotSwimlanes(lanes: MutableSwimlane[]): Swimlane[] {
   return lanes.map((lane) => ({
     targetId: lane.targetId,
     color: lane.color,
+    segmentColor: lane.segmentColor,
   }));
 }
 
@@ -254,34 +407,6 @@ function updateLanesForCommit(
   }
 
   return outputLanes;
-}
-
-/**
- * Collapse lanes that target the same commit.
- *
- * When multiple lanes converge on the same commit (branches merging),
- * we keep only the first lane and remove duplicates.
- *
- * This handles the case where:
- * - Branch A and Branch B both have commit C as their next target
- * - When we reach C, both lanes should merge into one
- *
- * @param lanes - Current lanes
- * @returns Lanes with duplicates removed
- */
-function collapseDuplicateLanes(lanes: MutableSwimlane[]): MutableSwimlane[] {
-  const seen = new Set<string>();
-  const result: MutableSwimlane[] = [];
-
-  for (const lane of lanes) {
-    if (!seen.has(lane.targetId)) {
-      seen.add(lane.targetId);
-      result.push(lane);
-    }
-    // Duplicate lanes (same targetId) are dropped
-  }
-
-  return result;
 }
 
 // =============================================================================

@@ -51,6 +51,7 @@ const createNode = (overrides = {}): CommitGraphNode => ({
   outputSwimlanes: [{ targetId: "parent123", color: "current" as const }],
   isMerge: false,
   isHead: false,
+  segmentType: null,
   files: undefined,
   isLoadingFiles: false,
   ...overrides,

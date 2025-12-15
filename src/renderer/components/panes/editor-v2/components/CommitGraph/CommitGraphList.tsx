@@ -41,6 +41,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
 import type { CommitGraphNode, CommitFile, GraphRenderConfig } from "./types";
+import type { TrackedBranchInfo } from "@/../../src/ipc/gitv2/types";
 import { CommitGraphRow } from "./CommitGraphRow";
 import { GRAPH_CONFIG } from "./graph/constants";
 
@@ -85,6 +86,9 @@ export interface CommitGraphListProps {
   /** Called when selection changes via keyboard */
   onSelectionChange?: (commitId: string | null) => void;
 
+  /** Tracked branch information for VS Code-style colored badges */
+  trackedBranches?: TrackedBranchInfo | null;
+
   /** Optional additional class names */
   className?: string;
 }
@@ -115,6 +119,7 @@ function CommitGraphListComponent({
   onFileSelect,
   onLoadMore,
   onSelectionChange,
+  trackedBranches,
   className,
 }: CommitGraphListProps) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -242,6 +247,7 @@ function CommitGraphListComponent({
             isSelected={isSelected}
             config={config}
             selectedFilePath={isExpanded ? selectedFilePath : undefined}
+            trackedBranches={trackedBranches}
             onToggle={createToggleHandler(node.commit.id)}
             onViewAll={
               onViewAll ? createViewAllHandler(node.commit.id) : undefined

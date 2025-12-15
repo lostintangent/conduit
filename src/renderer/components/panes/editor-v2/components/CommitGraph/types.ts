@@ -153,6 +153,21 @@ export interface HistoryCommit {
 }
 
 // ============================================================================
+// Segment Types - Tracked branch segment coloring
+// ============================================================================
+
+/**
+ * Segment color based on tracked branch relationships.
+ *
+ * Used for VS Code-style branch coloring where:
+ * - 'current': Commits only in the current local branch (blue)
+ * - 'upstream': Commits in upstream but not in base (purple)
+ * - 'base': Commits in the base/origin branch (orange)
+ * - null: Default coloring (commits not in the main tracking chain)
+ */
+export type SegmentColor = "current" | "upstream" | "base" | null;
+
+// ============================================================================
 // Graph Types - Computed visualization data
 // ============================================================================
 
@@ -194,6 +209,12 @@ export interface Swimlane {
 
   /** Color for this swimlane's line and connecting curves */
   color: GraphColor;
+
+  /**
+   * Segment color for tracked branch visualization.
+   * When set, overrides the default color for VS Code-style coloring.
+   */
+  segmentColor?: SegmentColor;
 }
 
 /**
@@ -238,6 +259,13 @@ export interface CommitGraphNode {
 
   /** True if this is the HEAD commit */
   isHead: boolean;
+
+  /**
+   * Segment type for VS Code-style tracked branch coloring.
+   * Determines the color of the commit node based on its position
+   * relative to tracked branches (current, upstream, base).
+   */
+  segmentType: SegmentColor;
 
   /** Files changed in this commit (lazy-loaded when expanded) */
   files?: CommitFile[];

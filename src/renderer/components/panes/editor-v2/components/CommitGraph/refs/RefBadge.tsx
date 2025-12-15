@@ -27,9 +27,24 @@ import type { GitRef } from "../types";
 // Types
 // =============================================================================
 
+/**
+ * Color hint for tracked branch badges.
+ * Used to override the default styling for VS Code-style coloring.
+ */
+export type RefBadgeColorHint = "current" | "upstream" | "base";
+
 export interface RefBadgeProps {
   /** The git reference to display */
   gitRef: GitRef;
+
+  /**
+   * Optional color hint for tracked branch visualization.
+   * When set, overrides the default type-based coloring:
+   * - "current": Blue (current branch)
+   * - "upstream": Purple (upstream/remote tracking)
+   * - "base": Orange (base branch like origin/main)
+   */
+  colorHint?: RefBadgeColorHint;
 
   /** Optional additional class names */
   className?: string;
@@ -43,9 +58,9 @@ export interface RefBadgeProps {
  * Badge displaying a git reference.
  *
  * Uses compact styling to fit inline with commit messages.
- * Color and icon vary based on ref type.
+ * Color and icon vary based on ref type, with optional colorHint override.
  */
-function RefBadgeComponent({ gitRef, className }: RefBadgeProps) {
+function RefBadgeComponent({ gitRef, colorHint, className }: RefBadgeProps) {
   const { type, name, remote, isHead } = gitRef;
 
   // Build display text
@@ -63,27 +78,48 @@ function RefBadgeComponent({ gitRef, className }: RefBadgeProps) {
     "max-w-[150px]", // Prevent very long branch names from breaking layout
   );
 
-  // Type-specific styles
-  const typeStyles = cn({
-    // HEAD (current branch) - prominent accent styling
-    "bg-accent/20 text-accent border border-accent/30": isHead,
+  // Color hint styles (for tracked branch visualization)
+  // These override the default type-based coloring
+  const colorHintStyles = colorHint
+    ? cn({
+        // Current branch - Blue
+        "bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30":
+          colorHint === "current",
 
-    // Local branch - subtle foreground styling
-    "bg-foreground/10 text-foreground/80": type === "head" && !isHead,
+        // Upstream branch - Purple
+        "bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30":
+          colorHint === "upstream",
 
-    // Remote branch - even more subtle
-    "bg-foreground/5 text-foreground/60": type === "remote",
+        // Base branch - Orange
+        "bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30":
+          colorHint === "base",
+      })
+    : null;
 
-    // Tag - distinct color
-    "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400": type === "tag",
-  });
+  // Type-specific styles (used when no colorHint)
+  const typeStyles = !colorHint
+    ? cn({
+        // HEAD (current branch) - prominent accent styling
+        "bg-accent/20 text-accent border border-accent/30": isHead,
+
+        // Local branch - subtle foreground styling
+        "bg-foreground/10 text-foreground/80": type === "head" && !isHead,
+
+        // Remote branch - even more subtle
+        "bg-foreground/5 text-foreground/60": type === "remote",
+
+        // Tag - distinct color
+        "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400": type === "tag",
+      })
+    : null;
 
   return (
     <span
-      className={cn(baseStyles, typeStyles, className)}
+      className={cn(baseStyles, colorHintStyles, typeStyles, className)}
       title={displayText}
       data-testid={`ref-badge-${type}`}
       data-ref-name={name}
+      data-color-hint={colorHint}
     >
       <Icon className="w-3 h-3 flex-shrink-0" />
       <span className="truncate">{displayText}</span>
@@ -97,15 +133,45 @@ export const RefBadge = memo(RefBadgeComponent);
 // RefBadgeList Component
 // =============================================================================
 
+/**
+ * A ref with optional color hint for tracked branch visualization.
+ */
+export interface RefWithColorHint {
+  ref: GitRef;
+  colorHint?: RefBadgeColorHint;
+}
+
 export interface RefBadgeListProps {
-  /** Array of git references to display */
-  refs: GitRef[];
+  /** Array of git references to display (can include color hints) */
+  refs: GitRef[] | RefWithColorHint[];
 
   /** Maximum number of refs to show before collapsing */
   maxVisible?: number;
 
   /** Optional additional class names */
   className?: string;
+}
+
+/**
+ * Type guard to check if an item is RefWithColorHint
+ */
+function isRefWithColorHint(
+  item: GitRef | RefWithColorHint,
+): item is RefWithColorHint {
+  return "ref" in item;
+}
+
+/**
+ * Normalize a ref item to get the GitRef and optional colorHint
+ */
+function normalizeRefItem(item: GitRef | RefWithColorHint): {
+  gitRef: GitRef;
+  colorHint?: RefBadgeColorHint;
+} {
+  if (isRefWithColorHint(item)) {
+    return { gitRef: item.ref, colorHint: item.colorHint };
+  }
+  return { gitRef: item };
 }
 
 /**
@@ -130,18 +196,27 @@ function RefBadgeListComponent({
       className={cn("inline-flex items-center gap-1 flex-wrap", className)}
       data-testid="ref-badge-list"
     >
-      {visibleRefs.map((ref, index) => (
-        <RefBadge
-          key={`${ref.type}-${ref.remote || ""}-${ref.name}-${index}`}
-          gitRef={ref}
-        />
-      ))}
+      {visibleRefs.map((item, index) => {
+        const { gitRef, colorHint } = normalizeRefItem(item);
+        return (
+          <RefBadge
+            key={`${gitRef.type}-${gitRef.remote || ""}-${gitRef.name}-${index}`}
+            gitRef={gitRef}
+            colorHint={colorHint}
+          />
+        );
+      })}
       {overflowCount > 0 && (
         <span
           className="text-[11px] text-muted-foreground px-1"
           title={refs
             .slice(maxVisible)
-            .map((r) => (r.remote ? `${r.remote}/${r.name}` : r.name))
+            .map((item) => {
+              const { gitRef } = normalizeRefItem(item);
+              return gitRef.remote
+                ? `${gitRef.remote}/${gitRef.name}`
+                : gitRef.name;
+            })
             .join(", ")}
         >
           +{overflowCount}

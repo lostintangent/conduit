@@ -38,7 +38,10 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { GitV2API } from "@/api/GitV2API";
 import type { CommitGraphNode, CommitFile } from "../types";
 import { computeSwimlanes } from "../graph/swimlanes";
-import type { HistoryCommit as IpcHistoryCommit } from "@/../../src/ipc/gitv2/types";
+import type {
+  HistoryCommit as IpcHistoryCommit,
+  TrackedBranchInfo,
+} from "@/../../src/ipc/gitv2/types";
 
 // =============================================================================
 // Types
@@ -91,6 +94,12 @@ export interface CommitGraphState {
 
   /** Set of commit IDs currently loading files */
   loadingFilesIds: Set<string>;
+
+  /**
+   * Tracked branch information for VS Code-style coloring.
+   * Contains current branch, upstream, and base branch with their commit IDs.
+   */
+  trackedBranches: TrackedBranchInfo | null;
 }
 
 /**
@@ -231,6 +240,10 @@ export function useCommitGraph(
     () => new Set(),
   );
 
+  // Tracked branches for VS Code-style coloring
+  const [trackedBranches, setTrackedBranches] =
+    useState<TrackedBranchInfo | null>(null);
+
   // Files cache: commitId -> files
   const filesCache = useRef<Map<string, CommitFile[]>>(new Map());
 
@@ -250,8 +263,11 @@ export function useCommitGraph(
       return [];
     }
 
-    // Compute swimlane positions
-    const graphNodes = computeSwimlanes(commits, { headCommitId });
+    // Compute swimlane positions with tracked branch info for segment coloring
+    const graphNodes = computeSwimlanes(commits, {
+      headCommitId,
+      trackedBranches: trackedBranches ?? undefined,
+    });
 
     // Attach files from cache
     return graphNodes.map((node) => {
@@ -264,7 +280,7 @@ export function useCommitGraph(
         isLoadingFiles,
       };
     });
-  }, [commits, headCommitId, loadingFilesIds]);
+  }, [commits, headCommitId, trackedBranches, loadingFilesIds]);
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -301,6 +317,22 @@ export function useCommitGraph(
   );
 
   /**
+   * Load tracked branch information.
+   * Fetched separately from commits since it's a different API call.
+   */
+  const loadTrackedBranches = useCallback(async () => {
+    try {
+      const branches = await git.getTrackedBranches();
+      setTrackedBranches(branches);
+    } catch (err) {
+      // Don't fail the whole load if tracked branches fail
+      // Just log and continue - the graph will work without segment coloring
+      console.warn("Failed to load tracked branches:", err);
+      setTrackedBranches(null);
+    }
+  }, [git]);
+
+  /**
    * Refresh the commit list from scratch.
    */
   const refresh = useCallback(async () => {
@@ -308,11 +340,12 @@ export function useCommitGraph(
     setError(null);
 
     try {
-      await loadCommits(0, false);
+      // Load commits and tracked branches in parallel
+      await Promise.all([loadCommits(0, false), loadTrackedBranches()]);
     } finally {
       setIsLoading(false);
     }
-  }, [loadCommits]);
+  }, [loadCommits, loadTrackedBranches]);
 
   /**
    * Load more commits (pagination).
@@ -438,6 +471,7 @@ export function useCommitGraph(
     error,
     expandedCommitIds,
     loadingFilesIds,
+    trackedBranches,
 
     // Actions
     refresh,

@@ -26,6 +26,7 @@ const defaultMockState: UseCommitGraphResult = {
   error: null,
   expandedCommitIds: new Set<string>(),
   loadingFilesIds: new Set<string>(),
+  trackedBranches: null,
   refresh: vi.fn(),
   loadMore: vi.fn(),
   toggleExpand: vi.fn().mockResolvedValue(undefined),

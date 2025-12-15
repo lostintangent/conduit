@@ -34,6 +34,7 @@ import type {
   GraphCircle,
   Swimlane,
   GraphColor,
+  SegmentColor,
 } from "../types";
 import { ROW_HEIGHT } from "./constants";
 
@@ -332,6 +333,53 @@ function findLastIndex<T>(arr: T[], predicate: (item: T) => boolean): number {
 }
 
 // =============================================================================
+// Segment Color Mapping
+// =============================================================================
+
+/**
+ * Map a SegmentColor to a GraphColor.
+ *
+ * Segment colors represent commit positions relative to tracked branches,
+ * and are mapped to the corresponding graph colors:
+ * - "current" → "current" (blue)
+ * - "upstream" → "remote" (purple) - Note: different naming conventions
+ * - "base" → "base" (orange)
+ *
+ * @param segmentColor - The segment color to map
+ * @returns The corresponding GraphColor, or null if no segment
+ */
+function segmentToGraphColor(segmentColor: SegmentColor): GraphColor | null {
+  switch (segmentColor) {
+    case "current":
+      return "current";
+    case "upstream":
+      return "remote"; // SegmentColor uses "upstream", GraphColor uses "remote"
+    case "base":
+      return "base";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Get the effective color for a path, considering segment coloring.
+ *
+ * For commits on the main path (with segmentType), uses the segment color.
+ * For other commits, falls back to the swimlane color.
+ *
+ * @param segmentType - The node's segment type (may be null)
+ * @param fallbackColor - The swimlane color to use if no segment
+ * @returns The effective GraphColor for the path
+ */
+function getEffectivePathColor(
+  segmentType: SegmentColor,
+  fallbackColor: GraphColor,
+): GraphColor {
+  const segmentGraphColor = segmentToGraphColor(segmentType);
+  return segmentGraphColor ?? fallbackColor;
+}
+
+// =============================================================================
 // Circle Calculation
 // =============================================================================
 
@@ -360,12 +408,21 @@ export function calculateCircle(
     style = "merge";
   }
 
-  // Get color from the input swimlane targeting this commit
-  const inputLane = findCommitInputLane(node.inputSwimlanes, node.commit.id);
-  const color: GraphColor =
-    inputLane >= 0 && node.inputSwimlanes[inputLane]
-      ? node.inputSwimlanes[inputLane].color
-      : "branch-1";
+  // Determine color: prefer segment color if available, otherwise use swimlane color
+  let color: GraphColor;
+  const segmentGraphColor = segmentToGraphColor(node.segmentType);
+
+  if (segmentGraphColor) {
+    // Use segment color for tracked branch visualization
+    color = segmentGraphColor;
+  } else {
+    // Fall back to swimlane color
+    const inputLane = findCommitInputLane(node.inputSwimlanes, node.commit.id);
+    color =
+      inputLane >= 0 && node.inputSwimlanes[inputLane]
+        ? node.inputSwimlanes[inputLane].color
+        : "branch-1";
+  }
 
   return {
     cx,
@@ -421,9 +478,18 @@ export function calculateGraphCell(
   if (!node.isHead) {
     for (let i = 0; i < node.inputSwimlanes.length; i++) {
       if (node.inputSwimlanes[i].targetId === node.commit.id) {
+        // Use segment color for the main lane (lane matching this commit)
+        const isMainLane = i === node.laneIndex;
+        const pathColor = isMainLane
+          ? getEffectivePathColor(
+              node.segmentType,
+              node.inputSwimlanes[i].color,
+            )
+          : node.inputSwimlanes[i].color;
+
         paths.push({
           d: pathFromAbove(i, node.laneIndex, centerY, config),
-          color: node.inputSwimlanes[i].color,
+          color: pathColor,
           isPassThrough: false,
         });
       }
@@ -474,6 +540,12 @@ export function calculateGraphCell(
 
     if (parentIdx === 0) {
       // First parent - draw from commit's lane
+      // Use segment color for the main path (first parent chain)
+      const firstParentColor = getEffectivePathColor(
+        node.segmentType,
+        outputSwimlane.color,
+      );
+
       // If commit is at the same lane as first parent, straight line
       // Otherwise curve to the parent's lane
       if (parentLaneIndex === node.laneIndex) {
@@ -483,13 +555,11 @@ export function calculateGraphCell(
             centerY + effectiveRadius,
             height,
           ),
-          color: outputSwimlane.color,
+          color: firstParentColor,
           isPassThrough: false,
         });
       } else {
         // Curve from commit lane to first parent's lane (going left usually)
-        const curveColor =
-          node.inputSwimlanes[node.laneIndex]?.color ?? outputSwimlane.color;
         paths.push({
           d: pathToBelow(
             node.laneIndex,
@@ -498,12 +568,13 @@ export function calculateGraphCell(
             height,
             config,
           ),
-          color: curveColor,
+          color: firstParentColor,
           isPassThrough: false,
         });
       }
     } else {
       // Additional parents (merge commits) - draw curve from commit to parent lane
+      // These use the swimlane color (not segment color) since they're side branches
       paths.push({
         d: pathToBelow(
           node.laneIndex,
@@ -526,7 +597,11 @@ export function calculateGraphCell(
   );
 
   for (const lane of passThroughLanes) {
-    const color = node.inputSwimlanes[lane]?.color ?? "branch-1";
+    const swimlane = node.inputSwimlanes[lane];
+    // Use segment color if available (for tracked branch visualization)
+    const color = swimlane?.segmentColor
+      ? (segmentToGraphColor(swimlane.segmentColor) ?? swimlane.color)
+      : (swimlane?.color ?? "branch-1");
     paths.push({
       d: passThroughPath(lane, height, config),
       color,
@@ -609,9 +684,31 @@ export function calculateExpandedSection(
     const isPassThrough = !isParentLane;
 
     if (isParentLane || isPassThrough) {
+      // Use segment color for the main lane (first parent at node's position)
+      const isMainLane =
+        i === node.laneIndex &&
+        outputSwimlane.targetId === node.commit.parentIds[0];
+
+      // Determine line color: prefer segment colors for tracked branch visualization
+      let lineColor: GraphColor;
+      if (isMainLane) {
+        // Main lane uses node's segment type
+        lineColor = getEffectivePathColor(
+          node.segmentType,
+          outputSwimlane.color,
+        );
+      } else if (outputSwimlane.segmentColor) {
+        // Pass-through lanes use swimlane's segment color if available
+        lineColor =
+          segmentToGraphColor(outputSwimlane.segmentColor) ??
+          outputSwimlane.color;
+      } else {
+        lineColor = outputSwimlane.color;
+      }
+
       paths.push({
         d: verticalLinePath(laneX(i, config), 0, height),
-        color: outputSwimlane.color,
+        color: lineColor,
         isPassThrough,
       });
     }

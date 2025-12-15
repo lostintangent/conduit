@@ -121,6 +121,7 @@ function CommitGraphPanelComponent({
     isLoadingMore,
     error,
     expandedCommitIds,
+    trackedBranches,
     refresh,
     loadMore,
     toggleExpand,
@@ -250,6 +251,7 @@ function CommitGraphPanelComponent({
             isLoadingMore={isLoadingMore}
             selectedCommitId={selectedCommitId}
             selectedFilePath={selectedFilePath}
+            trackedBranches={trackedBranches}
             onToggleExpand={handleToggleExpand}
             onViewAll={onViewCommit ? handleViewAll : undefined}
             onFileSelect={onFileSelect ? handleFileSelect : undefined}

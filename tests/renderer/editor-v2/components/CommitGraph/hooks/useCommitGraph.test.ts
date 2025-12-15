@@ -22,9 +22,12 @@ vi.mock(
       // Simple mock that returns nodes with basic swimlane data
       return commits.map((commit: any, index: number) => ({
         commit,
-        swimlane: 0,
+        laneIndex: 0,
+        inputSwimlanes: [],
+        outputSwimlanes: [],
+        isMerge: false,
         isHead: options?.headCommitId === commit.id,
-        connections: [],
+        segmentType: null,
       }));
     }),
   }),
@@ -35,6 +38,11 @@ function createMockGitAPI() {
   return {
     getCommitHistory: vi.fn(),
     getCommitFiles: vi.fn(),
+    getTrackedBranches: vi.fn().mockResolvedValue({
+      current: null,
+      upstream: null,
+      base: null,
+    }),
   };
 }
 

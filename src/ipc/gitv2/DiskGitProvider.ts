@@ -45,6 +45,8 @@ import type {
   GitStatus,
   GitStatusChangedEvent,
   HistoryCommit,
+  TrackedBranch,
+  TrackedBranchInfo,
 } from "./types";
 
 // ============================================================================
@@ -896,6 +898,269 @@ export class DiskGitProvider implements GitProvider {
       // File might not exist at this commit
       return null;
     }
+  }
+
+  /**
+   * Get tracked branch information for VS Code-style graph coloring.
+   *
+   * Returns information about three special branches:
+   * 1. Current branch - where HEAD points (blue segment)
+   * 2. Upstream - remote tracking branch (purple segment)
+   * 3. Base - branch from which feature was created (orange segment)
+   */
+  async getTrackedBranches(): Promise<TrackedBranchInfo> {
+    try {
+      // Get current branch name
+      const currentBranchName = await this.getCurrentBranch();
+
+      // If detached HEAD, no tracked branches
+      if (currentBranchName === "HEAD") {
+        return { current: null, upstream: null, base: null };
+      }
+
+      // Fetch all info in parallel for performance
+      const [currentCommitId, upstreamInfo, baseInfo] = await Promise.all([
+        this.resolveRef("HEAD"),
+        this.getUpstreamInfo(currentBranchName),
+        this.getBaseBranchInfo(currentBranchName),
+      ]);
+
+      // Build current branch info
+      const current: TrackedBranch | null = currentCommitId
+        ? {
+            name: currentBranchName,
+            displayName: currentBranchName,
+            type: "current",
+            commitId: currentCommitId,
+          }
+        : null;
+
+      return {
+        current,
+        upstream: upstreamInfo,
+        base: baseInfo,
+      };
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get tracked branches:", error);
+      return { current: null, upstream: null, base: null };
+    }
+  }
+
+  /**
+   * Resolve a ref to its commit ID.
+   */
+  private async resolveRef(ref: string): Promise<string | null> {
+    try {
+      const result = await this.git.revparse([ref]);
+      return result.trim();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get upstream tracking branch info.
+   */
+  private async getUpstreamInfo(
+    branchName: string,
+  ): Promise<TrackedBranch | null> {
+    try {
+      // Get upstream branch name (e.g., "origin/feature/foo")
+      const upstreamRef = await this.git.revparse([
+        "--abbrev-ref",
+        `${branchName}@{upstream}`,
+      ]);
+      const upstreamName = upstreamRef.trim();
+
+      if (!upstreamName) {
+        return null;
+      }
+
+      // Get commit ID for upstream
+      const commitId = await this.resolveRef(upstreamName);
+      if (!commitId) {
+        return null;
+      }
+
+      // Parse remote name from "origin/branch" format
+      const slashIndex = upstreamName.indexOf("/");
+      const remote =
+        slashIndex > 0 ? upstreamName.slice(0, slashIndex) : undefined;
+
+      return {
+        name: upstreamName,
+        displayName: upstreamName,
+        type: "upstream",
+        commitId,
+        remote,
+      };
+    } catch {
+      // No upstream configured
+      return null;
+    }
+  }
+
+  /**
+   * Get base branch info (where the feature branch was created from).
+   *
+   * Strategy:
+   * 1. Check git config for cached vscode-merge-base
+   * 2. Parse reflog to find "Created from" entry
+   * 3. Fall back to default branch (origin/main or origin/master)
+   */
+  private async getBaseBranchInfo(
+    branchName: string,
+  ): Promise<TrackedBranch | null> {
+    try {
+      // Strategy 1: Check git config for cached merge base
+      const configKey = `branch.${branchName}.vscode-merge-base`;
+      try {
+        const cachedBase = await this.git.raw(["config", "--get", configKey]);
+        const baseName = cachedBase.trim();
+        if (baseName) {
+          const commitId = await this.resolveRef(baseName);
+          if (commitId) {
+            const slashIndex = baseName.indexOf("/");
+            return {
+              name: baseName,
+              displayName: baseName,
+              type: "base",
+              commitId,
+              remote:
+                slashIndex > 0 ? baseName.slice(0, slashIndex) : undefined,
+            };
+          }
+        }
+      } catch {
+        // Config not set, continue to next strategy
+      }
+
+      // Strategy 2: Parse reflog to find where branch was created from
+      const baseBranch = await this.getBaseBranchFromReflog(branchName);
+      if (baseBranch) {
+        // Cache the result for future lookups
+        try {
+          await this.git.raw(["config", configKey, baseBranch.name]);
+        } catch {
+          // Ignore config write errors
+        }
+        return baseBranch;
+      }
+
+      // Strategy 3: Fall back to default branch
+      const defaultBranch = await this.getDefaultBranch();
+      if (defaultBranch) {
+        // Cache the result
+        try {
+          await this.git.raw(["config", configKey, defaultBranch.name]);
+        } catch {
+          // Ignore config write errors
+        }
+        return defaultBranch;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get base branch:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Try to determine base branch from reflog.
+   */
+  private async getBaseBranchFromReflog(
+    branchName: string,
+  ): Promise<TrackedBranch | null> {
+    try {
+      // Look for "branch: Created from" in reflog
+      const reflog = await this.git.raw([
+        "reflog",
+        "show",
+        branchName,
+        "--format=%gs",
+      ]);
+
+      const lines = reflog.trim().split("\n");
+      for (const line of lines) {
+        const match = line.match(/branch: Created from (.+)$/);
+        if (match && match[1] && match[1] !== "HEAD") {
+          const sourceBranch = match[1];
+
+          // Try to get upstream of the source branch
+          try {
+            const upstreamRef = await this.git.revparse([
+              "--abbrev-ref",
+              `${sourceBranch}@{upstream}`,
+            ]);
+            const upstreamName = upstreamRef.trim();
+            if (upstreamName) {
+              const commitId = await this.resolveRef(upstreamName);
+              if (commitId) {
+                const slashIndex = upstreamName.indexOf("/");
+                return {
+                  name: upstreamName,
+                  displayName: upstreamName,
+                  type: "base",
+                  commitId,
+                  remote:
+                    slashIndex > 0
+                      ? upstreamName.slice(0, slashIndex)
+                      : undefined,
+                };
+              }
+            }
+          } catch {
+            // Source branch has no upstream, try it directly if it's a remote
+            if (sourceBranch.includes("/")) {
+              const commitId = await this.resolveRef(sourceBranch);
+              if (commitId) {
+                const slashIndex = sourceBranch.indexOf("/");
+                return {
+                  name: sourceBranch,
+                  displayName: sourceBranch,
+                  type: "base",
+                  commitId,
+                  remote:
+                    slashIndex > 0
+                      ? sourceBranch.slice(0, slashIndex)
+                      : undefined,
+                };
+              }
+            }
+          }
+        }
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get the default branch (origin/main or origin/master).
+   */
+  private async getDefaultBranch(): Promise<TrackedBranch | null> {
+    // Try origin/main first, then origin/master
+    for (const branchName of ["origin/main", "origin/master"]) {
+      try {
+        const commitId = await this.resolveRef(branchName);
+        if (commitId) {
+          return {
+            name: branchName,
+            displayName: branchName,
+            type: "base",
+            commitId,
+            remote: "origin",
+          };
+        }
+      } catch {
+        // Branch doesn't exist, try next
+      }
+    }
+
+    return null;
   }
 
   /**

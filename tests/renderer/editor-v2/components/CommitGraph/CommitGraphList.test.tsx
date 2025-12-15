@@ -44,6 +44,7 @@ function createNode(id: string, subject: string): CommitGraphNode {
     outputSwimlanes: [],
     isMerge: false,
     isHead: id === "commit1",
+    segmentType: null,
     files: undefined,
     isLoadingFiles: false,
   };

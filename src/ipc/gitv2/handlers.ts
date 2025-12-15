@@ -67,6 +67,7 @@ import type {
   GitFileStatusCode,
   GitStatus,
   HistoryCommit,
+  TrackedBranchInfo,
 } from "./types";
 
 /**
@@ -664,6 +665,26 @@ export function initializeGitV2Handlers(): void {
         return null;
       }
       return result.provider.getFileAtCommit(params.commitId, params.filePath);
+    },
+  );
+
+  /**
+   * Get tracked branch information for the current branch.
+   * Returns the current branch, its upstream, and base branch with their commit IDs.
+   * Used for VS Code-style branch coloring in the commit graph.
+   * Creates a provider if one doesn't exist.
+   * Returns all nulls if not a git repository or in detached HEAD state.
+   */
+  ipcMain.handle(
+    "git-v2:tracked-branches",
+    async (_, params: { cwd: string }): Promise<TrackedBranchInfo> => {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
+        return { current: null, upstream: null, base: null };
+      }
+      return result.provider.getTrackedBranches();
     },
   );
 

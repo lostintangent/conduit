@@ -57,6 +57,8 @@ export type {
   HistoryCommit,
   CommitFile,
   CommitStats,
+  // Segment types
+  SegmentColor,
   // Graph types
   Swimlane,
   GraphColor,

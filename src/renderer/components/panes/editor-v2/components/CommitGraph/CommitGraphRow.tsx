@@ -37,9 +37,10 @@
  * ```
  */
 
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback } from "react";
 import { cn } from "@/utils";
 import type { CommitGraphNode, GraphRenderConfig, CommitFile } from "./types";
+import type { TrackedBranchInfo } from "@/../../src/ipc/gitv2/types";
 import { GraphCell } from "./graph";
 import { CommitSummary } from "./commit";
 import { CommitFilesPanel } from "./files";
@@ -64,6 +65,12 @@ export interface CommitGraphRowProps {
 
   /** Currently selected file path within expanded panel */
   selectedFilePath?: string;
+
+  /**
+   * Tracked branch information for VS Code-style colored badges.
+   * When provided, shows colored badges for current, upstream, and base branches.
+   */
+  trackedBranches?: TrackedBranchInfo | null;
 
   /** Called when the row is clicked to toggle expansion */
   onToggle?: () => void;
@@ -135,27 +142,6 @@ function calculateFilesPanelHeight(
   return contentHeight;
 }
 
-/**
- * Calculate the total row height including expanded content.
- *
- * @param isExpanded - Whether the row is expanded
- * @param files - Array of files
- * @param isLoadingFiles - Whether files are loading
- * @returns Total height in pixels
- */
-function calculateRowHeight(
-  isExpanded: boolean,
-  files: CommitFile[] | undefined,
-  isLoadingFiles: boolean,
-): number {
-  if (!isExpanded) {
-    return ROW_HEIGHT;
-  }
-
-  const filesPanelHeight = calculateFilesPanelHeight(files, isLoadingFiles);
-  return ROW_HEIGHT + filesPanelHeight;
-}
-
 // =============================================================================
 // Component
 // =============================================================================
@@ -180,17 +166,12 @@ function CommitGraphRowComponent({
   config,
   isSelected = false,
   selectedFilePath,
+  trackedBranches,
   onToggle,
   onViewAll,
   onFileSelect,
   className,
 }: CommitGraphRowProps) {
-  // Calculate total row height
-  const rowHeight = useMemo(
-    () => calculateRowHeight(isExpanded, node.files, node.isLoadingFiles),
-    [isExpanded, node.files, node.isLoadingFiles],
-  );
-
   // Handle row click
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -262,6 +243,7 @@ function CommitGraphRowComponent({
           <CommitSummary
             commit={node.commit}
             isHead={node.isHead}
+            trackedBranches={trackedBranches}
             onViewAll={onViewAll}
             className="flex-1 min-w-0"
           />

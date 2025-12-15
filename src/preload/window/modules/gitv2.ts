@@ -16,7 +16,11 @@
 
 import { ipcRenderer } from "electron";
 import { createEventListener } from "../utils";
-import type { GitFileStatus, GitCommitOptions } from "../../../ipc/gitv2/types";
+import type {
+  GitFileStatus,
+  GitCommitOptions,
+  TrackedBranchInfo,
+} from "../../../ipc/gitv2/types";
 
 // ============================================================================
 // Serialized Types (for IPC transport)
@@ -532,6 +536,20 @@ export default {
       commitId,
       filePath,
     }) as Promise<string | null>,
+
+  /**
+   * Get tracked branch information for the current branch.
+   *
+   * Returns the current branch, its upstream, and base branch with their commit IDs.
+   * Used for VS Code-style branch coloring in the commit graph.
+   *
+   * @param cwd - Working directory
+   * @returns Tracked branch info (current, upstream, base)
+   */
+  getTrackedBranches: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:tracked-branches", {
+      cwd,
+    }) as Promise<TrackedBranchInfo>,
 
   // ---------------------------------------------------------------------------
   // Utility

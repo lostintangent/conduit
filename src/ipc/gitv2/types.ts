@@ -287,6 +287,68 @@ export interface GitDiffStats {
 }
 
 // ============================================================================
+// Tracked Branch Types (for VS Code-style graph coloring)
+// ============================================================================
+
+/**
+ * Type of tracked branch for color-coding in the commit graph.
+ *
+ * VS Code-style coloring:
+ * - current: Blue - commits ahead of upstream (local only)
+ * - upstream: Purple - commits on upstream but ahead of base
+ * - base: Orange - commits on the base branch (e.g., origin/main)
+ */
+export type TrackedBranchType = "current" | "upstream" | "base";
+
+/**
+ * Information about a single tracked branch.
+ */
+export interface TrackedBranch {
+  /** Branch name (e.g., "main", "feature/foo") */
+  name: string;
+
+  /** Display name for badges (e.g., "main", "origin/main") */
+  displayName: string;
+
+  /** Type of tracked branch */
+  type: TrackedBranchType;
+
+  /** Commit ID this branch points to */
+  commitId: string;
+
+  /** Remote name (for upstream/base branches) */
+  remote?: string;
+}
+
+/**
+ * Complete tracked branch information for the current HEAD.
+ *
+ * Used to determine:
+ * 1. Ref badges to display (with distinct colors)
+ * 2. Swimlane color segments in the commit graph
+ *
+ * @example
+ * ```typescript
+ * const tracked = await git.getTrackedBranches();
+ * // {
+ * //   current: { name: "feature/foo", commitId: "abc123", type: "current" },
+ * //   upstream: { name: "origin/feature/foo", commitId: "def456", type: "upstream" },
+ * //   base: { name: "origin/main", commitId: "ghi789", type: "base" }
+ * // }
+ * ```
+ */
+export interface TrackedBranchInfo {
+  /** Current branch (where HEAD points) - Blue color */
+  current: TrackedBranch | null;
+
+  /** Upstream tracking branch - Purple color */
+  upstream: TrackedBranch | null;
+
+  /** Base branch (where feature was created from) - Orange color */
+  base: TrackedBranch | null;
+}
+
+// ============================================================================
 // Event Types
 // ============================================================================
 
@@ -554,6 +616,22 @@ export interface GitProvider {
    * @returns Array of files changed in the commit
    */
   getCommitFiles(commitId: string): Promise<CommitFile[]>;
+
+  /**
+   * Get tracked branch information for VS Code-style graph coloring.
+   *
+   * Returns information about three special branches:
+   * 1. Current branch (where HEAD points) - for blue color segment
+   * 2. Upstream tracking branch - for purple color segment
+   * 3. Base branch (where feature was created from) - for orange color segment
+   *
+   * Used to:
+   * - Display ref badges with distinct colors
+   * - Color swimlane segments in the commit graph
+   *
+   * @returns Tracked branch info, with null for unavailable branches
+   */
+  getTrackedBranches(): Promise<TrackedBranchInfo>;
 
   /**
    * Get file content at a specific commit.

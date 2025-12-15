@@ -26,4 +26,9 @@ export {
 
 // Components
 export { RefBadge, RefBadgeList } from "./RefBadge";
-export type { RefBadgeProps, RefBadgeListProps } from "./RefBadge";
+export type {
+  RefBadgeProps,
+  RefBadgeListProps,
+  RefBadgeColorHint,
+  RefWithColorHint,
+} from "./RefBadge";
