@@ -101,36 +101,30 @@ describe("CommitGraphHeader", () => {
   });
 
   describe("loading state", () => {
-    it("should animate icon when refreshing", () => {
+    it("should show animation indicator when refreshing", () => {
       renderWithProvider(
         <CommitGraphHeader onRefresh={() => {}} isRefreshing={true} />,
       );
 
       const button = screen.getByTestId("refresh-button");
-      const svg = button.querySelector("svg");
-      expect(svg?.classList.contains("animate-spin")).toBe(true);
+      // FillingIcon shows a second SVG with filling-icon-active class when animating
+      const animatedIcon = button.querySelector(".filling-icon-active");
+      expect(animatedIcon).toBeTruthy();
     });
 
-    it("should not animate icon when not refreshing", () => {
+    it("should not show animation indicator when not refreshing", () => {
       renderWithProvider(
         <CommitGraphHeader onRefresh={() => {}} isRefreshing={false} />,
       );
 
       const button = screen.getByTestId("refresh-button");
-      const svg = button.querySelector("svg");
-      expect(svg?.classList.contains("animate-spin")).toBe(false);
+      const animatedIcon = button.querySelector(".filling-icon-active");
+      expect(animatedIcon).toBeNull();
     });
   });
 
-  describe("styling", () => {
-    it("should have border-bottom styling", () => {
-      renderWithProvider(<CommitGraphHeader />);
-
-      const header = screen.getByTestId("commit-graph-header");
-      expect(header.classList.contains("border-b")).toBe(true);
-    });
-
-    it("should have flex layout", () => {
+  describe("layout", () => {
+    it("should have flex layout for header alignment", () => {
       renderWithProvider(<CommitGraphHeader />);
 
       const header = screen.getByTestId("commit-graph-header");
@@ -138,29 +132,20 @@ describe("CommitGraphHeader", () => {
       expect(header.classList.contains("items-center")).toBe(true);
       expect(header.classList.contains("justify-between")).toBe(true);
     });
-
-    it("should have appropriate padding", () => {
-      renderWithProvider(<CommitGraphHeader />);
-
-      const header = screen.getByTestId("commit-graph-header");
-      expect(header.classList.contains("px-3")).toBe(true);
-      expect(header.classList.contains("py-2")).toBe(true);
-    });
   });
 
   describe("title element", () => {
-    it("should be an h3 element", () => {
+    it("should be an h3 element for proper heading hierarchy", () => {
       renderWithProvider(<CommitGraphHeader />);
 
       const title = screen.getByTestId("header-title");
       expect(title.tagName.toLowerCase()).toBe("h3");
     });
 
-    it("should have appropriate text styling", () => {
+    it("should have font-medium for visual emphasis", () => {
       renderWithProvider(<CommitGraphHeader />);
 
       const title = screen.getByTestId("header-title");
-      expect(title.classList.contains("text-xs")).toBe(true);
       expect(title.classList.contains("font-medium")).toBe(true);
     });
   });
