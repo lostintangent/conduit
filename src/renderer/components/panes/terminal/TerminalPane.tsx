@@ -121,6 +121,17 @@ const registerTerminalKeyHandler = ({
       return false;
     }
 
+    if (
+      isCtrlOrMeta &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.key.toLowerCase() === "t"
+    ) {
+      // Ctrl+T / Cmd+T: Open new terminal tab
+      api.createTerminal({});
+      return false;
+    }
+
     return true;
   };
 
