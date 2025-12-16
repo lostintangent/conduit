@@ -66,6 +66,9 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
   });
 }
 
+// Cache the resolved shell to avoid repeatedly checking which PowerShell is available
+let cachedWindowsShell: string | null = null;
+
 export function resolveShell() {
   const { terminalShell } = getCurrentUserSettings();
   if (terminalShell) {
@@ -73,7 +76,23 @@ export function resolveShell() {
   }
 
   if (process.platform === "win32") {
-    return "pwsh.exe";
+    // Return cached result if we've already detected the shell
+    if (cachedWindowsShell) {
+      return cachedWindowsShell;
+    }
+
+    // Try to find an available PowerShell (pwsh.exe or powershell.exe)
+    const { execFileSync } = require("node:child_process");
+
+    // Try PowerShell Core first
+    try {
+      execFileSync("pwsh.exe", ["-Command", "exit"], { stdio: "ignore" });
+      cachedWindowsShell = "pwsh.exe";
+    } catch {
+      // PowerShell Core not found, use Windows PowerShell (always available on Windows)
+      cachedWindowsShell = "powershell.exe";
+    }
+    return cachedWindowsShell;
   }
 
   return process.env.SHELL ?? "bash";

@@ -121,6 +121,18 @@ const registerTerminalKeyHandler = ({
       return false;
     }
 
+    if (
+      process.platform === "win32" && //windows only handler
+      isCtrlOrMeta &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.key.toLowerCase() === "t"
+    ) {
+      // Ctrl+T / Cmd+T: Open new terminal tab, let the global handler deal with it
+      // If we don't do this, the Windows terminal will capture the event and insert a '^T' character.
+      return false;
+    }
+
     return true;
   };
 
