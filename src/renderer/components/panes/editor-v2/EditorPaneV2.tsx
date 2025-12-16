@@ -187,6 +187,7 @@ export function EditorPaneV2({
     treeMode,
     sandboxId,
     agentSessionId,
+    preview: initialPreview,
   } = pane as EditorPaneType & { filePath?: string };
 
   // Get editor theme from user settings
@@ -881,6 +882,75 @@ export function EditorPaneV2({
   }, [selectedFile, currentCwd, gitStatus]);
 
   /**
+   * Determine if the current file supports preview mode (e.g., markdown files).
+   */
+  const isPreviewSupported = useMemo(() => {
+    if (!selectedFile) return false;
+    const fileName = selectedFile.name.toLowerCase();
+    return fileName.endsWith(".md") || fileName.endsWith(".markdown");
+  }, [selectedFile]);
+
+  /**
+   * Preview content for markdown files.
+   * Loaded when preview mode is active.
+   */
+  const [previewContent, setPreviewContent] = useState<string>("");
+
+  /**
+   * Load preview content when preview mode is enabled or file changes.
+   */
+  useEffect(() => {
+    if (viewMode.type !== "preview" || !selectedFile || !isPreviewSupported) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadContent = async () => {
+      try {
+        const content = await fs.readTextFile(selectedFile.path);
+        if (!cancelled) {
+          setPreviewContent(content);
+        }
+      } catch (error) {
+        console.error("[EditorPaneV2] Failed to load preview content:", error);
+        if (!cancelled) {
+          setPreviewContent("");
+        }
+      }
+    };
+
+    loadContent();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode.type, selectedFile, isPreviewSupported, fs]);
+
+  /**
+   * Initialize preview mode from pane config if specified.
+   */
+  useEffect(() => {
+    if (initialPreview && isPreviewSupported) {
+      setViewMode({ type: "preview" });
+    }
+  }, [initialPreview, isPreviewSupported, setViewMode]);
+
+  /**
+   * Handle toggling between preview and editor modes.
+   */
+  const handleTogglePreviewMode = useCallback(
+    (isPreview: boolean) => {
+      if (isPreview) {
+        setViewMode({ type: "preview" });
+      } else {
+        setViewMode({ type: "editor" });
+      }
+    },
+    [setViewMode],
+  );
+
+  /**
    * Handle changing the current working directory to a specific folder.
    * Similar to navigateUp but navigates to the clicked directory instead.
    */
@@ -1082,6 +1152,11 @@ export function EditorPaneV2({
           onToggleDiffMode={handleToggleDiffMode}
           onExitReview={exitReviewMode}
           isFileDeleted={isCurrentFileDeleted}
+          // Preview mode props
+          showPreviewToggle={isPreviewSupported}
+          isPreviewMode={viewMode.type === "preview"}
+          onTogglePreviewMode={handleTogglePreviewMode}
+          previewContent={previewContent}
           // Remote operations
           hasUpstream={hasUpstream}
           isPulling={isPulling}

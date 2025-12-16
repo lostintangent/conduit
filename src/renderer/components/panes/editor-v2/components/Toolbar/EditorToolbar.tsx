@@ -15,7 +15,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { ModelState } from "../../types";
-import { EditorActionButtons, DiffModeToggle } from "../shared";
+import {
+  EditorActionButtons,
+  DiffModeToggle,
+  PreviewModeToggle,
+} from "../shared";
 
 export interface EditorToolbarProps {
   /** Current model state (dirty, orphaned, etc.) */
@@ -65,6 +69,15 @@ export interface EditorToolbarProps {
 
   /** Handler for toggling between diff and edit modes */
   onToggleDiffMode?: (isDiff: boolean) => void;
+
+  /** Whether to show the preview toggle (for supported file types like .md) */
+  showPreviewToggle?: boolean;
+
+  /** Whether currently in preview mode */
+  isPreviewMode?: boolean;
+
+  /** Handler for toggling between preview and editor modes */
+  onTogglePreviewMode?: (isPreview: boolean) => void;
 }
 
 /**
@@ -88,6 +101,9 @@ export function EditorToolbar({
   showDiffToggle = false,
   isDiffMode = false,
   onToggleDiffMode,
+  showPreviewToggle = false,
+  isPreviewMode = false,
+  onTogglePreviewMode,
 }: EditorToolbarProps) {
   const isDirty = modelState?.isDirty ?? false;
 
@@ -188,8 +204,23 @@ export function EditorToolbar({
           </>
         )}
 
+        {/* Preview/Edit mode toggle (for supported file types like .md) */}
+        {showPreviewToggle && onTogglePreviewMode && (
+          <>
+            <Separator
+              orientation="vertical"
+              className="h-4 mx-1 bg-elevated-border"
+            />
+            <PreviewModeToggle
+              isPreviewMode={isPreviewMode}
+              onToggle={() => onTogglePreviewMode(!isPreviewMode)}
+              variant="toolbar"
+            />
+          </>
+        )}
+
         {/* Edit actions (after file path, with separator) */}
-        {pathToShow && (
+        {pathToShow && !isPreviewMode && (
           <>
             <Separator
               orientation="vertical"

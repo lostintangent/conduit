@@ -226,14 +226,9 @@ export function PaneControlFanButtons({
                 ? currentPane.sandboxId
                 : undefined;
 
-          openEditorPane(
-            tabId,
-            paneId,
-            editorCwd,
-            direction,
-            insertBefore,
+          openEditorPane(tabId, paneId, editorCwd, direction, insertBefore, {
             sandboxId,
-          );
+          });
         }
         break;
       }

@@ -62,6 +62,7 @@ export function createEditorPane(
     cwd: paneCwd,
     file: paneNode.file,
     treeMode: "all",
+    ...(paneNode.preview && { preview: true }),
   };
 }
 

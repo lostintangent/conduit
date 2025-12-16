@@ -29,6 +29,8 @@ export type EditorPane = {
   file?: string;
   treeMode?: EditorTreeMode;
   sandboxId?: string;
+  /** When true, show file preview instead of editor (for supported file types like .md) */
+  preview?: boolean;
 };
 
 export type Pane = TerminalPane | BrowserPane | EditorPane;

@@ -7,6 +7,7 @@
  * - DiffEditorWrapper: Wrapper for Monaco diff editor
  * - DeletedFileViewer: Read-only viewer for deleted files (shows git content)
  * - ExternalChangeWarning: Warning banner for external changes
+ * - MarkdownPreview: Markdown preview using streamdown
  *
  * Also exports shared constants for editor configuration:
  * - EDITOR_MIN_HEIGHT, EDITOR_MAX_HEIGHT: Height bounds for auto-sizing
@@ -27,6 +28,9 @@ export type { DeletedFileViewerProps } from "./DeletedFileViewer";
 
 export { ExternalChangeWarning } from "./ExternalChangeWarning";
 export type { ExternalChangeWarningProps } from "./ExternalChangeWarning";
+
+export { MarkdownPreview } from "./MarkdownPreview";
+export type { MarkdownPreviewProps } from "./MarkdownPreview";
 
 // Constants
 export {
