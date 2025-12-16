@@ -122,7 +122,7 @@ const registerTerminalKeyHandler = ({
     }
 
     if (
-      process.platform === "win32" && //windows only handler
+      api.platform === "win32" && //windows only handler
       isCtrlOrMeta &&
       !event.shiftKey &&
       !event.altKey &&
