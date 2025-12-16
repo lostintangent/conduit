@@ -28,6 +28,13 @@ export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
 
+  // Toggle 'dark' class for libraries that use Tailwind's dark: variant (e.g., streamdown/shiki)
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+
   // Apply overrides if provided
   if (overrides) {
     const root = document.documentElement;
