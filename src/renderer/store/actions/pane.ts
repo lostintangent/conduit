@@ -805,20 +805,28 @@ export function openBrowserPane(
   );
 }
 
+type OpenEditorPaneOptions = {
+  file?: string;
+  preview?: boolean;
+  sandboxId?: string;
+};
+
 export function openEditorPane(
   tabId: string,
   paneId: string,
   cwd: string,
   direction: SplitDirection = "row",
   insertBefore = false,
-  sandboxId?: string,
+  options: OpenEditorPaneOptions = {},
 ) {
   const newPaneId = generateId();
   const newPaneState: Pane = {
     id: newPaneId,
     type: "editor",
     cwd,
-    sandboxId,
+    file: options.file,
+    preview: options.preview,
+    sandboxId: options.sandboxId,
   };
 
   const newLayoutNode: LayoutNode = {
@@ -856,6 +864,8 @@ export function openEditorPane(
       };
     }),
   );
+
+  return newPaneId;
 }
 
 export function cloneTerminalPane(

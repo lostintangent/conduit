@@ -171,7 +171,10 @@ export function convertWorkspaceToTemplate(
 
       if (pane.type === "editor") {
         const canUseShorthand =
-          !needsActiveMarker && !isCollapsed && !hasDifferentCwd;
+          !needsActiveMarker &&
+          !isCollapsed &&
+          !hasDifferentCwd &&
+          !pane.preview;
 
         if (canUseShorthand) {
           // Return file:// or file://<path>
@@ -216,6 +219,9 @@ export function convertWorkspaceToTemplate(
       } else if (pane.type === "editor") {
         if (pane.file) {
           basePane.file = pane.file;
+        }
+        if (pane.preview) {
+          basePane.preview = true;
         }
         // Editor panes need explicit type unless they have a file
         if (!pane.file) {

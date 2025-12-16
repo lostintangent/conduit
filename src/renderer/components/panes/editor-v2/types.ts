@@ -240,6 +240,7 @@ export interface FileNode {
  */
 export type ViewMode =
   | { type: "editor" }
+  | { type: "preview" }
   | { type: "diff"; filePath: string; baseBranch?: string }
   | { type: "changesReview"; baseBranch?: string };
 
