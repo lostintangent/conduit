@@ -33,6 +33,7 @@ import {
   useMonacoModel,
   usePreventFocusScroll,
 } from "../../hooks";
+import { createModelKey } from "../../registry";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage, forceTokenizeVisibleLines } from "../../utils";
 import type { AutoSizeConfig } from "./constants";
@@ -251,12 +252,11 @@ export function DiffEditorWrapper({
     // before useMonacoModel updates with the new model. We must skip attaching
     // stale models to avoid ending the session prematurely.
     const modelUri = modifiedModel.uri.toString();
-    const expectedUri = `file://${filePath}`;
+    const expectedModelKey = createModelKey(filePath, sandboxId);
     // Handle sandboxId in model key: file:///path::vm:sandboxId
     const modelMatchesFile =
-      modelUri === expectedUri ||
-      modelUri.startsWith(expectedUri + "::") ||
-      modelUri === `file://${filePath.replace(/^\//, "")}` || // Windows path handling
+      modelUri === expectedModelKey ||
+      modelUri.startsWith(expectedModelKey.split("::")[0] + "::") ||
       modifiedModel.uri.fsPath === filePath;
 
     if (!modelMatchesFile) {
@@ -352,6 +352,7 @@ export function DiffEditorWrapper({
     diffContent.original,
     modifiedModel,
     readOnly,
+    sandboxId,
   ]);
 
   // ---------------------------------------------------------------------------

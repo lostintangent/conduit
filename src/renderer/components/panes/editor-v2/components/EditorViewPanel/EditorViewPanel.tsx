@@ -42,6 +42,8 @@ import { EditorToolbar } from "../Toolbar/EditorToolbar";
 import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
+import { ImagePreview } from "./ImagePreview";
+import { MarkdownPreview } from "./MarkdownPreview";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
 /**
@@ -51,6 +53,26 @@ import { RegularEditorWrapper } from "./RegularEditorWrapper";
  * zero-size or incorrectly-sized container.
  */
 const MODE_TRANSITION_DELAY_MS = 50;
+
+/** Image extensions supported for preview */
+const IMAGE_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".ico",
+  ".svg",
+];
+
+/**
+ * Check if a file path is an image that can be previewed.
+ */
+function isImageFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 export interface EditorViewPanelProps {
   /** Unique ID for the editor instance */
@@ -107,6 +129,18 @@ export interface EditorViewPanelProps {
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
+  /** Whether to show the preview toggle (for supported file types like .md) */
+  showPreviewToggle?: boolean;
+
+  /** Whether currently in preview mode */
+  isPreviewMode?: boolean;
+
+  /** Handler for toggling between preview and editor modes */
+  onTogglePreviewMode?: (isPreview: boolean) => void;
+
+  /** Content to display in markdown preview mode */
+  previewContent?: string;
+
   // ---------------------------------------------------------------------------
   // Remote Operations (for ChangesReviewPane)
   // ---------------------------------------------------------------------------
@@ -132,6 +166,7 @@ export interface EditorViewPanelProps {
  *
  * Orchestrates the editor view based on the current mode:
  * - `editor`: Shows RegularEditorWrapper
+ * - `preview`: Shows MarkdownPreview (for .md files) or ImagePreview (for images)
  * - `diff`: Shows DiffEditorWrapper
  * - `changesReview`: Shows multi-file diff view (TODO: Phase 4+)
  *
@@ -156,6 +191,10 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   onToggleDiffMode,
   onExitReview,
   isFileDeleted = false,
+  showPreviewToggle = false,
+  isPreviewMode = false,
+  onTogglePreviewMode,
+  previewContent = "",
   // Remote operations for ChangesReviewPane
   hasUpstream = true,
   isPulling = false,
@@ -415,6 +454,9 @@ export const EditorViewPanel = memo(function EditorViewPanel({
         showDiffToggle={showDiffToggle}
         isDiffMode={isDiffMode}
         onToggleDiffMode={onToggleDiffMode}
+        showPreviewToggle={showPreviewToggle}
+        isPreviewMode={isPreviewMode}
+        onTogglePreviewMode={onTogglePreviewMode}
       />
 
       {/* External change warning */}
@@ -456,6 +498,13 @@ export const EditorViewPanel = memo(function EditorViewPanel({
               onMount={handleEditorMount}
             />
           </EditorErrorBoundary>
+        ) : viewMode.type === "preview" ? (
+          // Preview - shows rendered markdown or image
+          isImageFile(filePath) ? (
+            <ImagePreview filePath={filePath} cwd={cwd} sandboxId={sandboxId} />
+          ) : (
+            <MarkdownPreview content={previewContent} />
+          )
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
           <EditorErrorBoundary filePath={filePath}>

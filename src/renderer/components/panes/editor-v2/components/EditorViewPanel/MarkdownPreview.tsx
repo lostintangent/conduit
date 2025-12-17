@@ -17,14 +17,11 @@
  * ```
  */
 
-import { userSettingsAtom } from "@/store/atoms";
-import { resolveTheme } from "@/utils/theme";
-import { useAtomValue } from "jotai";
-import { useCallback, useMemo, useRef } from "react";
 import rehypeSlug from "rehype-slug";
 import remarkGithubAlerts from "remark-github-blockquote-alert";
 import "remark-github-blockquote-alert/alert.css";
 import { Streamdown } from "streamdown";
+import { useMarkdownPreview } from "../../hooks/useMarkdownPreview";
 
 export interface MarkdownPreviewProps {
   /** Markdown content to render */
@@ -35,34 +32,7 @@ export interface MarkdownPreviewProps {
  * Markdown preview component using streamdown.
  */
 export function MarkdownPreview({ content }: MarkdownPreviewProps) {
-  const { theme } = useAtomValue(userSettingsAtom);
-  const resolvedTheme = resolveTheme(theme);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Configure mermaid to use dark theme when app is in dark mode
-  const mermaidConfig = useMemo(
-    () => ({
-      config: {
-        theme:
-          resolvedTheme === "dark" ? ("dark" as const) : ("default" as const),
-      },
-    }),
-    [resolvedTheme],
-  );
-
-  // Handle clicks on anchor links to scroll within the document
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const anchor = (e.target as HTMLElement).closest("a");
-    if (!anchor) return;
-
-    const href = anchor.getAttribute("href");
-    if (!href?.startsWith("#")) return;
-    e.preventDefault();
-
-    const id = href.slice(1);
-    const element = containerRef.current?.querySelector(`[id="${id}"]`);
-    element?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, []);
+  const { mermaidConfig, handleClick, containerRef } = useMarkdownPreview();
 
   return (
     <div

@@ -34,7 +34,7 @@ import {
   useMonacoModel,
   usePreventFocusScroll,
 } from "../../hooks";
-import { ViewStateRegistry } from "../../registry";
+import { createModelKey, ViewStateRegistry } from "../../registry";
 import { forceTokenizeVisibleLines } from "../../utils";
 import type { AutoSizeConfig } from "./constants";
 
@@ -286,12 +286,11 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
     // before useMonacoModel updates with the new model. We must skip attaching
     // stale models to avoid ending the session prematurely.
     const modelUri = model.uri.toString();
-    const expectedUri = `file://${filePath}`;
+    const expectedModelKey = createModelKey(filePath, sandboxId);
     // Handle sandboxId in model key: file:///path::vm:sandboxId
     const modelMatchesFile =
-      modelUri === expectedUri ||
-      modelUri.startsWith(expectedUri + "::") ||
-      modelUri === `file://${filePath.replace(/^\//, "")}` || // Windows path handling
+      modelUri === expectedModelKey ||
+      modelUri.startsWith(expectedModelKey.split("::")[0] + "::") ||
       model.uri.fsPath === filePath;
 
     if (!modelMatchesFile) {
@@ -340,7 +339,7 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
       }
     };
     // Note: onChange handled via ref to avoid listener re-setup when callback changes
-  }, [editorId, filePath, model]);
+  }, [editorId, filePath, model, sandboxId]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update

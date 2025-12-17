@@ -49,6 +49,26 @@ import {
 import type { FileNode, TreeViewMode } from "./types";
 import { detectLanguage } from "./utils/languageDetection";
 
+/** Image extensions for auto-preview */
+const IMAGE_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".ico",
+  ".svg",
+];
+
+/**
+ * Check if a file is an image (should auto-open in preview mode).
+ */
+function isImageFile(fileName: string): boolean {
+  const lower = fileName.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
 /**
  * Compute the parent directory of a given path.
  * Returns null if already at filesystem root.
@@ -628,6 +648,10 @@ export function EditorPaneV2({
         // Update view mode, but preserve review mode if active
         // (review mode handles file selection by scrolling to the file)
         setViewModePreservingReview(() => {
+          // Image files should default to preview mode
+          if (isImageFile(file.name)) {
+            return { type: "preview" };
+          }
           // Only "modified" files get diff view option, not "added" files
           if (fileStatus?.status === "modified" && preferDiffForModified) {
             return {
@@ -883,12 +907,17 @@ export function EditorPaneV2({
   }, [selectedFile, currentCwd, gitStatus]);
 
   /**
-   * Determine if the current file supports preview mode (e.g., markdown files).
+   * Determine if the current file supports preview mode (e.g., markdown files, images).
    */
   const isPreviewSupported = useMemo(() => {
     if (!selectedFile) return false;
     const fileName = selectedFile.name.toLowerCase();
-    return fileName.endsWith(".md") || fileName.endsWith(".markdown");
+    // Markdown files
+    if (fileName.endsWith(".md") || fileName.endsWith(".markdown")) {
+      return true;
+    }
+    // Image files (binary and SVG)
+    return isImageFile(fileName);
   }, [selectedFile]);
 
   /**

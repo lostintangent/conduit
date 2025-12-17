@@ -32,6 +32,9 @@ export type { ExternalChangeWarningProps } from "./ExternalChangeWarning";
 export { MarkdownPreview } from "./MarkdownPreview";
 export type { MarkdownPreviewProps } from "./MarkdownPreview";
 
+export { ImagePreview } from "./ImagePreview";
+export type { ImagePreviewProps } from "./ImagePreview";
+
 // Constants
 export {
   EDITOR_MIN_HEIGHT,

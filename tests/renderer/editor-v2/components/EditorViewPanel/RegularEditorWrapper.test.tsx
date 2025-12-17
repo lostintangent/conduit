@@ -132,6 +132,13 @@ vi.mock(
       }),
       resetInstance: vi.fn(),
     },
+    createModelKey: (filePath: string, sandboxId?: string) => {
+      const uri = `file://${filePath}`;
+      if (sandboxId) {
+        return `${uri}::vm:${sandboxId}`;
+      }
+      return uri;
+    },
   }),
 );
 
