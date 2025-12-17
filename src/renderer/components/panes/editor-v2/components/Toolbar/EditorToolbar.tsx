@@ -184,7 +184,7 @@ export function EditorToolbar({
         {pathToShow && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate cursor-help">
+              <span className="truncate">
                 {pathToShow.split("/").pop() ?? pathToShow}
               </span>
             </TooltipTrigger>
