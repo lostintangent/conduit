@@ -252,8 +252,29 @@ export function initializeFileSystemV2Handlers(): void {
       params: { cwd: string; filePath: string; vmId?: string },
     ): Promise<Uint8Array> => {
       const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+
       try {
         return await handle.provider.readFile(params.filePath);
+      } finally {
+        releaseIfNeeded(params.cwd, handle);
+      }
+    },
+  );
+
+  /**
+   * Read a file as text (UTF-8 string).
+   * Convenience method that avoids TextDecoder on the renderer side.
+   */
+  ipcMain.handle(
+    "fs-v2:read-text-file",
+    async (
+      _,
+      params: { cwd: string; filePath: string; vmId?: string },
+    ): Promise<string> => {
+      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+
+      try {
+        return await handle.provider.readTextFile(params.filePath);
       } finally {
         releaseIfNeeded(params.cwd, handle);
       }

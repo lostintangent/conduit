@@ -255,6 +255,30 @@ export class VMFileSystemProvider implements FileSystemProvider {
   }
 
   /**
+   * Read complete file contents as text (UTF-8).
+   *
+   * Convenience method that returns a string directly, avoiding the need
+   * for TextDecoder on the caller side.
+   *
+   * Note: Binary files will have invalid UTF-8 bytes replaced with U+FFFD.
+   */
+  async readTextFile(filePath: string): Promise<string> {
+    this.ensureNotDisposed();
+
+    if (filePath.endsWith("/")) {
+      throw new Error(`Cannot read file: ${filePath} is a directory`);
+    }
+
+    const result = await this.sandboxClient.call<{ content: string }>(
+      "fs.readFile",
+      { path: filePath },
+    );
+
+    // Content is base64 encoded - decode to string
+    return Buffer.from(result.content, "base64").toString("utf-8");
+  }
+
+  /**
    * Write content to a file in the VM.
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {

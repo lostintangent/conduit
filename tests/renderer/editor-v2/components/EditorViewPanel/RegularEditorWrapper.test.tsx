@@ -9,13 +9,24 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 // Mocks - Must be defined before vi.mock calls that reference them
 // ============================================================================
 
-// Mock Monaco model
+// Mock Monaco model - uses a dynamic filePath that can be updated per test
+let mockModelFilePath = "/test/file.ts";
+
 const mockModel = {
   getValue: vi.fn(() => "file content"),
   setValue: vi.fn(),
   dispose: vi.fn(),
-  uri: { toString: () => "file:///test/file.ts" },
+  uri: {
+    toString: () => `file://${mockModelFilePath}`,
+    fsPath: mockModelFilePath,
+  },
   onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
+};
+
+// Helper to update mock model's file path for tests that switch files
+const setMockModelFilePath = (filePath: string) => {
+  mockModelFilePath = filePath;
+  mockModel.uri.fsPath = filePath;
 };
 
 // Mock Monaco editor - returned by monaco.editor.create
@@ -135,6 +146,8 @@ import * as monaco from "monaco-editor";
 describe("RegularEditorWrapper", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mock model file path to default for clean test state
+    setMockModelFilePath("/test/file.ts");
   });
 
   afterEach(() => {
@@ -470,6 +483,9 @@ describe("RegularEditorWrapper", () => {
 
   describe("file path changes", () => {
     it("should save viewstate for old file when switching files", async () => {
+      // Set mock model to match initial file path
+      setMockModelFilePath("/test/file1.ts");
+
       const { rerender } = render(
         <RegularEditorWrapper
           editorId="test-editor"
@@ -490,6 +506,9 @@ describe("RegularEditorWrapper", () => {
       mockViewStateRegistry.save.mockClear();
       mockViewStateRegistry.restore.mockClear();
 
+      // Update mock model to match new file path (simulating useMonacoModel returning new model)
+      setMockModelFilePath("/test/file2.ts");
+
       rerender(
         <RegularEditorWrapper
           editorId="test-editor"
@@ -508,6 +527,9 @@ describe("RegularEditorWrapper", () => {
     });
 
     it("should restore viewstate for new file after switching", async () => {
+      // Set mock model to match initial file path
+      setMockModelFilePath("/test/file1.ts");
+
       const { rerender } = render(
         <RegularEditorWrapper
           editorId="test-editor"
@@ -521,6 +543,9 @@ describe("RegularEditorWrapper", () => {
       });
 
       mockViewStateRegistry.restore.mockClear();
+
+      // Update mock model to match new file path (simulating useMonacoModel returning new model)
+      setMockModelFilePath("/test/file2.ts");
 
       rerender(
         <RegularEditorWrapper

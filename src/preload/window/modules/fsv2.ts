@@ -99,6 +99,23 @@ export default {
     }) as Promise<Uint8Array>,
 
   /**
+   * Read file contents as text (UTF-8 string).
+   * More efficient than readFile for text files because string
+   * serialization over IPC is faster than Uint8Array.
+   *
+   * @param cwd - Working directory (provider scope)
+   * @param filePath - Absolute path to file
+   * @param vmId - Optional VM ID for cloud filesystem operations
+   * @returns File contents as string
+   */
+  readTextFile: (cwd: string, filePath: string, vmId?: string) =>
+    ipcRenderer.invoke("fs-v2:read-text-file", {
+      cwd,
+      filePath,
+      vmId,
+    }) as Promise<string>,
+
+  /**
    * Get file or directory metadata.
    *
    * @param cwd - Working directory (provider scope)

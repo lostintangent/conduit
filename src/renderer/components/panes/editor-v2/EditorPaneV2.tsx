@@ -27,7 +27,14 @@ import { tabsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import { cn } from "@/utils";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   BranchSelector,
   EditorViewPanel,
@@ -124,9 +131,14 @@ function isAtFilesystemRoot(path: string): boolean {
  * Callback payload when file changes (selection or content).
  */
 export interface FileChangeData {
-  filePath: string;
+  /** File path */
+  file: string;
+  /** Full file path (alias for file) */
+  filePath?: string;
+  /** Detected language from file extension */
   language: string;
-  content: string;
+  /** File content (optional - not always loaded for performance) */
+  content?: string;
 }
 
 export interface EditorPaneV2Props {
@@ -616,73 +628,62 @@ export function EditorPaneV2({
    */
   const handleFileSelect = useCallback(
     async (file: FileNode) => {
-      // Track previous selection for onClearFile
-      const hadPreviousFile = selectedFile !== null;
-
-      setSelectedFile(file);
-
-      // In single layout, switch to editor view when file is selected
-      if (layout === "single") {
-        setPanelView("editor");
-      }
-
       // Compute relative path and git status for this file
       const relativePath = file.path.startsWith(currentCwd)
         ? file.path.slice(currentCwd.length).replace(/^\//, "")
         : file.path;
       const fileStatus = gitStatus?.get(relativePath);
 
-      // Update view mode, but preserve review mode if active
-      // (review mode handles file selection by scrolling to the file)
-      setViewModePreservingReview(() => {
-        // Image files should default to preview mode
-        if (isImageFile(file.name)) {
-          return { type: "preview" };
+      // Use startTransition to make the file selection render non-blocking.
+      // This allows IPC responses to be processed during the render, significantly
+      // reducing perceived latency when loading file content.
+      startTransition(() => {
+        setSelectedFile(file);
+
+        // In single layout, switch to editor view when file is selected
+        if (layout === "single") {
+          setPanelView("editor");
         }
-        // Only "modified" files get diff view option, not "added" files
-        if (fileStatus?.status === "modified" && preferDiffForModified) {
-          return {
-            type: "diff",
-            filePath: file.path,
-            baseBranch: baseBranch ?? undefined,
-          };
-        }
-        return { type: "editor" };
+
+        // Update view mode, but preserve review mode if active
+        // (review mode handles file selection by scrolling to the file)
+        setViewModePreservingReview(() => {
+          // Image files should default to preview mode
+          if (isImageFile(file.name)) {
+            return { type: "preview" };
+          }
+          // Only "modified" files get diff view option, not "added" files
+          if (fileStatus?.status === "modified" && preferDiffForModified) {
+            return {
+              type: "diff",
+              filePath: file.path,
+              baseBranch: baseBranch ?? undefined,
+            };
+          }
+          return { type: "editor" };
+        });
       });
 
       // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
       // File selection within the editor just updates selectedFile state
 
-      // Load file content and notify parent (skip for deleted files - they don't exist on disk)
+      // Notify parent of file selection (skip for deleted files - they don't exist on disk)
+      // Note: We no longer read file content here - Monaco model registry handles that.
+      // This eliminates a duplicate file read that was causing ~300ms latency.
       if (
         onFileChange &&
         file.type === "file" &&
         fileStatus?.status !== "deleted"
       ) {
-        try {
-          const content = await fs.readTextFile(file.path);
-          onFileChange({
-            filePath: file.path,
-            language: detectLanguage(file.path),
-            content,
-          });
-        } catch (error) {
-          console.error(
-            "[EditorPaneV2] Failed to read file for callback:",
-            error,
-          );
-        }
+        onFileChange({
+          file: file.path,
+          language: detectLanguage(file.path),
+        });
       }
-
-      // If we had a previous file and now have a different one, that's not a "clear"
-      // onClearFile is for when selection is explicitly cleared (not just changed)
-      void hadPreviousFile; // Acknowledge unused variable
     },
     [
       layout,
-      fs,
       onFileChange,
-      selectedFile,
       gitStatus,
       baseBranch,
       currentCwd,

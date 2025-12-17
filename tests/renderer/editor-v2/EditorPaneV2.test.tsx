@@ -471,11 +471,12 @@ describe("EditorPaneV2", () => {
 
       fireEvent.click(screen.getByTestId("select-file-button"));
 
+      // Note: onFileChange no longer includes content for performance reasons
+      // (content is loaded asynchronously by Monaco model registry)
       await waitFor(() => {
         expect(onFileChange).toHaveBeenCalledWith({
-          filePath: "/project/test.ts",
+          file: "/project/test.ts",
           language: "typescript",
-          content: "const x = 1;",
         });
       });
     });

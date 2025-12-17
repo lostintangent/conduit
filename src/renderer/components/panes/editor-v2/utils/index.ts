@@ -11,3 +11,4 @@ export {
   getParentPaths,
   normalizePathForKey,
 } from "./pathUtils";
+export { forceTokenizeVisibleLines } from "./tokenization";
