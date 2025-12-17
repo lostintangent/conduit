@@ -34,7 +34,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useDiffModeTransition,
   useEditorActions,
@@ -110,8 +110,9 @@ export function FileChangeDiff({
   // Editor Controls State
   // ---------------------------------------------------------------------------
 
-  // Editor ref for actions
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Editor instance state - using state instead of ref so changes trigger re-renders
+  const [editor, setEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Track if editor controls have been "activated" (shown due to dirty state)
   // Once activated, controls remain visible even after save
@@ -172,13 +173,13 @@ export function FileChangeDiff({
   );
 
   // Editor actions hook
-  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+  const editorActions = useEditorActions(editor, modelState, handleSave);
 
-  // Handle editor mount - store ref and register keybindings
+  // Handle editor mount - store editor and register keybindings
   const handleEditorMount = useCallback(
-    (editor: monaco.editor.IStandaloneCodeEditor) => {
-      editorRef.current = editor;
-      registerSaveKeybinding(editor);
+    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
+      setEditor(mountedEditor);
+      registerSaveKeybinding(mountedEditor);
     },
     [registerSaveKeybinding],
   );
@@ -187,7 +188,7 @@ export function FileChangeDiff({
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       const modifiedEditor = diffEditor.getModifiedEditor();
-      editorRef.current = modifiedEditor;
+      setEditor(modifiedEditor);
       registerSaveKeybinding(modifiedEditor);
     },
     [registerSaveKeybinding],

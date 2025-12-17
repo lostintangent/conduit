@@ -202,8 +202,10 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   onPull,
   onPush,
 }: EditorViewPanelProps) {
-  // Editor ref for actions
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Editor instance state - using state instead of ref so changes trigger re-renders
+  // This ensures useEditorActions re-subscribes when the editor changes
+  const [editor, setEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
@@ -324,31 +326,31 @@ export const EditorViewPanel = memo(function EditorViewPanel({
    * Get editor actions from hook - provides undo/redo/find and state tracking.
    * The hook properly manages subscriptions to model changes for canUndo/canRedo.
    */
-  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+  const editorActions = useEditorActions(editor, modelState, handleSave);
 
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
 
   /**
-   * Handle editor mount - store ref for actions hook and register keybindings.
+   * Handle editor mount - store editor for actions hook and register keybindings.
    */
   const handleEditorMount = useCallback(
-    (editor: monaco.editor.IStandaloneCodeEditor) => {
-      editorRef.current = editor;
-      registerSaveKeybinding(editor);
+    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
+      setEditor(mountedEditor);
+      registerSaveKeybinding(mountedEditor);
     },
     [registerSaveKeybinding],
   );
 
   /**
-   * Handle diff editor mount - store ref and register keybindings on modified editor.
+   * Handle diff editor mount - store modified editor and register keybindings.
    */
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       // For diff editor, we need to get the modified (right side) editor
       const modifiedEditor = diffEditor.getModifiedEditor();
-      editorRef.current = modifiedEditor;
+      setEditor(modifiedEditor);
       registerSaveKeybinding(modifiedEditor);
     },
     [registerSaveKeybinding],
