@@ -129,6 +129,18 @@ export interface EditorViewPanelProps {
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
+  /** Whether to show the preview toggle (for supported file types like .md) */
+  showPreviewToggle?: boolean;
+
+  /** Whether currently in preview mode */
+  isPreviewMode?: boolean;
+
+  /** Handler for toggling between preview and editor modes */
+  onTogglePreviewMode?: (isPreview: boolean) => void;
+
+  /** Content to display in markdown preview mode */
+  previewContent?: string;
+
   // ---------------------------------------------------------------------------
   // Remote Operations (for ChangesReviewPane)
   // ---------------------------------------------------------------------------
@@ -179,6 +191,10 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   onToggleDiffMode,
   onExitReview,
   isFileDeleted = false,
+  showPreviewToggle = false,
+  isPreviewMode = false,
+  onTogglePreviewMode,
+  previewContent = "",
   // Remote operations for ChangesReviewPane
   hasUpstream = true,
   isPulling = false,
@@ -438,6 +454,9 @@ export const EditorViewPanel = memo(function EditorViewPanel({
         showDiffToggle={showDiffToggle}
         isDiffMode={isDiffMode}
         onToggleDiffMode={onToggleDiffMode}
+        showPreviewToggle={showPreviewToggle}
+        isPreviewMode={isPreviewMode}
+        onTogglePreviewMode={onTogglePreviewMode}
       />
 
       {/* External change warning */}
