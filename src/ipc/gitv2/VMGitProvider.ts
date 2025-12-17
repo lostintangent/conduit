@@ -23,6 +23,7 @@ import { EventEmitter } from "../../shared/EventEmitter";
 import type { Event } from "../fsv2/types";
 import type { SandboxIPCClient } from "../vm/sandbox-ipc-client";
 import type {
+  FileWithTime,
   GitBranch,
   GitBranchChangedEvent,
   GitCommit,
@@ -466,6 +467,20 @@ export class VMGitProvider implements GitProvider {
     );
 
     return result.file;
+  }
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   */
+  async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
+    this.ensureNotDisposed();
+
+    const result = await this.sandboxClient.call<{ files: FileWithTime[] }>(
+      "git.dirtyFilesWithTimes",
+      {},
+    );
+
+    return result.files;
   }
 
   /**

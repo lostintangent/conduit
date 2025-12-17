@@ -55,6 +55,7 @@ import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
 import { getSandboxClient, onSessionEvent } from "../vm/store";
 import { GitProviderService } from "./GitProviderService";
 import type {
+  FileWithTime,
   GitBranch,
   GitCommit,
   GitCommitOptions,
@@ -508,6 +509,25 @@ export function initializeGitV2Handlers(): void {
         return null;
       }
       return result.provider.getMostRecentCommittedFile(params.commitLimit);
+    },
+  );
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   * Returns files sorted by modification time (most recent first).
+   * Returns empty array if no dirty files or no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:dirty-files-with-times",
+    async (
+      _,
+      params: { cwd: string; vmId?: string },
+    ): Promise<FileWithTime[]> => {
+      const result = await getExistingProvider(params.cwd, params.vmId);
+      if (!result) {
+        return [];
+      }
+      return result.provider.getDirtyFilesWithTimes();
     },
   );
 

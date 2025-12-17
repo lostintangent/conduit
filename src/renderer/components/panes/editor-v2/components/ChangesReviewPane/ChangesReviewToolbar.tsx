@@ -45,7 +45,9 @@ import {
   ArrowDownToLine,
   ArrowLeft,
   ArrowUpFromLine,
+  Eye,
   GitCommit,
+  ListOrdered,
   Send,
   X,
 } from "lucide-react";
@@ -100,6 +102,22 @@ export interface ChangesReviewToolbarProps {
 
   /** Callback to dismiss the error */
   onDismissError?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Follow Mode Props (optional)
+  // ---------------------------------------------------------------------------
+
+  /** Whether Follow mode is enabled */
+  isFollowModeEnabled?: boolean;
+
+  /** Callback to toggle Follow mode */
+  onToggleFollowMode?: () => void;
+
+  /** Count of unseen files (for badge display) */
+  unseenCount?: number;
+
+  /** Callback to mark all files as seen */
+  onMarkAllSeen?: () => void;
 }
 
 /**
@@ -121,6 +139,11 @@ export function ChangesReviewToolbar({
   onExitReview,
   error,
   onDismissError,
+  // Follow mode props
+  isFollowModeEnabled = false,
+  onToggleFollowMode,
+  unseenCount = 0,
+  onMarkAllSeen,
 }: ChangesReviewToolbarProps) {
   return (
     <div className="flex-shrink-0" data-testid="changes-review-toolbar">
@@ -172,6 +195,56 @@ export function ChangesReviewToolbar({
           <span className="truncate" data-testid="review-title">
             Review Changes ({totalFileCount})
           </span>
+          {/* Unseen count badge (Follow mode - only when enabled) */}
+          {isFollowModeEnabled && unseenCount > 0 && (
+            <span
+              className="text-yellow-500 text-xs font-medium"
+              data-testid="unseen-count-badge"
+            >
+              • {unseenCount} new
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          {/* Mark all seen button (Follow mode - only when enabled and has unseen) */}
+          {isFollowModeEnabled && onMarkAllSeen && unseenCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onMarkAllSeen}
+                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                  data-testid="mark-all-seen-button"
+                >
+                  <Eye size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Mark all as seen</TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Follow mode toggle */}
+          {onToggleFollowMode && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleFollowMode}
+                  className={cn(
+                    "p-1 rounded transition-colors shrink-0",
+                    isFollowModeEnabled
+                      ? "bg-primary/20 text-primary hover:bg-primary/30"
+                      : "hover:bg-white/10",
+                  )}
+                  data-testid="follow-mode-toggle"
+                >
+                  <ListOrdered size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isFollowModeEnabled ? "Disable" : "Enable"} Follow mode
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 

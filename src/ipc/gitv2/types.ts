@@ -184,6 +184,16 @@ export interface GitDiffStats {
   files: number;
 }
 
+/**
+ * File with its modification timestamp.
+ */
+export interface FileWithTime {
+  /** Relative path from git root */
+  path: string;
+  /** Modification time in milliseconds since epoch */
+  mtime: number;
+}
+
 // ============================================================================
 // Event Types
 // ============================================================================
@@ -385,6 +395,15 @@ export interface GitProvider {
    * @returns Relative path from git root, or null if no dirty files
    */
   getMostRecentDirtyFile(): Promise<string | null>;
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   *
+   * Useful for sorting files by modification time in Follow mode.
+   *
+   * @returns Array of files with their modification times, sorted most recent first
+   */
+  getDirtyFilesWithTimes(): Promise<FileWithTime[]>;
 
   /**
    * Get the most recently modified file from recent commits.

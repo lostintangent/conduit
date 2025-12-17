@@ -11,3 +11,4 @@ export {
   getParentPaths,
   normalizePathForKey,
 } from "./pathUtils";
+export { formatRelativeTime } from "./timeFormat";

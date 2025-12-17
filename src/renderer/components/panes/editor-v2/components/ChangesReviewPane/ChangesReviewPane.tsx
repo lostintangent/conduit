@@ -34,12 +34,17 @@
 
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
+import { FileSystemV2APIService } from "@/services/FileSystemV2APIService";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChangesFooter } from "./ChangesFooter";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
-import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
+import {
+  useExpandedFiles,
+  useFollowMode,
+  useScrollToSelectedFile,
+} from "./hooks";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
@@ -121,6 +126,16 @@ export function ChangesReviewPane({
   const [unstagedSectionExpanded, setUnstagedSectionExpanded] = useState(true);
 
   // ---------------------------------------------------------------------------
+  // Follow Mode State
+  // ---------------------------------------------------------------------------
+
+  const [isFollowModeEnabled, setIsFollowModeEnabled] = useState(false);
+
+  const toggleFollowMode = useCallback(() => {
+    setIsFollowModeEnabled((prev) => !prev);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Computed: File Lists
   // ---------------------------------------------------------------------------
 
@@ -156,9 +171,49 @@ export function ChangesReviewPane({
   // ---------------------------------------------------------------------------
 
   // Auto-expand files by default to match v1 behavior
-  const { expandedFiles, toggleFile, expandFile } = useExpandedFiles(
-    allFilePaths,
-    true,
+  const { expandedFiles, toggleFile, expandFile, expandFiles, collapseFiles } =
+    useExpandedFiles(allFilePaths, true);
+
+  // ---------------------------------------------------------------------------
+  // Follow Mode State (via hook)
+  // ---------------------------------------------------------------------------
+
+  const {
+    isUnseen,
+    getTimestamp,
+    markSeen,
+    markAllSeen,
+    getUnseenCount,
+    unseenCount,
+    sortByTimestamp,
+    processStatusChange,
+    initializeFiles,
+  } = useFollowMode();
+
+  // ---------------------------------------------------------------------------
+  // Follow Mode: Sorted File Lists
+  // ---------------------------------------------------------------------------
+
+  // Sort files by modification time (most recent first) in Follow mode
+  const sortedStagedFiles = useMemo(
+    () => sortByTimestamp(stagedFiles),
+    [sortByTimestamp, stagedFiles],
+  );
+
+  const sortedUnstagedFiles = useMemo(
+    () => sortByTimestamp(unstagedFiles),
+    [sortByTimestamp, unstagedFiles],
+  );
+
+  // Get unseen counts for each section
+  const stagedUnseenCount = useMemo(
+    () => getUnseenCount(stagedFiles.map(([path]) => path)),
+    [getUnseenCount, stagedFiles],
+  );
+
+  const unstagedUnseenCount = useMemo(
+    () => getUnseenCount(unstagedFiles.map(([path]) => path)),
+    [getUnseenCount, unstagedFiles],
   );
 
   // ---------------------------------------------------------------------------
@@ -211,16 +266,111 @@ export function ChangesReviewPane({
   }, [git]);
 
   // ---------------------------------------------------------------------------
+  // Follow Mode: Initialize Files on Initial Load
+  // ---------------------------------------------------------------------------
+
+  // Initialize Follow mode tracking for existing files (marks them as "seen")
+  // Fetches actual file modification times for proper sorting
+  useEffect(() => {
+    if (isLoading || allFilePaths.length === 0) return;
+
+    let cancelled = false;
+
+    async function initWithTimestamps() {
+      try {
+        // Fetch actual file modification times from git
+        const filesWithTimes = await git.getDirtyFilesWithTimes();
+
+        if (cancelled) return;
+
+        // Convert to Map for O(1) lookups
+        const timestampMap = new Map<string, number>();
+        for (const { path, mtime } of filesWithTimes) {
+          timestampMap.set(path, mtime);
+        }
+
+        initializeFiles(allFilePaths, timestampMap);
+      } catch (error) {
+        console.error(
+          "[ChangesReviewPane] Failed to get file timestamps:",
+          error,
+        );
+        // Fall back to initializing without timestamps
+        if (!cancelled) {
+          initializeFiles(allFilePaths);
+        }
+      }
+    }
+
+    initWithTimestamps();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, allFilePaths, initializeFiles, git]);
+
+  // ---------------------------------------------------------------------------
   // Git Status Subscription
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
     const cleanup = git.onStatusChanged((event) => {
       setGitStatus(event.status);
+
+      // Process Follow mode: only mark truly NEW files as unseen (and auto-expand).
+      // We intentionally ignore event.modified here because it includes staging
+      // state changes (stage/unstage), which shouldn't update timestamps.
+      // Actual content changes to existing files are handled by the filesystem watcher.
+      if (event.added.length > 0) {
+        processStatusChange(event.added, expandFile);
+      }
     });
 
     return cleanup;
-  }, [git]);
+  }, [git, processStatusChange, expandFile]);
+
+  // ---------------------------------------------------------------------------
+  // External File Change Subscription (for Follow mode)
+  // ---------------------------------------------------------------------------
+
+  // Subscribe to filesystem changes to detect when files are modified.
+  // This catches file edits that don't change git status (file is already "modified").
+  // Works for both expanded files (with Monaco editors) and collapsed files.
+  useEffect(() => {
+    let fsApi: ReturnType<
+      typeof FileSystemV2APIService.getInstance.acquire
+    > | null = null;
+    let cleanup: (() => void) | null = null;
+
+    try {
+      // Acquire a FileSystemV2API instance for our cwd
+      fsApi = FileSystemV2APIService.getInstance().acquire(cwd, sandboxId);
+
+      // Subscribe to ALL file content changes in this cwd
+      cleanup = fsApi.onAnyFileContentChanged((fullPath: string) => {
+        // Convert full path to relative path from cwd
+        const cwdWithSlash = cwd.endsWith("/") ? cwd : cwd + "/";
+        if (!fullPath.startsWith(cwdWithSlash)) return;
+
+        const relativePath = fullPath.slice(cwdWithSlash.length);
+
+        // Only process if it's a file we're tracking (in our git status)
+        if (allFilePaths.includes(relativePath)) {
+          processStatusChange([relativePath], expandFile);
+        }
+      });
+    } catch {
+      // FileSystemV2API not available (e.g., in test environment)
+    }
+
+    return () => {
+      cleanup?.();
+      if (fsApi) {
+        // Release the FileSystemV2API instance
+        FileSystemV2APIService.getInstance().release(cwd, sandboxId);
+      }
+    };
+  }, [cwd, sandboxId, allFilePaths, processStatusChange, expandFile]);
 
   // ---------------------------------------------------------------------------
   // Handlers: Commit
@@ -288,6 +438,35 @@ export function ChangesReviewPane({
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Section-Specific Expand/Collapse Handlers
+  // ---------------------------------------------------------------------------
+
+  const stagedFilePaths = useMemo(
+    () => stagedFiles.map(([path]) => path),
+    [stagedFiles],
+  );
+  const unstagedFilePaths = useMemo(
+    () => unstagedFiles.map(([path]) => path),
+    [unstagedFiles],
+  );
+
+  const handleExpandAllStaged = useCallback(() => {
+    expandFiles(stagedFilePaths);
+  }, [expandFiles, stagedFilePaths]);
+
+  const handleCollapseAllStaged = useCallback(() => {
+    collapseFiles(stagedFilePaths);
+  }, [collapseFiles, stagedFilePaths]);
+
+  const handleExpandAllUnstaged = useCallback(() => {
+    expandFiles(unstagedFilePaths);
+  }, [expandFiles, unstagedFilePaths]);
+
+  const handleCollapseAllUnstaged = useCallback(() => {
+    collapseFiles(unstagedFilePaths);
+  }, [collapseFiles, unstagedFilePaths]);
+
+  // ---------------------------------------------------------------------------
   // Render: Loading State
   // ---------------------------------------------------------------------------
 
@@ -351,6 +530,11 @@ export function ChangesReviewPane({
         onExitReview={onExitReview}
         error={error}
         onDismissError={handleDismissError}
+        // Follow mode props
+        isFollowModeEnabled={isFollowModeEnabled}
+        onToggleFollowMode={toggleFollowMode}
+        unseenCount={unseenCount}
+        onMarkAllSeen={markAllSeen}
       />
 
       {/* Scrollable File List */}
@@ -362,7 +546,7 @@ export function ChangesReviewPane({
         {/* Staged Changes Section */}
         <ChangesSection
           title="Staged Changes"
-          files={stagedFiles}
+          files={isFollowModeEnabled ? sortedStagedFiles : stagedFiles}
           icon={<Check className="w-3.5 h-3.5" />}
           iconColorClass="text-green-500"
           isExpanded={stagedSectionExpanded}
@@ -375,12 +559,19 @@ export function ChangesReviewPane({
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
           onToggleFile={toggleFile}
+          onExpandAll={handleExpandAllStaged}
+          onCollapseAll={handleCollapseAllStaged}
+          // Follow mode props (only when enabled)
+          unseenCount={isFollowModeEnabled ? stagedUnseenCount : 0}
+          isFileUnseen={isFollowModeEnabled ? isUnseen : undefined}
+          getFileTimestamp={isFollowModeEnabled ? getTimestamp : undefined}
+          markFileSeen={isFollowModeEnabled ? markSeen : undefined}
         />
 
         {/* Unstaged Changes Section */}
         <ChangesSection
           title="Changes"
-          files={unstagedFiles}
+          files={isFollowModeEnabled ? sortedUnstagedFiles : unstagedFiles}
           icon={<Minus className="w-3.5 h-3.5" />}
           iconColorClass="text-yellow-500"
           isExpanded={unstagedSectionExpanded}
@@ -393,6 +584,13 @@ export function ChangesReviewPane({
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
           onToggleFile={toggleFile}
+          onExpandAll={handleExpandAllUnstaged}
+          onCollapseAll={handleCollapseAllUnstaged}
+          // Follow mode props (only when enabled)
+          unseenCount={isFollowModeEnabled ? unstagedUnseenCount : 0}
+          isFileUnseen={isFollowModeEnabled ? isUnseen : undefined}
+          getFileTimestamp={isFollowModeEnabled ? getTimestamp : undefined}
+          markFileSeen={isFollowModeEnabled ? markSeen : undefined}
         />
       </div>
 

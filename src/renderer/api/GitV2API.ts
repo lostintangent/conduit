@@ -37,6 +37,7 @@
 
 import type { Cleanup } from "../../ipc/fsv2/types";
 import type {
+  FileWithTime,
   GitBranch,
   GitBranchChangedEvent,
   GitCommit,
@@ -783,6 +784,22 @@ export class GitV2API {
     return window.conduit.gitv2.getMostRecentCommittedFile(
       this.cwd,
       commitLimit,
+      this.sandboxId,
+    );
+  }
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   *
+   * Useful for sorting files by modification time in Follow mode.
+   *
+   * @returns Array of files with their modification times, sorted most recent first
+   * @throws {Error} If the API has been released
+   */
+  async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getDirtyFilesWithTimes(
+      this.cwd,
       this.sandboxId,
     );
   }
