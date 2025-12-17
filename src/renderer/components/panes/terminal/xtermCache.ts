@@ -4,6 +4,7 @@ import { UserSettings } from "@shared/types";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 
@@ -117,6 +118,7 @@ export function getOrCreate(
     const fit = new FitAddon();
     const search = new SearchAddon();
     const serializer = new SerializeAddon();
+    const unicode11 = new Unicode11Addon();
 
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
       current: null,
@@ -138,6 +140,10 @@ export function getOrCreate(
     terminal.loadAddon(search);
     terminal.loadAddon(webLinksAddon);
     terminal.loadAddon(serializer);
+    terminal.loadAddon(unicode11);
+
+    // Activate Unicode 11 support
+    terminal.unicode.activeVersion = "11";
 
     // If this is the first pane that's associated
     // with this PTY session, then set up the data handling.
