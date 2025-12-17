@@ -34,7 +34,7 @@ import {
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
-import { detectLanguage } from "../../utils/languageDetection";
+import { detectLanguage, forceTokenizeVisibleLines } from "../../utils";
 import type { AutoSizeConfig } from "./constants";
 
 export interface DiffEditorWrapperProps {
@@ -246,6 +246,25 @@ export function DiffEditorWrapper({
       return;
     }
 
+    // IMPORTANT: Verify the modifiedModel matches the current filePath before attaching.
+    // When filePath changes, React may re-run this effect with the OLD model
+    // before useMonacoModel updates with the new model. We must skip attaching
+    // stale models to avoid ending the session prematurely.
+    const modelUri = modifiedModel.uri.toString();
+    const expectedUri = `file://${filePath}`;
+    // Handle sandboxId in model key: file:///path::vm:sandboxId
+    const modelMatchesFile =
+      modelUri === expectedUri ||
+      modelUri.startsWith(expectedUri + "::") ||
+      modelUri === `file://${filePath.replace(/^\//, "")}` || // Windows path handling
+      modifiedModel.uri.fsPath === filePath;
+
+    if (!modelMatchesFile) {
+      // Model is for a different file - skip this render cycle
+      // The effect will re-run when useMonacoModel provides the correct model
+      return;
+    }
+
     // Wrap in try-catch to prevent any errors from crashing the app
     try {
       // Create original model (read-only, we own this)
@@ -265,6 +284,7 @@ export function DiffEditorWrapper({
       const originalUri = monaco.Uri.parse(
         `inmemory://original/${editorId}/${filePath}`,
       );
+
       originalModelRef.current = monaco.editor.createModel(
         diffContent.original,
         language,
@@ -276,6 +296,10 @@ export function DiffEditorWrapper({
         original: originalModelRef.current,
         modified: modifiedModel,
       });
+
+      // Force immediate tokenization to prevent white flash before syntax highlighting
+      forceTokenizeVisibleLines(originalModelRef.current);
+      forceTokenizeVisibleLines(modifiedModel);
     } catch (error) {
       console.error("Error setting up diff editor models:", error);
       return;

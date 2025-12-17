@@ -9,7 +9,7 @@
  * different casing.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { getParentPaths, normalizePathForKey } from "../utils";
 
 export interface UseExpandedPathsOptions {
@@ -71,9 +71,15 @@ export function useExpandedPaths(
     () => new Set(initialPaths.map(normalizePathForKey)),
   );
 
+  // Use a ref to hold the current expandedPaths for isExpanded.
+  // This allows isExpanded to be a stable callback reference (no dependencies),
+  // preventing consumers like renderDirectory from being recreated when paths change.
+  const expandedPathsRef = useRef<Set<string>>(expandedPaths);
+  expandedPathsRef.current = expandedPaths;
+
   const isExpanded = useCallback(
-    (path: string) => expandedPaths.has(normalizePathForKey(path)),
-    [expandedPaths],
+    (path: string) => expandedPathsRef.current.has(normalizePathForKey(path)),
+    [], // Stable - reads from ref
   );
 
   const toggle = useCallback((path: string) => {

@@ -317,7 +317,9 @@ export function useDiffContent(
       }
 
       // Check if effect was cleaned up during async operation
-      if (isStale) return;
+      if (isStale) {
+        return;
+      }
 
       // 2. Check for binary content in original
       if (originalContent !== null && isBinaryContent(originalContent)) {
@@ -352,7 +354,9 @@ export function useDiffContent(
             );
 
             // Check if effect was cleaned up during async operation
-            if (isStale) return;
+            if (isStale) {
+              return;
+            }
 
             modifiedContent = model.getValue();
           } catch {
@@ -367,7 +371,9 @@ export function useDiffContent(
         }
 
         // Check if effect was cleaned up during async operation
-        if (isStale) return;
+        if (isStale) {
+          return;
+        }
 
         // 4. Check for binary content in modified
         if (

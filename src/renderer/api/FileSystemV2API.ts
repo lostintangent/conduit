@@ -174,9 +174,14 @@ export class FileSystemV2API {
   }
 
   /**
-   * Read file contents as text.
+   * Read file contents as text (UTF-8).
    *
-   * Convenience method that decodes the binary data as UTF-8.
+   * Convenience method for text files that avoids the need for
+   * TextDecoder on the caller side. The main benefit is eliminating
+   * duplicate file reads - Monaco model registry uses this directly.
+   *
+   * Note: Only use for known text files. Binary files will have invalid
+   * UTF-8 bytes replaced with the Unicode replacement character (U+FFFD).
    *
    * @param filePath - Absolute path to file
    * @returns File contents as string
@@ -184,8 +189,8 @@ export class FileSystemV2API {
    * @throws {Error} If the file does not exist or is not accessible
    */
   async readTextFile(filePath: string): Promise<string> {
-    const data = await this.readFile(filePath);
-    return new TextDecoder().decode(data);
+    this.ensureNotReleased();
+    return window.conduit.fsv2.readTextFile(this.cwd, filePath, this.sandboxId);
   }
 
   /**

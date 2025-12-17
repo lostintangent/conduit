@@ -9,6 +9,7 @@ const { mockFsv2 } = vi.hoisted(() => {
   const fsv2 = {
     readDirectory: vi.fn(),
     readFile: vi.fn(),
+    readTextFile: vi.fn(),
     stat: vi.fn(),
     exists: vi.fn(),
     writeFile: vi.fn(),
@@ -128,9 +129,8 @@ describe("FileSystemV2API", () => {
   });
 
   describe("readTextFile", () => {
-    it("should decode binary data as UTF-8", async () => {
-      const content = new TextEncoder().encode("Hello, World!");
-      mockFsv2.readFile.mockResolvedValue(content);
+    it("should return text content directly", async () => {
+      mockFsv2.readTextFile.mockResolvedValue("Hello, World!");
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.readTextFile("/test/project/file.txt");
