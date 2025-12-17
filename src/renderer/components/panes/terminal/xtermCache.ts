@@ -294,25 +294,28 @@ export function attach(paneId: string, container: HTMLElement) {
     instance.terminal.open(container);
   }
 
+  // NOTE: WebGL is causing flickering issues in some systems,
+  // so I'm disabling it for now, until we can figure out a more robust solution.
+
   // Load WebGL addon for GPU acceleration if not already loaded
   // This must be done after the terminal is opened in the DOM
-  if (!instance.webgl) {
-    try {
-      const webglAddon = new WebglAddon();
-      webglAddon.onContextLoss(() => {
-        // If WebGL context is lost, dispose and set to null
-        // The terminal will fall back to the canvas renderer
-        webglAddon.dispose();
-        instance.webgl = null;
-      });
-      instance.terminal.loadAddon(webglAddon);
-      instance.webgl = webglAddon;
-    } catch (e) {
-      // WebGL is not supported or failed to initialize
-      // The terminal will use the default canvas renderer
-      console.warn("Failed to load WebGL addon:", e);
-    }
-  }
+  /* if (!instance.webgl) {
+     try {
+       const webglAddon = new WebglAddon();
+       webglAddon.onContextLoss(() => {
+         // If WebGL context is lost, dispose and set to null
+         // The terminal will fall back to the canvas renderer
+         webglAddon.dispose();
+         instance.webgl = null;
+       });
+       instance.terminal.loadAddon(webglAddon);
+       instance.webgl = webglAddon;
+     } catch (e) {
+       // WebGL is not supported or failed to initialize
+       // The terminal will use the default canvas renderer
+       console.warn("Failed to load WebGL addon:", e);
+     }
+   }*/
 }
 
 /**
