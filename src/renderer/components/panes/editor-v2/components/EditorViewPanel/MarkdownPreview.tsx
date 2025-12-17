@@ -22,6 +22,8 @@ import { resolveTheme } from "@/utils/theme";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo, useRef } from "react";
 import rehypeSlug from "rehype-slug";
+import remarkGithubAlerts from "remark-github-blockquote-alert";
+import "remark-github-blockquote-alert/alert.css";
 import { Streamdown } from "streamdown";
 
 export interface MarkdownPreviewProps {
@@ -65,13 +67,14 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
   return (
     <div
       ref={containerRef}
-      className="h-full w-full overflow-auto p-4 text-sm text-foreground [&>*>*:first-child]:mt-0 [&_[data-streamdown=code-block-body]_code>span:last-child:empty]:hidden [&_[data-streamdown=code-block]>*]:p-2"
+      className="h-full w-full overflow-auto p-4 text-sm text-foreground [&>*>*:first-child]:mt-0 [&_[data-streamdown=code-block-body]_code>span:last-child:empty]:hidden [&_[data-streamdown=code-block]>*]:p-2 [&_.markdown-alert]:!py-0 [&_.markdown-alert>*:first-child]:mb-3"
       onClick={handleClick}
     >
       <Streamdown
         mode="static"
         mermaid={mermaidConfig}
         rehypePlugins={[rehypeSlug]}
+        remarkPlugins={[remarkGithubAlerts]}
       >
         {content}
       </Streamdown>
