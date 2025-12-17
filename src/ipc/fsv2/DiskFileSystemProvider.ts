@@ -207,11 +207,23 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   }
 
   /**
-   * Read complete file contents.
+   * Read complete file contents as binary.
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     const buffer = await fs.readFile(filePath);
     return new Uint8Array(buffer);
+  }
+
+  /**
+   * Read complete file contents as text (UTF-8).
+   *
+   * Convenience method that returns a string directly, avoiding the need
+   * for TextDecoder on the caller side.
+   *
+   * Note: Binary files will have invalid UTF-8 bytes replaced with U+FFFD.
+   */
+  async readTextFile(filePath: string): Promise<string> {
+    return fs.readFile(filePath, "utf-8");
   }
 
   /**

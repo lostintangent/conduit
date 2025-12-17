@@ -26,6 +26,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGitV2 } from "../../../../hooks/useGitV2";
 import { MonacoModelRegistry, createModelKey } from "../registry";
+import { EditorTracing } from "../utils/editorTracing";
 
 // ============================================================================
 // Error Types
@@ -300,6 +301,12 @@ export function useDiffContent(
     }));
 
     const loadContent = async () => {
+      const diffContentTraceId = EditorTracing.startTrace(
+        filePath,
+        "useDiffContent",
+        { baseBranch, cwd, sandboxId },
+      );
+
       const registry = MonacoModelRegistry.getInstance();
       const modelKey = createModelKey(filePath, sandboxId);
       const ref = baseBranch || "HEAD";
@@ -309,15 +316,31 @@ export function useDiffContent(
       let diffError: DiffError | null = null;
 
       // 1. Fetch original content from git
+      const gitTraceId = EditorTracing.startTrace(
+        filePath,
+        "git.getFileAtRef",
+        { ref },
+      );
       try {
         originalContent = await git.getFileAtRef(filePath, ref);
+        EditorTracing.endTrace(filePath, gitTraceId, {
+          contentLength: originalContent?.length,
+        });
       } catch (error) {
+        EditorTracing.endTrace(filePath, gitTraceId, {
+          error: String(error),
+        });
         // Create specific error for git fetch failure
         diffError = createDiffError(error, ref, filePath);
       }
 
       // Check if effect was cleaned up during async operation
-      if (isStale) return;
+      if (isStale) {
+        EditorTracing.endTrace(filePath, diffContentTraceId, {
+          result: "stale",
+        });
+        return;
+      }
 
       // 2. Check for binary content in original
       if (originalContent !== null && isBinaryContent(originalContent)) {
@@ -342,8 +365,15 @@ export function useDiffContent(
           // Model exists - get content from it
           const model = registry.getModel(modelKey);
           modifiedContent = model?.getValue() ?? null;
+          EditorTracing.logTiming("diff.modifiedFromCache", 0, {
+            cached: true,
+          });
         } else {
           // Model doesn't exist - try to create it
+          const modifiedTraceId = EditorTracing.startTrace(
+            filePath,
+            "diff.loadModified",
+          );
           try {
             const model = await registry.getOrCreateModel(
               filePath,
@@ -352,10 +382,24 @@ export function useDiffContent(
             );
 
             // Check if effect was cleaned up during async operation
-            if (isStale) return;
+            if (isStale) {
+              EditorTracing.endTrace(filePath, modifiedTraceId, {
+                result: "stale",
+              });
+              EditorTracing.endTrace(filePath, diffContentTraceId, {
+                result: "stale",
+              });
+              return;
+            }
 
             modifiedContent = model.getValue();
+            EditorTracing.endTrace(filePath, modifiedTraceId, {
+              contentLength: modifiedContent?.length,
+            });
           } catch {
+            EditorTracing.endTrace(filePath, modifiedTraceId, {
+              result: "error",
+            });
             // File doesn't exist in working directory either
             if (diffError === null) {
               diffError = {
@@ -367,7 +411,12 @@ export function useDiffContent(
         }
 
         // Check if effect was cleaned up during async operation
-        if (isStale) return;
+        if (isStale) {
+          EditorTracing.endTrace(filePath, diffContentTraceId, {
+            result: "stale",
+          });
+          return;
+        }
 
         // 4. Check for binary content in modified
         if (
@@ -400,6 +449,11 @@ export function useDiffContent(
 
       // Note: Deleted files are handled by DeletedFileViewer, not the diff editor.
       // The DeletedFileViewer shows a read-only editor with the git content.
+
+      EditorTracing.endTrace(filePath, diffContentTraceId, {
+        result: diffError ? "error" : "success",
+        errorType: diffError?.type,
+      });
 
       // Only update state if still mounted AND this effect is still current
       // The isStale check prevents race conditions when rapidly switching files

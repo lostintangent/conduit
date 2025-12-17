@@ -49,3 +49,8 @@ export type {
 } from "./useDiffModeTransition";
 export { useReviewModeState } from "./useReviewModeState";
 export type { UseReviewModeStateResult } from "./useReviewModeState";
+export { useFilePrefetch } from "./useFilePrefetch";
+export type {
+  UseFilePrefetchOptions,
+  UseFilePrefetchResult,
+} from "./useFilePrefetch";

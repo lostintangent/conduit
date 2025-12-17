@@ -27,7 +27,7 @@
  */
 
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 import {
   useAutoSizeEditor,
   useEditorTheme,
@@ -35,6 +35,7 @@ import {
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry";
+import { EditorTracing } from "../../utils/editorTracing";
 import type { AutoSizeConfig } from "./constants";
 
 /** Debounce delay for ViewState saves (ms) */
@@ -112,8 +113,10 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
  * - Editor reuse via EditorRegistry (portal pattern)
  * - Model management via MonacoModelRegistry
  * - ViewState persistence via ViewStateRegistry
+ *
+ * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export function RegularEditorWrapper({
+export const RegularEditorWrapper = memo(function RegularEditorWrapper({
   editorId,
   cwd,
   sandboxId,
@@ -124,6 +127,9 @@ export function RegularEditorWrapper({
   onMount,
   autoSize,
 }: RegularEditorWrapperProps) {
+  // Trace render timing
+  const renderStartTime = performance.now();
+
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
   const theme = themeProp ?? defaultTheme;
@@ -154,6 +160,18 @@ export function RegularEditorWrapper({
   // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
   // as EditorRegistry for proper lifecycle coordination
   const model = useMonacoModel(editorId, filePath, cwd, sandboxId);
+
+  // Log render timing only on mount/model change (not every render)
+  useEffect(() => {
+    EditorTracing.logTiming(
+      "RegularEditorWrapper.mount",
+      performance.now() - renderStartTime,
+      {
+        filePath: filePath.split("/").pop(),
+        hasModel: !!model,
+      },
+    );
+  }, [filePath, model, renderStartTime]);
 
   // Auto-sizing hook - adjusts height based on content when config is provided
   const { containerStyle } = useAutoSizeEditor({
@@ -278,6 +296,31 @@ export function RegularEditorWrapper({
     const editor = editorRef.current;
     if (!editor || !model) return;
 
+    // IMPORTANT: Verify the model matches the current filePath before attaching.
+    // When filePath changes, React may re-run this effect with the OLD model
+    // before useMonacoModel updates with the new model. We must skip attaching
+    // stale models to avoid ending the session prematurely.
+    const modelUri = model.uri.toString();
+    const expectedUri = `file://${filePath}`;
+    // Handle sandboxId in model key: file:///path::vm:sandboxId
+    const modelMatchesFile =
+      modelUri === expectedUri ||
+      modelUri.startsWith(expectedUri + "::") ||
+      modelUri === `file://${filePath.replace(/^\//, "")}` || // Windows path handling
+      model.uri.fsPath === filePath;
+
+    if (!modelMatchesFile) {
+      // Model is for a different file - skip this render cycle
+      // The effect will re-run when useMonacoModel provides the correct model
+      return;
+    }
+
+    const attachTraceId = EditorTracing.startTrace(
+      filePath,
+      "editor.attachModel",
+      { editorId },
+    );
+
     const viewStateRegistry = ViewStateRegistry.getInstance();
 
     // Save ViewState for previous file before switching
@@ -289,7 +332,9 @@ export function RegularEditorWrapper({
     }
 
     // Attach model to editor
+    const setModelStart = performance.now();
     editor.setModel(model);
+    const setModelDuration = performance.now() - setModelStart;
 
     // Restore ViewState for new file
     viewStateRegistry.restore(editorId, filePath, editor);
@@ -306,6 +351,13 @@ export function RegularEditorWrapper({
     contentChangeDisposableRef.current = model.onDidChangeContent(() => {
       onChangeRef.current?.(model.getValue());
     });
+
+    EditorTracing.endTrace(filePath, attachTraceId, {
+      setModelMs: setModelDuration.toFixed(1),
+    });
+
+    // End the session after model is attached (file is now visible)
+    EditorTracing.endSession(filePath);
 
     return () => {
       // Cleanup content change listener
@@ -417,4 +469,4 @@ export function RegularEditorWrapper({
       />
     </div>
   );
-}
+});

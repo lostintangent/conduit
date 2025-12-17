@@ -23,6 +23,7 @@
  * ```
  */
 
+import { memo } from "react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
@@ -158,8 +159,11 @@ export interface FileTreePanelProps {
 
 /**
  * Main file tree panel with view mode toggle.
+ *
+ * Memoized to prevent unnecessary re-renders when parent state changes
+ * but props remain the same (e.g., file selection in editor).
  */
-export function FileTreePanel({
+export const FileTreePanel = memo(function FileTreePanel({
   paneId,
   cwd,
   fs,
@@ -305,4 +309,4 @@ export function FileTreePanel({
       </div>
     </div>
   );
-}
+});

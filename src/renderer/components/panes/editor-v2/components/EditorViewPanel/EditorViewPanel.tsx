@@ -4,7 +4,6 @@
  * This is the top-level component for the editor view. It coordinates:
  * - RegularEditorWrapper (for regular editing)
  * - DiffEditorWrapper (for diff view)
- * - MarkdownPreview (for markdown preview)
  * - ExternalChangeWarning (for conflict detection)
  * - EditorToolbar (for editor actions)
  *
@@ -29,7 +28,7 @@
 
 import type { GitV2API } from "@/api/GitV2API";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorActions,
   useEditorSaveKeybinding,
@@ -37,13 +36,13 @@ import {
 } from "../../hooks";
 import { createModelKey, MonacoModelRegistry } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
+import { EditorTracing } from "../../utils/editorTracing";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
 import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
-import { MarkdownPreview } from "./MarkdownPreview";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
 /**
@@ -109,18 +108,6 @@ export interface EditorViewPanelProps {
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
-  /** Whether to show the preview toggle (for supported file types like .md) */
-  showPreviewToggle?: boolean;
-
-  /** Whether currently in preview mode */
-  isPreviewMode?: boolean;
-
-  /** Handler for toggling between preview and editor modes */
-  onTogglePreviewMode?: (isPreview: boolean) => void;
-
-  /** Content for preview mode (loaded by parent) */
-  previewContent?: string;
-
   // ---------------------------------------------------------------------------
   // Remote Operations (for ChangesReviewPane)
   // ---------------------------------------------------------------------------
@@ -146,11 +133,12 @@ export interface EditorViewPanelProps {
  *
  * Orchestrates the editor view based on the current mode:
  * - `editor`: Shows RegularEditorWrapper
- * - `preview`: Shows MarkdownPreview (for .md files)
  * - `diff`: Shows DiffEditorWrapper
  * - `changesReview`: Shows multi-file diff view (TODO: Phase 4+)
+ *
+ * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export function EditorViewPanel({
+export const EditorViewPanel = memo(function EditorViewPanel({
   editorId,
   cwd,
   sandboxId,
@@ -169,10 +157,6 @@ export function EditorViewPanel({
   onToggleDiffMode,
   onExitReview,
   isFileDeleted = false,
-  showPreviewToggle = false,
-  isPreviewMode = false,
-  onTogglePreviewMode,
-  previewContent = "",
   // Remote operations for ChangesReviewPane
   hasUpstream = true,
   isPulling = false,
@@ -185,6 +169,16 @@ export function EditorViewPanel({
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
+
+  // Trace render timing - log only on mount/filePath change (not every render)
+  useEffect(() => {
+    if (filePath) {
+      EditorTracing.logTiming("EditorViewPanel.mount", 0, {
+        filePath: filePath.split("/").pop(),
+        viewMode: viewMode.type,
+      });
+    }
+  }, [filePath, viewMode.type]);
 
   // Calculate display path relative to cwd (like v1)
   const displayFilePath = useMemo(() => {
@@ -432,9 +426,6 @@ export function EditorViewPanel({
         showDiffToggle={showDiffToggle}
         isDiffMode={isDiffMode}
         onToggleDiffMode={onToggleDiffMode}
-        showPreviewToggle={showPreviewToggle}
-        isPreviewMode={isPreviewMode}
-        onTogglePreviewMode={onTogglePreviewMode}
       />
 
       {/* External change warning */}
@@ -476,9 +467,6 @@ export function EditorViewPanel({
               onMount={handleEditorMount}
             />
           </EditorErrorBoundary>
-        ) : viewMode.type === "preview" ? (
-          // Markdown preview - shows rendered markdown
-          <MarkdownPreview content={previewContent} />
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
           <EditorErrorBoundary filePath={filePath}>
@@ -523,4 +511,4 @@ export function EditorViewPanel({
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMonacoModel } from "../../../../src/renderer/components/panes/editor-v2/hooks/useMonacoModel";
 import { createModelKey } from "../../../../src/renderer/components/panes/editor-v2/registry";
@@ -12,10 +12,14 @@ const mockModel = {
   getValue: vi.fn(() => "file content"),
   setValue: vi.fn(),
   dispose: vi.fn(),
+  isDisposed: vi.fn(() => false),
   uri: { toString: () => "file:///test/file.ts" },
   getAlternativeVersionId: vi.fn(() => 1),
   onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
 };
+
+// Store subscribers for model availability changes
+let modelAvailabilitySubscribers: Map<string, Set<() => void>> = new Map();
 
 const mockRegistry = {
   getOrCreateModel: vi.fn().mockResolvedValue(mockModel),
@@ -23,6 +27,17 @@ const mockRegistry = {
   removeReference: vi.fn(),
   getModelState: vi.fn(() => null),
   getModel: vi.fn(() => mockModel),
+  subscribeToModelAvailability: vi.fn(
+    (modelKey: string, callback: () => void) => {
+      if (!modelAvailabilitySubscribers.has(modelKey)) {
+        modelAvailabilitySubscribers.set(modelKey, new Set());
+      }
+      modelAvailabilitySubscribers.get(modelKey)!.add(callback);
+      return () => {
+        modelAvailabilitySubscribers.get(modelKey)?.delete(callback);
+      };
+    },
+  ),
 };
 
 vi.mock(
@@ -50,6 +65,9 @@ describe("useMonacoModel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRegistry.getOrCreateModel.mockResolvedValue(mockModel);
+    mockRegistry.getModel.mockReturnValue(mockModel); // Reset to return mockModel by default
+    mockModel.isDisposed.mockReturnValue(false);
+    modelAvailabilitySubscribers.clear();
   });
 
   afterEach(() => {
@@ -61,7 +79,23 @@ describe("useMonacoModel", () => {
   // ===========================================================================
 
   describe("basic functionality", () => {
-    it("should return null initially while loading", async () => {
+    it("should return model synchronously when cached (useSyncExternalStore optimization)", async () => {
+      // With useSyncExternalStore, cached models are returned synchronously on first render
+      const { result } = renderHook(() =>
+        useMonacoModel("editor-1", "/test/file.ts", "/test"),
+      );
+
+      // Model is available immediately because getModel returns it
+      expect(result.current).toBe(mockModel);
+
+      // getOrCreateModel is NOT called when model is already cached
+      expect(mockRegistry.getOrCreateModel).not.toHaveBeenCalled();
+    });
+
+    it("should trigger async load for cache miss", async () => {
+      // Make getModel always return undefined for this test (simulating cache miss)
+      mockRegistry.getModel.mockReturnValue(undefined);
+
       const { result } = renderHook(() =>
         useMonacoModel("editor-1", "/test/file.ts", "/test"),
       );
@@ -69,26 +103,14 @@ describe("useMonacoModel", () => {
       // Initially null while async loading
       expect(result.current).toBe(null);
 
-      // Wait for the model to load
+      // Wait for async load to be triggered
       await waitFor(() => {
-        expect(result.current).toBe(mockModel);
+        expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
+          "/test/file.ts",
+          "/test",
+          undefined,
+        );
       });
-    });
-
-    it("should return model for valid file path", async () => {
-      const { result } = renderHook(() =>
-        useMonacoModel("editor-1", "/test/file.ts", "/test"),
-      );
-
-      await waitFor(() => {
-        expect(result.current).toBe(mockModel);
-      });
-
-      expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
-        "/test/file.ts",
-        "/test",
-        undefined,
-      );
     });
 
     it("should return null for null file path", () => {
@@ -154,8 +176,8 @@ describe("useMonacoModel", () => {
   // ===========================================================================
 
   describe("file path changes", () => {
-    it("should handle file path change correctly", async () => {
-      const { result, rerender } = renderHook(
+    it("should release reference when file path changes", async () => {
+      const { rerender } = renderHook(
         ({ editorId, filePath, cwd }) =>
           useMonacoModel(editorId, filePath, cwd),
         {
@@ -167,36 +189,27 @@ describe("useMonacoModel", () => {
         },
       );
 
-      await waitFor(() => {
-        expect(result.current).toBe(mockModel);
-      });
-
       const firstModelKey = createModelKey("/test/file1.ts", undefined);
 
       // Change to a different file
-      rerender({
-        editorId: "editor-1",
-        filePath: "/test/file2.ts",
-        cwd: "/test",
+      await act(async () => {
+        rerender({
+          editorId: "editor-1",
+          filePath: "/test/file2.ts",
+          cwd: "/test",
+        });
       });
 
-      // Should remove reference from old file
-      expect(mockRegistry.removeReference).toHaveBeenCalledWith(
-        firstModelKey,
-        "editor-1",
-      );
-
-      // Should get/create model for new file
+      // Verify the effect ran and released reference from old file
       await waitFor(() => {
-        expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
-          "/test/file2.ts",
-          "/test",
-          undefined,
+        expect(mockRegistry.removeReference).toHaveBeenCalledWith(
+          firstModelKey,
+          "editor-1",
         );
       });
     });
 
-    it("should handle change from file to null", async () => {
+    it("should release reference when file path becomes null", async () => {
       const { result, rerender } = renderHook(
         ({ editorId, filePath, cwd }) =>
           useMonacoModel(editorId, filePath, cwd),
@@ -209,25 +222,28 @@ describe("useMonacoModel", () => {
         },
       );
 
-      await waitFor(() => {
-        expect(result.current).toBe(mockModel);
-      });
+      // Model is available immediately (cached)
+      expect(result.current).toBe(mockModel);
 
       // Change to null
-      rerender({ editorId: "editor-1", filePath: null, cwd: "/test" });
+      await act(async () => {
+        rerender({ editorId: "editor-1", filePath: null, cwd: "/test" });
+      });
 
-      // Should remove reference
-      expect(mockRegistry.removeReference).toHaveBeenCalledWith(
-        createModelKey("/test/file.ts", undefined),
-        "editor-1",
-      );
-
-      // Model should be null
+      // Model should be null for null filePath
       expect(result.current).toBe(null);
+
+      // Verify reference was released
+      await waitFor(() => {
+        expect(mockRegistry.removeReference).toHaveBeenCalledWith(
+          createModelKey("/test/file.ts", undefined),
+          "editor-1",
+        );
+      });
     });
 
-    it("should handle change from null to file", async () => {
-      const { result, rerender } = renderHook(
+    it("should add reference when file path changes from null", async () => {
+      const { rerender } = renderHook(
         ({ editorId, filePath, cwd }) =>
           useMonacoModel(editorId, filePath, cwd),
         {
@@ -239,25 +255,25 @@ describe("useMonacoModel", () => {
         },
       );
 
-      expect(result.current).toBe(null);
-      expect(mockRegistry.getOrCreateModel).not.toHaveBeenCalled();
+      // No references added for null filePath
+      expect(mockRegistry.addReference).not.toHaveBeenCalled();
 
-      // Change to a file
-      rerender({
-        editorId: "editor-1",
-        filePath: "/test/file.ts",
-        cwd: "/test",
+      // Change to a file (model is cached)
+      await act(async () => {
+        rerender({
+          editorId: "editor-1",
+          filePath: "/test/file.ts",
+          cwd: "/test",
+        });
       });
 
+      // Verify reference was added for new file
       await waitFor(() => {
-        expect(result.current).toBe(mockModel);
+        expect(mockRegistry.addReference).toHaveBeenCalledWith(
+          createModelKey("/test/file.ts", undefined),
+          "editor-1",
+        );
       });
-
-      expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
-        "/test/file.ts",
-        "/test",
-        undefined,
-      );
     });
   });
 
@@ -267,6 +283,8 @@ describe("useMonacoModel", () => {
 
   describe("error handling", () => {
     it("should return null when model creation fails", async () => {
+      // Make getModel return undefined (cache miss) to trigger async load
+      mockRegistry.getModel.mockReturnValue(undefined);
       // Make getOrCreateModel throw an error
       mockRegistry.getOrCreateModel.mockRejectedValueOnce(
         new Error("File not found"),

@@ -56,6 +56,7 @@ import { FileSystemV2APIService } from "../../../../services/FileSystemV2APIServ
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
 import { detectLanguage, pathsEqual } from "../utils";
+import { EditorTracing } from "../utils/editorTracing";
 import { ViewStateRegistry } from "./ViewStateRegistry";
 
 /** Grace period before disposing a model with zero references (ms) */
@@ -209,6 +210,9 @@ export class MonacoModelRegistry {
   /** Event emitter for model state changes */
   private readonly _onModelStateChanged = new EventEmitter<ModelStateEvent>();
 
+  /** Event emitter for model availability changes (for useSyncExternalStore) */
+  private readonly _onModelAvailabilityChanged = new EventEmitter<string>();
+
   /** Maximum number of models (for LRU eviction) */
   private maxModels: number = DEFAULT_MAX_MODELS;
 
@@ -232,6 +236,30 @@ export class MonacoModelRegistry {
    * Event fired when model state changes (dirty, orphaned, external changes).
    */
   readonly onModelStateChanged = this._onModelStateChanged.event;
+
+  /**
+   * Subscribe to model availability changes for a specific model key.
+   *
+   * Used by useSyncExternalStore to synchronously read model state during render.
+   * The callback is called when a model with the given key becomes available.
+   *
+   * @param modelKey - The model key to watch (use createModelKey to generate)
+   * @param callback - Function to call when model availability changes
+   * @returns Unsubscribe function
+   */
+  subscribeToModelAvailability(
+    modelKey: string,
+    callback: () => void,
+  ): () => void {
+    // Subscribe to the event and filter by modelKey
+    const disposable = this._onModelAvailabilityChanged.event((changedKey) => {
+      if (changedKey === modelKey) {
+        callback();
+      }
+    });
+
+    return () => disposable.dispose();
+  }
 
   // ---------------------------------------------------------------------------
   // Public Methods - Model Lifecycle
@@ -259,8 +287,15 @@ export class MonacoModelRegistry {
     cwd: string,
     sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
+    const traceId = EditorTracing.startTrace(
+      filePath,
+      "registry.getOrCreateModel",
+      { cwd, sandboxId },
+    );
+
     // Prevent new loads during disposal
     if (this.isDisposing) {
+      EditorTracing.endTrace(filePath, traceId, { result: "disposing" });
       throw new Error("Registry is being disposed, cannot create new models");
     }
 
@@ -278,6 +313,7 @@ export class MonacoModelRegistry {
       // Update lastUsed timestamp for LRU tracking
       existing.lastUsed = Date.now();
 
+      EditorTracing.endTrace(filePath, traceId, { result: "cache-hit" });
       return existing.model;
     }
 
@@ -289,8 +325,11 @@ export class MonacoModelRegistry {
     const pendingLoad = this.loadingPromises.get(loadingKey);
     if (pendingLoad) {
       // Return the existing promise - don't start a second load
+      EditorTracing.endTrace(filePath, traceId, { result: "pending-load" });
       return pendingLoad;
     }
+
+    EditorTracing.endTrace(filePath, traceId, { result: "cache-miss" });
 
     // Create AbortController for this load
     const abortController = new AbortController();
@@ -694,8 +733,9 @@ export class MonacoModelRegistry {
     }
     this.fsApis.clear();
 
-    // Dispose event emitter
+    // Dispose event emitters
     this._onModelStateChanged.dispose();
+    this._onModelAvailabilityChanged.dispose();
 
     // Reset disposing flag (in case instance is reused)
     this.isDisposing = false;
@@ -821,6 +861,12 @@ export class MonacoModelRegistry {
     signal: AbortSignal,
     sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
+    const createModelTraceId = EditorTracing.startTrace(
+      filePath,
+      "registry.createModel",
+      { cwd, sandboxId },
+    );
+
     // Composite key for registry storage AND Monaco model URI
     // This includes sandboxId for VM isolation, ensuring each VM gets its own Monaco model
     const modelKey = createModelKey(filePath, sandboxId);
@@ -828,25 +874,42 @@ export class MonacoModelRegistry {
 
     // Check if already aborted
     if (signal.aborted) {
+      EditorTracing.endTrace(filePath, createModelTraceId, {
+        result: "aborted",
+      });
       throw new Error("Model load was aborted");
     }
 
-    // Check file size before reading content
-    // Wrapped in try/catch to handle file system errors gracefully
-    let fileSize: number;
+    // Read file content directly - skip separate stat call for performance
+    // (stat was taking 60-314ms due to FileSystem provider initialization overhead)
+    // We check content size after reading instead
+    const readTraceId = EditorTracing.startTrace(filePath, "fs.readTextFile");
+    const ipcSentAt = Date.now();
+    let content: string;
     try {
-      const stats = await fsApi.stat(filePath);
-      fileSize = stats.size;
-    } catch (statError) {
+      content = await fsApi.readTextFile(filePath);
+      const ipcReceivedAt = Date.now();
+      EditorTracing.endTrace(filePath, readTraceId, {
+        contentLength: content.length,
+        ipcSentAt,
+        ipcReceivedAt,
+      });
+    } catch (readError) {
+      EditorTracing.endTrace(filePath, readTraceId, {
+        error: String(readError),
+      });
       // Handle specific file system errors
       const errorMessage =
-        statError instanceof Error ? statError.message : String(statError);
+        readError instanceof Error ? readError.message : String(readError);
 
       // ENOENT - file not found (may have been deleted)
       if (
         errorMessage.includes("ENOENT") ||
         errorMessage.includes("no such file")
       ) {
+        EditorTracing.endTrace(filePath, createModelTraceId, {
+          result: "file-not-found",
+        });
         throw new Error(`File not found: ${filePath}`);
       }
 
@@ -855,49 +918,43 @@ export class MonacoModelRegistry {
         errorMessage.includes("EACCES") ||
         errorMessage.includes("permission denied")
       ) {
+        EditorTracing.endTrace(filePath, createModelTraceId, {
+          result: "permission-denied",
+        });
         throw new Error(`Permission denied: ${filePath}`);
       }
 
       // Re-throw with context for other errors
-      throw new Error(`Failed to stat file "${filePath}": ${errorMessage}`);
+      EditorTracing.endTrace(filePath, createModelTraceId, {
+        result: "read-error",
+      });
+      throw new Error(`Failed to read file "${filePath}": ${errorMessage}`);
     }
 
     // Check abort after async operation
     if (signal.aborted) {
+      EditorTracing.endTrace(filePath, createModelTraceId, {
+        result: "aborted",
+      });
       throw new Error("Model load was aborted");
     }
 
-    // Reject files that exceed the maximum size limit
-    if (fileSize > this.maxFileSize) {
-      throw new FileTooLargeError(filePath, fileSize, this.maxFileSize);
+    // Check content size (use byte count estimate: content.length * 2 for UTF-16)
+    const contentBytes = content.length * 2;
+    if (contentBytes > this.maxFileSize) {
+      EditorTracing.endTrace(filePath, createModelTraceId, {
+        result: "file-too-large",
+      });
+      throw new FileTooLargeError(filePath, contentBytes, this.maxFileSize);
     }
 
     // Warn about large files (above warning threshold but below max)
-    if (fileSize > WARNING_FILE_SIZE) {
+    if (contentBytes > WARNING_FILE_SIZE) {
       this._onModelStateChanged.fire({
         type: "fileSizeWarning",
         uri: modelKey,
-        fileSize,
+        fileSize: contentBytes,
       });
-    }
-
-    // Read file content
-    const content = await fsApi.readTextFile(filePath);
-
-    // Check abort after async operation
-    if (signal.aborted) {
-      throw new Error("Model load was aborted");
-    }
-
-    // Re-check content size after read (file may have grown since stat)
-    // Use byte count estimate (content.length * 2 for UTF-16)
-    const actualContentBytes = content.length * 2;
-    if (actualContentBytes > this.maxFileSize) {
-      throw new FileTooLargeError(
-        filePath,
-        actualContentBytes,
-        this.maxFileSize,
-      );
     }
 
     // Detect language
@@ -909,6 +966,12 @@ export class MonacoModelRegistry {
     const monacoUri = monaco.Uri.parse(modelKey);
     let model = monaco.editor.getModel(monacoUri);
 
+    const monacoTraceId = EditorTracing.startTrace(
+      filePath,
+      "monaco.createModel",
+      { language, reusingExisting: model && !model.isDisposed() },
+    );
+
     if (model && !model.isDisposed()) {
       // Reuse existing model but update content to match disk
       // This handles the HMR case where the model has stale/dirty content
@@ -917,6 +980,8 @@ export class MonacoModelRegistry {
       // Create new Monaco model
       model = monaco.editor.createModel(content, language, monacoUri);
     }
+
+    EditorTracing.endTrace(filePath, monacoTraceId);
 
     // Create entry
     const entry: ModelEntry = {
@@ -945,6 +1010,11 @@ export class MonacoModelRegistry {
 
     // Add to registry
     this.models.set(modelKey, entry);
+
+    // Fire availability event for useSyncExternalStore subscribers
+    this._onModelAvailabilityChanged.fire(modelKey);
+
+    EditorTracing.endTrace(filePath, createModelTraceId, { result: "success" });
 
     return model;
   }

@@ -22,12 +22,13 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { FileText, Folder } from "lucide-react";
 import {
   useScrollPersistence,
   useExpandedPaths,
   useFileTreeContextMenu,
+  useFilePrefetch,
 } from "../../hooks";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
@@ -125,8 +126,11 @@ function sortEntries(entries: DirectoryEntry[]): DirectoryEntry[] {
 
 /**
  * Normal file tree showing directory structure.
+ *
+ * Memoized to prevent unnecessary re-renders when parent props haven't changed.
+ * This is important for performance since the file tree can contain many items.
  */
-export function FileTreeNormal({
+export const FileTreeNormal = memo(function FileTreeNormal({
   paneId,
   cwd,
   fs,
@@ -912,6 +916,11 @@ export function FileTreeNormal({
   });
 
   /**
+   * File prefetch hook - prefetches file content on hover.
+   */
+  const { onFileHover, onFileHoverEnd } = useFilePrefetch({ cwd });
+
+  /**
    * Handle right-click on a file tree item.
    */
   const handleContextMenu = useCallback(
@@ -1047,13 +1056,20 @@ export function FileTreeNormal({
   );
 
   /**
-   * Handle click on an item - also sets focus.
+   * Handle click on an item.
+   *
+   * For files: Don't set focusedPath - we derive focus from selection to avoid
+   * two separate state updates (which causes double renders). The selection
+   * background already highlights the active file.
+   *
+   * For directories: Set focusedPath since directories don't get selected.
    */
   const handleItemClick = useCallback(
     (path: string, type: "file" | "directory") => {
-      setFocusedPath(path);
       if (type === "file") {
         handleSelect(path, type);
+      } else {
+        setFocusedPath(path);
       }
       // For directories, the click handler in FileTreeItem calls onToggleExpand
     },
@@ -1283,6 +1299,7 @@ export function FileTreeNormal({
         const relativePath = getRelativePath(entryPath, cwd);
 
         const isItemRenaming = pathsEqual(renamingPath, entryPath);
+        const isFileSelected = pathsEqual(selectedFile?.path, entryPath);
 
         return (
           <FileTreeItem
@@ -1293,7 +1310,7 @@ export function FileTreeNormal({
             depth={depth}
             gitStatus={status}
             gitStatusMap={relativeGitStatusMap}
-            isSelected={pathsEqual(selectedFile?.path, entryPath)}
+            isSelected={isFileSelected}
             isFocused={pathsEqual(focusedPath, entryPath)}
             isExpanded={isExpanded}
             onSelect={handleItemClick}
@@ -1307,6 +1324,8 @@ export function FileTreeNormal({
               isItemRenaming ? createNameConflictChecker(entryPath) : undefined
             }
             onContextMenu={handleContextMenu}
+            onFileHover={onFileHover}
+            onFileHoverEnd={onFileHoverEnd}
           >
             {entry.type === "directory" &&
               isExpanded &&
@@ -1342,6 +1361,8 @@ export function FileTreeNormal({
       cancelRename,
       createNameConflictChecker,
       handleContextMenu,
+      onFileHover,
+      onFileHoverEnd,
       cwd,
       renderCreationPlaceholder,
       creatingInPath,
@@ -1400,4 +1421,4 @@ export function FileTreeNormal({
       />
     </>
   );
-}
+});
