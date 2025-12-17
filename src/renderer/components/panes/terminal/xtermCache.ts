@@ -246,6 +246,12 @@ export function getOrCreate(
         osc7Disposable.dispose();
         onTitleChangeDisposable.dispose();
 
+        // Dispose WebGL addon if loaded
+        if (newInstance.webgl) {
+          newInstance.webgl.dispose();
+          newInstance.webgl = null;
+        }
+
         terminal.dispose();
         onDataDispose.dispose();
 
@@ -291,6 +297,7 @@ export function attach(paneId: string, container: HTMLElement) {
         // If WebGL context is lost, dispose and set to null
         // The terminal will fall back to the canvas renderer
         webglAddon.dispose();
+        instance.webgl = null;
       });
       instance.terminal.loadAddon(webglAddon);
       instance.webgl = webglAddon;
