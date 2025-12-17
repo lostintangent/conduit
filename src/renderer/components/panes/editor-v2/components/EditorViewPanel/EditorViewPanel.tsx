@@ -43,6 +43,7 @@ import { EditorToolbar } from "../Toolbar/EditorToolbar";
 import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
+import { ImagePreview } from "./ImagePreview";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
@@ -53,6 +54,26 @@ import { RegularEditorWrapper } from "./RegularEditorWrapper";
  * zero-size or incorrectly-sized container.
  */
 const MODE_TRANSITION_DELAY_MS = 50;
+
+/** Image extensions supported for preview */
+const IMAGE_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".ico",
+  ".svg",
+];
+
+/**
+ * Check if a file path is an image that can be previewed.
+ */
+function isImageFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 export interface EditorViewPanelProps {
   /** Unique ID for the editor instance */
@@ -146,7 +167,7 @@ export interface EditorViewPanelProps {
  *
  * Orchestrates the editor view based on the current mode:
  * - `editor`: Shows RegularEditorWrapper
- * - `preview`: Shows MarkdownPreview (for .md files)
+ * - `preview`: Shows MarkdownPreview (for .md files) or ImagePreview (for images)
  * - `diff`: Shows DiffEditorWrapper
  * - `changesReview`: Shows multi-file diff view (TODO: Phase 4+)
  */
@@ -477,8 +498,12 @@ export function EditorViewPanel({
             />
           </EditorErrorBoundary>
         ) : viewMode.type === "preview" ? (
-          // Markdown preview - shows rendered markdown
-          <MarkdownPreview content={previewContent} />
+          // Preview - shows rendered markdown or image
+          isImageFile(filePath) ? (
+            <ImagePreview filePath={filePath} cwd={cwd} sandboxId={sandboxId} />
+          ) : (
+            <MarkdownPreview content={previewContent} />
+          )
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
           <EditorErrorBoundary filePath={filePath}>
