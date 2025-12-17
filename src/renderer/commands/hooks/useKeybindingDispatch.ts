@@ -97,6 +97,11 @@ export function useKeybindingDispatch(
       } else if (currentChordRef.current) {
         // No match for second chord, clear state
         clearChordState();
+      } else if (event.metaKey || event.ctrlKey) {
+        // No command found for a modified key combination (Cmd/Ctrl + something)
+        // This might be handled by another system (e.g., useGlobalKeyHandlers)
+        // Clear pressed keys to prevent stale keys from blocking future keybindings
+        clearPressedKeys();
       }
     };
 
