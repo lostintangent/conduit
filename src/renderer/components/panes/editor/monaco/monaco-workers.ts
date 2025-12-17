@@ -86,6 +86,9 @@ monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
   noSuggestionDiagnostics: true,
 });
 
+// Register Zig language with Monaco (tokenization provided by Shiki)
+monaco.languages.register({ id: "zig", extensions: [".zig", ".zon"] });
+
 // Configure markdown language to support wrapping selections with markdown syntax
 monaco.languages.setLanguageConfiguration("markdown", {
   surroundingPairs: [
@@ -164,6 +167,7 @@ async function initializeShiki() {
         "csharp",
         "php",
         "ruby",
+        "zig",
 
         // Config/data formats
         "dockerfile",
