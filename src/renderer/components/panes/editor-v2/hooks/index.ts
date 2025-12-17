@@ -49,3 +49,16 @@ export type {
 } from "./useDiffModeTransition";
 export { useReviewModeState } from "./useReviewModeState";
 export type { UseReviewModeStateResult } from "./useReviewModeState";
+export { useImagePreview } from "./useImagePreview";
+export type { UseImagePreviewResult } from "./useImagePreview";
+export {
+  isBinaryImage,
+  isSvg,
+  getMimeType,
+  uint8ArrayToBase64,
+} from "./useImagePreview";
+export { useMarkdownPreview } from "./useMarkdownPreview";
+export type {
+  MermaidConfig,
+  UseMarkdownPreviewResult,
+} from "./useMarkdownPreview";
