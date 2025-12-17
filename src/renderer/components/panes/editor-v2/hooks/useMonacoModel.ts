@@ -27,7 +27,6 @@
 import type * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { MonacoModelRegistry, createModelKey } from "../registry";
-import { EditorTracing } from "../utils/editorTracing";
 
 /**
  * Hook to get a Monaco text model for a file.
@@ -140,10 +139,6 @@ export function useMonacoModel(
     // ---------------------------------------------------------------------------
     const cachedModel = registry.getModel(currentModelKey);
     if (cachedModel && !cachedModel.isDisposed()) {
-      EditorTracing.logTiming("useMonacoModel.syncHit", 0, {
-        filePath: filePath.split("/").pop(),
-        editorId,
-      });
       registry.addReference(currentModelKey, editorId);
       hasReferenceRef.current = true;
 
@@ -160,19 +155,12 @@ export function useMonacoModel(
     // Model not cached - trigger async load
     // ---------------------------------------------------------------------------
     const loadModel = async () => {
-      const traceId = EditorTracing.startTrace(filePath, "useMonacoModel", {
-        editorId,
-        cwd,
-        sandboxId,
-      });
-
       try {
         // Get or create the model (this adds it to registry and fires event)
         await registry.getOrCreateModel(filePath, cwd, sandboxId);
 
         // Check if this effect was cleaned up while loading
         if (loadingAborted) {
-          EditorTracing.endTrace(filePath, traceId, { result: "aborted" });
           return;
         }
 
@@ -180,14 +168,9 @@ export function useMonacoModel(
         registry.addReference(currentModelKey, editorId);
         hasReferenceRef.current = true;
 
-        EditorTracing.endTrace(filePath, traceId, { result: "success" });
         // Note: useSyncExternalStore will automatically re-render because
         // the registry fires _onModelAvailabilityChanged when model is added
       } catch (error) {
-        EditorTracing.endTrace(filePath, traceId, {
-          result: "error",
-          error: String(error),
-        });
         console.error(`Failed to load model for ${filePath}:`, error);
       }
     };

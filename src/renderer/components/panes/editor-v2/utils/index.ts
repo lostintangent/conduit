@@ -11,5 +11,4 @@ export {
   getParentPaths,
   normalizePathForKey,
 } from "./pathUtils";
-export { EditorTracing } from "./editorTracing";
 export { forceTokenizeVisibleLines } from "./tokenization";

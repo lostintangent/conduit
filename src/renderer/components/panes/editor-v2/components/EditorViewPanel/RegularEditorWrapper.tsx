@@ -35,7 +35,7 @@ import {
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry";
-import { EditorTracing, forceTokenizeVisibleLines } from "../../utils";
+import { forceTokenizeVisibleLines } from "../../utils";
 import type { AutoSizeConfig } from "./constants";
 
 /** Debounce delay for ViewState saves (ms) */
@@ -127,9 +127,6 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
   onMount,
   autoSize,
 }: RegularEditorWrapperProps) {
-  // Trace render timing
-  const renderStartTime = performance.now();
-
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
   const theme = themeProp ?? defaultTheme;
@@ -160,18 +157,6 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
   // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
   // as EditorRegistry for proper lifecycle coordination
   const model = useMonacoModel(editorId, filePath, cwd, sandboxId);
-
-  // Log render timing only on mount/model change (not every render)
-  useEffect(() => {
-    EditorTracing.logTiming(
-      "RegularEditorWrapper.mount",
-      performance.now() - renderStartTime,
-      {
-        filePath: filePath.split("/").pop(),
-        hasModel: !!model,
-      },
-    );
-  }, [filePath, model, renderStartTime]);
 
   // Auto-sizing hook - adjusts height based on content when config is provided
   const { containerStyle } = useAutoSizeEditor({
@@ -315,12 +300,6 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
       return;
     }
 
-    const attachTraceId = EditorTracing.startTrace(
-      filePath,
-      "editor.attachModel",
-      { editorId },
-    );
-
     const viewStateRegistry = ViewStateRegistry.getInstance();
 
     // Save ViewState for previous file before switching
@@ -332,9 +311,7 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
     }
 
     // Attach model to editor
-    const setModelStart = performance.now();
     editor.setModel(model);
-    const setModelDuration = performance.now() - setModelStart;
 
     // Force immediate tokenization to prevent white flash before syntax highlighting
     forceTokenizeVisibleLines(model);
@@ -354,13 +331,6 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
     contentChangeDisposableRef.current = model.onDidChangeContent(() => {
       onChangeRef.current?.(model.getValue());
     });
-
-    EditorTracing.endTrace(filePath, attachTraceId, {
-      setModelMs: setModelDuration.toFixed(1),
-    });
-
-    // End the session after model is attached (file is now visible)
-    EditorTracing.endSession(filePath);
 
     return () => {
       // Cleanup content change listener

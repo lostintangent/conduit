@@ -56,7 +56,6 @@ import { FileSystemV2APIService } from "../../../../services/FileSystemV2APIServ
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
 import { detectLanguage, pathsEqual } from "../utils";
-import { EditorTracing } from "../utils/editorTracing";
 import { ViewStateRegistry } from "./ViewStateRegistry";
 
 /** Grace period before disposing a model with zero references (ms) */
@@ -287,15 +286,8 @@ export class MonacoModelRegistry {
     cwd: string,
     sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
-    const traceId = EditorTracing.startTrace(
-      filePath,
-      "registry.getOrCreateModel",
-      { cwd, sandboxId },
-    );
-
     // Prevent new loads during disposal
     if (this.isDisposing) {
-      EditorTracing.endTrace(filePath, traceId, { result: "disposing" });
       throw new Error("Registry is being disposed, cannot create new models");
     }
 
@@ -313,7 +305,6 @@ export class MonacoModelRegistry {
       // Update lastUsed timestamp for LRU tracking
       existing.lastUsed = Date.now();
 
-      EditorTracing.endTrace(filePath, traceId, { result: "cache-hit" });
       return existing.model;
     }
 
@@ -325,11 +316,8 @@ export class MonacoModelRegistry {
     const pendingLoad = this.loadingPromises.get(loadingKey);
     if (pendingLoad) {
       // Return the existing promise - don't start a second load
-      EditorTracing.endTrace(filePath, traceId, { result: "pending-load" });
       return pendingLoad;
     }
-
-    EditorTracing.endTrace(filePath, traceId, { result: "cache-miss" });
 
     // Create AbortController for this load
     const abortController = new AbortController();
@@ -861,12 +849,6 @@ export class MonacoModelRegistry {
     signal: AbortSignal,
     sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
-    const createModelTraceId = EditorTracing.startTrace(
-      filePath,
-      "registry.createModel",
-      { cwd, sandboxId },
-    );
-
     // Composite key for registry storage AND Monaco model URI
     // This includes sandboxId for VM isolation, ensuring each VM gets its own Monaco model
     const modelKey = createModelKey(filePath, sandboxId);
@@ -874,30 +856,16 @@ export class MonacoModelRegistry {
 
     // Check if already aborted
     if (signal.aborted) {
-      EditorTracing.endTrace(filePath, createModelTraceId, {
-        result: "aborted",
-      });
       throw new Error("Model load was aborted");
     }
 
     // Read file content directly - skip separate stat call for performance
     // (stat was taking 60-314ms due to FileSystem provider initialization overhead)
     // We check content size after reading instead
-    const readTraceId = EditorTracing.startTrace(filePath, "fs.readTextFile");
-    const ipcSentAt = Date.now();
     let content: string;
     try {
       content = await fsApi.readTextFile(filePath);
-      const ipcReceivedAt = Date.now();
-      EditorTracing.endTrace(filePath, readTraceId, {
-        contentLength: content.length,
-        ipcSentAt,
-        ipcReceivedAt,
-      });
     } catch (readError) {
-      EditorTracing.endTrace(filePath, readTraceId, {
-        error: String(readError),
-      });
       // Handle specific file system errors
       const errorMessage =
         readError instanceof Error ? readError.message : String(readError);
@@ -907,9 +875,6 @@ export class MonacoModelRegistry {
         errorMessage.includes("ENOENT") ||
         errorMessage.includes("no such file")
       ) {
-        EditorTracing.endTrace(filePath, createModelTraceId, {
-          result: "file-not-found",
-        });
         throw new Error(`File not found: ${filePath}`);
       }
 
@@ -918,33 +883,21 @@ export class MonacoModelRegistry {
         errorMessage.includes("EACCES") ||
         errorMessage.includes("permission denied")
       ) {
-        EditorTracing.endTrace(filePath, createModelTraceId, {
-          result: "permission-denied",
-        });
         throw new Error(`Permission denied: ${filePath}`);
       }
 
       // Re-throw with context for other errors
-      EditorTracing.endTrace(filePath, createModelTraceId, {
-        result: "read-error",
-      });
       throw new Error(`Failed to read file "${filePath}": ${errorMessage}`);
     }
 
     // Check abort after async operation
     if (signal.aborted) {
-      EditorTracing.endTrace(filePath, createModelTraceId, {
-        result: "aborted",
-      });
       throw new Error("Model load was aborted");
     }
 
     // Check content size (use byte count estimate: content.length * 2 for UTF-16)
     const contentBytes = content.length * 2;
     if (contentBytes > this.maxFileSize) {
-      EditorTracing.endTrace(filePath, createModelTraceId, {
-        result: "file-too-large",
-      });
       throw new FileTooLargeError(filePath, contentBytes, this.maxFileSize);
     }
 
@@ -966,12 +919,6 @@ export class MonacoModelRegistry {
     const monacoUri = monaco.Uri.parse(modelKey);
     let model = monaco.editor.getModel(monacoUri);
 
-    const monacoTraceId = EditorTracing.startTrace(
-      filePath,
-      "monaco.createModel",
-      { language, reusingExisting: model && !model.isDisposed() },
-    );
-
     if (model && !model.isDisposed()) {
       // Reuse existing model but update content to match disk
       // This handles the HMR case where the model has stale/dirty content
@@ -980,8 +927,6 @@ export class MonacoModelRegistry {
       // Create new Monaco model
       model = monaco.editor.createModel(content, language, monacoUri);
     }
-
-    EditorTracing.endTrace(filePath, monacoTraceId);
 
     // Create entry
     const entry: ModelEntry = {
@@ -1013,8 +958,6 @@ export class MonacoModelRegistry {
 
     // Fire availability event for useSyncExternalStore subscribers
     this._onModelAvailabilityChanged.fire(modelKey);
-
-    EditorTracing.endTrace(filePath, createModelTraceId, { result: "success" });
 
     return model;
   }

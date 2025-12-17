@@ -34,11 +34,7 @@ import {
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
-import {
-  EditorTracing,
-  detectLanguage,
-  forceTokenizeVisibleLines,
-} from "../../utils";
+import { detectLanguage, forceTokenizeVisibleLines } from "../../utils";
 import type { AutoSizeConfig } from "./constants";
 
 export interface DiffEditorWrapperProps {
@@ -269,12 +265,6 @@ export function DiffEditorWrapper({
       return;
     }
 
-    const attachTraceId = EditorTracing.startTrace(
-      filePath,
-      "diffEditor.attachModels",
-      { editorId },
-    );
-
     // Wrap in try-catch to prevent any errors from crashing the app
     try {
       // Create original model (read-only, we own this)
@@ -295,34 +285,22 @@ export function DiffEditorWrapper({
         `inmemory://original/${editorId}/${filePath}`,
       );
 
-      const createOriginalStart = performance.now();
       originalModelRef.current = monaco.editor.createModel(
         diffContent.original,
         language,
         originalUri,
       );
-      const createOriginalDuration = performance.now() - createOriginalStart;
 
       // Set the diff models
-      const setModelStart = performance.now();
       diffEditor.setModel({
         original: originalModelRef.current,
         modified: modifiedModel,
       });
-      const setModelDuration = performance.now() - setModelStart;
 
       // Force immediate tokenization to prevent white flash before syntax highlighting
       forceTokenizeVisibleLines(originalModelRef.current);
       forceTokenizeVisibleLines(modifiedModel);
-
-      EditorTracing.endTrace(filePath, attachTraceId, {
-        createOriginalMs: createOriginalDuration.toFixed(1),
-        setModelMs: setModelDuration.toFixed(1),
-      });
     } catch (error) {
-      EditorTracing.endTrace(filePath, attachTraceId, {
-        error: String(error),
-      });
       console.error("Error setting up diff editor models:", error);
       return;
     }
@@ -336,9 +314,6 @@ export function DiffEditorWrapper({
         modifiedEditor,
       );
     }
-
-    // End the session after models are attached (diff is now visible)
-    EditorTracing.endSession(filePath);
 
     // Automatically scroll to the first diff after a short delay
     // to ensure diff computation is complete

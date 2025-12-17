@@ -36,7 +36,6 @@ import {
 } from "../../hooks";
 import { createModelKey, MonacoModelRegistry } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
-import { EditorTracing } from "../../utils/editorTracing";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
@@ -169,16 +168,6 @@ export const EditorViewPanel = memo(function EditorViewPanel({
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
-
-  // Trace render timing - log only on mount/filePath change (not every render)
-  useEffect(() => {
-    if (filePath) {
-      EditorTracing.logTiming("EditorViewPanel.mount", 0, {
-        filePath: filePath.split("/").pop(),
-        viewMode: viewMode.type,
-      });
-    }
-  }, [filePath, viewMode.type]);
 
   // Calculate display path relative to cwd (like v1)
   const displayFilePath = useMemo(() => {
