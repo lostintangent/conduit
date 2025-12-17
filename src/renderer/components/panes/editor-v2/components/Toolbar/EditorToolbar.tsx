@@ -21,6 +21,7 @@ import {
   GitCompare,
   PanelLeftOpen,
 } from "lucide-react";
+import { useCallback, useState } from "react";
 import type { ModelState } from "../../types";
 import { EditorActionButtons } from "../shared";
 
@@ -109,9 +110,18 @@ export function EditorToolbar({
   onTogglePreviewMode,
 }: EditorToolbarProps) {
   const isDirty = modelState?.isDirty ?? false;
+  const [copied, setCopied] = useState(false);
 
   // Use displayPath if provided, otherwise fall back to filePath
   const pathToShow = displayPath ?? filePath ?? "";
+
+  const handleCopyPath = useCallback(() => {
+    if (pathToShow) {
+      navigator.clipboard.writeText(pathToShow);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }, [pathToShow]);
 
   // Common button class matching v1
   const buttonClass =
@@ -180,15 +190,21 @@ export function EditorToolbar({
           />
         )}
 
-        {/* File name with full path tooltip */}
+        {/* File name with full path tooltip - click to copy */}
         {pathToShow && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate">
+              <button
+                type="button"
+                onClick={handleCopyPath}
+                className="truncate cursor-pointer hover:text-foreground/80 transition-colors text-left"
+              >
                 {pathToShow.split("/").pop() ?? pathToShow}
-              </span>
+              </button>
             </TooltipTrigger>
-            <TooltipContent>{pathToShow}</TooltipContent>
+            <TooltipContent>
+              {copied ? "Copied!" : `${pathToShow} - Click to copy`}
+            </TooltipContent>
           </Tooltip>
         )}
 

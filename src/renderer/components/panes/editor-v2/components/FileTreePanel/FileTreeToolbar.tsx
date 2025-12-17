@@ -20,6 +20,7 @@ import {
 import { userSettingsAtom } from "@/store/atoms";
 import { useAtomValue } from "jotai";
 import { FolderUp, PanelLeftClose } from "lucide-react";
+import { useCallback, useState } from "react";
 
 export interface FileTreeToolbarProps {
   /** Current working directory */
@@ -103,9 +104,18 @@ export function FileTreeToolbar({
   const displayPath = formatDisplayPath(cwd, homeDirectory);
   const isRoot = isAtRoot(cwd);
   const canGoUp = canNavigateUp && !isRoot;
+  const [copied, setCopied] = useState(false);
 
   // Suppress unused variable warning
   void isCollapsed;
+
+  const handleCopyPath = useCallback(() => {
+    if (cwd) {
+      navigator.clipboard.writeText(cwd);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }, [cwd]);
 
   // Common button class matching v1
   const buttonClass =
@@ -143,10 +153,22 @@ export function FileTreeToolbar({
           </Tooltip>
         )}
 
-        {/* Current directory */}
-        <span className="truncate" title={cwd} data-testid="current-directory">
-          {displayPath}
-        </span>
+        {/* Current directory - click to copy */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={handleCopyPath}
+              className="truncate cursor-pointer hover:text-foreground/80 transition-colors text-left"
+              data-testid="current-directory"
+            >
+              {displayPath}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {copied ? "Copied!" : `${cwd} - Click to copy`}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Right side: navigate up button */}
