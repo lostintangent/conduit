@@ -113,6 +113,12 @@ const registerTerminalKeyHandler = ({
       event.key.toLowerCase() === "c"
     ) {
       if (terminal.hasSelection()) {
+        if (api.platform === "win32") {
+          // On Windows, we need to explicitly copy the selection to the clipboard
+          // because returning true to let the browser handle it doesn't work in Electron.
+          navigator.clipboard.writeText(terminal.getSelection());
+          return false;
+        }
         return true;
       }
 
