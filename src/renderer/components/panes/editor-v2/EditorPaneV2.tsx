@@ -937,6 +937,31 @@ export function EditorPaneV2({
   }, [initialPreview, isPreviewSupported, setViewMode]);
 
   /**
+   * Reset view mode to editor when switching to a file that doesn't support
+   * the current mode (e.g., was in diff mode but new file has no diff,
+   * or was in preview mode but new file doesn't support preview).
+   */
+  useEffect(() => {
+    if (!selectedFile) return;
+
+    // Reset preview mode if new file doesn't support preview
+    if (viewMode.type === "preview" && !isPreviewSupported) {
+      setViewMode({ type: "editor" });
+    }
+
+    // Reset diff mode if new file isn't git-modified
+    if (viewMode.type === "diff" && !isCurrentFileGitModified) {
+      setViewMode({ type: "editor" });
+    }
+  }, [
+    selectedFile?.path,
+    viewMode.type,
+    isPreviewSupported,
+    isCurrentFileGitModified,
+    setViewMode,
+  ]);
+
+  /**
    * Handle toggling between preview and editor modes.
    */
   const handleTogglePreviewMode = useCallback(

@@ -7,19 +7,22 @@
  * - size={14} icons
  */
 
-import { ChevronLeft, PanelLeftOpen } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { ModelState } from "../../types";
 import {
-  EditorActionButtons,
-  DiffModeToggle,
-  PreviewModeToggle,
-} from "../shared";
+  ChevronLeft,
+  Code,
+  Eye,
+  GitCompare,
+  PanelLeftOpen,
+} from "lucide-react";
+import type { ModelState } from "../../types";
+import { EditorActionButtons } from "../shared";
 
 export interface EditorToolbarProps {
   /** Current model state (dirty, orphaned, etc.) */
@@ -189,36 +192,47 @@ export function EditorToolbar({
           </Tooltip>
         )}
 
-        {/* Diff/Edit mode toggle (only for git-modified files) */}
-        {showDiffToggle && onToggleDiffMode && (
+        {/* Editor/Diff/Preview mode toggle group (only shown when diff or preview is available) */}
+        {(showDiffToggle || showPreviewToggle) && (
           <>
             <Separator
               orientation="vertical"
               className="h-4 mx-1 bg-elevated-border"
             />
-            <DiffModeToggle
-              isDiffMode={isDiffMode}
-              onToggle={() => onToggleDiffMode(!isDiffMode)}
-              variant="toolbar"
-            />
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              className="gap-0 h-5.5 [&>*]:h-5.5 [&>*]:px-1.5 [&>*]:py-0 [&>*:first-child]:rounded-r-none [&>*:last-child]:rounded-l-none [&>*:not(:first-child):not(:last-child)]:rounded-none [&>*:not(:first-child)]:-ml-px"
+              value={isPreviewMode ? "preview" : isDiffMode ? "diff" : "editor"}
+              onValueChange={(value) => {
+                if (!value) return; // Don't allow deselecting
+                if (value === "editor") {
+                  onToggleDiffMode?.(false);
+                  onTogglePreviewMode?.(false);
+                } else if (value === "diff") {
+                  onToggleDiffMode?.(true);
+                } else if (value === "preview") {
+                  onTogglePreviewMode?.(true);
+                }
+              }}
+            >
+              <ToggleGroupItem value="editor" aria-label="Editor mode">
+                <Code className="w-3 h-3" />
+              </ToggleGroupItem>
+              {showDiffToggle && (
+                <ToggleGroupItem value="diff" aria-label="Diff mode">
+                  <GitCompare className="w-3 h-3" />
+                </ToggleGroupItem>
+              )}
+              {showPreviewToggle && (
+                <ToggleGroupItem value="preview" aria-label="Preview mode">
+                  <Eye className="w-3 h-3" />
+                </ToggleGroupItem>
+              )}
+            </ToggleGroup>
           </>
         )}
-
-        {/* Preview/Edit mode toggle (for supported file types like .md) */}
-        {showPreviewToggle && onTogglePreviewMode && (
-          <>
-            <Separator
-              orientation="vertical"
-              className="h-4 mx-1 bg-elevated-border"
-            />
-            <PreviewModeToggle
-              isPreviewMode={isPreviewMode}
-              onToggle={() => onTogglePreviewMode(!isPreviewMode)}
-              variant="toolbar"
-            />
-          </>
-        )}
-
         {/* Edit actions (after file path, with separator) */}
         {pathToShow && !isPreviewMode && (
           <>
