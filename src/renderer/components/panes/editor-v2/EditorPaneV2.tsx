@@ -40,6 +40,7 @@ import {
   EditorViewPanel,
   FileTreePanel,
   TreeResizer,
+  type FileTreePanelHandle,
 } from "./components";
 import {
   useEditorTheme,
@@ -267,6 +268,7 @@ export function EditorPaneV2({
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const treePanelRef = useRef<HTMLDivElement>(null);
+  const fileTreeRef = useRef<FileTreePanelHandle>(null);
 
   // ---------------------------------------------------------------------------
   // State
@@ -1053,22 +1055,39 @@ export function EditorPaneV2({
     });
   }, [isTreeCollapsed]);
 
+  /**
+   * Reveal and focus the currently selected file in the file tree.
+   * Expands parent directories if needed and focuses the file item.
+   */
+  const handleRevealActiveFile = useCallback(() => {
+    // Ensure tree is visible first
+    if (isTreeCollapsed) {
+      setIsTreeCollapsed(false);
+    }
+
+    // Call the imperative method on the file tree
+    requestAnimationFrame(() => {
+      fileTreeRef.current?.revealActiveFile();
+    });
+  }, [isTreeCollapsed]);
+
   // ---------------------------------------------------------------------------
   // Command Registration
   // ---------------------------------------------------------------------------
 
   /**
    * Register editor command handlers with the command system.
-   * This allows keyboard shortcuts (Cmd+B, Cmd+Shift+E) to control this pane.
+   * This allows keyboard shortcuts (Cmd+B, Cmd+Shift+T) to control this pane.
    */
   useEffect(() => {
     const cleanup = registerEditorHandlers(pane.id, {
       toggleSidebar: handleToggleTree,
       focusSidebar: handleFocusTree,
+      revealActiveFile: handleRevealActiveFile,
     });
 
     return cleanup;
-  }, [pane.id, handleToggleTree, handleFocusTree]);
+  }, [pane.id, handleToggleTree, handleFocusTree, handleRevealActiveFile]);
 
   /**
    * Keyboard shortcuts for editor actions.
@@ -1127,6 +1146,7 @@ export function EditorPaneV2({
         tabIndex={-1}
       >
         <FileTreePanel
+          ref={fileTreeRef}
           paneId={pane.id}
           cwd={currentCwd}
           fs={fs}

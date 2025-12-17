@@ -57,6 +57,7 @@ export type {
   FileTreeChangesProps,
   FileTreeItemProps,
   FileTreeNormalProps,
+  FileTreePanelHandle,
   FileTreePanelProps,
 } from "./FileTreePanel";
 

@@ -1442,20 +1442,20 @@ export function registerApplicationCommands(
     },
   });
 
-  // Editor: Focus Sidebar
+  // Editor: Reveal Active File in File Tree
   commandRegistry.registerCommand({
     id: ApplicationCommands.EDITOR_FOCUS_SIDEBAR,
-    title: "Focus File Tree",
-    description: "Show and focus the file tree sidebar in the editor",
+    title: "Reveal Active File in File Tree",
+    description: "Reveal and select the currently active file in the file tree",
     category: "Editor",
     keybinding: {
-      key: "Cmd+Shift+E",
-      win: "Ctrl+Shift+E",
+      key: "Cmd+Shift+T",
+      win: "Ctrl+Shift+T",
     },
     when: activePaneType.equals("editor"),
     run: (context) => {
       if (context.activePaneId) {
-        invokeEditorCommand(context.activePaneId, "focusSidebar");
+        invokeEditorCommand(context.activePaneId, "revealActiveFile");
       }
     },
   });

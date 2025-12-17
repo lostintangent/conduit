@@ -23,16 +23,22 @@
  * ```
  */
 
-import { memo } from "react";
+import { memo, forwardRef } from "react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { FileNode, TreeViewMode } from "../../types";
 import { FileTreeToolbar } from "./FileTreeToolbar";
-import { FileTreeNormal } from "./FileTreeNormal";
+import { FileTreeNormal, type FileTreeNormalHandle } from "./FileTreeNormal";
 import { FileTreeChanges } from "./FileTreeChanges";
 import { GitBranchToolbar } from "./GitBranchToolbar";
 import { cn } from "@/utils";
+
+/**
+ * Handle type for imperative methods exposed by FileTreePanel.
+ * Re-exports the same interface as FileTreeNormal for convenience.
+ */
+export type FileTreePanelHandle = FileTreeNormalHandle;
 
 export interface FileTreePanelProps {
   /** Editor pane ID (for scroll persistence) */
@@ -163,150 +169,156 @@ export interface FileTreePanelProps {
  * Memoized to prevent unnecessary re-renders when parent state changes
  * but props remain the same (e.g., file selection in editor).
  */
-export const FileTreePanel = memo(function FileTreePanel({
-  paneId,
-  cwd,
-  fs,
-  git,
-  selectedFile,
-  onFileSelect,
-  treeViewMode,
-  onTreeViewModeChange,
-  // Git Branch Props
-  currentBranch,
-  baseBranch,
-  isComparingToBranch = false,
-  gitStatus,
-  changedFilesCount = 0,
-  onOpenBranchPicker,
-  isReviewModeActive = false,
-  // Git Operations Props
-  stagedCount = 0,
-  onPull,
-  onPush,
-  isPulling = false,
-  isPushing = false,
-  hasUpstream = true,
-  commitMessage = "",
-  onCommitMessageChange,
-  onCommit,
-  isCommitting = false,
-  onReviewChanges,
-  onBranchSwitch,
-  // Navigation Props
-  canNavigateUp = false,
-  onNavigateUp,
-  isTreeCollapsed = false,
-  onToggleCollapse,
-  showCollapseButton = false,
-  onDirectoryChange,
-  // Changes View Mode Props
-  changesViewMode = "flat",
-  onChangesViewModeChange,
-}: FileTreePanelProps) {
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
+export const FileTreePanel = memo(
+  forwardRef<FileTreePanelHandle, FileTreePanelProps>(function FileTreePanel(
+    {
+      paneId,
+      cwd,
+      fs,
+      git,
+      selectedFile,
+      onFileSelect,
+      treeViewMode,
+      onTreeViewModeChange,
+      // Git Branch Props
+      currentBranch,
+      baseBranch,
+      isComparingToBranch = false,
+      gitStatus,
+      changedFilesCount = 0,
+      onOpenBranchPicker,
+      isReviewModeActive = false,
+      // Git Operations Props
+      stagedCount = 0,
+      onPull,
+      onPush,
+      isPulling = false,
+      isPushing = false,
+      hasUpstream = true,
+      commitMessage = "",
+      onCommitMessageChange,
+      onCommit,
+      isCommitting = false,
+      onReviewChanges,
+      onBranchSwitch,
+      // Navigation Props
+      canNavigateUp = false,
+      onNavigateUp,
+      isTreeCollapsed = false,
+      onToggleCollapse,
+      showCollapseButton = false,
+      onDirectoryChange,
+      // Changes View Mode Props
+      changesViewMode = "flat",
+      onChangesViewModeChange,
+    },
+    ref,
+  ) {
+    // ---------------------------------------------------------------------------
+    // Handlers
+    // ---------------------------------------------------------------------------
 
-  /**
-   * Handle navigate up - only call if handler is provided.
-   */
-  const handleNavigateUp = () => {
-    onNavigateUp?.();
-  };
+    /**
+     * Handle navigate up - only call if handler is provided.
+     */
+    const handleNavigateUp = () => {
+      onNavigateUp?.();
+    };
 
-  /**
-   * Handle filter toggle - switches between files and changes view.
-   */
-  const handleFilterToggle = () => {
-    onTreeViewModeChange(treeViewMode === "changes" ? "files" : "changes");
-  };
+    /**
+     * Handle filter toggle - switches between files and changes view.
+     */
+    const handleFilterToggle = () => {
+      onTreeViewModeChange(treeViewMode === "changes" ? "files" : "changes");
+    };
 
-  return (
-    <div
-      className="flex flex-col h-full bg-background"
-      data-testid="file-tree-panel"
-    >
-      {/* Navigation Toolbar */}
-      {onNavigateUp && (
-        <FileTreeToolbar
-          cwd={cwd}
-          canNavigateUp={canNavigateUp}
-          onNavigateUp={handleNavigateUp}
-          isCollapsed={isTreeCollapsed}
-          onToggleCollapse={onToggleCollapse}
-          showCollapseButton={showCollapseButton}
+    return (
+      <div
+        className="flex flex-col h-full bg-background"
+        data-testid="file-tree-panel"
+      >
+        {/* Navigation Toolbar */}
+        {onNavigateUp && (
+          <FileTreeToolbar
+            cwd={cwd}
+            canNavigateUp={canNavigateUp}
+            onNavigateUp={handleNavigateUp}
+            isCollapsed={isTreeCollapsed}
+            onToggleCollapse={onToggleCollapse}
+            showCollapseButton={showCollapseButton}
+          />
+        )}
+
+        {/* Git Branch Toolbar */}
+        <GitBranchToolbar
+          currentBranch={currentBranch ?? null}
+          baseBranch={baseBranch ?? null}
+          git={git}
+          showOnlyChangedFiles={treeViewMode === "changes"}
+          isReviewModeActive={isReviewModeActive}
+          onBranchSwitch={onBranchSwitch}
+          changedFilesCount={changedFilesCount}
+          gitStatus={gitStatus}
+          onFilterToggle={handleFilterToggle}
+          onOpenBranchPicker={onOpenBranchPicker}
+          onPull={onPull}
+          onPush={onPush}
+          isPulling={isPulling}
+          isPushing={isPushing}
+          hasUpstream={hasUpstream}
+          commitMessage={commitMessage}
+          onCommitMessageChange={onCommitMessageChange}
+          onCommit={onCommit}
+          hasStagedFiles={stagedCount > 0}
+          isCommitting={isCommitting}
+          onReviewChanges={onReviewChanges}
+          changesViewMode={changesViewMode}
+          onChangesViewModeChange={onChangesViewModeChange}
         />
-      )}
 
-      {/* Git Branch Toolbar */}
-      <GitBranchToolbar
-        currentBranch={currentBranch ?? null}
-        baseBranch={baseBranch ?? null}
-        git={git}
-        showOnlyChangedFiles={treeViewMode === "changes"}
-        isReviewModeActive={isReviewModeActive}
-        onBranchSwitch={onBranchSwitch}
-        changedFilesCount={changedFilesCount}
-        gitStatus={gitStatus}
-        onFilterToggle={handleFilterToggle}
-        onOpenBranchPicker={onOpenBranchPicker}
-        onPull={onPull}
-        onPush={onPush}
-        isPulling={isPulling}
-        isPushing={isPushing}
-        hasUpstream={hasUpstream}
-        commitMessage={commitMessage}
-        onCommitMessageChange={onCommitMessageChange}
-        onCommit={onCommit}
-        hasStagedFiles={stagedCount > 0}
-        isCommitting={isCommitting}
-        onReviewChanges={onReviewChanges}
-        changesViewMode={changesViewMode}
-        onChangesViewModeChange={onChangesViewModeChange}
-      />
+        {/* Tree content - both mounted, visibility toggled */}
+        <div className="flex-1 min-h-0 relative">
+          {/* Files view */}
+          <div
+            className={cn(
+              "absolute inset-0",
+              treeViewMode === "files" ? "block" : "hidden",
+            )}
+          >
+            <FileTreeNormal
+              ref={ref}
+              paneId={paneId}
+              cwd={cwd}
+              fs={fs}
+              git={git}
+              selectedFile={selectedFile}
+              onFileSelect={onFileSelect}
+              onDirectoryChange={onDirectoryChange}
+              gitStatus={gitStatus}
+            />
+          </div>
 
-      {/* Tree content - both mounted, visibility toggled */}
-      <div className="flex-1 min-h-0 relative">
-        {/* Files view */}
-        <div
-          className={cn(
-            "absolute inset-0",
-            treeViewMode === "files" ? "block" : "hidden",
-          )}
-        >
-          <FileTreeNormal
-            paneId={paneId}
-            cwd={cwd}
-            fs={fs}
-            git={git}
-            selectedFile={selectedFile}
-            onFileSelect={onFileSelect}
-            onDirectoryChange={onDirectoryChange}
-            gitStatus={gitStatus}
-          />
-        </div>
-
-        {/* Changes view */}
-        <div
-          className={cn(
-            "absolute inset-0",
-            treeViewMode === "changes" ? "block" : "hidden",
-          )}
-        >
-          <FileTreeChanges
-            paneId={paneId}
-            cwd={cwd}
-            git={git}
-            selectedFile={selectedFile}
-            onFileSelect={onFileSelect}
-            viewMode={changesViewMode}
-            gitStatus={gitStatus}
-            isComparingToBranch={isComparingToBranch}
-            baseBranchName={baseBranch}
-          />
+          {/* Changes view */}
+          <div
+            className={cn(
+              "absolute inset-0",
+              treeViewMode === "changes" ? "block" : "hidden",
+            )}
+          >
+            <FileTreeChanges
+              paneId={paneId}
+              cwd={cwd}
+              git={git}
+              selectedFile={selectedFile}
+              onFileSelect={onFileSelect}
+              viewMode={changesViewMode}
+              gitStatus={gitStatus}
+              isComparingToBranch={isComparingToBranch}
+              baseBranchName={baseBranch}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
-});
+    );
+  }),
+);

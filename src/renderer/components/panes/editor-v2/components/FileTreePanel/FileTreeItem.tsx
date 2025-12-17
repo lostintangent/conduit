@@ -249,10 +249,8 @@ export const FileTreeItem = memo(function FileTreeItem({
         tabIndex={effectiveFocus ? 0 : -1}
         className={cn(
           "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
-          "focus:outline-none",
-          // Focus styling (keyboard navigation) - subtle ring
-          // For selected files, skip the focus ring since the selection background already indicates active
-          isFocused && !isSelected && "ring-1 ring-accent/60",
+          // Focus styling (keyboard navigation) - ring only when element has DOM focus
+          "focus:outline-none focus:ring-1 focus:ring-accent/60",
           // Selection styling (file open in editor) - background highlight
           isSelected
             ? "bg-accent/20 hover:bg-accent/25"
