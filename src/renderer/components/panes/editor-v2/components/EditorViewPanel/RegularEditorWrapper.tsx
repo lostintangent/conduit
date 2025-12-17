@@ -35,7 +35,7 @@ import {
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry";
-import { EditorTracing } from "../../utils/editorTracing";
+import { EditorTracing, forceTokenizeVisibleLines } from "../../utils";
 import type { AutoSizeConfig } from "./constants";
 
 /** Debounce delay for ViewState saves (ms) */
@@ -335,6 +335,9 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
     const setModelStart = performance.now();
     editor.setModel(model);
     const setModelDuration = performance.now() - setModelStart;
+
+    // Force immediate tokenization to prevent white flash before syntax highlighting
+    forceTokenizeVisibleLines(model);
 
     // Restore ViewState for new file
     viewStateRegistry.restore(editorId, filePath, editor);

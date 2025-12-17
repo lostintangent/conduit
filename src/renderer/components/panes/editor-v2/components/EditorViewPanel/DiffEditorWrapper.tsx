@@ -34,8 +34,11 @@ import {
   usePreventFocusScroll,
 } from "../../hooks";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
-import { EditorTracing } from "../../utils/editorTracing";
-import { detectLanguage } from "../../utils/languageDetection";
+import {
+  EditorTracing,
+  detectLanguage,
+  forceTokenizeVisibleLines,
+} from "../../utils";
 import type { AutoSizeConfig } from "./constants";
 
 export interface DiffEditorWrapperProps {
@@ -307,6 +310,10 @@ export function DiffEditorWrapper({
         modified: modifiedModel,
       });
       const setModelDuration = performance.now() - setModelStart;
+
+      // Force immediate tokenization to prevent white flash before syntax highlighting
+      forceTokenizeVisibleLines(originalModelRef.current);
+      forceTokenizeVisibleLines(modifiedModel);
 
       EditorTracing.endTrace(filePath, attachTraceId, {
         createOriginalMs: createOriginalDuration.toFixed(1),
