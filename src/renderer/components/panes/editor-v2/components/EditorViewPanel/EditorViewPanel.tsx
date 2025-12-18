@@ -4,7 +4,6 @@
  * This is the top-level component for the editor view. It coordinates:
  * - RegularEditorWrapper (for regular editing)
  * - DiffEditorWrapper (for diff view)
- * - MarkdownPreview (for markdown preview)
  * - ExternalChangeWarning (for conflict detection)
  * - EditorToolbar (for editor actions)
  *
@@ -29,7 +28,7 @@
 
 import type { GitV2API } from "@/api/GitV2API";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorActions,
   useEditorSaveKeybinding,
@@ -43,6 +42,7 @@ import { EditorToolbar } from "../Toolbar/EditorToolbar";
 import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
+import { ImagePreview } from "./ImagePreview";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
@@ -53,6 +53,26 @@ import { RegularEditorWrapper } from "./RegularEditorWrapper";
  * zero-size or incorrectly-sized container.
  */
 const MODE_TRANSITION_DELAY_MS = 50;
+
+/** Image extensions supported for preview */
+const IMAGE_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".ico",
+  ".svg",
+];
+
+/**
+ * Check if a file path is an image that can be previewed.
+ */
+function isImageFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 export interface EditorViewPanelProps {
   /** Unique ID for the editor instance */
@@ -118,7 +138,7 @@ export interface EditorViewPanelProps {
   /** Handler for toggling between preview and editor modes */
   onTogglePreviewMode?: (isPreview: boolean) => void;
 
-  /** Content for preview mode (loaded by parent) */
+  /** Content to display in markdown preview mode */
   previewContent?: string;
 
   // ---------------------------------------------------------------------------
@@ -146,11 +166,13 @@ export interface EditorViewPanelProps {
  *
  * Orchestrates the editor view based on the current mode:
  * - `editor`: Shows RegularEditorWrapper
- * - `preview`: Shows MarkdownPreview (for .md files)
+ * - `preview`: Shows MarkdownPreview (for .md files) or ImagePreview (for images)
  * - `diff`: Shows DiffEditorWrapper
  * - `changesReview`: Shows multi-file diff view (TODO: Phase 4+)
+ *
+ * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export function EditorViewPanel({
+export const EditorViewPanel = memo(function EditorViewPanel({
   editorId,
   cwd,
   sandboxId,
@@ -180,8 +202,10 @@ export function EditorViewPanel({
   onPull,
   onPush,
 }: EditorViewPanelProps) {
-  // Editor ref for actions
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Editor instance state - using state instead of ref so changes trigger re-renders
+  // This ensures useEditorActions re-subscribes when the editor changes
+  const [editor, setEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
@@ -302,31 +326,31 @@ export function EditorViewPanel({
    * Get editor actions from hook - provides undo/redo/find and state tracking.
    * The hook properly manages subscriptions to model changes for canUndo/canRedo.
    */
-  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+  const editorActions = useEditorActions(editor, modelState, handleSave);
 
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
 
   /**
-   * Handle editor mount - store ref for actions hook and register keybindings.
+   * Handle editor mount - store editor for actions hook and register keybindings.
    */
   const handleEditorMount = useCallback(
-    (editor: monaco.editor.IStandaloneCodeEditor) => {
-      editorRef.current = editor;
-      registerSaveKeybinding(editor);
+    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
+      setEditor(mountedEditor);
+      registerSaveKeybinding(mountedEditor);
     },
     [registerSaveKeybinding],
   );
 
   /**
-   * Handle diff editor mount - store ref and register keybindings on modified editor.
+   * Handle diff editor mount - store modified editor and register keybindings.
    */
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       // For diff editor, we need to get the modified (right side) editor
       const modifiedEditor = diffEditor.getModifiedEditor();
-      editorRef.current = modifiedEditor;
+      setEditor(modifiedEditor);
       registerSaveKeybinding(modifiedEditor);
     },
     [registerSaveKeybinding],
@@ -477,8 +501,12 @@ export function EditorViewPanel({
             />
           </EditorErrorBoundary>
         ) : viewMode.type === "preview" ? (
-          // Markdown preview - shows rendered markdown
-          <MarkdownPreview content={previewContent} />
+          // Preview - shows rendered markdown or image
+          isImageFile(filePath) ? (
+            <ImagePreview filePath={filePath} cwd={cwd} sandboxId={sandboxId} />
+          ) : (
+            <MarkdownPreview content={previewContent} />
+          )
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
           <EditorErrorBoundary filePath={filePath}>
@@ -523,4 +551,4 @@ export function EditorViewPanel({
       </div>
     </div>
   );
-}
+});

@@ -27,14 +27,15 @@
  */
 
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 import {
   useAutoSizeEditor,
   useEditorTheme,
   useMonacoModel,
   usePreventFocusScroll,
 } from "../../hooks";
-import { ViewStateRegistry } from "../../registry";
+import { createModelKey, ViewStateRegistry } from "../../registry";
+import { forceTokenizeVisibleLines } from "../../utils";
 import type { AutoSizeConfig } from "./constants";
 
 /** Debounce delay for ViewState saves (ms) */
@@ -112,8 +113,10 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
  * - Editor reuse via EditorRegistry (portal pattern)
  * - Model management via MonacoModelRegistry
  * - ViewState persistence via ViewStateRegistry
+ *
+ * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export function RegularEditorWrapper({
+export const RegularEditorWrapper = memo(function RegularEditorWrapper({
   editorId,
   cwd,
   sandboxId,
@@ -278,6 +281,24 @@ export function RegularEditorWrapper({
     const editor = editorRef.current;
     if (!editor || !model) return;
 
+    // IMPORTANT: Verify the model matches the current filePath before attaching.
+    // When filePath changes, React may re-run this effect with the OLD model
+    // before useMonacoModel updates with the new model. We must skip attaching
+    // stale models to avoid ending the session prematurely.
+    const modelUri = model.uri.toString();
+    const expectedModelKey = createModelKey(filePath, sandboxId);
+    // Handle sandboxId in model key: file:///path::vm:sandboxId
+    const modelMatchesFile =
+      modelUri === expectedModelKey ||
+      modelUri.startsWith(expectedModelKey.split("::")[0] + "::") ||
+      model.uri.fsPath === filePath;
+
+    if (!modelMatchesFile) {
+      // Model is for a different file - skip this render cycle
+      // The effect will re-run when useMonacoModel provides the correct model
+      return;
+    }
+
     const viewStateRegistry = ViewStateRegistry.getInstance();
 
     // Save ViewState for previous file before switching
@@ -290,6 +311,9 @@ export function RegularEditorWrapper({
 
     // Attach model to editor
     editor.setModel(model);
+
+    // Force immediate tokenization to prevent white flash before syntax highlighting
+    forceTokenizeVisibleLines(model);
 
     // Restore ViewState for new file
     viewStateRegistry.restore(editorId, filePath, editor);
@@ -315,7 +339,7 @@ export function RegularEditorWrapper({
       }
     };
     // Note: onChange handled via ref to avoid listener re-setup when callback changes
-  }, [editorId, filePath, model]);
+  }, [editorId, filePath, model, sandboxId]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update
@@ -417,4 +441,4 @@ export function RegularEditorWrapper({
       />
     </div>
   );
-}
+});

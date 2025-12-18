@@ -112,12 +112,29 @@ export interface FileTreeItemProps {
    * Provides the item's path and the mouse event.
    */
   onContextMenu?: (path: string, e: React.MouseEvent) => void;
+
+  /**
+   * Callback when user hovers over a file item.
+   * Used for prefetching file content to reduce perceived latency.
+   * Only called for files, not directories.
+   */
+  onFileHover?: (path: string) => void;
+
+  /**
+   * Callback when user stops hovering over a file item.
+   * Used to cancel prefetch if user moves away quickly.
+   */
+  onFileHoverEnd?: (path: string) => void;
 }
 
 /**
  * File tree item component.
  *
- * Memoized to prevent unnecessary re-renders in large trees.
+ * Note: We intentionally do NOT use a custom arePropsEqual here.
+ * While skipping `children` comparison could help performance for unchanged items,
+ * it breaks selection highlighting because when a parent directory's props haven't
+ * changed, it bails out completely and its children JSX is never re-created with
+ * updated isSelected props.
  */
 export const FileTreeItem = memo(function FileTreeItem({
   entry,
@@ -139,6 +156,8 @@ export const FileTreeItem = memo(function FileTreeItem({
   onRenameCancel,
   checkNameConflict,
   onContextMenu,
+  onFileHover,
+  onFileHoverEnd,
 }: FileTreeItemProps) {
   const isDirectory = entry.type === "directory";
 
@@ -157,13 +176,6 @@ export const FileTreeItem = memo(function FileTreeItem({
     [path, entry.type, isDirectory, onSelect, onToggleExpand],
   );
 
-  // Keyboard events are handled by the tree container (FileTreeNormal).
-  // This component only needs to be focusable via roving tabindex.
-  // - Enter → triggers rename (tree container handles this)
-  // - Space → opens file / toggles folder (tree container handles this)
-  // - Arrow keys → navigation (tree container handles this)
-  void isRenaming; // Used by tree container to disable keyboard handling
-
   // Handle "change to this directory" click
   const handleChangeCwd = useCallback(
     (e: React.MouseEvent) => {
@@ -180,6 +192,20 @@ export const FileTreeItem = memo(function FileTreeItem({
     },
     [path, onContextMenu],
   );
+
+  // Handle mouse enter for prefetching (files only)
+  const handleMouseEnter = useCallback(() => {
+    if (!isDirectory && onFileHover) {
+      onFileHover(path);
+    }
+  }, [isDirectory, onFileHover, path]);
+
+  // Handle mouse leave to cancel prefetch
+  const handleMouseLeave = useCallback(() => {
+    if (!isDirectory && onFileHoverEnd) {
+      onFileHoverEnd(path);
+    }
+  }, [isDirectory, onFileHoverEnd, path]);
 
   // Choose appropriate icon
   const Icon = isDirectory ? (isExpanded ? FolderOpen : Folder) : FileText;
@@ -204,22 +230,27 @@ export const FileTreeItem = memo(function FileTreeItem({
   const textColorClass = fileStatusConfig?.textColorClass ?? "text-foreground";
   const iconColorClass = fileStatusConfig?.textColorClass ?? "text-foreground";
 
+  // For files, selection implies focus (for keyboard nav to work after clicking).
+  // This avoids needing a separate state update for focusedPath when clicking files,
+  // which would cause double renders.
+  // For directories, we use the explicit isFocused prop.
+  const effectiveFocus = isDirectory ? isFocused : isFocused || isSelected;
+
   return (
     <li
       role="treeitem"
-      aria-selected={isFocused}
+      aria-selected={effectiveFocus}
       aria-expanded={isDirectory ? isExpanded : undefined}
       aria-level={depth + 1}
       data-testid="file-tree-item"
     >
       {/* Item row */}
       <div
-        tabIndex={isFocused ? 0 : -1}
+        tabIndex={effectiveFocus ? 0 : -1}
         className={cn(
           "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
-          "focus:outline-none",
-          // Focus styling (keyboard navigation) - subtle ring
-          isFocused && "ring-1 ring-accent/60",
+          // Focus styling (keyboard navigation) - ring only when element has DOM focus
+          "focus:outline-none focus:ring-1 focus:ring-accent/60",
           // Selection styling (file open in editor) - background highlight
           isSelected
             ? "bg-accent/20 hover:bg-accent/25"
@@ -227,6 +258,8 @@ export const FileTreeItem = memo(function FileTreeItem({
         )}
         onClick={handleRowClick}
         onContextMenu={handleRightClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         data-testid={`tree-item-${entry.name}`}
         data-path={path}
         data-type={entry.type}

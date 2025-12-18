@@ -78,6 +78,14 @@ export function useKeybindingDispatch(
           }, 1000);
           chordTimeoutRef.current = timeout;
         } else {
+          // Check if the command is enabled before committing to execute it
+          // This prevents clearing pressed keys for commands whose when clause fails,
+          // which would break multi-key chords like Cmd+Shift+E+Left when Cmd+Shift+E
+          // matches a command that's disabled in the current context
+          if (!commandRegistry.isCommandEnabled(commandId)) {
+            return;
+          }
+
           // Execute command
           event.preventDefault();
           clearChordState();
@@ -97,6 +105,16 @@ export function useKeybindingDispatch(
       } else if (currentChordRef.current) {
         // No match for second chord, clear state
         clearChordState();
+      } else if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.startsWith("Arrow")
+      ) {
+        // No command found for a modified arrow key combination (Cmd/Ctrl + Arrow)
+        // This is likely handled by another system (e.g., useGlobalKeyHandlers for pane navigation)
+        // Clear pressed keys to prevent stale keys from blocking future keybindings
+        // Note: We only clear for arrow keys to avoid breaking multi-key chords like Cmd+Shift+B+Left
+        // where the intermediate key (B) wouldn't match any command
+        clearPressedKeys();
       }
     };
 

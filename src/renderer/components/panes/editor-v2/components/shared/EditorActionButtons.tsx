@@ -22,13 +22,13 @@
  * ```
  */
 
-import { Undo, Redo, Save, Search } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
+import { Redo, Save, Search, Undo } from "lucide-react";
 
 export interface EditorActionButtonsProps {
   /** Undo action handler */
@@ -94,8 +94,8 @@ export function EditorActionButtons({
 
   // Separator styling based on variant
   const separatorClass = isToolbar
-    ? "h-4 w-px bg-elevated-border mx-1"
-    : "h-4 w-px bg-border mx-1";
+    ? "h-4 w-px bg-elevated-border mx-2"
+    : "h-4 w-px bg-border mx-2";
 
   // Keyboard shortcut badge component
   const KeyboardHint = ({ children }: { children: string }) =>

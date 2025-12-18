@@ -12,3 +12,4 @@ export {
   normalizePathForKey,
 } from "./pathUtils";
 export { formatRelativeTime } from "./timeFormat";
+export { forceTokenizeVisibleLines } from "./tokenization";

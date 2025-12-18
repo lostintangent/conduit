@@ -4,7 +4,9 @@ import { UserSettings } from "@shared/types";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 
 const api = window.conduit;
@@ -15,6 +17,7 @@ export type xtermInstance = {
   fit: FitAddon;
   search: SearchAddon;
   serializer: SerializeAddon;
+  webgl: WebglAddon | null;
 
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
   setInputHandler: (handler: ((input: string) => void) | null) => void;
@@ -117,6 +120,7 @@ export function getOrCreate(
     const fit = new FitAddon();
     const search = new SearchAddon();
     const serializer = new SerializeAddon();
+    const unicode11 = new Unicode11Addon();
 
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
       current: null,
@@ -138,6 +142,10 @@ export function getOrCreate(
     terminal.loadAddon(search);
     terminal.loadAddon(webLinksAddon);
     terminal.loadAddon(serializer);
+    terminal.loadAddon(unicode11);
+
+    // Activate Unicode 11 support
+    terminal.unicode.activeVersion = "11";
 
     // If this is the first pane that's associated
     // with this PTY session, then set up the data handling.
@@ -225,6 +233,7 @@ export function getOrCreate(
       fit,
       search,
       serializer,
+      webgl: null,
       ready: false,
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
@@ -242,6 +251,12 @@ export function getOrCreate(
       dispose: () => {
         osc7Disposable.dispose();
         onTitleChangeDisposable.dispose();
+
+        // Dispose WebGL addon if loaded
+        if (newInstance.webgl) {
+          newInstance.webgl.dispose();
+          newInstance.webgl = null;
+        }
 
         terminal.dispose();
         onDataDispose.dispose();
@@ -278,6 +293,29 @@ export function attach(paneId: string, container: HTMLElement) {
   } else {
     instance.terminal.open(container);
   }
+
+  // NOTE: WebGL is causing flickering issues in some systems,
+  // so I'm disabling it for now, until we can figure out a more robust solution.
+
+  // Load WebGL addon for GPU acceleration if not already loaded
+  // This must be done after the terminal is opened in the DOM
+  /* if (!instance.webgl) {
+     try {
+       const webglAddon = new WebglAddon();
+       webglAddon.onContextLoss(() => {
+         // If WebGL context is lost, dispose and set to null
+         // The terminal will fall back to the canvas renderer
+         webglAddon.dispose();
+         instance.webgl = null;
+       });
+       instance.terminal.loadAddon(webglAddon);
+       instance.webgl = webglAddon;
+     } catch (e) {
+       // WebGL is not supported or failed to initialize
+       // The terminal will use the default canvas renderer
+       console.warn("Failed to load WebGL addon:", e);
+     }
+   }*/
 }
 
 /**

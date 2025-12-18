@@ -17,11 +17,11 @@
  * ```
  */
 
-import { userSettingsAtom } from "@/store/atoms";
-import { resolveTheme } from "@/utils/theme";
-import { useAtomValue } from "jotai";
-import { useMemo } from "react";
+import rehypeSlug from "rehype-slug";
+import remarkGithubAlerts from "remark-github-blockquote-alert";
+import "remark-github-blockquote-alert/alert.css";
 import { Streamdown } from "streamdown";
+import { useMarkdownPreview } from "../../hooks/useMarkdownPreview";
 
 export interface MarkdownPreviewProps {
   /** Markdown content to render */
@@ -32,26 +32,20 @@ export interface MarkdownPreviewProps {
  * Markdown preview component using streamdown.
  */
 export function MarkdownPreview({ content }: MarkdownPreviewProps) {
-  const { theme } = useAtomValue(userSettingsAtom);
-  const resolvedTheme = resolveTheme(theme);
-
-  // Configure mermaid to use dark theme when app is in dark mode
-  const mermaidConfig = useMemo(
-    () => ({
-      config: {
-        theme:
-          resolvedTheme === "dark" ? ("dark" as const) : ("default" as const),
-      },
-    }),
-    [resolvedTheme],
-  );
+  const { mermaidConfig, handleClick, containerRef } = useMarkdownPreview();
 
   return (
     <div
-      className="h-full w-full overflow-auto p-4 text-foreground"
-      data-testid="markdown-preview"
+      ref={containerRef}
+      className="h-full w-full overflow-auto p-4 text-sm text-foreground [&>*>*:first-child]:mt-0 [&_[data-streamdown=code-block-body]_code>span:last-child:empty]:hidden [&_[data-streamdown=code-block]>*]:p-2 [&_.markdown-alert]:!py-0 [&_.markdown-alert>*:first-child]:mb-3"
+      onClick={handleClick}
     >
-      <Streamdown mode="static" mermaid={mermaidConfig}>
+      <Streamdown
+        mode="static"
+        mermaid={mermaidConfig}
+        rehypePlugins={[rehypeSlug]}
+        remarkPlugins={[remarkGithubAlerts]}
+      >
         {content}
       </Streamdown>
     </div>

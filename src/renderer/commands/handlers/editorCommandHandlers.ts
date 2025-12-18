@@ -37,6 +37,8 @@ export interface EditorCommandHandlers {
   toggleSidebar?: EditorCommandHandler;
   /** Show and focus the file tree sidebar */
   focusSidebar?: EditorCommandHandler;
+  /** Reveal and select the currently active file in the file tree */
+  revealActiveFile?: EditorCommandHandler;
 }
 
 // ============================================================================

@@ -14,11 +14,11 @@
  * @example
  * ```tsx
  * function EditorWithToolbar({ filePath, onSave }: Props) {
- *   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>(null);
+ *   const [editor, setEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null);
  *   const modelState = useModelState(filePath);
  *
  *   const actions = useEditorActions(
- *     editorRef,
+ *     editor,
  *     modelState,
  *     async () => {
  *       await MonacoModelRegistry.getInstance().saveModel(pathToUri(filePath));
@@ -36,7 +36,7 @@
  *         canRedo={actions.canRedo}
  *         isDirty={actions.isDirty}
  *       />
- *       <Editor editorRef={editorRef} />
+ *       <Editor onMount={setEditor} />
  *     </>
  *   );
  * }
@@ -105,13 +105,13 @@ export interface EditorActions {
 /**
  * Hook providing editor actions for toolbar integration.
  *
- * @param editorRef - Ref to the Monaco editor instance
+ * @param editor - The Monaco editor instance (null when not yet mounted)
  * @param modelState - Current model state from useModelState
  * @param onSave - Callback to save the file content
  * @returns EditorActions object with action methods and state
  */
 export function useEditorActions(
-  editorRef: React.RefObject<monaco.editor.IStandaloneCodeEditor | null>,
+  editor: monaco.editor.IStandaloneCodeEditor | null,
   modelState: ModelState | null,
   onSave: () => Promise<void>,
 ): EditorActions {
@@ -122,32 +122,64 @@ export function useEditorActions(
   /**
    * Subscribe to model content changes to track undo/redo state.
    * Uses Monaco's model.canUndo() and model.canRedo() for accurate tracking.
+   *
+   * We subscribe to onDidChangeModel to handle the case where the model
+   * is attached after the editor is created (which happens in RegularEditorWrapper).
    */
   useEffect(() => {
-    const editor = editorRef.current;
-    const model = editor?.getModel();
-
-    if (!model) {
+    if (!editor) {
       setCanUndo(false);
       setCanRedo(false);
       return;
     }
 
-    const updateUndoRedoState = () => {
-      setCanUndo(model.canUndo());
-      setCanRedo(model.canRedo());
+    const disposables: monaco.IDisposable[] = [];
+
+    const setupModelSubscription = (model: monaco.editor.ITextModel | null) => {
+      if (!model) {
+        setCanUndo(false);
+        setCanRedo(false);
+        return null;
+      }
+
+      const updateUndoRedoState = () => {
+        setCanUndo(model.canUndo());
+        setCanRedo(model.canRedo());
+      };
+
+      // Initial state
+      updateUndoRedoState();
+
+      // Subscribe to content changes
+      return model.onDidChangeContent(updateUndoRedoState);
     };
 
-    // Initial state
-    updateUndoRedoState();
+    // Set up subscription for current model (if any)
+    let contentDisposable = setupModelSubscription(editor.getModel());
+    if (contentDisposable) {
+      disposables.push(contentDisposable);
+    }
 
-    // Subscribe to content changes
-    const disposable = model.onDidChangeContent(updateUndoRedoState);
+    // Listen for model changes (when model is attached/swapped)
+    const modelChangeDisposable = editor.onDidChangeModel((e) => {
+      // Clean up old content subscription
+      if (contentDisposable) {
+        contentDisposable.dispose();
+      }
+      // Set up new subscription for the new model
+      contentDisposable = setupModelSubscription(
+        e.newModelUrl ? editor.getModel() : null,
+      );
+      if (contentDisposable) {
+        disposables.push(contentDisposable);
+      }
+    });
+    disposables.push(modelChangeDisposable);
 
     return () => {
-      disposable.dispose();
+      disposables.forEach((d) => d.dispose());
     };
-  }, [editorRef, editorRef.current?.getModel()]);
+  }, [editor]);
 
   /**
    * Save the current file.
@@ -161,36 +193,33 @@ export function useEditorActions(
    * This properly handles focus, selection, and all editor state.
    */
   const undo = useCallback(() => {
-    const editor = editorRef.current;
     if (editor) {
       editor.trigger("keyboard", "undo", null);
     }
-  }, [editorRef]);
+  }, [editor]);
 
   /**
    * Redo a previously undone edit using Monaco's action system.
    * This properly handles focus, selection, and all editor state.
    */
   const redo = useCallback(() => {
-    const editor = editorRef.current;
     if (editor) {
       editor.trigger("keyboard", "redo", null);
     }
-  }, [editorRef]);
+  }, [editor]);
 
   /**
    * Open Monaco's find widget.
    */
   const find = useCallback(() => {
-    const editor = editorRef.current;
     if (editor) {
       // Trigger the find action using Monaco's action system
       editor.trigger("toolbar", "actions.find", null);
     }
-  }, [editorRef]);
+  }, [editor]);
 
   const isDirty = modelState?.isDirty ?? false;
-  const isReady = editorRef.current !== null;
+  const isReady = editor !== null;
 
   return {
     save,

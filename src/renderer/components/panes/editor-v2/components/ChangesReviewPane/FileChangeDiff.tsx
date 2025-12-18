@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { formatRelativeTime } from "../../utils";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useDiffModeTransition,
   useEditorActions,
@@ -128,8 +128,9 @@ export function FileChangeDiff({
   // Editor Controls State
   // ---------------------------------------------------------------------------
 
-  // Editor ref for actions
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Editor instance state - using state instead of ref so changes trigger re-renders
+  const [editor, setEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Track if editor controls have been "activated" (shown due to dirty state)
   // Once activated, controls remain visible even after save
@@ -190,16 +191,16 @@ export function FileChangeDiff({
   );
 
   // Editor actions hook
-  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+  const editorActions = useEditorActions(editor, modelState, handleSave);
 
-  // Handle editor mount - store ref, register keybindings, and track focus for Follow mode
+  // Handle editor mount - store editor, register keybindings, and track focus for Follow mode
   const handleEditorMount = useCallback(
-    (editor: monaco.editor.IStandaloneCodeEditor) => {
-      editorRef.current = editor;
-      registerSaveKeybinding(editor);
+    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
+      setEditor(mountedEditor);
+      registerSaveKeybinding(mountedEditor);
 
       // Mark as seen when user focuses the editor (clicks into it)
-      editor.onDidFocusEditorText(() => {
+      mountedEditor.onDidFocusEditorText(() => {
         onInteract?.();
       });
     },
@@ -210,7 +211,7 @@ export function FileChangeDiff({
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       const modifiedEditor = diffEditor.getModifiedEditor();
-      editorRef.current = modifiedEditor;
+      setEditor(modifiedEditor);
       registerSaveKeybinding(modifiedEditor);
 
       // Mark as seen when user focuses either side of the diff editor

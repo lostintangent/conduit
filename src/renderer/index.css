@@ -4,7 +4,7 @@
 @import "@xterm/xterm/css/xterm.css";
 
 /* Include Streamdown's Tailwind classes */
-@source "../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/streamdown/dist/*.js";
 
 /* Color token variables */
 
