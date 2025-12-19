@@ -7,6 +7,7 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 
 const MAX_CLEANUP_DEPTH = 4;
+const EXCLUDED_FILES = [".git", "README.md"];
 
 // ============================================================================
 // Helper Functions
@@ -108,7 +109,7 @@ export async function removeSymlinks(
   }
 
   for (const item of items) {
-    if (item === ".git") continue;
+    if (EXCLUDED_FILES.includes(item)) continue;
 
     const sourcePath = path.join(repoPath, item);
     const destPath = path.join(homeDirectory, item);
@@ -201,7 +202,7 @@ export async function createSymlinks(
   }
 
   for (const item of items) {
-    if (item === ".git") continue;
+    if (EXCLUDED_FILES.includes(item)) continue;
 
     const source = path.join(sourceDir, item);
     const dest = path.join(destDir, item);

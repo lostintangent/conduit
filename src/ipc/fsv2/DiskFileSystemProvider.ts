@@ -545,6 +545,7 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       .map((dirent) => ({
         name: dirent.name,
         type: dirent.isDirectory() ? "directory" : "file",
+        isSymlink: dirent.isSymbolicLink(),
       }));
 
     // Filter gitignored entries (using shared cache with pre-resolved git root)

@@ -23,19 +23,21 @@
  * ```
  */
 
-import { memo, useCallback, useMemo } from "react";
-import {
-  ChevronRight,
-  ChevronDown,
-  FileText,
-  Folder,
-  FolderOpen,
-  FolderInput,
-} from "lucide-react";
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { cn } from "@/utils";
-import { GitBadge, getStatusConfig, aggregateFolderStatus } from "../shared";
+import {
+  ChevronDown,
+  ChevronRight,
+  FileSymlink,
+  FileText,
+  Folder,
+  FolderInput,
+  FolderOpen,
+  FolderSymlink,
+} from "lucide-react";
+import { memo, useCallback, useMemo } from "react";
+import { GitBadge, aggregateFolderStatus, getStatusConfig } from "../shared";
 import { FileTreeItemRename } from "./FileTreeItemRename";
 
 export interface FileTreeItemProps {
@@ -208,7 +210,15 @@ export const FileTreeItem = memo(function FileTreeItem({
   }, [isDirectory, onFileHoverEnd, path]);
 
   // Choose appropriate icon
-  const Icon = isDirectory ? (isExpanded ? FolderOpen : Folder) : FileText;
+  const Icon = isDirectory
+    ? isExpanded
+      ? FolderOpen
+      : entry.isSymlink
+        ? FolderSymlink
+        : Folder
+    : entry.isSymlink
+      ? FileSymlink
+      : FileText;
 
   // ---------------------------------------------------------------------------
   // Git Status Styling

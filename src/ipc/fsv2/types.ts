@@ -61,6 +61,9 @@ export interface DirectoryEntry {
 
   /** Whether this is a file or directory */
   type: "file" | "directory";
+
+  /** Whether this entry is a symbolic link */
+  isSymlink: boolean;
 }
 
 // ============================================================================
