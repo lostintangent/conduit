@@ -161,6 +161,13 @@ export interface FileTreePanelProps {
 
   /** Callback when changes view mode changes */
   onChangesViewModeChange?: (mode: "flat" | "nested") => void;
+
+  // ---------------------------------------------------------------------------
+  // Follow Mode Props
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file is unseen (Follow mode) - returns true if file has unacknowledged changes */
+  isFileUnseen?: (path: string) => boolean;
 }
 
 /**
@@ -211,6 +218,8 @@ export const FileTreePanel = memo(
       // Changes View Mode Props
       changesViewMode = "flat",
       onChangesViewModeChange,
+      // Follow Mode Props
+      isFileUnseen,
     },
     ref,
   ) {
@@ -315,6 +324,7 @@ export const FileTreePanel = memo(
               gitStatus={gitStatus}
               isComparingToBranch={isComparingToBranch}
               baseBranchName={baseBranch}
+              isFileUnseen={isFileUnseen}
             />
           </div>
         </div>

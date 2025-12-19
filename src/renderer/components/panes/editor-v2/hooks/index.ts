@@ -67,3 +67,8 @@ export type { LayoutMode } from "./useResponsiveLayout";
 export { useReviewModeState } from "./useReviewModeState";
 export type { UseReviewModeStateResult } from "./useReviewModeState";
 export { useScrollPersistence } from "./useScrollPersistence";
+export {
+  DISABLED_TRACKING,
+  useFileChangeTracking,
+} from "./useFileChangeTracking";
+export type { FileChangeTrackingResult } from "./useFileChangeTracking";

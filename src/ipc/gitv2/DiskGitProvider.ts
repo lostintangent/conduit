@@ -29,6 +29,7 @@ import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
 import type { Disposable, Event } from "../fsv2/types";
 import type {
+  FileWithTime,
   GitBranch,
   GitBranchChangedEvent,
   GitCheckoutOptions,
@@ -591,6 +592,48 @@ export class DiskGitProvider implements GitProvider {
         error,
       );
       return null;
+    }
+  }
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   *
+   * Returns files sorted by modification time (most recent first).
+   */
+  async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
+    try {
+      const status = await this.git.status();
+
+      if (status.files.length === 0) {
+        return [];
+      }
+
+      // Get all dirty file paths with their modification times
+      const filesWithTimes: FileWithTime[] = [];
+
+      for (const file of status.files) {
+        const absolutePath = path.join(this.gitRoot, file.path);
+        try {
+          const stats = await fsPromises.stat(absolutePath);
+          filesWithTimes.push({
+            path: file.path,
+            mtime: stats.mtimeMs,
+          });
+        } catch {
+          // File might not exist (deleted) - skip it
+        }
+      }
+
+      // Sort by mtime descending (most recent first)
+      filesWithTimes.sort((a, b) => b.mtime - a.mtime);
+
+      return filesWithTimes;
+    } catch (error) {
+      console.error(
+        "[DiskGitProvider] Failed to get dirty files with times:",
+        error,
+      );
+      return [];
     }
   }
 

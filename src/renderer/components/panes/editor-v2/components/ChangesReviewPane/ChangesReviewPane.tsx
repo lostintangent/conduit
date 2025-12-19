@@ -36,10 +36,15 @@ import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DISABLED_TRACKING, type FileChangeTrackingResult } from "../../hooks";
 import { ChangesFooter } from "./ChangesFooter";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
-import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
+import {
+  useExpandedFiles,
+  useFileChangeSubscription,
+  useScrollToSelectedFile,
+} from "./hooks";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
@@ -78,6 +83,13 @@ export interface ChangesReviewPaneProps {
 
   /** Callback to trigger a push operation */
   onPush: () => void;
+
+  // ---------------------------------------------------------------------------
+  // File Change Tracking (shared state from parent)
+  // ---------------------------------------------------------------------------
+
+  /** File change tracking state and functions (shared between file tree and review pane) */
+  fileTracking?: FileChangeTrackingResult;
 }
 
 /**
@@ -95,6 +107,7 @@ export function ChangesReviewPane({
   isPushing,
   onPull,
   onPush,
+  fileTracking: fileTrackingProp,
 }: ChangesReviewPaneProps) {
   // Ref for the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -119,6 +132,16 @@ export function ChangesReviewPane({
 
   const [stagedSectionExpanded, setStagedSectionExpanded] = useState(true);
   const [unstagedSectionExpanded, setUnstagedSectionExpanded] = useState(true);
+
+  // ---------------------------------------------------------------------------
+  // Sort Order State
+  // ---------------------------------------------------------------------------
+
+  const [sortByLastEdited, setSortByLastEdited] = useState(false);
+
+  const toggleSortOrder = useCallback(() => {
+    setSortByLastEdited((prev) => !prev);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Computed: File Lists
@@ -156,9 +179,51 @@ export function ChangesReviewPane({
   // ---------------------------------------------------------------------------
 
   // Auto-expand files by default to match v1 behavior
-  const { expandedFiles, toggleFile, expandFile } = useExpandedFiles(
-    allFilePaths,
-    true,
+  const { expandedFiles, toggleFile, expandFile, expandFiles, collapseFiles } =
+    useExpandedFiles(allFilePaths, true);
+
+  // ---------------------------------------------------------------------------
+  // File Change Tracking State (only when fileTrackingProp is provided)
+  // ---------------------------------------------------------------------------
+
+  // When fileTrackingProp is undefined, tracking is disabled - use no-op functions
+  const trackingEnabled = fileTrackingProp !== undefined;
+  const {
+    isUnseen,
+    getTimestamp,
+    markSeen,
+    markAllSeen,
+    getUnseenCount,
+    unseenCount,
+    sortByTimestamp,
+    processStatusChange,
+    initializeFiles,
+  } = fileTrackingProp ?? DISABLED_TRACKING;
+
+  // ---------------------------------------------------------------------------
+  // Sorted File Lists (by timestamp when sortByLastEdited is true)
+  // ---------------------------------------------------------------------------
+
+  // Sort files by modification time (most recent first) when sortByLastEdited is true
+  const sortedStagedFiles = useMemo(
+    () => (sortByLastEdited ? sortByTimestamp(stagedFiles) : stagedFiles),
+    [sortByTimestamp, stagedFiles, sortByLastEdited],
+  );
+
+  const sortedUnstagedFiles = useMemo(
+    () => (sortByLastEdited ? sortByTimestamp(unstagedFiles) : unstagedFiles),
+    [sortByTimestamp, unstagedFiles, sortByLastEdited],
+  );
+
+  // Get unseen counts for each section
+  const stagedUnseenCount = useMemo(
+    () => getUnseenCount(stagedFiles.map(([path]) => path)),
+    [getUnseenCount, stagedFiles],
+  );
+
+  const unstagedUnseenCount = useMemo(
+    () => getUnseenCount(unstagedFiles.map(([path]) => path)),
+    [getUnseenCount, unstagedFiles],
   );
 
   // ---------------------------------------------------------------------------
@@ -211,16 +276,22 @@ export function ChangesReviewPane({
   }, [git]);
 
   // ---------------------------------------------------------------------------
-  // Git Status Subscription
+  // File Change Subscriptions (via hook)
   // ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    const cleanup = git.onStatusChanged((event) => {
-      setGitStatus(event.status);
-    });
-
-    return cleanup;
-  }, [git]);
+  // Subscribe to file changes from git status and filesystem events.
+  // This feeds changes into the tracking system for unseen indicators and sorting.
+  useFileChangeSubscription({
+    git,
+    cwd,
+    sandboxId,
+    allFilePaths,
+    isLoading,
+    processStatusChange,
+    initializeFiles,
+    expandFile,
+    onStatusChanged: setGitStatus,
+  });
 
   // ---------------------------------------------------------------------------
   // Handlers: Commit
@@ -288,6 +359,35 @@ export function ChangesReviewPane({
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Section-Specific Expand/Collapse Handlers
+  // ---------------------------------------------------------------------------
+
+  const stagedFilePaths = useMemo(
+    () => stagedFiles.map(([path]) => path),
+    [stagedFiles],
+  );
+  const unstagedFilePaths = useMemo(
+    () => unstagedFiles.map(([path]) => path),
+    [unstagedFiles],
+  );
+
+  const handleExpandAllStaged = useCallback(() => {
+    expandFiles(stagedFilePaths);
+  }, [expandFiles, stagedFilePaths]);
+
+  const handleCollapseAllStaged = useCallback(() => {
+    collapseFiles(stagedFilePaths);
+  }, [collapseFiles, stagedFilePaths]);
+
+  const handleExpandAllUnstaged = useCallback(() => {
+    expandFiles(unstagedFilePaths);
+  }, [expandFiles, unstagedFilePaths]);
+
+  const handleCollapseAllUnstaged = useCallback(() => {
+    collapseFiles(unstagedFilePaths);
+  }, [collapseFiles, unstagedFilePaths]);
+
+  // ---------------------------------------------------------------------------
   // Render: Loading State
   // ---------------------------------------------------------------------------
 
@@ -351,6 +451,12 @@ export function ChangesReviewPane({
         onExitReview={onExitReview}
         error={error}
         onDismissError={handleDismissError}
+        // Sort order props
+        sortByLastEdited={sortByLastEdited}
+        onToggleSortOrder={toggleSortOrder}
+        // Unseen tracking props (always active)
+        unseenCount={unseenCount}
+        onMarkAllSeen={markAllSeen}
       />
 
       {/* Scrollable File List */}
@@ -362,7 +468,7 @@ export function ChangesReviewPane({
         {/* Staged Changes Section */}
         <ChangesSection
           title="Staged Changes"
-          files={stagedFiles}
+          files={sortedStagedFiles}
           icon={<Check className="w-3.5 h-3.5" />}
           iconColorClass="text-green-500"
           isExpanded={stagedSectionExpanded}
@@ -375,12 +481,19 @@ export function ChangesReviewPane({
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
           onToggleFile={toggleFile}
+          onExpandAll={handleExpandAllStaged}
+          onCollapseAll={handleCollapseAllStaged}
+          // Unseen tracking props (always active)
+          unseenCount={stagedUnseenCount}
+          isFileUnseen={isUnseen}
+          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+          markFileSeen={markSeen}
         />
 
         {/* Unstaged Changes Section */}
         <ChangesSection
           title="Changes"
-          files={unstagedFiles}
+          files={sortedUnstagedFiles}
           icon={<Minus className="w-3.5 h-3.5" />}
           iconColorClass="text-yellow-500"
           isExpanded={unstagedSectionExpanded}
@@ -393,6 +506,13 @@ export function ChangesReviewPane({
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
           onToggleFile={toggleFile}
+          onExpandAll={handleExpandAllUnstaged}
+          onCollapseAll={handleCollapseAllUnstaged}
+          // Unseen tracking props (always active)
+          unseenCount={unstagedUnseenCount}
+          isFileUnseen={isUnseen}
+          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+          markFileSeen={markSeen}
         />
       </div>
 

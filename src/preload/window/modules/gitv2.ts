@@ -15,7 +15,11 @@
  */
 
 import { ipcRenderer } from "electron";
-import type { GitCommitOptions, GitFileStatus } from "../../../ipc/gitv2/types";
+import type {
+  FileWithTime,
+  GitCommitOptions,
+  GitFileStatus,
+} from "../../../ipc/gitv2/types";
 import { createEventListener } from "../utils";
 
 // ============================================================================
@@ -481,6 +485,19 @@ export default {
       commitLimit,
       vmId,
     }) as Promise<string | null>,
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   *
+   * @param cwd - Working directory
+   * @param vmId - Optional VM ID for cloud git operations
+   * @returns Array of files with their modification times, sorted most recent first
+   */
+  getDirtyFilesWithTimes: (cwd: string, vmId?: string) =>
+    ipcRenderer.invoke("git-v2:dirty-files-with-times", {
+      cwd,
+      vmId,
+    }) as Promise<FileWithTime[]>,
 
   /**
    * Revert changes to files (discard local modifications).

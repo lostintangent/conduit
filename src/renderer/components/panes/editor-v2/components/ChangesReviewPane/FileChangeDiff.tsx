@@ -26,6 +26,7 @@ import type { GitV2API } from "@/api/GitV2API";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
 import {
+  Asterisk,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -33,6 +34,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
+import { formatRelativeTime } from "../../utils";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -75,6 +77,19 @@ export interface FileChangeDiffProps {
 
   /** Toggle expansion callback */
   onToggle: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Follow Mode Props (optional)
+  // ---------------------------------------------------------------------------
+
+  /** Whether this file has unseen changes (Follow mode) */
+  isUnseen?: boolean;
+
+  /** Timestamp when this file was last modified (Follow mode) */
+  timestamp?: number | null;
+
+  /** Callback when user interacts with the file (marks as seen) */
+  onInteract?: () => void;
 }
 
 /**
@@ -89,6 +104,9 @@ export function FileChangeDiff({
   baseBranch,
   isExpanded,
   onToggle,
+  isUnseen = false,
+  timestamp,
+  onInteract,
 }: FileChangeDiffProps) {
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
@@ -175,23 +193,36 @@ export function FileChangeDiff({
   // Editor actions hook
   const editorActions = useEditorActions(editor, modelState, handleSave);
 
-  // Handle editor mount - store editor and register keybindings
+  // Handle editor mount - store editor, register keybindings, and track focus for Follow mode
   const handleEditorMount = useCallback(
     (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
       setEditor(mountedEditor);
       registerSaveKeybinding(mountedEditor);
+
+      // Mark as seen when user focuses the editor (clicks into it)
+      mountedEditor.onDidFocusEditorText(() => {
+        onInteract?.();
+      });
     },
-    [registerSaveKeybinding],
+    [registerSaveKeybinding, onInteract],
   );
 
-  // Handle diff editor mount - get modified editor and register keybindings
+  // Handle diff editor mount - get modified editor, register keybindings, and track focus
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       const modifiedEditor = diffEditor.getModifiedEditor();
       setEditor(modifiedEditor);
       registerSaveKeybinding(modifiedEditor);
+
+      // Mark as seen when user focuses either side of the diff editor
+      modifiedEditor.onDidFocusEditorText(() => {
+        onInteract?.();
+      });
+      diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
+        onInteract?.();
+      });
     },
-    [registerSaveKeybinding],
+    [registerSaveKeybinding, onInteract],
   );
 
   // ---------------------------------------------------------------------------
@@ -201,25 +232,27 @@ export function FileChangeDiff({
   const handleStage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
+      onInteract?.(); // Mark as seen when staging
       try {
         await git.stage([filePath]);
       } catch (error) {
         console.error("Failed to stage file:", error);
       }
     },
-    [git, filePath],
+    [git, filePath, onInteract],
   );
 
   const handleUnstage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
+      onInteract?.(); // Mark as seen when unstaging
       try {
         await git.unstage([filePath]);
       } catch (error) {
         console.error("Failed to unstage file:", error);
       }
     },
-    [git, filePath],
+    [git, filePath, onInteract],
   );
 
   /**
@@ -239,14 +272,27 @@ export function FileChangeDiff({
         return;
       }
 
+      onInteract?.(); // Mark as seen when reverting
       try {
         await git.revert([filePath]);
       } catch (error) {
         console.error("Failed to revert file:", error);
       }
     },
-    [git, filePath],
+    [git, filePath, onInteract],
   );
+
+  /**
+   * Handle toggle with interaction tracking.
+   * Marks as seen when collapsing (user has acknowledged the file).
+   */
+  const handleToggle = useCallback(() => {
+    // Mark as seen when collapsing (user is dismissing/acknowledging)
+    if (isExpanded) {
+      onInteract?.();
+    }
+    onToggle();
+  }, [isExpanded, onInteract, onToggle]);
 
   // Determine if revert button should be shown
   // Don't show revert for untracked files (they have nothing to revert to)
@@ -272,13 +318,13 @@ export function FileChangeDiff({
           {/* Clickable area for expand/collapse */}
           <div
             className="flex items-center gap-2 min-w-0"
-            onClick={onToggle}
+            onClick={handleToggle}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onToggle();
+                handleToggle();
               }
             }}
           >
@@ -295,7 +341,16 @@ export function FileChangeDiff({
               />
             )}
 
-            {/* Dirty indicator */}
+            {/* Unseen indicator (Follow mode) - yellow asterisk */}
+            {isUnseen && (
+              <Asterisk
+                className="text-yellow-500 flex-shrink-0"
+                size={12}
+                data-testid="unseen-indicator"
+              />
+            )}
+
+            {/* Dirty indicator (unsaved editor changes) */}
             {isDirty && (
               <div
                 className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"
@@ -314,6 +369,17 @@ export function FileChangeDiff({
             <span className="truncate" title={filePath}>
               {filePath}
             </span>
+
+            {/* Timestamp (Follow mode) */}
+            {timestamp != null && (
+              <span
+                className="text-muted-foreground text-xs flex-shrink-0"
+                title={new Date(timestamp).toLocaleString()}
+                data-testid="timestamp"
+              >
+                {formatRelativeTime(timestamp)}
+              </span>
+            )}
           </div>
 
           {/* Diff/Edit mode toggle for modified files */}

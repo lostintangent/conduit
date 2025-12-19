@@ -37,6 +37,8 @@ export interface NestedFileItemProps {
   onUnstage?: () => void;
   /** Callback to revert file */
   onRevert?: () => void;
+  /** Whether to show unseen indicator on git badge (Follow mode) */
+  showUnseenIndicator?: boolean;
 }
 
 export function NestedFileItem({
@@ -50,6 +52,7 @@ export function NestedFileItem({
   onStage,
   onUnstage,
   onRevert,
+  showUnseenIndicator = false,
 }: NestedFileItemProps) {
   // Get text color class from git status
   const statusConfig = getStatusConfig(file.status);
@@ -106,7 +109,10 @@ export function NestedFileItem({
               />
 
               {/* Git status badge */}
-              <GitBadge status={file.status} />
+              <GitBadge
+                status={file.status}
+                showUnseenIndicator={showUnseenIndicator}
+              />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="start">

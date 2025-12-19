@@ -64,6 +64,7 @@ export type UserSettings = {
   // Editor settings
   useConduitAsEditor: boolean;
   useEditorV2: boolean; // Feature flag for the new Editor v2 implementation
+  trackUnseenChangesInReviewMode: boolean; // Show unseen indicators for externally modified files in Review Mode
 
   // Workspace settings
   autoSaveWorkspaces: boolean;

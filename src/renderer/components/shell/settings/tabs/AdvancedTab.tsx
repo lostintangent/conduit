@@ -288,6 +288,32 @@ export function AdvancedTab({
                 </p>
               </div>
             </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="trackUnseenChangesInReviewMode"
+                checked={userSettings.trackUnseenChangesInReviewMode ?? true}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    trackUnseenChangesInReviewMode: e.target.checked,
+                  })
+                }
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor="trackUnseenChangesInReviewMode"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
+                >
+                  Track unseen changes in Review Mode
+                </label>
+                <p className="text-xs text-tinted-foreground/50 mt-1">
+                  Show indicators for files modified by external processes while
+                  in Review Mode
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -42,9 +42,12 @@ import {
 import { cn } from "@/utils";
 import {
   AlertCircle,
+  ArrowDownAZ,
   ArrowDownToLine,
   ArrowLeft,
   ArrowUpFromLine,
+  Clock,
+  Eye,
   GitCommit,
   Send,
   X,
@@ -100,6 +103,26 @@ export interface ChangesReviewToolbarProps {
 
   /** Callback to dismiss the error */
   onDismissError?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Sort Order Props
+  // ---------------------------------------------------------------------------
+
+  /** Whether files are sorted by last edited (true) or folder structure (false) */
+  sortByLastEdited?: boolean;
+
+  /** Callback to toggle sort order */
+  onToggleSortOrder?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Unseen Tracking Props (always active in Review Mode)
+  // ---------------------------------------------------------------------------
+
+  /** Count of unseen files (for badge display) */
+  unseenCount?: number;
+
+  /** Callback to mark all files as seen */
+  onMarkAllSeen?: () => void;
 }
 
 /**
@@ -121,6 +144,12 @@ export function ChangesReviewToolbar({
   onExitReview,
   error,
   onDismissError,
+  // Sort order props
+  sortByLastEdited = false,
+  onToggleSortOrder,
+  // Unseen tracking props
+  unseenCount = 0,
+  onMarkAllSeen,
 }: ChangesReviewToolbarProps) {
   return (
     <div className="flex-shrink-0" data-testid="changes-review-toolbar">
@@ -172,6 +201,60 @@ export function ChangesReviewToolbar({
           <span className="truncate" data-testid="review-title">
             Review Changes ({totalFileCount})
           </span>
+          {/* Unseen count badge (always visible when there are unseen files) */}
+          {unseenCount > 0 && (
+            <span
+              className="text-yellow-500 text-xs font-medium"
+              data-testid="unseen-count-badge"
+            >
+              • {unseenCount} new
+            </span>
+          )}
+          {/* Sort order toggle and mark all seen - next to title with pipe separator */}
+          {(onToggleSortOrder || (onMarkAllSeen && unseenCount > 0)) && (
+            <>
+              <span className="text-muted-foreground">|</span>
+              <div className="flex items-center gap-1">
+                {onToggleSortOrder && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onToggleSortOrder}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        data-testid="sort-order-toggle"
+                      >
+                        {/* Show icon of the state we're switching TO */}
+                        {sortByLastEdited ? (
+                          <ArrowDownAZ size={14} />
+                        ) : (
+                          <Clock size={14} />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {sortByLastEdited
+                        ? "Switch to alphabetical"
+                        : "Switch to last edited"}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {onMarkAllSeen && unseenCount > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onMarkAllSeen}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        data-testid="mark-all-seen-button"
+                      >
+                        <Eye size={14} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Mark all as seen</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -33,6 +33,7 @@ import {
   useEditorActions,
   useEditorSaveKeybinding,
   useModelState,
+  type FileChangeTrackingResult,
 } from "../../hooks";
 import { createModelKey, MonacoModelRegistry } from "../../registry";
 import type { FileNode, ModelState, ViewMode } from "../../types";
@@ -159,6 +160,13 @@ export interface EditorViewPanelProps {
 
   /** Callback to trigger a push operation */
   onPush?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // File Change Tracking (shared state from parent)
+  // ---------------------------------------------------------------------------
+
+  /** File change tracking state and functions (shared between file tree and review pane) */
+  fileTracking?: FileChangeTrackingResult;
 }
 
 /**
@@ -201,6 +209,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   isPushing = false,
   onPull,
   onPush,
+  // File change tracking
+  fileTracking,
 }: EditorViewPanelProps) {
   // Editor instance state - using state instead of ref so changes trigger re-renders
   // This ensures useEditorActions re-subscribes when the editor changes
@@ -404,6 +414,7 @@ export const EditorViewPanel = memo(function EditorViewPanel({
           isPushing={isPushing}
           onPull={onPull ?? (() => {})}
           onPush={onPush ?? (() => {})}
+          fileTracking={fileTracking}
         />
       </div>
     );
@@ -546,6 +557,7 @@ export const EditorViewPanel = memo(function EditorViewPanel({
             isPushing={isPushing}
             onPull={onPull ?? (() => {})}
             onPush={onPush ?? (() => {})}
+            fileTracking={fileTracking}
           />
         ) : null}
       </div>
