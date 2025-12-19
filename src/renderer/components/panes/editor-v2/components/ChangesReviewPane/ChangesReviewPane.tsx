@@ -37,14 +37,11 @@ import type { GitV2API } from "@/api/GitV2API";
 import { FileSystemV2APIService } from "@/services/FileSystemV2APIService";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DISABLED_TRACKING, type FileChangeTrackingResult } from "../../hooks";
 import { ChangesFooter } from "./ChangesFooter";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
-import {
-  useExpandedFiles,
-  useFollowMode,
-  useScrollToSelectedFile,
-} from "./hooks";
+import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
@@ -83,6 +80,13 @@ export interface ChangesReviewPaneProps {
 
   /** Callback to trigger a push operation */
   onPush: () => void;
+
+  // ---------------------------------------------------------------------------
+  // File Change Tracking (shared state from parent)
+  // ---------------------------------------------------------------------------
+
+  /** File change tracking state and functions (shared between file tree and review pane) */
+  fileTracking?: FileChangeTrackingResult;
 }
 
 /**
@@ -100,6 +104,7 @@ export function ChangesReviewPane({
   isPushing,
   onPull,
   onPush,
+  fileTracking: fileTrackingProp,
 }: ChangesReviewPaneProps) {
   // Ref for the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -126,13 +131,13 @@ export function ChangesReviewPane({
   const [unstagedSectionExpanded, setUnstagedSectionExpanded] = useState(true);
 
   // ---------------------------------------------------------------------------
-  // Follow Mode State
+  // Sort Order State
   // ---------------------------------------------------------------------------
 
-  const [isFollowModeEnabled, setIsFollowModeEnabled] = useState(false);
+  const [sortByLastEdited, setSortByLastEdited] = useState(false);
 
-  const toggleFollowMode = useCallback(() => {
-    setIsFollowModeEnabled((prev) => !prev);
+  const toggleSortOrder = useCallback(() => {
+    setSortByLastEdited((prev) => !prev);
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -175,9 +180,11 @@ export function ChangesReviewPane({
     useExpandedFiles(allFilePaths, true);
 
   // ---------------------------------------------------------------------------
-  // Follow Mode State (via hook)
+  // File Change Tracking State (only when fileTrackingProp is provided)
   // ---------------------------------------------------------------------------
 
+  // When fileTrackingProp is undefined, tracking is disabled - use no-op functions
+  const trackingEnabled = fileTrackingProp !== undefined;
   const {
     isUnseen,
     getTimestamp,
@@ -188,21 +195,21 @@ export function ChangesReviewPane({
     sortByTimestamp,
     processStatusChange,
     initializeFiles,
-  } = useFollowMode();
+  } = fileTrackingProp ?? DISABLED_TRACKING;
 
   // ---------------------------------------------------------------------------
-  // Follow Mode: Sorted File Lists
+  // Sorted File Lists (by timestamp when sortByLastEdited is true)
   // ---------------------------------------------------------------------------
 
-  // Sort files by modification time (most recent first) in Follow mode
+  // Sort files by modification time (most recent first) when sortByLastEdited is true
   const sortedStagedFiles = useMemo(
-    () => sortByTimestamp(stagedFiles),
-    [sortByTimestamp, stagedFiles],
+    () => (sortByLastEdited ? sortByTimestamp(stagedFiles) : stagedFiles),
+    [sortByTimestamp, stagedFiles, sortByLastEdited],
   );
 
   const sortedUnstagedFiles = useMemo(
-    () => sortByTimestamp(unstagedFiles),
-    [sortByTimestamp, unstagedFiles],
+    () => (sortByLastEdited ? sortByTimestamp(unstagedFiles) : unstagedFiles),
+    [sortByTimestamp, unstagedFiles, sortByLastEdited],
   );
 
   // Get unseen counts for each section
@@ -530,9 +537,10 @@ export function ChangesReviewPane({
         onExitReview={onExitReview}
         error={error}
         onDismissError={handleDismissError}
-        // Follow mode props
-        isFollowModeEnabled={isFollowModeEnabled}
-        onToggleFollowMode={toggleFollowMode}
+        // Sort order props
+        sortByLastEdited={sortByLastEdited}
+        onToggleSortOrder={toggleSortOrder}
+        // Unseen tracking props (always active)
         unseenCount={unseenCount}
         onMarkAllSeen={markAllSeen}
       />
@@ -546,7 +554,7 @@ export function ChangesReviewPane({
         {/* Staged Changes Section */}
         <ChangesSection
           title="Staged Changes"
-          files={isFollowModeEnabled ? sortedStagedFiles : stagedFiles}
+          files={sortedStagedFiles}
           icon={<Check className="w-3.5 h-3.5" />}
           iconColorClass="text-green-500"
           isExpanded={stagedSectionExpanded}
@@ -561,17 +569,17 @@ export function ChangesReviewPane({
           onToggleFile={toggleFile}
           onExpandAll={handleExpandAllStaged}
           onCollapseAll={handleCollapseAllStaged}
-          // Follow mode props (only when enabled)
-          unseenCount={isFollowModeEnabled ? stagedUnseenCount : 0}
-          isFileUnseen={isFollowModeEnabled ? isUnseen : undefined}
-          getFileTimestamp={isFollowModeEnabled ? getTimestamp : undefined}
-          markFileSeen={isFollowModeEnabled ? markSeen : undefined}
+          // Unseen tracking props (always active)
+          unseenCount={stagedUnseenCount}
+          isFileUnseen={isUnseen}
+          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+          markFileSeen={markSeen}
         />
 
         {/* Unstaged Changes Section */}
         <ChangesSection
           title="Changes"
-          files={isFollowModeEnabled ? sortedUnstagedFiles : unstagedFiles}
+          files={sortedUnstagedFiles}
           icon={<Minus className="w-3.5 h-3.5" />}
           iconColorClass="text-yellow-500"
           isExpanded={unstagedSectionExpanded}
@@ -586,11 +594,11 @@ export function ChangesReviewPane({
           onToggleFile={toggleFile}
           onExpandAll={handleExpandAllUnstaged}
           onCollapseAll={handleCollapseAllUnstaged}
-          // Follow mode props (only when enabled)
-          unseenCount={isFollowModeEnabled ? unstagedUnseenCount : 0}
-          isFileUnseen={isFollowModeEnabled ? isUnseen : undefined}
-          getFileTimestamp={isFollowModeEnabled ? getTimestamp : undefined}
-          markFileSeen={isFollowModeEnabled ? markSeen : undefined}
+          // Unseen tracking props (always active)
+          unseenCount={unstagedUnseenCount}
+          isFileUnseen={isUnseen}
+          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+          markFileSeen={markSeen}
         />
       </div>
 

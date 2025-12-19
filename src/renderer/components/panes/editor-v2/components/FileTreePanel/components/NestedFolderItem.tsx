@@ -38,6 +38,8 @@ export interface NestedFolderItemProps {
   onUnstage?: (path: string) => void;
   /** Callback to revert file/folder */
   onRevert?: (path: string) => void;
+  /** Check if a file is unseen (Follow mode) */
+  isFileUnseen?: (path: string) => boolean;
 }
 
 export function NestedFolderItem({
@@ -52,6 +54,7 @@ export function NestedFolderItem({
   onStage,
   onUnstage,
   onRevert,
+  isFileUnseen,
 }: NestedFolderItemProps) {
   const isExpanded = expandedFolders.has(folder.path);
   const FolderIcon = isExpanded ? FolderOpen : Folder;
@@ -148,6 +151,7 @@ export function NestedFolderItem({
               onStage={onStage}
               onUnstage={onUnstage}
               onRevert={onRevert}
+              isFileUnseen={isFileUnseen}
             />
           ))}
 
@@ -165,6 +169,7 @@ export function NestedFolderItem({
               onStage={onStage ? () => onStage(file.path) : undefined}
               onUnstage={onUnstage ? () => onUnstage(file.path) : undefined}
               onRevert={onRevert ? () => onRevert(file.path) : undefined}
+              showUnseenIndicator={isFileUnseen?.(file.path)}
             />
           ))}
         </ul>

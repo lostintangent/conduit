@@ -1,28 +1,28 @@
 /**
- * Tests for useFollowMode hook.
+ * Tests for useFileChangeTracking hook.
  */
 
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useFollowMode } from "@/components/panes/editor-v2/components/ChangesReviewPane/hooks/useFollowMode";
+import { useFileChangeTracking } from "@/components/panes/editor-v2/hooks/useFileChangeTracking";
 
-describe("useFollowMode", () => {
+describe("useFileChangeTracking", () => {
   describe("initial state", () => {
     it("should start with no unseen files", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       expect(result.current.unseenCount).toBe(0);
     });
 
     it("should return false for isUnseen on unknown files", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       expect(result.current.isUnseen("unknown.ts")).toBe(false);
     });
 
     it("should return null for getTimestamp on unknown files", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       expect(result.current.getTimestamp("unknown.ts")).toBeNull();
     });
@@ -30,7 +30,7 @@ describe("useFollowMode", () => {
 
   describe("initializeFiles", () => {
     it("should initialize files as seen", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.initializeFiles(["file1.ts", "file2.ts"]);
@@ -42,7 +42,7 @@ describe("useFollowMode", () => {
     });
 
     it("should not set timestamps for initialized files without timestamp map", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.initializeFiles(["file1.ts"]);
@@ -53,7 +53,7 @@ describe("useFollowMode", () => {
     });
 
     it("should set timestamps from provided timestamp map", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       const timestampMap = new Map<string, number>();
       timestampMap.set("file1.ts", 1700000000000);
@@ -68,7 +68,7 @@ describe("useFollowMode", () => {
     });
 
     it("should only initialize once", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.initializeFiles(["file1.ts"]);
@@ -90,7 +90,7 @@ describe("useFollowMode", () => {
 
   describe("processStatusChange", () => {
     it("should mark changed files as unseen", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange(["file1.ts", "file2.ts"]);
@@ -102,7 +102,7 @@ describe("useFollowMode", () => {
     });
 
     it("should set timestamps when files change", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.initializeFiles(["file1.ts"]);
@@ -121,7 +121,7 @@ describe("useFollowMode", () => {
     });
 
     it("should call expandFile callback for previously seen files", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
       const expandFile = vi.fn();
 
       // Initialize file as seen
@@ -138,7 +138,7 @@ describe("useFollowMode", () => {
     });
 
     it("should not call expandFile for new files", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
       const expandFile = vi.fn();
 
       act(() => {
@@ -151,7 +151,7 @@ describe("useFollowMode", () => {
 
   describe("markSeen", () => {
     it("should mark a file as seen", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange(["file1.ts"]);
@@ -168,7 +168,7 @@ describe("useFollowMode", () => {
     });
 
     it("should not affect other files", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange(["file1.ts", "file2.ts"]);
@@ -186,7 +186,7 @@ describe("useFollowMode", () => {
 
   describe("markAllSeen", () => {
     it("should mark all files as seen", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange([
@@ -211,7 +211,7 @@ describe("useFollowMode", () => {
 
   describe("getUnseenCount", () => {
     it("should return count for specific paths", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange([
@@ -227,7 +227,7 @@ describe("useFollowMode", () => {
     });
 
     it("should return total count when no paths provided", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange(["file1.ts", "file2.ts"]);
@@ -239,7 +239,7 @@ describe("useFollowMode", () => {
 
   describe("sortByTimestamp", () => {
     it("should sort files by timestamp (most recent first)", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       vi.useFakeTimers();
 
@@ -268,7 +268,7 @@ describe("useFollowMode", () => {
     });
 
     it("should sort alphabetically for same timestamp", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       // Add files at same time
       act(() => {
@@ -287,7 +287,7 @@ describe("useFollowMode", () => {
     });
 
     it("should sort files without timestamps to the end", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange(["tracked.ts"]);
@@ -307,7 +307,7 @@ describe("useFollowMode", () => {
 
   describe("reset", () => {
     it("should clear all tracking data", () => {
-      const { result } = renderHook(() => useFollowMode());
+      const { result } = renderHook(() => useFileChangeTracking());
 
       act(() => {
         result.current.processStatusChange(["file1.ts", "file2.ts"]);

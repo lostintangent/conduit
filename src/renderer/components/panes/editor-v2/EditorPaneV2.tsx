@@ -23,7 +23,7 @@ import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { tabsAtom } from "@/store/atoms";
+import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import { cn } from "@/utils";
 import { useAtomValue } from "jotai";
@@ -44,6 +44,7 @@ import {
 } from "./components";
 import {
   useEditorTheme,
+  useFileChangeTracking,
   useResponsiveLayout,
   useReviewModeState,
 } from "./hooks";
@@ -228,6 +229,11 @@ export function EditorPaneV2({
 
   // Get current tab for sandbox handlers
   const tabs = useAtomValue(tabsAtom);
+
+  // Get user settings for unseen tracking preference
+  const userSettings = useAtomValue(userSettingsAtom);
+  const trackUnseenChanges =
+    userSettings.trackUnseenChangesInReviewMode ?? true;
   const currentTab = useMemo(() => {
     for (const tab of tabs) {
       if (tab.panes[pane.id]) {
@@ -311,6 +317,9 @@ export function EditorPaneV2({
     setViewModePreservingReview,
     handleTreeViewModeTransition,
   } = useReviewModeState();
+
+  // File change tracking state (shared between file tree and review pane)
+  const fileTracking = useFileChangeTracking();
 
   // Changes view mode (flat or nested) for FileTreeChanges
   const [changesViewMode, setChangesViewMode] = useState<"flat" | "nested">(
@@ -669,6 +678,11 @@ export function EditorPaneV2({
       // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
       // File selection within the editor just updates selectedFile state
 
+      // Mark file as seen (if unseen tracking is enabled)
+      if (trackUnseenChanges) {
+        fileTracking.markSeen(relativePath);
+      }
+
       // Notify parent of file selection (skip for deleted files - they don't exist on disk)
       // Note: We no longer read file content here - Monaco model registry handles that.
       // This eliminates a duplicate file read that was causing ~300ms latency.
@@ -691,6 +705,8 @@ export function EditorPaneV2({
       currentCwd,
       preferDiffForModified,
       setViewModePreservingReview,
+      fileTracking,
+      trackUnseenChanges,
     ],
   );
 
@@ -1187,6 +1203,8 @@ export function EditorPaneV2({
           // Review Mode Props
           isReviewModeActive={isReviewMode}
           onReviewChanges={handleReviewChanges}
+          // Unseen Tracking Props (when enabled)
+          isFileUnseen={trackUnseenChanges ? fileTracking.isUnseen : undefined}
         />
       </div>
 
@@ -1238,6 +1256,8 @@ export function EditorPaneV2({
           isPushing={isPushing}
           onPull={handlePull}
           onPush={handlePush}
+          // Unseen tracking (when enabled)
+          fileTracking={trackUnseenChanges ? fileTracking : undefined}
         />
       </div>
 

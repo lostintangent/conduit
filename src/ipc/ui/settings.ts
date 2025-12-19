@@ -32,6 +32,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   dimInactivePanes: false,
   useConduitAsEditor: true,
   useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
+  trackUnseenChangesInReviewMode: true, // Show unseen indicators in Review Mode by default
   theme: "dark",
   terminalPromptBufferLines: 100,
   terminalFontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',

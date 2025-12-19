@@ -42,6 +42,18 @@ vi.mock("../../../src/renderer/components/panes/editor-v2/hooks", () => ({
     setViewModePreservingReview: mockSetViewModePreservingReview,
     handleTreeViewModeTransition: vi.fn(),
   }),
+  useFileChangeTracking: () => ({
+    isUnseen: () => false,
+    getTimestamp: () => null,
+    markSeen: vi.fn(),
+    markAllSeen: vi.fn(),
+    getUnseenCount: () => 0,
+    unseenCount: 0,
+    sortByTimestamp: (files: unknown[]) => files,
+    processStatusChange: vi.fn(),
+    initializeFiles: vi.fn(),
+    reset: vi.fn(),
+  }),
 }));
 
 // Mock registerEditorHandlers

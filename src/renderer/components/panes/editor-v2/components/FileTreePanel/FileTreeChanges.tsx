@@ -73,6 +73,8 @@ export interface FileTreeChangesProps {
   isComparingToBranch?: boolean;
   /** Base branch name for display (e.g., "main") */
   baseBranchName?: string | null;
+  /** Check if a file is unseen - returns true if file has unacknowledged changes */
+  isFileUnseen?: (path: string) => boolean;
 }
 
 // ============================================================================
@@ -320,6 +322,7 @@ export function FileTreeChanges({
   gitStatus: gitStatusFromParent,
   isComparingToBranch = false,
   baseBranchName,
+  isFileUnseen,
 }: FileTreeChangesProps) {
   const hasParentStatus = gitStatusFromParent !== undefined;
   const showActionButtons = !isComparingToBranch;
@@ -611,6 +614,7 @@ export function FileTreeChanges({
         onStage={showActionButtons ? () => handleStage(path) : undefined}
         onUnstage={showActionButtons ? () => handleUnstage(path) : undefined}
         onRevert={showActionButtons ? () => handleRevert(path) : undefined}
+        showUnseenIndicator={isFileUnseen?.(path)}
       />
     ));
   };
@@ -641,6 +645,7 @@ export function FileTreeChanges({
             onStage={showActionButtons ? handleStage : undefined}
             onUnstage={showActionButtons ? handleUnstage : undefined}
             onRevert={showActionButtons ? handleRevert : undefined}
+            isFileUnseen={isFileUnseen}
           />
         ))}
         {rootFiles
@@ -666,6 +671,7 @@ export function FileTreeChanges({
               onRevert={
                 showActionButtons ? () => handleRevert(file.path) : undefined
               }
+              showUnseenIndicator={isFileUnseen?.(file.path)}
             />
           ))}
       </>

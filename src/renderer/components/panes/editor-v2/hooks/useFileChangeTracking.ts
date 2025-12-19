@@ -1,8 +1,8 @@
 /**
- * useFollowMode Hook
+ * useFileChangeTracking Hook
  *
- * Manages "Follow mode" state for the changes review pane - an inbox-style
- * view where files are ordered by modification time with unread indicators.
+ * Manages file change tracking state for the editor - tracking which files
+ * have been modified externally and haven't been reviewed by the user yet.
  *
  * Features:
  * - Track modification timestamps for each file
@@ -28,7 +28,7 @@
  *     unseenCount,
  *     sortByTimestamp,
  *     processStatusChange,
- *   } = useFollowMode();
+ *   } = useFileChangeTracking();
  *
  *   // Process git status changes
  *   useEffect(() => {
@@ -63,7 +63,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 /**
- * Metadata tracked for each file in Follow mode.
+ * Metadata tracked for each file.
  */
 interface FileMetadata {
   /** Timestamp when the file was last modified (ms since epoch), or null if unknown */
@@ -73,9 +73,9 @@ interface FileMetadata {
 }
 
 /**
- * Return type for useFollowMode hook.
+ * Return type for useFileChangeTracking hook.
  */
-export interface UseFollowModeResult {
+export interface FileChangeTrackingResult {
   /**
    * Check if a file is unseen (has unacknowledged changes).
    */
@@ -130,7 +130,7 @@ export interface UseFollowModeResult {
    * Initialize tracking for files without marking them unseen.
    * Call this on initial load to set timestamps for existing files.
    */
-  initializeFiles: (paths: string[]) => void;
+  initializeFiles: (paths: string[], timestamps?: Map<string, number>) => void;
 
   /**
    * Clear all tracking data.
@@ -139,11 +139,28 @@ export interface UseFollowModeResult {
 }
 
 /**
- * Hook for managing Follow mode state in the changes review pane.
- *
- * @returns Follow mode state and control functions
+ * Disabled tracking implementation - all no-op functions.
+ * Use this when tracking is disabled via settings.
  */
-export function useFollowMode(): UseFollowModeResult {
+export const DISABLED_TRACKING: FileChangeTrackingResult = {
+  isUnseen: () => false,
+  getTimestamp: () => null,
+  markSeen: () => {},
+  markAllSeen: () => {},
+  getUnseenCount: () => 0,
+  unseenCount: 0,
+  sortByTimestamp: <T extends [string, unknown]>(files: T[]): T[] => files,
+  processStatusChange: () => {},
+  initializeFiles: () => {},
+  reset: () => {},
+};
+
+/**
+ * Hook for managing file change tracking state in the editor.
+ *
+ * @returns File change tracking state and control functions
+ */
+export function useFileChangeTracking(): FileChangeTrackingResult {
   // Map of file paths to their metadata
   const [fileMetadata, setFileMetadata] = useState<Map<string, FileMetadata>>(
     () => new Map(),

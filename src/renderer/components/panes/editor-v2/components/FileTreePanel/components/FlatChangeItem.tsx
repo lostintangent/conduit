@@ -39,6 +39,8 @@ export interface FlatChangeItemProps {
   onUnstage?: () => void;
   /** Callback to revert file */
   onRevert?: () => void;
+  /** Whether to show unseen indicator on git badge (Follow mode) */
+  showUnseenIndicator?: boolean;
 }
 
 /**
@@ -62,6 +64,7 @@ export function FlatChangeItem({
   onStage,
   onUnstage,
   onRevert,
+  showUnseenIndicator = false,
 }: FlatChangeItemProps) {
   const fileName = filePath.split("/").pop() ?? filePath;
   const folderPath = getDirectoryPath(filePath);
@@ -133,7 +136,10 @@ export function FlatChangeItem({
               />
 
               {/* Git status badge */}
-              <GitBadge status={status} />
+              <GitBadge
+                status={status}
+                showUnseenIndicator={showUnseenIndicator}
+              />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="start">

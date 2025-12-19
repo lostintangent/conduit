@@ -42,12 +42,13 @@ import {
 import { cn } from "@/utils";
 import {
   AlertCircle,
+  ArrowDownAZ,
   ArrowDownToLine,
   ArrowLeft,
   ArrowUpFromLine,
+  Clock,
   Eye,
   GitCommit,
-  ListOrdered,
   Send,
   X,
 } from "lucide-react";
@@ -104,14 +105,18 @@ export interface ChangesReviewToolbarProps {
   onDismissError?: () => void;
 
   // ---------------------------------------------------------------------------
-  // Follow Mode Props (optional)
+  // Sort Order Props
   // ---------------------------------------------------------------------------
 
-  /** Whether Follow mode is enabled */
-  isFollowModeEnabled?: boolean;
+  /** Whether files are sorted by last edited (true) or folder structure (false) */
+  sortByLastEdited?: boolean;
 
-  /** Callback to toggle Follow mode */
-  onToggleFollowMode?: () => void;
+  /** Callback to toggle sort order */
+  onToggleSortOrder?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Unseen Tracking Props (always active in Review Mode)
+  // ---------------------------------------------------------------------------
 
   /** Count of unseen files (for badge display) */
   unseenCount?: number;
@@ -139,9 +144,10 @@ export function ChangesReviewToolbar({
   onExitReview,
   error,
   onDismissError,
-  // Follow mode props
-  isFollowModeEnabled = false,
-  onToggleFollowMode,
+  // Sort order props
+  sortByLastEdited = false,
+  onToggleSortOrder,
+  // Unseen tracking props
   unseenCount = 0,
   onMarkAllSeen,
 }: ChangesReviewToolbarProps) {
@@ -195,8 +201,8 @@ export function ChangesReviewToolbar({
           <span className="truncate" data-testid="review-title">
             Review Changes ({totalFileCount})
           </span>
-          {/* Unseen count badge (Follow mode - only when enabled) */}
-          {isFollowModeEnabled && unseenCount > 0 && (
+          {/* Unseen count badge (always visible when there are unseen files) */}
+          {unseenCount > 0 && (
             <span
               className="text-yellow-500 text-xs font-medium"
               data-testid="unseen-count-badge"
@@ -204,46 +210,50 @@ export function ChangesReviewToolbar({
               • {unseenCount} new
             </span>
           )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          {/* Mark all seen button (Follow mode - only when enabled and has unseen) */}
-          {isFollowModeEnabled && onMarkAllSeen && unseenCount > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onMarkAllSeen}
-                  className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
-                  data-testid="mark-all-seen-button"
-                >
-                  <Eye size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Mark all as seen</TooltipContent>
-            </Tooltip>
-          )}
-
-          {/* Follow mode toggle */}
-          {onToggleFollowMode && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onToggleFollowMode}
-                  className={cn(
-                    "p-1 rounded transition-colors shrink-0",
-                    isFollowModeEnabled
-                      ? "bg-primary/20 text-primary hover:bg-primary/30"
-                      : "hover:bg-white/10",
-                  )}
-                  data-testid="follow-mode-toggle"
-                >
-                  <ListOrdered size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isFollowModeEnabled ? "Disable" : "Enable"} Follow mode
-              </TooltipContent>
-            </Tooltip>
+          {/* Sort order toggle and mark all seen - next to title with pipe separator */}
+          {(onToggleSortOrder || (onMarkAllSeen && unseenCount > 0)) && (
+            <>
+              <span className="text-muted-foreground">|</span>
+              <div className="flex items-center gap-1">
+                {onToggleSortOrder && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onToggleSortOrder}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        data-testid="sort-order-toggle"
+                      >
+                        {/* Show icon of the state we're switching TO */}
+                        {sortByLastEdited ? (
+                          <ArrowDownAZ size={14} />
+                        ) : (
+                          <Clock size={14} />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {sortByLastEdited
+                        ? "Switch to alphabetical"
+                        : "Switch to last edited"}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {onMarkAllSeen && unseenCount > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onMarkAllSeen}
+                        className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
+                        data-testid="mark-all-seen-button"
+                      >
+                        <Eye size={14} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Mark all as seen</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
