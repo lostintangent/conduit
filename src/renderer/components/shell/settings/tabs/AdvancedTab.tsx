@@ -5,11 +5,24 @@
  */
 
 import { updateTerminalFonts } from "@/components/panes/terminal/xtermCache";
+import { useDotfiles } from "@/hooks/useDotfiles";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { capitalize } from "@/utils";
 import type { PlayButtonTarget, ThemeMode, UserSettings } from "@shared/types";
 import type { LucideIcon } from "lucide-react";
-import { ChevronDown, Monitor, Moon, Sun } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Download,
+  FolderOpen,
+  Loader2,
+  Monitor,
+  Moon,
+  Plus,
+  Sun,
+  X,
+} from "lucide-react";
+import { useState } from "react";
 
 const themeOptions = new Map<ThemeMode, LucideIcon>([
   ["light", Sun],
@@ -20,15 +33,41 @@ const themeOptions = new Map<ThemeMode, LucideIcon>([
 interface AdvancedTabProps {
   userSettings: ReturnType<typeof useUserSettings>;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
+  onOpenQuickPane: (descriptor: {
+    type: "editor";
+    cwd: string;
+    filePath?: string;
+  }) => void;
 }
 
 export function AdvancedTab({
   userSettings,
   onUpdateSettings,
+  onOpenQuickPane,
 }: AdvancedTabProps) {
   const showLaunchButton = userSettings.showLaunchButton ?? false;
   const showPlayButton = userSettings.showPlayButton ?? false;
   const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
+
+  const {
+    status: dotfilesStatus,
+    repoPath,
+    fetchDotfiles,
+    createDotfilesRepo,
+  } = useDotfiles();
+  const [dotfilesRepo, setDotfilesRepo] = useState(
+    userSettings.dotfilesRepo || "",
+  );
+  const [isHoveringDotfilesStatus, setIsHoveringDotfilesStatus] =
+    useState(false);
+
+  const handleCreateDotfiles = async () => {
+    const url = await createDotfilesRepo();
+    if (url) {
+      setDotfilesRepo(url);
+      onUpdateSettings({ dotfilesRepo: url });
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -138,6 +177,82 @@ export function AdvancedTab({
             Terminal
           </h3>
           <div className="space-y-4 bg-tinted-muted rounded-lg p-4">
+            {/* Dotfiles Repo Setting */}
+            <div>
+              <label
+                htmlFor="dotfilesRepo"
+                className="text-sm text-tinted-foreground/80 block mb-2"
+              >
+                Dotfiles Repository
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="dotfilesRepo"
+                  value={dotfilesRepo}
+                  onChange={(e) => setDotfilesRepo(e.target.value)}
+                  onBlur={() => {
+                    if (dotfilesRepo !== userSettings.dotfilesRepo) {
+                      onUpdateSettings({ dotfilesRepo });
+                    }
+                  }}
+                  placeholder="https://github.com/username/dotfiles.git"
+                  className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground placeholder:text-tinted-foreground/40 focus:outline-none focus:border-accent pr-20"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  {!dotfilesRepo && (
+                    <button
+                      onClick={handleCreateDotfiles}
+                      className="p-1 hover:bg-tinted-foreground/10 rounded text-tinted-foreground/60 transition-colors"
+                      title="Create Dotfiles Repo"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  )}
+                  {dotfilesStatus !== "disabled" && dotfilesRepo && (
+                    <button
+                      onClick={() =>
+                        onOpenQuickPane({
+                          type: "editor",
+                          cwd: repoPath,
+                        })
+                      }
+                      disabled={dotfilesStatus !== "idle"}
+                      className="p-1 hover:bg-tinted-foreground/10 rounded text-tinted-foreground/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Open in Editor"
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                    </button>
+                  )}
+                  {dotfilesStatus === "cloning" ||
+                  dotfilesStatus === "fetching" ||
+                  dotfilesStatus === "pushing" ? (
+                    <Loader2 className="w-4 h-4 text-tinted-foreground/50 animate-spin" />
+                  ) : dotfilesStatus === "idle" && dotfilesRepo ? (
+                    <button
+                      onClick={fetchDotfiles}
+                      onMouseEnter={() => setIsHoveringDotfilesStatus(true)}
+                      onMouseLeave={() => setIsHoveringDotfilesStatus(false)}
+                      className="p-1 hover:bg-tinted-foreground/10 rounded transition-colors"
+                      title="Pull latest changes"
+                    >
+                      {isHoveringDotfilesStatus ? (
+                        <Download className="w-4 h-4 text-tinted-foreground/60" />
+                      ) : (
+                        <Check className="w-4 h-4 text-green-500" />
+                      )}
+                    </button>
+                  ) : dotfilesStatus === "failed" ? (
+                    <X className="w-4 h-4 text-red-500" />
+                  ) : null}
+                </div>
+              </div>
+              <p className="text-xs text-tinted-foreground/50 mt-1">
+                A repository for storing shell dotfiles and agent skills.
+                Contents will be symlinked to your home directory.
+              </p>
+            </div>
+
             <div>
               <label
                 htmlFor="terminalShell"

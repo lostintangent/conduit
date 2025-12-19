@@ -5,6 +5,10 @@ import type {
   BrowserPage,
   UserSettings,
 } from "../../shared/types";
+import {
+  initializeRepo as initializeDotfiles,
+  setDotfilesRepo,
+} from "../dotfiles";
 import { updateApplicationMenu } from "./applicationMenu";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
 import { loadSettings, saveSettings } from "./settings";
@@ -33,6 +37,15 @@ export async function initializeUserSettings(
 ) {
   userSettings = await loadSettings(conduitStateDirectory);
 
+  // Initialize dotfiles with loaded settings, or auto-discover
+  const suggestedRepo = await initializeDotfiles(userSettings.dotfilesRepo);
+
+  // If auto-discovery found a repo, persist it to settings
+  if (suggestedRepo) {
+    userSettings.dotfilesRepo = suggestedRepo;
+    await saveSettings(userSettings);
+  }
+
   const refreshMenu = async () =>
     updateApplicationMenu(window, requireUserSettings(), saveSettings);
 
@@ -54,12 +67,20 @@ export function initializeUIHandlers(window: BrowserWindow) {
     "ui:update-settings",
     async (_, updates: Partial<UserSettings>) => {
       const currentSettings = requireUserSettings();
+      const oldDotfilesRepo = currentSettings.dotfilesRepo;
+
       userSettings = {
         ...currentSettings,
         ...updates,
       };
 
       await saveSettings(userSettings);
+
+      // Check if dotfilesRepo changed
+      if (userSettings.dotfilesRepo !== oldDotfilesRepo) {
+        await setDotfilesRepo(userSettings.dotfilesRepo);
+      }
+
       if (refreshMenuCallback) {
         await refreshMenuCallback();
       }

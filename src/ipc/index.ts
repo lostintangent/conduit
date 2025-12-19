@@ -4,6 +4,7 @@ import path from "node:path";
 import { initializeAgentHandlers } from "./agent";
 import { initializeBrowserHandlers } from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
+import { initialize as initializeDotfiles } from "./dotfiles";
 import { initializeFsHandlers } from "./fs";
 import { initializeFileWatcherHandlers } from "./fs/watcher";
 import {
@@ -47,6 +48,8 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   };
 
   const conduitStateDirectory = await ensureConduitDirectory();
+
+  initializeDotfiles(conduitStateDirectory, app.getPath("home"), window);
 
   const { refreshMenu } = await initializeUserSettings(
     window,

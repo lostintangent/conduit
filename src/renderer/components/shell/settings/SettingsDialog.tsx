@@ -133,6 +133,7 @@ export function SettingsDialog({
             <AdvancedTab
               userSettings={userSettings}
               onUpdateSettings={onUpdateSettings}
+              onOpenQuickPane={onOpenQuickPane}
             />
           </TabsContent>
         </Tabs>
