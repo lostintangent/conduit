@@ -17,11 +17,16 @@
 import type { ICommandRegistry } from "@/commands";
 import { When, getContextKeyService } from "@/commands";
 import {
+  dotfilesEnabled,
   fileTreeCwd,
+  fileTreeItemInHomeDirectory,
   fileTreeItemIsDirectory,
+  fileTreeItemIsFile,
+  fileTreeItemIsSymlink,
   fileTreeTargetPath,
 } from "@/commands/contextKeys/appContextKeys";
 import { MenuId } from "@/commands/menus/types";
+import { MonacoModelRegistry } from "@/components/panes/editor-v2/registry/MonacoModelRegistry";
 
 /**
  * File tree command IDs
@@ -34,6 +39,7 @@ export const FileTreeCommands = {
   COPY_PATH: "fileTree.copyPath",
   COPY_RELATIVE_PATH: "fileTree.copyRelativePath",
   REVEAL_IN_FINDER: "fileTree.revealInFinder",
+  ADD_TO_DOTFILES: "fileTree.addToDotfiles",
 } as const;
 
 /**
@@ -268,6 +274,36 @@ export function registerFileTreeCommands(
       const path = getTargetPath();
       if (path) {
         await window.conduit.showItemInFolder(path);
+      }
+    },
+  });
+
+  // Add to Dotfiles
+  // Only shown for files in the home directory that are not symlinks, when dotfiles is enabled
+  commandRegistry.registerCommand({
+    id: FileTreeCommands.ADD_TO_DOTFILES,
+    title: "Add to Dotfiles",
+    category: "File Tree",
+    when: When.never(),
+    menu: [
+      {
+        id: MenuId.FileTreeContext,
+        group: "5_dotfiles",
+        order: 1,
+        when: When.and(
+          fileTreeItemIsFile.isTrue(),
+          fileTreeItemInHomeDirectory.isTrue(),
+          fileTreeItemIsSymlink.isFalse(),
+          dotfilesEnabled.isTrue(),
+        ),
+      },
+    ],
+    run: async () => {
+      const path = getTargetPath();
+      if (path) {
+        // Suppress orphan warning since symlink will be created immediately
+        MonacoModelRegistry.getInstance().suppressOrphanWarning(path);
+        await window.conduit.addToDotfiles(path);
       }
     },
   });

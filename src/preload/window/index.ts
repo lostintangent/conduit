@@ -150,6 +150,9 @@ const conduitAPI = {
 
   fetchDotfiles: () => ipcRenderer.invoke("dotfiles:fetch") as Promise<void>,
 
+  addToDotfiles: (filePath: string) =>
+    ipcRenderer.invoke("dotfiles:add-file", filePath) as Promise<void>,
+
   /* UI-related methods (UI->main) */
 
   getSettings: () =>

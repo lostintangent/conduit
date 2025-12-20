@@ -35,6 +35,7 @@ export interface UseCommandSystemOptions {
   applicationMode: ApplicationMode;
   setApplicationMode: (mode: ApplicationMode) => void;
   homeDirectory?: string;
+  dotfilesRepo?: string;
   workspaceName?: string;
   // Context key data
   hasCustomLayout: (tabId: string) => boolean;
@@ -75,6 +76,7 @@ export function useCommandSystem(
     applicationMode,
     setApplicationMode,
     homeDirectory,
+    dotfilesRepo,
     workspaceName,
     hasCustomLayout,
     hasLastWorkspace,
@@ -256,6 +258,7 @@ export function useCommandSystem(
     );
     contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
     contextKeyService.setGlobal("tabIsLocked", Boolean(activeTab?.locked));
+    contextKeyService.setGlobal("dotfilesEnabled", !!dotfilesRepo);
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {
@@ -300,6 +303,7 @@ export function useCommandSystem(
     activeTab,
     hasCustomLayout,
     applicationMode,
+    dotfilesRepo,
   ]);
 
   // Watch keybindings file for external changes

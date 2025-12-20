@@ -182,6 +182,7 @@ export function App() {
     applicationMode,
     setApplicationMode,
     homeDirectory,
+    dotfilesRepo: userSettings.dotfilesRepo,
     workspaceName,
     // Context key data
     hasCustomLayout,

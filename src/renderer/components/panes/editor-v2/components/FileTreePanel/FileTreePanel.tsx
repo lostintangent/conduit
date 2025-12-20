@@ -23,16 +23,16 @@
  * ```
  */
 
-import { memo, forwardRef } from "react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
-import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
-import type { FileNode, TreeViewMode } from "../../types";
-import { FileTreeToolbar } from "./FileTreeToolbar";
-import { FileTreeNormal, type FileTreeNormalHandle } from "./FileTreeNormal";
-import { FileTreeChanges } from "./FileTreeChanges";
-import { GitBranchToolbar } from "./GitBranchToolbar";
+import type { GitV2API } from "@/api/GitV2API";
 import { cn } from "@/utils";
+import { forwardRef, memo } from "react";
+import type { FileNode, TreeViewMode } from "../../types";
+import { FileTreeChanges } from "./FileTreeChanges";
+import { FileTreeNormal, type FileTreeNormalHandle } from "./FileTreeNormal";
+import { FileTreeToolbar } from "./FileTreeToolbar";
+import { GitBranchToolbar } from "./GitBranchToolbar";
 
 /**
  * Handle type for imperative methods exposed by FileTreePanel.

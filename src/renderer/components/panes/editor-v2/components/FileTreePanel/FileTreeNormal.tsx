@@ -22,35 +22,37 @@
  * ```
  */
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-  memo,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
-import { FileText, Folder } from "lucide-react";
-import {
-  useScrollPersistence,
-  useExpandedPaths,
-  useFileTreeContextMenu,
-  useFilePrefetch,
-} from "../../hooks";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
-import { pathsEqual, getParentPaths, normalizePathForKey } from "../../utils";
+import { userSettingsAtom } from "@/store/atoms";
 import { cn } from "@/utils";
+import { useAtomValue } from "jotai";
+import { FileText, Folder } from "lucide-react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  useExpandedPaths,
+  useFilePrefetch,
+  useFileTreeContextMenu,
+  useScrollPersistence,
+} from "../../hooks";
+import { getParentPaths, normalizePathForKey, pathsEqual } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";
 import { FileTreeItem } from "./FileTreeItem";
 import { FileTreeItemRename } from "./FileTreeItemRename";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { enqueueNotification } from "@/store/actions/notifications";
 
 export interface FileTreeNormalProps {
   /** Editor pane ID (for scroll persistence) */
@@ -161,6 +163,9 @@ export const FileTreeNormal = memo(
     },
     ref,
   ) {
+    // Get user settings for home directory (used for "Add to Dotfiles" context menu)
+    const { homeDirectory } = useAtomValue(userSettingsAtom);
+
     // Whether parent is providing git status (we skip internal fetching)
     const hasParentStatus = gitStatusFromParent !== undefined;
 
@@ -261,10 +266,11 @@ export const FileTreeNormal = memo(
     }, [directoryCache, isPathExpanded, cwd]);
 
     /**
-     * Get the entry type for a given path.
+     * Get the full directory entry for a given path.
+     * Returns null if path not found in cache.
      */
-    const getEntryTypeForPath = useCallback(
-      (path: string): "file" | "directory" | null => {
+    const getEntryForPath = useCallback(
+      (path: string): DirectoryEntry | null => {
         const parentPath = getParentPath(path);
         if (!parentPath) return null;
 
@@ -272,8 +278,7 @@ export const FileTreeNormal = memo(
         if (!entries) return null;
 
         const name = path.split("/").pop();
-        const entry = entries.find((e) => e.name === name);
-        return entry?.type ?? null;
+        return entries.find((e) => e.name === name) ?? null;
       },
       [directoryCache],
     );
@@ -520,8 +525,8 @@ export const FileTreeNormal = memo(
      */
     const handleArrowRight = useCallback(
       (path: string) => {
-        const entryType = getEntryTypeForPath(path);
-        if (entryType !== "directory") return;
+        const entry = getEntryForPath(path);
+        if (entry?.type !== "directory") return;
 
         if (!isPathExpanded(path)) {
           // Expand the folder
@@ -535,7 +540,7 @@ export const FileTreeNormal = memo(
           }
         }
       },
-      [getEntryTypeForPath, isPathExpanded, handleToggleExpand, directoryCache],
+      [getEntryForPath, isPathExpanded, handleToggleExpand, directoryCache],
     );
 
     /**
@@ -545,9 +550,9 @@ export const FileTreeNormal = memo(
      */
     const handleArrowLeft = useCallback(
       (path: string) => {
-        const entryType = getEntryTypeForPath(path);
+        const entry = getEntryForPath(path);
 
-        if (entryType === "directory" && isPathExpanded(path)) {
+        if (entry?.type === "directory" && isPathExpanded(path)) {
           // Collapse the folder
           handleToggleExpand(path);
         } else {
@@ -558,7 +563,7 @@ export const FileTreeNormal = memo(
           }
         }
       },
-      [getEntryTypeForPath, isPathExpanded, handleToggleExpand, cwd],
+      [getEntryForPath, isPathExpanded, handleToggleExpand, cwd],
     );
 
     /**
@@ -566,15 +571,15 @@ export const FileTreeNormal = memo(
      */
     const handleSpaceKey = useCallback(
       (path: string) => {
-        const entryType = getEntryTypeForPath(path);
-        if (entryType === "file") {
+        const entry = getEntryForPath(path);
+        if (entry?.type === "file") {
           const name = path.split("/").pop() ?? "";
           onFileSelect({ path, name, type: "file" });
-        } else if (entryType === "directory") {
+        } else if (entry?.type === "directory") {
           handleToggleExpand(path);
         }
       },
-      [getEntryTypeForPath, onFileSelect, handleToggleExpand],
+      [getEntryForPath, onFileSelect, handleToggleExpand],
     );
 
     // ---------------------------------------------------------------------------
@@ -852,8 +857,8 @@ export const FileTreeNormal = memo(
       if (!deletingPath) return;
 
       const pathToDelete = deletingPath;
-      const entryType = getEntryTypeForPath(pathToDelete);
-      const isDirectory = entryType === "directory";
+      const entry = getEntryForPath(pathToDelete);
+      const isDirectory = entry?.type === "directory";
 
       // Compute next focus target before delete
       const nextFocus = getNextFocusAfterDelete(pathToDelete);
@@ -896,7 +901,7 @@ export const FileTreeNormal = memo(
         });
         setDeletingPath(null);
       }
-    }, [deletingPath, getEntryTypeForPath, getNextFocusAfterDelete, fs]);
+    }, [deletingPath, getEntryForPath, getNextFocusAfterDelete, fs]);
 
     // ---------------------------------------------------------------------------
     // Context Menu (via command system)
@@ -949,6 +954,7 @@ export const FileTreeNormal = memo(
      */
     const { showContextMenu, setFocusState } = useFileTreeContextMenu({
       cwd,
+      homeDirectory: homeDirectory ?? undefined,
       onNewFile: handleNewFileCommand,
       onNewFolder: handleNewFolderCommand,
       onRename: handleRenameCommand,
@@ -968,12 +974,13 @@ export const FileTreeNormal = memo(
         // Also set focus to the right-clicked item
         setFocusedPath(path);
 
-        const entryType = getEntryTypeForPath(path);
-        const isFile = entryType === "file";
+        const entry = getEntryForPath(path);
+        const isFile = entry?.type === "file";
+        const isSymlink = entry?.isSymlink ?? false;
 
-        showContextMenu(path, isFile, e);
+        showContextMenu(path, isFile, isSymlink, e);
       },
-      [getEntryTypeForPath, showContextMenu],
+      [getEntryForPath, showContextMenu],
     );
 
     /**
@@ -1217,9 +1224,9 @@ export const FileTreeNormal = memo(
      * This enables keybindings and context menu commands to work correctly.
      */
     useEffect(() => {
-      const entryType = focusedPath ? getEntryTypeForPath(focusedPath) : null;
-      setFocusState(focusedPath !== null, focusedPath, entryType);
-    }, [focusedPath, getEntryTypeForPath, setFocusState]);
+      const entry = focusedPath ? getEntryForPath(focusedPath) : null;
+      setFocusState(focusedPath !== null, focusedPath, entry?.type ?? null);
+    }, [focusedPath, getEntryForPath, setFocusState]);
 
     // ---------------------------------------------------------------------------
     // Git Status Maps
@@ -1427,7 +1434,7 @@ export const FileTreeNormal = memo(
     // Compute delete dialog message
     const deletingName = deletingPath?.split("/").pop() ?? "";
     const deletingIsDirectory = deletingPath
-      ? getEntryTypeForPath(deletingPath) === "directory"
+      ? getEntryForPath(deletingPath)?.type === "directory"
       : false;
 
     // Normal mode: show directory tree

@@ -218,6 +218,9 @@ export class MonacoModelRegistry {
   /** Maximum file size in bytes */
   private maxFileSize: number = DEFAULT_MAX_FILE_SIZE;
 
+  /** Paths temporarily suppressed from orphan warnings (e.g., during dotfiles move) */
+  private suppressedOrphanPaths = new Set<string>();
+
   /** Debug: History of reference events (only in debug mode) */
   private referenceHistory: ReferenceEvent[] = [];
 
@@ -461,6 +464,19 @@ export class MonacoModelRegistry {
    */
   getReferenceCount(uri: string): number {
     return this.models.get(uri)?.references.size ?? 0;
+  }
+
+  /**
+   * Suppress the orphan warning for a file path.
+   *
+   * Use this when moving a file (e.g., to dotfiles) where a symlink
+   * will be created immediately, to avoid showing a "file deleted" warning.
+   * The suppression is automatically cleared after the first deletion event.
+   *
+   * @param filePath - The absolute file path to suppress
+   */
+  suppressOrphanWarning(filePath: string): void {
+    this.suppressedOrphanPaths.add(filePath);
   }
 
   // ---------------------------------------------------------------------------
@@ -1120,6 +1136,12 @@ export class MonacoModelRegistry {
    * Handle file deletion.
    */
   private handleFileDeleted(uri: string, entry: ModelEntry): void {
+    // Skip orphan warning if path is suppressed (e.g., during dotfiles move)
+    if (this.suppressedOrphanPaths.has(entry.filePath)) {
+      this.suppressedOrphanPaths.delete(entry.filePath);
+      return;
+    }
+
     entry.isOrphaned = true;
 
     // Clear ViewState for this file across all editors

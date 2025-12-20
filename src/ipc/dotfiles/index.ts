@@ -86,6 +86,18 @@ export function initialize(
     }
     await fetchAndPull(git, status, updateStatus, repoPath, homeDirectory);
   });
+
+  ipcMain.handle("dotfiles:add-file", async (_event, filePath: string) => {
+    const relativePath = path.relative(homeDirectory, filePath);
+    const destPath = path.join(repoPath, relativePath);
+
+    // Ensure parent directory exists in repo
+    await fs.mkdir(path.dirname(destPath), { recursive: true });
+
+    // Move the file to the dotfiles repo
+    // The file watcher will automatically create the symlink back
+    await fs.rename(filePath, destPath);
+  });
 }
 
 /**

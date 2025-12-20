@@ -163,3 +163,34 @@ export const fileTreeTargetPath = new ContextKey<string>(
  * Used for computing relative paths
  */
 export const fileTreeCwd = new ContextKey<string>("fileTreeCwd", "");
+
+/**
+ * Whether the focused file tree item is a symlink
+ * Used by: fileTree.addToDotfiles (hide for symlinks)
+ */
+export const fileTreeItemIsSymlink = new ContextKey<boolean>(
+  "fileTreeItemIsSymlink",
+  false,
+);
+
+/**
+ * Whether the focused file tree item is in the home directory
+ * Used by: fileTree.addToDotfiles (only show for home directory files)
+ */
+export const fileTreeItemInHomeDirectory = new ContextKey<boolean>(
+  "fileTreeItemInHomeDirectory",
+  false,
+);
+
+// ============================================================================
+// Dotfiles Context Keys
+// ============================================================================
+
+/**
+ * Whether dotfiles is enabled (user has configured a dotfiles repo)
+ * Used by: fileTree.addToDotfiles command visibility
+ */
+export const dotfilesEnabled = new ContextKey<boolean>(
+  "dotfilesEnabled",
+  false,
+);

@@ -13,12 +13,12 @@ import type { LucideIcon } from "lucide-react";
 import {
   Check,
   ChevronDown,
-  Download,
   FolderOpen,
   Loader2,
   Monitor,
   Moon,
   Plus,
+  RefreshCw,
   Sun,
   X,
 } from "lucide-react";
@@ -224,32 +224,33 @@ export function AdvancedTab({
                       <FolderOpen className="w-4 h-4" />
                     </button>
                   )}
-                  {dotfilesStatus === "cloning" ||
-                  dotfilesStatus === "fetching" ||
-                  dotfilesStatus === "pushing" ? (
-                    <Loader2 className="w-4 h-4 text-tinted-foreground/50 animate-spin" />
-                  ) : dotfilesStatus === "idle" && dotfilesRepo ? (
+                  {dotfilesRepo && (
                     <button
-                      onClick={fetchDotfiles}
+                      onClick={() => fetchDotfiles()}
                       onMouseEnter={() => setIsHoveringDotfilesStatus(true)}
                       onMouseLeave={() => setIsHoveringDotfilesStatus(false)}
-                      className="p-1 hover:bg-tinted-foreground/10 rounded transition-colors"
-                      title="Pull latest changes"
+                      disabled={dotfilesStatus !== "idle"}
+                      className="p-1 hover:bg-tinted-foreground/10 rounded transition-colors disabled:cursor-not-allowed"
+                      title="Sync dotfiles"
                     >
-                      {isHoveringDotfilesStatus ? (
-                        <Download className="w-4 h-4 text-tinted-foreground/60" />
+                      {dotfilesStatus === "cloning" ||
+                      dotfilesStatus === "fetching" ||
+                      dotfilesStatus === "pushing" ? (
+                        <Loader2 className="w-4 h-4 text-tinted-foreground/50 animate-spin" />
+                      ) : dotfilesStatus === "failed" ? (
+                        <X className="w-4 h-4 text-red-500" />
+                      ) : isHoveringDotfilesStatus ? (
+                        <RefreshCw className="w-4 h-4 text-tinted-foreground/60" />
                       ) : (
                         <Check className="w-4 h-4 text-green-500" />
                       )}
                     </button>
-                  ) : dotfilesStatus === "failed" ? (
-                    <X className="w-4 h-4 text-red-500" />
-                  ) : null}
+                  )}
                 </div>
               </div>
               <p className="text-xs text-tinted-foreground/50 mt-1">
-                A repository for storing shell dotfiles and agent skills.
-                Contents will be symlinked to your home directory.
+                Shell dotfiles and agent skills, symlinked to your home
+                directory.
               </p>
             </div>
 
