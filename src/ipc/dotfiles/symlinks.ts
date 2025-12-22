@@ -14,20 +14,28 @@ const EXCLUDED_FILES = [".git", "README.md"];
 // ============================================================================
 
 /**
+ * Gets the target path of a symlink.
+ * @returns The symlink target path, or null if the path is not a symlink or cannot be read.
+ */
+async function getSymlinkTarget(linkPath: string): Promise<string | null> {
+  try {
+    const stats = await fs.lstat(linkPath);
+    if (!stats.isSymbolicLink()) return null;
+    return await fs.readlink(linkPath);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Checks if a path is a symlink pointing to a specific target.
  */
 async function isSymlinkTo(
   linkPath: string,
   targetPath: string,
 ): Promise<boolean> {
-  try {
-    const stats = await fs.lstat(linkPath);
-    if (!stats.isSymbolicLink()) return false;
-    const linkTarget = await fs.readlink(linkPath);
-    return linkTarget === targetPath;
-  } catch {
-    return false;
-  }
+  const target = await getSymlinkTarget(linkPath);
+  return target === targetPath;
 }
 
 /**
@@ -37,17 +45,11 @@ async function isSymlinkInto(
   linkPath: string,
   directoryPath: string,
 ): Promise<boolean> {
-  try {
-    const stats = await fs.lstat(linkPath);
-    if (!stats.isSymbolicLink()) return false;
-    const linkTarget = await fs.readlink(linkPath);
-    return (
-      linkTarget.startsWith(directoryPath + path.sep) ||
-      linkTarget === directoryPath
-    );
-  } catch {
-    return false;
-  }
+  const target = await getSymlinkTarget(linkPath);
+  return (
+    target !== null &&
+    (target.startsWith(directoryPath + path.sep) || target === directoryPath)
+  );
 }
 
 /**

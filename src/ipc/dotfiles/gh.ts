@@ -4,6 +4,43 @@
 
 import { spawn } from "node:child_process";
 
+/**
+ * Normalize a dotfiles repository URL or owner/repo string into a full GitHub HTTPS URL.
+ *
+ * Supports formats like:
+ * - owner/repo
+ * - github.com/owner/repo
+ * - https://github.com/owner/repo
+ * - https://github.com/owner/repo.git
+ *
+ * @param input - The repository identifier to normalize
+ * @returns Full HTTPS GitHub URL, or null if input is invalid
+ */
+export function normalizeDotfilesRepo(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // Remove trailing .git extension for consistent pattern matching
+  const withoutGit = trimmed.replace(/\.git$/, "");
+
+  // Extract owner/repo from GitHub URLs or simple format
+  const githubMatch = withoutGit.match(
+    /(?:(?:https?:\/\/)?(?:www\.)?github\.com\/)?([^/\s]+)\/([^/\s]+)$/,
+  );
+
+  if (githubMatch) {
+    const [, owner, repo] = githubMatch;
+    return `https://github.com/${owner}/${repo}.git`;
+  }
+
+  // Non-GitHub URL (e.g., GitLab, Bitbucket) - return as-is
+  if (/^https?:\/\//.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 interface GitHubRepo {
   name: string;
   sshUrl: string;

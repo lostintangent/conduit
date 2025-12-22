@@ -196,7 +196,7 @@ export function AdvancedTab({
                       onUpdateSettings({ dotfilesRepo });
                     }
                   }}
-                  placeholder="https://github.com/username/dotfiles.git"
+                  placeholder="username/dotfiles or https://github.com/username/dotfiles.git"
                   className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground placeholder:text-tinted-foreground/40 focus:outline-none focus:border-accent pr-20"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">

@@ -17,7 +17,11 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import simpleGit, { SimpleGit } from "simple-git";
 import type { DotfilesStatus } from "../../shared/types/settings";
-import { createDotfilesRepo as createRepo, discoverDotfilesRepo } from "./gh";
+import {
+  createDotfilesRepo as createRepo,
+  discoverDotfilesRepo,
+  normalizeDotfilesRepo,
+} from "./gh";
 import { cloneRepo, fetchAndPull, getRemoteUrl, repoExists } from "./git";
 import { removeSymlinks } from "./symlinks";
 import { startSync, stopSync } from "./sync";
@@ -134,37 +138,44 @@ export async function initializeRepo(
 /**
  * Sets the dotfiles repository URL.
  * Handles cloning, syncing, and setting up watchers.
+ * Supports both full URLs and owner/repo syntax.
  */
 export async function setDotfilesRepo(url: string | undefined): Promise<void> {
-  if (repoUrl === url) return;
-  repoUrl = url;
+  const normalizedUrl = url ? normalizeDotfilesRepo(url) : undefined;
 
-  // Clean up existing sync
+  // No change needed - compare normalized values to avoid unnecessary reclones
+  if (repoUrl === normalizedUrl) return;
+
+  repoUrl = normalizedUrl;
   await stopSync();
 
-  if (!url) {
+  // Disable if URL is cleared or invalid
+  if (!normalizedUrl) {
     await deleteRepo();
     updateStatus("disabled");
     return;
   }
 
-  // Check if repo already exists and matches remote
+  // Clone if repo doesn't exist, otherwise check if remote changed
   const exists = await repoExists(repoPath);
-  if (exists) {
-    const remote = await getRemoteUrl(repoPath);
-    if (remote !== url) {
-      // Remote changed, re-clone
-      await deleteRepo();
-      git = await cloneRepo(url, repoPath, homeDirectory, git, updateStatus);
-    } else {
-      // Exists and matches, just fetch/pull (which re-symlinks)
-      git = simpleGit(repoPath);
-      await fetchAndPull(git, status, updateStatus, repoPath, homeDirectory);
-    }
+  const needsClone =
+    !exists ||
+    normalizeDotfilesRepo(await getRemoteUrl(repoPath)) !== normalizedUrl;
+
+  if (needsClone) {
+    await deleteRepo();
+    git = await cloneRepo(
+      normalizedUrl,
+      repoPath,
+      homeDirectory,
+      git,
+      updateStatus,
+    );
   } else {
-    git = await cloneRepo(url, repoPath, homeDirectory, git, updateStatus);
+    // Repo exists with matching remote - sync latest changes
+    git = simpleGit(repoPath);
+    await fetchAndPull(git, status, updateStatus, repoPath, homeDirectory);
   }
 
-  // Start bidirectional sync
   await startSync(repoPath, homeDirectory, git, () => status, updateStatus);
 }
