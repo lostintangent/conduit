@@ -61,6 +61,7 @@ import {
   splitPaneWithAgentSession,
   updatePaneProperty,
 } from "@/store/actions/pane";
+import { navigatePane } from "@/store/actions/paneNavigation";
 import {
   closeTab,
   duplicateTab,
@@ -803,6 +804,86 @@ export function registerApplicationCommands(
     },
   });
 
+  // Pane: Navigate Left
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_LEFT,
+    title: "Navigate to Pane on Left",
+    description: "Focus the pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Left",
+      win: "Ctrl+Left",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "left");
+      }
+    },
+  });
+
+  // Pane: Navigate Right
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_RIGHT,
+    title: "Navigate to Pane on Right",
+    description: "Focus the pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Right",
+      win: "Ctrl+Right",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "right");
+      }
+    },
+  });
+
+  // Pane: Navigate Up
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_UP,
+    title: "Navigate to Pane Above",
+    description: "Focus the pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Up",
+      win: "Ctrl+Up",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "up");
+      }
+    },
+  });
+
+  // Pane: Navigate Down
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_DOWN,
+    title: "Navigate to Pane Below",
+    description: "Focus the pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Down",
+      win: "Ctrl+Down",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "down");
+      }
+    },
+  });
+
   // Pane: Move Left
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_MOVE_LEFT,
@@ -810,8 +891,8 @@ export function registerApplicationCommands(
     description: "Move the current pane to the left",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Left",
-      win: "Ctrl+Alt+Left",
+      key: "Cmd+Shift+Left",
+      win: "Ctrl+Shift+Left",
     },
     when: paneActionsEnabled,
     menu: {
@@ -835,8 +916,8 @@ export function registerApplicationCommands(
     description: "Move the current pane to the right",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Right",
-      win: "Ctrl+Alt+Right",
+      key: "Cmd+Shift+Right",
+      win: "Ctrl+Shift+Right",
     },
     when: paneActionsEnabled,
     menu: {
@@ -860,8 +941,8 @@ export function registerApplicationCommands(
     description: "Move the current pane upward",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Up",
-      win: "Ctrl+Alt+Up",
+      key: "Cmd+Shift+Up",
+      win: "Ctrl+Shift+Up",
     },
     when: paneActionsEnabled,
     menu: {
@@ -885,8 +966,8 @@ export function registerApplicationCommands(
     description: "Move the current pane downward",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Down",
-      win: "Ctrl+Alt+Down",
+      key: "Cmd+Shift+Down",
+      win: "Ctrl+Shift+Down",
     },
     when: paneActionsEnabled,
     menu: {
