@@ -544,7 +544,7 @@ export function registerApplicationCommands(
       key: "Cmd+E",
       win: "Ctrl+E",
     },
-    when: When.and(paneActionsEnabled, activePaneType.equals("terminal")),
+    when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
     menu: {
       id: MenuId.PaneContext,
       group: "1_pane",
