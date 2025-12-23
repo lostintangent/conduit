@@ -236,9 +236,13 @@ export const FileTreeItem = memo(function FileTreeItem({
     return aggregateFolderStatus(gitStatusMap, relativePath);
   }, [isDirectory, gitStatusMap, relativePath]);
 
-  // Text color: files get colored based on git status, folders stay default
-  const textColorClass = fileStatusConfig?.textColorClass ?? "text-foreground";
-  const iconColorClass = fileStatusConfig?.textColorClass ?? "text-foreground";
+  // Text color: gitignored items are muted, files get colored based on git status, folders stay default
+  const textColorClass = entry.isGitignored
+    ? "text-muted-foreground/60"
+    : (fileStatusConfig?.textColorClass ?? "text-foreground");
+  const iconColorClass = entry.isGitignored
+    ? "text-muted-foreground/60"
+    : (fileStatusConfig?.textColorClass ?? "text-foreground");
 
   // For files, selection implies focus (for keyboard nav to work after clicking).
   // This avoids needing a separate state update for focusedPath when clicking files,

@@ -63,13 +63,19 @@ import { GitProviderService } from "../../../src/ipc/gitv2/GitProviderService";
 // Helper to create a mock that finds .git in specified directories
 function setupGitRootMock(gitRoots: string[]) {
   const normalizedRoots = gitRoots.map((r) => path.resolve(r));
+  const isCaseInsensitive =
+    process.platform === "darwin" || process.platform === "win32";
 
   vi.mocked(fs.promises.access).mockImplementation(async (filePath) => {
     const pathStr = path.resolve(filePath.toString());
+    const comparePath = isCaseInsensitive ? pathStr.toLowerCase() : pathStr;
 
     for (const root of normalizedRoots) {
       const gitPath = path.join(root, ".git");
-      if (pathStr === gitPath) {
+      const compareGitPath = isCaseInsensitive
+        ? gitPath.toLowerCase()
+        : gitPath;
+      if (comparePath === compareGitPath) {
         return undefined;
       }
     }
@@ -575,6 +581,50 @@ describe("GitProviderService", () => {
 
       expect(result1.provider).toBe(result2.provider);
       expect(createdInstances.length).toBe(1);
+    });
+
+    it("should handle case-insensitive paths on macOS/Windows", async () => {
+      // This test verifies that paths with different cases are treated as the same
+      // on case-insensitive filesystems (macOS and Windows)
+      if (process.platform !== "darwin" && process.platform !== "win32") {
+        // Skip on Linux where filesystem is case-sensitive
+        return;
+      }
+
+      setupGitRootMock(["/test/repo"]);
+      const service = GitProviderService.getInstance();
+
+      // First call with one case
+      const result1 = await service.getProvider("/test/repo");
+
+      // hasProvider should find it with different case
+      expect(service.hasProvider("/Test/Repo")).toBe(true);
+
+      // getRefCount should work with different case
+      expect(service.getRefCount("/TEST/REPO")).toBe(1);
+
+      // releaseProvider should work with different case
+      service.releaseProvider("/Test/Repo");
+      expect(service.getRefCount(path.resolve("/test/repo"))).toBe(0);
+    });
+
+    it("should return same provider for different case paths on case-insensitive FS", async () => {
+      if (process.platform !== "darwin" && process.platform !== "win32") {
+        return;
+      }
+
+      setupGitRootMock(["/test/repo"]);
+      const service = GitProviderService.getInstance();
+
+      const result1 = await service.getProvider("/test/repo");
+      const result2 = await service.getProvider("/Test/Repo");
+
+      // Should be the same provider instance
+      expect(result1.provider).toBe(result2.provider);
+      // Only one provider should have been created
+      expect(createdInstances.length).toBe(1);
+      // RefCount should be 2
+      expect(service.getRefCount(path.resolve("/test/repo"))).toBe(2);
     });
   });
 });

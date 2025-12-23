@@ -1,6 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Stats, Dirent } from "node:fs";
 
+/** Helper to create file entries for testing */
+const fileEntry = (name: string, isSymlink = false) => ({
+  name,
+  type: "file" as const,
+  isSymlink,
+});
+
+const dirEntry = (name: string, isSymlink = false) => ({
+  name,
+  type: "directory" as const,
+  isSymlink,
+});
+
 // ============================================================================
 // Mocks - Using vi.hoisted() to ensure proper hoisting
 // ============================================================================
@@ -8,6 +21,7 @@ import type { Stats, Dirent } from "node:fs";
 // Hoisted mock functions and state
 const {
   mockStat,
+  mockLstat,
   mockReaddir,
   mockReadFile,
   mockWriteFile,
@@ -48,6 +62,7 @@ const {
 
   return {
     mockStat: vi.fn(),
+    mockLstat: vi.fn(),
     mockReaddir: vi.fn(),
     mockReadFile: vi.fn(),
     mockWriteFile: vi.fn(),
@@ -66,6 +81,7 @@ const {
 
 vi.mock("node:fs/promises", () => ({
   stat: mockStat,
+  lstat: mockLstat,
   readdir: mockReaddir,
   readFile: mockReadFile,
   writeFile: mockWriteFile,
@@ -312,10 +328,10 @@ describe("DiskFileSystemProvider", () => {
       const entries = await provider.readDirectory("/test/project");
 
       expect(entries).toEqual([
-        { name: "lib", type: "directory" },
-        { name: "src", type: "directory" },
-        { name: "alpha.ts", type: "file" },
-        { name: "zebra.ts", type: "file" },
+        dirEntry("lib"),
+        dirEntry("src"),
+        fileEntry("alpha.ts"),
+        fileEntry("zebra.ts"),
       ]);
     });
 
@@ -347,7 +363,7 @@ describe("DiskFileSystemProvider", () => {
       await provider.readDirectory("/test/project");
 
       expect(mockCacheSet).toHaveBeenCalledWith("/test/project", [
-        { name: "file.ts", type: "file" },
+        fileEntry("file.ts"),
       ]);
     });
 
@@ -472,7 +488,9 @@ describe("DiskFileSystemProvider", () => {
 
   describe("rename()", () => {
     it("should rename a file", async () => {
-      mockStat.mockResolvedValue(createMockStats({ isDirectory: () => false }));
+      mockLstat.mockResolvedValue(
+        createMockStats({ isDirectory: () => false }),
+      );
       mockMkdir.mockResolvedValue(undefined);
       mockRename.mockResolvedValue(undefined);
 
@@ -485,7 +503,9 @@ describe("DiskFileSystemProvider", () => {
     });
 
     it("should create parent directory of new path if needed", async () => {
-      mockStat.mockResolvedValue(createMockStats({ isDirectory: () => false }));
+      mockLstat.mockResolvedValue(
+        createMockStats({ isDirectory: () => false }),
+      );
       mockMkdir.mockResolvedValue(undefined);
       mockRename.mockResolvedValue(undefined);
 
@@ -665,7 +685,7 @@ describe("DiskFileSystemProvider", () => {
 
       expect(listener).toHaveBeenCalledWith({
         path: "/test/project",
-        entries: [{ name: "new.ts", type: "file" }],
+        entries: [fileEntry("new.ts")],
       });
     });
 
@@ -971,10 +991,7 @@ describe("DiskFileSystemProvider", () => {
       const entries = await provider.readDirectory("/test/project");
 
       // .git should be filtered out
-      expect(entries).toEqual([
-        { name: "src", type: "directory" },
-        { name: "file.ts", type: "file" },
-      ]);
+      expect(entries).toEqual([dirEntry("src"), fileEntry("file.ts")]);
     });
 
     it("should filter out node_modules directory", async () => {
@@ -987,10 +1004,7 @@ describe("DiskFileSystemProvider", () => {
       const entries = await provider.readDirectory("/test/project");
 
       // node_modules should be filtered out
-      expect(entries).toEqual([
-        { name: "src", type: "directory" },
-        { name: "file.ts", type: "file" },
-      ]);
+      expect(entries).toEqual([dirEntry("src"), fileEntry("file.ts")]);
     });
   });
 

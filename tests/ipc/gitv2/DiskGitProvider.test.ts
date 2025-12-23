@@ -303,6 +303,27 @@ describe("DiskGitProvider", () => {
 
       expect(fileStatus).toBeNull();
     });
+
+    it("should find file status with different case on case-insensitive FS", async () => {
+      // Git returns path with certain casing
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "README.md", index: "M", working_dir: " " }],
+        }),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // Look up with different case
+      const fileStatus = await provider.getFileStatus("readme.md");
+
+      if (process.platform === "darwin" || process.platform === "win32") {
+        expect(fileStatus).not.toBeNull();
+        expect(fileStatus?.status).toBe("modified");
+        // The path in the status object should preserve git's casing
+        expect(fileStatus?.path).toBe("README.md");
+      }
+    });
   });
 
   // ===========================================================================

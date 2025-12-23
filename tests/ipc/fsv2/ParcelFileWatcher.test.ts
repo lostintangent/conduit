@@ -462,6 +462,44 @@ describe("ParcelFileWatcher", () => {
         isDirectory: true,
       });
     });
+
+    it("should detect rename with different path casing on case-insensitive FS", async () => {
+      // On macOS/Windows, paths may have different casing but refer to same location
+      const renameListener = vi.fn();
+      const deleteListener = vi.fn();
+      const createListener = vi.fn();
+
+      fileWatcher.onRenamed(renameListener);
+      fileWatcher.onDeleted(deleteListener);
+      fileWatcher.onCreated(createListener);
+
+      await fileWatcher.watch();
+
+      // DELETE with one casing
+      capturedCallback!(null, [
+        { type: "delete", path: "/Test/Project/old.ts" },
+      ]);
+
+      vi.advanceTimersByTime(100);
+
+      // CREATE in same directory but different casing
+      capturedCallback!(null, [
+        { type: "create", path: "/test/project/new.ts" },
+      ]);
+
+      if (process.platform === "darwin" || process.platform === "win32") {
+        // Should detect as rename despite case difference
+        expect(renameListener).toHaveBeenCalledTimes(1);
+        // Original paths should be preserved
+        expect(renameListener).toHaveBeenCalledWith({
+          oldPath: "/Test/Project/old.ts",
+          newPath: "/test/project/new.ts",
+          isDirectory: false,
+        });
+        expect(deleteListener).not.toHaveBeenCalled();
+        expect(createListener).not.toHaveBeenCalled();
+      }
+    });
   });
 
   describe("dispose()", () => {

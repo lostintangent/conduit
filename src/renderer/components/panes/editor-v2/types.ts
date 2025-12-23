@@ -207,6 +207,9 @@ export interface ModelEntry {
 
   /** Timestamp when model was last accessed (for LRU eviction) */
   lastUsed: number;
+
+  /** Last checked file mtime (for background freshness checks) */
+  lastCheckedMtime?: number;
 }
 
 // ============================================================================

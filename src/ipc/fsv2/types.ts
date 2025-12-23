@@ -64,6 +64,9 @@ export interface DirectoryEntry {
 
   /** Whether this entry is a symbolic link */
   isSymlink: boolean;
+
+  /** Whether this entry is ignored by .gitignore */
+  isGitignored?: boolean;
 }
 
 // ============================================================================

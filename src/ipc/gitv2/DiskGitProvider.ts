@@ -27,6 +27,7 @@ import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
+import { isCaseInsensitiveFS } from "../fsv2/pathUtils";
 import type { Disposable, Event } from "../fsv2/types";
 import type {
   FileWithTime,
@@ -308,7 +309,24 @@ export class DiskGitProvider implements GitProvider {
   async getFileStatus(filePath: string): Promise<GitFileStatus | null> {
     const status = await this.getStatus();
     const relativePath = this.toRelativePath(filePath);
-    return status.files.get(relativePath) ?? null;
+
+    // Try exact match first
+    const exactMatch = status.files.get(relativePath);
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    // On case-insensitive filesystems, try case-insensitive lookup
+    if (isCaseInsensitiveFS) {
+      const normalizedLookup = relativePath.toLowerCase();
+      for (const [key, value] of status.files) {
+        if (key.toLowerCase() === normalizedLookup) {
+          return value;
+        }
+      }
+    }
+
+    return null;
   }
 
   /**

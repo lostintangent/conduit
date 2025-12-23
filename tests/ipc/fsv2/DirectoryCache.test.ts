@@ -1,5 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+/** Helper to create file entries for testing */
+const fileEntry = (name: string) => ({
+  name,
+  type: "file" as const,
+  isSymlink: false,
+});
+
+const dirEntry = (name: string) => ({
+  name,
+  type: "directory" as const,
+  isSymlink: false,
+});
+
 /**
  * We need to reset the module between tests since DirectoryCache is a singleton.
  * Using dynamic import and vi.resetModules() to get a fresh instance each time.
@@ -15,10 +28,7 @@ describe("DirectoryCache", () => {
     it("should store and retrieve directory entries", async () => {
       const cache = await getCleanCache();
 
-      const entries = [
-        { name: "file1.ts", type: "file" as const },
-        { name: "src", type: "directory" as const },
-      ];
+      const entries = [fileEntry("file1.ts"), dirEntry("src")];
 
       cache.set("/project", entries);
       const result = cache.get("/project");
@@ -38,7 +48,7 @@ describe("DirectoryCache", () => {
     it("should include version and timestamp in cache entry", async () => {
       const cache = await getCleanCache();
 
-      const entries = [{ name: "file.ts", type: "file" as const }];
+      const entries = [fileEntry("file.ts")];
       const beforeSet = Date.now();
 
       cache.set("/project", entries);
@@ -52,26 +62,24 @@ describe("DirectoryCache", () => {
     it("should increment version on each set", async () => {
       const cache = await getCleanCache();
 
-      cache.set("/project", [{ name: "v1", type: "file" as const }]);
+      cache.set("/project", [fileEntry("v1")]);
       expect(cache.get("/project")?.version).toBe(1);
 
-      cache.set("/project", [{ name: "v2", type: "file" as const }]);
+      cache.set("/project", [fileEntry("v2")]);
       expect(cache.get("/project")?.version).toBe(2);
 
-      cache.set("/project", [{ name: "v3", type: "file" as const }]);
+      cache.set("/project", [fileEntry("v3")]);
       expect(cache.get("/project")?.version).toBe(3);
     });
 
     it("should update entries on set", async () => {
       const cache = await getCleanCache();
 
-      cache.set("/project", [{ name: "old.ts", type: "file" as const }]);
-      cache.set("/project", [{ name: "new.ts", type: "file" as const }]);
+      cache.set("/project", [fileEntry("old.ts")]);
+      cache.set("/project", [fileEntry("new.ts")]);
 
       const result = cache.get("/project");
-      expect(result?.entries).toEqual([
-        { name: "new.ts", type: "file" as const },
-      ]);
+      expect(result?.entries).toEqual([fileEntry("new.ts")]);
     });
   });
 
@@ -135,7 +143,7 @@ describe("DirectoryCache", () => {
     it("should increment version without removing entry", async () => {
       const cache = await getCleanCache();
 
-      const entries = [{ name: "file.ts", type: "file" as const }];
+      const entries = [fileEntry("file.ts")];
       cache.set("/project", entries);
 
       cache.invalidate("/project");
@@ -237,12 +245,12 @@ describe("DirectoryCache", () => {
       const cache = await getCleanCache();
       cache.setMaxSize(3);
 
-      cache.set("/a", [{ name: "a", type: "file" as const }]);
-      cache.set("/b", [{ name: "b", type: "file" as const }]);
-      cache.set("/c", [{ name: "c", type: "file" as const }]);
+      cache.set("/a", [fileEntry("a")]);
+      cache.set("/b", [fileEntry("b")]);
+      cache.set("/c", [fileEntry("c")]);
 
       // Cache is full, adding /d should evict /a (oldest)
-      cache.set("/d", [{ name: "d", type: "file" as const }]);
+      cache.set("/d", [fileEntry("d")]);
 
       expect(cache.has("/a")).toBe(false); // Evicted
       expect(cache.has("/b")).toBe(true);
@@ -280,7 +288,7 @@ describe("DirectoryCache", () => {
       cache.set("/c", []);
 
       // Update /a, making it most recently used
-      cache.set("/a", [{ name: "updated", type: "file" as const }]);
+      cache.set("/a", [fileEntry("updated")]);
 
       // Adding /d should now evict /b (oldest after /a was updated)
       cache.set("/d", []);
@@ -316,24 +324,22 @@ describe("DirectoryCache", () => {
     it("should treat paths with and without trailing slash as same", async () => {
       const cache = await getCleanCache();
 
-      cache.set("/project/src/", [{ name: "file.ts", type: "file" as const }]);
+      cache.set("/project/src/", [fileEntry("file.ts")]);
 
       expect(cache.has("/project/src")).toBe(true);
       expect(cache.has("/project/src/")).toBe(true);
       expect(cache.get("/project/src")?.entries).toEqual([
-        { name: "file.ts", type: "file" as const },
+        fileEntry("file.ts"),
       ]);
     });
 
     it("should preserve root path as /", async () => {
       const cache = await getCleanCache();
 
-      cache.set("/", [{ name: "root", type: "directory" as const }]);
+      cache.set("/", [dirEntry("root")]);
 
       expect(cache.has("/")).toBe(true);
-      expect(cache.get("/")?.entries).toEqual([
-        { name: "root", type: "directory" as const },
-      ]);
+      expect(cache.get("/")?.entries).toEqual([dirEntry("root")]);
     });
 
     it("should normalize paths for all operations", async () => {
@@ -362,13 +368,13 @@ describe("DirectoryCache", () => {
       const listener = vi.fn();
 
       cache.subscribe("/project", listener);
-      cache.set("/project", [{ name: "file.ts", type: "file" as const }]);
+      cache.set("/project", [fileEntry("file.ts")]);
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(
         "/project",
         expect.objectContaining({
-          entries: [{ name: "file.ts", type: "file" }],
+          entries: [fileEntry("file.ts")],
           version: 1,
         }),
       );
@@ -542,10 +548,9 @@ describe("DirectoryCache", () => {
     it("should handle large number of entries", async () => {
       const cache = await getCleanCache();
 
-      const entries = Array.from({ length: 1000 }, (_, i) => ({
-        name: `file${i}.ts`,
-        type: "file" as const,
-      }));
+      const entries = Array.from({ length: 1000 }, (_, i) =>
+        fileEntry(`file${i}.ts`),
+      );
 
       cache.set("/large", entries);
       const result = cache.get("/large");
@@ -565,11 +570,9 @@ describe("DirectoryCache", () => {
       ];
 
       for (const path of paths) {
-        cache.set(path, [{ name: "file", type: "file" as const }]);
+        cache.set(path, [fileEntry("file")]);
         expect(cache.has(path)).toBe(true);
-        expect(cache.get(path)?.entries).toEqual([
-          { name: "file", type: "file" },
-        ]);
+        expect(cache.get(path)?.entries).toEqual([fileEntry("file")]);
       }
     });
 

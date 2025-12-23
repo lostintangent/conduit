@@ -308,6 +308,10 @@ export class MonacoModelRegistry {
       // Update lastUsed timestamp for LRU tracking
       existing.lastUsed = Date.now();
 
+      // Background freshness check for files that might have changed externally
+      // (especially important for files in watcher-ignored directories)
+      this.checkAndReloadIfStale(modelKey, existing);
+
       return existing.model;
     }
 
@@ -1130,6 +1134,57 @@ export class MonacoModelRegistry {
         entry.isReloading = false;
       }
     }
+  }
+
+  /**
+   * Background freshness check for cached models.
+   *
+   * Called when accessing a cached model to ensure it's up-to-date with disk.
+   * This is important for files in watcher-ignored directories (build/, dist/, etc.)
+   * that don't receive automatic file change notifications.
+   *
+   * Fire-and-forget: doesn't block model access, runs in background.
+   */
+  private checkAndReloadIfStale(uri: string, entry: ModelEntry): void {
+    // Skip if already reloading or has unsaved changes
+    if (entry.isReloading || entry.isDirty) {
+      return;
+    }
+
+    // Run check in background (don't await)
+    (async () => {
+      try {
+        const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
+
+        // First, check mtime to avoid reading file content unnecessarily
+        const stat = await fsApi.stat(entry.filePath);
+        const currentMtime = stat.mtime;
+
+        // If mtime hasn't changed since last check, file is unchanged
+        if (
+          entry.lastCheckedMtime !== undefined &&
+          currentMtime === entry.lastCheckedMtime
+        ) {
+          return;
+        }
+
+        // Mtime changed (or first check) - read content to verify
+        const diskContent = await fsApi.readTextFile(entry.filePath);
+        const modelContent = entry.model.getValue();
+
+        // Update last checked mtime
+        entry.lastCheckedMtime = currentMtime;
+
+        // If content differs and model is still clean, reload
+        if (diskContent !== modelContent && !entry.isDirty) {
+          // Reuse existing external change handling logic
+          await this.handleExternalFileChange(uri, entry);
+        }
+      } catch (error) {
+        // Silently ignore errors (file might be deleted, permission issues, etc.)
+        // The user will see the cached content which is fine
+      }
+    })();
   }
 
   /**

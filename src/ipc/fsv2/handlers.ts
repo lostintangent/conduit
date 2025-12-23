@@ -37,6 +37,7 @@
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
 import { getSandboxClient } from "../vm/store";
 import { FileSystemProviderService } from "./FileSystemProviderService";
+import { pathEquals, pathStartsWith } from "./pathUtils";
 import { VMFileSystemProvider } from "./VMFileSystemProvider";
 import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
 
@@ -460,7 +461,7 @@ export function initializeFileSystemV2Handlers(): void {
 
         if (params.type === "directory" || params.type === "all") {
           const sub = vmProvider.onDirectoryListingChanged((e) => {
-            if (!params.path || e.path.startsWith(params.path)) {
+            if (!params.path || pathStartsWith(e.path, params.path)) {
               sendToRenderer(event.sender, "fs-v2:directory-listing-changed", {
                 subscriptionId,
                 path: e.path,
@@ -473,7 +474,7 @@ export function initializeFileSystemV2Handlers(): void {
 
         if (params.type === "file" || params.type === "all") {
           const fileSub = vmProvider.onFileContentChanged((e) => {
-            if (!params.path || e.path.startsWith(params.path)) {
+            if (!params.path || pathStartsWith(e.path, params.path)) {
               sendToRenderer(event.sender, "fs-v2:file-content-changed", {
                 subscriptionId,
                 path: e.path,
@@ -483,7 +484,7 @@ export function initializeFileSystemV2Handlers(): void {
           disposables.push(fileSub);
 
           const deleteSub = vmProvider.onFileDeleted((e) => {
-            if (!params.path || e.path.startsWith(params.path)) {
+            if (!params.path || pathStartsWith(e.path, params.path)) {
               sendToRenderer(event.sender, "fs-v2:file-deleted", {
                 subscriptionId,
                 path: e.path,
@@ -495,8 +496,8 @@ export function initializeFileSystemV2Handlers(): void {
           const renameSub = vmProvider.onFileRenamed((e) => {
             if (
               !params.path ||
-              e.oldPath.startsWith(params.path) ||
-              e.newPath.startsWith(params.path)
+              pathStartsWith(e.oldPath, params.path) ||
+              pathStartsWith(e.newPath, params.path)
             ) {
               sendToRenderer(event.sender, "fs-v2:file-renamed", {
                 subscriptionId,
@@ -533,11 +534,8 @@ export function initializeFileSystemV2Handlers(): void {
       if (params.type === "directory" || params.type === "all") {
         const sub = provider.onDirectoryListingChanged((e) => {
           // Filter by path if specified (match exact path or child paths)
-          if (
-            params.path &&
-            e.path !== params.path &&
-            !e.path.startsWith(params.path + "/")
-          ) {
+          // Use case-aware comparison for macOS/Windows
+          if (params.path && !pathStartsWith(e.path, params.path)) {
             return;
           }
 
@@ -552,7 +550,8 @@ export function initializeFileSystemV2Handlers(): void {
 
       if (params.type === "file" || params.type === "all") {
         const subContent = provider.onFileContentChanged((e) => {
-          if (params.path && e.path !== params.path) {
+          // Use case-aware comparison for macOS/Windows
+          if (params.path && !pathEquals(e.path, params.path)) {
             return;
           }
 
@@ -564,7 +563,8 @@ export function initializeFileSystemV2Handlers(): void {
         disposables.push(subContent);
 
         const subDeleted = provider.onFileDeleted((e) => {
-          if (params.path && e.path !== params.path) {
+          // Use case-aware comparison for macOS/Windows
+          if (params.path && !pathEquals(e.path, params.path)) {
             return;
           }
 
@@ -576,7 +576,8 @@ export function initializeFileSystemV2Handlers(): void {
         disposables.push(subDeleted);
 
         const subRenamed = provider.onFileRenamed((e) => {
-          if (params.path && e.oldPath !== params.path) {
+          // Use case-aware comparison for macOS/Windows
+          if (params.path && !pathEquals(e.oldPath, params.path)) {
             return;
           }
 

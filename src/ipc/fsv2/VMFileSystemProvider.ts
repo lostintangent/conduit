@@ -130,7 +130,7 @@ export class VMFileSystemProvider implements FileSystemProvider {
         const event = data as { path: string; entries: VMDirectoryEntry[] };
         this._onDirectoryListingChanged.fire({
           path: event.path,
-          entries: event.entries,
+          entries: event.entries.map((e) => ({ ...e, isSymlink: false })),
         });
       },
     );
@@ -232,7 +232,8 @@ export class VMFileSystemProvider implements FileSystemProvider {
       return [];
     }
 
-    return result.entries;
+    // Map VM entries to DirectoryEntry (VM doesn't track symlinks)
+    return result.entries.map((e) => ({ ...e, isSymlink: false }));
   }
 
   /**
