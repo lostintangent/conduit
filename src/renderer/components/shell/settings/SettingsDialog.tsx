@@ -26,11 +26,6 @@ interface SettingsDialogProps {
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
   initialTab?: "keyboard" | "paneActions" | "agents" | "advanced";
-  onOpenQuickPane?: (descriptor: {
-    type: "editor";
-    cwd: string;
-    filePath?: string;
-  }) => void;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
   userSettings: ReturnType<typeof useUserSettings>;
 }
@@ -41,7 +36,6 @@ export function SettingsDialog({
   keybindingRegistry,
   homeDirectory,
   initialTab = "keyboard",
-  onOpenQuickPane,
   onUpdateSettings,
   userSettings,
 }: SettingsDialogProps) {
@@ -105,7 +99,6 @@ export function SettingsDialog({
               commandRegistry={commandRegistry}
               keybindingRegistry={keybindingRegistry}
               homeDirectory={homeDirectory}
-              onOpenQuickPane={onOpenQuickPane}
             />
           </TabsContent>
 
@@ -114,10 +107,7 @@ export function SettingsDialog({
             value="paneActions"
             className="flex flex-col min-h-0 flex-1"
           >
-            <PaneActionsTab
-              homeDirectory={homeDirectory}
-              onOpenQuickPane={onOpenQuickPane}
-            />
+            <PaneActionsTab homeDirectory={homeDirectory} />
           </TabsContent>
 
           {/* Agents Tab */}
@@ -133,7 +123,6 @@ export function SettingsDialog({
             <AdvancedTab
               userSettings={userSettings}
               onUpdateSettings={onUpdateSettings}
-              onOpenQuickPane={onOpenQuickPane}
             />
           </TabsContent>
         </Tabs>

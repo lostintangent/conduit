@@ -7,8 +7,10 @@
 import { updateTerminalFonts } from "@/components/panes/terminal/xtermCache";
 import { useDotfiles } from "@/hooks/useDotfiles";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { quickPaneAtom } from "@/store/atoms";
 import { capitalize } from "@/utils";
 import type { PlayButtonTarget, ThemeMode, UserSettings } from "@shared/types";
+import { useSetAtom } from "jotai";
 import type { LucideIcon } from "lucide-react";
 import {
   Check,
@@ -33,18 +35,13 @@ const themeOptions = new Map<ThemeMode, LucideIcon>([
 interface AdvancedTabProps {
   userSettings: ReturnType<typeof useUserSettings>;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
-  onOpenQuickPane: (descriptor: {
-    type: "editor";
-    cwd: string;
-    filePath?: string;
-  }) => void;
 }
 
 export function AdvancedTab({
   userSettings,
   onUpdateSettings,
-  onOpenQuickPane,
 }: AdvancedTabProps) {
+  const setQuickPane = useSetAtom(quickPaneAtom);
   const showLaunchButton = userSettings.showLaunchButton ?? false;
   const showPlayButton = userSettings.showPlayButton ?? false;
   const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
@@ -212,7 +209,7 @@ export function AdvancedTab({
                   {dotfilesStatus !== "disabled" && dotfilesRepo && (
                     <button
                       onClick={() =>
-                        onOpenQuickPane({
+                        setQuickPane({
                           type: "editor",
                           cwd: repoPath,
                         })

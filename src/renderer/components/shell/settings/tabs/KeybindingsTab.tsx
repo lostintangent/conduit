@@ -4,8 +4,8 @@
  * Visual interface for discovering and editing keyboard shortcuts.
  */
 
-import { keybindingsAtom } from "@/store/atoms";
-import { useAtomValue } from "jotai";
+import { keybindingsAtom, quickPaneAtom } from "@/store/atoms";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   AlertTriangle,
   Check,
@@ -35,11 +35,6 @@ interface KeybindingsTabProps {
   commandRegistry: ICommandRegistry;
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
-  onOpenQuickPane?: (descriptor: {
-    type: "editor";
-    cwd: string;
-    filePath?: string;
-  }) => void;
 }
 
 interface KeybindingRow {
@@ -54,8 +49,8 @@ export function KeybindingsTab({
   commandRegistry,
   keybindingRegistry,
   homeDirectory,
-  onOpenQuickPane,
 }: KeybindingsTabProps) {
+  const setQuickPane = useSetAtom(quickPaneAtom);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "user" | "conflicts">(
@@ -171,13 +166,11 @@ export function KeybindingsTab({
   };
 
   const handleOpenKeybindingsFile = () => {
-    if (!onOpenQuickPane) return;
-
     const keybindingsPath = getUserKeybindingsPath(homeDirectory);
-    onOpenQuickPane({
+    setQuickPane({
       type: "editor",
       cwd: homeDirectory,
-      filePath: keybindingsPath,
+      file: keybindingsPath,
     });
   };
 
@@ -400,8 +393,7 @@ export function KeybindingsTab({
           <button
             onClick={handleOpenKeybindingsFile}
             className="text-tinted-foreground/60 hover:text-accent transition-colors cursor-pointer underline decoration-dotted underline-offset-2"
-            disabled={!onOpenQuickPane}
-            title={onOpenQuickPane ? "Click to open file in editor" : undefined}
+            title="Click to open file in editor"
           >
             <code>~/.conduit/keybindings.json</code>
           </button>

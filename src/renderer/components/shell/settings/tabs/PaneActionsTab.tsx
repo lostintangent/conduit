@@ -24,6 +24,8 @@ import type {
 } from "@/commands/paneActions/core/types";
 import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
 import { usePreCommands } from "@/commands/preCommands";
+import { quickPaneAtom } from "@/store/atoms";
+import { useSetAtom } from "jotai";
 import {
   Check,
   ChevronDown,
@@ -39,11 +41,6 @@ import React, { useEffect, useState } from "react";
 
 interface PaneActionsTabProps {
   homeDirectory: string;
-  onOpenQuickPane?: (descriptor: {
-    type: "editor";
-    cwd: string;
-    filePath?: string;
-  }) => void;
   onClose?: () => void;
 }
 
@@ -52,9 +49,9 @@ const AVAILABLE_ICONS = getAvailableIconIds();
 
 export function PaneActionsTab({
   homeDirectory,
-  onOpenQuickPane,
   onClose,
 }: PaneActionsTabProps) {
+  const setQuickPane = useSetAtom(quickPaneAtom);
   const actions = usePaneActions();
   const preCommands = usePreCommands();
   const [expandedActions, setExpandedActions] = useState<Set<string>>(
@@ -282,13 +279,11 @@ export function PaneActionsTab({
   };
 
   const handleOpenConfigFile = () => {
-    if (!onOpenQuickPane) return;
-
     const configPath = `${homeDirectory}/.conduit/paneactions.json`;
-    onOpenQuickPane({
+    setQuickPane({
       type: "editor",
       cwd: homeDirectory,
-      filePath: configPath,
+      file: configPath,
     });
     onClose?.();
   };
@@ -956,10 +951,7 @@ export function PaneActionsTab({
             <button
               onClick={handleOpenConfigFile}
               className="text-tinted-foreground/60 hover:text-accent transition-colors cursor-pointer underline decoration-dotted underline-offset-2"
-              disabled={!onOpenQuickPane}
-              title={
-                onOpenQuickPane ? "Click to open file in editor" : undefined
-              }
+              title="Click to open file in editor"
             >
               <code>~/.conduit/paneactions.json</code>
             </button>
