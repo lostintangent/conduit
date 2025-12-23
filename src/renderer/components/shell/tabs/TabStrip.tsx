@@ -38,13 +38,14 @@ import {
   activeTabAtom,
   activeTabIdAtom,
   applicationModeAtom,
+  quickPaneAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import type { TabPosition } from "@shared/types";
 import { generateId } from "@shared/utils";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   ChevronDown,
   Cloud,
@@ -72,14 +73,12 @@ const isWindows = window.conduit.platform === "win32";
 type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
-  onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   position?: TabPosition;
 };
 
 export const TabStrip = ({
   onOpenCommandPalette,
   onTabContextMenu,
-  onOpenQuickPane,
   position = "top",
 }: TabStripProps) => {
   const tabLabels = useAtomValue(tabLabelsAtom);
@@ -95,6 +94,7 @@ export const TabStrip = ({
   const shouldShowLaunchButton = showLaunchButton ?? false;
   const scriptTarget = playButtonTarget ?? "newPane";
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const setQuickPaneState = useSetAtom(quickPaneAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
   const hasMultipleTabs = tabs.length > 1;
@@ -548,18 +548,17 @@ export const TabStrip = ({
   }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
-    if (!onOpenQuickPane) return;
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
     if (!result) return;
 
-    onOpenQuickPane({
+    setQuickPaneState({
       type: "terminal",
       sessionId: result.sessionId,
       cwd: result.cwd ?? null,
     });
-  }, [activeTab, homeDirectory, onOpenQuickPane]);
+  }, [activeTab, homeDirectory, setQuickPaneState]);
 
   const handleOpenQuickCloudTerminal = useCallback(() => {
     setIsRepoDialogOpen(true);
@@ -568,12 +567,11 @@ export const TabStrip = ({
   const handleOpenQuickFileExplorer = useCallback(() => {
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const sandboxId = getActiveTabSandboxId(activeTab);
-    onOpenQuickPane({ type: "editor", cwd, sandboxId });
-  }, [activeTab, homeDirectory, onOpenQuickPane]);
+    setQuickPaneState({ type: "editor", cwd, sandboxId });
+  }, [activeTab, homeDirectory, setQuickPaneState]);
 
   const handleRepoSubmit = useCallback(
     async (repo?: { owner: string; name: string }) => {
-      if (!onOpenQuickPane) return;
       const api = window.conduit;
 
       const notificationId = enqueueNotification({
@@ -594,7 +592,7 @@ export const TabStrip = ({
 
         dismissNotification(notificationId);
 
-        onOpenQuickPane({
+        setQuickPaneState({
           type: "terminal",
           sessionId: result.sessionId,
           cwd: result.cwd ?? null,
@@ -610,7 +608,7 @@ export const TabStrip = ({
         });
       }
     },
-    [onOpenQuickPane],
+    [setQuickPaneState],
   );
 
   // Use margins to create gaps that reveal the overlay underneath

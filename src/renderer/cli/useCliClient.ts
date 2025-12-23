@@ -6,11 +6,10 @@ import {
   resolveTerminalSessions,
 } from "@/cli/utils";
 import { useCommand } from "@/commands/hooks/useCommand";
-import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
-import { activeTabAtom, tabsAtom } from "@/store/atoms";
+import { activeTabAtom, quickPaneAtom, tabsAtom } from "@/store/atoms";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useEffectEvent } from "react";
 import {
   handlerMap,
@@ -47,13 +46,10 @@ function useSplitCommandMap<T extends string>(commands: SplitCommandConfig<T>) {
   ) as Record<T, Record<string, ReturnTypeUseCommand>>;
 }
 
-type UseCliClientOptions = {
-  onOpenFile: (descriptor: QuickPaneDescriptor) => void;
-};
-
-export function useCliClient({ onOpenFile }: UseCliClientOptions) {
+export function useCliClient() {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const setQuickPane = useSetAtom(quickPaneAtom);
 
   const moveCommandMap = useCommandMap({
     left: ApplicationCommands.PANE_MOVE_LEFT,
@@ -121,7 +117,7 @@ export function useCliClient({ onOpenFile }: UseCliClientOptions) {
       };
 
       const context: HandlerContext = {
-        onOpenFile,
+        onOpenFile: setQuickPane,
         requestId,
         sessionId,
         activeTab,

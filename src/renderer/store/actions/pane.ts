@@ -3,7 +3,7 @@ import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, quickPaneAtom, tabsAtom } from "@/store/atoms";
 import type {
   LayoutNode,
   LayoutPaneNode,
@@ -866,6 +866,24 @@ export function openEditorPane(
   );
 
   return newPaneId;
+}
+
+export function openTerminalCwd(tabId: string, paneId: string) {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find(({ id }) => id === tabId);
+  const pane = tab?.panes[paneId];
+
+  if (!pane || pane.type !== "terminal" || !pane.cwd) {
+    return;
+  }
+
+  // Open the quick dialog with an editor descriptor for the terminal's CWD
+  const descriptor = {
+    type: "editor",
+    cwd: pane.cwd,
+  };
+
+  store.set(quickPaneAtom, descriptor);
 }
 
 export function cloneTerminalPane(

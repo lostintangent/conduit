@@ -100,3 +100,9 @@ export const hyperTerminalsAtom = atomWithImmer<
     cwd: string | null;
   }>
 >([]);
+
+/**
+ * Quick pane atom - stores the current quick pane descriptor
+ * Used to display the quick action dialog
+ */
+export const quickPaneAtom = atom<any | null>();

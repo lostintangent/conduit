@@ -56,6 +56,7 @@ import {
   movePane,
   openBrowserPane,
   openEditorPane,
+  openTerminalCwd,
   setPaneCollapsed,
   splitPane,
   splitPaneWithAgentSession,
@@ -533,6 +534,31 @@ export function registerApplicationCommands(
     },
   });
 
+  // Pane: View Files
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_VIEW_FILES,
+    title: "View Files (CWD)",
+    description: "View files in the terminal's current directory",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+E",
+      win: "Ctrl+E",
+    },
+    when: When.and(paneActionsEnabled, activePaneType.equals("terminal")),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "1_pane",
+      order: 2,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openTerminalCwd(targetTabId, targetPaneId);
+      }
+    },
+  });
+
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_COLLAPSE,
     title: "Collapse Pane",
@@ -541,8 +567,8 @@ export function registerApplicationCommands(
     when: When.and(paneCanBeCollapsed.isTrue(), paneIsCollapsed.isFalse()),
     menu: {
       id: MenuId.PaneContext,
-      group: "1_pane",
-      order: 3,
+      group: "2_pane",
+      order: 4,
       when: When.and(paneIsCollapsed.isFalse()),
     },
     run: (context, tabId?: string, paneId?: string) => {
@@ -560,8 +586,8 @@ export function registerApplicationCommands(
     when: When.and(paneIsCollapsed.isTrue()),
     menu: {
       id: MenuId.PaneContext,
-      group: "1_pane",
-      order: 3,
+      group: "2_pane",
+      order: 4,
       when: paneIsCollapsed.isTrue(),
     },
     run: (context, tabId?: string, paneId?: string) => {
@@ -997,8 +1023,8 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "1_pane",
-      order: 2,
+      group: "2_pane",
+      order: 3,
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -1654,18 +1680,18 @@ export function registerMenuContextBuilders(): void {
   registerSubmenu(
     MenuId.PaneContext,
     "3_split_more/split_browser",
-    "Split browser...",
+    "Split Browser...",
   );
 
   registerSubmenu(
     MenuId.PaneContext,
     "3_split_more/split_editor",
-    "Split editor...",
+    "Split Editor...",
   );
 
   registerSubmenu(
     MenuId.PaneContext,
     "3_split_more/split_agent_session",
-    "Split agent session...",
+    "Split Agent Session...",
   );
 }

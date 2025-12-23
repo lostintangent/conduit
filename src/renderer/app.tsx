@@ -14,7 +14,6 @@ import { HyperTerminal } from "@/components/layout/quick/HyperTerminal";
 import {
   QuickDialog,
   type PaneDescriptor,
-  type QuickPaneDescriptor,
 } from "@/components/layout/quick/QuickDialog";
 import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import {
@@ -67,6 +66,7 @@ import {
   applicationModeAtom,
   hyperTerminalsAtom,
   keybindingsAtom,
+  quickPaneAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { EditorPane } from "@/types";
@@ -134,8 +134,7 @@ export function App() {
     tabId: string;
     initialValue: string;
   } | null>(null);
-  const [quickPaneState, setQuickPaneState] =
-    useState<QuickPaneDescriptor | null>(null);
+  const [quickPaneState, setQuickPaneState] = useAtom(quickPaneAtom);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
@@ -167,9 +166,7 @@ export function App() {
   const [duplicateTabWithCwdDialogState, setDuplicateTabWithCwdDialogState] =
     useState<{ tabId: string } | null>(null);
 
-  useCliClient({
-    onOpenFile: setQuickPaneState,
-  });
+  useCliClient();
 
   // TODO: Once we ship a web variant of Conduit, this should
   // be conditioned on whether we're running in Electron or not.
@@ -661,10 +658,6 @@ export function App() {
     [duplicateTabWithCwdDialogState, tabs],
   );
 
-  const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
-    setQuickPaneState(descriptor);
-  }, []);
-
   // Get commands from registry (or empty array if command system not ready)
   const commandItems = useCommands(
     commandSystem?.commandRegistry,
@@ -757,7 +750,6 @@ export function App() {
           <TabStrip
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-            onOpenQuickPane={handleOpenQuickPane}
             position={tabPosition}
           />
         )}
@@ -768,7 +760,6 @@ export function App() {
               <TabStrip
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-                onOpenQuickPane={handleOpenQuickPane}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -790,7 +781,6 @@ export function App() {
               resizingNode={resizingNode}
               handleBrowserUpdate={handleBrowserUpdate}
               handleEditorUpdate={handleEditorUpdate}
-              onOpenQuickPane={handleOpenQuickPane}
               onOpenPaneActions={() => setSettingsTab("paneActions")}
             />
           </div>
@@ -807,7 +797,6 @@ export function App() {
           <TabStrip
             onOpenCommandPalette={openCommandPalette}
             onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-            onOpenQuickPane={handleOpenQuickPane}
             position={tabPosition}
           />
         )}
@@ -818,7 +807,6 @@ export function App() {
               <TabStrip
                 onOpenCommandPalette={openCommandPalette}
                 onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-                onOpenQuickPane={handleOpenQuickPane}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -993,7 +981,6 @@ export function App() {
           keybindingRegistry={commandSystem.keybindingRegistry}
           homeDirectory={homeDirectory}
           initialTab={settingsTab}
-          onOpenQuickPane={handleOpenQuickPane}
           onUpdateSettings={userSettings.updateSettings}
           userSettings={userSettings}
         />
