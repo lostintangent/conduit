@@ -23,19 +23,19 @@ export type QuickPaneDescriptor = PaneDescriptor & {
   onClose?: () => void;
 };
 
-type QuickDialogProps = {
+type QuickPaneDialogProps = {
   paneDescriptor: QuickPaneDescriptor;
   onClose: () => void;
   onOpenAsTab: (descriptor: PaneDescriptor) => void;
   onOpenAsFloating?: (terminalId: string, paneId: string) => void;
 };
 
-export function QuickDialog({
+export function QuickPaneDialog({
   paneDescriptor,
   onClose,
   onOpenAsTab,
   onOpenAsFloating,
-}: QuickDialogProps) {
+}: QuickPaneDialogProps) {
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const [currentDescriptor, setCurrentDescriptor] =
     useState<QuickPaneDescriptor>(paneDescriptor);

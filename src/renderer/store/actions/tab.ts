@@ -1,4 +1,4 @@
-import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
 import { disposeSession } from "@/components/panes/terminal/xtermCache";
 import { detachPane, removePane } from "@/store/actions/pane";

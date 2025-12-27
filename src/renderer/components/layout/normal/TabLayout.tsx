@@ -5,7 +5,7 @@ import { PaneHighlight } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
-import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
 import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
@@ -438,7 +438,11 @@ export function TabLayout({
           }}
           {...dropHandlers}
           onMouseEnter={() => {
-            setHoveredPaneId(pane.id);
+            // Only track hover state in design mode (for showing pane controls)
+            // to avoid unnecessary re-renders in normal mode
+            if (isInDesignMode) {
+              setHoveredPaneId(pane.id);
+            }
             if (isInPreview) {
               setHoveredPreviewPaneId(pane.id);
             }
@@ -448,7 +452,7 @@ export function TabLayout({
             // rendered via React portal. This causes onMouseLeave to fire when
             // entering the editor (React sees it as leaving this tree). Instead,
             // editor panes manage hover state via their onHover callback.
-            if (pane.type !== "editor") {
+            if (isInDesignMode && pane.type !== "editor") {
               setHoveredPaneId(null);
             }
             if (isInPreview) {
@@ -509,7 +513,9 @@ export function TabLayout({
                     })
                   }
                   onHover={(isHovering) => {
-                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInDesignMode) {
+                      setHoveredPaneId(isHovering ? pane.id : null);
+                    }
                     if (isInPreview) {
                       setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
@@ -539,7 +545,9 @@ export function TabLayout({
                   }
                   isInPreview={isInPreview}
                   onHover={(isHovering) => {
-                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInDesignMode) {
+                      setHoveredPaneId(isHovering ? pane.id : null);
+                    }
                     if (isInPreview) {
                       setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
@@ -581,11 +589,13 @@ export function TabLayout({
           )}
 
           {/* Dim inactive panes overlay (only in normal mode) */}
-          {dimInactivePanes &&
-            applicationMode === "normal" &&
-            !isActivePane && (
-              <div className="pointer-events-none absolute inset-0 z-10 bg-black/30" />
-            )}
+          {dimInactivePanes && applicationMode === "normal" && (
+            <div
+              className={`pointer-events-none absolute inset-0 z-5 bg-black/40 transition-opacity duration-150 ${
+                isActivePane ? "opacity-0" : "opacity-100"
+              }`}
+            />
+          )}
 
           {/* Pane highlight overlay */}
           <PaneHighlight paneId={pane.id} isResizing={resizingNode !== null} />

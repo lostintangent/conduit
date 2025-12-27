@@ -4,7 +4,6 @@ import {
   useCommand,
 } from "@/commands/hooks/useCommand";
 import { TabPreviewOverlay } from "@/components/layout/overview/TabPreviewOverlay";
-import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton } from "@/components/shell/tabs/TabButton";
 import { TabPlaceholder } from "@/components/shell/tabs/TabPlaceholder";

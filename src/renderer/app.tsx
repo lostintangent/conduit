@@ -12,9 +12,9 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { TabsOverview } from "@/components/layout/overview/TabsOverview";
 import { HyperTerminal } from "@/components/layout/quick/HyperTerminal";
 import {
-  QuickDialog,
+  QuickPaneDialog,
   type PaneDescriptor,
-} from "@/components/layout/quick/QuickDialog";
+} from "@/components/layout/quick/QuickPaneDialog";
 import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import {
   disposeSession,
@@ -869,7 +869,7 @@ export function App() {
       />
 
       {quickPaneState && (
-        <QuickDialog
+        <QuickPaneDialog
           paneDescriptor={quickPaneState}
           onClose={handleCloseQuickPane}
           onOpenAsTab={handleOpenQuickPaneAsTab}

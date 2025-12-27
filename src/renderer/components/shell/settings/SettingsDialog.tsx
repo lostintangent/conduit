@@ -8,11 +8,13 @@
  * - Preferences
  */
 
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { DialogTitle } from "@radix-ui/react-dialog";
 import type { UserSettings } from "@shared/types";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ICommandRegistry } from "../../../commands/core/CommandRegistry";
 import type { KeybindingRegistry } from "../../../commands/keybindings/KeybindingRegistry";
 import { AdvancedTab } from "./tabs/AdvancedTab";
@@ -41,39 +43,24 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Handle Escape key to close modal
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-8"
-      onClick={onClose}
-    >
-      <div
-        className="bg-tinted border border-tinted-border rounded-lg shadow-2xl w-[900px] h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="w-[900px] h-[80vh] max-w-none p-0 gap-0 bg-tinted flex flex-col"
+        showClose={false}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-tinted-border flex-shrink-0">
-          <h2 className="text-lg font-semibold text-tinted-foreground">
-            Settings
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="w-4 h-4 text-tinted-foreground/60" />
-          </button>
-        </div>
+        <DialogHeader>
+          <div className="flex items-center justify-between px-6 py-3 border-b border-tinted-border flex-shrink-0">
+            <DialogTitle>Settings</DialogTitle>
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors"
+              title="Close (Esc)"
+            >
+              <X className="w-4 h-4 text-tinted-foreground/60" />
+            </button>
+          </div>
+        </DialogHeader>
 
         {/* Tabs - Flex container */}
         <Tabs
@@ -126,7 +113,7 @@ export function SettingsDialog({
             />
           </TabsContent>
         </Tabs>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
