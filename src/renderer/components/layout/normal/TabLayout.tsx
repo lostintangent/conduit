@@ -54,6 +54,14 @@ import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
+// Stable empty handlers for locked tabs to avoid creating new objects on each render
+const LOCKED_DRAG_HANDLERS = { onDragStart: () => {}, onDragEnd: () => {} };
+const LOCKED_DROP_HANDLERS = {
+  onDragOver: () => {},
+  onDragLeave: () => {},
+  onDrop: () => {},
+};
+
 type BoundaryInfo = {
   leadingId: string;
   trailingId: string;
@@ -406,14 +414,10 @@ export function TabLayout({
       };
 
       const dragHandlers = isLocked
-        ? { onDragStart: () => {}, onDragEnd: () => {} }
+        ? LOCKED_DRAG_HANDLERS
         : createDragHandlers(pane.id, tab.id);
       const dropHandlers = isLocked
-        ? {
-            onDragOver: () => {},
-            onDragLeave: () => {},
-            onDrop: () => {},
-          }
+        ? LOCKED_DROP_HANDLERS
         : createDropHandlers(pane.id, tab.id);
 
       // While in design mode, show the pane controls if the current pane meets any of:

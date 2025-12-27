@@ -280,12 +280,10 @@
 
 @keyframes pane-highlight {
   0% {
-    outline: 3px solid var(--accent);
-    outline-offset: -3px;
+    box-shadow: inset 0 0 0 3px var(--accent);
   }
   100% {
-    outline: 3px solid rgba(59, 130, 246, 0);
-    outline-offset: -3px;
+    box-shadow: inset 0 0 0 3px rgba(59, 130, 246, 0);
   }
 }
 
