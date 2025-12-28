@@ -72,6 +72,9 @@ export interface DiffEditorWrapperProps {
    * If not provided, auto-sizing is enabled with default values.
    */
   autoSize?: AutoSizeConfig;
+
+  /** Whether to collapse unchanged regions in the diff view */
+  hideUnchangedRegions?: boolean;
 }
 
 // ============================================================================
@@ -106,6 +109,18 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
   };
 
 /**
+ * Configuration for hiding unchanged regions in diff view.
+ * Shows only changed areas with configurable context lines.
+ */
+const HIDE_UNCHANGED_REGIONS_CONFIG: monaco.editor.IDiffEditorBaseOptions["hideUnchangedRegions"] =
+  {
+    enabled: true,
+    contextLineCount: 3,
+    minimumLineCount: 3,
+    revealLineCount: 20,
+  };
+
+/**
  * Monaco diff editor wrapper with content loading.
  *
  * Creates a diff editor that compares:
@@ -123,6 +138,7 @@ export function DiffEditorWrapper({
   onChange,
   onMount,
   autoSize,
+  hideUnchangedRegions = false,
 }: DiffEditorWrapperProps) {
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
@@ -184,6 +200,9 @@ export function DiffEditorWrapper({
       ...DEFAULT_DIFF_OPTIONS,
       theme,
       readOnly,
+      ...(hideUnchangedRegions && {
+        hideUnchangedRegions: HIDE_UNCHANGED_REGIONS_CONFIG,
+      }),
     });
 
     diffEditorRef.current = diffEditor;
@@ -228,7 +247,7 @@ export function DiffEditorWrapper({
       diffEditorRef.current = null;
     };
     // Note: onMount handled via ref, filePath via ref for cleanup
-  }, [theme, readOnly, editorId]);
+  }, [theme, readOnly, editorId, hideUnchangedRegions]);
 
   // ---------------------------------------------------------------------------
   // Model Setup

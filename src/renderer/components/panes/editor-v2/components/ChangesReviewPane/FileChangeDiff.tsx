@@ -499,6 +499,7 @@ export function FileChangeDiff({
                 baseBranch={baseBranch}
                 autoSize={autoSizeConfig}
                 onMount={handleDiffEditorMount}
+                hideUnchangedRegions
               />
             )}
           </EditorErrorBoundary>
