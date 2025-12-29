@@ -27,7 +27,7 @@
  */
 
 import * as monaco from "monaco-editor";
-import { memo, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useAutoSizeEditor,
   useEditorTheme,
@@ -36,7 +36,6 @@ import {
 } from "../../hooks";
 import { createModelKey, ViewStateRegistry } from "../../registry";
 import { forceTokenizeVisibleLines } from "../../utils";
-import type { AutoSizeConfig } from "./constants";
 
 /** Debounce delay for ViewState saves (ms) */
 const VIEWSTATE_SAVE_DEBOUNCE_MS = 300;
@@ -67,11 +66,11 @@ export interface RegularEditorWrapperProps {
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
 
   /**
-   * Auto-size configuration. When provided, the editor height adjusts
-   * based on content between minHeight and maxHeight bounds.
-   * If not provided, the editor fills its container (h-full w-full).
+   * Maximum height in pixels. When provided, the editor is constrained
+   * to this height with internal scrolling. If not provided, the editor
+   * fills its container.
    */
-  autoSize?: AutoSizeConfig;
+  autoSize?: number;
 }
 
 // ============================================================================
@@ -110,13 +109,10 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
  * Monaco editor wrapper with registry integration.
  *
  * Manages the lifecycle of a Monaco editor instance, including:
- * - Editor reuse via EditorRegistry (portal pattern)
  * - Model management via MonacoModelRegistry
  * - ViewState persistence via ViewStateRegistry
- *
- * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export const RegularEditorWrapper = memo(function RegularEditorWrapper({
+export function RegularEditorWrapper({
   editorId,
   cwd,
   sandboxId,
@@ -130,6 +126,10 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
   const theme = themeProp ?? defaultTheme;
+
+  // Version counter to trigger re-render when editor is created
+  // This ensures useAutoSizeEditor sees the editor instance after creation
+  const [, setEditorVersion] = useState(0);
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,11 +158,10 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
   // as EditorRegistry for proper lifecycle coordination
   const model = useMonacoModel(editorId, filePath, cwd, sandboxId);
 
-  // Auto-sizing hook - adjusts height based on content when config is provided
-  const { containerStyle } = useAutoSizeEditor({
+  // Auto-sizing hook - grows height with content up to maxHeight
+  const { containerRef: autoSizeRef } = useAutoSizeEditor({
     editor: editorRef.current,
-    config: autoSize,
-    deps: [model],
+    maxHeight: autoSize,
   });
 
   // ---------------------------------------------------------------------------
@@ -239,6 +238,7 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
     });
 
     editorRef.current = editor;
+    setEditorVersion((v) => v + 1); // Trigger re-render so hook sees the editor
 
     // Call onMount callback via ref to avoid dependency
     onMountRef.current?.(editor);
@@ -432,7 +432,7 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
   }, []);
 
   return (
-    <div style={containerStyle}>
+    <div ref={autoSizeRef} className={autoSize ? "" : "h-full w-full"}>
       <div
         ref={containerRef}
         className="h-full w-full"
@@ -441,4 +441,4 @@ export const RegularEditorWrapper = memo(function RegularEditorWrapper({
       />
     </div>
   );
-});
+}

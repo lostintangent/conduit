@@ -14,10 +14,7 @@ export type {
 export { useDiffContent } from "./useDiffContent";
 export type { DiffContent, DiffError, DiffErrorType } from "./useDiffContent";
 export { useDiffModeTransition } from "./useDiffModeTransition";
-export type {
-  UseDiffModeTransitionOptions,
-  UseDiffModeTransitionResult,
-} from "./useDiffModeTransition";
+export type { UseDiffModeTransitionResult } from "./useDiffModeTransition";
 export { useEditorActions } from "./useEditorActions";
 export type { EditorActions } from "./useEditorActions";
 export { useEditorSaveKeybinding } from "./useEditorSaveKeybinding";

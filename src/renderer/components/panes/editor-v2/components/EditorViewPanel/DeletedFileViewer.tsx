@@ -24,7 +24,6 @@ import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAutoSizeEditor, useEditorTheme } from "../../hooks";
 import { detectLanguage } from "../../utils/languageDetection";
-import type { AutoSizeConfig } from "./constants";
 
 export interface DeletedFileViewerProps {
   /** Unique ID for this editor instance */
@@ -42,8 +41,8 @@ export interface DeletedFileViewerProps {
   /** Optional sandbox ID for cloud VM operations */
   sandboxId?: string;
 
-  /** Auto-size configuration */
-  autoSize?: AutoSizeConfig;
+  /** Maximum height in pixels for auto-sizing */
+  autoSize?: number;
 
   /** Callback when editor is mounted */
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;

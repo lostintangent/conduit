@@ -36,7 +36,6 @@ import {
 import { createModelKey } from "../../registry";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import { detectLanguage, forceTokenizeVisibleLines } from "../../utils";
-import type { AutoSizeConfig } from "./constants";
 
 export interface DiffEditorWrapperProps {
   /** Unique ID for this diff editor instance */
@@ -67,11 +66,11 @@ export interface DiffEditorWrapperProps {
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
 
   /**
-   * Auto-size configuration. When provided, the editor height adjusts
-   * based on content between minHeight and maxHeight bounds.
-   * If not provided, auto-sizing is enabled with default values.
+   * Maximum height in pixels. When provided, the editor is constrained
+   * to this height with internal scrolling. If not provided, the editor
+   * fills its container.
    */
-  autoSize?: AutoSizeConfig;
+  autoSize?: number;
 
   /** Whether to collapse unchanged regions in the diff view */
   hideUnchangedRegions?: boolean;
@@ -180,11 +179,10 @@ export function DiffEditorWrapper({
   // Detect language from file path
   const language = detectLanguage(filePath);
 
-  // Auto-sizing hook - adjusts height based on content
-  const { containerStyle } = useAutoSizeEditor({
+  // Auto-sizing hook - grows height with content up to maxHeight
+  const { containerRef: autoSizeRef } = useAutoSizeEditor({
     diffEditor: diffEditorRef.current,
-    config: autoSize,
-    deps: [diffContent.isLoading, modifiedModel],
+    maxHeight: autoSize,
   });
 
   // ---------------------------------------------------------------------------
@@ -403,7 +401,10 @@ export function DiffEditorWrapper({
   }, []);
 
   return (
-    <div className="relative" style={containerStyle}>
+    <div
+      ref={autoSizeRef}
+      className={`relative ${autoSize ? "" : "h-full w-full"}`}
+    >
       {/* Diff editor container */}
       <div
         ref={containerRef}

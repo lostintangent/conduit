@@ -46,9 +46,9 @@ import {
 import { MonacoModelRegistry, createModelKey } from "../../registry";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import {
-  DEFAULT_AUTO_SIZE_CONFIG,
   DeletedFileViewer,
   DiffEditorWrapper,
+  EDITOR_MAX_HEIGHT,
   RegularEditorWrapper,
 } from "../EditorViewPanel";
 import { DiffModeToggle, EditorActionButtons, GitBadge } from "../shared";
@@ -144,17 +144,9 @@ export function FileChangeDiff({
     status.status !== "added" &&
     status.status !== "deleted";
 
-  // Diff/edit mode transition with height preservation
-  const {
-    isDiffMode,
-    handleToggle: handleToggleDiffMode,
-    autoSizeConfig,
-    containerRef: editorContainerRef,
-    transitionStyle,
-  } = useDiffModeTransition({
-    defaultConfig: DEFAULT_AUTO_SIZE_CONFIG,
-    initialMode: true,
-  });
+  // Diff/edit mode toggle state
+  const { isDiffMode, handleToggle: handleToggleDiffMode } =
+    useDiffModeTransition();
 
   // Get model state for this file
   const modelState = useModelState(fullFilePath, sandboxId);
@@ -463,12 +455,7 @@ export function FileChangeDiff({
       {/* Use regular editor for new files (untracked/added) or when in edit mode */}
       {/* Use diff editor for modified files when in diff mode */}
       {isExpanded && (
-        <div
-          ref={editorContainerRef}
-          className="bg-background"
-          style={transitionStyle}
-          data-testid="file-change-diff-content"
-        >
+        <div className="bg-background" data-testid="file-change-diff-content">
           <EditorErrorBoundary filePath={filePath}>
             {status.status === "deleted" ? (
               <DeletedFileViewer
@@ -477,7 +464,7 @@ export function FileChangeDiff({
                 sandboxId={sandboxId}
                 filePath={fullFilePath}
                 baseBranch={baseBranch}
-                autoSize={autoSizeConfig}
+                autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : status.status === "untracked" ||
@@ -487,7 +474,7 @@ export function FileChangeDiff({
                 editorId={editorId}
                 cwd={cwd}
                 filePath={fullFilePath}
-                autoSize={autoSizeConfig}
+                autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : (
@@ -497,7 +484,7 @@ export function FileChangeDiff({
                 sandboxId={sandboxId}
                 filePath={fullFilePath}
                 baseBranch={baseBranch}
-                autoSize={autoSizeConfig}
+                autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleDiffEditorMount}
                 hideUnchangedRegions
               />

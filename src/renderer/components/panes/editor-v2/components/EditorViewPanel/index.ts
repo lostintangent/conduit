@@ -10,7 +10,7 @@
  * - MarkdownPreview: Markdown preview using streamdown
  *
  * Also exports shared constants for editor configuration:
- * - EDITOR_MIN_HEIGHT, EDITOR_MAX_HEIGHT: Height bounds for auto-sizing
+ * - EDITOR_MAX_HEIGHT: Max height for auto-sizing
  * - DEFAULT_AUTO_SIZE_CONFIG: Default auto-size configuration
  */
 
@@ -36,9 +36,4 @@ export { ImagePreview } from "./ImagePreview";
 export type { ImagePreviewProps } from "./ImagePreview";
 
 // Constants
-export {
-  EDITOR_MIN_HEIGHT,
-  EDITOR_MAX_HEIGHT,
-  DEFAULT_AUTO_SIZE_CONFIG,
-} from "./constants";
-export type { AutoSizeConfig } from "./constants";
+export { EDITOR_MIN_HEIGHT, EDITOR_MAX_HEIGHT } from "./constants";
