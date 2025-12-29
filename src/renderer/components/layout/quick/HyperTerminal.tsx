@@ -1,11 +1,10 @@
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowUpRight, Maximize2, X } from "lucide-react";
+import { ArrowUpRight, Maximize2, Minus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // Constants for overlay dimensions and positioning
@@ -22,9 +21,12 @@ type HyperTerminalProps = {
   paneId: string;
   cwd: string | null;
   index: number;
+  position: Position | null;
   onClose: () => void;
+  onMinimize: () => void;
   onMaximize: () => void;
   onOpenAsTab: () => void;
+  onPositionChange: (position: Position) => void;
 };
 
 type ToolbarButtonProps = {
@@ -109,11 +111,18 @@ export function HyperTerminal({
   paneId,
   cwd,
   index,
+  position: savedPosition,
   onClose,
+  onMinimize,
   onMaximize,
   onOpenAsTab,
+  onPositionChange,
 }: HyperTerminalProps) {
-  const [position, setPosition] = useState(() => getInitialPosition(index));
+  const [position, setPosition] = useState(() =>
+    savedPosition
+      ? constrainPosition(savedPosition)
+      : getInitialPosition(index),
+  );
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const positionRef = useRef(position);
@@ -156,7 +165,8 @@ export function HyperTerminal({
     setIsDragging(false);
     // Save the latest position from ref to avoid stale closure
     savePosition(positionRef.current);
-  }, []);
+    onPositionChange(positionRef.current);
+  }, [onPositionChange]);
 
   // Set up global mouse event listeners
   useEffect(() => {
@@ -187,30 +197,51 @@ export function HyperTerminal({
           className="flex items-center justify-between bg-elevated backdrop-blur px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
         >
-          <span className="text-sm font-medium select-none">
-            Hyper Terminal
-          </span>
-          <div className="flex items-center gap-1">
-            <ToolbarButton
-              icon={<Maximize2 size={14} />}
-              onClick={onMaximize}
-              tooltip="Maximize"
-            />
-            <ToolbarButton
-              icon={<ArrowUpRight size={14} />}
-              onClick={onOpenAsTab}
-              tooltip="Open in tab"
-            />
-            <Separator
-              orientation="vertical"
-              className="h-5 bg-elevated-border mx-1"
-            />
-            <ToolbarButton
-              icon={<X size={14} />}
-              onClick={onClose}
-              tooltip="Close"
-            />
+          <div className="flex items-center">
+            <div className="flex items-center gap-2 group/buttons">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF4136] transition-colors flex items-center justify-center"
+                aria-label="Close"
+              >
+                <X
+                  size={8}
+                  strokeWidth={2.5}
+                  className="text-black/60 opacity-0 group-hover/buttons:opacity-100 transition-opacity"
+                />
+              </button>
+              <button
+                type="button"
+                onClick={onMinimize}
+                className="w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#E5A829] transition-colors flex items-center justify-center"
+                aria-label="Minimize"
+              >
+                <Minus
+                  size={8}
+                  strokeWidth={2.5}
+                  className="text-black/60 opacity-0 group-hover/buttons:opacity-100 transition-opacity"
+                />
+              </button>
+              <button
+                type="button"
+                onClick={onMaximize}
+                className="w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#1DB954] transition-colors flex items-center justify-center"
+                aria-label="Maximize"
+              >
+                <Maximize2
+                  size={6}
+                  strokeWidth={2.5}
+                  className="text-black/60 opacity-0 group-hover/buttons:opacity-100 transition-opacity"
+                />
+              </button>
+            </div>
           </div>
+          <ToolbarButton
+            icon={<ArrowUpRight size={14} />}
+            onClick={onOpenAsTab}
+            tooltip="Open in tab"
+          />
         </div>
         <div className="flex-1 min-h-0 overflow-hidden px-0.5">
           <TerminalPane

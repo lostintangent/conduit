@@ -19,7 +19,7 @@ const mockModel = {
 };
 
 // Store subscribers for model availability changes
-let modelAvailabilitySubscribers: Map<string, Set<() => void>> = new Map();
+const modelAvailabilitySubscribers: Map<string, Set<() => void>> = new Map();
 
 const mockRegistry = {
   getOrCreateModel: vi.fn().mockResolvedValue(mockModel),

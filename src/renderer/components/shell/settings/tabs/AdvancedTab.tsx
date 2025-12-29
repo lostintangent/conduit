@@ -4,7 +4,7 @@
  * Advanced user preferences including theme, advanced settings, and repository shortcuts
  */
 
-import { updateTerminalFonts } from "@/components/panes/terminal/xtermCache";
+import { updateTerminalFonts } from "@/components/panes/terminal/state/xtermCache";
 import { useDotfiles } from "@/hooks/useDotfiles";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { quickPaneAtom } from "@/store/atoms";
@@ -94,6 +94,31 @@ export function AdvancedTab({
                     <span className="text-sm">{capitalize(value)}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="alwaysHighlightActivePane"
+                checked={userSettings.alwaysHighlightActivePane}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    alwaysHighlightActivePane: e.target.checked,
+                  })
+                }
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor="alwaysHighlightActivePane"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
+                >
+                  Always highlight active pane
+                </label>
+                <p className="text-xs text-tinted-foreground/50 mt-1">
+                  Keep the active pane border visible instead of fading out
+                </p>
               </div>
             </div>
 
@@ -323,6 +348,29 @@ export function AdvancedTab({
                 max={32}
                 className="w-24 px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
               />
+            </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="showIdleIndicator"
+                checked={userSettings.showIdleIndicator}
+                onChange={(e) =>
+                  onUpdateSettings({ showIdleIndicator: e.target.checked })
+                }
+                className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
+              />
+              <div className="flex-1">
+                <label
+                  htmlFor="showIdleIndicator"
+                  className="text-sm text-tinted-foreground/80 cursor-pointer"
+                >
+                  Show idle indicator
+                </label>
+                <p className="text-xs text-tinted-foreground/50 mt-1">
+                  Mark tabs as unseen when terminals become idle
+                </p>
+              </div>
             </div>
 
             <div className="flex items-start gap-3">

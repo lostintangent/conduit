@@ -1,5 +1,7 @@
+import { pauseIdleTracking } from "@/components/panes/terminal/state/idleTracker";
 import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
-import type { LayoutNode, Pane, Tab } from "@/types";
+import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
+import { walkLayout } from "@/utils/layout";
 import type {
   TerminalPane as SharedTerminalPane,
   Workspace,
@@ -90,6 +92,19 @@ export async function openWorkspace(workspace: Workspace) {
   store.set(tabsAtom, workspaceTabs);
   store.set(activeTabIdAtom, workspace.activeTabId);
   store.set(workspaceNameAtom, workspace.name);
+
+  // Pause idle tracking for any collapsed terminal panes
+  for (const tab of workspaceTabs) {
+    walkLayout(tab.layout, ({ node }) => {
+      if (node.type === "pane" && node.collapsed) {
+        const pane = tab.panes[node.paneId];
+        if (pane?.type === "terminal") {
+          pauseIdleTracking((pane as TerminalPane).sessionId);
+        }
+      }
+      return true;
+    });
+  }
 }
 
 type CloseWorkspaceOptions = {

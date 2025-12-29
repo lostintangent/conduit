@@ -12,7 +12,7 @@ import {
   invalidateDirectory,
 } from "@/components/panes/editor/tree/useDirectoryCache";
 import { useGitStatus } from "@/components/panes/editor/useGitStatus";
-import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { Separator } from "@/components/ui/separator";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { enqueueNotification } from "@/store/actions/notifications";
