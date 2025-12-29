@@ -44,9 +44,9 @@ import {
   useModelState,
 } from "../../hooks";
 import { MonacoModelRegistry, createModelKey } from "../../registry";
+import type { ContentSource } from "../../types";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import {
-  DeletedFileViewer,
   DiffEditorWrapper,
   EDITOR_MAX_HEIGHT,
   RegularEditorWrapper,
@@ -123,6 +123,43 @@ export function FileChangeDiff({
   }, [filePath]);
 
   const isStaged = status.staged;
+
+  // ---------------------------------------------------------------------------
+  // Content Source Calculation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calculate content sources for diff view based on staging status.
+   *
+   * For normal staged/unstaged view (no baseBranch or baseBranch === 'HEAD'):
+   * - Staged changes: HEAD → Index (comparing what was committed vs what's staged)
+   * - Unstaged with index changes: Index → Working Directory (partially staged file)
+   * - Unstaged without index changes: HEAD → Working Directory (normal unstaged)
+   *
+   * For branch comparison mode (baseBranch !== 'HEAD'):
+   * - All files compared against the base branch
+   */
+  const { originalSource, modifiedSource } = useMemo((): {
+    originalSource: ContentSource;
+    modifiedSource: ContentSource;
+  } => {
+    // Branch comparison mode: compare against the specified branch
+    if (baseBranch && baseBranch !== "HEAD") {
+      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
+    }
+
+    // Normal staged/unstaged view
+    if (status.staged) {
+      // Staged changes: show HEAD → Index
+      return { originalSource: "head", modifiedSource: "index" };
+    } else if (status.hasIndexChanges) {
+      // Unstaged changes for a partially staged file: show Index → Working Directory
+      return { originalSource: "index", modifiedSource: "workingDirectory" };
+    } else {
+      // Normal unstaged changes: show HEAD → Working Directory
+      return { originalSource: "head", modifiedSource: "workingDirectory" };
+    }
+  }, [baseBranch, status.staged, status.hasIndexChanges]);
 
   // ---------------------------------------------------------------------------
   // Editor Controls State
@@ -451,39 +488,44 @@ export function FileChangeDiff({
       </div>
 
       {/* Editor (expanded only) - height is auto-sized */}
-      {/* Use deleted file viewer for deleted files (read-only, shows git content) */}
+      {/* Use read-only editor for deleted files (shows git content from original source) */}
       {/* Use regular editor for new files (untracked/added) or when in edit mode */}
       {/* Use diff editor for modified files when in diff mode */}
       {isExpanded && (
         <div className="bg-background" data-testid="file-change-diff-content">
           <EditorErrorBoundary filePath={filePath}>
             {status.status === "deleted" ? (
-              <DeletedFileViewer
+              // Deleted files: show read-only content from git (HEAD or index)
+              <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
                 sandboxId={sandboxId}
                 filePath={fullFilePath}
-                baseBranch={baseBranch}
+                source={originalSource}
                 autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : status.status === "untracked" ||
               status.status === "added" ||
               !isDiffMode ? (
+              // New files or edit mode: show editable working directory content
               <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
                 autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : (
+              // Diff mode: show comparison based on staging status
               <DiffEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
                 sandboxId={sandboxId}
                 filePath={fullFilePath}
-                baseBranch={baseBranch}
+                originalSource={originalSource}
+                modifiedSource={modifiedSource}
                 autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleDiffEditorMount}
                 hideUnchangedRegions

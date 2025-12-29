@@ -36,11 +36,15 @@ import {
   type FileChangeTrackingResult,
 } from "../../hooks";
 import { createModelKey, MonacoModelRegistry } from "../../registry";
-import type { FileNode, ModelState, ViewMode } from "../../types";
+import type {
+  ContentSource,
+  FileNode,
+  ModelState,
+  ViewMode,
+} from "../../types";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
-import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { ImagePreview } from "./ImagePreview";
@@ -502,12 +506,15 @@ export const EditorViewPanel = memo(function EditorViewPanel({
         ) : isFileDeleted ? (
           // Deleted file viewer - shows read-only content from git
           <EditorErrorBoundary filePath={filePath}>
-            <DeletedFileViewer
+            <RegularEditorWrapper
               editorId={`${editorId}-deleted`}
               cwd={cwd}
               sandboxId={sandboxId}
               filePath={filePath}
-              baseBranch={baseBranch}
+              source={
+                (baseBranch === "HEAD" ? "head" : baseBranch) as ContentSource
+              }
+              theme={theme}
               onMount={handleEditorMount}
             />
           </EditorErrorBoundary>
