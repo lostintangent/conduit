@@ -20,6 +20,7 @@ export type { EditorPaneAnchorProps } from "./EditorPaneAnchor";
 
 // Re-export types
 export type {
+  ContentSource,
   EditorMode,
   FileNode,
   ModelState,
@@ -28,10 +29,14 @@ export type {
   ViewMode,
 } from "./types";
 
+// Re-export content source utilities
+export { contentSourceToGitRef, isGitSource } from "./types";
+
 // Re-export hooks
 export {
   useDiffContent,
   useEditorVisibility,
+  useGitContent,
   useModelState,
   useMonacoModel,
   useResponsiveLayout,
@@ -39,6 +44,8 @@ export {
 
 export type {
   DiffContent,
+  GitContentError,
+  GitContentResult,
   LayoutMode,
   UseEditorVisibilityOptions,
 } from "./hooks";
