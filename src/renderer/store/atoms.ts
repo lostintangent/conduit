@@ -1,8 +1,11 @@
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
-import type { UserSettings, WorkspaceState } from "@shared/types";
-import type { HyperTerminal } from "@shared/types";
+import type {
+  HyperTerminal,
+  UserSettings,
+  WorkspaceState,
+} from "@shared/types";
 import { atom } from "jotai";
 import { atomWithImmer } from "jotai-immer";
 
