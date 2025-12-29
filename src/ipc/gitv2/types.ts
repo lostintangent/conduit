@@ -49,6 +49,17 @@ export interface GitFileStatus {
 
   /** Original path if file was renamed (undefined otherwise) */
   originalPath?: string;
+
+  /**
+   * Whether the file has changes in the git index (staging area).
+   *
+   * This is particularly useful for unstaged entries of partially staged files.
+   * When true on an unstaged entry, it indicates that the diff should be
+   * shown as Index → Working Directory, not HEAD → Working Directory.
+   *
+   * For staged entries, this is always true (implied by staged: true).
+   */
+  hasIndexChanges?: boolean;
 }
 
 /**
