@@ -6,10 +6,15 @@
  *
  * Key responsibilities:
  * - Creates a fresh Monaco editor on mount (disposed on unmount)
- * - Gets model from MonacoModelRegistry via useMonacoModel hook
- * - Saves/restores ViewState via ViewStateRegistry
+ * - Gets model from MonacoModelRegistry via useMonacoModel hook (for working directory)
+ * - Creates standalone model for git sources (HEAD, index, refs)
+ * - Saves/restores ViewState via ViewStateRegistry (working directory only)
  * - Handles automatic layout on container resize
  * - Configures editor options (theme, minimap, etc.)
+ *
+ * The `source` prop controls where content is loaded from:
+ * - `'workingDirectory'` (default): Editable file from disk via MonacoModelRegistry
+ * - `'head'`, `'index'`, or any git ref: Read-only content from git
  *
  * Note: Unlike the portal pattern in EditorRegistry, this creates fresh
  * editors each time to avoid layout issues when switching between
@@ -17,11 +22,19 @@
  *
  * @example
  * ```tsx
+ * // Editable file from working directory
  * <RegularEditorWrapper
  *   editorId="main-editor"
  *   filePath="/path/to/file.ts"
  *   cwd="/project"
- *   theme="dark"
+ * />
+ *
+ * // Read-only file from git HEAD
+ * <RegularEditorWrapper
+ *   editorId="deleted-viewer"
+ *   filePath="/path/to/deleted-file.ts"
+ *   cwd="/project"
+ *   source="head"
  * />
  * ```
  */
@@ -31,11 +44,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useAutoSizeEditor,
   useEditorTheme,
+  useGitContent,
   useMonacoModel,
   usePreventFocusScroll,
 } from "../../hooks";
 import { createModelKey, ViewStateRegistry } from "../../registry";
+import { type ContentSource, isGitSource } from "../../types";
 import { forceTokenizeVisibleLines } from "../../utils";
+import { detectLanguage } from "../../utils/languageDetection";
 
 /** Debounce delay for ViewState saves (ms) */
 const VIEWSTATE_SAVE_DEBOUNCE_MS = 300;
@@ -56,10 +72,29 @@ export interface RegularEditorWrapperProps {
   /** Monaco theme name */
   theme?: string;
 
-  /** Whether the editor should be read-only */
+  /**
+   * Where to load content from. Defaults to 'workingDirectory'.
+   *
+   * - `'workingDirectory'`: Editable file from disk (uses MonacoModelRegistry)
+   * - `'head'`: Read-only content from HEAD commit
+   * - `'index'`: Read-only content from git staging area
+   * - Any other string: Read-only content from that git ref
+   *
+   * Git sources are always read-only regardless of the `readOnly` prop.
+   */
+  source?: ContentSource;
+
+  /**
+   * Whether the editor should be read-only.
+   * Only applies when source is 'workingDirectory'.
+   * Git sources are always read-only.
+   */
   readOnly?: boolean;
 
-  /** Callback when editor content changes */
+  /**
+   * Callback when editor content changes.
+   * Only called when source is 'workingDirectory' and not read-only.
+   */
   onChange?: (value: string) => void;
 
   /** Callback when editor is mounted/ready */
@@ -109,8 +144,9 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
  * Monaco editor wrapper with registry integration.
  *
  * Manages the lifecycle of a Monaco editor instance, including:
- * - Model management via MonacoModelRegistry
- * - ViewState persistence via ViewStateRegistry
+ * - Model management via MonacoModelRegistry (working directory)
+ * - Standalone model management (git sources)
+ * - ViewState persistence via ViewStateRegistry (working directory only)
  */
 export function RegularEditorWrapper({
   editorId,
@@ -118,14 +154,24 @@ export function RegularEditorWrapper({
   sandboxId,
   filePath,
   theme: themeProp,
+  source = "workingDirectory",
   readOnly = false,
   onChange,
   onMount,
   autoSize,
 }: RegularEditorWrapperProps) {
+  // Determine if we're loading from git or working directory
+  const isGitSourceMode = isGitSource(source);
+
+  // Git sources are always read-only; working directory respects the prop
+  const effectiveReadOnly = isGitSourceMode || readOnly;
+
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
   const theme = themeProp ?? defaultTheme;
+
+  // Language detection for git sources (working directory uses model's language)
+  const language = isGitSourceMode ? detectLanguage(filePath) : undefined;
 
   // Version counter to trigger re-render when editor is created
   // This ensures useAutoSizeEditor sees the editor instance after creation
@@ -139,6 +185,8 @@ export function RegularEditorWrapper({
   const saveViewStateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  // Standalone model ref for git sources (needs manual disposal)
+  const standaloneModelRef = useRef<monaco.editor.ITextModel | null>(null);
 
   // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
   const onMountRef = useRef(onMount);
@@ -153,10 +201,27 @@ export function RegularEditorWrapper({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // Get model from registry via hook
+  // ---------------------------------------------------------------------------
+  // Content Loading
+  // ---------------------------------------------------------------------------
+
+  // Get content from git for git sources
+  const gitContent = useGitContent(
+    isGitSourceMode ? filePath : null,
+    source,
+    cwd,
+    sandboxId,
+  );
+
+  // Get model from registry for working directory source
   // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
   // as EditorRegistry for proper lifecycle coordination
-  const model = useMonacoModel(editorId, filePath, cwd, sandboxId);
+  const registryModel = useMonacoModel(
+    editorId,
+    isGitSourceMode ? null : filePath,
+    cwd,
+    sandboxId,
+  );
 
   // Auto-sizing hook - grows height with content up to maxHeight
   const { containerRef: autoSizeRef } = useAutoSizeEditor({
@@ -172,12 +237,18 @@ export function RegularEditorWrapper({
    * Save ViewState with optional debouncing.
    * Immediate save clears any pending debounced save.
    *
+   * Only saves for working directory sources - git sources are read-only
+   * and don't need ViewState persistence.
+   *
    * To avoid stale closure issues:
    * - Reads filePath from ref at execution time (not capture time)
    * - Verifies filePath hasn't changed when debounced save fires
    */
   const saveViewState = useCallback(
     (immediate = false) => {
+      // Skip ViewState for git sources - they're read-only and immutable
+      if (isGitSourceMode) return;
+
       const editor = editorRef.current;
 
       if (!editor) return;
@@ -215,7 +286,7 @@ export function RegularEditorWrapper({
         );
       }
     },
-    [editorId],
+    [editorId, isGitSourceMode],
   );
 
   // ---------------------------------------------------------------------------
@@ -234,7 +305,7 @@ export function RegularEditorWrapper({
     const editor = monaco.editor.create(container, {
       ...DEFAULT_EDITOR_OPTIONS,
       theme,
-      readOnly,
+      readOnly: effectiveReadOnly,
     });
 
     editorRef.current = editor;
@@ -251,8 +322,12 @@ export function RegularEditorWrapper({
         saveViewStateDebounceRef.current = null;
       }
 
-      // Save ViewState immediately before disposing
-      if (editorRef.current && previousFilePathRef.current) {
+      // Save ViewState immediately before disposing (working directory only)
+      if (
+        !isGitSourceMode &&
+        editorRef.current &&
+        previousFilePathRef.current
+      ) {
         viewStateRegistry.save(
           editorId,
           previousFilePathRef.current,
@@ -266,32 +341,88 @@ export function RegularEditorWrapper({
         contentChangeDisposableRef.current = null;
       }
 
+      // Dispose standalone model for git sources
+      if (standaloneModelRef.current) {
+        standaloneModelRef.current.dispose();
+        standaloneModelRef.current = null;
+      }
+
       // Dispose the editor (unlike EditorRegistry which keeps it alive)
       editor.dispose();
       editorRef.current = null;
     };
     // Note: onMount handled via ref to avoid editor recreation when callback changes
-  }, [editorId, theme, readOnly]);
+  }, [editorId, theme, effectiveReadOnly, isGitSourceMode]);
 
   // ---------------------------------------------------------------------------
-  // Model Attachment
+  // Git Source Model Creation
+  // ---------------------------------------------------------------------------
+
+  // Create/update standalone model when git content changes
+  useEffect(() => {
+    if (!isGitSourceMode) return;
+
+    // Wait for content to load
+    if (gitContent.isLoading || gitContent.content === null) return;
+
+    // Create a unique URI for this git content to avoid conflicts
+    const modelUri = monaco.Uri.parse(
+      `git://${source}/${filePath}?t=${Date.now()}`,
+    );
+
+    // Dispose previous standalone model if it exists
+    if (standaloneModelRef.current) {
+      standaloneModelRef.current.dispose();
+    }
+
+    // Create new standalone model
+    const newModel = monaco.editor.createModel(
+      gitContent.content,
+      language,
+      modelUri,
+    );
+
+    standaloneModelRef.current = newModel;
+
+    // Attach to editor if it exists
+    const editor = editorRef.current;
+    if (editor) {
+      editor.setModel(newModel);
+      forceTokenizeVisibleLines(newModel);
+    }
+
+    // No cleanup here - model disposal handled in Editor Setup cleanup
+  }, [
+    isGitSourceMode,
+    gitContent.content,
+    gitContent.isLoading,
+    filePath,
+    source,
+    language,
+  ]);
+
+  // ---------------------------------------------------------------------------
+  // Working Directory Model Attachment
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
+    // Skip for git sources - handled by Git Source Model Creation effect
+    if (isGitSourceMode) return;
+
     const editor = editorRef.current;
-    if (!editor || !model) return;
+    if (!editor || !registryModel) return;
 
     // IMPORTANT: Verify the model matches the current filePath before attaching.
     // When filePath changes, React may re-run this effect with the OLD model
     // before useMonacoModel updates with the new model. We must skip attaching
     // stale models to avoid ending the session prematurely.
-    const modelUri = model.uri.toString();
+    const modelUri = registryModel.uri.toString();
     const expectedModelKey = createModelKey(filePath, sandboxId);
     // Handle sandboxId in model key: file:///path::vm:sandboxId
     const modelMatchesFile =
       modelUri === expectedModelKey ||
       modelUri.startsWith(expectedModelKey.split("::")[0] + "::") ||
-      model.uri.fsPath === filePath;
+      registryModel.uri.fsPath === filePath;
 
     if (!modelMatchesFile) {
       // Model is for a different file - skip this render cycle
@@ -310,10 +441,10 @@ export function RegularEditorWrapper({
     }
 
     // Attach model to editor
-    editor.setModel(model);
+    editor.setModel(registryModel);
 
     // Force immediate tokenization to prevent white flash before syntax highlighting
-    forceTokenizeVisibleLines(model);
+    forceTokenizeVisibleLines(registryModel);
 
     // Restore ViewState for new file
     viewStateRegistry.restore(editorId, filePath, editor);
@@ -327,9 +458,11 @@ export function RegularEditorWrapper({
     }
 
     // Use ref to always call latest onChange without effect dependency
-    contentChangeDisposableRef.current = model.onDidChangeContent(() => {
-      onChangeRef.current?.(model.getValue());
-    });
+    contentChangeDisposableRef.current = registryModel.onDidChangeContent(
+      () => {
+        onChangeRef.current?.(registryModel.getValue());
+      },
+    );
 
     return () => {
       // Cleanup content change listener
@@ -339,7 +472,7 @@ export function RegularEditorWrapper({
       }
     };
     // Note: onChange handled via ref to avoid listener re-setup when callback changes
-  }, [editorId, filePath, model, sandboxId]);
+  }, [editorId, filePath, registryModel, sandboxId, isGitSourceMode]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update
@@ -355,9 +488,9 @@ export function RegularEditorWrapper({
     // Update editor-specific options
     editor.updateOptions({
       theme,
-      readOnly,
+      readOnly: effectiveReadOnly,
     });
-  }, [theme, readOnly]);
+  }, [theme, effectiveReadOnly]);
 
   // ---------------------------------------------------------------------------
   // ViewState Save on Blur
@@ -401,6 +534,9 @@ export function RegularEditorWrapper({
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
+    // Skip ViewState for git sources
+    if (isGitSourceMode) return;
+
     // Save ViewState before page closes
     const handleBeforeUnload = () => {
       // Immediate save - no time for debouncing
@@ -418,7 +554,7 @@ export function RegularEditorWrapper({
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [editorId]);
+  }, [editorId, isGitSourceMode]);
 
   // ---------------------------------------------------------------------------
   // Focus Handler
@@ -433,12 +569,34 @@ export function RegularEditorWrapper({
 
   return (
     <div ref={autoSizeRef} className={autoSize ? "" : "h-full w-full"}>
-      <div
-        ref={containerRef}
-        className="h-full w-full"
-        onClick={handleContainerClick}
-        data-testid="monaco-editor-wrapper"
-      />
+      <div className="relative h-full w-full">
+        <div
+          ref={containerRef}
+          className="h-full w-full"
+          onClick={handleContainerClick}
+          data-testid="monaco-editor-wrapper"
+        />
+
+        {/* Loading state for git sources */}
+        {isGitSourceMode && gitContent.isLoading && (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-background text-muted-foreground"
+            data-testid="git-content-loading"
+          >
+            Loading...
+          </div>
+        )}
+
+        {/* Error state for git sources */}
+        {isGitSourceMode && gitContent.error && (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-background text-destructive"
+            data-testid="git-content-error"
+          >
+            {gitContent.error.message}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
