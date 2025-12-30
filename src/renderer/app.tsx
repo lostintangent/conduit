@@ -884,11 +884,9 @@ export function App() {
         .map((terminal, index) => (
           <HyperTerminal
             key={terminal.terminalId}
-            terminalId={terminal.terminalId}
-            paneId={terminal.paneId}
-            cwd={terminal.cwd}
+            terminal={terminal}
             index={index}
-            position={terminal.position}
+            hidden={applicationMode !== "normal"}
             onClose={() => closeHyperTerminal(terminal.terminalId)}
             onMinimize={() => minimizeHyperTerminal(terminal.terminalId)}
             onMaximize={() =>

@@ -4,6 +4,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type {
+  HyperTerminal as HyperTerminalType,
+  HyperTerminalPosition,
+} from "@shared/types";
 import { ArrowUpRight, Maximize2, Minus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -14,19 +18,15 @@ const DEFAULT_MARGIN = 16;
 const POSITION_OFFSET = 32;
 const POSITION_STORAGE_KEY = "lastHyperTerminalPosition";
 
-type Position = { x: number; y: number };
-
 type HyperTerminalProps = {
-  terminalId: string;
-  paneId: string;
-  cwd: string | null;
+  terminal: HyperTerminalType;
   index: number;
-  position: Position | null;
+  hidden?: boolean;
   onClose: () => void;
   onMinimize: () => void;
   onMaximize: () => void;
   onOpenAsTab: () => void;
-  onPositionChange: (position: Position) => void;
+  onPositionChange: (position: HyperTerminalPosition) => void;
 };
 
 type ToolbarButtonProps = {
@@ -52,7 +52,7 @@ function ToolbarButton({ icon, onClick, tooltip }: ToolbarButtonProps) {
   );
 }
 
-const validatePosition = (pos: any): pos is Position => {
+const validatePosition = (pos: any): pos is HyperTerminalPosition => {
   return (
     typeof pos === "object" &&
     pos !== null &&
@@ -63,7 +63,9 @@ const validatePosition = (pos: any): pos is Position => {
   );
 };
 
-const constrainPosition = (pos: Position): Position => {
+const constrainPosition = (
+  pos: HyperTerminalPosition,
+): HyperTerminalPosition => {
   const maxX = window.innerWidth - OVERLAY_WIDTH;
   const maxY = window.innerHeight - OVERLAY_HEIGHT;
 
@@ -73,7 +75,7 @@ const constrainPosition = (pos: Position): Position => {
   };
 };
 
-const getInitialPosition = (index: number): Position => {
+const getInitialPosition = (index: number): HyperTerminalPosition => {
   const offset = index * POSITION_OFFSET;
 
   try {
@@ -98,7 +100,7 @@ const getInitialPosition = (index: number): Position => {
   });
 };
 
-const savePosition = (pos: Position) => {
+const savePosition = (pos: HyperTerminalPosition) => {
   try {
     localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(pos));
   } catch (e) {
@@ -107,17 +109,16 @@ const savePosition = (pos: Position) => {
 };
 
 export function HyperTerminal({
-  terminalId,
-  paneId,
-  cwd,
+  terminal,
   index,
-  position: savedPosition,
+  hidden,
   onClose,
   onMinimize,
   onMaximize,
   onOpenAsTab,
   onPositionChange,
 }: HyperTerminalProps) {
+  const { terminalId, paneId, cwd, position: savedPosition } = terminal;
   const [position, setPosition] = useState(() =>
     savedPosition
       ? constrainPosition(savedPosition)
@@ -183,7 +184,7 @@ export function HyperTerminal({
 
   return (
     <div
-      className="fixed z-50 rounded-lg overflow-hidden shadow-2xl border border-border bg-background"
+      className={`fixed z-50 rounded-lg overflow-hidden shadow-2xl border border-border bg-background ${hidden ? "hidden" : ""}`}
       style={{
         width: `${OVERLAY_WIDTH}px`,
         height: `${OVERLAY_HEIGHT}px`,
