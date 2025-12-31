@@ -20,7 +20,7 @@
 import rehypeSlug from "rehype-slug";
 import remarkGithubAlerts from "remark-github-blockquote-alert";
 import "remark-github-blockquote-alert/alert.css";
-import { Streamdown } from "streamdown";
+import { defaultRemarkPlugins, Streamdown } from "streamdown";
 import { useMarkdownPreview } from "../../hooks/useMarkdownPreview";
 
 export interface MarkdownPreviewProps {
@@ -44,7 +44,10 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
         mode="static"
         mermaid={mermaidConfig}
         rehypePlugins={[rehypeSlug]}
-        remarkPlugins={[remarkGithubAlerts]}
+        remarkPlugins={[
+          ...Object.values(defaultRemarkPlugins),
+          remarkGithubAlerts,
+        ]}
       >
         {content}
       </Streamdown>

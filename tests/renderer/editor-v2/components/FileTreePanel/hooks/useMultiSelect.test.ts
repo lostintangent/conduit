@@ -46,11 +46,7 @@ const TREE_ALL_FILE_PATHS = [
  * Helper to create a mock MouseEvent with modifier keys.
  */
 function createMouseEvent(
-  options: {
-    shiftKey?: boolean;
-    metaKey?: boolean;
-    ctrlKey?: boolean;
-  } = {},
+  options: { shiftKey?: boolean; metaKey?: boolean; ctrlKey?: boolean } = {},
 ): React.MouseEvent {
   return {
     shiftKey: options.shiftKey ?? false,
