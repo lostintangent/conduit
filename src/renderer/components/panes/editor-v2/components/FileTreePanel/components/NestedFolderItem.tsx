@@ -8,7 +8,7 @@ import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { cn } from "@/utils";
 import { ActionButtons } from "./ActionButtons";
 import { NestedFileItem } from "./NestedFileItem";
-import { pathsEqual } from "../../../utils";
+import { pathsEqual, isFileEntrySelected } from "../../../utils";
 import type { FolderNode } from "../utils/types";
 
 export interface NestedFolderItemProps {
@@ -22,24 +22,34 @@ export interface NestedFolderItemProps {
   onToggleFolder: (path: string) => void;
   /** Selected file path (relative) for highlighting */
   selectedPath: string | null;
+  /** Whether the selected file is staged (for partially staged file disambiguation) */
+  selectedStaged?: boolean;
   /** Set of multi-selected paths (includes folders) */
   multiSelectedPaths: Set<string>;
   /** Whether files in this folder are staged */
   isStaged: boolean;
-  /** Callback when file/folder is clicked (passes event for shift/cmd detection) */
+  /**
+   * Callback when file/folder is clicked.
+   * For files: (mapKey, filePath, staged, event, isFolder=false)
+   * For folders: (mapKey, filePath, staged, event, isFolder=true) where mapKey === filePath
+   */
   onFileSelect: (
-    path: string,
+    mapKey: string,
+    filePath: string,
+    staged: boolean,
     event: React.MouseEvent,
     isFolder?: boolean,
   ) => void;
-  /** Callback to stage file/folder */
-  onStage?: (path: string) => void;
-  /** Callback to unstage file/folder */
-  onUnstage?: (path: string) => void;
-  /** Callback to revert file/folder */
-  onRevert?: (path: string) => void;
+  /** Callback to stage file/folder (uses mapKey) */
+  onStage?: (mapKey: string) => void;
+  /** Callback to unstage file/folder (uses mapKey) */
+  onUnstage?: (mapKey: string) => void;
+  /** Callback to revert file/folder (uses mapKey) */
+  onRevert?: (mapKey: string) => void;
   /** Check if a file is unseen (Follow mode) */
   isFileUnseen?: (path: string) => boolean;
+  /** Check if a file has an unstaged entry (for selection fallback) */
+  hasUnstagedEntry?: (path: string) => boolean;
 }
 
 export function NestedFolderItem({
@@ -48,6 +58,7 @@ export function NestedFolderItem({
   expandedFolders,
   onToggleFolder,
   selectedPath,
+  selectedStaged,
   multiSelectedPaths,
   isStaged,
   onFileSelect,
@@ -55,6 +66,7 @@ export function NestedFolderItem({
   onUnstage,
   onRevert,
   isFileUnseen,
+  hasUnstagedEntry,
 }: NestedFolderItemProps) {
   const isExpanded = expandedFolders.has(folder.path);
   const FolderIcon = isExpanded ? FolderOpen : Folder;
@@ -69,6 +81,22 @@ export function NestedFolderItem({
   );
 
   /**
+   * Check if a file should be shown as selected.
+   * Uses shared utility for consistent selection logic across components.
+   */
+  const isFileSelected = (filePath: string, entryIsStaged: boolean): boolean => {
+    const hasUnstaged = hasUnstagedEntry ? hasUnstagedEntry(filePath) : false;
+    return isFileEntrySelected(
+      selectedPath,
+      selectedStaged,
+      filePath,
+      entryIsStaged,
+      hasUnstaged,
+      pathsEqual,
+    );
+  };
+
+  /**
    * Handle folder click - toggle expansion OR select with shift/cmd.
    * Regular click toggles expansion.
    * Shift/Cmd+click handles selection without toggling.
@@ -77,7 +105,8 @@ export function NestedFolderItem({
     if (event.shiftKey || event.metaKey || event.ctrlKey) {
       // Shift/Cmd click: handle selection, don't toggle expansion
       event.preventDefault();
-      onFileSelect(folder.path, event, true);
+      // For folders, mapKey === path and staged is inherited from section
+      onFileSelect(folder.path, folder.path, isStaged, event, true);
     } else {
       // Regular click: toggle expansion
       onToggleFolder(folder.path);
@@ -145,6 +174,7 @@ export function NestedFolderItem({
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
               selectedPath={selectedPath}
+              selectedStaged={selectedStaged}
               multiSelectedPaths={multiSelectedPaths}
               isStaged={isStaged}
               onFileSelect={onFileSelect}
@@ -152,23 +182,26 @@ export function NestedFolderItem({
               onUnstage={onUnstage}
               onRevert={onRevert}
               isFileUnseen={isFileUnseen}
+              hasUnstagedEntry={hasUnstagedEntry}
             />
           ))}
 
           {/* Then files */}
           {sortedFiles.map((file) => (
             <NestedFileItem
-              key={file.path}
+              key={file.mapKey}
               file={file}
               cwd={cwd}
-              isSelected={pathsEqual(selectedPath, file.path)}
-              isMultiSelected={multiSelectedPaths.has(file.path)}
+              isSelected={isFileSelected(file.path, file.status.staged)}
+              isMultiSelected={multiSelectedPaths.has(file.mapKey)}
               isStaged={isStaged}
               canRevert={file.status.status !== "untracked"}
-              onSelect={(event) => onFileSelect(file.path, event)}
-              onStage={onStage ? () => onStage(file.path) : undefined}
-              onUnstage={onUnstage ? () => onUnstage(file.path) : undefined}
-              onRevert={onRevert ? () => onRevert(file.path) : undefined}
+              onSelect={(event) =>
+                onFileSelect(file.mapKey, file.path, file.status.staged, event)
+              }
+              onStage={onStage ? () => onStage(file.mapKey) : undefined}
+              onUnstage={onUnstage ? () => onUnstage(file.mapKey) : undefined}
+              onRevert={onRevert ? () => onRevert(file.mapKey) : undefined}
               showUnseenIndicator={isFileUnseen?.(file.path)}
             />
           ))}

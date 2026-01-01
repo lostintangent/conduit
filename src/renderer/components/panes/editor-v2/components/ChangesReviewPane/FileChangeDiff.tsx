@@ -34,7 +34,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { formatRelativeTime } from "../../utils";
+import { formatRelativeTime, joinCwdPath } from "../../utils";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -114,7 +114,7 @@ export function FileChangeDiff({
 
   // Full path for the diff editor
   const fullFilePath = useMemo(() => {
-    return cwd.endsWith("/") ? cwd + filePath : cwd + "/" + filePath;
+    return joinCwdPath(cwd, filePath);
   }, [cwd, filePath]);
 
   // Stable editor ID based on file path
@@ -508,12 +508,15 @@ export function FileChangeDiff({
             ) : status.status === "untracked" ||
               status.status === "added" ||
               !isDiffMode ? (
-              // New files or edit mode: show editable working directory content
+              // New files or edit mode: show content based on staging status
+              // - Staged files: show index content (read-only)
+              // - Unstaged/untracked files: show working directory (editable)
               <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
                 sandboxId={sandboxId}
                 filePath={fullFilePath}
+                source={modifiedSource}
                 autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />

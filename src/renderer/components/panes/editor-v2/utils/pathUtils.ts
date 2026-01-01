@@ -14,6 +14,18 @@ export {
 } from "@/utils/pathUtils";
 
 /**
+ * Join a working directory with a relative path to create an absolute path.
+ * Handles trailing slash in cwd correctly.
+ *
+ * @example
+ * joinCwdPath("/project", "src/file.ts") // => "/project/src/file.ts"
+ * joinCwdPath("/project/", "src/file.ts") // => "/project/src/file.ts"
+ */
+export function joinCwdPath(cwd: string, relativePath: string): string {
+  return cwd.endsWith("/") ? cwd + relativePath : cwd + "/" + relativePath;
+}
+
+/**
  * Get all parent directory paths for a file path.
  * Works with both relative paths (e.g., "src/utils/file.ts")
  * and absolute paths (e.g., "/Users/name/project/file.ts").

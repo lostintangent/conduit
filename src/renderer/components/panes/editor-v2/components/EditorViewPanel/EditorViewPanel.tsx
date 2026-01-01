@@ -134,6 +134,21 @@ export interface EditorViewPanelProps {
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
+  /**
+   * Whether the selected file is staged (in "Showing only changed files" mode).
+   * Used to determine content sources for diff view:
+   * - Staged: HEAD → Index (read-only)
+   * - Unstaged: HEAD → Working Directory (or Index → Working Directory if hasIndexChanges)
+   */
+  isFileStaged?: boolean;
+
+  /**
+   * Whether the file has changes in the git index (staging area).
+   * When true on an unstaged file, the diff shows Index → Working Directory
+   * instead of HEAD → Working Directory.
+   */
+  hasIndexChanges?: boolean;
+
   /** Whether to show the preview toggle (for supported file types like .md) */
   showPreviewToggle?: boolean;
 
@@ -203,6 +218,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   onToggleDiffMode,
   onExitReview,
   isFileDeleted = false,
+  isFileStaged = false,
+  hasIndexChanges = false,
   showPreviewToggle = false,
   isPreviewMode = false,
   onTogglePreviewMode,
@@ -248,6 +265,44 @@ export const EditorViewPanel = memo(function EditorViewPanel({
 
   // Get model state for the current file
   const modelState = useModelState(filePath, sandboxId);
+
+  // ---------------------------------------------------------------------------
+  // Content Source Calculation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calculate content sources for diff view based on staging status.
+   *
+   * For normal staged/unstaged view (no baseBranch or baseBranch === 'HEAD'):
+   * - Staged changes: HEAD → Index (comparing what was committed vs what's staged)
+   * - Unstaged with index changes: Index → Working Directory (partially staged file)
+   * - Unstaged without index changes: HEAD → Working Directory (normal unstaged)
+   *
+   * For branch comparison mode (baseBranch !== 'HEAD'):
+   * - All files compared against the base branch
+   */
+  const { originalSource, modifiedSource } = useMemo((): {
+    originalSource: ContentSource;
+    modifiedSource: ContentSource;
+  } => {
+    // Branch comparison mode: compare against the specified branch
+    if (baseBranch && baseBranch !== "HEAD") {
+      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
+    }
+
+    // Normal staged/unstaged view
+    if (isFileStaged) {
+      // Staged changes: show HEAD → Index (read-only on both sides conceptually,
+      // but modified side shows what's staged)
+      return { originalSource: "head", modifiedSource: "index" };
+    } else if (hasIndexChanges) {
+      // Unstaged changes for a partially staged file: show Index → Working Directory
+      return { originalSource: "index", modifiedSource: "workingDirectory" };
+    } else {
+      // Normal unstaged changes: show HEAD → Working Directory
+      return { originalSource: "head", modifiedSource: "workingDirectory" };
+    }
+  }, [baseBranch, isFileStaged, hasIndexChanges]);
 
   // ---------------------------------------------------------------------------
   // Mode Transition Handling
@@ -511,9 +566,7 @@ export const EditorViewPanel = memo(function EditorViewPanel({
               cwd={cwd}
               sandboxId={sandboxId}
               filePath={filePath}
-              source={
-                (baseBranch === "HEAD" ? "head" : baseBranch) as ContentSource
-              }
+              source={originalSource}
               theme={theme}
               onMount={handleEditorMount}
             />
@@ -527,12 +580,15 @@ export const EditorViewPanel = memo(function EditorViewPanel({
           )
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
+          // For staged files, show index content (read-only)
+          // For unstaged/normal files, show working directory (editable)
           <EditorErrorBoundary filePath={filePath}>
             <RegularEditorWrapper
               editorId={editorId}
               cwd={cwd}
               sandboxId={sandboxId}
               filePath={filePath}
+              source={modifiedSource}
               theme={theme}
               onMount={handleEditorMount}
             />
@@ -545,7 +601,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
               cwd={cwd}
               sandboxId={sandboxId}
               filePath={filePath}
-              baseBranch={baseBranch}
+              originalSource={originalSource}
+              modifiedSource={modifiedSource}
               theme={theme}
               onMount={handleDiffEditorMount}
             />

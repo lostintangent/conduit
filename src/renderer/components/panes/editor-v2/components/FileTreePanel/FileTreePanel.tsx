@@ -168,6 +168,13 @@ export interface FileTreePanelProps {
 
   /** Check if a file is unseen (Follow mode) - returns true if file has unacknowledged changes */
   isFileUnseen?: (path: string) => boolean;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Props
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -220,6 +227,8 @@ export const FileTreePanel = memo(
       onChangesViewModeChange,
       // Follow Mode Props
       isFileUnseen,
+      // Dirty File Props
+      isFileDirty,
     },
     ref,
   ) {
@@ -325,6 +334,7 @@ export const FileTreePanel = memo(
               isComparingToBranch={isComparingToBranch}
               baseBranchName={baseBranch}
               isFileUnseen={isFileUnseen}
+              isFileDirty={isFileDirty}
             />
           </div>
         </div>

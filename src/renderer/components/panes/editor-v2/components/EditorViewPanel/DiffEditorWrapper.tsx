@@ -208,6 +208,12 @@ export function DiffEditorWrapper({
   // Effective read-only state: read-only if explicitly set OR if modified source is not editable
   const effectiveReadOnly = readOnly || !diffContent.isModifiedEditable;
 
+  // Ref to track effectiveReadOnly for cleanup (defined after effectiveReadOnly is calculated)
+  const effectiveReadOnlyRef = useRef(effectiveReadOnly);
+  useEffect(() => {
+    effectiveReadOnlyRef.current = effectiveReadOnly;
+  }, [effectiveReadOnly]);
+
   // Get the shared model for the modified side (only when modifiedSource is 'workingDirectory')
   // Pass editorId to ensure consistent reference counting with other registries
   const registryModel = useMonacoModel(
@@ -235,10 +241,10 @@ export function DiffEditorWrapper({
     if (!container) return;
 
     // Create a fresh diff editor (like v1 does with @monaco-editor/react)
+    // Note: readOnly is set via updateOptions below to avoid having it in dependencies
     const diffEditor = monaco.editor.createDiffEditor(container, {
       ...DEFAULT_DIFF_OPTIONS,
       theme,
-      readOnly: effectiveReadOnly,
       ...(hideUnchangedRegions && {
         hideUnchangedRegions: HIDE_UNCHANGED_REGIONS_CONFIG,
       }),
@@ -246,13 +252,16 @@ export function DiffEditorWrapper({
 
     diffEditorRef.current = diffEditor;
 
+    // Set initial readOnly option
+    diffEditor.updateOptions({ readOnly: effectiveReadOnly });
+
     // Call onMount callback via ref to avoid dependency
     onMountRef.current?.(diffEditor);
 
     // Cleanup on unmount
     return () => {
       // Save ViewState before disposing so it can be restored later (only for editable content)
-      if (!effectiveReadOnly) {
+      if (!effectiveReadOnlyRef.current) {
         const modifiedEditor = diffEditor.getModifiedEditor();
         if (modifiedEditor && currentFilePathRef.current) {
           ViewStateRegistry.getInstance().save(
@@ -294,7 +303,9 @@ export function DiffEditorWrapper({
       diffEditorRef.current = null;
     };
     // Note: onMount handled via ref, filePath via ref for cleanup
-  }, [theme, effectiveReadOnly, editorId, hideUnchangedRegions]);
+    // Note: effectiveReadOnly is NOT in dependencies - we update it via updateOptions
+    // to avoid recreating the entire editor (which causes keyboard listener leaks)
+  }, [theme, editorId, hideUnchangedRegions]);
 
   // ---------------------------------------------------------------------------
   // Model Setup

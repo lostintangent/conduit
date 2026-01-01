@@ -49,7 +49,15 @@ import {
   useReviewModeState,
 } from "./hooks";
 import type { FileNode, TreeViewMode } from "./types";
-import { detectLanguage } from "./utils/languageDetection";
+import {
+  detectLanguage,
+  getRelativePath,
+  getFileStatusForEntry,
+  isDiffableStatus,
+  computeStagedForChangesMode,
+  getFileEntryPresence,
+} from "./utils";
+import { MonacoModelRegistry, createModelKey } from "./registry";
 
 /** Image extensions for auto-preview */
 const IMAGE_EXTENSIONS = [
@@ -639,11 +647,9 @@ export function EditorPaneV2({
    */
   const handleFileSelect = useCallback(
     async (file: FileNode) => {
-      // Compute relative path and git status for this file
-      const relativePath = file.path.startsWith(currentCwd)
-        ? file.path.slice(currentCwd.length).replace(/^\//, "")
-        : file.path;
-      const fileStatus = gitStatus?.get(relativePath);
+      // Get file status (handles partially staged files correctly)
+      const relativePath = getRelativePath(file.path, currentCwd);
+      const fileStatus = getFileStatusForEntry(gitStatus, relativePath, file.staged);
 
       // Use startTransition to make the file selection render non-blocking.
       // This allows IPC responses to be processed during the render, significantly
@@ -663,8 +669,8 @@ export function EditorPaneV2({
           if (isImageFile(file.name)) {
             return { type: "preview" };
           }
-          // Only "modified" files get diff view option, not "added" files
-          if (fileStatus?.status === "modified" && preferDiffForModified) {
+          // Diffable files (modified/renamed) get diff view if preferred
+          if (isDiffableStatus(fileStatus) && preferDiffForModified) {
             return {
               type: "diff",
               filePath: file.path,
@@ -711,12 +717,35 @@ export function EditorPaneV2({
   );
 
   /**
-   * Handle tree view mode change (files/changes).
-   * Delegates to useReviewModeState for review mode transitions.
+   * Handle tree view mode changes.
+   *
+   * When switching modes, we sync selectedFile.staged in the same handler
+   * to ensure both state updates are batched together by React, preventing
+   * a render with stale staged value.
+   *
+   * - Entering "changes" mode: compute staged based on git status (prefer unstaged)
+   * - Exiting to "files" mode: clear the staged flag
    */
   const handleTreeViewModeChange = useCallback(
     (mode: TreeViewMode) => {
       setTreeViewMode(mode);
+
+      // Sync selectedFile.staged with the new mode
+      if (selectedFile) {
+        if (mode === "changes") {
+          const relativePath = getRelativePath(selectedFile.path, currentCwd);
+          const newStaged = computeStagedForChangesMode(gitStatus, relativePath);
+          if (newStaged !== selectedFile.staged) {
+            setSelectedFile((prev) =>
+              prev ? { ...prev, staged: newStaged } : prev,
+            );
+          }
+        } else if (mode === "files" && selectedFile.staged !== undefined) {
+          setSelectedFile((prev) =>
+            prev ? { ...prev, staged: undefined } : prev,
+          );
+        }
+      }
 
       // Persist to localStorage
       localStorage.setItem("editor-v2:treeViewMode", mode);
@@ -727,8 +756,48 @@ export function EditorPaneV2({
       // Handle review mode transitions (exit/restore)
       handleTreeViewModeTransition(mode);
     },
-    [onTreeModeChange, handleTreeViewModeTransition],
+    [
+      selectedFile,
+      currentCwd,
+      gitStatus,
+      onTreeModeChange,
+      handleTreeViewModeTransition,
+    ],
   );
+
+  /**
+   * Effect: Sync selectedFile.staged when git status changes.
+   *
+   * When a file is staged/unstaged via git operations, the git status updates
+   * but selectedFile.staged doesn't automatically change. This effect keeps them in sync:
+   * - After staging: if the unstaged entry disappears, switch to staged view
+   * - After unstaging: if the staged entry disappears, switch to unstaged view
+   *
+   * IMPORTANT: This effect should NOT override user selection. It only syncs when
+   * the currently selected entry no longer exists in git status (e.g., user was
+   * viewing unstaged and staged all changes).
+   *
+   * Only runs in "changes" mode since staged/unstaged only matters there.
+   */
+  useEffect(() => {
+    if (treeViewMode !== "changes" || !selectedFile) return;
+    if (selectedFile.staged === undefined) return; // No explicit selection to sync
+
+    const relativePath = getRelativePath(selectedFile.path, currentCwd);
+    const { hasStagedEntry, hasUnstagedEntry } = getFileEntryPresence(
+      gitStatus,
+      relativePath,
+    );
+
+    // Only sync if the currently selected entry no longer exists
+    if (selectedFile.staged === true && !hasStagedEntry && hasUnstagedEntry) {
+      // Was viewing staged, but staged entry is gone - switch to unstaged
+      setSelectedFile((prev) => (prev ? { ...prev, staged: false } : prev));
+    } else if (selectedFile.staged === false && !hasUnstagedEntry && hasStagedEntry) {
+      // Was viewing unstaged, but unstaged entry is gone - switch to staged
+      setSelectedFile((prev) => (prev ? { ...prev, staged: true } : prev));
+    }
+  }, [gitStatus, selectedFile, currentCwd, treeViewMode]);
 
   /**
    * Handle tree width resize.
@@ -858,6 +927,20 @@ export function EditorPaneV2({
   const canNavigateUp = !isAtFilesystemRoot(currentCwd);
 
   /**
+   * Check if a file has unsaved changes in the editor.
+   * Used to prevent staging files with unsaved changes.
+   */
+  const isFileDirty = useCallback(
+    (filePath: string): boolean => {
+      const registry = MonacoModelRegistry.getInstance();
+      const modelKey = createModelKey(filePath, sandboxId);
+      const state = registry.getModelState(modelKey);
+      return state?.isDirty ?? false;
+    },
+    [sandboxId],
+  );
+
+  /**
    * Toggle tree panel collapsed state.
    * Only effective in split layout mode.
    */
@@ -897,17 +980,14 @@ export function EditorPaneV2({
   }, [baseBranch, enterReviewMode]);
 
   /**
-   * Determine if the current file is git-modified (eligible for diff toggle).
+   * Determine if the current file can show a diff view.
+   * A file is diffable if its status is "modified" or "renamed".
    */
   const isCurrentFileGitModified = useMemo(() => {
     if (!selectedFile) return false;
-
-    const relativePath = selectedFile.path.startsWith(currentCwd)
-      ? selectedFile.path.slice(currentCwd.length).replace(/^\//, "")
-      : selectedFile.path;
-
-    const fileStatus = gitStatus?.get(relativePath);
-    return fileStatus?.status === "modified";
+    const relativePath = getRelativePath(selectedFile.path, currentCwd);
+    const fileStatus = getFileStatusForEntry(gitStatus, relativePath, selectedFile.staged);
+    return isDiffableStatus(fileStatus);
   }, [selectedFile, currentCwd, gitStatus]);
 
   /**
@@ -915,13 +995,42 @@ export function EditorPaneV2({
    */
   const isCurrentFileDeleted = useMemo(() => {
     if (!selectedFile) return false;
-
-    const relativePath = selectedFile.path.startsWith(currentCwd)
-      ? selectedFile.path.slice(currentCwd.length).replace(/^\//, "")
-      : selectedFile.path;
-
+    const relativePath = getRelativePath(selectedFile.path, currentCwd);
     const fileStatus = gitStatus?.get(relativePath);
     return fileStatus?.status === "deleted";
+  }, [selectedFile, currentCwd, gitStatus]);
+
+  /**
+   * Determine if the current file is staged.
+   * Used to show staged content (index) as read-only in "Showing only changed files" mode.
+   *
+   * IMPORTANT: This only returns true when BOTH:
+   * 1. The user explicitly selected the staged version (FileNode.staged === true)
+   * 2. We're currently in "Showing only changed files" mode (treeViewMode === "changes")
+   *
+   * When switching out of "changes" mode, the file becomes editable even if it was
+   * previously selected as staged. This matches the expectation that normal file
+   * browsing always edits the working directory version.
+   */
+  const isCurrentFileStaged = useMemo(() => {
+    if (!selectedFile) return false;
+
+    // Only consider a file "staged" if:
+    // 1. It was explicitly selected as staged from FileTreeChanges
+    // 2. We're currently in "Showing only changed files" mode
+    // When switching to normal mode, the file should become editable
+    return selectedFile.staged === true && treeViewMode === "changes";
+  }, [selectedFile, treeViewMode]);
+
+  /**
+   * Determine if the current file has changes in the git index.
+   * Used to show Index → Working Directory diff for partially staged files.
+   */
+  const currentFileHasIndexChanges = useMemo(() => {
+    if (!selectedFile) return false;
+    const relativePath = getRelativePath(selectedFile.path, currentCwd);
+    const fileStatus = gitStatus?.get(relativePath);
+    return fileStatus?.hasIndexChanges ?? false;
   }, [selectedFile, currentCwd, gitStatus]);
 
   /**
@@ -1205,6 +1314,8 @@ export function EditorPaneV2({
           onReviewChanges={handleReviewChanges}
           // Unseen Tracking Props (when enabled)
           isFileUnseen={trackUnseenChanges ? fileTracking.isUnseen : undefined}
+          // Dirty file checking (for preventing staging unsaved files)
+          isFileDirty={isFileDirty}
         />
       </div>
 
@@ -1245,6 +1356,8 @@ export function EditorPaneV2({
           onToggleDiffMode={handleToggleDiffMode}
           onExitReview={exitReviewMode}
           isFileDeleted={isCurrentFileDeleted}
+          isFileStaged={isCurrentFileStaged}
+          hasIndexChanges={currentFileHasIndexChanges}
           // Preview mode props
           showPreviewToggle={isPreviewSupported}
           isPreviewMode={viewMode.type === "preview"}

@@ -204,21 +204,21 @@ export function ChangesSection({
       {/* File list (visible when expanded) */}
       {isExpanded && (
         <div>
-          {files.map(([path, status]) => (
+          {files.map(([mapKey, status]) => (
             <FileChangeDiff
-              key={path}
-              filePath={path}
+              key={mapKey}
+              filePath={status.path}
               cwd={cwd}
               sandboxId={sandboxId}
               git={git}
               status={status}
               baseBranch={baseBranch}
-              isExpanded={expandedFiles.has(path)}
-              onToggle={() => onToggleFile(path)}
+              isExpanded={expandedFiles.has(mapKey)}
+              onToggle={() => onToggleFile(mapKey)}
               // Follow mode props
-              isUnseen={isFileUnseen?.(path)}
-              timestamp={getFileTimestamp?.(path)}
-              onInteract={markFileSeen ? () => markFileSeen(path) : undefined}
+              isUnseen={isFileUnseen?.(status.path)}
+              timestamp={getFileTimestamp?.(status.path)}
+              onInteract={markFileSeen ? () => markFileSeen(status.path) : undefined}
             />
           ))}
         </div>

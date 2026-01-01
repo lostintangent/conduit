@@ -14,8 +14,23 @@ export interface SelectableItem {
 
 /** A file entry with its status */
 export interface FileEntry {
+  /**
+   * Map key used for tracking in the git status Map.
+   * For partially staged files, this may include a suffix (e.g., "foo.ts\0unstaged").
+   * Use this for multi-select tracking and React keys.
+   */
+  mapKey: string;
+
+  /**
+   * Actual file path (from status.path).
+   * Use this for display, file operations, and git commands.
+   */
   path: string;
+
+  /** File name (last segment of path) */
   name: string;
+
+  /** Git status information */
   status: GitFileStatus;
 }
 
