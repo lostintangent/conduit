@@ -56,6 +56,7 @@ import {
   isDiffableStatus,
   computeStagedForChangesMode,
   getFileEntryPresence,
+  UNSTAGED_KEY_SUFFIX,
 } from "./utils";
 import { MonacoModelRegistry, createModelKey } from "./registry";
 
@@ -314,6 +315,21 @@ export function EditorPaneV2({
     }
     return null;
   });
+
+  /**
+   * Selected map key for "changes" mode.
+   *
+   * In changes mode, the same file can appear twice (staged and unstaged).
+   * This key identifies which entry is selected:
+   * - "path/to/file.ts" for staged entry
+   * - "path/to/file.ts\0unstaged" for unstaged entry
+   * - null when no file is selected or in "files" mode
+   *
+   * This is separate from selectedFile because:
+   * 1. selectedFile tracks the file identity (path, name)
+   * 2. selectedMapKey tracks which entry of that file is selected
+   */
+  const [selectedMapKey, setSelectedMapKey] = useState<string | null>(null);
 
   // Review mode state management
   const {
@@ -644,18 +660,27 @@ export function EditorPaneV2({
 
   /**
    * Handle file selection from tree.
+   *
+   * @param file - The file node being selected
+   * @param mapKey - The map key for this entry (used in changes mode to distinguish
+   *                 staged vs unstaged entries of the same file). Pass null for
+   *                 normal "files" mode selections.
    */
   const handleFileSelect = useCallback(
-    async (file: FileNode) => {
-      // Get file status (handles partially staged files correctly)
+    async (file: FileNode, mapKey: string | null) => {
+      // Look up the actual staged status from gitStatus using the mapKey
+      // (can't derive from mapKey suffix alone - that only works for partially staged files)
+      const fileStatusFromMap = mapKey ? gitStatus?.get(mapKey) : undefined;
+      const isStaged = fileStatusFromMap?.staged;
       const relativePath = getRelativePath(file.path, currentCwd);
-      const fileStatus = getFileStatusForEntry(gitStatus, relativePath, file.staged);
+      const fileStatus = getFileStatusForEntry(gitStatus, relativePath, isStaged === false ? false : undefined);
 
       // Use startTransition to make the file selection render non-blocking.
       // This allows IPC responses to be processed during the render, significantly
       // reducing perceived latency when loading file content.
       startTransition(() => {
         setSelectedFile(file);
+        setSelectedMapKey(mapKey);
 
         // In single layout, switch to editor view when file is selected
         if (layout === "single") {
@@ -719,31 +744,31 @@ export function EditorPaneV2({
   /**
    * Handle tree view mode changes.
    *
-   * When switching modes, we sync selectedFile.staged in the same handler
-   * to ensure both state updates are batched together by React, preventing
-   * a render with stale staged value.
-   *
-   * - Entering "changes" mode: compute staged based on git status (prefer unstaged)
-   * - Exiting to "files" mode: clear the staged flag
+   * When switching modes, we update selectedMapKey appropriately:
+   * - Entering "changes" mode: compute map key based on git status (prefer unstaged)
+   * - Exiting to "files" mode: clear the map key
    */
   const handleTreeViewModeChange = useCallback(
     (mode: TreeViewMode) => {
       setTreeViewMode(mode);
 
-      // Sync selectedFile.staged with the new mode
+      // Update selectedMapKey for the new mode
       if (selectedFile) {
         if (mode === "changes") {
+          // Compute which entry to select (prefer unstaged if it exists)
           const relativePath = getRelativePath(selectedFile.path, currentCwd);
-          const newStaged = computeStagedForChangesMode(gitStatus, relativePath);
-          if (newStaged !== selectedFile.staged) {
-            setSelectedFile((prev) =>
-              prev ? { ...prev, staged: newStaged } : prev,
-            );
+          const preferStaged = computeStagedForChangesMode(gitStatus, relativePath);
+          if (preferStaged === true) {
+            setSelectedMapKey(relativePath);
+          } else if (preferStaged === false) {
+            setSelectedMapKey(relativePath + UNSTAGED_KEY_SUFFIX);
+          } else {
+            // File not in changes - clear selection
+            setSelectedMapKey(null);
           }
-        } else if (mode === "files" && selectedFile.staged !== undefined) {
-          setSelectedFile((prev) =>
-            prev ? { ...prev, staged: undefined } : prev,
-          );
+        } else {
+          // Exiting changes mode - clear map key
+          setSelectedMapKey(null);
         }
       }
 
@@ -766,38 +791,42 @@ export function EditorPaneV2({
   );
 
   /**
-   * Effect: Sync selectedFile.staged when git status changes.
+   * Effect: Sync selectedMapKey when git status changes.
    *
-   * When a file is staged/unstaged via git operations, the git status updates
-   * but selectedFile.staged doesn't automatically change. This effect keeps them in sync:
-   * - After staging: if the unstaged entry disappears, switch to staged view
-   * - After unstaging: if the staged entry disappears, switch to unstaged view
+   * When a file is staged/unstaged via git operations, the selected entry
+   * may no longer exist. This effect switches to the other entry if needed:
+   * - After staging all: if unstaged entry disappears, switch to staged
+   * - After unstaging all: if staged entry disappears, switch to unstaged
    *
-   * IMPORTANT: This effect should NOT override user selection. It only syncs when
-   * the currently selected entry no longer exists in git status (e.g., user was
-   * viewing unstaged and staged all changes).
-   *
-   * Only runs in "changes" mode since staged/unstaged only matters there.
+   * This does NOT override user selection - it only syncs when the selected
+   * entry no longer exists in git status.
    */
   useEffect(() => {
-    if (treeViewMode !== "changes" || !selectedFile) return;
-    if (selectedFile.staged === undefined) return; // No explicit selection to sync
+    if (treeViewMode !== "changes" || !selectedMapKey) return;
 
-    const relativePath = getRelativePath(selectedFile.path, currentCwd);
+    // Check if the selected key still exists in git status
+    const keyExists = gitStatus?.has(selectedMapKey) ?? false;
+    if (keyExists) return; // Selected entry still exists, nothing to do
+
+    // Selected entry is gone - try to switch to the other entry
+    const relativePath = selectedMapKey.replace(UNSTAGED_KEY_SUFFIX, "");
     const { hasStagedEntry, hasUnstagedEntry } = getFileEntryPresence(
       gitStatus,
       relativePath,
     );
 
-    // Only sync if the currently selected entry no longer exists
-    if (selectedFile.staged === true && !hasStagedEntry && hasUnstagedEntry) {
-      // Was viewing staged, but staged entry is gone - switch to unstaged
-      setSelectedFile((prev) => (prev ? { ...prev, staged: false } : prev));
-    } else if (selectedFile.staged === false && !hasUnstagedEntry && hasStagedEntry) {
-      // Was viewing unstaged, but unstaged entry is gone - switch to staged
-      setSelectedFile((prev) => (prev ? { ...prev, staged: true } : prev));
+    if (selectedMapKey.includes(UNSTAGED_KEY_SUFFIX)) {
+      // Was viewing unstaged, but it's gone - switch to staged if available
+      if (hasStagedEntry) {
+        setSelectedMapKey(relativePath);
+      }
+    } else {
+      // Was viewing staged, but it's gone - switch to unstaged if available
+      if (hasUnstagedEntry) {
+        setSelectedMapKey(relativePath + UNSTAGED_KEY_SUFFIX);
+      }
     }
-  }, [gitStatus, selectedFile, currentCwd, treeViewMode]);
+  }, [gitStatus, selectedMapKey, treeViewMode]);
 
   /**
    * Handle tree width resize.
@@ -986,9 +1015,13 @@ export function EditorPaneV2({
   const isCurrentFileGitModified = useMemo(() => {
     if (!selectedFile) return false;
     const relativePath = getRelativePath(selectedFile.path, currentCwd);
-    const fileStatus = getFileStatusForEntry(gitStatus, relativePath, selectedFile.staged);
+    // Look up the actual staged status from gitStatus using the mapKey
+    // (can't derive from mapKey suffix alone - that only works for partially staged files)
+    const fileStatusFromMap = selectedMapKey ? gitStatus?.get(selectedMapKey) : undefined;
+    const isStaged = fileStatusFromMap?.staged;
+    const fileStatus = getFileStatusForEntry(gitStatus, relativePath, isStaged);
     return isDiffableStatus(fileStatus);
-  }, [selectedFile, currentCwd, gitStatus]);
+  }, [selectedFile, selectedMapKey, currentCwd, gitStatus]);
 
   /**
    * Determine if the current file is deleted (needs special viewer).
@@ -1013,14 +1046,17 @@ export function EditorPaneV2({
    * browsing always edits the working directory version.
    */
   const isCurrentFileStaged = useMemo(() => {
-    if (!selectedFile) return false;
+    if (!selectedFile || !selectedMapKey) return false;
 
     // Only consider a file "staged" if:
-    // 1. It was explicitly selected as staged from FileTreeChanges
+    // 1. The file's actual staged property is true (look up from gitStatus)
     // 2. We're currently in "Showing only changed files" mode
     // When switching to normal mode, the file should become editable
-    return selectedFile.staged === true && treeViewMode === "changes";
-  }, [selectedFile, treeViewMode]);
+    // Note: can't derive from mapKey suffix alone - that only works for partially staged files
+    const fileStatus = gitStatus?.get(selectedMapKey);
+    const isStaged = fileStatus?.staged === true;
+    return isStaged && treeViewMode === "changes";
+  }, [selectedFile, selectedMapKey, treeViewMode, gitStatus]);
 
   /**
    * Determine if the current file has changes in the git index.
@@ -1277,6 +1313,7 @@ export function EditorPaneV2({
           fs={fs}
           git={git}
           selectedFile={selectedFile}
+          selectedMapKey={selectedMapKey}
           onFileSelect={handleFileSelect}
           treeViewMode={treeViewMode}
           onTreeViewModeChange={handleTreeViewModeChange}

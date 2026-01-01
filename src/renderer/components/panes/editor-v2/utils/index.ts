@@ -12,7 +12,6 @@ export {
   isDiffableStatus,
   computeStagedForChangesMode,
   getFileEntryPresence,
-  isFileEntrySelected,
 } from "./gitStatusHelpers";
 export {
   pathsEqual,

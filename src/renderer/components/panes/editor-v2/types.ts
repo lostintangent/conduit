@@ -220,6 +220,8 @@ export interface ModelEntry {
  * Represents a file or directory in the file tree.
  *
  * This is used throughout the editor for file selection and display.
+ * Note: For "Showing only changed files" mode, the selected entry
+ * (staged vs unstaged) is tracked separately via selectedMapKey.
  */
 export interface FileNode {
   /** File or directory name */
@@ -230,18 +232,6 @@ export interface FileNode {
 
   /** Whether this is a file or directory */
   type: "file" | "directory";
-
-  /**
-   * Whether this file represents a staged version (optional).
-   *
-   * Only set in "Showing only changed files" mode for git-tracked files.
-   * When undefined, the staging status is determined by looking up gitStatus.
-   *
-   * This is particularly important for partially staged files where the same
-   * file appears twice in the tree (once staged, once unstaged). The `staged`
-   * field disambiguates which version the user selected.
-   */
-  staged?: boolean;
 }
 
 // ============================================================================

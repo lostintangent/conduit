@@ -37,10 +37,7 @@ import { enqueueNotification } from "@/store/actions/notifications";
 import type { GitV2API } from "@/api/GitV2API";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
 import {
-  pathsEqual,
   getParentPaths,
-  getRelativePath,
-  isFileEntrySelected,
   joinCwdPath,
 } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
@@ -70,8 +67,14 @@ export interface FileTreeChangesProps {
   git: GitV2API;
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
+  /**
+   * Selected map key for changes mode.
+   * Identifies which entry is selected for partially staged files.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
   /** Callback when a file is selected */
-  onFileSelect: (file: FileNode) => void;
+  onFileSelect: (file: FileNode, mapKey: string | null) => void;
   /** View mode for changes list (flat or nested) - controlled by parent */
   viewMode?: "flat" | "nested";
   /** Git status from parent (source of truth). When provided, component uses this instead of fetching its own. */
@@ -326,6 +329,7 @@ export function FileTreeChanges({
   cwd,
   git,
   selectedFile,
+  selectedMapKey,
   onFileSelect,
   viewMode = "flat",
   gitStatus: gitStatusFromParent,
@@ -471,15 +475,14 @@ export function FileTreeChanges({
   /**
    * Handle file/folder selection.
    *
-   * For files, constructs a FileNode with the actual path and staged flag.
-   * The mapKey parameter is used for multi-select tracking (unique for partially staged files).
+   * For files, constructs a FileNode with the actual path.
+   * The mapKey parameter uniquely identifies the entry (staged vs unstaged for partially staged files).
    * The filePath parameter is the actual filesystem path (from status.path).
    */
   const handleSelect = useCallback(
     (
       mapKey: string,
       filePath: string,
-      staged: boolean,
       event: React.MouseEvent,
       isFolder = false,
     ) => {
@@ -491,10 +494,10 @@ export function FileTreeChanges({
         clearSelection();
 
         if (!isFolder) {
-          // Use actual file path for FileNode
+          // Use actual file path for FileNode, pass mapKey for selection tracking
           const fullPath = joinCwdPath(cwd, filePath);
           const name = filePath.split("/").pop() ?? filePath;
-          onFileSelect({ path: fullPath, name, type: "file", staged });
+          onFileSelect({ path: fullPath, name, type: "file" }, mapKey);
         }
       }
     },
@@ -726,38 +729,13 @@ export function FileTreeChanges({
   // Render Helpers
   // ---------------------------------------------------------------------------
 
-  const selectedRelativePath = selectedFile?.path
-    ? getRelativePath(selectedFile.path, cwd)
-    : null;
-
   /**
    * Check if a file should be shown as selected.
-   * Uses shared utility for consistent selection logic across components.
+   * Simply compares the entry's mapKey with the selectedMapKey.
    */
-  const isFileSelected = (filePath: string, entryIsStaged: boolean): boolean => {
-    const hasUnstaged = unstagedFiles.some(([, status]) =>
-      pathsEqual(status.path, filePath),
-    );
-    return isFileEntrySelected(
-      selectedRelativePath,
-      selectedFile?.staged,
-      filePath,
-      entryIsStaged,
-      hasUnstaged,
-      pathsEqual,
-    );
+  const isFileSelected = (mapKey: string): boolean => {
+    return selectedMapKey === mapKey;
   };
-
-  /**
-   * Check if a file has an unstaged entry.
-   * Used for selection fallback when file only exists in staged section.
-   */
-  const checkHasUnstagedEntry = useCallback(
-    (filePath: string): boolean => {
-      return unstagedFiles.some(([, status]) => pathsEqual(status.path, filePath));
-    },
-    [unstagedFiles],
-  );
 
   const renderFlatFiles = (
     files: Array<[string, GitFileStatus]>,
@@ -769,11 +747,11 @@ export function FileTreeChanges({
         path={status.path}
         status={status}
         cwd={cwd}
-        isSelected={isFileSelected(status.path, status.staged)}
+        isSelected={isFileSelected(mapKey)}
         isMultiSelected={multiSelectedPaths.has(mapKey)}
         isStaged={isStaged}
         canRevert={showActionButtons && status.status !== "untracked"}
-        onSelect={(event) => handleSelect(mapKey, status.path, status.staged, event)}
+        onSelect={(event) => handleSelect(mapKey, status.path, event)}
         onStage={showActionButtons ? () => handleStage(mapKey) : undefined}
         onUnstage={showActionButtons ? () => handleUnstage(mapKey) : undefined}
         onRevert={showActionButtons ? () => handleRevert(mapKey) : undefined}
@@ -801,8 +779,7 @@ export function FileTreeChanges({
             cwd={cwd}
             expandedFolders={expandedFolders}
             onToggleFolder={toggleFolder}
-            selectedPath={selectedRelativePath}
-            selectedStaged={selectedFile?.staged}
+            selectedMapKey={selectedMapKey}
             multiSelectedPaths={multiSelectedPaths}
             isStaged={isStaged}
             onFileSelect={handleSelect}
@@ -810,7 +787,6 @@ export function FileTreeChanges({
             onUnstage={showActionButtons ? handleUnstage : undefined}
             onRevert={showActionButtons ? handleRevert : undefined}
             isFileUnseen={isFileUnseen}
-            hasUnstagedEntry={checkHasUnstagedEntry}
           />
         ))}
         {rootFiles
@@ -820,14 +796,14 @@ export function FileTreeChanges({
               key={file.mapKey}
               file={file}
               cwd={cwd}
-              isSelected={isFileSelected(file.path, file.status.staged)}
+              isSelected={isFileSelected(file.mapKey)}
               isMultiSelected={multiSelectedPaths.has(file.mapKey)}
               isStaged={isStaged}
               canRevert={
                 showActionButtons && file.status.status !== "untracked"
               }
               onSelect={(event) =>
-                handleSelect(file.mapKey, file.path, file.status.staged, event)
+                handleSelect(file.mapKey, file.path, event)
               }
               onStage={
                 showActionButtons ? () => handleStage(file.mapKey) : undefined

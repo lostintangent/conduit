@@ -56,8 +56,18 @@ export interface FileTreePanelProps {
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
 
-  /** Callback when a file is selected */
-  onFileSelect: (file: FileNode) => void;
+  /**
+   * Selected map key for changes mode (null for files mode).
+   * Identifies which entry is selected for partially staged files.
+   */
+  selectedMapKey?: string | null;
+
+  /**
+   * Callback when a file is selected.
+   * @param file - The file node
+   * @param mapKey - The map key (for changes mode) or null (for files mode)
+   */
+  onFileSelect: (file: FileNode, mapKey: string | null) => void;
 
   /** Current view mode (files or changes) */
   treeViewMode: TreeViewMode;
@@ -191,6 +201,7 @@ export const FileTreePanel = memo(
       fs,
       git,
       selectedFile,
+      selectedMapKey,
       onFileSelect,
       treeViewMode,
       onTreeViewModeChange,
@@ -328,6 +339,7 @@ export const FileTreePanel = memo(
               cwd={cwd}
               git={git}
               selectedFile={selectedFile}
+              selectedMapKey={selectedMapKey}
               onFileSelect={onFileSelect}
               viewMode={changesViewMode}
               gitStatus={gitStatus}
