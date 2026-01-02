@@ -19,7 +19,7 @@
 
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { registerEditorHandlers } from "@/commands/handlers";
-import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";

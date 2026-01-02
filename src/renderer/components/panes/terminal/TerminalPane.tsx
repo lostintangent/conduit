@@ -26,13 +26,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AgentPanel } from "./AgentPanel";
-import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
-import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
-import { createFitController } from "./FitController";
-import { RepoScriptsMenu } from "./RepoScriptsMenu";
-import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
-import { attach, getOrCreate, serializeSession } from "./xtermCache";
+import { AgentPanel } from "./shell/AgentPanel";
+import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
+import { CloudTerminalOverlay } from "./shell/sandbox/CloudTerminalOverlay";
+import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
+import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
+import { createFitController } from "./state/fitController";
+import { attach, getOrCreate, serializeSession } from "./state/xtermCache";
 
 import "@xterm/xterm/css/xterm.css";
 

@@ -8,6 +8,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
+import * as idleTracker from "./idleTracker";
 
 const api = window.conduit;
 
@@ -147,47 +148,47 @@ export function getOrCreate(
     // Activate Unicode 11 support
     terminal.unicode.activeVersion = "11";
 
-    // If this is the first pane that's associated
-    // with this PTY session, then set up the data handling.
+    // If this is the first pane for this PTY session, set up data handling
     if (!panesBySession.has(sessionId)) {
+      // Initialize state for this session
+      panesBySession.set(sessionId, new Set());
+      idleTracker.trackSession(sessionId);
+
+      // Buffer writes to batch them for performance
       let writeBuffer: string[] = [];
       let flushTimer: NodeJS.Timeout | null = null;
 
       const flushWrites = () => {
         flushTimer = null;
-
         if (writeBuffer.length === 0) return;
 
         const panes = panesBySession.get(sessionId);
-        if (panes) {
-          panes.forEach((paneId) => {
-            const inst = xtermInstancesByPane.get(paneId);
-            if (inst) {
-              inst.terminal.write(writeBuffer.join(""));
-            }
-          });
-        }
-
+        panes?.forEach((paneId) => {
+          xtermInstancesByPane
+            .get(paneId)
+            ?.terminal.write(writeBuffer.join(""));
+        });
         writeBuffer = [];
       };
 
-      //
       const unsubscribe = api.onData(sessionId, (data: string) => {
         writeBuffer.push(data);
         if (flushTimer === null) {
           flushTimer = setTimeout(flushWrites, 20);
         }
+
+        // Notify idle tracker of activity
+        idleTracker.notifyDataReceived(sessionId);
       });
 
       sessionDataSubscriptions.set(sessionId, { unsubscribe });
-      panesBySession.set(sessionId, new Set());
     } else {
       // Since there are existing panes for this session, then this must
       // be a cloned terminal, and we need to restore the terminal buffer state.
       restoreTerminalBuffer(sessionId, terminal);
     }
 
-    panesBySession.get(sessionId).add(paneId);
+    panesBySession.get(sessionId)!.add(paneId);
 
     const onDataDispose = terminal.onData((input) => {
       api.sendKeypress(sessionId, input);
@@ -270,8 +271,9 @@ export function getOrCreate(
 
           const dataSubscription = sessionDataSubscriptions.get(sessionId);
           dataSubscription?.unsubscribe();
-
           sessionDataSubscriptions.delete(sessionId);
+
+          idleTracker.untrackSession(sessionId);
         }
       },
     };

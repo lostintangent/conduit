@@ -1,9 +1,13 @@
 import { App } from "@/app";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
+import { enableMapSet } from "immer";
 import { useAtomValue } from "jotai";
 import { createRoot } from "react-dom/client";
 import { cn } from "./utils";
+
+// Enable Immer's Map and Set support for atomWithImmer
+enableMapSet();
 
 import "./index.css";
 

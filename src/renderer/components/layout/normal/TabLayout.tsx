@@ -8,7 +8,7 @@ import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
-import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import type {
   LayoutResizeAxis,

@@ -4,10 +4,17 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
+import {
+  clearUnseenIdle,
+  closeTab,
+  focusTab,
+  updateTabProperty,
+} from "@/store/actions/tab";
+import { userSettingsAtom } from "@/store/atoms";
 import type { TabDescriptor } from "@/store/tabLabels";
 import { cn } from "@/utils";
-import { ChevronUp, Command, Lock, Trash2 } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { ChevronUp, Circle, Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const CHAR_WIDTH_PX = 8;
@@ -46,12 +53,14 @@ export function TabButton({
   onDragEnd,
   onHoverChange,
 }: TabButtonProps) {
+  const { showIdleIndicator } = useAtomValue(userSettingsAtom);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const showCloseButton = isHovered && !disableClick && !tab.locked;
+  const showIdleDot = showIdleIndicator && tab.hasUnseenIdle;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -116,6 +125,7 @@ export function TabButton({
       }}
       onMouseEnter={(event) => {
         setIsHovered(true);
+        if (tab.hasUnseenIdle) clearUnseenIdle(tab.id);
         onHoverChange?.(tab.id, event.currentTarget);
       }}
       onMouseLeave={() => {
@@ -181,6 +191,8 @@ export function TabButton({
               closeTab(tab.id);
             }}
           />
+        ) : showIdleDot ? (
+          <Circle size={8} className="flex-none fill-blue-400 text-blue-400" />
         ) : tab.locked ? (
           <Lock size={14} className="flex-none opacity-60" />
         ) : navigator.platform.toLowerCase().includes("mac") ? (

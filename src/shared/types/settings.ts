@@ -57,6 +57,7 @@ export type UserSettings = {
   alwaysShowTabs: boolean;
   useGradientBorders: boolean;
   dimInactivePanes: boolean;
+  alwaysHighlightActivePane: boolean;
   theme: ThemeMode;
   themeOverrides?: ThemeOverrides;
 
@@ -66,6 +67,7 @@ export type UserSettings = {
   terminalFontFamily?: string;
   terminalFontSize?: number;
   showTerminalRuler: boolean;
+  showIdleIndicator: boolean;
 
   // Editor settings
   useConduitAsEditor: boolean;

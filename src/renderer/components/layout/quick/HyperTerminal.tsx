@@ -1,11 +1,14 @@
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowUpRight, Maximize2, X } from "lucide-react";
+import type {
+  HyperTerminal as HyperTerminalType,
+  HyperTerminalPosition,
+} from "@shared/types";
+import { ArrowUpRight, Maximize2, Minus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // Constants for overlay dimensions and positioning
@@ -15,16 +18,15 @@ const DEFAULT_MARGIN = 16;
 const POSITION_OFFSET = 32;
 const POSITION_STORAGE_KEY = "lastHyperTerminalPosition";
 
-type Position = { x: number; y: number };
-
 type HyperTerminalProps = {
-  terminalId: string;
-  paneId: string;
-  cwd: string | null;
+  terminal: HyperTerminalType;
   index: number;
+  hidden?: boolean;
   onClose: () => void;
+  onMinimize: () => void;
   onMaximize: () => void;
   onOpenAsTab: () => void;
+  onPositionChange: (position: HyperTerminalPosition) => void;
 };
 
 type ToolbarButtonProps = {
@@ -50,7 +52,7 @@ function ToolbarButton({ icon, onClick, tooltip }: ToolbarButtonProps) {
   );
 }
 
-const validatePosition = (pos: any): pos is Position => {
+const validatePosition = (pos: any): pos is HyperTerminalPosition => {
   return (
     typeof pos === "object" &&
     pos !== null &&
@@ -61,7 +63,9 @@ const validatePosition = (pos: any): pos is Position => {
   );
 };
 
-const constrainPosition = (pos: Position): Position => {
+const constrainPosition = (
+  pos: HyperTerminalPosition,
+): HyperTerminalPosition => {
   const maxX = window.innerWidth - OVERLAY_WIDTH;
   const maxY = window.innerHeight - OVERLAY_HEIGHT;
 
@@ -71,7 +75,7 @@ const constrainPosition = (pos: Position): Position => {
   };
 };
 
-const getInitialPosition = (index: number): Position => {
+const getInitialPosition = (index: number): HyperTerminalPosition => {
   const offset = index * POSITION_OFFSET;
 
   try {
@@ -96,7 +100,7 @@ const getInitialPosition = (index: number): Position => {
   });
 };
 
-const savePosition = (pos: Position) => {
+const savePosition = (pos: HyperTerminalPosition) => {
   try {
     localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(pos));
   } catch (e) {
@@ -105,15 +109,21 @@ const savePosition = (pos: Position) => {
 };
 
 export function HyperTerminal({
-  terminalId,
-  paneId,
-  cwd,
+  terminal,
   index,
+  hidden,
   onClose,
+  onMinimize,
   onMaximize,
   onOpenAsTab,
+  onPositionChange,
 }: HyperTerminalProps) {
-  const [position, setPosition] = useState(() => getInitialPosition(index));
+  const { terminalId, paneId, cwd, position: savedPosition } = terminal;
+  const [position, setPosition] = useState(() =>
+    savedPosition
+      ? constrainPosition(savedPosition)
+      : getInitialPosition(index),
+  );
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const positionRef = useRef(position);
@@ -156,7 +166,8 @@ export function HyperTerminal({
     setIsDragging(false);
     // Save the latest position from ref to avoid stale closure
     savePosition(positionRef.current);
-  }, []);
+    onPositionChange(positionRef.current);
+  }, [onPositionChange]);
 
   // Set up global mouse event listeners
   useEffect(() => {
@@ -173,7 +184,7 @@ export function HyperTerminal({
 
   return (
     <div
-      className="fixed z-50 rounded-lg overflow-hidden shadow-2xl border border-border bg-background"
+      className={`fixed z-50 rounded-lg overflow-hidden shadow-2xl border border-border bg-background ${hidden ? "hidden" : ""}`}
       style={{
         width: `${OVERLAY_WIDTH}px`,
         height: `${OVERLAY_HEIGHT}px`,
@@ -187,30 +198,51 @@ export function HyperTerminal({
           className="flex items-center justify-between bg-elevated backdrop-blur px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
         >
-          <span className="text-sm font-medium select-none">
-            Hyper Terminal
-          </span>
-          <div className="flex items-center gap-1">
-            <ToolbarButton
-              icon={<Maximize2 size={14} />}
-              onClick={onMaximize}
-              tooltip="Maximize"
-            />
-            <ToolbarButton
-              icon={<ArrowUpRight size={14} />}
-              onClick={onOpenAsTab}
-              tooltip="Open in tab"
-            />
-            <Separator
-              orientation="vertical"
-              className="h-5 bg-elevated-border mx-1"
-            />
-            <ToolbarButton
-              icon={<X size={14} />}
-              onClick={onClose}
-              tooltip="Close"
-            />
+          <div className="flex items-center">
+            <div className="flex items-center gap-2 group/buttons">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF4136] transition-colors flex items-center justify-center"
+                aria-label="Close"
+              >
+                <X
+                  size={8}
+                  strokeWidth={2.5}
+                  className="text-black/60 opacity-0 group-hover/buttons:opacity-100 transition-opacity"
+                />
+              </button>
+              <button
+                type="button"
+                onClick={onMinimize}
+                className="w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#E5A829] transition-colors flex items-center justify-center"
+                aria-label="Minimize"
+              >
+                <Minus
+                  size={8}
+                  strokeWidth={2.5}
+                  className="text-black/60 opacity-0 group-hover/buttons:opacity-100 transition-opacity"
+                />
+              </button>
+              <button
+                type="button"
+                onClick={onMaximize}
+                className="w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#1DB954] transition-colors flex items-center justify-center"
+                aria-label="Maximize"
+              >
+                <Maximize2
+                  size={6}
+                  strokeWidth={2.5}
+                  className="text-black/60 opacity-0 group-hover/buttons:opacity-100 transition-opacity"
+                />
+              </button>
+            </div>
           </div>
+          <ToolbarButton
+            icon={<ArrowUpRight size={14} />}
+            onClick={onOpenAsTab}
+            tooltip="Open in tab"
+          />
         </div>
         <div className="flex-1 min-h-0 overflow-hidden px-0.5">
           <TerminalPane

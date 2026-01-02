@@ -19,7 +19,7 @@ import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import {
   disposeSession,
   updateTerminalThemes,
-} from "@/components/panes/terminal/xtermCache";
+} from "@/components/panes/terminal/state/xtermCache";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
@@ -43,8 +43,10 @@ import {
   closeHyperTerminal,
   handleHyperTerminalExit,
   maximizeHyperTerminal,
+  minimizeHyperTerminal,
   moveHyperTerminalToTab,
   openHyperTerminal,
+  updateHyperTerminalPosition,
 } from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
@@ -877,22 +879,27 @@ export function App() {
         />
       )}
 
-      {hyperTerminals.map((terminal, index) => (
-        <HyperTerminal
-          key={terminal.terminalId}
-          terminalId={terminal.terminalId}
-          paneId={terminal.paneId}
-          cwd={terminal.cwd}
-          index={index}
-          onClose={() => closeHyperTerminal(terminal.terminalId)}
-          onMaximize={() =>
-            handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
-          }
-          onOpenAsTab={() =>
-            moveHyperTerminalToTab(terminal.terminalId, terminal.cwd)
-          }
-        />
-      ))}
+      {hyperTerminals
+        .filter((terminal) => terminal.state === "visible")
+        .map((terminal, index) => (
+          <HyperTerminal
+            key={terminal.terminalId}
+            terminal={terminal}
+            index={index}
+            hidden={applicationMode !== "normal"}
+            onClose={() => closeHyperTerminal(terminal.terminalId)}
+            onMinimize={() => minimizeHyperTerminal(terminal.terminalId)}
+            onMaximize={() =>
+              handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
+            }
+            onOpenAsTab={() =>
+              moveHyperTerminalToTab(terminal.terminalId, terminal.cwd)
+            }
+            onPositionChange={(position) =>
+              updateHyperTerminalPosition(terminal.terminalId, position)
+            }
+          />
+        ))}
 
       <InputDialog
         isOpen={isUrlDialogOpen}

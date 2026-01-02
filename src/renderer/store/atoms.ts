@@ -1,7 +1,11 @@
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
-import type { UserSettings, WorkspaceState } from "@shared/types";
+import type {
+  HyperTerminal,
+  UserSettings,
+  WorkspaceState,
+} from "@shared/types";
 import { atom } from "jotai";
 import { atomWithImmer } from "jotai-immer";
 
@@ -30,6 +34,7 @@ export const userSettingsAtom = atom<UserSettings>({
 
   // Terminal settings
   showTerminalRuler: true,
+  showIdleIndicator: true,
 
   // Editor settings
   useConduitAsEditor: true,
@@ -93,16 +98,17 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  */
 export const paneActionsAtom = atom<Action[]>([]);
 
-export const hyperTerminalsAtom = atomWithImmer<
-  Array<{
-    terminalId: string;
-    paneId: string;
-    cwd: string | null;
-  }>
->([]);
+export const hyperTerminalsAtom = atomWithImmer<HyperTerminal[]>([]);
 
 /**
  * Quick pane atom - stores the current quick pane descriptor
  * Used to display the quick action dialog
  */
 export const quickPaneAtom = atom<any | null>();
+
+/**
+ * Tracks tabs with unseen idle terminal notifications.
+ * A tab is added when all its terminals become idle while the tab is inactive.
+ * Cleared when the tab is focused or hovered.
+ */
+export const unseenIdleTabsAtom = atomWithImmer<Set<string>>(new Set());

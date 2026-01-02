@@ -1,8 +1,18 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
-import { disposeSession } from "@/components/panes/terminal/xtermCache";
-import { detachPane, removePane } from "@/store/actions/pane";
-import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import {
+  onSessionIdle,
+  pauseIdleTracking,
+  resumeIdleTracking,
+} from "@/components/panes/terminal/state/idleTracker";
+import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
+import { detachPane, isPaneCollapsed, removePane } from "@/store/actions/pane";
+import {
+  activeTabAtom,
+  activeTabIdAtom,
+  tabsAtom,
+  unseenIdleTabsAtom,
+} from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
 import { generateId } from "@shared/utils";
@@ -11,6 +21,11 @@ import path from "path-browserify";
 
 const api = window.conduit;
 const store = getDefaultStore();
+
+// Grace period before considering a tab as "unseen" after switching away.
+// This prevents the idle indicator from appearing when terminals receive
+// focus-leave events during tab switches.
+const UNSEEN_GRACE_PERIOD_MS = 500;
 
 /**
  * Get the current working directory from a tab's active pane
@@ -261,10 +276,37 @@ export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
 
 export function focusTab(tabId: string) {
   const tabs = store.get(tabsAtom);
-  if (!tabs.some((tab) => tab.id === tabId)) {
+  const currentTabId = store.get(activeTabIdAtom);
+
+  // Early exit if tab doesn't exist or we're already on it
+  if (!tabs.some((tab) => tab.id === tabId) || tabId === currentTabId) {
     return;
   }
 
+  // Pause idle tracking for the old tab's terminals, then resume after grace period.
+  // This prevents focus-lost events from triggering spurious idle notifications.
+  // Note: We only resume non-collapsed terminals, since collapsed ones stay paused.
+  const currentTab = tabs.find((t) => t.id === currentTabId);
+  const terminalPanes = Object.values(currentTab?.panes ?? {}).filter(
+    (p): p is TerminalPane => p.type === "terminal",
+  );
+
+  const sessionIds = terminalPanes.map((p) => p.sessionId);
+  sessionIds.forEach(pauseIdleTracking);
+
+  setTimeout(() => {
+    // Re-fetch tab state to get current collapsed status
+    const tab = store.get(tabsAtom).find((t) => t.id === currentTabId);
+    if (!tab) return;
+
+    for (const pane of terminalPanes) {
+      if (!isPaneCollapsed(tab, pane.id)) {
+        resumeIdleTracking(pane.sessionId);
+      }
+    }
+  }, UNSEEN_GRACE_PERIOD_MS);
+
+  clearUnseenIdle(tabId);
   store.set(activeTabIdAtom, tabId);
 }
 
@@ -348,6 +390,9 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   // Dispose editor panes from EditorPaneRegistry
   // This fully removes editors (vs detach which just moves them off-screen)
   editorPaneIdsToDispose.forEach((paneId) => disposeEditorPane(paneId));
+
+  // Clean up unseen idle tracking for the closed tab
+  clearUnseenIdle(tabId);
 
   if (shouldOpenReplacement) {
     openTab();
@@ -672,6 +717,15 @@ export async function duplicateTabIntoWorktree(
   };
 }
 
+/**
+ * Clear the unseen idle notification for a tab (called on hover/focus).
+ */
+export function clearUnseenIdle(tabId: string) {
+  store.set(unseenIdleTabsAtom, (draft) => {
+    draft.delete(tabId);
+  });
+}
+
 export function registerTabEventHandlers() {
   const unsubscribeExit = api.onExit(({ sessionId }) => {
     const tabs = store.get(tabsAtom);
@@ -696,8 +750,31 @@ export function registerTabEventHandlers() {
     void openTab();
   });
 
+  // Track idle terminals for inactive tab notifications
+  const unsubscribeIdle = onSessionIdle((sessionId) => {
+    const activeTabId = store.get(activeTabIdAtom);
+
+    // Find the tab containing this session (skip if it's the active tab)
+    const tab = store
+      .get(tabsAtom)
+      .find(
+        (t) =>
+          t.id !== activeTabId &&
+          Object.values(t.panes).some(
+            (p) => p.type === "terminal" && p.sessionId === sessionId,
+          ),
+      );
+
+    if (tab) {
+      store.set(unseenIdleTabsAtom, (draft) => {
+        draft.add(tab.id);
+      });
+    }
+  });
+
   return () => {
     unsubscribeExit();
     unsubscribeNewTab();
+    unsubscribeIdle();
   };
 }

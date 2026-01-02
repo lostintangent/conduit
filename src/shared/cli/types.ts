@@ -71,6 +71,11 @@ export type CliCommand =
       "terminal-write",
       { paneId?: string; all?: boolean; input: string; enter?: boolean }
     >
+  | DefineCommand<
+      "terminal-wait",
+      { paneId?: string; timeout?: number },
+      boolean
+    >
   // Browser commands
   | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
   | DefineCommand<"browser-navigate", { paneId?: string; url: string }>

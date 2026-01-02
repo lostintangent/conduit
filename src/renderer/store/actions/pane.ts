@@ -1,5 +1,9 @@
 import { disposeEditorPane } from "@/components/panes/editor-v2";
-import { disposeSession } from "@/components/panes/terminal/xtermCache";
+import {
+  pauseIdleTracking,
+  resumeIdleTracking,
+} from "@/components/panes/terminal/state/idleTracker";
+import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";
@@ -48,6 +52,21 @@ function containsPane(node: LayoutNode, paneId: string): boolean {
     return true;
   });
   return found;
+}
+
+/**
+ * Check whether a pane is collapsed in a tab's layout.
+ */
+export function isPaneCollapsed(tab: Tab, paneId: string): boolean {
+  let collapsed = false;
+  walkLayout(tab.layout, ({ node }) => {
+    if (node.type === "pane" && node.paneId === paneId) {
+      collapsed = !!node.collapsed;
+      return false;
+    }
+    return true;
+  });
+  return collapsed;
 }
 
 function splitLayoutNode(
@@ -206,6 +225,18 @@ export function setPaneCollapsed(
   // commands, which are already guarded by checks for whether the pane can be
   // collapsed or expanded. So we're not repeating those checks here. That said,
   // this function shouldn't be called directly from unguarded locations.
+
+  // Pause/resume idle tracking for terminal panes when collapsing/expanding
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find(({ id }) => id === tabId);
+  const pane = tab?.panes[paneId];
+  if (pane?.type === "terminal") {
+    if (collapsed) {
+      pauseIdleTracking(pane.sessionId);
+    } else {
+      resumeIdleTracking(pane.sessionId);
+    }
+  }
 
   store.set(tabsAtom, (tabs) => {
     // Find the layout node for the pane and update its collapsed state

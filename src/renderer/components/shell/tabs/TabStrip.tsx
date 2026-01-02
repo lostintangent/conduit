@@ -20,7 +20,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { openHyperTerminal } from "@/store/actions/hyperTerminal";
+import {
+  openHyperTerminal,
+  restoreMinimizedHyperTerminals,
+} from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
   enqueueNotification,
@@ -37,6 +40,7 @@ import {
   activeTabAtom,
   activeTabIdAtom,
   applicationModeAtom,
+  hyperTerminalsAtom,
   quickPaneAtom,
   tabsAtom,
   userSettingsAtom,
@@ -84,6 +88,10 @@ export const TabStrip = ({
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const hyperTerminals = useAtomValue(hyperTerminalsAtom);
+  const hasMinimizedTerminals = hyperTerminals.some(
+    (t) => t.state === "minimized",
+  );
   const activePane =
     activeTab?.activePaneId !== undefined
       ? activeTab?.panes[activeTab.activePaneId]
@@ -537,6 +545,23 @@ export const TabStrip = ({
   ]);
 
   const handleOpenHyperTerminal = useCallback(async () => {
+    // If there are minimized terminals, restore them instead of opening a new one
+    if (hasMinimizedTerminals) {
+      restoreMinimizedHyperTerminals();
+      return;
+    }
+
+    const api = window.conduit;
+    const cwd = getActiveTabCwd(activeTab, homeDirectory);
+    const result = await api.createTerminal({ cwd });
+    if (!result) return;
+
+    const paneId = generateId();
+    openHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
+  }, [activeTab, homeDirectory, hasMinimizedTerminals]);
+
+  // Always opens a new hyper terminal (used in dropdown menu)
+  const handleNewHyperTerminal = useCallback(async () => {
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
@@ -724,14 +749,25 @@ export const TabStrip = ({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10"
-                  aria-label="Open hyper terminal"
+                  className="w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10 relative"
+                  aria-label={
+                    hasMinimizedTerminals
+                      ? "Restore hyper terminal"
+                      : "Open hyper terminal"
+                  }
                   onClick={handleOpenHyperTerminal}
                 >
                   <SquareTerminal size={18} />
+                  {hasMinimizedTerminals && (
+                    <span className="absolute top-1 right-0.5 w-2 h-2 rounded-full bg-[#FFBD2E]" />
+                  )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Open hyper terminal</TooltipContent>
+              <TooltipContent side="bottom">
+                {hasMinimizedTerminals
+                  ? "Restore hyper terminal"
+                  : "Open hyper terminal"}
+              </TooltipContent>
             </Tooltip>
 
             <DropdownMenu>
@@ -745,7 +781,7 @@ export const TabStrip = ({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleOpenHyperTerminal}>
+                <DropdownMenuItem onClick={handleNewHyperTerminal}>
                   <Zap size={16} className="mr-3" />
                   Hyper Terminal
                 </DropdownMenuItem>

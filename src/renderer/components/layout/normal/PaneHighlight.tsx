@@ -1,3 +1,4 @@
+import { useUserSettings } from "@/hooks/useUserSettings";
 import {
   activePaneIdAtom,
   activeTabAtom,
@@ -24,6 +25,7 @@ function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
   const activeTab = useAtomValue(activeTabAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const applicationMode = useAtomValue(applicationModeAtom);
+  const { alwaysHighlightActivePane } = useUserSettings();
 
   const [highlightedPaneId, setHighlightedPaneId] = useState<string | null>(
     null,
@@ -50,15 +52,17 @@ function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
       requestAnimationFrame(() => {
         setHighlightedPaneId(paneId);
 
-        timeoutRef.current = setTimeout(() => {
-          setHighlightedPaneId((current) =>
-            current === paneId ? null : current,
-          );
-          timeoutRef.current = null;
-        }, HIGHLIGHT_DURATION_MS);
+        if (!alwaysHighlightActivePane) {
+          timeoutRef.current = setTimeout(() => {
+            setHighlightedPaneId((current) =>
+              current === paneId ? null : current,
+            );
+            timeoutRef.current = null;
+          }, HIGHLIGHT_DURATION_MS);
+        }
       });
     },
-    [clearExistingTimeout],
+    [clearExistingTimeout, alwaysHighlightActivePane],
   );
 
   useEffect(() => {
@@ -115,12 +119,19 @@ export function PaneHighlight({
   isResizing = false,
 }: PaneHighlightProps) {
   const highlightedPaneId = usePaneHighlight({ isResizing });
+  const { alwaysHighlightActivePane } = useUserSettings();
 
   if (paneId !== highlightedPaneId) {
     return null;
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 animate-[pane-highlight_2s_ease-out_forwards]" />
+    <div
+      className={`pointer-events-none absolute inset-0 z-10 ${
+        alwaysHighlightActivePane
+          ? "shadow-[inset_0_0_0_3px_color-mix(in_srgb,var(--accent)_60%,transparent)]"
+          : "animate-[pane-highlight_2s_ease-out_forwards]"
+      }`}
+    />
   );
 }
