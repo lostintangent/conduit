@@ -130,7 +130,8 @@ export function buildVisualOrderFromTree(
         a.name.localeCompare(b.name),
       );
       for (const file of sortedFiles) {
-        result.push({ path: file.path, type: "file" });
+        // Use mapKey for multi-select tracking (handles partially staged files)
+        result.push({ path: file.mapKey, type: "file" });
       }
     }
   }
@@ -142,7 +143,8 @@ export function buildVisualOrderFromTree(
 
   // Add root-level files
   for (const file of rootFiles.sort((a, b) => a.name.localeCompare(b.name))) {
-    result.push({ path: file.path, type: "file" });
+    // Use mapKey for multi-select tracking (handles partially staged files)
+    result.push({ path: file.mapKey, type: "file" });
   }
 
   return result;

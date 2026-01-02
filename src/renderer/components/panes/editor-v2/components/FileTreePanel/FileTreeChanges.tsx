@@ -40,6 +40,7 @@ import {
   getParentPaths,
   joinCwdPath,
   notifyDirtyFilesSkipped,
+  UNSTAGED_KEY_SUFFIX,
 } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
@@ -463,11 +464,62 @@ export function FileTreeChanges({
   // Multi-select state
   const {
     selectedPaths: multiSelectedPaths,
+    anchorPath,
     handleItemClick: handleMultiSelectClick,
     clearSelection,
     isSelected: isMultiSelected,
     getSelectedFilePaths,
   } = useMultiSelect(visualOrder, allFilePaths);
+
+  // ---------------------------------------------------------------------------
+  // Selected MapKey Normalization
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Normalize selectedMapKey to match the actual mapKey in the file list.
+   *
+   * For non-partially-staged files, the parent may pass selectedMapKey with
+   * the unstaged suffix, but the file list only has the path without suffix.
+   * This computes the actual mapKey that exists in the list.
+   */
+  const normalizedSelectedMapKey = useMemo(() => {
+    if (!selectedMapKey) return null;
+
+    // Direct match - selectedMapKey exists in the list
+    if (allFilePaths.includes(selectedMapKey)) {
+      return selectedMapKey;
+    }
+
+    // Handle case where selectedMapKey has suffix but file isn't partially staged
+    if (selectedMapKey.endsWith(UNSTAGED_KEY_SUFFIX)) {
+      const pathWithoutSuffix = selectedMapKey.slice(
+        0,
+        -UNSTAGED_KEY_SUFFIX.length,
+      );
+      // If the path without suffix exists and there's no separate unstaged entry,
+      // this is a non-partially-staged file
+      if (allFilePaths.includes(pathWithoutSuffix)) {
+        return pathWithoutSuffix;
+      }
+    }
+
+    return selectedMapKey;
+  }, [selectedMapKey, allFilePaths]);
+
+  // ---------------------------------------------------------------------------
+  // Sync anchor with selectedMapKey from parent
+  // ---------------------------------------------------------------------------
+
+  // When selectedMapKey changes or anchor is cleared, set the anchor
+  // so shift-click works from the selected file.
+  useEffect(() => {
+    if (!normalizedSelectedMapKey) return;
+
+    // Only set anchor if it's not already set to the correct value
+    if (anchorPath !== normalizedSelectedMapKey) {
+      clearSelection(normalizedSelectedMapKey);
+    }
+  }, [normalizedSelectedMapKey, anchorPath, clearSelection]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -491,8 +543,8 @@ export function FileTreeChanges({
         // Multi-select: add/toggle/range selection
         handleMultiSelectClick(mapKey, event);
       } else {
-        // Single click: clear multi-selection and select this file
-        clearSelection();
+        // Single click: clear multi-selection but set anchor for future shift-clicks
+        clearSelection(mapKey);
 
         if (!isFolder) {
           // Use actual file path for FileNode, pass mapKey for selection tracking
@@ -706,10 +758,10 @@ export function FileTreeChanges({
 
   /**
    * Check if a file should be shown as selected.
-   * Simply compares the entry's mapKey with the selectedMapKey.
+   * Uses normalizedSelectedMapKey which handles suffix normalization.
    */
   const isFileSelected = (mapKey: string): boolean => {
-    return selectedMapKey === mapKey;
+    return normalizedSelectedMapKey === mapKey;
   };
 
   const renderFlatFiles = (
