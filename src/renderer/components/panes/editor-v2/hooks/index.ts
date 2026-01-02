@@ -32,6 +32,12 @@ export type {
   UseFilePrefetchOptions,
   UseFilePrefetchResult,
 } from "./useFilePrefetch";
+export { useGitContent } from "./useGitContent";
+export type {
+  GitContentError,
+  GitContentErrorType,
+  GitContentResult,
+} from "./useGitContent";
 export { useFileTreeContextMenu } from "./useFileTreeContextMenu";
 export type {
   UseFileTreeContextMenuOptions,

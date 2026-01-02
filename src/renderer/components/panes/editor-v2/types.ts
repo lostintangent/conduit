@@ -220,6 +220,8 @@ export interface ModelEntry {
  * Represents a file or directory in the file tree.
  *
  * This is used throughout the editor for file selection and display.
+ * Note: For "Showing only changed files" mode, the selected entry
+ * (staged vs unstaged) is tracked separately via selectedMapKey.
  */
 export interface FileNode {
   /** File or directory name */
@@ -251,3 +253,115 @@ export type ViewMode =
  * Tree view mode - what the file tree displays.
  */
 export type TreeViewMode = "files" | "changes";
+
+// ============================================================================
+// Branded Types for Type Safety
+// ============================================================================
+
+/**
+ * Branded type for git status Map keys.
+ *
+ * MapKey is used to look up entries in the git status Map. For partially staged
+ * files, the unstaged entry has a special suffix (\0unstaged) to distinguish it
+ * from the staged entry.
+ *
+ * Use the helpers in gitStatusHelpers.ts to create and parse MapKeys:
+ * - makeMapKey(path, staged) - create a MapKey
+ * - parseMapKey(mapKey) - extract path and staged boolean
+ * - mapKeyToPath(mapKey) - get just the path
+ *
+ * @example
+ * // Staged entry for src/file.ts
+ * const stagedKey: MapKey = "src/file.ts" as MapKey;
+ *
+ * // Unstaged entry for same file (partially staged)
+ * const unstagedKey: MapKey = "src/file.ts\0unstaged" as MapKey;
+ */
+declare const MapKeyBrand: unique symbol;
+export type MapKey = string & { readonly [MapKeyBrand]: unique symbol };
+
+/**
+ * Branded type for file system paths.
+ *
+ * FilePath represents an actual file system path (relative or absolute).
+ * Unlike MapKey, it never contains the unstaged suffix.
+ *
+ * Use mapKeyToPath() to convert a MapKey to a FilePath.
+ */
+declare const FilePathBrand: unique symbol;
+export type FilePath = string & { readonly [FilePathBrand]: unique symbol };
+
+/**
+ * Cast a string to a MapKey.
+ *
+ * Use this when you have a string that you know is a valid MapKey
+ * (e.g., from iterating over gitStatus.keys()).
+ */
+export function asMapKey(key: string): MapKey {
+  return key as MapKey;
+}
+
+/**
+ * Cast a string to a FilePath.
+ *
+ * Use this when you have a string that you know is a valid file path
+ * (e.g., from status.path or file system operations).
+ */
+export function asFilePath(path: string): FilePath {
+  return path as FilePath;
+}
+
+// ============================================================================
+// Content Source Types
+// ============================================================================
+
+/**
+ * Specifies where to load file content from.
+ *
+ * - `'head'`: Content from the HEAD commit
+ * - `'index'`: Content from the git staging area
+ * - `'workingDirectory'`: Content from the filesystem (current working state)
+ * - Any other string: Content from that git ref (branch name, commit SHA, etc.)
+ *
+ * Note: All sources except 'workingDirectory' are inherently read-only since
+ * you cannot edit a git commit or the staging area directly.
+ */
+export type ContentSource =
+  | "head"
+  | "index"
+  | "workingDirectory"
+  | (string & NonNullable<unknown>);
+
+/**
+ * Check if a content source refers to git content (not working directory).
+ *
+ * Git sources are inherently read-only since they reference committed or
+ * staged content that cannot be directly edited.
+ */
+export function isGitSource(source: ContentSource): boolean {
+  return source !== "workingDirectory";
+}
+
+/**
+ * Convert a ContentSource to the git ref string used by git commands.
+ *
+ * - 'head' → 'HEAD'
+ * - 'index' → '' (empty string means staging area in git show :path)
+ * - other refs → passed through as-is
+ *
+ * Note: 'workingDirectory' should not be passed to this function.
+ */
+export function contentSourceToGitRef(source: ContentSource): string {
+  switch (source) {
+    case "head":
+      return "HEAD";
+    case "index":
+      return "";
+    case "workingDirectory":
+      throw new Error(
+        "contentSourceToGitRef: 'workingDirectory' is not a git source",
+      );
+    default:
+      return source;
+  }
+}

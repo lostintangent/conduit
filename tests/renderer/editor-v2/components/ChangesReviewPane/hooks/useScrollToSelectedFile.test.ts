@@ -112,6 +112,7 @@ describe("useScrollToSelectedFile", () => {
       const container = document.createElement("div");
       const fileElement = document.createElement("div");
       fileElement.setAttribute("data-filepath", "src/new-file.ts");
+      fileElement.setAttribute("data-staged", "false");
       fileElement.scrollIntoView = vi.fn();
       container.appendChild(fileElement);
 
@@ -158,6 +159,7 @@ describe("useScrollToSelectedFile", () => {
       const container = document.createElement("div");
       const fileElement = document.createElement("div");
       fileElement.setAttribute("data-filepath", "src/staged-file.ts");
+      fileElement.setAttribute("data-staged", "true");
       fileElement.scrollIntoView = vi.fn();
       container.appendChild(fileElement);
 
@@ -220,6 +222,7 @@ describe("useScrollToSelectedFile", () => {
       const container = document.createElement("div");
       const fileElement = document.createElement("div");
       fileElement.setAttribute("data-filepath", "src/file.ts");
+      fileElement.setAttribute("data-staged", "false");
       fileElement.scrollIntoView = vi.fn();
       container.appendChild(fileElement);
 

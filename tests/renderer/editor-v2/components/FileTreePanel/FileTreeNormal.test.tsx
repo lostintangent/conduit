@@ -315,11 +315,14 @@ describe("FileTreeNormal", () => {
 
       fireEvent.click(screen.getByTestId("tree-item-README.md"));
 
-      expect(mockOnFileSelect).toHaveBeenCalledWith({
-        path: "/project/README.md",
-        name: "README.md",
-        type: "file",
-      });
+      expect(mockOnFileSelect).toHaveBeenCalledWith(
+        {
+          path: "/project/README.md",
+          name: "README.md",
+          type: "file",
+        },
+        null, // mapKey is null for normal file tree (not changes mode)
+      );
     });
 
     it("should highlight selected file", async () => {

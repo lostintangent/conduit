@@ -35,7 +35,14 @@ import {
 import { useGitAvailable } from "@/hooks/useGitAvailable";
 import type { GitV2API } from "@/api/GitV2API";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
-import { pathsEqual, getParentPaths } from "../../utils";
+import {
+  filterDirtyFilesForStaging,
+  getParentPaths,
+  joinCwdPath,
+  notifyDirtyFilesSkipped,
+  // MapKey helpers (centralized operations)
+  normalizeMapKey,
+} from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
 
@@ -63,8 +70,14 @@ export interface FileTreeChangesProps {
   git: GitV2API;
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
+  /**
+   * Selected map key for changes mode.
+   * Identifies which entry is selected for partially staged files.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
   /** Callback when a file is selected */
-  onFileSelect: (file: FileNode) => void;
+  onFileSelect: (file: FileNode, mapKey: string | null) => void;
   /** View mode for changes list (flat or nested) - controlled by parent */
   viewMode?: "flat" | "nested";
   /** Git status from parent (source of truth). When provided, component uses this instead of fetching its own. */
@@ -75,6 +88,8 @@ export interface FileTreeChangesProps {
   baseBranchName?: string | null;
   /** Check if a file is unseen - returns true if file has unacknowledged changes */
   isFileUnseen?: (path: string) => boolean;
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 // ============================================================================
@@ -252,8 +267,8 @@ function useGitStatus(git: GitV2API, cwd: string, skip = false) {
       return;
     }
 
-    const unsubscribe = git.onStatusChanged((status) => {
-      setGitStatus(status);
+    const unsubscribe = git.onStatusChanged((event) => {
+      setGitStatus(event.status);
       setOptimisticUpdates([]);
     });
 
@@ -317,12 +332,14 @@ export function FileTreeChanges({
   cwd,
   git,
   selectedFile,
+  selectedMapKey,
   onFileSelect,
   viewMode = "flat",
   gitStatus: gitStatusFromParent,
   isComparingToBranch = false,
   baseBranchName,
   isFileUnseen,
+  isFileDirty,
 }: FileTreeChangesProps) {
   const hasParentStatus = gitStatusFromParent !== undefined;
   const showActionButtons = !isComparingToBranch;
@@ -380,13 +397,38 @@ export function FileTreeChanges({
     return { stagedFiles: staged, unstagedFiles: unstaged };
   }, [gitStatus, isComparingToBranch]);
 
-  // All file paths (for expanding folders)
+  // All file paths (Map keys, for expanding folders and multi-select tracking)
   const allFilePaths = useMemo(() => {
     return [
       ...stagedFiles.map(([path]) => path),
       ...unstagedFiles.map(([path]) => path),
     ];
   }, [stagedFiles, unstagedFiles]);
+
+  /**
+   * Lookup map from Map key to actual file path.
+   *
+   * For partially staged files, the Map key includes a suffix (e.g., "foo.ts\0unstaged")
+   * but git operations need the actual file path ("foo.ts").
+   * This map provides fast lookup to convert Map keys to actual paths.
+   */
+  const mapKeyToActualPath = useMemo(() => {
+    const lookup = new Map<string, string>();
+    for (const [mapKey, status] of [...stagedFiles, ...unstagedFiles]) {
+      lookup.set(mapKey, status.path);
+    }
+    return lookup;
+  }, [stagedFiles, unstagedFiles]);
+
+  /**
+   * Convert a Map key (or set of keys) to actual file paths for git operations.
+   */
+  const getActualPaths = useCallback(
+    (mapKeys: string[]): string[] => {
+      return mapKeys.map((key) => mapKeyToActualPath.get(key) ?? key);
+    },
+    [mapKeyToActualPath],
+  );
 
   // Build folder trees for nested view
   const { stagedTree, unstagedTree } = useMemo(() => {
@@ -423,6 +465,7 @@ export function FileTreeChanges({
   // Multi-select state
   const {
     selectedPaths: multiSelectedPaths,
+    anchorPath,
     handleItemClick: handleMultiSelectClick,
     clearSelection,
     isSelected: isMultiSelected,
@@ -430,35 +473,111 @@ export function FileTreeChanges({
   } = useMultiSelect(visualOrder, allFilePaths);
 
   // ---------------------------------------------------------------------------
+  // Selected MapKey Normalization
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Normalize selectedMapKey to match the actual mapKey in the file list.
+   *
+   * Uses the centralized normalizeMapKey helper which handles:
+   * - Direct match (selectedMapKey exists in the list)
+   * - Suffix normalization (selectedMapKey has suffix but file isn't partially staged)
+   */
+  const normalizedSelectedMapKey = useMemo(() => {
+    if (!selectedMapKey) return null;
+    return normalizeMapKey(selectedMapKey, allFilePaths);
+  }, [selectedMapKey, allFilePaths]);
+
+  // ---------------------------------------------------------------------------
+  // Sync anchor with selectedMapKey from parent
+  // ---------------------------------------------------------------------------
+
+  // When selectedMapKey changes or anchor is cleared, set the anchor
+  // so shift-click works from the selected file.
+  useEffect(() => {
+    if (!normalizedSelectedMapKey) return;
+
+    // Only set anchor if it's not already set to the correct value
+    if (anchorPath !== normalizedSelectedMapKey) {
+      clearSelection(normalizedSelectedMapKey);
+    }
+  }, [normalizedSelectedMapKey, anchorPath, clearSelection]);
+
+  // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Handle file/folder selection.
+   *
+   * For files, constructs a FileNode with the actual path.
+   * The mapKey parameter uniquely identifies the entry (staged vs unstaged for partially staged files).
+   * The filePath parameter is the actual filesystem path (from status.path).
+   */
   const handleSelect = useCallback(
-    (path: string, event: React.MouseEvent, isFolder = false) => {
-      handleMultiSelectClick(path, event);
+    (
+      mapKey: string,
+      filePath: string,
+      event: React.MouseEvent,
+      isFolder = false,
+    ) => {
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        // Multi-select: add/toggle/range selection
+        handleMultiSelectClick(mapKey, event);
+      } else {
+        // Single click: clear multi-selection but set anchor for future shift-clicks
+        clearSelection(mapKey);
 
-      if (!isFolder) {
-        const fullPath = cwd.endsWith("/") ? cwd + path : cwd + "/" + path;
-        const name = path.split("/").pop() ?? path;
-        onFileSelect({ path: fullPath, name, type: "file" });
+        if (!isFolder) {
+          // Use actual file path for FileNode, pass mapKey for selection tracking
+          const fullPath = joinCwdPath(cwd, filePath);
+          const name = filePath.split("/").pop() ?? filePath;
+          onFileSelect({ path: fullPath, name, type: "file" }, mapKey);
+        }
       }
     },
-    [cwd, onFileSelect, handleMultiSelectClick],
+    [cwd, onFileSelect, handleMultiSelectClick, clearSelection],
   );
 
   const handleStage = useCallback(
-    (path: string) => {
-      const pathsToStage = isMultiSelected(path)
+    (mapKey: string) => {
+      // Get Map keys for tracking (may include suffix for partially staged files)
+      const mapKeys = isMultiSelected(mapKey)
         ? getSelectedFilePaths()
-        : expandFoldersToFiles(new Set([path]), allFilePaths);
+        : expandFoldersToFiles(new Set([mapKey]), allFilePaths);
 
-      for (const p of pathsToStage) {
+      // Convert to actual paths for git operations
+      const actualPaths = getActualPaths(mapKeys);
+
+      // Filter out dirty files (files with unsaved changes in editor)
+      const {
+        cleanFiles: cleanPaths,
+        allDirty,
+        skippedCount,
+      } = filterDirtyFilesForStaging(
+        actualPaths,
+        (path) => joinCwdPath(cwd, path),
+        isFileDirty,
+      );
+
+      // Show notification if any files were skipped
+      notifyDirtyFilesSkipped(skippedCount, allDirty);
+
+      if (allDirty) return;
+
+      // Get map keys for clean paths only (for optimistic updates)
+      const cleanMapKeys = mapKeys.filter((key) => {
+        const actualPath = mapKeyToActualPath.get(key) ?? key;
+        return !isFileDirty || !isFileDirty(joinCwdPath(cwd, actualPath));
+      });
+
+      for (const p of cleanMapKeys) {
         applyOptimisticUpdate(p, "stage");
       }
 
-      git.stage(pathsToStage).catch((error) => {
+      git.stage(cleanPaths).catch((error) => {
         console.error("Failed to stage file(s):", error);
-        for (const p of pathsToStage) {
+        for (const p of cleanMapKeys) {
           revertOptimisticUpdate(p);
         }
       });
@@ -467,28 +586,36 @@ export function FileTreeChanges({
     },
     [
       git,
+      cwd,
       applyOptimisticUpdate,
       revertOptimisticUpdate,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
+      getActualPaths,
+      mapKeyToActualPath,
+      isFileDirty,
       clearSelection,
     ],
   );
 
   const handleUnstage = useCallback(
-    (path: string) => {
-      const pathsToUnstage = isMultiSelected(path)
+    (mapKey: string) => {
+      // Get Map keys for tracking (may include suffix for partially staged files)
+      const mapKeys = isMultiSelected(mapKey)
         ? getSelectedFilePaths()
-        : expandFoldersToFiles(new Set([path]), allFilePaths);
+        : expandFoldersToFiles(new Set([mapKey]), allFilePaths);
 
-      for (const p of pathsToUnstage) {
+      // Convert to actual paths for git operations
+      const actualPaths = getActualPaths(mapKeys);
+
+      for (const p of mapKeys) {
         applyOptimisticUpdate(p, "unstage");
       }
 
-      git.unstage(pathsToUnstage).catch((error) => {
+      git.unstage(actualPaths).catch((error) => {
         console.error("Failed to unstage file(s):", error);
-        for (const p of pathsToUnstage) {
+        for (const p of mapKeys) {
           revertOptimisticUpdate(p);
         }
       });
@@ -502,54 +629,92 @@ export function FileTreeChanges({
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
+      getActualPaths,
       clearSelection,
     ],
   );
 
   const handleRevert = useCallback(
-    async (path: string) => {
-      const pathsToRevert = isMultiSelected(path)
+    async (mapKey: string) => {
+      // Get Map keys for tracking (may include suffix for partially staged files)
+      const mapKeys = isMultiSelected(mapKey)
         ? getSelectedFilePaths()
-        : expandFoldersToFiles(new Set([path]), allFilePaths);
+        : expandFoldersToFiles(new Set([mapKey]), allFilePaths);
+
+      // Convert to actual paths for git operations
+      const actualPaths = getActualPaths(mapKeys);
 
       try {
-        await git.revert(pathsToRevert);
+        await git.revert(actualPaths);
       } catch (error) {
         console.error("Failed to revert file(s):", error);
       }
 
       clearSelection();
     },
-    [git, isMultiSelected, getSelectedFilePaths, allFilePaths, clearSelection],
+    [
+      git,
+      isMultiSelected,
+      getSelectedFilePaths,
+      allFilePaths,
+      getActualPaths,
+      clearSelection,
+    ],
   );
 
   const handleStageAll = useCallback(() => {
     if (unstagedFiles.length === 0) return;
-    const paths = unstagedFiles.map(([path]) => path);
 
-    for (const path of paths) {
+    // Filter out dirty files
+    const { cleanFiles, allDirty, skippedCount } = filterDirtyFilesForStaging(
+      unstagedFiles,
+      ([, status]) => joinCwdPath(cwd, status.path),
+      isFileDirty,
+    );
+
+    // Show notification if any files were skipped
+    notifyDirtyFilesSkipped(skippedCount, allDirty);
+
+    if (allDirty) return;
+
+    // Map keys for optimistic updates
+    const mapKeys = cleanFiles.map(([path]) => path);
+    // Actual paths for git operations
+    const actualPaths = cleanFiles.map(([, status]) => status.path);
+
+    for (const path of mapKeys) {
       applyOptimisticUpdate(path, "stage");
     }
 
-    git.stage(paths).catch((error) => {
+    git.stage(actualPaths).catch((error) => {
       console.error("Failed to stage all files:", error);
-      for (const path of paths) {
+      for (const path of mapKeys) {
         revertOptimisticUpdate(path);
       }
     });
-  }, [git, unstagedFiles, applyOptimisticUpdate, revertOptimisticUpdate]);
+  }, [
+    git,
+    cwd,
+    unstagedFiles,
+    isFileDirty,
+    applyOptimisticUpdate,
+    revertOptimisticUpdate,
+  ]);
 
   const handleUnstageAll = useCallback(() => {
     if (stagedFiles.length === 0) return;
-    const paths = stagedFiles.map(([path]) => path);
+    // Map keys for optimistic updates
+    const mapKeys = stagedFiles.map(([path]) => path);
+    // Actual paths for git operations
+    const actualPaths = stagedFiles.map(([, status]) => status.path);
 
-    for (const path of paths) {
+    for (const path of mapKeys) {
       applyOptimisticUpdate(path, "unstage");
     }
 
-    git.unstage(paths).catch((error) => {
+    git.unstage(actualPaths).catch((error) => {
       console.error("Failed to unstage all files:", error);
-      for (const path of paths) {
+      for (const path of mapKeys) {
         revertOptimisticUpdate(path);
       }
     });
@@ -590,31 +755,33 @@ export function FileTreeChanges({
   // Render Helpers
   // ---------------------------------------------------------------------------
 
-  const selectedRelativePath = selectedFile?.path
-    ? selectedFile.path.startsWith(cwd)
-      ? selectedFile.path.slice(cwd.length).replace(/^\//, "")
-      : selectedFile.path
-    : null;
+  /**
+   * Check if a file should be shown as selected.
+   * Uses normalizedSelectedMapKey which handles suffix normalization.
+   */
+  const isFileSelected = (mapKey: string): boolean => {
+    return normalizedSelectedMapKey === mapKey;
+  };
 
   const renderFlatFiles = (
     files: Array<[string, GitFileStatus]>,
     isStaged: boolean,
   ) => {
-    return files.map(([path, status]) => (
+    return files.map(([mapKey, status]) => (
       <FlatChangeItem
-        key={path}
-        path={path}
+        key={mapKey}
+        path={status.path}
         status={status}
         cwd={cwd}
-        isSelected={pathsEqual(selectedRelativePath, path)}
-        isMultiSelected={multiSelectedPaths.has(path)}
+        isSelected={isFileSelected(mapKey)}
+        isMultiSelected={multiSelectedPaths.has(mapKey)}
         isStaged={isStaged}
         canRevert={showActionButtons && status.status !== "untracked"}
-        onSelect={(event) => handleSelect(path, event)}
-        onStage={showActionButtons ? () => handleStage(path) : undefined}
-        onUnstage={showActionButtons ? () => handleUnstage(path) : undefined}
-        onRevert={showActionButtons ? () => handleRevert(path) : undefined}
-        showUnseenIndicator={isFileUnseen?.(path)}
+        onSelect={(event) => handleSelect(mapKey, status.path, event)}
+        onStage={showActionButtons ? () => handleStage(mapKey) : undefined}
+        onUnstage={showActionButtons ? () => handleUnstage(mapKey) : undefined}
+        onRevert={showActionButtons ? () => handleRevert(mapKey) : undefined}
+        showUnseenIndicator={isFileUnseen?.(status.path)}
       />
     ));
   };
@@ -638,7 +805,7 @@ export function FileTreeChanges({
             cwd={cwd}
             expandedFolders={expandedFolders}
             onToggleFolder={toggleFolder}
-            selectedPath={selectedRelativePath}
+            selectedMapKey={selectedMapKey}
             multiSelectedPaths={multiSelectedPaths}
             isStaged={isStaged}
             onFileSelect={handleSelect}
@@ -652,24 +819,24 @@ export function FileTreeChanges({
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((file) => (
             <NestedFileItem
-              key={file.path}
+              key={file.mapKey}
               file={file}
               cwd={cwd}
-              isSelected={pathsEqual(selectedRelativePath, file.path)}
-              isMultiSelected={multiSelectedPaths.has(file.path)}
+              isSelected={isFileSelected(file.mapKey)}
+              isMultiSelected={multiSelectedPaths.has(file.mapKey)}
               isStaged={isStaged}
               canRevert={
                 showActionButtons && file.status.status !== "untracked"
               }
-              onSelect={(event) => handleSelect(file.path, event)}
+              onSelect={(event) => handleSelect(file.mapKey, file.path, event)}
               onStage={
-                showActionButtons ? () => handleStage(file.path) : undefined
+                showActionButtons ? () => handleStage(file.mapKey) : undefined
               }
               onUnstage={
-                showActionButtons ? () => handleUnstage(file.path) : undefined
+                showActionButtons ? () => handleUnstage(file.mapKey) : undefined
               }
               onRevert={
-                showActionButtons ? () => handleRevert(file.path) : undefined
+                showActionButtons ? () => handleRevert(file.mapKey) : undefined
               }
               showUnseenIndicator={isFileUnseen?.(file.path)}
             />

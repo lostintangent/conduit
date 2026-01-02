@@ -53,6 +53,19 @@ import type {
 const STATUS_REFRESH_DEBOUNCE_MS = 100;
 
 /**
+ * Suffix appended to Map keys for unstaged entries of partially staged files.
+ *
+ * When a file has both staged and unstaged changes (e.g., git status "MM"),
+ * we create two entries:
+ * - Staged entry: key = path
+ * - Unstaged entry: key = path + UNSTAGED_KEY_SUFFIX
+ *
+ * This allows consumers iterating over entries to see both states while
+ * maintaining backward compatibility for .get(path) lookups.
+ */
+const UNSTAGED_KEY_SUFFIX = "\0unstaged";
+
+/**
  * Paths within .git/ to ignore when watching.
  *
  * We only care about files that indicate meaningful status changes:
@@ -1026,9 +1039,16 @@ export class DiskGitProvider implements GitProvider {
 
     // Process all file statuses
     for (const file of statusResult.files) {
-      const fileStatus = this.parseFileStatus(file);
-      if (fileStatus) {
-        files.set(fileStatus.path, fileStatus);
+      const entries = this.parseFileStatuses(file);
+      for (const entry of entries) {
+        // For partially staged files, we have two entries:
+        // - Staged entry uses the path as key (backward compatible)
+        // - Unstaged entry uses path + suffix to avoid key collision
+        const key =
+          entry.staged || !entry.hasIndexChanges
+            ? entry.path
+            : entry.path + UNSTAGED_KEY_SUFFIX;
+        files.set(key, entry);
       }
     }
 
@@ -1042,27 +1062,84 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Parse a single file status from simple-git.
+   * Parse a single file from simple-git into one or two GitFileStatus entries.
+   *
+   * For most files, returns a single entry. For partially staged files
+   * (e.g., "MM" - modified in both index and working directory), returns
+   * two entries: one for staged changes and one for unstaged changes.
    */
-  private parseFileStatus(file: {
+  private parseFileStatuses(file: {
     path: string;
     index: string;
     working_dir: string;
-  }): GitFileStatus | null {
+  }): GitFileStatus[] {
     const { path: filePath, index, working_dir } = file;
+    const entries: GitFileStatus[] = [];
 
-    // Determine status code and staged state
-    const { status, staged } = this.interpretStatusCodes(index, working_dir);
-
-    if (!status) {
-      return null;
+    // Handle special cases first
+    // Untracked files
+    if (index === "?" && working_dir === "?") {
+      entries.push({
+        path: filePath,
+        status: "untracked",
+        staged: false,
+      });
+      return entries;
     }
 
-    return {
-      path: filePath,
-      status,
-      staged,
-    };
+    // Ignored files
+    if (index === "!" && working_dir === "!") {
+      entries.push({
+        path: filePath,
+        status: "ignored",
+        staged: false,
+      });
+      return entries;
+    }
+
+    // Unmerged (conflict)
+    if (
+      index === "U" ||
+      working_dir === "U" ||
+      (index === "A" && working_dir === "A") ||
+      (index === "D" && working_dir === "D")
+    ) {
+      entries.push({
+        path: filePath,
+        status: "unmerged",
+        staged: false,
+      });
+      return entries;
+    }
+
+    // Check if file has changes in index (staged area)
+    const hasIndexChange = index !== " " && index !== "?";
+    // Check if file has changes in working directory (unstaged)
+    const hasWorkingDirChange = working_dir !== " " && working_dir !== "?";
+
+    // Create staged entry if there are index changes
+    if (hasIndexChange) {
+      entries.push({
+        path: filePath,
+        status: this.codeToStatus(index),
+        staged: true,
+        hasIndexChanges: true,
+      });
+    }
+
+    // Create unstaged entry if there are working directory changes
+    if (hasWorkingDirChange) {
+      entries.push({
+        path: filePath,
+        status: this.codeToStatus(working_dir),
+        staged: false,
+        // hasIndexChanges indicates the diff should be Index → Working Dir
+        // instead of HEAD → Working Dir
+        hasIndexChanges: hasIndexChange,
+      });
+    }
+
+    return entries;
   }
 
   /**
@@ -1075,11 +1152,13 @@ export class DiskGitProvider implements GitProvider {
    * Common patterns:
    * - "M " = Modified and staged
    * - " M" = Modified but not staged
-   * - "MM" = Modified, staged, then modified again
+   * - "MM" = Modified, staged, then modified again (partially staged)
    * - "A " = Added (new file, staged)
    * - "??" = Untracked
    * - " D" = Deleted but not staged
    * - "D " = Deleted and staged
+   *
+   * @deprecated Use parseFileStatuses instead which handles partially staged files
    */
   private interpretStatusCodes(
     index: string,

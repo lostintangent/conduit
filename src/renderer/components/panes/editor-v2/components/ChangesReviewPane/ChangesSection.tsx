@@ -100,6 +100,13 @@ export interface ChangesSectionProps {
 
   /** Mark a file as seen (called on interaction) */
   markFileSeen?: (path: string) => void;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -128,6 +135,8 @@ export function ChangesSection({
   isFileUnseen,
   getFileTimestamp,
   markFileSeen,
+  // Dirty file checking
+  isFileDirty,
 }: ChangesSectionProps) {
   if (files.length === 0) {
     return null;
@@ -204,21 +213,23 @@ export function ChangesSection({
       {/* File list (visible when expanded) */}
       {isExpanded && (
         <div>
-          {files.map(([path, status]) => (
+          {files.map(([mapKey, status]) => (
             <FileChangeDiff
-              key={path}
-              filePath={path}
+              key={mapKey}
+              filePath={status.path}
               cwd={cwd}
               sandboxId={sandboxId}
               git={git}
               status={status}
               baseBranch={baseBranch}
-              isExpanded={expandedFiles.has(path)}
-              onToggle={() => onToggleFile(path)}
+              isExpanded={expandedFiles.has(mapKey)}
+              onToggle={() => onToggleFile(mapKey)}
               // Follow mode props
-              isUnseen={isFileUnseen?.(path)}
-              timestamp={getFileTimestamp?.(path)}
-              onInteract={markFileSeen ? () => markFileSeen(path) : undefined}
+              isUnseen={isFileUnseen?.(status.path)}
+              timestamp={getFileTimestamp?.(status.path)}
+              onInteract={markFileSeen ? () => markFileSeen(status.path) : undefined}
+              // Dirty file checking
+              isFileDirty={isFileDirty}
             />
           ))}
         </div>

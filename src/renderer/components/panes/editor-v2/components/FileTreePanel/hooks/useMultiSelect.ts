@@ -21,8 +21,8 @@ export interface UseMultiSelectResult {
   anchorPath: string | null;
   /** Handle item click with modifier key support */
   handleItemClick: (path: string, event: React.MouseEvent) => void;
-  /** Clear all selections */
-  clearSelection: () => void;
+  /** Clear all selections, optionally setting a new anchor for future shift-clicks */
+  clearSelection: (newAnchor?: string) => void;
   /** Check if a path is selected */
   isSelected: (path: string) => boolean;
   /** Get array of selected paths (may include folders) */
@@ -120,11 +120,12 @@ export function useMultiSelect(
   );
 
   /**
-   * Clear all selections.
+   * Clear all selections, optionally setting a new anchor for future shift-clicks.
+   * @param newAnchor - Optional path to set as anchor (for enabling shift-click from this item)
    */
-  const clearSelection = useCallback(() => {
+  const clearSelection = useCallback((newAnchor?: string) => {
     setSelectedPaths(new Set());
-    setAnchorPath(null);
+    setAnchorPath(newAnchor ?? null);
   }, []);
 
   /**

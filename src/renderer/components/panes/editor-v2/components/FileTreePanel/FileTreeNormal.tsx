@@ -70,8 +70,8 @@ export interface FileTreeNormalProps {
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
 
-  /** Callback when a file is selected */
-  onFileSelect: (file: FileNode) => void;
+  /** Callback when a file is selected (mapKey is always null for normal view) */
+  onFileSelect: (file: FileNode, mapKey: string | null) => void;
 
   /** Callback when "change to this directory" is clicked */
   onDirectoryChange?: (path: string) => void;
@@ -475,7 +475,8 @@ export const FileTreeNormal = memo(
       (path: string, type: "file" | "directory") => {
         if (type === "file") {
           const name = path.split("/").pop() ?? "";
-          onFileSelect({ path, name, type: "file" });
+          // Normal view always passes null for mapKey (no staged/unstaged distinction)
+          onFileSelect({ path, name, type: "file" }, null);
         }
         // Directories can be selected too (for context menus, etc.)
         // but we don't call onFileSelect for them
@@ -574,7 +575,8 @@ export const FileTreeNormal = memo(
         const entry = getEntryForPath(path);
         if (entry?.type === "file") {
           const name = path.split("/").pop() ?? "";
-          onFileSelect({ path, name, type: "file" });
+          // Normal view always passes null for mapKey
+          onFileSelect({ path, name, type: "file" }, null);
         } else if (entry?.type === "directory") {
           handleToggleExpand(path);
         }

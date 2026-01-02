@@ -34,7 +34,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { formatRelativeTime } from "../../utils";
+import { canStageFile, formatRelativeTime, joinCwdPath } from "../../utils";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -44,9 +44,9 @@ import {
   useModelState,
 } from "../../hooks";
 import { MonacoModelRegistry, createModelKey } from "../../registry";
+import type { ContentSource } from "../../types";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import {
-  DeletedFileViewer,
   DiffEditorWrapper,
   EDITOR_MAX_HEIGHT,
   RegularEditorWrapper,
@@ -90,6 +90,13 @@ export interface FileChangeDiffProps {
 
   /** Callback when user interacts with the file (marks as seen) */
   onInteract?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -107,6 +114,7 @@ export function FileChangeDiff({
   isUnseen = false,
   timestamp,
   onInteract,
+  isFileDirty,
 }: FileChangeDiffProps) {
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
@@ -114,15 +122,55 @@ export function FileChangeDiff({
 
   // Full path for the diff editor
   const fullFilePath = useMemo(() => {
-    return cwd.endsWith("/") ? cwd + filePath : cwd + "/" + filePath;
+    return joinCwdPath(cwd, filePath);
   }, [cwd, filePath]);
 
-  // Stable editor ID based on file path
+  // Stable editor ID based on file path and staging status
+  // Important: Include staged suffix to prevent Monaco model URI conflicts
+  // when both staged and unstaged entries of a partially staged file are rendered
   const editorId = useMemo(() => {
-    return `file-change-diff-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}`;
-  }, [filePath]);
+    const stageSuffix = status.staged ? "-staged" : "-unstaged";
+    return `file-change-diff-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}${stageSuffix}`;
+  }, [filePath, status.staged]);
 
   const isStaged = status.staged;
+
+  // ---------------------------------------------------------------------------
+  // Content Source Calculation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calculate content sources for diff view based on staging status.
+   *
+   * For normal staged/unstaged view (no baseBranch or baseBranch === 'HEAD'):
+   * - Staged changes: HEAD → Index (comparing what was committed vs what's staged)
+   * - Unstaged with index changes: Index → Working Directory (partially staged file)
+   * - Unstaged without index changes: HEAD → Working Directory (normal unstaged)
+   *
+   * For branch comparison mode (baseBranch !== 'HEAD'):
+   * - All files compared against the base branch
+   */
+  const { originalSource, modifiedSource } = useMemo((): {
+    originalSource: ContentSource;
+    modifiedSource: ContentSource;
+  } => {
+    // Branch comparison mode: compare against the specified branch
+    if (baseBranch && baseBranch !== "HEAD") {
+      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
+    }
+
+    // Normal staged/unstaged view
+    if (status.staged) {
+      // Staged changes: show HEAD → Index
+      return { originalSource: "head", modifiedSource: "index" };
+    } else if (status.hasIndexChanges) {
+      // Unstaged changes for a partially staged file: show Index → Working Directory
+      return { originalSource: "index", modifiedSource: "workingDirectory" };
+    } else {
+      // Normal unstaged changes: show HEAD → Working Directory
+      return { originalSource: "head", modifiedSource: "workingDirectory" };
+    }
+  }, [baseBranch, status.staged, status.hasIndexChanges]);
 
   // ---------------------------------------------------------------------------
   // Editor Controls State
@@ -224,6 +272,12 @@ export function FileChangeDiff({
   const handleStage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
+
+      // Check if file has unsaved changes
+      if (!canStageFile(fullFilePath, isFileDirty)) {
+        return;
+      }
+
       onInteract?.(); // Mark as seen when staging
       try {
         await git.stage([filePath]);
@@ -231,7 +285,7 @@ export function FileChangeDiff({
         console.error("Failed to stage file:", error);
       }
     },
-    [git, filePath, onInteract],
+    [git, filePath, fullFilePath, onInteract, isFileDirty],
   );
 
   const handleUnstage = useCallback(
@@ -295,6 +349,7 @@ export function FileChangeDiff({
       className="border-b border-border last:border-b-0"
       data-testid={`file-change-diff-${fileName}`}
       data-filepath={filePath}
+      data-staged={isStaged ? "true" : "false"}
     >
       {/* Collapsible Header */}
       <div
@@ -451,39 +506,47 @@ export function FileChangeDiff({
       </div>
 
       {/* Editor (expanded only) - height is auto-sized */}
-      {/* Use deleted file viewer for deleted files (read-only, shows git content) */}
+      {/* Use read-only editor for deleted files (shows git content from original source) */}
       {/* Use regular editor for new files (untracked/added) or when in edit mode */}
       {/* Use diff editor for modified files when in diff mode */}
       {isExpanded && (
         <div className="bg-background" data-testid="file-change-diff-content">
           <EditorErrorBoundary filePath={filePath}>
             {status.status === "deleted" ? (
-              <DeletedFileViewer
+              // Deleted files: show read-only content from git (HEAD or index)
+              <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
                 sandboxId={sandboxId}
                 filePath={fullFilePath}
-                baseBranch={baseBranch}
+                source={originalSource}
                 autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : status.status === "untracked" ||
               status.status === "added" ||
               !isDiffMode ? (
+              // New files or edit mode: show content based on staging status
+              // - Staged files: show index content (read-only)
+              // - Unstaged/untracked files: show working directory (editable)
               <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
+                source={modifiedSource}
                 autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : (
+              // Diff mode: show comparison based on staging status
               <DiffEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
                 sandboxId={sandboxId}
                 filePath={fullFilePath}
-                baseBranch={baseBranch}
+                originalSource={originalSource}
+                modifiedSource={modifiedSource}
                 autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleDiffEditorMount}
                 hideUnchangedRegions

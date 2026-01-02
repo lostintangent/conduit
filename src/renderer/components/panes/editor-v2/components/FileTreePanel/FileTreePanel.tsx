@@ -56,8 +56,18 @@ export interface FileTreePanelProps {
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
 
-  /** Callback when a file is selected */
-  onFileSelect: (file: FileNode) => void;
+  /**
+   * Selected map key for changes mode (null for files mode).
+   * Identifies which entry is selected for partially staged files.
+   */
+  selectedMapKey?: string | null;
+
+  /**
+   * Callback when a file is selected.
+   * @param file - The file node
+   * @param mapKey - The map key (for changes mode) or null (for files mode)
+   */
+  onFileSelect: (file: FileNode, mapKey: string | null) => void;
 
   /** Current view mode (files or changes) */
   treeViewMode: TreeViewMode;
@@ -168,6 +178,13 @@ export interface FileTreePanelProps {
 
   /** Check if a file is unseen (Follow mode) - returns true if file has unacknowledged changes */
   isFileUnseen?: (path: string) => boolean;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Props
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -184,6 +201,7 @@ export const FileTreePanel = memo(
       fs,
       git,
       selectedFile,
+      selectedMapKey,
       onFileSelect,
       treeViewMode,
       onTreeViewModeChange,
@@ -220,6 +238,8 @@ export const FileTreePanel = memo(
       onChangesViewModeChange,
       // Follow Mode Props
       isFileUnseen,
+      // Dirty File Props
+      isFileDirty,
     },
     ref,
   ) {
@@ -319,12 +339,14 @@ export const FileTreePanel = memo(
               cwd={cwd}
               git={git}
               selectedFile={selectedFile}
+              selectedMapKey={selectedMapKey}
               onFileSelect={onFileSelect}
               viewMode={changesViewMode}
               gitStatus={gitStatus}
               isComparingToBranch={isComparingToBranch}
               baseBranchName={baseBranch}
               isFileUnseen={isFileUnseen}
+              isFileDirty={isFileDirty}
             />
           </div>
         </div>

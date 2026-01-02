@@ -16,6 +16,7 @@ const mockState = vi.hoisted(() => ({
     modified: "modified content",
     isLoading: false,
     error: null as string | null,
+    isModifiedEditable: true, // Default to editable (working directory mode)
   },
 }));
 
@@ -57,6 +58,7 @@ const mockDiffEditor = {
   updateOptions: vi.fn(),
   dispose: vi.fn(),
   layout: vi.fn(),
+  revealFirstDiff: vi.fn(),
 };
 
 // Mock monaco.editor.createDiffEditor
@@ -169,6 +171,7 @@ describe("DiffEditorWrapper", () => {
       modified: "modified content",
       isLoading: false,
       error: null,
+      isModifiedEditable: true, // Default to editable (working directory mode)
     };
     // Reset the mock implementation to use default state
     (useDiffContent as ReturnType<typeof vi.fn>).mockImplementation(
@@ -319,12 +322,18 @@ describe("DiffEditorWrapper", () => {
       );
 
       await waitFor(() => {
+        // Editor is created with base options (readOnly is set via updateOptions)
         expect(mockCreateDiffEditor).toHaveBeenCalledWith(
           expect.any(HTMLElement),
           expect.objectContaining({
             theme: "vs-dark",
-            readOnly: false,
             renderSideBySide: true,
+          }),
+        );
+        // readOnly is set via updateOptions after creation
+        expect(mockDiffEditor.updateOptions).toHaveBeenCalledWith(
+          expect.objectContaining({
+            readOnly: false,
           }),
         );
       });
@@ -548,8 +557,8 @@ describe("DiffEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockCreateDiffEditor).toHaveBeenCalledWith(
-          expect.any(HTMLElement),
+        // readOnly is set via updateOptions, not in createDiffEditor
+        expect(mockDiffEditor.updateOptions).toHaveBeenCalledWith(
           expect.objectContaining({
             readOnly: false,
           }),

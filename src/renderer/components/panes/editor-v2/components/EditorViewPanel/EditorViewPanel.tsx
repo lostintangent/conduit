@@ -36,11 +36,15 @@ import {
   type FileChangeTrackingResult,
 } from "../../hooks";
 import { createModelKey, MonacoModelRegistry } from "../../registry";
-import type { FileNode, ModelState, ViewMode } from "../../types";
+import type {
+  ContentSource,
+  FileNode,
+  ModelState,
+  ViewMode,
+} from "../../types";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
-import { DeletedFileViewer } from "./DeletedFileViewer";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { ImagePreview } from "./ImagePreview";
@@ -91,6 +95,13 @@ export interface EditorViewPanelProps {
   /** Currently selected file (null for empty state) */
   selectedFile: FileNode | null;
 
+  /**
+   * Selected map key for changes review mode.
+   * Used to distinguish between staged and unstaged entries of partially staged files.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
+
   /** Current view mode (editor, diff, changesReview) */
   viewMode: ViewMode;
 
@@ -130,6 +141,21 @@ export interface EditorViewPanelProps {
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
+  /**
+   * Whether the selected file is staged (in "Showing only changed files" mode).
+   * Used to determine content sources for diff view:
+   * - Staged: HEAD → Index (read-only)
+   * - Unstaged: HEAD → Working Directory (or Index → Working Directory if hasIndexChanges)
+   */
+  isFileStaged?: boolean;
+
+  /**
+   * Whether the file has changes in the git index (staging area).
+   * When true on an unstaged file, the diff shows Index → Working Directory
+   * instead of HEAD → Working Directory.
+   */
+  hasIndexChanges?: boolean;
+
   /** Whether to show the preview toggle (for supported file types like .md) */
   showPreviewToggle?: boolean;
 
@@ -167,6 +193,13 @@ export interface EditorViewPanelProps {
 
   /** File change tracking state and functions (shared between file tree and review pane) */
   fileTracking?: FileChangeTrackingResult;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -186,6 +219,7 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   sandboxId,
   git,
   selectedFile,
+  selectedMapKey,
   viewMode,
   baseBranch = "HEAD",
   theme = "vs-dark",
@@ -199,6 +233,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   onToggleDiffMode,
   onExitReview,
   isFileDeleted = false,
+  isFileStaged = false,
+  hasIndexChanges = false,
   showPreviewToggle = false,
   isPreviewMode = false,
   onTogglePreviewMode,
@@ -211,6 +247,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   onPush,
   // File change tracking
   fileTracking,
+  // Dirty file checking
+  isFileDirty,
 }: EditorViewPanelProps) {
   // Editor instance state - using state instead of ref so changes trigger re-renders
   // This ensures useEditorActions re-subscribes when the editor changes
@@ -244,6 +282,44 @@ export const EditorViewPanel = memo(function EditorViewPanel({
 
   // Get model state for the current file
   const modelState = useModelState(filePath, sandboxId);
+
+  // ---------------------------------------------------------------------------
+  // Content Source Calculation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calculate content sources for diff view based on staging status.
+   *
+   * For normal staged/unstaged view (no baseBranch or baseBranch === 'HEAD'):
+   * - Staged changes: HEAD → Index (comparing what was committed vs what's staged)
+   * - Unstaged with index changes: Index → Working Directory (partially staged file)
+   * - Unstaged without index changes: HEAD → Working Directory (normal unstaged)
+   *
+   * For branch comparison mode (baseBranch !== 'HEAD'):
+   * - All files compared against the base branch
+   */
+  const { originalSource, modifiedSource } = useMemo((): {
+    originalSource: ContentSource;
+    modifiedSource: ContentSource;
+  } => {
+    // Branch comparison mode: compare against the specified branch
+    if (baseBranch && baseBranch !== "HEAD") {
+      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
+    }
+
+    // Normal staged/unstaged view
+    if (isFileStaged) {
+      // Staged changes: show HEAD → Index (read-only on both sides conceptually,
+      // but modified side shows what's staged)
+      return { originalSource: "head", modifiedSource: "index" };
+    } else if (hasIndexChanges) {
+      // Unstaged changes for a partially staged file: show Index → Working Directory
+      return { originalSource: "index", modifiedSource: "workingDirectory" };
+    } else {
+      // Normal unstaged changes: show HEAD → Working Directory
+      return { originalSource: "head", modifiedSource: "workingDirectory" };
+    }
+  }, [baseBranch, isFileStaged, hasIndexChanges]);
 
   // ---------------------------------------------------------------------------
   // Mode Transition Handling
@@ -409,12 +485,14 @@ export const EditorViewPanel = memo(function EditorViewPanel({
           baseBranch={baseBranch}
           onExitReview={onExitReview}
           selectedFilePath={displayFilePath || undefined}
+          selectedMapKey={selectedMapKey}
           hasUpstream={hasUpstream}
           isPulling={isPulling}
           isPushing={isPushing}
           onPull={onPull ?? (() => {})}
           onPush={onPush ?? (() => {})}
           fileTracking={fileTracking}
+          isFileDirty={isFileDirty}
         />
       </div>
     );
@@ -502,12 +580,13 @@ export const EditorViewPanel = memo(function EditorViewPanel({
         ) : isFileDeleted ? (
           // Deleted file viewer - shows read-only content from git
           <EditorErrorBoundary filePath={filePath}>
-            <DeletedFileViewer
+            <RegularEditorWrapper
               editorId={`${editorId}-deleted`}
               cwd={cwd}
               sandboxId={sandboxId}
               filePath={filePath}
-              baseBranch={baseBranch}
+              source={originalSource}
+              theme={theme}
               onMount={handleEditorMount}
             />
           </EditorErrorBoundary>
@@ -520,12 +599,15 @@ export const EditorViewPanel = memo(function EditorViewPanel({
           )
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
+          // For staged files, show index content (read-only)
+          // For unstaged/normal files, show working directory (editable)
           <EditorErrorBoundary filePath={filePath}>
             <RegularEditorWrapper
               editorId={editorId}
               cwd={cwd}
               sandboxId={sandboxId}
               filePath={filePath}
+              source={modifiedSource}
               theme={theme}
               onMount={handleEditorMount}
             />
@@ -538,7 +620,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
               cwd={cwd}
               sandboxId={sandboxId}
               filePath={filePath}
-              baseBranch={baseBranch}
+              originalSource={originalSource}
+              modifiedSource={modifiedSource}
               theme={theme}
               onMount={handleDiffEditorMount}
             />
@@ -552,12 +635,14 @@ export const EditorViewPanel = memo(function EditorViewPanel({
             baseBranch={baseBranch}
             onExitReview={onExitReview}
             selectedFilePath={displayFilePath || undefined}
+            selectedMapKey={selectedMapKey}
             hasUpstream={hasUpstream}
             isPulling={isPulling}
             isPushing={isPushing}
             onPull={onPull ?? (() => {})}
             onPush={onPush ?? (() => {})}
             fileTracking={fileTracking}
+            isFileDirty={isFileDirty}
           />
         ) : null}
       </div>

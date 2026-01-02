@@ -11,6 +11,20 @@ import {
   buildFlatVisualOrder,
 } from "../../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/utils/treeHelpers";
 
+/** Suffix for unstaged entries in partially staged files */
+const UNSTAGED_KEY_SUFFIX = "\0unstaged";
+
+/**
+ * Helper to create a mock GitFileStatus object for testing.
+ */
+function mockStatus(
+  path: string,
+  status: "modified" | "added" | "deleted" | "untracked" = "modified",
+  staged = false,
+): GitFileStatus {
+  return { path, status, staged };
+}
+
 // ============================================================================
 // getDirectoryPath
 // ============================================================================
@@ -44,8 +58,8 @@ describe("getDirectoryPath", () => {
 describe("buildFolderTree", () => {
   it("should create correct folder hierarchy for nested files", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/index.ts", "modified"],
-      ["src/utils/helpers.ts", "added"],
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
+      ["src/utils/helpers.ts", mockStatus("src/utils/helpers.ts", "added")],
     ];
 
     const tree = buildFolderTree(files);
@@ -68,8 +82,8 @@ describe("buildFolderTree", () => {
 
   it("should handle root-level files", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["README.md", "modified"],
-      ["package.json", "modified"],
+      ["README.md", mockStatus("README.md", "modified")],
+      ["package.json", mockStatus("package.json", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -86,8 +100,8 @@ describe("buildFolderTree", () => {
 
   it("should handle mixed root and nested files", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["README.md", "modified"],
-      ["src/index.ts", "added"],
+      ["README.md", mockStatus("README.md", "modified")],
+      ["src/index.ts", mockStatus("src/index.ts", "added")],
     ];
 
     const tree = buildFolderTree(files);
@@ -103,9 +117,9 @@ describe("buildFolderTree", () => {
 
   it("should preserve git status on files", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/added.ts", "added"],
-      ["src/modified.ts", "modified"],
-      ["src/deleted.ts", "deleted"],
+      ["src/added.ts", mockStatus("src/added.ts", "added")],
+      ["src/modified.ts", mockStatus("src/modified.ts", "modified")],
+      ["src/deleted.ts", mockStatus("src/deleted.ts", "deleted")],
     ];
 
     const tree = buildFolderTree(files);
@@ -115,14 +129,14 @@ describe("buildFolderTree", () => {
     const modifiedFile = srcFolder.files.find((f) => f.name === "modified.ts");
     const deletedFile = srcFolder.files.find((f) => f.name === "deleted.ts");
 
-    expect(addedFile?.status).toBe("added");
-    expect(modifiedFile?.status).toBe("modified");
-    expect(deletedFile?.status).toBe("deleted");
+    expect(addedFile?.status.status).toBe("added");
+    expect(modifiedFile?.status.status).toBe("modified");
+    expect(deletedFile?.status.status).toBe("deleted");
   });
 
   it("should handle deeply nested folder structures", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["a/b/c/d/file.ts", "modified"],
+      ["a/b/c/d/file.ts", mockStatus("a/b/c/d/file.ts", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -138,6 +152,49 @@ describe("buildFolderTree", () => {
     expect(d.files).toHaveLength(1);
     expect(d.files[0].name).toBe("file.ts");
   });
+
+  it("should store both mapKey and path on file entries", () => {
+    const files: Array<[string, GitFileStatus]> = [
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
+    ];
+
+    const tree = buildFolderTree(files);
+    const srcFolder = tree.get("src")!;
+    const file = srcFolder.files[0];
+
+    // When mapKey equals path, both should have same value
+    expect(file.mapKey).toBe("src/index.ts");
+    expect(file.path).toBe("src/index.ts");
+    expect(file.name).toBe("index.ts");
+  });
+
+  it("should store separate mapKey and path for partially staged files", () => {
+    // For partially staged files, mapKey includes a suffix but path is the actual file path
+    const stagedMapKey = "src/index.ts";
+    const unstagedMapKey = `src/index.ts${UNSTAGED_KEY_SUFFIX}`;
+
+    const files: Array<[string, GitFileStatus]> = [
+      [stagedMapKey, mockStatus("src/index.ts", "modified", true)],
+      [unstagedMapKey, mockStatus("src/index.ts", "modified", false)],
+    ];
+
+    const tree = buildFolderTree(files);
+    const srcFolder = tree.get("src")!;
+
+    // Should have two file entries for the same path
+    expect(srcFolder.files).toHaveLength(2);
+
+    const stagedFile = srcFolder.files.find((f) => f.mapKey === stagedMapKey);
+    const unstagedFile = srcFolder.files.find((f) => f.mapKey === unstagedMapKey);
+
+    // Both should have the same actual path
+    expect(stagedFile?.path).toBe("src/index.ts");
+    expect(unstagedFile?.path).toBe("src/index.ts");
+
+    // But different mapKeys
+    expect(stagedFile?.mapKey).toBe(stagedMapKey);
+    expect(unstagedFile?.mapKey).toBe(unstagedMapKey);
+  });
 });
 
 // ============================================================================
@@ -147,8 +204,8 @@ describe("buildFolderTree", () => {
 describe("buildVisualOrderFromTree", () => {
   it("should return correct order for expanded folders", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/index.ts", "modified"],
-      ["src/utils.ts", "modified"],
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
+      ["src/utils.ts", mockStatus("src/utils.ts", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -165,8 +222,8 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should exclude children of collapsed folders", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/index.ts", "modified"],
-      ["src/utils.ts", "modified"],
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
+      ["src/utils.ts", mockStatus("src/utils.ts", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -180,9 +237,9 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should order folders alphabetically", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["zebra/file.ts", "modified"],
-      ["alpha/file.ts", "modified"],
-      ["mike/file.ts", "modified"],
+      ["zebra/file.ts", mockStatus("zebra/file.ts", "modified")],
+      ["alpha/file.ts", mockStatus("alpha/file.ts", "modified")],
+      ["mike/file.ts", mockStatus("mike/file.ts", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -195,9 +252,9 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should order files alphabetically within folders", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/z-file.ts", "modified"],
-      ["src/a-file.ts", "modified"],
-      ["src/m-file.ts", "modified"],
+      ["src/z-file.ts", mockStatus("src/z-file.ts", "modified")],
+      ["src/a-file.ts", mockStatus("src/a-file.ts", "modified")],
+      ["src/m-file.ts", mockStatus("src/m-file.ts", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -215,8 +272,8 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should place root-level files after folders", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["README.md", "modified"],
-      ["src/index.ts", "modified"],
+      ["README.md", mockStatus("README.md", "modified")],
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -232,8 +289,8 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should handle nested expanded folders correctly", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/components/Button.tsx", "modified"],
-      ["src/index.ts", "modified"],
+      ["src/components/Button.tsx", mockStatus("src/components/Button.tsx", "modified")],
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -251,7 +308,7 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should not show nested folder children if parent is collapsed", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/components/Button.tsx", "modified"],
+      ["src/components/Button.tsx", mockStatus("src/components/Button.tsx", "modified")],
     ];
 
     const tree = buildFolderTree(files);
@@ -262,6 +319,47 @@ describe("buildVisualOrderFromTree", () => {
 
     // Parent collapsed, so we only see the parent folder
     expect(order).toEqual([{ path: "src", type: "folder" }]);
+  });
+
+  it("should use mapKey for file paths in visual order", () => {
+    // When mapKey equals path, the output path should be the mapKey
+    const files: Array<[string, GitFileStatus]> = [
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
+    ];
+
+    const tree = buildFolderTree(files);
+    const expandedFolders = new Set(["src"]);
+
+    const order = buildVisualOrderFromTree(tree, expandedFolders);
+
+    // The file's path in visual order should be its mapKey
+    const fileItem = order.find((item) => item.type === "file");
+    expect(fileItem?.path).toBe("src/index.ts");
+  });
+
+  it("should use mapKey (with suffix) for partially staged files in visual order", () => {
+    // For partially staged files, mapKey has a suffix but path is the actual file path
+    const stagedMapKey = "src/index.ts";
+    const unstagedMapKey = `src/index.ts${UNSTAGED_KEY_SUFFIX}`;
+
+    const files: Array<[string, GitFileStatus]> = [
+      [stagedMapKey, mockStatus("src/index.ts", "modified", true)],
+      [unstagedMapKey, mockStatus("src/index.ts", "modified", false)],
+    ];
+
+    const tree = buildFolderTree(files);
+    const expandedFolders = new Set(["src"]);
+
+    const order = buildVisualOrderFromTree(tree, expandedFolders);
+
+    // Should have folder + 2 file entries
+    expect(order).toHaveLength(3);
+    expect(order[0]).toEqual({ path: "src", type: "folder" });
+
+    // The files should use mapKey as their path (for multi-select tracking)
+    const filePaths = order.filter((item) => item.type === "file").map((item) => item.path);
+    expect(filePaths).toContain(stagedMapKey);
+    expect(filePaths).toContain(unstagedMapKey);
   });
 });
 
@@ -350,12 +448,12 @@ describe("expandFoldersToFiles", () => {
 describe("buildFlatVisualOrder", () => {
   it("should combine staged and unstaged files", () => {
     const stagedFiles: Array<[string, GitFileStatus]> = [
-      ["staged1.ts", "added"],
-      ["staged2.ts", "modified"],
+      ["staged1.ts", mockStatus("staged1.ts", "added", true)],
+      ["staged2.ts", mockStatus("staged2.ts", "modified", true)],
     ];
     const unstagedFiles: Array<[string, GitFileStatus]> = [
-      ["unstaged1.ts", "modified"],
-      ["unstaged2.ts", "deleted"],
+      ["unstaged1.ts", mockStatus("unstaged1.ts", "modified")],
+      ["unstaged2.ts", mockStatus("unstaged2.ts", "deleted")],
     ];
 
     const result = buildFlatVisualOrder(stagedFiles, unstagedFiles);
@@ -370,8 +468,8 @@ describe("buildFlatVisualOrder", () => {
 
   it("should maintain order within each section", () => {
     const stagedFiles: Array<[string, GitFileStatus]> = [
-      ["z-file.ts", "added"],
-      ["a-file.ts", "added"],
+      ["z-file.ts", mockStatus("z-file.ts", "added", true)],
+      ["a-file.ts", mockStatus("a-file.ts", "added", true)],
     ];
     const unstagedFiles: Array<[string, GitFileStatus]> = [];
 
@@ -384,7 +482,7 @@ describe("buildFlatVisualOrder", () => {
   it("should handle empty staged files", () => {
     const stagedFiles: Array<[string, GitFileStatus]> = [];
     const unstagedFiles: Array<[string, GitFileStatus]> = [
-      ["file.ts", "modified"],
+      ["file.ts", mockStatus("file.ts", "modified")],
     ];
 
     const result = buildFlatVisualOrder(stagedFiles, unstagedFiles);
@@ -393,7 +491,9 @@ describe("buildFlatVisualOrder", () => {
   });
 
   it("should handle empty unstaged files", () => {
-    const stagedFiles: Array<[string, GitFileStatus]> = [["file.ts", "added"]];
+    const stagedFiles: Array<[string, GitFileStatus]> = [
+      ["file.ts", mockStatus("file.ts", "added", true)],
+    ];
     const unstagedFiles: Array<[string, GitFileStatus]> = [];
 
     const result = buildFlatVisualOrder(stagedFiles, unstagedFiles);
@@ -403,10 +503,10 @@ describe("buildFlatVisualOrder", () => {
 
   it("should return all items as type file", () => {
     const stagedFiles: Array<[string, GitFileStatus]> = [
-      ["src/index.ts", "added"],
+      ["src/index.ts", mockStatus("src/index.ts", "added", true)],
     ];
     const unstagedFiles: Array<[string, GitFileStatus]> = [
-      ["src/utils.ts", "modified"],
+      ["src/utils.ts", mockStatus("src/utils.ts", "modified")],
     ];
 
     const result = buildFlatVisualOrder(stagedFiles, unstagedFiles);
