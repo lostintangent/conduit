@@ -18,6 +18,7 @@ export {
   getRelativePath,
   getFileStatusForEntry,
   isDiffableStatus,
+  isDeletedOnRevert,
   computeStagedForChangesMode,
   getFileEntryPresence,
 } from "./gitStatusHelpers";
@@ -35,3 +36,9 @@ export {
   notifyDirtyFilesSkipped,
   canStageFile,
 } from "./stagingHelpers";
+export {
+  selectNextAvailableFile,
+  relativePathToFileNode,
+  type SelectNextFileOptions,
+  type SelectNextFileResult,
+} from "./fileSelectionHelpers";

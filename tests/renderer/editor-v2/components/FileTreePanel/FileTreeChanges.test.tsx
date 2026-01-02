@@ -652,6 +652,40 @@ describe("FileTreeChanges", () => {
       );
       expect(revertButton).toBeNull();
     });
+
+    it("should show revert button for untracked files", async () => {
+      const MOCK_STATUS_WITH_UNTRACKED = {
+        branch: "main",
+        files: new Map([
+          [
+            "new-file.ts",
+            { status: "untracked", staged: false, path: "new-file.ts" },
+          ],
+        ]),
+      };
+      mockGetStatus.mockResolvedValue(MOCK_STATUS_WITH_UNTRACKED);
+
+      render(
+        <FileTreeChanges
+          paneId={TEST_PANE_ID}
+          cwd={TEST_CWD}
+          git={mockGitAPI as any}
+          selectedFile={null}
+          onFileSelect={mockOnFileSelect}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+      });
+
+      const untrackedItem = screen.getByTestId("change-item-new-file.ts");
+      const revertButton = untrackedItem.querySelector(
+        '[data-testid="revert-button"]',
+      );
+      // Untracked files should now show revert button (will delete the file)
+      expect(revertButton).toBeDefined();
+    });
   });
 
   // ===========================================================================
@@ -1174,11 +1208,20 @@ describe("FileTreeChanges", () => {
       branch: "main",
       files: new Map([
         // Partially staged file - staged entry
-        ["src/partial.ts", { status: "modified", staged: true, path: "src/partial.ts" }],
+        [
+          "src/partial.ts",
+          { status: "modified", staged: true, path: "src/partial.ts" },
+        ],
         // Partially staged file - unstaged entry (with suffix in mapKey)
-        [`src/partial.ts${UNSTAGED_KEY_SUFFIX}`, { status: "modified", staged: false, path: "src/partial.ts" }],
+        [
+          `src/partial.ts${UNSTAGED_KEY_SUFFIX}`,
+          { status: "modified", staged: false, path: "src/partial.ts" },
+        ],
         // Regular unstaged file
-        ["src/other.ts", { status: "modified", staged: false, path: "src/other.ts" }],
+        [
+          "src/other.ts",
+          { status: "modified", staged: false, path: "src/other.ts" },
+        ],
       ]),
     };
 
@@ -1211,7 +1254,10 @@ describe("FileTreeChanges", () => {
         branch: "main",
         files: new Map([
           // Regular unstaged file (no suffix in mapKey)
-          ["src/index.ts", { status: "modified", staged: false, path: "src/index.ts" }],
+          [
+            "src/index.ts",
+            { status: "modified", staged: false, path: "src/index.ts" },
+          ],
         ]),
       });
 
@@ -1255,7 +1301,9 @@ describe("FileTreeChanges", () => {
 
       // Find the unstaged "other.ts" file and click its stage button
       const otherItem = screen.getByTestId("change-item-other.ts");
-      const stageButton = otherItem.querySelector('[data-testid="stage-button"]');
+      const stageButton = otherItem.querySelector(
+        '[data-testid="stage-button"]',
+      );
 
       fireEvent.click(stageButton!);
 

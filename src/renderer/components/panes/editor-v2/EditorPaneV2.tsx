@@ -45,6 +45,7 @@ import {
 import {
   useEditorTheme,
   useFileChangeTracking,
+  useModelState,
   useResponsiveLayout,
   useReviewModeState,
 } from "./hooks";
@@ -54,8 +55,11 @@ import {
   getRelativePath,
   getFileStatusForEntry,
   isDiffableStatus,
+  isDeletedOnRevert,
   computeStagedForChangesMode,
   getFileEntryPresence,
+  selectNextAvailableFile,
+  relativePathToFileNode,
   // MapKey helpers (centralized operations)
   makeMapKey,
   mapKeyToPath,
@@ -387,6 +391,12 @@ export function EditorPaneV2({
   // Git API for checking file status
   const git = useGitV2(currentCwd, sandboxId);
 
+  // Monitor selected file's model state for orphan detection
+  const selectedFileModelState = useModelState(
+    selectedFile?.path ?? null,
+    sandboxId,
+  );
+
   // ---------------------------------------------------------------------------
   // Git State
   // ---------------------------------------------------------------------------
@@ -600,42 +610,27 @@ export function EditorPaneV2({
         // Wait for git subscription to be ready before querying
         await git.whenReady();
 
-        // Try dirty files first (most recently modified uncommitted changes)
-        let relativePath = await git.getMostRecentDirtyFile();
+        // Select the next available file (dirty first, then committed)
+        const { file, relativePath } = await selectNextAvailableFile(
+          git,
+          currentCwd,
+          { fallbackToCommitted: true },
+        );
 
-        // Fall back to recently committed files
-        if (!relativePath) {
-          relativePath = await git.getMostRecentCommittedFile(10);
-        }
-
-        if (!relativePath || cancelled) {
+        if (!file || !relativePath || cancelled) {
           return;
         }
 
-        // Convert relative path to absolute path
-        const fullPath = currentCwd.endsWith("/")
-          ? `${currentCwd}${relativePath}`
-          : `${currentCwd}/${relativePath}`;
-        const name = relativePath.split("/").pop() ?? relativePath;
-
-        // Create file node and select it
-        const fileNode: FileNode = {
-          path: fullPath,
-          name,
-          type: "file",
-        };
-
-        setSelectedFile(fileNode);
+        setSelectedFile(file);
 
         // Check if file is specifically "modified" in git status and user prefers diff view
         // Only "modified" files get diff view option, not "added" files
-        // Note: git status uses relative paths, so use relativePath not fullPath
         const status = await git.getStatus();
         const fileStatus = status?.files.get(relativePath);
         if (fileStatus?.status === "modified" && preferDiffForModified) {
           setViewMode({
             type: "diff",
-            filePath: fullPath,
+            filePath: file.path,
             baseBranch: baseBranch ?? undefined,
           });
         } else {
@@ -817,6 +812,7 @@ export function EditorPaneV2({
    * may no longer exist. This effect switches to the other entry if needed:
    * - After staging all: if unstaged entry disappears, switch to staged
    * - After unstaging all: if staged entry disappears, switch to unstaged
+   * - After reverting untracked/added: if file is completely gone, select next file
    *
    * This does NOT override user selection - it only syncs when the selected
    * entry no longer exists in git status.
@@ -838,14 +834,96 @@ export function EditorPaneV2({
       // Was viewing unstaged, but it's gone - switch to staged if available
       if (hasStagedEntry) {
         setSelectedMapKey(makeMapKey(relativePath, true));
+        return;
       }
     } else {
       // Was viewing staged, but it's gone - switch to unstaged if available
       if (hasUnstagedEntry) {
         setSelectedMapKey(makeMapKey(relativePath, false));
+        return;
       }
     }
-  }, [gitStatus, selectedMapKey, selectedGitStatus, treeViewMode]);
+
+    // File is completely gone (e.g., reverted untracked/added file was deleted)
+    // Select the next most recent dirty file
+    if (!hasStagedEntry && !hasUnstagedEntry) {
+      let cancelled = false;
+
+      // In changes mode, only look for dirty files (no committed fallback)
+      selectNextAvailableFile(git, currentCwd, {
+        fallbackToCommitted: false,
+      }).then(({ file, relativePath }) => {
+        if (cancelled) return;
+
+        if (file && relativePath) {
+          setSelectedFile(file);
+          // Compute proper mapKey - prefer unstaged entry if it exists
+          const preferStaged = computeStagedForChangesMode(
+            gitStatus,
+            relativePath,
+          );
+          setSelectedMapKey(
+            preferStaged !== undefined
+              ? makeMapKey(relativePath, preferStaged)
+              : relativePath,
+          );
+        } else {
+          // No dirty files left - clear selection
+          setSelectedFile(null);
+          setSelectedMapKey(null);
+        }
+      });
+
+      // Cleanup: cancel if effect re-runs before promise resolves
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [
+    gitStatus,
+    selectedMapKey,
+    selectedGitStatus,
+    treeViewMode,
+    git,
+    currentCwd,
+  ]);
+
+  /**
+   * Handle file deletion (orphaned files) in files mode.
+   *
+   * When a file is deleted externally (not via git revert), the model becomes
+   * orphaned. In this case, select the most recent dirty file to avoid leaving
+   * the user viewing a deleted file with the "file deleted externally" warning.
+   *
+   * This effect ONLY runs in "files" mode. In "changes" mode, the git status
+   * sync effect handles file selection when files are reverted.
+   */
+  useEffect(() => {
+    // Only handle in files mode - changes mode has its own effect
+    if (treeViewMode !== "files") return;
+    if (!selectedFile) return;
+    if (!selectedFileModelState?.isOrphaned) return;
+
+    // File is orphaned - select next file
+    let cancelled = false;
+
+    selectNextAvailableFile(git, currentCwd, {
+      fallbackToCommitted: true,
+    }).then(({ file }) => {
+      if (cancelled) return;
+      setSelectedFile(file);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    treeViewMode,
+    selectedFile,
+    selectedFileModelState?.isOrphaned,
+    currentCwd,
+    git,
+  ]);
 
   /**
    * Handle tree width resize.

@@ -646,6 +646,8 @@ export function FileTreeChanges({
 
       try {
         await git.revert(actualPaths);
+        // Note: If the reverted file was untracked/added (deleted on revert),
+        // EditorPaneV2's git status sync effect will auto-select the next file
       } catch (error) {
         console.error("Failed to revert file(s):", error);
       }
@@ -776,7 +778,7 @@ export function FileTreeChanges({
         isSelected={isFileSelected(mapKey)}
         isMultiSelected={multiSelectedPaths.has(mapKey)}
         isStaged={isStaged}
-        canRevert={showActionButtons && status.status !== "untracked"}
+        canRevert={showActionButtons}
         onSelect={(event) => handleSelect(mapKey, status.path, event)}
         onStage={showActionButtons ? () => handleStage(mapKey) : undefined}
         onUnstage={showActionButtons ? () => handleUnstage(mapKey) : undefined}
@@ -825,9 +827,7 @@ export function FileTreeChanges({
               isSelected={isFileSelected(file.mapKey)}
               isMultiSelected={multiSelectedPaths.has(file.mapKey)}
               isStaged={isStaged}
-              canRevert={
-                showActionButtons && file.status.status !== "untracked"
-              }
+              canRevert={showActionButtons}
               onSelect={(event) => handleSelect(file.mapKey, file.path, event)}
               onStage={
                 showActionButtons ? () => handleStage(file.mapKey) : undefined

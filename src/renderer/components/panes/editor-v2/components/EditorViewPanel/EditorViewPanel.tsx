@@ -45,6 +45,7 @@ import type {
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
+import { DeletedFileBanner } from "./DeletedFileBanner";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { ImagePreview } from "./ImagePreview";
@@ -510,10 +511,13 @@ export const EditorViewPanel = memo(function EditorViewPanel({
     );
   }
 
-  // Show warning when there's a conflict (external changes while dirty) or file was deleted
+  // Show warning when there's a conflict (external changes while dirty) or file was deleted externally
   // The warning hides automatically when the user takes action (reload, save, keep changes)
+  // Don't show when isFileDeleted is true - that's a git-deleted file, which shows DeletedFileBanner instead
   const shouldShowWarning =
-    modelState && (modelState.isOrphaned || modelState.hasExternalChanges);
+    !isFileDeleted &&
+    modelState &&
+    (modelState.isOrphaned || modelState.hasExternalChanges);
 
   // Build effective model state for toolbar
   const effectiveModelState: ModelState = modelState ?? {
@@ -562,6 +566,9 @@ export const EditorViewPanel = memo(function EditorViewPanel({
           onSave={handleSave}
         />
       )}
+
+      {/* Deleted file banner - shows when viewing a deleted file in changes mode */}
+      {isFileDeleted && <DeletedFileBanner />}
 
       {/* Editor content - uses conditional rendering to switch between modes.
        * When transitioning between editor and diff modes, we show a brief loading

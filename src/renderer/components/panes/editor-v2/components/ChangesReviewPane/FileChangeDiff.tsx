@@ -340,9 +340,10 @@ export function FileChangeDiff({
     onToggle();
   }, [isExpanded, onInteract, onToggle]);
 
-  // Determine if revert button should be shown
-  // Don't show revert for untracked files (they have nothing to revert to)
-  const canRevert = status.status !== "untracked";
+  // Revert is available for all file types:
+  // - Modified/deleted files: restore from HEAD
+  // - Untracked/added files: delete the file
+  const canRevert = true;
 
   return (
     <div

@@ -6,8 +6,9 @@ import * as fs from "node:fs";
 // Hoisted Mocks (must be defined before vi.mock calls)
 // ============================================================================
 
-// Create a mockable fs/promises stat function
+// Create mockable fs/promises functions
 const mockFsStat = vi.fn();
+const mockFsUnlink = vi.fn();
 
 // ============================================================================
 // Mocks
@@ -93,12 +94,13 @@ vi.mock("node:fs", async () => {
   };
 });
 
-// Mock fs/promises stat for getMostRecentCommittedFile tests
+// Mock fs/promises for getMostRecentCommittedFile and revert tests
 vi.mock("node:fs/promises", async () => {
   const actual = await vi.importActual("node:fs/promises");
   return {
     ...actual,
     stat: (...args: unknown[]) => mockFsStat(...args),
+    unlink: (...args: unknown[]) => mockFsUnlink(...args),
   };
 });
 
@@ -1080,7 +1082,22 @@ describe("DiskGitProvider", () => {
   // ===========================================================================
 
   describe("revert()", () => {
-    it("should reset and checkout files", async () => {
+    beforeEach(() => {
+      mockFsUnlink.mockResolvedValue(undefined);
+    });
+
+    it("should reset and checkout modified files", async () => {
+      // Setup: file is modified (not untracked/added)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "src/file1.ts", index: " ", working_dir: "M" },
+            { path: "src/file2.ts", index: " ", working_dir: "M" },
+          ],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       await provider.revert(["src/file1.ts", "src/file2.ts"]);
 
@@ -1095,23 +1112,89 @@ describe("DiskGitProvider", () => {
         "src/file1.ts",
         "src/file2.ts",
       ]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
     });
 
     it("should convert absolute paths to relative", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "src/file.ts", index: " ", working_dir: "M" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       await provider.revert(["/test/repo/src/file.ts"]);
 
       expect(mockGit.checkout).toHaveBeenCalledWith(["--", "src/file.ts"]);
     });
 
-    it("should continue even if reset fails (for untracked files)", async () => {
-      mockGit.reset.mockRejectedValueOnce(new Error("pathspec did not match"));
+    it("should delete untracked files instead of checkout", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "new-file.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["new-file.ts"]);
+
+      // Should delete the file, not checkout
+      expect(mockFsUnlink).toHaveBeenCalledWith("/test/repo/new-file.ts");
+      expect(mockGit.checkout).not.toHaveBeenCalled();
+    });
+
+    it("should delete added (staged new) files instead of checkout", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "added-file.ts", index: "A", working_dir: " " }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["added-file.ts"]);
+
+      // Should delete the file, not checkout
+      expect(mockFsUnlink).toHaveBeenCalledWith("/test/repo/added-file.ts");
+      expect(mockGit.checkout).not.toHaveBeenCalled();
+    });
+
+    it("should handle mixed file types (modified + untracked)", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "modified.ts", index: " ", working_dir: "M" },
+            { path: "untracked.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["modified.ts", "untracked.ts"]);
+
+      // Modified file should be checked out
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "modified.ts"]);
+      // Untracked file should be deleted
+      expect(mockFsUnlink).toHaveBeenCalledWith("/test/repo/untracked.ts");
+    });
+
+    it("should ignore errors when deleting files that don't exist", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "ghost-file.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+      mockFsUnlink.mockRejectedValueOnce(new Error("ENOENT: file not found"));
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       // Should not throw
-      await provider.revert(["new-file.ts"]);
+      await provider.revert(["ghost-file.ts"]);
 
-      expect(mockGit.checkout).toHaveBeenCalled();
+      expect(mockFsUnlink).toHaveBeenCalled();
     });
   });
 

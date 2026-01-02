@@ -54,6 +54,7 @@ vi.mock("../../../src/renderer/components/panes/editor-v2/hooks", () => ({
     initializeFiles: vi.fn(),
     reset: vi.fn(),
   }),
+  useModelState: () => null, // Returns null when no model exists (file not loaded)
 }));
 
 // Mock registerEditorHandlers

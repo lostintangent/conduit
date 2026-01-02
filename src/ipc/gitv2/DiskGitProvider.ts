@@ -727,22 +727,59 @@ export class DiskGitProvider implements GitProvider {
   /**
    * Revert changes to files (discard local modifications).
    *
-   * For staged files, unstages them first then reverts.
-   * For unstaged files, reverts directly.
+   * Handles different file types appropriately:
+   * - Modified/deleted/renamed files: unstage and restore from HEAD via git checkout
+   * - Untracked/added files: delete from filesystem
    */
   async revert(files: string[]): Promise<void> {
     await this.withOperationTracking(async () => {
       const relativePaths = files.map((f) => this.toRelativePath(f));
 
-      // First, unstage any staged changes
-      try {
-        await this.git.reset(["HEAD", "--", ...relativePaths]);
-      } catch {
-        // Ignore errors (file might not be staged)
+      // Get current status to determine how to handle each file
+      const status = await this.getStatus();
+
+      // Categorize files by revert strategy
+      const filesToCheckout: string[] = [];
+      const filesToDelete: string[] = [];
+
+      for (const relPath of relativePaths) {
+        const fileStatus = status.files.get(relPath);
+        if (
+          fileStatus?.status === "untracked" ||
+          fileStatus?.status === "added"
+        ) {
+          // Untracked/added files have no committed version - delete them
+          filesToDelete.push(relPath);
+        } else {
+          // Modified/deleted/renamed files can be restored via git checkout
+          filesToCheckout.push(relPath);
+        }
       }
 
-      // Then checkout to discard working tree changes
-      await this.git.checkout(["--", ...relativePaths]);
+      // Delete untracked/added files from filesystem
+      await Promise.all(
+        filesToDelete.map(async (relPath) => {
+          const fullPath = path.join(this.gitRoot, relPath);
+          try {
+            await fsPromises.unlink(fullPath);
+          } catch {
+            // Ignore errors (file might already be deleted)
+          }
+        }),
+      );
+
+      // Restore tracked files via git
+      if (filesToCheckout.length > 0) {
+        // First, unstage any staged changes
+        try {
+          await this.git.reset(["HEAD", "--", ...filesToCheckout]);
+        } catch {
+          // Ignore errors (file might not be staged)
+        }
+
+        // Then checkout to discard working tree changes
+        await this.git.checkout(["--", ...filesToCheckout]);
+      }
     });
   }
 

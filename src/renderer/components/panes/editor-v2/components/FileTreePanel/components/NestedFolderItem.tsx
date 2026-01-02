@@ -180,10 +180,8 @@ export function NestedFolderItem({
               isSelected={isFileSelected(file.mapKey)}
               isMultiSelected={multiSelectedPaths.has(file.mapKey)}
               isStaged={isStaged}
-              canRevert={file.status.status !== "untracked"}
-              onSelect={(event) =>
-                onFileSelect(file.mapKey, file.path, event)
-              }
+              canRevert={true}
+              onSelect={(event) => onFileSelect(file.mapKey, file.path, event)}
               onStage={onStage ? () => onStage(file.mapKey) : undefined}
               onUnstage={onUnstage ? () => onUnstage(file.mapKey) : undefined}
               onRevert={onRevert ? () => onRevert(file.mapKey) : undefined}

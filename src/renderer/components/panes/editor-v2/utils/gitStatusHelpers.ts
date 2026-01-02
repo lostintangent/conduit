@@ -171,6 +171,16 @@ export function isDiffableStatus(status: GitFileStatus | undefined): boolean {
 }
 
 /**
+ * Check if a file will be deleted when reverted.
+ *
+ * Untracked and added files have no committed version to restore,
+ * so reverting them means deleting them from the filesystem.
+ */
+export function isDeletedOnRevert(status: GitFileStatus | undefined): boolean {
+  return status?.status === "untracked" || status?.status === "added";
+}
+
+/**
  * Determine staged value when switching to "changes" mode.
  *
  * Returns:

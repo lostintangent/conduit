@@ -25,6 +25,8 @@ export type { DiffEditorWrapperProps } from "./DiffEditorWrapper";
 export { ExternalChangeWarning } from "./ExternalChangeWarning";
 export type { ExternalChangeWarningProps } from "./ExternalChangeWarning";
 
+export { DeletedFileBanner } from "./DeletedFileBanner";
+
 export { MarkdownPreview } from "./MarkdownPreview";
 export type { MarkdownPreviewProps } from "./MarkdownPreview";
 
