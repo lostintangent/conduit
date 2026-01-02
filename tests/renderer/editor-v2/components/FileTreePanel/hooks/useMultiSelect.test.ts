@@ -402,7 +402,7 @@ describe("useMultiSelect - clearSelection", () => {
     expect(result.current.selectedPaths.size).toBe(0);
   });
 
-  it("should reset anchor", () => {
+  it("should reset anchor when called without argument", () => {
     const { result } = renderHook(() =>
       useMultiSelect(FLAT_VISUAL_ORDER, FLAT_ALL_FILE_PATHS),
     );
@@ -418,6 +418,57 @@ describe("useMultiSelect - clearSelection", () => {
     });
 
     expect(result.current.anchorPath).toBeNull();
+  });
+
+  it("should set new anchor when called with anchor argument", () => {
+    const { result } = renderHook(() =>
+      useMultiSelect(FLAT_VISUAL_ORDER, FLAT_ALL_FILE_PATHS),
+    );
+
+    // Set initial anchor
+    act(() => {
+      result.current.handleItemClick("file1.ts", createMouseEvent());
+    });
+
+    expect(result.current.anchorPath).toBe("file1.ts");
+
+    // Clear selection with new anchor
+    act(() => {
+      result.current.clearSelection("file3.ts");
+    });
+
+    // Selection should be cleared
+    expect(result.current.selectedPaths.size).toBe(0);
+    // But anchor should be set to new value
+    expect(result.current.anchorPath).toBe("file3.ts");
+  });
+
+  it("should enable shift-click from new anchor after clearSelection with anchor", () => {
+    const { result } = renderHook(() =>
+      useMultiSelect(FLAT_VISUAL_ORDER, FLAT_ALL_FILE_PATHS),
+    );
+
+    // Clear selection with anchor set to file2
+    act(() => {
+      result.current.clearSelection("file2.ts");
+    });
+
+    expect(result.current.anchorPath).toBe("file2.ts");
+    expect(result.current.selectedPaths.size).toBe(0);
+
+    // Shift-click to file4 - should select range from file2 to file4
+    act(() => {
+      result.current.handleItemClick(
+        "file4.ts",
+        createMouseEvent({ shiftKey: true }),
+      );
+    });
+
+    expect(result.current.getSelectedPaths().sort()).toEqual([
+      "file2.ts",
+      "file3.ts",
+      "file4.ts",
+    ]);
   });
 });
 

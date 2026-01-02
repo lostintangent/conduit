@@ -80,6 +80,11 @@ vi.mock("../../../../../src/renderer/components/panes/editor-v2/hooks", () => ({
     containerStyle: { height: "100%", width: "100%" },
   })),
   usePreventFocusScroll: vi.fn(),
+  useGitContent: vi.fn(() => ({
+    content: null,
+    isLoading: false,
+    error: null,
+  })),
 }));
 
 // Mock monaco-editor - The component uses monaco.editor.create directly

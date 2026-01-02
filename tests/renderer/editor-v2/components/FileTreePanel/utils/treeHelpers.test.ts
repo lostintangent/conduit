@@ -11,6 +11,9 @@ import {
   buildFlatVisualOrder,
 } from "../../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/utils/treeHelpers";
 
+/** Suffix for unstaged entries in partially staged files */
+const UNSTAGED_KEY_SUFFIX = "\0unstaged";
+
 /**
  * Helper to create a mock GitFileStatus object for testing.
  */
@@ -149,6 +152,49 @@ describe("buildFolderTree", () => {
     expect(d.files).toHaveLength(1);
     expect(d.files[0].name).toBe("file.ts");
   });
+
+  it("should store both mapKey and path on file entries", () => {
+    const files: Array<[string, GitFileStatus]> = [
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
+    ];
+
+    const tree = buildFolderTree(files);
+    const srcFolder = tree.get("src")!;
+    const file = srcFolder.files[0];
+
+    // When mapKey equals path, both should have same value
+    expect(file.mapKey).toBe("src/index.ts");
+    expect(file.path).toBe("src/index.ts");
+    expect(file.name).toBe("index.ts");
+  });
+
+  it("should store separate mapKey and path for partially staged files", () => {
+    // For partially staged files, mapKey includes a suffix but path is the actual file path
+    const stagedMapKey = "src/index.ts";
+    const unstagedMapKey = `src/index.ts${UNSTAGED_KEY_SUFFIX}`;
+
+    const files: Array<[string, GitFileStatus]> = [
+      [stagedMapKey, mockStatus("src/index.ts", "modified", true)],
+      [unstagedMapKey, mockStatus("src/index.ts", "modified", false)],
+    ];
+
+    const tree = buildFolderTree(files);
+    const srcFolder = tree.get("src")!;
+
+    // Should have two file entries for the same path
+    expect(srcFolder.files).toHaveLength(2);
+
+    const stagedFile = srcFolder.files.find((f) => f.mapKey === stagedMapKey);
+    const unstagedFile = srcFolder.files.find((f) => f.mapKey === unstagedMapKey);
+
+    // Both should have the same actual path
+    expect(stagedFile?.path).toBe("src/index.ts");
+    expect(unstagedFile?.path).toBe("src/index.ts");
+
+    // But different mapKeys
+    expect(stagedFile?.mapKey).toBe(stagedMapKey);
+    expect(unstagedFile?.mapKey).toBe(unstagedMapKey);
+  });
 });
 
 // ============================================================================
@@ -273,6 +319,47 @@ describe("buildVisualOrderFromTree", () => {
 
     // Parent collapsed, so we only see the parent folder
     expect(order).toEqual([{ path: "src", type: "folder" }]);
+  });
+
+  it("should use mapKey for file paths in visual order", () => {
+    // When mapKey equals path, the output path should be the mapKey
+    const files: Array<[string, GitFileStatus]> = [
+      ["src/index.ts", mockStatus("src/index.ts", "modified")],
+    ];
+
+    const tree = buildFolderTree(files);
+    const expandedFolders = new Set(["src"]);
+
+    const order = buildVisualOrderFromTree(tree, expandedFolders);
+
+    // The file's path in visual order should be its mapKey
+    const fileItem = order.find((item) => item.type === "file");
+    expect(fileItem?.path).toBe("src/index.ts");
+  });
+
+  it("should use mapKey (with suffix) for partially staged files in visual order", () => {
+    // For partially staged files, mapKey has a suffix but path is the actual file path
+    const stagedMapKey = "src/index.ts";
+    const unstagedMapKey = `src/index.ts${UNSTAGED_KEY_SUFFIX}`;
+
+    const files: Array<[string, GitFileStatus]> = [
+      [stagedMapKey, mockStatus("src/index.ts", "modified", true)],
+      [unstagedMapKey, mockStatus("src/index.ts", "modified", false)],
+    ];
+
+    const tree = buildFolderTree(files);
+    const expandedFolders = new Set(["src"]);
+
+    const order = buildVisualOrderFromTree(tree, expandedFolders);
+
+    // Should have folder + 2 file entries
+    expect(order).toHaveLength(3);
+    expect(order[0]).toEqual({ path: "src", type: "folder" });
+
+    // The files should use mapKey as their path (for multi-select tracking)
+    const filePaths = order.filter((item) => item.type === "file").map((item) => item.path);
+    expect(filePaths).toContain(stagedMapKey);
+    expect(filePaths).toContain(unstagedMapKey);
   });
 });
 
