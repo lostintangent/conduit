@@ -55,11 +55,9 @@ import {
   getRelativePath,
   getFileStatusForEntry,
   isDiffableStatus,
-  isDeletedOnRevert,
   computeStagedForChangesMode,
   getFileEntryPresence,
   selectNextAvailableFile,
-  relativePathToFileNode,
   // MapKey helpers (centralized operations)
   makeMapKey,
   mapKeyToPath,
