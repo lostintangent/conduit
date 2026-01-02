@@ -6,7 +6,15 @@
 export { EventEmitter } from "@shared/EventEmitter";
 export { detectLanguage } from "./languageDetection";
 export {
+  // Constants
   UNSTAGED_KEY_SUFFIX,
+  // MapKey helpers (centralized operations)
+  makeMapKey,
+  parseMapKey,
+  mapKeyToPath,
+  isUnstagedMapKey,
+  normalizeMapKey,
+  // Status lookup helpers
   getRelativePath,
   getFileStatusForEntry,
   isDiffableStatus,

@@ -255,6 +255,63 @@ export type ViewMode =
 export type TreeViewMode = "files" | "changes";
 
 // ============================================================================
+// Branded Types for Type Safety
+// ============================================================================
+
+/**
+ * Branded type for git status Map keys.
+ *
+ * MapKey is used to look up entries in the git status Map. For partially staged
+ * files, the unstaged entry has a special suffix (\0unstaged) to distinguish it
+ * from the staged entry.
+ *
+ * Use the helpers in gitStatusHelpers.ts to create and parse MapKeys:
+ * - makeMapKey(path, staged) - create a MapKey
+ * - parseMapKey(mapKey) - extract path and staged boolean
+ * - mapKeyToPath(mapKey) - get just the path
+ *
+ * @example
+ * // Staged entry for src/file.ts
+ * const stagedKey: MapKey = "src/file.ts" as MapKey;
+ *
+ * // Unstaged entry for same file (partially staged)
+ * const unstagedKey: MapKey = "src/file.ts\0unstaged" as MapKey;
+ */
+declare const MapKeyBrand: unique symbol;
+export type MapKey = string & { readonly [MapKeyBrand]: unique symbol };
+
+/**
+ * Branded type for file system paths.
+ *
+ * FilePath represents an actual file system path (relative or absolute).
+ * Unlike MapKey, it never contains the unstaged suffix.
+ *
+ * Use mapKeyToPath() to convert a MapKey to a FilePath.
+ */
+declare const FilePathBrand: unique symbol;
+export type FilePath = string & { readonly [FilePathBrand]: unique symbol };
+
+/**
+ * Cast a string to a MapKey.
+ *
+ * Use this when you have a string that you know is a valid MapKey
+ * (e.g., from iterating over gitStatus.keys()).
+ */
+export function asMapKey(key: string): MapKey {
+  return key as MapKey;
+}
+
+/**
+ * Cast a string to a FilePath.
+ *
+ * Use this when you have a string that you know is a valid file path
+ * (e.g., from status.path or file system operations).
+ */
+export function asFilePath(path: string): FilePath {
+  return path as FilePath;
+}
+
+// ============================================================================
 // Content Source Types
 // ============================================================================
 

@@ -56,7 +56,10 @@ import {
   isDiffableStatus,
   computeStagedForChangesMode,
   getFileEntryPresence,
-  UNSTAGED_KEY_SUFFIX,
+  // MapKey helpers (centralized operations)
+  makeMapKey,
+  mapKeyToPath,
+  isUnstagedMapKey,
 } from "./utils";
 import { MonacoModelRegistry, createModelKey } from "./registry";
 
@@ -683,7 +686,11 @@ export function EditorPaneV2({
       const fileStatusFromMap = mapKey ? gitStatus?.get(mapKey) : undefined;
       const isStaged = fileStatusFromMap?.staged;
       const relativePath = getRelativePath(file.path, currentCwd);
-      const fileStatus = getFileStatusForEntry(gitStatus, relativePath, isStaged === false ? false : undefined);
+      const fileStatus = getFileStatusForEntry(
+        gitStatus,
+        relativePath,
+        isStaged === false ? false : undefined,
+      );
 
       // Use startTransition to make the file selection render non-blocking.
       // This allows IPC responses to be processed during the render, significantly
@@ -767,11 +774,14 @@ export function EditorPaneV2({
         if (mode === "changes") {
           // Compute which entry to select (prefer unstaged if it exists)
           const relativePath = getRelativePath(selectedFile.path, currentCwd);
-          const preferStaged = computeStagedForChangesMode(gitStatus, relativePath);
+          const preferStaged = computeStagedForChangesMode(
+            gitStatus,
+            relativePath,
+          );
           if (preferStaged === true) {
-            setSelectedMapKey(relativePath);
+            setSelectedMapKey(makeMapKey(relativePath, true));
           } else if (preferStaged === false) {
-            setSelectedMapKey(relativePath + UNSTAGED_KEY_SUFFIX);
+            setSelectedMapKey(makeMapKey(relativePath, false));
           } else {
             // File not in changes - clear selection
             setSelectedMapKey(null);
@@ -818,21 +828,21 @@ export function EditorPaneV2({
     if (selectedGitStatus !== null) return; // Selected entry still exists, nothing to do
 
     // Selected entry is gone - try to switch to the other entry
-    const relativePath = selectedMapKey.replace(UNSTAGED_KEY_SUFFIX, "");
+    const relativePath = mapKeyToPath(selectedMapKey);
     const { hasStagedEntry, hasUnstagedEntry } = getFileEntryPresence(
       gitStatus,
       relativePath,
     );
 
-    if (selectedMapKey.includes(UNSTAGED_KEY_SUFFIX)) {
+    if (isUnstagedMapKey(selectedMapKey)) {
       // Was viewing unstaged, but it's gone - switch to staged if available
       if (hasStagedEntry) {
-        setSelectedMapKey(relativePath);
+        setSelectedMapKey(makeMapKey(relativePath, true));
       }
     } else {
       // Was viewing staged, but it's gone - switch to unstaged if available
       if (hasUnstagedEntry) {
-        setSelectedMapKey(relativePath + UNSTAGED_KEY_SUFFIX);
+        setSelectedMapKey(makeMapKey(relativePath, false));
       }
     }
   }, [gitStatus, selectedMapKey, selectedGitStatus, treeViewMode]);

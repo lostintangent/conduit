@@ -40,7 +40,8 @@ import {
   getParentPaths,
   joinCwdPath,
   notifyDirtyFilesSkipped,
-  UNSTAGED_KEY_SUFFIX,
+  // MapKey helpers (centralized operations)
+  normalizeMapKey,
 } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
@@ -478,32 +479,13 @@ export function FileTreeChanges({
   /**
    * Normalize selectedMapKey to match the actual mapKey in the file list.
    *
-   * For non-partially-staged files, the parent may pass selectedMapKey with
-   * the unstaged suffix, but the file list only has the path without suffix.
-   * This computes the actual mapKey that exists in the list.
+   * Uses the centralized normalizeMapKey helper which handles:
+   * - Direct match (selectedMapKey exists in the list)
+   * - Suffix normalization (selectedMapKey has suffix but file isn't partially staged)
    */
   const normalizedSelectedMapKey = useMemo(() => {
     if (!selectedMapKey) return null;
-
-    // Direct match - selectedMapKey exists in the list
-    if (allFilePaths.includes(selectedMapKey)) {
-      return selectedMapKey;
-    }
-
-    // Handle case where selectedMapKey has suffix but file isn't partially staged
-    if (selectedMapKey.endsWith(UNSTAGED_KEY_SUFFIX)) {
-      const pathWithoutSuffix = selectedMapKey.slice(
-        0,
-        -UNSTAGED_KEY_SUFFIX.length,
-      );
-      // If the path without suffix exists and there's no separate unstaged entry,
-      // this is a non-partially-staged file
-      if (allFilePaths.includes(pathWithoutSuffix)) {
-        return pathWithoutSuffix;
-      }
-    }
-
-    return selectedMapKey;
+    return normalizeMapKey(selectedMapKey, allFilePaths);
   }, [selectedMapKey, allFilePaths]);
 
   // ---------------------------------------------------------------------------
@@ -568,12 +550,15 @@ export function FileTreeChanges({
       const actualPaths = getActualPaths(mapKeys);
 
       // Filter out dirty files (files with unsaved changes in editor)
-      const { cleanFiles: cleanPaths, allDirty, skippedCount } =
-        filterDirtyFilesForStaging(
-          actualPaths,
-          (path) => joinCwdPath(cwd, path),
-          isFileDirty,
-        );
+      const {
+        cleanFiles: cleanPaths,
+        allDirty,
+        skippedCount,
+      } = filterDirtyFilesForStaging(
+        actualPaths,
+        (path) => joinCwdPath(cwd, path),
+        isFileDirty,
+      );
 
       // Show notification if any files were skipped
       notifyDirtyFilesSkipped(skippedCount, allDirty);
@@ -667,7 +652,14 @@ export function FileTreeChanges({
 
       clearSelection();
     },
-    [git, isMultiSelected, getSelectedFilePaths, allFilePaths, getActualPaths, clearSelection],
+    [
+      git,
+      isMultiSelected,
+      getSelectedFilePaths,
+      allFilePaths,
+      getActualPaths,
+      clearSelection,
+    ],
   );
 
   const handleStageAll = useCallback(() => {
@@ -700,7 +692,14 @@ export function FileTreeChanges({
         revertOptimisticUpdate(path);
       }
     });
-  }, [git, cwd, unstagedFiles, isFileDirty, applyOptimisticUpdate, revertOptimisticUpdate]);
+  }, [
+    git,
+    cwd,
+    unstagedFiles,
+    isFileDirty,
+    applyOptimisticUpdate,
+    revertOptimisticUpdate,
+  ]);
 
   const handleUnstageAll = useCallback(() => {
     if (stagedFiles.length === 0) return;
@@ -829,9 +828,7 @@ export function FileTreeChanges({
               canRevert={
                 showActionButtons && file.status.status !== "untracked"
               }
-              onSelect={(event) =>
-                handleSelect(file.mapKey, file.path, event)
-              }
+              onSelect={(event) => handleSelect(file.mapKey, file.path, event)}
               onStage={
                 showActionButtons ? () => handleStage(file.mapKey) : undefined
               }
