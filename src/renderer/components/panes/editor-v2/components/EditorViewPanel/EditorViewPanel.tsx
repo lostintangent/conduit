@@ -95,6 +95,13 @@ export interface EditorViewPanelProps {
   /** Currently selected file (null for empty state) */
   selectedFile: FileNode | null;
 
+  /**
+   * Selected map key for changes review mode.
+   * Used to distinguish between staged and unstaged entries of partially staged files.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
+
   /** Current view mode (editor, diff, changesReview) */
   viewMode: ViewMode;
 
@@ -186,6 +193,13 @@ export interface EditorViewPanelProps {
 
   /** File change tracking state and functions (shared between file tree and review pane) */
   fileTracking?: FileChangeTrackingResult;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -205,6 +219,7 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   sandboxId,
   git,
   selectedFile,
+  selectedMapKey,
   viewMode,
   baseBranch = "HEAD",
   theme = "vs-dark",
@@ -232,6 +247,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   onPush,
   // File change tracking
   fileTracking,
+  // Dirty file checking
+  isFileDirty,
 }: EditorViewPanelProps) {
   // Editor instance state - using state instead of ref so changes trigger re-renders
   // This ensures useEditorActions re-subscribes when the editor changes
@@ -468,12 +485,14 @@ export const EditorViewPanel = memo(function EditorViewPanel({
           baseBranch={baseBranch}
           onExitReview={onExitReview}
           selectedFilePath={displayFilePath || undefined}
+          selectedMapKey={selectedMapKey}
           hasUpstream={hasUpstream}
           isPulling={isPulling}
           isPushing={isPushing}
           onPull={onPull ?? (() => {})}
           onPush={onPush ?? (() => {})}
           fileTracking={fileTracking}
+          isFileDirty={isFileDirty}
         />
       </div>
     );
@@ -616,12 +635,14 @@ export const EditorViewPanel = memo(function EditorViewPanel({
             baseBranch={baseBranch}
             onExitReview={onExitReview}
             selectedFilePath={displayFilePath || undefined}
+            selectedMapKey={selectedMapKey}
             hasUpstream={hasUpstream}
             isPulling={isPulling}
             isPushing={isPushing}
             onPull={onPull ?? (() => {})}
             onPush={onPush ?? (() => {})}
             fileTracking={fileTracking}
+            isFileDirty={isFileDirty}
           />
         ) : null}
       </div>

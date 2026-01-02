@@ -22,3 +22,8 @@ export {
 } from "./pathUtils";
 export { formatRelativeTime } from "./timeFormat";
 export { forceTokenizeVisibleLines } from "./tokenization";
+export {
+  filterDirtyFilesForStaging,
+  notifyDirtyFilesSkipped,
+  canStageFile,
+} from "./stagingHelpers";

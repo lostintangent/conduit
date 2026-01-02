@@ -37,6 +37,11 @@ import type { GitV2API } from "@/api/GitV2API";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DISABLED_TRACKING, type FileChangeTrackingResult } from "../../hooks";
+import {
+  filterDirtyFilesForStaging,
+  joinCwdPath,
+  notifyDirtyFilesSkipped,
+} from "../../utils";
 import { ChangesFooter } from "./ChangesFooter";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
@@ -65,6 +70,13 @@ export interface ChangesReviewPaneProps {
   /** Selected file path from tree (relative path) - will expand and scroll to this file */
   selectedFilePath?: string;
 
+  /**
+   * Selected map key from tree - used for scrolling to correct entry.
+   * For partially staged files, this distinguishes between staged and unstaged entries.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
+
   // ---------------------------------------------------------------------------
   // Remote Operations (controlled by parent - EditorPaneV2)
   // ---------------------------------------------------------------------------
@@ -90,6 +102,13 @@ export interface ChangesReviewPaneProps {
 
   /** File change tracking state and functions (shared between file tree and review pane) */
   fileTracking?: FileChangeTrackingResult;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -102,12 +121,14 @@ export function ChangesReviewPane({
   baseBranch,
   onExitReview,
   selectedFilePath,
+  selectedMapKey,
   hasUpstream,
   isPulling,
   isPushing,
   onPull,
   onPush,
   fileTracking: fileTrackingProp,
+  isFileDirty,
 }: ChangesReviewPaneProps) {
   // Ref for the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -232,6 +253,7 @@ export function ChangesReviewPane({
 
   useScrollToSelectedFile({
     selectedFilePath,
+    selectedMapKey: selectedMapKey ?? undefined,
     scrollContainerRef,
     stagedFiles,
     unstagedFiles,
@@ -323,8 +345,21 @@ export function ChangesReviewPane({
   // ---------------------------------------------------------------------------
 
   const handleStageAll = useCallback(async () => {
-    const paths = unstagedFiles.map(([path]) => path);
-    if (paths.length === 0) return;
+    if (unstagedFiles.length === 0) return;
+
+    // Filter out dirty files (files with unsaved changes in editor)
+    const { cleanFiles, allDirty, skippedCount } = filterDirtyFilesForStaging(
+      unstagedFiles,
+      ([, status]) => joinCwdPath(cwd, status.path),
+      isFileDirty,
+    );
+
+    // Show notification if any files were skipped
+    notifyDirtyFilesSkipped(skippedCount, allDirty);
+
+    if (allDirty) return;
+
+    const paths = cleanFiles.map(([, status]) => status.path);
 
     try {
       await git.stage(paths);
@@ -334,7 +369,7 @@ export function ChangesReviewPane({
       setError(`Failed to stage files: ${errorMessage}`);
       console.error("Failed to stage files:", err);
     }
-  }, [git, unstagedFiles]);
+  }, [git, cwd, unstagedFiles, isFileDirty]);
 
   const handleUnstageAll = useCallback(async () => {
     const paths = stagedFiles.map(([path]) => path);
@@ -513,6 +548,8 @@ export function ChangesReviewPane({
           isFileUnseen={isUnseen}
           getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
           markFileSeen={markSeen}
+          // Dirty file checking (for preventing staging unsaved files)
+          isFileDirty={isFileDirty}
         />
       </div>
 

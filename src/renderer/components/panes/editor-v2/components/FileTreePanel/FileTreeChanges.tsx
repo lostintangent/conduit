@@ -33,12 +33,13 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
-import { enqueueNotification } from "@/store/actions/notifications";
 import type { GitV2API } from "@/api/GitV2API";
 import { useScrollPersistence } from "../../hooks/useScrollPersistence";
 import {
+  filterDirtyFilesForStaging,
   getParentPaths,
   joinCwdPath,
+  notifyDirtyFilesSkipped,
 } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { FileNode } from "../../types";
@@ -515,29 +516,17 @@ export function FileTreeChanges({
       const actualPaths = getActualPaths(mapKeys);
 
       // Filter out dirty files (files with unsaved changes in editor)
-      const cleanPaths = isFileDirty
-        ? actualPaths.filter((path) => !isFileDirty(joinCwdPath(cwd, path)))
-        : actualPaths;
+      const { cleanFiles: cleanPaths, allDirty, skippedCount } =
+        filterDirtyFilesForStaging(
+          actualPaths,
+          (path) => joinCwdPath(cwd, path),
+          isFileDirty,
+        );
 
-      // If all files are dirty, show notification and don't proceed
-      if (cleanPaths.length === 0) {
-        enqueueNotification({
-          kind: "info",
-          message: "Cannot stage files with unsaved changes",
-          details: "Save your changes before staging.",
-        });
-        return;
-      }
+      // Show notification if any files were skipped
+      notifyDirtyFilesSkipped(skippedCount, allDirty);
 
-      // If some files were skipped, show notification
-      if (cleanPaths.length < actualPaths.length) {
-        const skippedCount = actualPaths.length - cleanPaths.length;
-        enqueueNotification({
-          kind: "info",
-          message: `Skipped ${skippedCount} file${skippedCount > 1 ? "s" : ""} with unsaved changes`,
-          details: "Save your changes before staging.",
-        });
-      }
+      if (allDirty) return;
 
       // Get map keys for clean paths only (for optimistic updates)
       const cleanMapKeys = mapKeys.filter((key) => {
@@ -633,30 +622,16 @@ export function FileTreeChanges({
     if (unstagedFiles.length === 0) return;
 
     // Filter out dirty files
-    const cleanFiles = isFileDirty
-      ? unstagedFiles.filter(
-          ([, status]) => !isFileDirty(joinCwdPath(cwd, status.path)),
-        )
-      : unstagedFiles;
+    const { cleanFiles, allDirty, skippedCount } = filterDirtyFilesForStaging(
+      unstagedFiles,
+      ([, status]) => joinCwdPath(cwd, status.path),
+      isFileDirty,
+    );
 
-    if (cleanFiles.length === 0) {
-      enqueueNotification({
-        kind: "info",
-        message: "Cannot stage files with unsaved changes",
-        details: "Save your changes before staging.",
-      });
-      return;
-    }
+    // Show notification if any files were skipped
+    notifyDirtyFilesSkipped(skippedCount, allDirty);
 
-    // If some files were skipped, show notification
-    if (cleanFiles.length < unstagedFiles.length) {
-      const skippedCount = unstagedFiles.length - cleanFiles.length;
-      enqueueNotification({
-        kind: "info",
-        message: `Skipped ${skippedCount} file${skippedCount > 1 ? "s" : ""} with unsaved changes`,
-        details: "Save your changes before staging.",
-      });
-    }
+    if (allDirty) return;
 
     // Map keys for optimistic updates
     const mapKeys = cleanFiles.map(([path]) => path);

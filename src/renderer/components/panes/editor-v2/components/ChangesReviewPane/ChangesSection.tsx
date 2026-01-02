@@ -100,6 +100,13 @@ export interface ChangesSectionProps {
 
   /** Mark a file as seen (called on interaction) */
   markFileSeen?: (path: string) => void;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -128,6 +135,8 @@ export function ChangesSection({
   isFileUnseen,
   getFileTimestamp,
   markFileSeen,
+  // Dirty file checking
+  isFileDirty,
 }: ChangesSectionProps) {
   if (files.length === 0) {
     return null;
@@ -219,6 +228,8 @@ export function ChangesSection({
               isUnseen={isFileUnseen?.(status.path)}
               timestamp={getFileTimestamp?.(status.path)}
               onInteract={markFileSeen ? () => markFileSeen(status.path) : undefined}
+              // Dirty file checking
+              isFileDirty={isFileDirty}
             />
           ))}
         </div>

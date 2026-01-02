@@ -34,7 +34,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import { formatRelativeTime, joinCwdPath } from "../../utils";
+import { canStageFile, formatRelativeTime, joinCwdPath } from "../../utils";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -90,6 +90,13 @@ export interface FileChangeDiffProps {
 
   /** Callback when user interacts with the file (marks as seen) */
   onInteract?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -107,6 +114,7 @@ export function FileChangeDiff({
   isUnseen = false,
   timestamp,
   onInteract,
+  isFileDirty,
 }: FileChangeDiffProps) {
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
@@ -117,10 +125,13 @@ export function FileChangeDiff({
     return joinCwdPath(cwd, filePath);
   }, [cwd, filePath]);
 
-  // Stable editor ID based on file path
+  // Stable editor ID based on file path and staging status
+  // Important: Include staged suffix to prevent Monaco model URI conflicts
+  // when both staged and unstaged entries of a partially staged file are rendered
   const editorId = useMemo(() => {
-    return `file-change-diff-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}`;
-  }, [filePath]);
+    const stageSuffix = status.staged ? "-staged" : "-unstaged";
+    return `file-change-diff-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}${stageSuffix}`;
+  }, [filePath, status.staged]);
 
   const isStaged = status.staged;
 
@@ -261,6 +272,12 @@ export function FileChangeDiff({
   const handleStage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
+
+      // Check if file has unsaved changes
+      if (!canStageFile(fullFilePath, isFileDirty)) {
+        return;
+      }
+
       onInteract?.(); // Mark as seen when staging
       try {
         await git.stage([filePath]);
@@ -268,7 +285,7 @@ export function FileChangeDiff({
         console.error("Failed to stage file:", error);
       }
     },
-    [git, filePath, onInteract],
+    [git, filePath, fullFilePath, onInteract, isFileDirty],
   );
 
   const handleUnstage = useCallback(
@@ -332,6 +349,7 @@ export function FileChangeDiff({
       className="border-b border-border last:border-b-0"
       data-testid={`file-change-diff-${fileName}`}
       data-filepath={filePath}
+      data-staged={isStaged ? "true" : "false"}
     >
       {/* Collapsible Header */}
       <div

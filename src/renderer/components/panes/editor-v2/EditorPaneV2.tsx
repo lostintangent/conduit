@@ -416,6 +416,16 @@ export function EditorPaneV2({
   // Branch selector state
   const [isBranchSelectorOpen, setIsBranchSelectorOpen] = useState(false);
 
+  /**
+   * The git status for the currently selected entry (from selectedMapKey).
+   * This is the single source of truth for the selected entry's git state.
+   * Returns null if no entry is selected or it doesn't exist in gitStatus.
+   */
+  const selectedGitStatus = useMemo(() => {
+    if (!selectedMapKey) return null;
+    return gitStatus?.get(selectedMapKey) ?? null;
+  }, [selectedMapKey, gitStatus]);
+
   // Helper to update git status state
   const updateGitStatusState = useCallback(
     (status: { files: Map<string, GitFileStatus>; branch?: string } | null) => {
@@ -804,9 +814,8 @@ export function EditorPaneV2({
   useEffect(() => {
     if (treeViewMode !== "changes" || !selectedMapKey) return;
 
-    // Check if the selected key still exists in git status
-    const keyExists = gitStatus?.has(selectedMapKey) ?? false;
-    if (keyExists) return; // Selected entry still exists, nothing to do
+    // Check if the selected entry still exists (using memoized lookup)
+    if (selectedGitStatus !== null) return; // Selected entry still exists, nothing to do
 
     // Selected entry is gone - try to switch to the other entry
     const relativePath = selectedMapKey.replace(UNSTAGED_KEY_SUFFIX, "");
@@ -826,7 +835,7 @@ export function EditorPaneV2({
         setSelectedMapKey(relativePath + UNSTAGED_KEY_SUFFIX);
       }
     }
-  }, [gitStatus, selectedMapKey, treeViewMode]);
+  }, [gitStatus, selectedMapKey, selectedGitStatus, treeViewMode]);
 
   /**
    * Handle tree width resize.
@@ -1014,14 +1023,13 @@ export function EditorPaneV2({
    */
   const isCurrentFileGitModified = useMemo(() => {
     if (!selectedFile) return false;
-    const relativePath = getRelativePath(selectedFile.path, currentCwd);
-    // Look up the actual staged status from gitStatus using the mapKey
-    // (can't derive from mapKey suffix alone - that only works for partially staged files)
-    const fileStatusFromMap = selectedMapKey ? gitStatus?.get(selectedMapKey) : undefined;
-    const isStaged = fileStatusFromMap?.staged;
-    const fileStatus = getFileStatusForEntry(gitStatus, relativePath, isStaged);
+    // In changes mode, use selectedGitStatus directly.
+    // In files mode, look up by relative path.
+    const fileStatus =
+      selectedGitStatus ??
+      gitStatus?.get(getRelativePath(selectedFile.path, currentCwd));
     return isDiffableStatus(fileStatus);
-  }, [selectedFile, selectedMapKey, currentCwd, gitStatus]);
+  }, [selectedFile, selectedGitStatus, currentCwd, gitStatus]);
 
   /**
    * Determine if the current file is deleted (needs special viewer).
@@ -1034,40 +1042,48 @@ export function EditorPaneV2({
   }, [selectedFile, currentCwd, gitStatus]);
 
   /**
-   * Determine if the current file is staged.
-   * Used to show staged content (index) as read-only in "Showing only changed files" mode.
+   * Determine if the current file is selected as a staged entry.
+   * Uses the memoized selectedGitStatus for efficiency.
    *
-   * IMPORTANT: This only returns true when BOTH:
-   * 1. The user explicitly selected the staged version (FileNode.staged === true)
-   * 2. We're currently in "Showing only changed files" mode (treeViewMode === "changes")
+   * Only true when:
+   * 1. The file's actual staged property is true
+   * 2. We're currently in "Showing only changed files" mode
    *
    * When switching out of "changes" mode, the file becomes editable even if it was
    * previously selected as staged. This matches the expectation that normal file
    * browsing always edits the working directory version.
    */
   const isCurrentFileStaged = useMemo(() => {
-    if (!selectedFile || !selectedMapKey) return false;
-
-    // Only consider a file "staged" if:
-    // 1. The file's actual staged property is true (look up from gitStatus)
-    // 2. We're currently in "Showing only changed files" mode
-    // When switching to normal mode, the file should become editable
-    // Note: can't derive from mapKey suffix alone - that only works for partially staged files
-    const fileStatus = gitStatus?.get(selectedMapKey);
-    const isStaged = fileStatus?.staged === true;
-    return isStaged && treeViewMode === "changes";
-  }, [selectedFile, selectedMapKey, treeViewMode, gitStatus]);
+    if (!selectedFile || !selectedGitStatus) return false;
+    return selectedGitStatus.staged === true && treeViewMode === "changes";
+  }, [selectedFile, selectedGitStatus, treeViewMode]);
 
   /**
    * Determine if the current file has changes in the git index.
    * Used to show Index → Working Directory diff for partially staged files.
+   *
+   * IMPORTANT: This should only return true when:
+   * 1. We're in "changes" mode (viewing git changes, not normal files)
+   * 2. The selected entry is unstaged (viewing working directory changes)
+   * 3. The file has staged changes in the index
+   *
+   * In "files" mode, we always want HEAD → Working Directory comparison,
+   * so this returns false to ensure that behavior.
    */
   const currentFileHasIndexChanges = useMemo(() => {
-    if (!selectedFile) return false;
+    // Only applies in changes mode when viewing an unstaged entry
+    if (treeViewMode !== "changes") return false;
+    if (!selectedFile || !selectedGitStatus) return false;
+
+    // Only show Index → Working Directory for unstaged entries
+    // (staged entries show HEAD → Index instead)
+    if (selectedGitStatus.staged) return false;
+
+    // Check if there are staged changes to compare against
     const relativePath = getRelativePath(selectedFile.path, currentCwd);
-    const fileStatus = gitStatus?.get(relativePath);
-    return fileStatus?.hasIndexChanges ?? false;
-  }, [selectedFile, currentCwd, gitStatus]);
+    const baseEntry = gitStatus?.get(relativePath);
+    return baseEntry?.hasIndexChanges ?? false;
+  }, [selectedFile, selectedGitStatus, treeViewMode, currentCwd, gitStatus]);
 
   /**
    * Determine if the current file supports preview mode (e.g., markdown files, images).
@@ -1380,6 +1396,7 @@ export function EditorPaneV2({
           sandboxId={sandboxId}
           git={git}
           selectedFile={selectedFile}
+          selectedMapKey={selectedMapKey}
           viewMode={viewMode}
           baseBranch={baseBranch ?? undefined}
           theme={editorTheme}
@@ -1408,6 +1425,8 @@ export function EditorPaneV2({
           onPush={handlePush}
           // Unseen tracking (when enabled)
           fileTracking={trackUnseenChanges ? fileTracking : undefined}
+          // Dirty file checking (for preventing staging unsaved files)
+          isFileDirty={isFileDirty}
         />
       </div>
 
