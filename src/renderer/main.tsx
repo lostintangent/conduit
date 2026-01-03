@@ -34,7 +34,7 @@ function AppWrapper() {
         {/* Muting overlay - dims gradient or provides solid color for inner borders */}
         <div
           className={cn(
-            `absolute inset-[3px] pointer-events-none ${roundedClass}`,
+            `absolute inset-[2px] pointer-events-none ${roundedClass}`,
             useGradientBorders ? "bg-pane-divider-gradient" : "bg-pane-divider",
           )}
         />
@@ -43,7 +43,7 @@ function AppWrapper() {
         {/* No background here - let gradient show through gaps */}
         {/* No z-index to allow webviews (z-1 on body) to render on top */}
         <div
-          className={`absolute inset-[3px] flex flex-col overflow-hidden ${roundedClass}`}
+          className={`absolute inset-[2px] flex flex-col overflow-hidden ${roundedClass}`}
         >
           <App />
         </div>
