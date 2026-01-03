@@ -22,7 +22,7 @@ function AppWrapper() {
   const { useGradientBorders } = useAtomValue(userSettingsAtom);
 
   // Use use rounded-xl on macOS/Linux, windows-11 rounding matches system w/rounded
-  const roundedClass = isWindows ? "rounded" : "rounded-xl";
+  const roundedClass = isWindows ? "rounded" : "rounded-[18px]";
 
   return (
     <TooltipProvider delayDuration={200}>
