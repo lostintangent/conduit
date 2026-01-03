@@ -192,7 +192,10 @@ export function TabButton({
             }}
           />
         ) : showIdleDot ? (
-          <Circle size={8} className="flex-none fill-blue-400 text-blue-400" />
+          <Circle
+            size={8}
+            className="flex-none fill-blue-400 text-blue-400 ml-0.5 mr-1"
+          />
         ) : tab.locked ? (
           <Lock size={14} className="flex-none opacity-60" />
         ) : navigator.platform.toLowerCase().includes("mac") ? (
