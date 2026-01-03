@@ -55,6 +55,12 @@ export function AdvancedTab({
   const [dotfilesRepo, setDotfilesRepo] = useState(
     userSettings.dotfilesRepo || "",
   );
+  const [terminalShell, setTerminalShell] = useState(
+    userSettings.terminalShell || "",
+  );
+  const [terminalFontFamily, setTerminalFontFamily] = useState(
+    userSettings.terminalFontFamily || "",
+  );
   const [isHoveringDotfilesStatus, setIsHoveringDotfilesStatus] =
     useState(false);
 
@@ -286,12 +292,15 @@ export function AdvancedTab({
               <input
                 type="text"
                 id="terminalShell"
-                value={userSettings.terminalShell ?? ""}
-                onChange={(e) =>
-                  onUpdateSettings({
-                    terminalShell: e.target.value || undefined,
-                  })
-                }
+                value={terminalShell}
+                onChange={(e) => setTerminalShell(e.target.value)}
+                onBlur={() => {
+                  if (terminalShell !== userSettings.terminalShell) {
+                    onUpdateSettings({
+                      terminalShell: terminalShell || undefined,
+                    });
+                  }
+                }}
                 placeholder="Default shell"
                 className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground placeholder:text-tinted-foreground/40 focus:outline-none focus:border-accent"
               />
@@ -310,14 +319,19 @@ export function AdvancedTab({
               <input
                 type="text"
                 id="terminalFontFamily"
-                value={userSettings.terminalFontFamily ?? ""}
+                value={terminalFontFamily}
                 onChange={(e) => {
                   const fontFamily = e.target.value;
-                  onUpdateSettings({ terminalFontFamily: fontFamily });
+                  setTerminalFontFamily(fontFamily);
                   updateTerminalFonts(
                     fontFamily,
                     userSettings.terminalFontSize!,
                   );
+                }}
+                onBlur={() => {
+                  if (terminalFontFamily !== userSettings.terminalFontFamily) {
+                    onUpdateSettings({ terminalFontFamily });
+                  }
                 }}
                 className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent"
               />
