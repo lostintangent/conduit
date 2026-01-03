@@ -917,8 +917,8 @@ export function registerApplicationCommands(
     description: "Move the current pane to the left",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Shift+Left",
-      win: "Ctrl+Shift+Left",
+      key: "Ctrl+Cmd+Left",
+      win: "Ctrl+Alt+Left",
     },
     when: paneActionsEnabled,
     menu: {
@@ -942,8 +942,8 @@ export function registerApplicationCommands(
     description: "Move the current pane to the right",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Shift+Right",
-      win: "Ctrl+Shift+Right",
+      key: "Ctrl+Cmd+Right",
+      win: "Ctrl+Alt+Right",
     },
     when: paneActionsEnabled,
     menu: {
@@ -967,8 +967,8 @@ export function registerApplicationCommands(
     description: "Move the current pane upward",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Shift+Up",
-      win: "Ctrl+Shift+Up",
+      key: "Ctrl+Cmd+Up",
+      win: "Ctrl+Alt+Up",
     },
     when: paneActionsEnabled,
     menu: {
@@ -992,8 +992,8 @@ export function registerApplicationCommands(
     description: "Move the current pane downward",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Shift+Down",
-      win: "Ctrl+Shift+Down",
+      key: "Ctrl+Cmd+Down",
+      win: "Ctrl+Alt+Down",
     },
     when: paneActionsEnabled,
     menu: {
