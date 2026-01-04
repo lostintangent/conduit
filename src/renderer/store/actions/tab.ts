@@ -373,7 +373,9 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   editorPaneIdsToDispose.forEach((paneId) => disposeEditorPane(paneId));
 
   // Clean up tab state tracking for the closed tab
-  store.set(tabStateAtom, (draft) => draft.delete(tabId));
+  store.set(tabStateAtom, (draft) => {
+    draft.delete(tabId);
+  });
 
   if (shouldOpenReplacement) {
     openTab();
