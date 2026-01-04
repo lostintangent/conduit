@@ -8,7 +8,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
-import * as idleTracker from "./idleTracker";
+import * as stateTracker from "./stateTracker";
 
 const api = window.conduit;
 
@@ -152,7 +152,7 @@ export function getOrCreate(
     if (!panesBySession.has(sessionId)) {
       // Initialize state for this session
       panesBySession.set(sessionId, new Set());
-      idleTracker.trackSession(sessionId);
+      stateTracker.trackSession(sessionId);
 
       // Buffer writes to batch them for performance
       let writeBuffer: string[] = [];
@@ -177,8 +177,8 @@ export function getOrCreate(
           flushTimer = setTimeout(flushWrites, 20);
         }
 
-        // Notify idle tracker of activity
-        idleTracker.notifyDataReceived(sessionId);
+        // Notify state tracker of activity
+        stateTracker.notifyDataReceived(sessionId);
       });
 
       sessionDataSubscriptions.set(sessionId, { unsubscribe });
@@ -273,7 +273,7 @@ export function getOrCreate(
           dataSubscription?.unsubscribe();
           sessionDataSubscriptions.delete(sessionId);
 
-          idleTracker.untrackSession(sessionId);
+          stateTracker.untrackSession(sessionId);
         }
       },
     };

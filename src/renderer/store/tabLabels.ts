@@ -1,8 +1,9 @@
 import {
   activeTabIdAtom,
   tabsAtom,
-  unseenIdleTabsAtom,
+  tabStateAtom,
   userSettingsAtom,
+  type TabState,
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { atom } from "jotai";
@@ -14,7 +15,7 @@ export type TabDescriptor = {
   name?: string;
   isActive: boolean;
   locked: boolean;
-  hasUnseenIdle: boolean;
+  tabState: TabState;
 };
 
 function resolveActivePane(tab: Tab): Pane | undefined {
@@ -33,7 +34,7 @@ const normalizePath = (value: string | null | undefined) =>
 export const tabLabelsAtom = atom((get): TabDescriptor[] => {
   const tabs = get(tabsAtom);
   const activeTabId = get(activeTabIdAtom);
-  const unseenIdleTabs = get(unseenIdleTabsAtom);
+  const tabStates = get(tabStateAtom);
   const { homeDirectory } = get(userSettingsAtom);
 
   const formatPathForLabel = (pathValue: string | null | undefined) => {
@@ -123,7 +124,7 @@ export const tabLabelsAtom = atom((get): TabDescriptor[] => {
       tooltip,
       isActive,
       locked: tab.locked,
-      hasUnseenIdle: unseenIdleTabs.has(tab.id),
+      tabState: tabStates.get(tab.id) ?? "idle",
     };
   });
 });

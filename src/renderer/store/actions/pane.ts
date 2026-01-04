@@ -1,8 +1,8 @@
 import { disposeEditorPane } from "@/components/panes/editor-v2";
 import {
-  pauseIdleTracking,
-  resumeIdleTracking,
-} from "@/components/panes/terminal/state/idleTracker";
+  pauseStateTracking,
+  resumeStateTracking,
+} from "@/components/panes/terminal/state/stateTracker";
 import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
@@ -232,9 +232,9 @@ export function setPaneCollapsed(
   const pane = tab?.panes[paneId];
   if (pane?.type === "terminal") {
     if (collapsed) {
-      pauseIdleTracking(pane.sessionId);
+      pauseStateTracking(pane.sessionId);
     } else {
-      resumeIdleTracking(pane.sessionId);
+      resumeStateTracking(pane.sessionId);
     }
   }
 

@@ -1,3 +1,4 @@
+import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -5,7 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  clearUnseenIdle,
+  acknowledgeTabState,
   closeTab,
   focusTab,
   updateTabProperty,
@@ -53,14 +54,16 @@ export function TabButton({
   onDragEnd,
   onHoverChange,
 }: TabButtonProps) {
-  const { showIdleIndicator } = useAtomValue(userSettingsAtom);
+  const { showTabState } = useAtomValue(userSettingsAtom);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const showCloseButton = isHovered && !disableClick && !tab.locked;
-  const showIdleDot = showIdleIndicator && tab.hasUnseenIdle;
+  const showIdleDot = showTabState && tab.tabState === "idle-unseen";
+  const showRunningState =
+    showTabState && !tab.isActive && tab.tabState === "running";
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -125,7 +128,7 @@ export function TabButton({
       }}
       onMouseEnter={(event) => {
         setIsHovered(true);
-        if (tab.hasUnseenIdle) clearUnseenIdle(tab.id);
+        if (tab.tabState === "idle-unseen") acknowledgeTabState(tab.id);
         onHoverChange?.(tab.id, event.currentTarget);
       }}
       onMouseLeave={() => {
@@ -165,6 +168,8 @@ export function TabButton({
               e.stopPropagation();
             }}
           />
+        ) : showRunningState ? (
+          <AnimatedShinyText>{tab.label}</AnimatedShinyText>
         ) : (
           <span className="overflow-hidden text-ellipsis whitespace-nowrap">
             {tab.label}

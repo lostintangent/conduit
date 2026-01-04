@@ -1,4 +1,4 @@
-import { pauseIdleTracking } from "@/components/panes/terminal/state/idleTracker";
+import { pauseStateTracking } from "@/components/panes/terminal/state/stateTracker";
 import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import { walkLayout } from "@/utils/layout";
@@ -99,7 +99,7 @@ export async function openWorkspace(workspace: Workspace) {
       if (node.type === "pane" && node.collapsed) {
         const pane = tab.panes[node.paneId];
         if (pane?.type === "terminal") {
-          pauseIdleTracking((pane as TerminalPane).sessionId);
+          pauseStateTracking((pane as TerminalPane).sessionId);
         }
       }
       return true;

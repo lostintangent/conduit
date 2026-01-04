@@ -1,4 +1,4 @@
-import { waitForIdle } from "@/components/panes/terminal/state/idleTracker";
+import { waitForIdle } from "@/components/panes/terminal/state/stateTracker";
 import { serializeSession } from "@/components/panes/terminal/state/xtermCache";
 import type { HandlerMap } from "./types";
 

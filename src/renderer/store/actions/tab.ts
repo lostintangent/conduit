@@ -1,17 +1,17 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
 import {
-  onSessionIdle,
-  pauseIdleTracking,
-  resumeIdleTracking,
-} from "@/components/panes/terminal/state/idleTracker";
+  getSessionState,
+  onSessionStateChange,
+  resetToIdle,
+} from "@/components/panes/terminal/state/stateTracker";
 import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
-import { detachPane, isPaneCollapsed, removePane } from "@/store/actions/pane";
+import { detachPane, removePane } from "@/store/actions/pane";
 import {
   activeTabAtom,
   activeTabIdAtom,
   tabsAtom,
-  unseenIdleTabsAtom,
+  tabStateAtom,
 } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
@@ -21,11 +21,6 @@ import path from "path-browserify";
 
 const api = window.conduit;
 const store = getDefaultStore();
-
-// Grace period before considering a tab as "unseen" after switching away.
-// This prevents the idle indicator from appearing when terminals receive
-// focus-leave events during tab switches.
-const UNSEEN_GRACE_PERIOD_MS = 500;
 
 /**
  * Get the current working directory from a tab's active pane
@@ -278,35 +273,20 @@ export function focusTab(tabId: string) {
   const tabs = store.get(tabsAtom);
   const currentTabId = store.get(activeTabIdAtom);
 
-  // Early exit if tab doesn't exist or we're already on it
   if (!tabs.some((tab) => tab.id === tabId) || tabId === currentTabId) {
     return;
   }
 
-  // Pause idle tracking for the old tab's terminals, then resume after grace period.
-  // This prevents focus-lost events from triggering spurious idle notifications.
-  // Note: We only resume non-collapsed terminals, since collapsed ones stay paused.
-  const currentTab = tabs.find((t) => t.id === currentTabId);
-  const terminalPanes = Object.values(currentTab?.panes ?? {}).filter(
-    (p): p is TerminalPane => p.type === "terminal",
-  );
-
-  const sessionIds = terminalPanes.map((p) => p.sessionId);
-  sessionIds.forEach(pauseIdleTracking);
-
-  setTimeout(() => {
-    // Re-fetch tab state to get current collapsed status
-    const tab = store.get(tabsAtom).find((t) => t.id === currentTabId);
-    if (!tab) return;
-
-    for (const pane of terminalPanes) {
-      if (!isPaneCollapsed(tab, pane.id)) {
-        resumeIdleTracking(pane.sessionId);
-      }
+  // Reset state detection for terminals in the focused tab to prevent
+  // focus events from accumulating across rapid tab switches
+  const newTab = tabs.find((t) => t.id === tabId);
+  for (const pane of Object.values(newTab?.panes ?? {})) {
+    if (pane.type === "terminal") {
+      resetToIdle(pane.sessionId);
     }
-  }, UNSEEN_GRACE_PERIOD_MS);
+  }
 
-  clearUnseenIdle(tabId);
+  acknowledgeTabState(tabId);
   store.set(activeTabIdAtom, tabId);
 }
 
@@ -391,8 +371,8 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   // This fully removes editors (vs detach which just moves them off-screen)
   editorPaneIdsToDispose.forEach((paneId) => disposeEditorPane(paneId));
 
-  // Clean up unseen idle tracking for the closed tab
-  clearUnseenIdle(tabId);
+  // Clean up tab state tracking for the closed tab
+  store.set(tabStateAtom, (draft) => draft.delete(tabId));
 
   if (shouldOpenReplacement) {
     openTab();
@@ -718,11 +698,14 @@ export async function duplicateTabIntoWorktree(
 }
 
 /**
- * Clear the unseen idle notification for a tab (called on hover/focus).
+ * Acknowledge the tab state (called on hover/focus).
+ * Transitions "idle-unseen" to "idle".
  */
-export function clearUnseenIdle(tabId: string) {
-  store.set(unseenIdleTabsAtom, (draft) => {
-    draft.delete(tabId);
+export function acknowledgeTabState(tabId: string) {
+  store.set(tabStateAtom, (draft) => {
+    if (draft.get(tabId) === "idle-unseen") {
+      draft.set(tabId, "idle");
+    }
   });
 }
 
@@ -750,31 +733,39 @@ export function registerTabEventHandlers() {
     void openTab();
   });
 
-  // Track idle terminals for inactive tab notifications
-  const unsubscribeIdle = onSessionIdle((sessionId) => {
-    const activeTabId = store.get(activeTabIdAtom);
-
-    // Find the tab containing this session (skip if it's the active tab)
+  // Track terminal state changes for tab indicators
+  const unsubscribeStateChange = onSessionStateChange((sessionId, state) => {
     const tab = store
       .get(tabsAtom)
-      .find(
-        (t) =>
-          t.id !== activeTabId &&
-          Object.values(t.panes).some(
-            (p) => p.type === "terminal" && p.sessionId === sessionId,
-          ),
+      .find((t) =>
+        Object.values(t.panes).some(
+          (p) => p.type === "terminal" && p.sessionId === sessionId,
+        ),
       );
 
-    if (tab) {
-      store.set(unseenIdleTabsAtom, (draft) => {
-        draft.add(tab.id);
-      });
+    if (!tab) return;
+
+    if (state === "running") {
+      store.set(tabStateAtom, (draft) => draft.set(tab.id, "running"));
+      return;
     }
+
+    // A terminal went idle - check if any other terminal in this tab is still running
+    const isAnyRunning = Object.values(tab.panes)
+      .filter((p): p is TerminalPane => p.type === "terminal")
+      .some((p) => getSessionState(p.sessionId) === "running");
+
+    if (isAnyRunning) return;
+
+    const isBackground = tab.id !== store.get(activeTabIdAtom);
+    store.set(tabStateAtom, (draft) => {
+      draft.set(tab.id, isBackground ? "idle-unseen" : "idle");
+    });
   });
 
   return () => {
     unsubscribeExit();
     unsubscribeNewTab();
-    unsubscribeIdle();
+    unsubscribeStateChange();
   };
 }

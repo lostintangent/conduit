@@ -67,7 +67,7 @@ export type UserSettings = {
   terminalFontFamily?: string;
   terminalFontSize?: number;
   showTerminalRuler: boolean;
-  showIdleIndicator: boolean;
+  showTabState: boolean;
 
   // Editor settings
   useConduitAsEditor: boolean;

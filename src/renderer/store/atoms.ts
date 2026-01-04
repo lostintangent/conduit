@@ -34,7 +34,7 @@ export const userSettingsAtom = atom<UserSettings>({
 
   // Terminal settings
   showTerminalRuler: true,
-  showIdleIndicator: true,
+  showTabState: true,
 
   // Editor settings
   useConduitAsEditor: true,
@@ -107,8 +107,11 @@ export const hyperTerminalsAtom = atomWithImmer<HyperTerminal[]>([]);
 export const quickPaneAtom = atom<any | null>();
 
 /**
- * Tracks tabs with unseen idle terminal notifications.
- * A tab is added when all its terminals become idle while the tab is inactive.
- * Cleared when the tab is focused or hovered.
+ * Tab terminal state for background tabs.
+ * - "running": Terminal is actively receiving output
+ * - "idle": Terminal has been idle (no output for 2+ seconds)
+ * - "idle-unseen": Terminal is idle and user hasn't seen it yet
  */
-export const unseenIdleTabsAtom = atomWithImmer<Set<string>>(new Set());
+export type TabState = "running" | "idle" | "idle-unseen";
+
+export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());

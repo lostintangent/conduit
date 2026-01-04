@@ -367,22 +367,23 @@ export function AdvancedTab({
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
-                id="showIdleIndicator"
-                checked={userSettings.showIdleIndicator}
+                id="showTabState"
+                checked={userSettings.showTabState}
                 onChange={(e) =>
-                  onUpdateSettings({ showIdleIndicator: e.target.checked })
+                  onUpdateSettings({ showTabState: e.target.checked })
                 }
                 className="mt-0.5 w-4 h-4 bg-tinted border border-tinted-border rounded accent-accent"
               />
               <div className="flex-1">
                 <label
-                  htmlFor="showIdleIndicator"
+                  htmlFor="showTabState"
                   className="text-sm text-tinted-foreground/80 cursor-pointer"
                 >
-                  Show idle indicator
+                  Show tab state indicators
                 </label>
                 <p className="text-xs text-tinted-foreground/50 mt-1">
-                  Mark tabs as unseen when terminals become idle
+                  Display the running and unseen state of terminals in tab
+                  buttons
                 </p>
               </div>
             </div>

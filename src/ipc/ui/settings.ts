@@ -27,7 +27,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   urlHistory: [],
   starredPages: [],
   showTerminalRuler: true,
-  showIdleIndicator: true,
+  showTabState: true,
   autoSaveWorkspaces: true,
   useGradientBorders: true,
   dimInactivePanes: false,
