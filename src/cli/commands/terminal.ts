@@ -68,11 +68,11 @@ export default function (program: Command): Command {
 
   program
     .cliCommand("notify", async (request, messageParts: string[]) => {
-      const message = messageParts.join(" ");
+      const message = messageParts.join(" ") || undefined;
       await request({ message });
     })
     .description("Display a notification")
-    .argument("<message...>", "The notification message to display");
+    .argument("[message...]", "The notification message to display");
 
   return program;
 }

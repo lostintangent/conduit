@@ -15,7 +15,7 @@ import { userSettingsAtom } from "@/store/atoms";
 import type { TabDescriptor } from "@/store/tabLabels";
 import { cn } from "@/utils";
 import { useAtomValue } from "jotai";
-import { ChevronUp, Circle, Command, Lock, Trash2 } from "lucide-react";
+import { ChevronUp, Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const CHAR_WIDTH_PX = 8;
@@ -61,7 +61,11 @@ export function TabButton({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const showCloseButton = isHovered && !disableClick && !tab.locked;
-  const showIdleDot = showTabState && tab.tabState === "idle-unseen";
+  const showIdleIndicator =
+    showTabState &&
+    (tab.tabState === "idle-unseen" || tab.tabState === "idle-notified");
+  const idleIndicatorColor =
+    tab.tabState === "idle-notified" ? "bg-[#FFBD2E]" : "bg-blue-400";
   const showRunningState =
     showTabState && !tab.isActive && tab.tabState === "running";
 
@@ -196,10 +200,9 @@ export function TabButton({
               closeTab(tab.id);
             }}
           />
-        ) : showIdleDot ? (
-          <Circle
-            size={8}
-            className="flex-none fill-blue-400 text-blue-400 ml-0.5 mr-1"
+        ) : showIdleIndicator ? (
+          <span
+            className={`w-2 h-2 rounded-full ${idleIndicatorColor} ml-0.5 mr-1`}
           />
         ) : tab.locked ? (
           <Lock size={14} className="flex-none opacity-60" />

@@ -134,6 +134,24 @@ export function resetToIdle(sessionId: string): void {
 }
 
 /**
+ * Immediately mark a session as idle.
+ * Resolves pending wait requests but does not notify UI subscribers.
+ */
+export function markAsIdle(sessionId: string): void {
+  const session = sessionStateMap.get(sessionId);
+  if (!session) return;
+
+  if (session.runningToIdleTimer) {
+    clearTimeout(session.runningToIdleTimer);
+    session.runningToIdleTimer = null;
+  }
+  clearIdleToRunningCheck(session);
+
+  session.state = "idle";
+  session.pendingWaitRequests.forEach((resolve) => resolve());
+}
+
+/**
  * Pause state notifications for a session.
  */
 export function pauseStateTracking(sessionId: string): void {

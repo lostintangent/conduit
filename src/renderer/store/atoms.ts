@@ -111,7 +111,8 @@ export const quickPaneAtom = atom<any | null>();
  * - "running": Terminal is actively receiving output
  * - "idle": Terminal has been idle (no output for 2+ seconds)
  * - "idle-unseen": Terminal is idle and user hasn't seen it yet
+ * - "idle-notified": Terminal was explicitly notified via CLI command
  */
-export type TabState = "running" | "idle" | "idle-unseen";
+export type TabState = "running" | "idle" | "idle-unseen" | "idle-notified";
 
 export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());

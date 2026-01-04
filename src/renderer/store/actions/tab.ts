@@ -2,6 +2,7 @@ import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
 import {
   getSessionState,
+  markAsIdle,
   onSessionStateChange,
   resetToIdle,
 } from "@/components/panes/terminal/state/stateTracker";
@@ -699,13 +700,25 @@ export async function duplicateTabIntoWorktree(
 
 /**
  * Acknowledge the tab state (called on hover/focus).
- * Transitions "idle-unseen" to "idle".
+ * Transitions "idle-unseen" or "idle-notified" to "idle".
  */
 export function acknowledgeTabState(tabId: string) {
   store.set(tabStateAtom, (draft) => {
-    if (draft.get(tabId) === "idle-unseen") {
+    const state = draft.get(tabId);
+    if (state === "idle-unseen" || state === "idle-notified") {
       draft.set(tabId, "idle");
     }
+  });
+}
+
+/**
+ * Mark a tab as notified (called by the notify CLI command).
+ * Marks the session as idle and sets the tab state to "idle-notified".
+ */
+export function markTabAsNotified(tabId: string, sessionId: string) {
+  markAsIdle(sessionId);
+  store.set(tabStateAtom, (draft) => {
+    draft.set(tabId, "idle-notified");
   });
 }
 
