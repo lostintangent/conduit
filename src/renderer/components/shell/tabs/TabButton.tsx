@@ -1,4 +1,5 @@
 import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
+import { IdleIndicator } from "@/components/ui/idle-indicator";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -64,8 +65,6 @@ export function TabButton({
   const showIdleIndicator =
     showTabState &&
     (tab.tabState === "idle-unseen" || tab.tabState === "idle-notified");
-  const idleIndicatorColor =
-    tab.tabState === "idle-notified" ? "bg-[#FFBD2E]" : "bg-blue-400";
   const showRunningState =
     showTabState && !tab.isActive && tab.tabState === "running";
 
@@ -132,7 +131,6 @@ export function TabButton({
       }}
       onMouseEnter={(event) => {
         setIsHovered(true);
-        if (tab.tabState === "idle-unseen") acknowledgeTabState(tab.id);
         onHoverChange?.(tab.id, event.currentTarget);
       }}
       onMouseLeave={() => {
@@ -201,9 +199,7 @@ export function TabButton({
             }}
           />
         ) : showIdleIndicator ? (
-          <span
-            className={`w-2 h-2 rounded-full ${idleIndicatorColor} ml-0.5 mr-1`}
-          />
+          <IdleIndicator tabState={tab.tabState} />
         ) : tab.locked ? (
           <Lock size={14} className="flex-none opacity-60" />
         ) : navigator.platform.toLowerCase().includes("mac") ? (
