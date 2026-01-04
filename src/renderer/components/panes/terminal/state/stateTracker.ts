@@ -95,7 +95,7 @@ export function notifyDataReceived(sessionId: string): void {
       session.consecutiveActivitySeconds = 0;
       session.idleToRunningTimer = setTimeout(
         () => checkForSustainedActivity(session, sessionId),
-        ACTIVITY_CHECK_INTERVAL_MS,
+        1000,
       );
     }
   } else {
