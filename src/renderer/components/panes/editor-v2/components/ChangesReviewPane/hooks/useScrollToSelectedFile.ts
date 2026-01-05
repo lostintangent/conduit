@@ -126,9 +126,9 @@ export function useScrollToSelectedFile({
 
       // For partially staged files, use data-staged attribute to distinguish entries
       // Check if the mapKey has the unstaged suffix to determine which entry to target
-      const isTargetStaged = selectedMapKey
-        ? !selectedMapKey.includes(UNSTAGED_KEY_SUFFIX)
-        : isInStaged; // fallback to section-based logic
+      // For non-partial files (no suffix), use the section the file was found in
+      const hasUnstagedSuffix = selectedMapKey?.includes(UNSTAGED_KEY_SUFFIX);
+      const isTargetStaged = hasUnstagedSuffix ? false : isInStaged;
 
       const fileElement = container.querySelector(
         `[data-filepath="${filePathForQuery}"][data-staged="${isTargetStaged}"]`,

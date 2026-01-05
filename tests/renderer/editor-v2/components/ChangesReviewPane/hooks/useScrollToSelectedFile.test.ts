@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useScrollToSelectedFile } from "../../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/hooks/useScrollToSelectedFile";
+import { UNSTAGED_KEY_SUFFIX } from "../../../../../../src/renderer/components/panes/editor-v2/utils/gitStatusHelpers";
 import type { GitFileStatus } from "../../../../../../src/ipc/gitv2/types";
 
 // ============================================================================
@@ -257,6 +258,172 @@ describe("useScrollToSelectedFile", () => {
       // Should not be called again
       expect(expandFile).toHaveBeenCalledTimes(1);
       expect(fileElement.scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ===========================================================================
+  // selectedMapKey Handling
+  // ===========================================================================
+
+  describe("selectedMapKey handling", () => {
+    it("should use selectedMapKey for matching when provided", () => {
+      const expandFile = vi.fn();
+      const setStagedSectionExpanded = vi.fn();
+      const setUnstagedSectionExpanded = vi.fn();
+
+      const container = document.createElement("div");
+      const fileElement = document.createElement("div");
+      fileElement.setAttribute("data-filepath", "src/file.ts");
+      fileElement.setAttribute("data-staged", "false");
+      fileElement.scrollIntoView = vi.fn();
+      container.appendChild(fileElement);
+
+      const scrollContainerRef = { current: container };
+      // The mapKey in the list matches what we pass as selectedMapKey
+      const unstagedFiles: Array<[string, GitFileStatus]> = [
+        [
+          "src/file.ts",
+          { path: "src/file.ts", status: "modified", staged: false },
+        ],
+      ];
+
+      const { rerender } = renderHook(
+        ({ selectedFilePath, selectedMapKey }) =>
+          useScrollToSelectedFile({
+            selectedFilePath,
+            selectedMapKey,
+            scrollContainerRef,
+            stagedFiles: [],
+            unstagedFiles,
+            expandFile,
+            setStagedSectionExpanded,
+            setUnstagedSectionExpanded,
+          }),
+        {
+          initialProps: {
+            selectedFilePath: undefined as string | undefined,
+            selectedMapKey: undefined as string | undefined,
+          },
+        },
+      );
+
+      // Select file using mapKey
+      rerender({
+        selectedFilePath: "src/file.ts",
+        selectedMapKey: "src/file.ts",
+      });
+
+      expect(expandFile).toHaveBeenCalledWith("src/file.ts");
+      expect(setUnstagedSectionExpanded).toHaveBeenCalledWith(true);
+
+      vi.advanceTimersByTime(100);
+      expect(fileElement.scrollIntoView).toHaveBeenCalled();
+    });
+
+    it("should target unstaged entry when mapKey has unstaged suffix", () => {
+      const expandFile = vi.fn();
+      const setStagedSectionExpanded = vi.fn();
+      const setUnstagedSectionExpanded = vi.fn();
+
+      const container = document.createElement("div");
+      // Create both staged and unstaged elements for a partially staged file
+      const stagedElement = document.createElement("div");
+      stagedElement.setAttribute("data-filepath", "src/file.ts");
+      stagedElement.setAttribute("data-staged", "true");
+      stagedElement.scrollIntoView = vi.fn();
+      container.appendChild(stagedElement);
+
+      const unstagedElement = document.createElement("div");
+      unstagedElement.setAttribute("data-filepath", "src/file.ts");
+      unstagedElement.setAttribute("data-staged", "false");
+      unstagedElement.scrollIntoView = vi.fn();
+      container.appendChild(unstagedElement);
+
+      const scrollContainerRef = { current: container };
+      const mapKeyWithSuffix = `src/file.ts${UNSTAGED_KEY_SUFFIX}`;
+      const unstagedFiles: Array<[string, GitFileStatus]> = [
+        [
+          mapKeyWithSuffix,
+          { path: "src/file.ts", status: "modified", staged: false },
+        ],
+      ];
+
+      const { rerender } = renderHook(
+        ({ selectedMapKey }) =>
+          useScrollToSelectedFile({
+            selectedFilePath: "src/file.ts",
+            selectedMapKey,
+            scrollContainerRef,
+            stagedFiles: [],
+            unstagedFiles,
+            expandFile,
+            setStagedSectionExpanded,
+            setUnstagedSectionExpanded,
+          }),
+        { initialProps: { selectedMapKey: undefined as string | undefined } },
+      );
+
+      // Select the unstaged entry of a partially staged file
+      rerender({ selectedMapKey: mapKeyWithSuffix });
+
+      vi.advanceTimersByTime(100);
+
+      // Should scroll to unstaged element, not staged
+      expect(unstagedElement.scrollIntoView).toHaveBeenCalled();
+      expect(stagedElement.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("should target unstaged entry for non-partial file based on isInStaged", () => {
+      const expandFile = vi.fn();
+      const setStagedSectionExpanded = vi.fn();
+      const setUnstagedSectionExpanded = vi.fn();
+
+      const container = document.createElement("div");
+      const unstagedElement = document.createElement("div");
+      unstagedElement.setAttribute("data-filepath", "src/file.ts");
+      unstagedElement.setAttribute("data-staged", "false");
+      unstagedElement.scrollIntoView = vi.fn();
+      container.appendChild(unstagedElement);
+
+      const scrollContainerRef = { current: container };
+      // File is only in unstaged list (no suffix needed - it's not partially staged)
+      const unstagedFiles: Array<[string, GitFileStatus]> = [
+        [
+          "src/file.ts",
+          { path: "src/file.ts", status: "modified", staged: false },
+        ],
+      ];
+
+      const { rerender } = renderHook(
+        ({ selectedFilePath, selectedMapKey }) =>
+          useScrollToSelectedFile({
+            selectedFilePath,
+            selectedMapKey,
+            scrollContainerRef,
+            stagedFiles: [],
+            unstagedFiles,
+            expandFile,
+            setStagedSectionExpanded,
+            setUnstagedSectionExpanded,
+          }),
+        {
+          initialProps: {
+            selectedFilePath: undefined as string | undefined,
+            selectedMapKey: undefined as string | undefined,
+          },
+        },
+      );
+
+      // Select unstaged file (no suffix - not partially staged)
+      rerender({
+        selectedFilePath: "src/file.ts",
+        selectedMapKey: "src/file.ts",
+      });
+
+      vi.advanceTimersByTime(100);
+
+      // Should correctly target data-staged="false" based on isInStaged=false
+      expect(unstagedElement.scrollIntoView).toHaveBeenCalled();
     });
   });
 
