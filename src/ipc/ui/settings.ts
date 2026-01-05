@@ -23,6 +23,7 @@ const shouldUseEditorV2 = (): boolean => {
 const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   tabPosition: "bottom",
   alwaysShowTabs: true,
+  alwaysHighlightActivePane: false,
   commandHistory: [],
   urlHistory: [],
   starredPages: [],

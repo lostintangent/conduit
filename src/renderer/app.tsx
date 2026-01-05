@@ -20,6 +20,7 @@ import {
   disposeSession,
   updateTerminalThemes,
 } from "@/components/panes/terminal/state/xtermCache";
+import { EditorSidebar } from "@/components/shell/sidebar/EditorSidebar";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
@@ -76,7 +77,7 @@ import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { getDefaultStore, useAtom, useAtomValue, useSetAtom } from "jotai";
 import path from "path-browserify";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -167,6 +168,38 @@ export function App() {
     useState(false);
   const [duplicateTabWithCwdDialogState, setDuplicateTabWithCwdDialogState] =
     useState<{ tabId: string } | null>(null);
+
+  // Active CWD - tracks the active pane's CWD with "sticky" behavior.
+  // When the active pane is a terminal or editor, use its CWD and remember it.
+  // When the active pane is a browser or other type, keep the last known CWD.
+  // This is used by components that need to know the "current" directory context.
+  const lastKnownCwdRef = useRef<string | null>(null);
+
+  const activeCwd = useMemo(() => {
+    if (!activeTab) {
+      return lastKnownCwdRef.current ?? homeDirectory ?? "/";
+    }
+
+    const activePane = activeTab.panes[activeTab.activePaneId];
+
+    // Terminal and editor panes have a CWD - use it
+    if (activePane?.type === "terminal" || activePane?.type === "editor") {
+      return activePane.cwd ?? homeDirectory ?? "/";
+    }
+
+    // Browser or other pane types: keep previous CWD (sticky)
+    return lastKnownCwdRef.current ?? homeDirectory ?? "/";
+  }, [activeTab, homeDirectory]);
+
+  // Update the sticky CWD ref as a proper side effect (not inside useMemo)
+  useEffect(() => {
+    if (!activeTab) return;
+
+    const activePane = activeTab.panes[activeTab.activePaneId];
+    if (activePane?.type === "terminal" || activePane?.type === "editor") {
+      lastKnownCwdRef.current = activePane.cwd ?? homeDirectory ?? "/";
+    }
+  }, [activeTab, homeDirectory]);
 
   useCliClient();
 
@@ -792,6 +825,9 @@ export function App() {
               <TabsOverview />
             </div>
           ) : null}
+
+          {/* Editor sidebar overlay */}
+          <EditorSidebar cwd={activeCwd} />
         </div>
 
         {/* Bottom positioned tabs */}

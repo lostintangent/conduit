@@ -25,6 +25,7 @@ import { useGitV2 } from "@/hooks/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
+import type { ChangesViewMode } from "@shared/types";
 import { cn } from "@/utils";
 import { useAtomValue } from "jotai";
 import {
@@ -188,6 +189,11 @@ export interface EditorPaneV2Props {
   onTreeModeChange?: (mode: "all" | "changes") => void;
 
   /**
+   * Callback fired when changes view mode changes.
+   */
+  onChangesViewModeChange?: (mode: ChangesViewMode) => void;
+
+  /**
    * Callback fired after a successful file save.
    */
   onSave?: () => void;
@@ -225,6 +231,7 @@ export function EditorPaneV2({
   onCwdChange,
   onFileOpen: _onFileOpen,
   onTreeModeChange,
+  onChangesViewModeChange,
   onSave,
   onHover,
 }: EditorPaneV2Props) {
@@ -233,6 +240,7 @@ export function EditorPaneV2({
     file: initialFilePath,
     filePath,
     treeMode,
+    changesViewMode: paneChangesViewMode,
     sandboxId,
     agentSessionId,
     preview: initialPreview,
@@ -348,8 +356,23 @@ export function EditorPaneV2({
   } = useReviewModeState();
 
   // Changes view mode (flat or nested) for FileTreeChanges
-  const [changesViewMode, setChangesViewMode] = useState<"flat" | "nested">(
-    "flat",
+  const [changesViewMode, setChangesViewModeInternal] =
+    useState<ChangesViewMode>(paneChangesViewMode ?? "flat");
+
+  // Sync changesViewMode when pane config changes
+  useEffect(() => {
+    if (paneChangesViewMode !== undefined) {
+      setChangesViewModeInternal(paneChangesViewMode);
+    }
+  }, [paneChangesViewMode]);
+
+  // Wrapper to call both internal state setter and external callback
+  const setChangesViewMode = useCallback(
+    (mode: ChangesViewMode) => {
+      setChangesViewModeInternal(mode);
+      onChangesViewModeChange?.(mode);
+    },
+    [onChangesViewModeChange],
   );
 
   // Base branch for comparison (null = compare against HEAD)
@@ -375,6 +398,24 @@ export function EditorPaneV2({
     // Note: We intentionally exclude currentCwd from deps - we only want to sync
     // when the PROP changes, not when internal navigation changes currentCwd
   }, [initialCwd]);
+
+  // Sync pane.file prop to selectedFile state when it changes externally.
+  // This handles cases like EditorSidebar restoring a different file when CWD changes.
+  const prevInitialFilePathRef = useRef(initialFilePath);
+  useEffect(() => {
+    // Only sync when the prop actually changed (not on every render)
+    if (prevInitialFilePathRef.current === initialFilePath) return;
+    prevInitialFilePathRef.current = initialFilePath;
+
+    if (initialFilePath) {
+      const name = initialFilePath.split("/").pop() ?? "";
+      setSelectedFile({ path: initialFilePath, name, type: "file" });
+    } else {
+      setSelectedFile(null);
+    }
+    // Note: We intentionally exclude selectedFile from deps - we only want to sync
+    // when the PROP changes, not when internal file selection changes selectedFile
+  }, [initialFilePath]);
 
   // ---------------------------------------------------------------------------
   // Hooks

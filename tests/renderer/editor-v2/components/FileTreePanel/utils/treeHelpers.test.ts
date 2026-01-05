@@ -185,7 +185,9 @@ describe("buildFolderTree", () => {
     expect(srcFolder.files).toHaveLength(2);
 
     const stagedFile = srcFolder.files.find((f) => f.mapKey === stagedMapKey);
-    const unstagedFile = srcFolder.files.find((f) => f.mapKey === unstagedMapKey);
+    const unstagedFile = srcFolder.files.find(
+      (f) => f.mapKey === unstagedMapKey,
+    );
 
     // Both should have the same actual path
     expect(stagedFile?.path).toBe("src/index.ts");
@@ -289,7 +291,10 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should handle nested expanded folders correctly", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/components/Button.tsx", mockStatus("src/components/Button.tsx", "modified")],
+      [
+        "src/components/Button.tsx",
+        mockStatus("src/components/Button.tsx", "modified"),
+      ],
       ["src/index.ts", mockStatus("src/index.ts", "modified")],
     ];
 
@@ -308,7 +313,10 @@ describe("buildVisualOrderFromTree", () => {
 
   it("should not show nested folder children if parent is collapsed", () => {
     const files: Array<[string, GitFileStatus]> = [
-      ["src/components/Button.tsx", mockStatus("src/components/Button.tsx", "modified")],
+      [
+        "src/components/Button.tsx",
+        mockStatus("src/components/Button.tsx", "modified"),
+      ],
     ];
 
     const tree = buildFolderTree(files);
@@ -357,7 +365,9 @@ describe("buildVisualOrderFromTree", () => {
     expect(order[0]).toEqual({ path: "src", type: "folder" });
 
     // The files should use mapKey as their path (for multi-select tracking)
-    const filePaths = order.filter((item) => item.type === "file").map((item) => item.path);
+    const filePaths = order
+      .filter((item) => item.type === "file")
+      .map((item) => item.path);
     expect(filePaths).toContain(stagedMapKey);
     expect(filePaths).toContain(unstagedMapKey);
   });

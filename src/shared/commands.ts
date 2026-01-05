@@ -8,6 +8,7 @@ export const ApplicationCommands = {
   // View commands
   VIEW_TOGGLE_FOCUS_MODE: "view.toggleFocusMode",
   VIEW_TOGGLE_DESIGN_MODE: "view.toggleDesignMode",
+  VIEW_TOGGLE_SIDEBAR: "view.toggleSidebar",
   VIEW_OPEN_KEYBOARD_SHORTCUTS: "view.openKeyboardShortcuts",
   VIEW_OPEN_PANE_ACTIONS: "view.openPaneActions",
   VIEW_OPEN_AGENTS: "view.openAgents",

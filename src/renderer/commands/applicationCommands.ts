@@ -39,6 +39,7 @@ import {
   handleShowCommandPalette,
   handleTerminate,
   handleToggleDesignMode,
+  handleToggleSidebar,
   invokeEditorCommand,
 } from "@/commands/handlers";
 import {
@@ -173,6 +174,21 @@ export function registerApplicationCommands(
     },
     run: (context) => {
       handleShowCommandPalette(context.setIsCommandPaletteOpenOverride);
+    },
+  });
+
+  // View: Toggle Sidebar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_TOGGLE_SIDEBAR,
+    title: "Toggle Sidebar",
+    description: "Show or hide the sidebar overlay",
+    category: "View",
+    keybinding: {
+      key: "Cmd+E",
+      win: "Ctrl+E",
+    },
+    run: () => {
+      handleToggleSidebar();
     },
   });
 

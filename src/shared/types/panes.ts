@@ -21,6 +21,7 @@ export type BrowserPane = {
 };
 
 export type EditorTreeMode = "all" | "changes";
+export type ChangesViewMode = "flat" | "nested";
 
 export type EditorPane = {
   id: string;
@@ -28,8 +29,8 @@ export type EditorPane = {
   cwd?: string | null;
   file?: string;
   treeMode?: EditorTreeMode;
+  changesViewMode?: ChangesViewMode;
   sandboxId?: string;
-  /** When true, show file preview instead of editor (for supported file types like .md) */
   preview?: boolean;
 };
 

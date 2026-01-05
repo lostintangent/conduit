@@ -10,8 +10,8 @@
     "package": "cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge package",
     "make": "cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx . --cache --cache-location node_modules/.cache/eslint",
-    "lint:ci": "eslint --ext .ts,.tsx . --cache --cache-location node_modules/.cache/eslint --quiet",
+    "lint": "oxlint",
+    "lint:ci": "oxlint --quiet",
     "format": "biome format --write .",
     "rebuild": "electron-rebuild",
     "build:icon": "node build/scripts/macOS/generate-icon.js",
@@ -49,19 +49,15 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
     "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^5.62.0",
-    "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "^4.0.4",
     "@vitest/ui": "^4.0.4",
     "cross-env": "^10.1.0",
     "electron": "^39.1.1",
-    "eslint": "^8.57.1",
-    "eslint-import-resolver-typescript": "^3.6.1",
-    "eslint-plugin-import": "^2.32.0",
     "husky": "^9.1.7",
     "jsdom": "^27.0.1",
     "lint-staged": "^16.2.6",
+    "oxlint": "^1.0.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
     "vitest": "^4.0.4",
@@ -115,7 +111,7 @@
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx}": [
       "biome format --write",
-      "eslint"
+      "oxlint"
     ],
     "**/*.{json,css,md}": "biome format --write"
   }

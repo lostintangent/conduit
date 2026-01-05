@@ -94,6 +94,7 @@ function EditorPaneWrapper({
       onCwdChange={config.onCwdChange}
       onFileOpen={config.onFileOpen}
       onTreeModeChange={config.onTreeModeChange}
+      onChangesViewModeChange={config.onChangesViewModeChange}
       onSave={config.onSave}
       onHover={config.onHover}
     />,

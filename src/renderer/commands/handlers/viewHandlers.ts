@@ -4,7 +4,11 @@
  * Handlers for view-related commands including design mode and keyboard shortcuts.
  */
 
-import { tabsAtom, type ApplicationMode } from "@/store/atoms";
+import {
+  isSidebarOpenAtom,
+  tabsAtom,
+  type ApplicationMode,
+} from "@/store/atoms";
 import type { LayoutNode, LayoutPaneNode, LayoutSplitNode } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import { getDefaultStore } from "jotai";
@@ -116,4 +120,12 @@ export function handleResetLayout(tabId: string): void {
       };
     }),
   );
+}
+
+/**
+ * Toggle the sidebar open/closed
+ */
+export function handleToggleSidebar(): void {
+  const currentState = store.get(isSidebarOpenAtom);
+  store.set(isSidebarOpenAtom, !currentState);
 }

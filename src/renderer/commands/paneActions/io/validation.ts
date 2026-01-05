@@ -204,19 +204,20 @@ function validateTerminalConfig(
     data.preCommandId !== undefined &&
     typeof data.preCommandId === "string"
   ) {
-    try {
-      // Lazy import to avoid circular dependencies during module initialization
-      const { PreCommandRegistry } = require("@/preCommands/registry");
-      const registry = PreCommandRegistry.getInstance();
-      if (!registry.get(data.preCommandId as string)) {
-        console.warn(
-          `[PaneActions] Pre-command not found: "${data.preCommandId}". ` +
-            `This pre-command will be skipped when the action is executed.`,
-        );
-      }
-    } catch (error) {
-      // If registry import fails, silently continue (registry may not be initialized yet)
-    }
+    // Lazy import to avoid circular dependencies during module initialization
+    import("@/commands/preCommands/registry")
+      .then(({ PreCommandRegistry }) => {
+        const registry = PreCommandRegistry.getInstance();
+        if (!registry.get(data.preCommandId as string)) {
+          console.warn(
+            `[PaneActions] Pre-command not found: "${data.preCommandId}". ` +
+              `This pre-command will be skipped when the action is executed.`,
+          );
+        }
+      })
+      .catch(() => {
+        // If registry import fails, silently continue (registry may not be initialized yet)
+      });
   }
 
   const config: TerminalConfig = {

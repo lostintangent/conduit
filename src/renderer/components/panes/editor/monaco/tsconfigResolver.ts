@@ -22,7 +22,7 @@ export async function findProjectRoot(
   // Don't just check for backslash anywhere (could be mixed separators)
   const isWindows = /^[A-Z]:/i.test(currentDir) || /^\\\\/.test(currentDir);
   const sep = isWindows ? "\\" : "/";
-  currentDir = currentDir.replace(/[\/\\]/g, sep);
+  currentDir = currentDir.replace(/[/\\]/g, sep);
 
   let previousDir = "";
   const maxLevelsUp = 10; // Reasonable limit to prevent going too far up
@@ -102,9 +102,9 @@ export async function findTsConfig(
   // Don't just check for backslash anywhere (could be mixed separators)
   const isWindows = /^[A-Z]:/i.test(currentDir) || /^\\\\/.test(currentDir);
   const sep = isWindows ? "\\" : "/";
-  currentDir = currentDir.replace(/[\/\\]/g, sep);
+  currentDir = currentDir.replace(/[/\\]/g, sep);
 
-  const normalizedProjectRoot = projectRoot.replace(/[\/\\]/g, sep);
+  const normalizedProjectRoot = projectRoot.replace(/[/\\]/g, sep);
   let previousDir = "";
 
   // Search from startDir up to projectRoot (like VS Code searches within workspace)

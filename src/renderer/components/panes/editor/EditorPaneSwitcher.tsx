@@ -29,7 +29,7 @@
 
 import { userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
-import type { FileTreeNode } from "@shared/types";
+import type { ChangesViewMode, FileTreeNode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { EditorPaneAnchor, EditorPaneRegistry } from "../editor-v2";
@@ -77,6 +77,12 @@ export interface EditorPaneSwitcherProps {
   /** Callback when tree mode changes */
   onTreeModeChange?: (mode: EditorTreeMode) => void;
 
+  /** Changes view mode (flat list or nested tree) */
+  changesViewMode?: ChangesViewMode;
+
+  /** Callback when changes view mode changes */
+  onChangesViewModeChange?: (mode: ChangesViewMode) => void;
+
   /** Whether the pane is locked */
   isLocked?: boolean;
 
@@ -113,12 +119,14 @@ export function EditorPaneSwitcher({
   file,
   agentSessionId,
   treeMode,
+  changesViewMode,
   sandboxId,
   onFileChange,
   onClearFile,
   onCwdChange,
   onFileOpen,
   onTreeModeChange,
+  onChangesViewModeChange,
   isLocked,
   onSave,
   hideIndividualSandboxIndicator,
@@ -159,6 +167,7 @@ export function EditorPaneSwitcher({
       cwd,
       file,
       treeMode,
+      changesViewMode,
       agentSessionId: agentSessionId ?? undefined,
       sandboxId,
     };
@@ -172,6 +181,7 @@ export function EditorPaneSwitcher({
         onCwdChange={onCwdChange}
         onFileOpen={onFileOpen}
         onTreeModeChange={onTreeModeChange}
+        onChangesViewModeChange={onChangesViewModeChange}
         onSave={onSave}
         onHover={onHover}
         isInPreview={isInPreview}

@@ -28,6 +28,7 @@ export const userSettingsAtom = atom<UserSettings>({
   // UI/Layout settings
   tabPosition: "bottom",
   alwaysShowTabs: true,
+  alwaysHighlightActivePane: false,
   useGradientBorders: true,
   dimInactivePanes: false,
   theme: "dark",
@@ -39,6 +40,7 @@ export const userSettingsAtom = atom<UserSettings>({
   // Editor settings
   useConduitAsEditor: true,
   useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
+  trackUnseenChangesInReviewMode: true,
 
   // Workspace settings
   autoSaveWorkspaces: true,
@@ -116,3 +118,9 @@ export const quickPaneAtom = atom<any | null>();
 export type TabState = "running" | "idle" | "idle-unseen" | "idle-notified";
 
 export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
+
+/**
+ * Editor sidebar open state - controls visibility of the slide-out editor panel.
+ * Toggled via Cmd+E. Not persisted across reloads.
+ */
+export const isSidebarOpenAtom = atom<boolean>(false);
