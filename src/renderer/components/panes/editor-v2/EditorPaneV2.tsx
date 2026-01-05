@@ -44,10 +44,10 @@ import {
 } from "./components";
 import {
   useEditorTheme,
-  useFileChangeTracking,
   useModelState,
   useResponsiveLayout,
   useReviewModeState,
+  useUnseenTracking,
 } from "./hooks";
 import type { FileNode, TreeViewMode } from "./types";
 import {
@@ -347,9 +347,6 @@ export function EditorPaneV2({
     handleTreeViewModeTransition,
   } = useReviewModeState();
 
-  // File change tracking state (shared between file tree and review pane)
-  const fileTracking = useFileChangeTracking();
-
   // Changes view mode (flat or nested) for FileTreeChanges
   const [changesViewMode, setChangesViewMode] = useState<"flat" | "nested">(
     "flat",
@@ -408,6 +405,24 @@ export function EditorPaneV2({
   const [gitChangedFiles, setGitChangedFiles] = useState<Set<string>>(
     () => new Set(),
   );
+
+  // Unseen file change tracking (consolidated hook)
+  // Handles state, subscriptions, and read triggers
+  const currentlyOpenFile = selectedFile
+    ? getRelativePath(selectedFile.path, currentCwd)
+    : null;
+
+  const unseenTracking = useUnseenTracking({
+    git,
+    cwd: currentCwd,
+    sandboxId,
+    enabled: trackUnseenChanges,
+    currentlyOpenFile,
+    gitChangedFiles,
+  });
+
+  // Destructure triggerRead for convenience
+  const { triggerRead } = unseenTracking;
 
   // Current branch name
   const [currentBranch, setCurrentBranch] = useState<string | null>(null);
@@ -481,6 +496,7 @@ export function EditorPaneV2({
         if (event.status) {
           setHasUpstream(!!event.status.upstream);
         }
+        // Note: Unseen tracking is handled by useUnseenTracking hook
       }
     });
 
@@ -541,6 +557,7 @@ export function EditorPaneV2({
       branchCleanup();
     };
   }, [git, updateGitStatusState]);
+  // Note: Filesystem change subscription for unseen tracking is handled by useUnseenTracking
 
   // Recompute git status when baseBranch changes
   // When baseBranch is set, fetch status relative to that branch
@@ -721,7 +738,7 @@ export function EditorPaneV2({
 
       // Mark file as seen (if unseen tracking is enabled)
       if (trackUnseenChanges) {
-        fileTracking.markSeen(relativePath);
+        triggerRead("file:select", relativePath);
       }
 
       // Notify parent of file selection (skip for deleted files - they don't exist on disk)
@@ -746,7 +763,7 @@ export function EditorPaneV2({
       currentCwd,
       preferDiffForModified,
       setViewModePreservingReview,
-      fileTracking,
+      triggerRead,
       trackUnseenChanges,
     ],
   );
@@ -1452,7 +1469,9 @@ export function EditorPaneV2({
           isReviewModeActive={isReviewMode}
           onReviewChanges={handleReviewChanges}
           // Unseen Tracking Props (when enabled)
-          isFileUnseen={trackUnseenChanges ? fileTracking.isUnseen : undefined}
+          isFileUnseen={
+            trackUnseenChanges ? unseenTracking.isUnseen : undefined
+          }
           // Dirty file checking (for preventing staging unsaved files)
           isFileDirty={isFileDirty}
         />
@@ -1510,7 +1529,7 @@ export function EditorPaneV2({
           onPull={handlePull}
           onPush={handlePush}
           // Unseen tracking (when enabled)
-          fileTracking={trackUnseenChanges ? fileTracking : undefined}
+          unseenTracking={trackUnseenChanges ? unseenTracking : undefined}
           // Dirty file checking (for preventing staging unsaved files)
           isFileDirty={isFileDirty}
         />

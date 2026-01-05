@@ -30,6 +30,7 @@ import type { GitV2API } from "@/api/GitV2API";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";
 import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";
+import type { ReadTriggerAction } from "../../hooks";
 import { FileChangeDiff } from "./FileChangeDiff";
 
 export interface ChangesSectionProps {
@@ -98,8 +99,8 @@ export interface ChangesSectionProps {
   /** Get timestamp for a file */
   getFileTimestamp?: (path: string) => number | null;
 
-  /** Mark a file as seen (called on interaction) */
-  markFileSeen?: (path: string) => void;
+  /** Trigger a read action for a file (marks as seen) */
+  triggerRead?: (action: ReadTriggerAction, path: string) => void;
 
   // ---------------------------------------------------------------------------
   // Dirty File Checking
@@ -134,7 +135,7 @@ export function ChangesSection({
   unseenCount = 0,
   isFileUnseen,
   getFileTimestamp,
-  markFileSeen,
+  triggerRead,
   // Dirty file checking
   isFileDirty,
 }: ChangesSectionProps) {
@@ -227,7 +228,11 @@ export function ChangesSection({
               // Follow mode props
               isUnseen={isFileUnseen?.(status.path)}
               timestamp={getFileTimestamp?.(status.path)}
-              onInteract={markFileSeen ? () => markFileSeen(status.path) : undefined}
+              triggerRead={
+                triggerRead
+                  ? (action) => triggerRead(action, status.path)
+                  : undefined
+              }
               // Dirty file checking
               isFileDirty={isFileDirty}
             />

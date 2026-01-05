@@ -36,7 +36,10 @@ import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DISABLED_TRACKING, type FileChangeTrackingResult } from "../../hooks";
+import {
+  DISABLED_UNSEEN_TRACKING,
+  type UnseenTrackingResult,
+} from "../../hooks";
 import {
   filterDirtyFilesForStaging,
   joinCwdPath,
@@ -45,11 +48,7 @@ import {
 import { ChangesFooter } from "./ChangesFooter";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
-import {
-  useExpandedFiles,
-  useFileChangeSubscription,
-  useScrollToSelectedFile,
-} from "./hooks";
+import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
@@ -100,8 +99,8 @@ export interface ChangesReviewPaneProps {
   // File Change Tracking (shared state from parent)
   // ---------------------------------------------------------------------------
 
-  /** File change tracking state and functions (shared between file tree and review pane) */
-  fileTracking?: FileChangeTrackingResult;
+  /** Unseen tracking state and functions (shared from EditorPaneV2) */
+  unseenTracking?: UnseenTrackingResult;
 
   // ---------------------------------------------------------------------------
   // Dirty File Checking
@@ -127,7 +126,7 @@ export function ChangesReviewPane({
   isPushing,
   onPull,
   onPush,
-  fileTracking: fileTrackingProp,
+  unseenTracking: unseenTrackingProp,
   isFileDirty,
 }: ChangesReviewPaneProps) {
   // Ref for the scrollable container
@@ -204,22 +203,20 @@ export function ChangesReviewPane({
     useExpandedFiles(allFilePaths, true);
 
   // ---------------------------------------------------------------------------
-  // File Change Tracking State (only when fileTrackingProp is provided)
+  // Unseen Tracking (from parent EditorPaneV2)
   // ---------------------------------------------------------------------------
 
-  // When fileTrackingProp is undefined, tracking is disabled - use no-op functions
-  const trackingEnabled = fileTrackingProp !== undefined;
+  // Subscriptions are handled by useUnseenTracking in EditorPaneV2
+  // This component just uses the tracking state and triggerRead function
   const {
     isUnseen,
     getTimestamp,
-    markSeen,
+    triggerRead,
     markAllSeen,
     getUnseenCount,
     unseenCount,
     sortByTimestamp,
-    processStatusChange,
-    initializeFiles,
-  } = fileTrackingProp ?? DISABLED_TRACKING;
+  } = unseenTrackingProp ?? DISABLED_UNSEEN_TRACKING;
 
   // ---------------------------------------------------------------------------
   // Sorted File Lists (by timestamp when sortByLastEdited is true)
@@ -298,22 +295,17 @@ export function ChangesReviewPane({
   }, [git]);
 
   // ---------------------------------------------------------------------------
-  // File Change Subscriptions (via hook)
+  // Git Status Subscription
   // ---------------------------------------------------------------------------
 
-  // Subscribe to file changes from git status and filesystem events.
-  // This feeds changes into the tracking system for unseen indicators and sorting.
-  useFileChangeSubscription({
-    git,
-    cwd,
-    sandboxId,
-    allFilePaths,
-    isLoading,
-    processStatusChange,
-    initializeFiles,
-    expandFile,
-    onStatusChanged: setGitStatus,
-  });
+  // Subscribe to git status changes to keep our local status in sync
+  // Note: Unseen tracking subscriptions are handled by useUnseenTracking in EditorPaneV2
+  useEffect(() => {
+    const cleanup = git.onStatusChanged((event) => {
+      setGitStatus(event.status);
+    });
+    return cleanup;
+  }, [git]);
 
   // ---------------------------------------------------------------------------
   // Handlers: Commit
@@ -522,7 +514,7 @@ export function ChangesReviewPane({
           unseenCount={stagedUnseenCount}
           isFileUnseen={isUnseen}
           getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
-          markFileSeen={markSeen}
+          triggerRead={triggerRead}
         />
 
         {/* Unstaged Changes Section */}
@@ -547,7 +539,7 @@ export function ChangesReviewPane({
           unseenCount={unstagedUnseenCount}
           isFileUnseen={isUnseen}
           getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
-          markFileSeen={markSeen}
+          triggerRead={triggerRead}
           // Dirty file checking (for preventing staging unsaved files)
           isFileDirty={isFileDirty}
         />

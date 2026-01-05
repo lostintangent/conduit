@@ -42,6 +42,7 @@ import {
   useEditorActions,
   useEditorSaveKeybinding,
   useModelState,
+  type ReadTriggerAction,
 } from "../../hooks";
 import { MonacoModelRegistry, createModelKey } from "../../registry";
 import type { ContentSource } from "../../types";
@@ -89,7 +90,7 @@ export interface FileChangeDiffProps {
   timestamp?: number | null;
 
   /** Callback when user interacts with the file (marks as seen) */
-  onInteract?: () => void;
+  triggerRead?: (action: ReadTriggerAction) => void;
 
   // ---------------------------------------------------------------------------
   // Dirty File Checking
@@ -113,7 +114,7 @@ export function FileChangeDiff({
   onToggle,
   isUnseen = false,
   timestamp,
-  onInteract,
+  triggerRead,
   isFileDirty,
 }: FileChangeDiffProps) {
   const fileName = useMemo(() => {
@@ -241,10 +242,10 @@ export function FileChangeDiff({
 
       // Mark as seen when user focuses the editor (clicks into it)
       mountedEditor.onDidFocusEditorText(() => {
-        onInteract?.();
+        triggerRead?.("file:focus");
       });
     },
-    [registerSaveKeybinding, onInteract],
+    [registerSaveKeybinding, triggerRead],
   );
 
   // Handle diff editor mount - get modified editor, register keybindings, and track focus
@@ -256,13 +257,13 @@ export function FileChangeDiff({
 
       // Mark as seen when user focuses either side of the diff editor
       modifiedEditor.onDidFocusEditorText(() => {
-        onInteract?.();
+        triggerRead?.("file:focus");
       });
       diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
-        onInteract?.();
+        triggerRead?.("file:focus");
       });
     },
-    [registerSaveKeybinding, onInteract],
+    [registerSaveKeybinding, triggerRead],
   );
 
   // ---------------------------------------------------------------------------
@@ -278,27 +279,27 @@ export function FileChangeDiff({
         return;
       }
 
-      onInteract?.(); // Mark as seen when staging
+      triggerRead?.("file:stage"); // Mark as seen when staging
       try {
         await git.stage([filePath]);
       } catch (error) {
         console.error("Failed to stage file:", error);
       }
     },
-    [git, filePath, fullFilePath, onInteract, isFileDirty],
+    [git, filePath, fullFilePath, triggerRead, isFileDirty],
   );
 
   const handleUnstage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
-      onInteract?.(); // Mark as seen when unstaging
+      triggerRead?.("file:unstage"); // Mark as seen when unstaging
       try {
         await git.unstage([filePath]);
       } catch (error) {
         console.error("Failed to unstage file:", error);
       }
     },
-    [git, filePath, onInteract],
+    [git, filePath, triggerRead],
   );
 
   /**
@@ -318,14 +319,14 @@ export function FileChangeDiff({
         return;
       }
 
-      onInteract?.(); // Mark as seen when reverting
+      triggerRead?.("file:revert"); // Mark as seen when reverting
       try {
         await git.revert([filePath]);
       } catch (error) {
         console.error("Failed to revert file:", error);
       }
     },
-    [git, filePath, onInteract],
+    [git, filePath, triggerRead],
   );
 
   /**
@@ -335,10 +336,10 @@ export function FileChangeDiff({
   const handleToggle = useCallback(() => {
     // Mark as seen when collapsing (user is dismissing/acknowledging)
     if (isExpanded) {
-      onInteract?.();
+      triggerRead?.("file:collapse");
     }
     onToggle();
-  }, [isExpanded, onInteract, onToggle]);
+  }, [isExpanded, triggerRead, onToggle]);
 
   // Revert is available for all file types:
   // - Modified/deleted files: restore from HEAD
