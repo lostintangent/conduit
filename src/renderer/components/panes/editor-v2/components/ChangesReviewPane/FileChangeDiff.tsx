@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { canStageFile, formatRelativeTime, joinCwdPath } from "../../utils";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useDiffModeTransition,
   useEditorActions,
@@ -117,6 +117,12 @@ export function FileChangeDiff({
   triggerRead,
   isFileDirty,
 }: FileChangeDiffProps) {
+  // Ref to hold latest triggerRead for event handlers that capture closures at mount time
+  const triggerReadRef = useRef(triggerRead);
+  useEffect(() => {
+    triggerReadRef.current = triggerRead;
+  }, [triggerRead]);
+
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
   }, [filePath]);
@@ -241,11 +247,12 @@ export function FileChangeDiff({
       registerSaveKeybinding(mountedEditor);
 
       // Mark as seen when user focuses the editor (clicks into it)
+      // Use ref to ensure we always call the latest triggerRead
       mountedEditor.onDidFocusEditorText(() => {
-        triggerRead?.("file:focus");
+        triggerReadRef.current?.("file:focus");
       });
     },
-    [registerSaveKeybinding, triggerRead],
+    [registerSaveKeybinding],
   );
 
   // Handle diff editor mount - get modified editor, register keybindings, and track focus
@@ -256,14 +263,15 @@ export function FileChangeDiff({
       registerSaveKeybinding(modifiedEditor);
 
       // Mark as seen when user focuses either side of the diff editor
+      // Use ref to ensure we always call the latest triggerRead
       modifiedEditor.onDidFocusEditorText(() => {
-        triggerRead?.("file:focus");
+        triggerReadRef.current?.("file:focus");
       });
       diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
-        triggerRead?.("file:focus");
+        triggerReadRef.current?.("file:focus");
       });
     },
-    [registerSaveKeybinding, triggerRead],
+    [registerSaveKeybinding],
   );
 
   // ---------------------------------------------------------------------------
@@ -331,13 +339,11 @@ export function FileChangeDiff({
 
   /**
    * Handle toggle with interaction tracking.
-   * Marks as seen when collapsing (user has acknowledged the file).
+   * Marks as seen on both expand and collapse (user has interacted with the file).
    */
   const handleToggle = useCallback(() => {
-    // Mark as seen when collapsing (user is dismissing/acknowledging)
-    if (isExpanded) {
-      triggerRead?.("file:collapse");
-    }
+    const action = isExpanded ? "file:collapse" : "file:expand";
+    triggerRead?.(action);
     onToggle();
   }, [isExpanded, triggerRead, onToggle]);
 

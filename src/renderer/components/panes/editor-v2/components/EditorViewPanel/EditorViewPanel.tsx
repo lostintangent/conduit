@@ -33,7 +33,7 @@ import {
   useEditorActions,
   useEditorSaveKeybinding,
   useModelState,
-  type FileChangeTrackingResult,
+  type UnseenTrackingResult,
 } from "../../hooks";
 import { createModelKey, MonacoModelRegistry } from "../../registry";
 import type {
@@ -189,11 +189,11 @@ export interface EditorViewPanelProps {
   onPush?: () => void;
 
   // ---------------------------------------------------------------------------
-  // File Change Tracking (shared state from parent)
+  // Unseen Tracking (shared state from parent)
   // ---------------------------------------------------------------------------
 
-  /** File change tracking state and functions (shared between file tree and review pane) */
-  fileTracking?: FileChangeTrackingResult;
+  /** Unseen tracking state and functions (shared from EditorPaneV2) */
+  unseenTracking?: UnseenTrackingResult;
 
   // ---------------------------------------------------------------------------
   // Dirty File Checking
@@ -246,8 +246,8 @@ export const EditorViewPanel = memo(function EditorViewPanel({
   isPushing = false,
   onPull,
   onPush,
-  // File change tracking
-  fileTracking,
+  // Unseen tracking
+  unseenTracking,
   // Dirty file checking
   isFileDirty,
 }: EditorViewPanelProps) {
@@ -492,7 +492,7 @@ export const EditorViewPanel = memo(function EditorViewPanel({
           isPushing={isPushing}
           onPull={onPull ?? (() => {})}
           onPush={onPush ?? (() => {})}
-          fileTracking={fileTracking}
+          unseenTracking={unseenTracking}
           isFileDirty={isFileDirty}
         />
       </div>
@@ -648,7 +648,7 @@ export const EditorViewPanel = memo(function EditorViewPanel({
             isPushing={isPushing}
             onPull={onPull ?? (() => {})}
             onPush={onPush ?? (() => {})}
-            fileTracking={fileTracking}
+            unseenTracking={unseenTracking}
             isFileDirty={isFileDirty}
           />
         ) : null}

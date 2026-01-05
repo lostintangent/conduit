@@ -292,6 +292,7 @@ describe("useUnseenTracking", () => {
         "file:stage",
         "file:unstage",
         "file:revert",
+        "file:expand",
         "file:collapse",
       ] as const;
 

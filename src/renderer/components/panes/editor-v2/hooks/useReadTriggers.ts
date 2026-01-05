@@ -43,6 +43,7 @@ export const READ_TRIGGER_ACTIONS = [
   "file:stage", // User stages file
   "file:unstage", // User unstages file
   "file:revert", // User reverts file
+  "file:expand", // User expands collapsed file
   "file:collapse", // User collapses expanded file
 ] as const;
 

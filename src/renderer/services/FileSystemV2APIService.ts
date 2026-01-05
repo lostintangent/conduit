@@ -132,24 +132,13 @@ export class FileSystemV2APIService {
       if (existing.disposeTimer) {
         clearTimeout(existing.disposeTimer);
         existing.disposeTimer = undefined;
-        console.log(
-          "[FileSystemV2APIService] Cancelled disposal timer for:",
-          key,
-        );
       }
 
       existing.refCount++;
-      console.log(
-        "[FileSystemV2APIService] Reusing existing instance for:",
-        key,
-        "refCount:",
-        existing.refCount,
-      );
       return existing.api;
     }
 
     // Create new instance
-    console.log("[FileSystemV2APIService] Creating NEW instance for:", key);
     const api = new FileSystemV2API(cwd, sandboxId);
     this.instances.set(key, {
       api,
