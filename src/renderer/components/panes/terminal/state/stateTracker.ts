@@ -122,18 +122,6 @@ export function onSessionStateChange(
 }
 
 /**
- * Reset idle→running detection for a session.
- * Called when a tab is focused to prevent focus events and TUI redraws
- * from triggering false positives. Does not affect running state.
- */
-export function resetToIdle(sessionId: string): void {
-  const session = sessionStateMap.get(sessionId);
-  if (!session) return;
-
-  clearIdleToRunningCheck(session);
-}
-
-/**
  * Immediately mark a session as idle.
  * Resolves pending wait requests but does not notify UI subscribers.
  */

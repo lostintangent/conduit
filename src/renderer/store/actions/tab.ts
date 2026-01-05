@@ -4,7 +4,6 @@ import {
   getSessionState,
   markAsIdle,
   onSessionStateChange,
-  resetToIdle,
 } from "@/components/panes/terminal/state/stateTracker";
 import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
 import { detachPane, removePane } from "@/store/actions/pane";
@@ -13,6 +12,7 @@ import {
   activeTabIdAtom,
   tabsAtom,
   tabStateAtom,
+  type TabState,
 } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
@@ -270,6 +270,11 @@ export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
   );
 }
 
+// Tracks tabs that were recently switched away from, to suppress
+// "idle-unseen" notifications for trailing activity (e.g., TUI redraws)
+const RECENTLY_BACKGROUNDED_MS = 3000;
+const recentlyBackgroundedTabs = new Map<string, NodeJS.Timeout>();
+
 export function focusTab(tabId: string) {
   const tabs = store.get(tabsAtom);
   const currentTabId = store.get(activeTabIdAtom);
@@ -278,14 +283,21 @@ export function focusTab(tabId: string) {
     return;
   }
 
-  // Reset state detection for terminals in the focused tab to prevent
-  // focus events from accumulating across rapid tab switches
-  const newTab = tabs.find((t) => t.id === tabId);
-  for (const pane of Object.values(newTab?.panes ?? {})) {
-    if (pane.type === "terminal") {
-      resetToIdle(pane.sessionId);
-    }
+  // Track the outgoing tab as recently backgrounded to suppress
+  // "idle-unseen" for trailing activity (TUI redraws, etc.)
+  if (currentTabId) {
+    clearTimeout(recentlyBackgroundedTabs.get(currentTabId));
+    recentlyBackgroundedTabs.set(
+      currentTabId,
+      setTimeout(() => {
+        recentlyBackgroundedTabs.delete(currentTabId);
+      }, RECENTLY_BACKGROUNDED_MS),
+    );
   }
+
+  // Clear recently-backgrounded state for the incoming tab
+  clearTimeout(recentlyBackgroundedTabs.get(tabId));
+  recentlyBackgroundedTabs.delete(tabId);
 
   acknowledgeTabState(tabId);
   store.set(activeTabIdAtom, tabId);
@@ -376,6 +388,8 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   store.set(tabStateAtom, (draft) => {
     draft.delete(tabId);
   });
+  clearTimeout(recentlyBackgroundedTabs.get(tabId));
+  recentlyBackgroundedTabs.delete(tabId);
 
   if (shouldOpenReplacement) {
     openTab();
@@ -724,6 +738,25 @@ export function markTabAsNotified(tabId: string, sessionId: string) {
   });
 }
 
+/**
+ * Get the priority of a tab state for transition ordering.
+ * Higher priority states should not be overwritten by lower priority ones.
+ * Priority: running (3) > idle-notified (2) > idle-unseen (1) > idle (0)
+ */
+function getTabStatePriority(state: TabState | undefined): number {
+  switch (state) {
+    case "running":
+      return 3;
+    case "idle-notified":
+      return 2;
+    case "idle-unseen":
+      return 1;
+    case "idle":
+    default:
+      return 0;
+  }
+}
+
 export function registerTabEventHandlers() {
   const unsubscribeExit = api.onExit(({ sessionId }) => {
     const tabs = store.get(tabsAtom);
@@ -772,9 +805,23 @@ export function registerTabEventHandlers() {
 
     if (isAnyRunning) return;
 
+    // Determine the target idle state based on tab visibility
     const isBackground = tab.id !== store.get(activeTabIdAtom);
+    const isRecentlyBackgrounded = recentlyBackgroundedTabs.has(tab.id);
+    const targetState: TabState =
+      isBackground && !isRecentlyBackgrounded ? "idle-unseen" : "idle";
+
+    // Apply priority-based transition: only update if target has strictly higher priority.
+    // This prevents idle/idle-unseen from overwriting idle-notified.
+    // Exception: transitions from "running" are always allowed (natural idle detection).
     store.set(tabStateAtom, (draft) => {
-      draft.set(tab.id, isBackground ? "idle-unseen" : "idle");
+      const currentState = draft.get(tab.id);
+      if (
+        currentState === "running" ||
+        getTabStatePriority(targetState) > getTabStatePriority(currentState)
+      ) {
+        draft.set(tab.id, targetState);
+      }
     });
   });
 
