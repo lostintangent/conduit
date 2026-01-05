@@ -171,7 +171,9 @@ export function TabButton({
             }}
           />
         ) : showRunningState ? (
-          <AnimatedShinyText>{tab.label}</AnimatedShinyText>
+          <AnimatedShinyText className="overflow-hidden text-ellipsis whitespace-nowrap">
+            {tab.label}
+          </AnimatedShinyText>
         ) : (
           <span className="overflow-hidden text-ellipsis whitespace-nowrap">
             {tab.label}
