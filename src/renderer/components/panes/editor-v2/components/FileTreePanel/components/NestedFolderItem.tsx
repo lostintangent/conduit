@@ -206,14 +206,16 @@ export function NestedFolderItem({
 
         {/* Action buttons (visible on hover, hidden when renaming) */}
         {!isFolderRenaming && (
-          <ActionButtons
-            isStaged={isStaged}
-            canRevert={!isStaged}
-            onStage={onStage ? () => onStage(folder.path) : undefined}
-            onUnstage={onUnstage ? () => onUnstage(folder.path) : undefined}
-            onRevert={onRevert ? () => onRevert(folder.path) : undefined}
-            itemType="folder"
-          />
+          <div className="flex-shrink-0 hidden group-hover:block">
+            <ActionButtons
+              isStaged={isStaged}
+              canRevert={!isStaged}
+              onStage={onStage ? () => onStage(folder.path) : undefined}
+              onUnstage={onUnstage ? () => onUnstage(folder.path) : undefined}
+              onRevert={onRevert ? () => onRevert(folder.path) : undefined}
+              itemType="folder"
+            />
+          </div>
         )}
       </button>
 
@@ -238,9 +240,15 @@ export function NestedFolderItem({
 
                   {/* Icon based on type */}
                   {creatingType === "folder" ? (
-                    <Folder className="flex-shrink-0 text-foreground" size={12} />
+                    <Folder
+                      className="flex-shrink-0 text-foreground"
+                      size={12}
+                    />
                   ) : (
-                    <FileText className="flex-shrink-0 text-foreground" size={12} />
+                    <FileText
+                      className="flex-shrink-0 text-foreground"
+                      size={12}
+                    />
                   )}
 
                   {/* Inline creation input */}
