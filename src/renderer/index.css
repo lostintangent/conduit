@@ -94,7 +94,7 @@
   --primary: oklch(20.44% 0 0);
   --primary-foreground: oklch(98.48% 0 0);
 
-  --secondary: oklch(97.03% 0 0);
+  --secondary: oklch(85% 0 0);
   --secondary-foreground: oklch(20.44% 0 0);
 
   /* Light theme shares the same accent colors as dark theme */

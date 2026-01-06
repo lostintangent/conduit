@@ -51,7 +51,9 @@ export function TabPreviewItem({
   const { displayWidth, displayHeight, contentWidth, contentHeight } =
     calculatePreviewDimensions(scale);
 
-  const borderClass = isHovered ? "border-accent shadow-lg" : "border-border";
+  const borderClass = isHovered
+    ? "border-accent shadow-lg"
+    : "border-pane-divider";
 
   const interactivityClass = onClick
     ? "cursor-pointer hover:border-accent transition-colors pointer-events-auto"
