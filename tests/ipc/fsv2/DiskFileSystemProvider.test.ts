@@ -814,7 +814,7 @@ describe("DiskFileSystemProvider", () => {
       });
     });
 
-    it("should NOT fire onFileContentChanged when a directory is deleted", () => {
+    it("should fire onFileContentChanged when a directory is deleted", () => {
       const contentListener = vi.fn();
       provider.onFileContentChanged(contentListener);
 
@@ -824,8 +824,10 @@ describe("DiskFileSystemProvider", () => {
         isDirectory: true,
       });
 
-      // Should NOT be called for directories
-      expect(contentListener).not.toHaveBeenCalled();
+      // Should be called for directories too (triggers git status refresh)
+      expect(contentListener).toHaveBeenCalledWith({
+        path: "/test/project/deleteddir",
+      });
     });
 
     it("should fire onFileContentChanged when a file is renamed", () => {
@@ -845,7 +847,7 @@ describe("DiskFileSystemProvider", () => {
       });
     });
 
-    it("should NOT fire onFileContentChanged when a directory is renamed", () => {
+    it("should fire onFileContentChanged when a directory is renamed", () => {
       const contentListener = vi.fn();
       provider.onFileContentChanged(contentListener);
 
@@ -856,8 +858,10 @@ describe("DiskFileSystemProvider", () => {
         isDirectory: true,
       });
 
-      // Should NOT be called for directories
-      expect(contentListener).not.toHaveBeenCalled();
+      // Should be called for directories too (triggers git status refresh)
+      expect(contentListener).toHaveBeenCalledWith({
+        path: "/test/project/newdir",
+      });
     });
   });
 

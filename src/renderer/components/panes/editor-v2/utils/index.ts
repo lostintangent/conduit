@@ -25,6 +25,7 @@ export {
 export {
   pathsEqual,
   isCaseInsensitiveFs,
+  getParentPath,
   getParentPaths,
   normalizePathForKey,
   joinCwdPath,

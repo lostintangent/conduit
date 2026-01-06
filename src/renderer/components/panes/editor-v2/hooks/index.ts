@@ -43,6 +43,12 @@ export type {
   UseFileTreeContextMenuOptions,
   UseFileTreeContextMenuResult,
 } from "./useFileTreeContextMenu";
+export { useFileTreeChangesContextMenu } from "./useFileTreeChangesContextMenu";
+export type {
+  ShowContextMenuOptions as FileTreeChangesShowContextMenuOptions,
+  UseFileTreeChangesContextMenuOptions,
+  UseFileTreeChangesContextMenuResult,
+} from "./useFileTreeChangesContextMenu";
 export { useGitOperations } from "./useGitOperations";
 export type {
   GitOperations,

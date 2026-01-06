@@ -323,4 +323,136 @@ describe("useFileChangeTracking", () => {
       expect(result.current.getTimestamp("file1.ts")).toBeNull();
     });
   });
+
+  describe("handlePathRename", () => {
+    it("should transfer metadata from old path to new path for files", () => {
+      const { result } = renderHook(() => useFileChangeTracking());
+
+      // Create a file and mark it as seen
+      act(() => {
+        result.current.processStatusChange(["old-file.ts"]);
+      });
+      expect(result.current.isUnseen("old-file.ts")).toBe(true);
+
+      act(() => {
+        result.current.markSeen("old-file.ts");
+      });
+      expect(result.current.isUnseen("old-file.ts")).toBe(false);
+
+      // Rename the file
+      act(() => {
+        result.current.handlePathRename("old-file.ts", "new-file.ts");
+      });
+
+      // Old path should be gone, new path should have transferred metadata (seen)
+      expect(result.current.getTimestamp("old-file.ts")).toBeNull();
+      expect(result.current.isUnseen("new-file.ts")).toBe(false);
+      expect(result.current.getTimestamp("new-file.ts")).not.toBeNull();
+    });
+
+    it("should transfer metadata for all nested files when folder is renamed", () => {
+      const { result } = renderHook(() => useFileChangeTracking());
+
+      // Create files in a folder
+      act(() => {
+        result.current.processStatusChange([
+          "src/old-folder/file1.ts",
+          "src/old-folder/sub/file2.ts",
+          "src/other/file3.ts",
+        ]);
+      });
+
+      // Mark some as seen
+      act(() => {
+        result.current.markSeen("src/old-folder/file1.ts");
+        result.current.markSeen("src/old-folder/sub/file2.ts");
+      });
+
+      // Rename the folder
+      act(() => {
+        result.current.handlePathRename("src/old-folder", "src/new-folder");
+      });
+
+      // Old paths should be gone
+      expect(result.current.getTimestamp("src/old-folder/file1.ts")).toBeNull();
+      expect(result.current.getTimestamp("src/old-folder/sub/file2.ts")).toBeNull();
+
+      // New paths should have transferred metadata
+      expect(result.current.isUnseen("src/new-folder/file1.ts")).toBe(false);
+      expect(result.current.isUnseen("src/new-folder/sub/file2.ts")).toBe(false);
+
+      // Unrelated file should be unchanged
+      expect(result.current.isUnseen("src/other/file3.ts")).toBe(true);
+    });
+
+    it("should block processStatusChange for paths in grace period", () => {
+      vi.useFakeTimers();
+      const { result } = renderHook(() => useFileChangeTracking());
+
+      // Rename triggers grace period
+      act(() => {
+        result.current.handlePathRename("old-folder", "new-folder");
+      });
+
+      // processStatusChange for new path should be blocked
+      act(() => {
+        result.current.processStatusChange(["new-folder/file.ts"]);
+      });
+
+      // File should NOT be marked as unseen due to grace period
+      expect(result.current.isUnseen("new-folder/file.ts")).toBe(false);
+      expect(result.current.getTimestamp("new-folder/file.ts")).toBeNull();
+
+      vi.useRealTimers();
+    });
+
+    it("should allow processStatusChange after grace period expires", () => {
+      vi.useFakeTimers();
+      const { result } = renderHook(() => useFileChangeTracking());
+
+      // Rename triggers grace period
+      act(() => {
+        result.current.handlePathRename("old-folder", "new-folder");
+      });
+
+      // Advance past grace period (500ms)
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+
+      // Now processStatusChange should work
+      act(() => {
+        result.current.processStatusChange(["new-folder/file.ts"]);
+      });
+
+      // File should be marked as unseen
+      expect(result.current.isUnseen("new-folder/file.ts")).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it("should give transferred metadata priority over race-created entries", () => {
+      const { result } = renderHook(() => useFileChangeTracking());
+
+      // Create and mark as seen
+      act(() => {
+        result.current.processStatusChange(["old-folder/file.ts"]);
+        result.current.markSeen("old-folder/file.ts");
+      });
+
+      // Simulate race condition: new path gets added as unseen before rename completes
+      act(() => {
+        result.current.processStatusChange(["new-folder/file.ts"]);
+      });
+      expect(result.current.isUnseen("new-folder/file.ts")).toBe(true);
+
+      // Now rename - transferred metadata should take priority
+      act(() => {
+        result.current.handlePathRename("old-folder", "new-folder");
+      });
+
+      // The transferred "seen" status should win over the race-created "unseen"
+      expect(result.current.isUnseen("new-folder/file.ts")).toBe(false);
+    });
+  });
 });

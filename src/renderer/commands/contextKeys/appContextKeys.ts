@@ -183,6 +183,43 @@ export const fileTreeItemInHomeDirectory = new ContextKey<boolean>(
 );
 
 // ============================================================================
+// File Tree Changes Mode Context Keys
+// ============================================================================
+
+/**
+ * Whether the file tree is in "changes" mode (showing only changed files).
+ * When true, shows git-specific actions (stage/unstage/revert) instead of
+ * file operations like New File/New Folder.
+ * Used by: fileTree.stage, fileTree.unstage, fileTree.revert commands
+ */
+export const fileTreeChangesMode = new ContextKey<boolean>(
+  "fileTreeChangesMode",
+  false,
+);
+
+/**
+ * Whether the focused file tree item is in the staged section.
+ * Only relevant when fileTreeChangesMode is true.
+ * Used by: fileTree.stage (hide), fileTree.unstage (show),
+ *          fileTree.rename/delete (hide for staged items)
+ */
+export const fileTreeItemIsStaged = new ContextKey<boolean>(
+  "fileTreeItemIsStaged",
+  false,
+);
+
+/**
+ * The map key of the file tree item being acted upon.
+ * In changes mode, this may differ from the path (includes suffix for unstaged
+ * entries of partially staged files).
+ * Used by: fileTree.stage, fileTree.unstage, fileTree.revert commands
+ */
+export const fileTreeItemMapKey = new ContextKey<string>(
+  "fileTreeItemMapKey",
+  "",
+);
+
+// ============================================================================
 // Dotfiles Context Keys
 // ============================================================================
 

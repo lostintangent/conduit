@@ -117,6 +117,12 @@ export interface UnseenTrackingResult {
   sortByTimestamp: <T extends [string, unknown]>(files: T[]) => T[];
 
   /**
+   * Handle a path rename by transferring seen status from old paths to new paths.
+   * Works for both files and folders. For folders, transfers status for all nested files.
+   */
+  handlePathRename: (oldPath: string, newPath: string) => void;
+
+  /**
    * The underlying tracking result (for passing to child components).
    * Includes all FileChangeTrackingResult methods.
    */
@@ -134,6 +140,7 @@ export const DISABLED_UNSEEN_TRACKING: UnseenTrackingResult = {
   getUnseenCount: () => 0,
   unseenCount: 0,
   sortByTimestamp: <T extends [string, unknown]>(files: T[]): T[] => files,
+  handlePathRename: () => {},
   tracking: DISABLED_TRACKING,
 };
 
@@ -290,6 +297,7 @@ export function useUnseenTracking({
     getUnseenCount: tracking.getUnseenCount,
     unseenCount: tracking.unseenCount,
     sortByTimestamp: tracking.sortByTimestamp,
+    handlePathRename: tracking.handlePathRename,
     tracking,
   };
 }

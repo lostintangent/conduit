@@ -33,17 +33,25 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
+import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
-import { useScrollPersistence } from "../../hooks/useScrollPersistence";
+import {
+  useScrollPersistence,
+  useFileTreeChangesContextMenu,
+} from "../../hooks";
 import {
   filterDirtyFilesForStaging,
+  getParentPath,
   getParentPaths,
+  getRelativePath,
   joinCwdPath,
   notifyDirtyFilesSkipped,
   // MapKey helpers (centralized operations)
   normalizeMapKey,
 } from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";
 
 // Local imports from extracted modules
@@ -66,6 +74,8 @@ export interface FileTreeChangesProps {
   paneId: string;
   /** Working directory */
   cwd: string;
+  /** FileSystem API instance (shared from parent) - required for rename/delete */
+  fs: FileSystemV2API;
   /** Git API instance (shared from parent) */
   git: GitV2API;
   /** Currently selected file (null if none) */
@@ -90,6 +100,8 @@ export interface FileTreeChangesProps {
   isFileUnseen?: (path: string) => boolean;
   /** Check if a file has unsaved changes - used to prevent staging dirty files */
   isFileDirty?: (filePath: string) => boolean;
+  /** Callback when a file/folder is renamed - used to preserve seen status */
+  onPathRename?: (oldPath: string, newPath: string) => void;
 }
 
 // ============================================================================
@@ -330,8 +342,9 @@ function useGitStatus(git: GitV2API, cwd: string, skip = false) {
 export function FileTreeChanges({
   paneId,
   cwd,
+  fs,
   git,
-  selectedFile,
+  selectedFile: _selectedFile,
   selectedMapKey,
   onFileSelect,
   viewMode = "flat",
@@ -340,6 +353,7 @@ export function FileTreeChanges({
   baseBranchName,
   isFileUnseen,
   isFileDirty,
+  onPathRename,
 }: FileTreeChangesProps) {
   const hasParentStatus = gitStatusFromParent !== undefined;
   const showActionButtons = !isComparingToBranch;
@@ -473,6 +487,55 @@ export function FileTreeChanges({
   } = useMultiSelect(visualOrder, allFilePaths);
 
   // ---------------------------------------------------------------------------
+  // Rename/Delete State (for unstaged files only)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Path of the file currently being renamed (relative to cwd).
+   * Only unstaged files can be renamed.
+   */
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+
+  /**
+   * Path of the file pending deletion (relative to cwd).
+   * Only unstaged files can be deleted.
+   */
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // File/Folder Creation State
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Path of the folder where a new file/folder is being created (absolute path).
+   * null when not creating anything.
+   */
+  const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
+
+  /**
+   * Type of item being created: "file" or "folder".
+   * null when not creating anything.
+   */
+  const [creatingType, setCreatingType] = useState<"file" | "folder" | null>(
+    null,
+  );
+
+  /**
+   * Path of a newly created file waiting to be selected.
+   * Used to handle the delay between file creation and git detecting it.
+   * When git status updates to include this file, we select it.
+   */
+  const [pendingSelectPath, setPendingSelectPath] = useState<string | null>(
+    null,
+  );
+
+  /**
+   * Ref to guard against double invocation of creation handlers.
+   * Stores the path being processed to prevent duplicate calls.
+   */
+  const creationInProgressRef = useRef<string | null>(null);
+
+  // ---------------------------------------------------------------------------
   // Selected MapKey Normalization
   // ---------------------------------------------------------------------------
 
@@ -502,6 +565,29 @@ export function FileTreeChanges({
       clearSelection(normalizedSelectedMapKey);
     }
   }, [normalizedSelectedMapKey, anchorPath, clearSelection]);
+
+  // ---------------------------------------------------------------------------
+  // Pending File Selection (after creation)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Select a newly created file once git detects it.
+   * This handles the delay between file creation and git status update.
+   */
+  useEffect(() => {
+    if (!pendingSelectPath) return;
+
+    // Convert absolute path to relative for comparison with allFilePaths
+    const relativePath = getRelativePath(pendingSelectPath, cwd);
+
+    // Check if the file has appeared in git status
+    if (allFilePaths.includes(relativePath)) {
+      const name = relativePath.split("/").pop() ?? relativePath;
+      // Pass relativePath as mapKey so the file tree highlights the item
+      onFileSelect({ path: pendingSelectPath, name, type: "file" }, relativePath);
+      setPendingSelectPath(null);
+    }
+  }, [pendingSelectPath, allFilePaths, cwd, onFileSelect]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -664,6 +750,253 @@ export function FileTreeChanges({
     ],
   );
 
+  // ---------------------------------------------------------------------------
+  // Rename/Delete Handlers (for unstaged files via context menu)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Start renaming a file. Sets the renamingPath state to show inline editor.
+   * Path should be relative to cwd.
+   */
+  const beginRename = useCallback((relativePath: string) => {
+    setRenamingPath(relativePath);
+  }, []);
+
+  /**
+   * Commit the rename operation. Performs the actual filesystem rename.
+   */
+  const commitRename = useCallback(
+    async (newName: string) => {
+      if (!renamingPath) return;
+
+      const parentDir = getParentPath(renamingPath);
+      const newPath = parentDir ? `${parentDir}/${newName}` : newName;
+      const oldAbsolutePath = joinCwdPath(cwd, renamingPath);
+      const newAbsolutePath = joinCwdPath(cwd, newPath);
+
+      try {
+        await fs.rename(oldAbsolutePath, newAbsolutePath);
+
+        // Transfer seen status from old path to new path
+        // This works for both files and folders (handles nested files too)
+        onPathRename?.(renamingPath, newPath);
+
+        setRenamingPath(null);
+      } catch (error) {
+        const itemName = renamingPath.split("/").pop() ?? "item";
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to rename "${itemName}"`,
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
+        setRenamingPath(null);
+      }
+    },
+    [renamingPath, cwd, fs, onPathRename],
+  );
+
+  /**
+   * Cancel the rename operation.
+   */
+  const cancelRename = useCallback(() => {
+    setRenamingPath(null);
+  }, []);
+
+  /**
+   * Handle rename command from context menu.
+   * Converts absolute path to relative and starts inline rename.
+   */
+  const handleRenameCommand = useCallback(
+    (absolutePath: string) => {
+      const relativePath = getRelativePath(absolutePath, cwd);
+      beginRename(relativePath);
+    },
+    [cwd, beginRename],
+  );
+
+  /**
+   * Handle delete command from context menu.
+   * Converts absolute path to relative and shows delete confirmation.
+   */
+  const handleDeleteCommand = useCallback(
+    (absolutePath: string) => {
+      const relativePath = getRelativePath(absolutePath, cwd);
+      setDeletingPath(relativePath);
+    },
+    [cwd],
+  );
+
+  /**
+   * Confirm and execute delete operation.
+   */
+  const confirmDelete = useCallback(async () => {
+    if (!deletingPath) return;
+
+    const absolutePath = joinCwdPath(cwd, deletingPath);
+    const itemName = deletingPath.split("/").pop() ?? "file";
+
+    try {
+      // Use recursive: true to handle both files and folders
+      await fs.delete(absolutePath, { recursive: true });
+      setDeletingPath(null);
+    } catch (error) {
+      enqueueNotification({
+        kind: "error",
+        message: `Failed to delete "${itemName}"`,
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+      setDeletingPath(null);
+    }
+  }, [deletingPath, cwd, fs]);
+
+  /**
+   * Cancel delete operation.
+   */
+  const cancelDelete = useCallback(() => {
+    setDeletingPath(null);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // File/Folder Creation Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Begin creating a new file in the specified directory.
+   * Expands the folder in nested view so the creation input is visible.
+   */
+  const beginCreateFile = useCallback(
+    (parentPath: string) => {
+      // Guard against double invocation using ref (state updates are batched)
+      if (creationInProgressRef.current === parentPath) {
+        return;
+      }
+      creationInProgressRef.current = parentPath;
+
+      // Expand the folder in nested view if not already expanded
+      if (viewMode === "nested") {
+        const relativePath = getRelativePath(parentPath, cwd);
+        if (relativePath && !expandedFolders.has(relativePath)) {
+          toggleFolder(relativePath);
+        }
+      }
+      setCreatingInPath(parentPath);
+      setCreatingType("file");
+
+      // Clear the guard after state updates
+      setTimeout(() => {
+        creationInProgressRef.current = null;
+      }, 0);
+    },
+    [cwd, viewMode, expandedFolders, toggleFolder],
+  );
+
+  /**
+   * Begin creating a new folder in the specified directory.
+   * Expands the folder in nested view so the creation input is visible.
+   */
+  const beginCreateFolder = useCallback(
+    (parentPath: string) => {
+      // Guard against double invocation using ref (state updates are batched)
+      if (creationInProgressRef.current === parentPath) {
+        return;
+      }
+      creationInProgressRef.current = parentPath;
+
+      // Expand the folder in nested view if not already expanded
+      if (viewMode === "nested") {
+        const relativePath = getRelativePath(parentPath, cwd);
+        if (relativePath && !expandedFolders.has(relativePath)) {
+          toggleFolder(relativePath);
+        }
+      }
+      setCreatingInPath(parentPath);
+      setCreatingType("folder");
+
+      // Clear the guard after state updates
+      setTimeout(() => {
+        creationInProgressRef.current = null;
+      }, 0);
+    },
+    [cwd, viewMode, expandedFolders, toggleFolder],
+  );
+
+  /**
+   * Cancel the current creation operation.
+   */
+  const cancelCreate = useCallback(() => {
+    setCreatingInPath(null);
+    setCreatingType(null);
+  }, []);
+
+  /**
+   * Commit the creation of a new file or folder.
+   */
+  const commitCreate = useCallback(
+    async (name: string) => {
+      if (!creatingInPath || !creatingType) return;
+
+      const newPath = `${creatingInPath}/${name}`;
+
+      try {
+        if (creatingType === "file") {
+          await fs.writeTextFile(newPath, "");
+          // Queue the file for selection once git detects it
+          setPendingSelectPath(newPath);
+        } else {
+          await fs.createDirectory(newPath);
+        }
+        setCreatingInPath(null);
+        setCreatingType(null);
+      } catch (error) {
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to create ${creatingType}`,
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    },
+    [creatingInPath, creatingType, fs],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Context Menu Hook
+  // ---------------------------------------------------------------------------
+
+  const { showContextMenu } = useFileTreeChangesContextMenu({
+    cwd,
+    onStage: handleStage,
+    onUnstage: handleUnstage,
+    onRevert: handleRevert,
+    onRename: handleRenameCommand,
+    onDelete: handleDeleteCommand,
+    onNewFile: beginCreateFile,
+    onNewFolder: beginCreateFolder,
+  });
+
+  /**
+   * Handle context menu for files and folders.
+   * Builds the absolute path and shows the context menu with appropriate options.
+   */
+  const handleContextMenu = useCallback(
+    (
+      mapKey: string,
+      filePath: string,
+      isStaged: boolean,
+      isDirectory: boolean,
+      event: React.MouseEvent,
+    ) => {
+      const absolutePath = joinCwdPath(cwd, filePath);
+      showContextMenu({
+        path: absolutePath,
+        mapKey,
+        isStaged,
+        isDirectory,
+        event,
+      });
+    },
+    [cwd, showContextMenu],
+  );
+
   const handleStageAll = useCallback(() => {
     if (unstagedFiles.length === 0) return;
 
@@ -784,6 +1117,12 @@ export function FileTreeChanges({
         onUnstage={showActionButtons ? () => handleUnstage(mapKey) : undefined}
         onRevert={showActionButtons ? () => handleRevert(mapKey) : undefined}
         showUnseenIndicator={isFileUnseen?.(status.path)}
+        onContextMenu={(e) =>
+          handleContextMenu(mapKey, status.path, isStaged, false, e)
+        }
+        isRenaming={!isStaged && renamingPath === status.path}
+        onCommitRename={commitRename}
+        onCancelRename={cancelRename}
       />
     ));
   };
@@ -815,6 +1154,16 @@ export function FileTreeChanges({
             onUnstage={showActionButtons ? handleUnstage : undefined}
             onRevert={showActionButtons ? handleRevert : undefined}
             isFileUnseen={isFileUnseen}
+            onContextMenu={(mapKey, filePath, isDirectory, e) =>
+              handleContextMenu(mapKey, filePath, isStaged, isDirectory, e)
+            }
+            renamingPath={!isStaged ? renamingPath : null}
+            onCommitRename={commitRename}
+            onCancelRename={cancelRename}
+            creatingInPath={creatingInPath}
+            creatingType={creatingType}
+            onCommitCreate={commitCreate}
+            onCancelCreate={cancelCreate}
           />
         ))}
         {rootFiles
@@ -839,6 +1188,12 @@ export function FileTreeChanges({
                 showActionButtons ? () => handleRevert(file.mapKey) : undefined
               }
               showUnseenIndicator={isFileUnseen?.(file.path)}
+              onContextMenu={(e) =>
+                handleContextMenu(file.mapKey, file.path, isStaged, false, e)
+              }
+              isRenaming={!isStaged && renamingPath === file.path}
+              onCommitRename={commitRename}
+              onCancelRename={cancelRename}
             />
           ))}
       </>
@@ -977,6 +1332,16 @@ export function FileTreeChanges({
           </Section>
         )}
       </nav>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deletingPath !== null}
+        title="Delete"
+        description={`Are you sure you want to delete "${deletingPath?.split("/").pop() ?? ""}"? This action cannot be undone.`}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        variant="destructive"
+      />
     </div>
   );
 }

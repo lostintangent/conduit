@@ -4,10 +4,86 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
+// ============================================================================
+// Polyfills for jsdom
+// ============================================================================
+
+// CSS.escape is not available in jsdom
+if (typeof CSS === "undefined") {
+  (globalThis as any).CSS = {};
+}
+if (typeof CSS.escape !== "function") {
+  CSS.escape = (str: string) => str.replace(/([^\w-])/g, "\\$1");
+}
+
+// scrollIntoView is not available in jsdom
+Element.prototype.scrollIntoView = vi.fn();
+
+// ============================================================================
+// Mocks - MUST BE BEFORE COMPONENT IMPORT
+// ============================================================================
+
+// Mock window.conduit for context menu
+const mockOnContextMenuCommand = vi.fn(() => () => {});
+const mockShowContextMenu = vi.fn();
+
+// @ts-ignore
+globalThis.window.conduit = {
+  onContextMenuCommand: mockOnContextMenuCommand,
+  showContextMenu: mockShowContextMenu,
+  platform: "darwin",
+};
+
+// Mock the command system
+vi.mock("@/commands", () => ({
+  getContextKeyService: () => ({
+    setGlobal: vi.fn(),
+    getAll: () => ({}),
+  }),
+  getCommandRegistry: () => ({
+    getCommand: () => null,
+    executeCommand: vi.fn(),
+  }),
+  getMenuRegistry: () => ({
+    getSortedMenuItems: () => [],
+  }),
+  getKeybindingRegistry: () => ({
+    getKeybindingsForCommand: () => [],
+  }),
+  When: {
+    and: () => ({ evaluate: () => true }),
+    never: () => ({ evaluate: () => false }),
+  },
+}));
+
+// Mock the fileTreeCommands
+vi.mock("@/commands/fileTreeCommands", () => ({
+  registerFileTreeChangesCallbacks: vi.fn(() => () => {}),
+  FileTreeCommands: {
+    NEW_FILE: "fileTree.newFile",
+    NEW_FOLDER: "fileTree.newFolder",
+    RENAME: "fileTree.rename",
+    DELETE: "fileTree.delete",
+    COPY_PATH: "fileTree.copyPath",
+    COPY_RELATIVE_PATH: "fileTree.copyRelativePath",
+    REVEAL_IN_FINDER: "fileTree.revealInFinder",
+    STAGE: "fileTree.stage",
+    UNSTAGE: "fileTree.unstage",
+    REVERT: "fileTree.revert",
+  },
+}));
+
+// Mock notifications
+vi.mock("@/store/actions/notifications", () => ({
+  enqueueNotification: vi.fn(),
+}));
+
+// Import component after mocks
 import { FileTreeChanges } from "../../../../../src/renderer/components/panes/editor-v2/components/FileTreePanel/FileTreeChanges";
 
 // ============================================================================
-// Mocks
+// API Mocks
 // ============================================================================
 
 // Mock git API (passed as prop)

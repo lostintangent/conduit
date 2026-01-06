@@ -18,11 +18,12 @@ describe("useReadTriggers", () => {
       expect(READ_TRIGGER_ACTIONS).toContain("file:stage");
       expect(READ_TRIGGER_ACTIONS).toContain("file:unstage");
       expect(READ_TRIGGER_ACTIONS).toContain("file:revert");
+      expect(READ_TRIGGER_ACTIONS).toContain("file:expand");
       expect(READ_TRIGGER_ACTIONS).toContain("file:collapse");
     });
 
-    it("should have exactly 6 action types", () => {
-      expect(READ_TRIGGER_ACTIONS).toHaveLength(6);
+    it("should have exactly 7 action types", () => {
+      expect(READ_TRIGGER_ACTIONS).toHaveLength(7);
     });
   });
 
@@ -49,16 +50,18 @@ describe("useReadTriggers", () => {
         result.current.triggerRead("file:stage", "file3.ts");
         result.current.triggerRead("file:unstage", "file4.ts");
         result.current.triggerRead("file:revert", "file5.ts");
-        result.current.triggerRead("file:collapse", "file6.ts");
+        result.current.triggerRead("file:expand", "file6.ts");
+        result.current.triggerRead("file:collapse", "file7.ts");
       });
 
-      expect(mockMarkSeen).toHaveBeenCalledTimes(6);
+      expect(mockMarkSeen).toHaveBeenCalledTimes(7);
       expect(mockMarkSeen).toHaveBeenCalledWith("file1.ts");
       expect(mockMarkSeen).toHaveBeenCalledWith("file2.ts");
       expect(mockMarkSeen).toHaveBeenCalledWith("file3.ts");
       expect(mockMarkSeen).toHaveBeenCalledWith("file4.ts");
       expect(mockMarkSeen).toHaveBeenCalledWith("file5.ts");
       expect(mockMarkSeen).toHaveBeenCalledWith("file6.ts");
+      expect(mockMarkSeen).toHaveBeenCalledWith("file7.ts");
     });
 
     it("should not throw when markSeen is undefined", () => {

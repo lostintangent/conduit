@@ -52,7 +52,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(72);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(76);
 
       // View commands
       expect(

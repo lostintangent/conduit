@@ -4,10 +4,18 @@
  * Folders are selectable with shift/cmd modifiers for multi-select.
  */
 
-import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
+import path from "path-browserify";
+import {
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  FileText,
+} from "lucide-react";
 import { cn } from "@/utils";
 import { ActionButtons } from "./ActionButtons";
 import { NestedFileItem } from "./NestedFileItem";
+import { FileTreeItemRename } from "../FileTreeItemRename";
 import type { FolderNode } from "../utils/types";
 
 export interface NestedFolderItemProps {
@@ -47,6 +55,39 @@ export interface NestedFolderItemProps {
   onRevert?: (mapKey: string) => void;
   /** Check if a file is unseen (Follow mode) */
   isFileUnseen?: (path: string) => boolean;
+  /**
+   * Callback when right-clicked for context menu.
+   * @param mapKey - The map key identifying the entry
+   * @param filePath - The file/folder path (relative to cwd)
+   * @param isDirectory - Whether the item is a directory
+   * @param event - The mouse event
+   */
+  onContextMenu?: (
+    mapKey: string,
+    filePath: string,
+    isDirectory: boolean,
+    event: React.MouseEvent,
+  ) => void;
+  // ---------------------------------------------------------------------------
+  // Inline Rename Props (passed through to child NestedFileItem)
+  // ---------------------------------------------------------------------------
+  /** Path currently being renamed (relative to cwd), or null if not renaming */
+  renamingPath?: string | null;
+  /** Callback when rename is committed with new name */
+  onCommitRename?: (newName: string) => void;
+  /** Callback when rename is cancelled */
+  onCancelRename?: () => void;
+  // ---------------------------------------------------------------------------
+  // Inline Creation Props
+  // ---------------------------------------------------------------------------
+  /** Absolute path where new file/folder is being created, or null */
+  creatingInPath?: string | null;
+  /** Type of item being created */
+  creatingType?: "file" | "folder" | null;
+  /** Callback when creation is committed with name */
+  onCommitCreate?: (name: string) => void;
+  /** Callback when creation is cancelled */
+  onCancelCreate?: () => void;
 }
 
 export function NestedFolderItem({
@@ -62,10 +103,19 @@ export function NestedFolderItem({
   onUnstage,
   onRevert,
   isFileUnseen,
+  onContextMenu,
+  renamingPath,
+  onCommitRename,
+  onCancelRename,
+  creatingInPath,
+  creatingType,
+  onCommitCreate,
+  onCancelCreate,
 }: NestedFolderItemProps) {
   const isExpanded = expandedFolders.has(folder.path);
   const FolderIcon = isExpanded ? FolderOpen : Folder;
   const isFolderSelected = multiSelectedPaths.has(folder.path);
+  const isFolderRenaming = renamingPath === folder.path;
 
   // Sort files and subfolders alphabetically
   const sortedFiles = [...folder.files].sort((a, b) =>
@@ -108,11 +158,18 @@ export function NestedFolderItem({
         className={cn(
           "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
           "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
-          isFolderSelected
-            ? "bg-accent/20 hover:bg-accent/25"
-            : "hover:bg-foreground/10",
+          isFolderRenaming
+            ? "ring-1 ring-accent/60"
+            : isFolderSelected
+              ? "bg-accent/20 hover:bg-accent/25"
+              : "hover:bg-foreground/10",
         )}
         onClick={handleFolderClick}
+        onContextMenu={
+          onContextMenu
+            ? (e) => onContextMenu(folder.path, folder.path, true, e)
+            : undefined
+        }
         data-testid={`folder-toggle-${folder.name}`}
       >
         {/* Expand/collapse chevron - always toggles on click */}
@@ -133,25 +190,70 @@ export function NestedFolderItem({
         {/* Folder icon */}
         <FolderIcon className="flex-shrink-0 text-foreground" size={12} />
 
-        {/* Folder name */}
-        <span className="min-w-0 flex-1 truncate text-foreground">
-          {folder.name}
-        </span>
+        {/* Folder name or rename input */}
+        {isFolderRenaming && onCommitRename && onCancelRename ? (
+          <FileTreeItemRename
+            initialName={folder.name}
+            isDirectory={true}
+            onCommit={onCommitRename}
+            onCancel={onCancelRename}
+          />
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-foreground">
+            {folder.name}
+          </span>
+        )}
 
-        {/* Action buttons (visible on hover) */}
-        <ActionButtons
-          isStaged={isStaged}
-          canRevert={!isStaged}
-          onStage={onStage ? () => onStage(folder.path) : undefined}
-          onUnstage={onUnstage ? () => onUnstage(folder.path) : undefined}
-          onRevert={onRevert ? () => onRevert(folder.path) : undefined}
-          itemType="folder"
-        />
+        {/* Action buttons (visible on hover, hidden when renaming) */}
+        {!isFolderRenaming && (
+          <ActionButtons
+            isStaged={isStaged}
+            canRevert={!isStaged}
+            onStage={onStage ? () => onStage(folder.path) : undefined}
+            onUnstage={onUnstage ? () => onUnstage(folder.path) : undefined}
+            onRevert={onRevert ? () => onRevert(folder.path) : undefined}
+            itemType="folder"
+          />
+        )}
       </button>
 
       {/* Children (when expanded) */}
       {isExpanded && (
         <ul className="border-l border-border pl-2">
+          {/* Creation placeholder (at top of children) */}
+          {creatingInPath === path.join(cwd, folder.path) &&
+            creatingType &&
+            onCommitCreate &&
+            onCancelCreate && (
+              <li>
+                <div
+                  className={cn(
+                    "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px]",
+                    "ring-1 ring-accent/60",
+                  )}
+                  data-testid={`creating-${creatingType}-in-${folder.name}`}
+                >
+                  {/* Spacer to align with folder chevrons */}
+                  <div style={{ width: 12 }} />
+
+                  {/* Icon based on type */}
+                  {creatingType === "folder" ? (
+                    <Folder className="flex-shrink-0 text-foreground" size={12} />
+                  ) : (
+                    <FileText className="flex-shrink-0 text-foreground" size={12} />
+                  )}
+
+                  {/* Inline creation input */}
+                  <FileTreeItemRename
+                    initialName=""
+                    isDirectory={creatingType === "folder"}
+                    onCommit={onCommitCreate}
+                    onCancel={onCancelCreate}
+                  />
+                </div>
+              </li>
+            )}
+
           {/* Subfolders first */}
           {sortedFolders.map((subfolder) => (
             <NestedFolderItem
@@ -168,6 +270,14 @@ export function NestedFolderItem({
               onUnstage={onUnstage}
               onRevert={onRevert}
               isFileUnseen={isFileUnseen}
+              onContextMenu={onContextMenu}
+              renamingPath={renamingPath}
+              onCommitRename={onCommitRename}
+              onCancelRename={onCancelRename}
+              creatingInPath={creatingInPath}
+              creatingType={creatingType}
+              onCommitCreate={onCommitCreate}
+              onCancelCreate={onCancelCreate}
             />
           ))}
 
@@ -186,6 +296,14 @@ export function NestedFolderItem({
               onUnstage={onUnstage ? () => onUnstage(file.mapKey) : undefined}
               onRevert={onRevert ? () => onRevert(file.mapKey) : undefined}
               showUnseenIndicator={isFileUnseen?.(file.path)}
+              onContextMenu={
+                onContextMenu
+                  ? (e) => onContextMenu(file.mapKey, file.path, false, e)
+                  : undefined
+              }
+              isRenaming={renamingPath === file.path}
+              onCommitRename={onCommitRename}
+              onCancelRename={onCancelRename}
             />
           ))}
         </ul>

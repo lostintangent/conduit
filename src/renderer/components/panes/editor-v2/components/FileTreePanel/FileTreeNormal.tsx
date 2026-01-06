@@ -44,7 +44,13 @@ import {
   useFileTreeContextMenu,
   useScrollPersistence,
 } from "../../hooks";
-import { getParentPaths, normalizePathForKey, pathsEqual } from "../../utils";
+import {
+  getParentPath,
+  getParentPaths,
+  getRelativePath,
+  normalizePathForKey,
+  pathsEqual,
+} from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
@@ -82,6 +88,9 @@ export interface FileTreeNormalProps {
    * When null/undefined, component fetches its own HEAD-based status.
    */
   gitStatus?: Map<string, GitFileStatus> | null;
+
+  /** Callback when a file/folder is renamed - used to preserve seen status */
+  onPathRename?: (oldPath: string, newPath: string) => void;
 }
 
 /**
@@ -107,27 +116,6 @@ function joinPath(base: string, name: string): string {
     return base + name;
   }
   return base + "/" + name;
-}
-
-/**
- * Get the parent directory path.
- */
-function getParentPath(filePath: string): string | null {
-  const lastSlash = filePath.lastIndexOf("/");
-  if (lastSlash <= 0) return null;
-  return filePath.slice(0, lastSlash);
-}
-
-/**
- * Get relative path from cwd.
- */
-function getRelativePath(fullPath: string, cwd: string): string {
-  if (fullPath.startsWith(cwd)) {
-    const relative = fullPath.slice(cwd.length);
-    // Remove leading slash
-    return relative.startsWith("/") ? relative.slice(1) : relative;
-  }
-  return fullPath;
 }
 
 /**
@@ -160,6 +148,7 @@ export const FileTreeNormal = memo(
       onFileSelect,
       onDirectoryChange,
       gitStatus: gitStatusFromParent,
+      onPathRename,
     },
     ref,
   ) {
@@ -307,6 +296,11 @@ export const FileTreeNormal = memo(
     const [creatingType, setCreatingType] = useState<"file" | "folder" | null>(
       null,
     );
+
+    /**
+     * Ref to guard against double invocation of creation handlers.
+     */
+    const creationInProgressRef = useRef<string | null>(null);
 
     // ---------------------------------------------------------------------------
     // CWD Change Handler
@@ -622,6 +616,11 @@ export const FileTreeNormal = memo(
         try {
           await fs.rename(renamingPath, newPath);
 
+          // Transfer seen status from old path to new path (handles folders and files)
+          const oldRelative = getRelativePath(renamingPath, cwd);
+          const newRelative = getRelativePath(newPath, cwd);
+          onPathRename?.(oldRelative, newRelative);
+
           // Optimistic update: update directory cache immediately so the new name
           // is visible before the file watcher triggers a refresh
           const oldName = renamingPath.split("/").pop();
@@ -659,7 +658,7 @@ export const FileTreeNormal = memo(
           setRenamingPath(null);
         }
       },
-      [renamingPath, fs],
+      [renamingPath, fs, cwd, onPathRename],
     );
 
     /**
@@ -714,12 +713,23 @@ export const FileTreeNormal = memo(
      */
     const beginCreateFile = useCallback(
       async (parentPath: string) => {
+        // Guard against double invocation using ref
+        if (creationInProgressRef.current === parentPath) {
+          return;
+        }
+        creationInProgressRef.current = parentPath;
+
         // Expand the directory if not already expanded (this also loads contents)
         if (!isPathExpanded(parentPath)) {
           await handleToggleExpand(parentPath);
         }
         setCreatingInPath(parentPath);
         setCreatingType("file");
+
+        // Clear the guard after state updates
+        setTimeout(() => {
+          creationInProgressRef.current = null;
+        }, 0);
       },
       [isPathExpanded, handleToggleExpand],
     );
@@ -729,12 +739,23 @@ export const FileTreeNormal = memo(
      */
     const beginCreateFolder = useCallback(
       async (parentPath: string) => {
+        // Guard against double invocation using ref
+        if (creationInProgressRef.current === parentPath) {
+          return;
+        }
+        creationInProgressRef.current = parentPath;
+
         // Expand the directory if not already expanded (this also loads contents)
         if (!isPathExpanded(parentPath)) {
           await handleToggleExpand(parentPath);
         }
         setCreatingInPath(parentPath);
         setCreatingType("folder");
+
+        // Clear the guard after state updates
+        setTimeout(() => {
+          creationInProgressRef.current = null;
+        }, 0);
       },
       [isPathExpanded, handleToggleExpand],
     );
@@ -770,12 +791,13 @@ export const FileTreeNormal = memo(
           setDirectoryCache((prev) => {
             const entries = prev[cacheKey];
             if (!entries) return prev;
-            const newEntry = {
+            const newEntry: DirectoryEntry = {
               name,
               type:
                 creatingType === "file"
                   ? ("file" as const)
                   : ("directory" as const),
+              isSymlink: false,
             };
             return {
               ...prev,
@@ -789,6 +811,11 @@ export const FileTreeNormal = memo(
 
           // Set pending focus to the new item
           setPendingFocusPath(newPath);
+
+          // Select the newly created file (opens it in editor)
+          if (creatingType === "file") {
+            onFileSelect({ path: newPath, name, type: "file" }, null);
+          }
         } catch (error) {
           console.error("Create failed:", error);
           const itemType = creatingType === "file" ? "file" : "folder";
@@ -801,7 +828,7 @@ export const FileTreeNormal = memo(
           setCreatingType(null);
         }
       },
-      [creatingInPath, creatingType, fs],
+      [creatingInPath, creatingType, fs, onFileSelect],
     );
 
     // ---------------------------------------------------------------------------
@@ -906,31 +933,12 @@ export const FileTreeNormal = memo(
     }, [deletingPath, getEntryForPath, getNextFocusAfterDelete, fs]);
 
     // ---------------------------------------------------------------------------
-    // Context Menu (via command system)
+    // Context Menu Command Handlers
     // ---------------------------------------------------------------------------
 
     /**
-     * Handle new file from context menu command.
-     */
-    const handleNewFileCommand = useCallback(
-      (parentPath: string) => {
-        beginCreateFile(parentPath);
-      },
-      [beginCreateFile],
-    );
-
-    /**
-     * Handle new folder from context menu command.
-     */
-    const handleNewFolderCommand = useCallback(
-      (parentPath: string) => {
-        beginCreateFolder(parentPath);
-      },
-      [beginCreateFolder],
-    );
-
-    /**
      * Handle rename from context menu command.
+     * Sets focus to the item and starts inline rename.
      */
     const handleRenameCommand = useCallback(
       (path: string) => {
@@ -942,6 +950,7 @@ export const FileTreeNormal = memo(
 
     /**
      * Handle delete from context menu command.
+     * Sets focus to the item and shows delete confirmation.
      */
     const handleDeleteCommand = useCallback(
       (path: string) => {
@@ -957,8 +966,8 @@ export const FileTreeNormal = memo(
     const { showContextMenu, setFocusState } = useFileTreeContextMenu({
       cwd,
       homeDirectory: homeDirectory ?? undefined,
-      onNewFile: handleNewFileCommand,
-      onNewFolder: handleNewFolderCommand,
+      onNewFile: beginCreateFile,
+      onNewFolder: beginCreateFolder,
       onRename: handleRenameCommand,
       onDelete: handleDeleteCommand,
     });
@@ -996,6 +1005,15 @@ export const FileTreeNormal = memo(
           if (e.key === "Escape") {
             e.preventDefault();
             cancelRename();
+          }
+          return;
+        }
+
+        // Don't handle keyboard events while creating (creation input handles them)
+        if (creatingInPath) {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            cancelCreate();
           }
           return;
         }
@@ -1095,11 +1113,13 @@ export const FileTreeNormal = memo(
         focusedPath,
         visiblePaths,
         renamingPath,
+        creatingInPath,
         handleArrowRight,
         handleArrowLeft,
         handleSpaceKey,
         beginRename,
         cancelRename,
+        cancelCreate,
         handleDelete,
       ],
     );

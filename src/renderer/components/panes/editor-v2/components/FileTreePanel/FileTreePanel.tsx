@@ -179,6 +179,9 @@ export interface FileTreePanelProps {
   /** Check if a file is unseen (Follow mode) - returns true if file has unacknowledged changes */
   isFileUnseen?: (path: string) => boolean;
 
+  /** Callback when a file/folder is renamed - used to preserve seen status */
+  onPathRename?: (oldPath: string, newPath: string) => void;
+
   // ---------------------------------------------------------------------------
   // Dirty File Props
   // ---------------------------------------------------------------------------
@@ -238,6 +241,7 @@ export const FileTreePanel = memo(
       onChangesViewModeChange,
       // Follow Mode Props
       isFileUnseen,
+      onPathRename,
       // Dirty File Props
       isFileDirty,
     },
@@ -324,6 +328,7 @@ export const FileTreePanel = memo(
               onFileSelect={onFileSelect}
               onDirectoryChange={onDirectoryChange}
               gitStatus={gitStatus}
+              onPathRename={onPathRename}
             />
           </div>
 
@@ -337,6 +342,7 @@ export const FileTreePanel = memo(
             <FileTreeChanges
               paneId={paneId}
               cwd={cwd}
+              fs={fs}
               git={git}
               selectedFile={selectedFile}
               selectedMapKey={selectedMapKey}
@@ -347,6 +353,7 @@ export const FileTreePanel = memo(
               baseBranchName={baseBranch}
               isFileUnseen={isFileUnseen}
               isFileDirty={isFileDirty}
+              onPathRename={onPathRename}
             />
           </div>
         </div>

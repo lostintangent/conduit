@@ -556,10 +556,9 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       // Also invalidate the deleted directory's cache if it was a directory
       DirectoryCache.delete(event.path);
 
-      // Notify about deleted file (so git status gets refreshed)
-      if (!event.isDirectory) {
-        this._onFileContentChanged.fire({ path: event.path });
-      }
+      // Notify about deleted file/folder (so git status gets refreshed)
+      // For directories, this triggers refresh for all files inside
+      this._onFileContentChanged.fire({ path: event.path });
     });
 
     // File/directory renamed
@@ -578,10 +577,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       // Update cache for renamed directory
       if (event.isDirectory) {
         DirectoryCache.delete(event.oldPath);
-      } else {
-        // Notify about renamed file (so git status gets refreshed)
-        this._onFileContentChanged.fire({ path: event.newPath });
       }
+
+      // Notify about renamed file/folder (so git status gets refreshed)
+      // For directories, this triggers refresh for all files inside
+      this._onFileContentChanged.fire({ path: event.newPath });
     });
   }
 

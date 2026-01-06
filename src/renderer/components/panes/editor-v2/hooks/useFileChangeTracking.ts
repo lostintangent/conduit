@@ -136,6 +136,15 @@ export interface FileChangeTrackingResult {
    * Clear all tracking data.
    */
   reset: () => void;
+
+  /**
+   * Handle a path rename by transferring seen status from old paths to new paths.
+   * Works for both files and folders. For folders, transfers status for all nested files.
+   *
+   * @param oldPath - Old path (file or folder)
+   * @param newPath - New path (file or folder)
+   */
+  handlePathRename: (oldPath: string, newPath: string) => void;
 }
 
 /**
@@ -153,6 +162,7 @@ export const DISABLED_TRACKING: FileChangeTrackingResult = {
   processStatusChange: () => {},
   initializeFiles: () => {},
   reset: () => {},
+  handlePathRename: () => {},
 };
 
 /**
@@ -168,6 +178,10 @@ export function useFileChangeTracking(): FileChangeTrackingResult {
 
   // Track if we've done initial load (to avoid marking all files as unseen on mount)
   const hasInitializedRef = useRef(false);
+
+  // Track paths that should be ignored due to recent rename operations
+  // This prevents marking files as unseen when they're just being renamed
+  const renameGracePaths = useRef<Set<string>>(new Set());
 
   /**
    * Check if a file is unseen.
@@ -286,12 +300,28 @@ export function useFileChangeTracking(): FileChangeTrackingResult {
     (addedOrModified: string[], expandFile?: (path: string) => void) => {
       if (addedOrModified.length === 0) return;
 
+      // Filter out paths that are in the rename grace period
+      const gracePaths = renameGracePaths.current;
+      const pathsToProcess = addedOrModified.filter((path) => {
+        // Check if this path matches any grace prefix (folder rename)
+        for (const gracePrefix of gracePaths) {
+          if (path === gracePrefix || path.startsWith(gracePrefix + "/")) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (pathsToProcess.length === 0) {
+        return;
+      }
+
       const now = Date.now();
 
       setFileMetadata((prev) => {
         const next = new Map(prev);
 
-        for (const path of addedOrModified) {
+        for (const path of pathsToProcess) {
           const existing = next.get(path);
 
           // Mark as unseen and update timestamp
@@ -350,6 +380,77 @@ export function useFileChangeTracking(): FileChangeTrackingResult {
     hasInitializedRef.current = false;
   }, []);
 
+  /**
+   * Handle a path rename by transferring metadata from old paths to new paths.
+   * Works for both files and folders. For folders, transfers status for all nested files.
+   *
+   * IMPORTANT: Due to race conditions, git status may fire `added` events for the
+   * new paths BEFORE or AFTER this function runs. We handle this by:
+   * 1. Adding the new path to a "grace period" set that blocks processStatusChange
+   * 2. Transferring any existing metadata from old paths to new paths
+   * 3. Clearing the grace period after a short delay
+   */
+  const handlePathRename = useCallback(
+    (oldPrefix: string, newPrefix: string) => {
+      // Add the new prefix to grace paths BEFORE doing anything else
+      // This prevents any processStatusChange calls from marking new paths as unseen
+      renameGracePaths.current.add(newPrefix);
+
+      // Clear the grace period after a delay (give git status time to settle)
+      setTimeout(() => {
+        renameGracePaths.current.delete(newPrefix);
+      }, 500);
+
+      setFileMetadata((prev) => {
+        // First pass: collect transfers from old paths to new paths
+        // These take PRIORITY over any existing entries at the new paths
+        const transfers = new Map<string, FileMetadata>();
+        for (const [path, metadata] of prev) {
+          if (path === oldPrefix || path.startsWith(oldPrefix + "/")) {
+            const newPath =
+              path === oldPrefix
+                ? newPrefix
+                : newPrefix + path.slice(oldPrefix.length);
+            transfers.set(newPath, metadata);
+          }
+        }
+
+        if (transfers.size === 0) {
+          return prev;
+        }
+
+        // Second pass: build new map
+        // - Skip old prefix paths (they're being transferred)
+        // - For new prefix paths, use transferred metadata (priority) or keep existing
+        // - Keep all other paths as-is
+        const next = new Map<string, FileMetadata>();
+        for (const [path, metadata] of prev) {
+          if (path === oldPrefix || path.startsWith(oldPrefix + "/")) {
+            // Skip old paths - they're being transferred
+            continue;
+          }
+          if (transfers.has(path)) {
+            // This path matches a transfer target - use the transferred metadata
+            // (handles race condition where git added new path before rename completed)
+            next.set(path, transfers.get(path)!);
+            transfers.delete(path); // Mark as handled
+          } else {
+            // Keep other paths as-is
+            next.set(path, metadata);
+          }
+        }
+
+        // Add any remaining transfers (new paths that weren't in the map yet)
+        for (const [newPath, metadata] of transfers) {
+          next.set(newPath, metadata);
+        }
+
+        return next;
+      });
+    },
+    [],
+  );
+
   return {
     isUnseen,
     getTimestamp,
@@ -361,5 +462,6 @@ export function useFileChangeTracking(): FileChangeTrackingResult {
     processStatusChange,
     initializeFiles,
     reset,
+    handlePathRename,
   };
 }

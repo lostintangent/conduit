@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { GitBadge, getStatusConfig } from "../../shared";
 import { ActionButtons } from "./ActionButtons";
+import { FileTreeItemRename } from "../FileTreeItemRename";
 import type { FileEntry } from "../utils/types";
 
 export interface NestedFileItemProps {
@@ -39,6 +40,17 @@ export interface NestedFileItemProps {
   onRevert?: () => void;
   /** Whether to show unseen indicator on git badge (Follow mode) */
   showUnseenIndicator?: boolean;
+  /** Callback when right-clicked for context menu */
+  onContextMenu?: (event: React.MouseEvent) => void;
+  // ---------------------------------------------------------------------------
+  // Inline Rename Props
+  // ---------------------------------------------------------------------------
+  /** Whether this item is currently being renamed */
+  isRenaming?: boolean;
+  /** Callback when rename is committed with new name */
+  onCommitRename?: (newName: string) => void;
+  /** Callback when rename is cancelled */
+  onCancelRename?: () => void;
 }
 
 export function NestedFileItem({
@@ -53,6 +65,10 @@ export function NestedFileItem({
   onUnstage,
   onRevert,
   showUnseenIndicator = false,
+  onContextMenu,
+  isRenaming = false,
+  onCommitRename,
+  onCancelRename,
 }: NestedFileItemProps) {
   // Get text color class from git status
   const statusConfig = getStatusConfig(file.status);
@@ -66,6 +82,44 @@ export function NestedFileItem({
 
   // Determine background styling based on selection state
   const isHighlighted = isSelected || isMultiSelected;
+
+  // When renaming, render a special inline edit row
+  if (isRenaming && onCommitRename && onCancelRename) {
+    return (
+      <li>
+        <div
+          className={cn(
+            "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px]",
+            "ring-1 ring-accent/60",
+          )}
+          data-testid={`nested-file-${file.name}-renaming`}
+        >
+          {/* Spacer to align with folder chevrons */}
+          <div style={{ width: 12 }} />
+
+          {/* File icon */}
+          <FileText
+            className={cn("flex-shrink-0", iconColorClass)}
+            size={12}
+          />
+
+          {/* Inline rename input */}
+          <FileTreeItemRename
+            initialName={file.name}
+            isDirectory={false}
+            onCommit={onCommitRename}
+            onCancel={onCancelRename}
+          />
+
+          {/* Git status badge (keep visible during rename) */}
+          <GitBadge
+            status={file.status}
+            showUnseenIndicator={showUnseenIndicator}
+          />
+        </div>
+      </li>
+    );
+  }
 
   return (
     <li>
@@ -82,6 +136,7 @@ export function NestedFileItem({
                   : "hover:bg-foreground/10",
               )}
               onClick={onSelect}
+              onContextMenu={onContextMenu}
               data-testid={`nested-file-${file.name}`}
               data-path={file.path}
             >

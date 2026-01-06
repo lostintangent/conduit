@@ -32,6 +32,7 @@ import {
   getMenuRegistry,
 } from "@/commands";
 import {
+  fileTreeChangesMode,
   fileTreeCwd,
   fileTreeFocused,
   fileTreeItemFocused,
@@ -212,6 +213,9 @@ export function useFileTreeContextMenu({
           isInHomeDirectory,
         );
         contextKeyService.setGlobal(fileTreeCwd.key, cwd);
+
+        // Explicitly set changes mode to false (normal file tree mode)
+        contextKeyService.setGlobal(fileTreeChangesMode.key, false);
 
         // Get context values for evaluating when clauses
         const contextValues = contextKeyService.getAll();
