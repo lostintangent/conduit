@@ -48,6 +48,7 @@ import type {
   GitHeadChangedEvent,
   GitStatus,
   GitStatusChangedEvent,
+  PerFileDiffStats,
 } from "../../ipc/gitv2/types";
 import type {
   BranchChangedPayload,
@@ -56,6 +57,7 @@ import type {
   SerializedGitBranch,
   SerializedGitCommit,
   SerializedGitStatus,
+  SerializedPerFileDiffStats,
   StatusChangedPayload,
 } from "../../preload/window/modules/gitv2";
 
@@ -750,6 +752,27 @@ export class GitV2API {
       this.cwd,
       this.sandboxId,
     );
+  }
+
+  /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * Returns lines added/removed for each changed file.
+   * Useful for displaying diff stats next to file names in the UI.
+   *
+   * @returns Map of file paths to their diff statistics
+   * @throws {Error} If the API has been released
+   */
+  async getPerFileDiffStats(): Promise<PerFileDiffStats> {
+    this.ensureNotReleased();
+    const serialized: SerializedPerFileDiffStats =
+      await window.conduit.gitv2.getPerFileDiffStats(this.cwd, this.sandboxId);
+    // Convert plain object back to Map
+    const result: PerFileDiffStats = new Map();
+    for (const [path, stats] of Object.entries(serialized)) {
+      result.set(path, stats);
+    }
+    return result;
   }
 
   /**

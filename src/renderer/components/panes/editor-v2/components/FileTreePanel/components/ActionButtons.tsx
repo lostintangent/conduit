@@ -64,7 +64,7 @@ function ActionButton({
  * Inline action buttons for stage/unstage/revert operations.
  * Renders different buttons based on staged state.
  *
- * Parent element should have `group` class for hover visibility to work.
+ * Parent controls visibility via display:none/block on hover.
  */
 export function ActionButtons({
   isStaged,
@@ -82,7 +82,7 @@ export function ActionButtons({
   const suffix = itemType === "folder" ? " folder" : "";
 
   return (
-    <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+    <div className="flex-shrink-0 flex items-center gap-0.5">
       {isStaged ? (
         onUnstage && (
           <ActionButton

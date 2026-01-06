@@ -13,6 +13,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { GitBadge, getStatusConfig } from "../../shared";
+import { FileDiffStats } from "../../FileDiffStats";
 import { ActionButtons } from "./ActionButtons";
 import { FileTreeItemRename } from "../FileTreeItemRename";
 import type { FileEntry } from "../utils/types";
@@ -98,10 +99,7 @@ export function NestedFileItem({
           <div style={{ width: 12 }} />
 
           {/* File icon */}
-          <FileText
-            className={cn("flex-shrink-0", iconColorClass)}
-            size={12}
-          />
+          <FileText className={cn("flex-shrink-0", iconColorClass)} size={12} />
 
           {/* Inline rename input */}
           <FileTreeItemRename
@@ -154,14 +152,24 @@ export function NestedFileItem({
                 {file.name}
               </span>
 
-              {/* Action buttons (stage/unstage/revert) */}
-              <ActionButtons
-                isStaged={isStaged}
-                canRevert={canRevert}
-                onStage={onStage}
-                onUnstage={onUnstage}
-                onRevert={onRevert}
-              />
+              {/* Diff stats / Action buttons - mutually exclusive via display:none/block */}
+              {/* Stats: shown by default, hidden on hover */}
+              <div className="flex-shrink-0 block group-hover:hidden">
+                <FileDiffStats
+                  filePath={file.path}
+                  isUnseen={showUnseenIndicator}
+                />
+              </div>
+              {/* Action buttons: hidden by default, shown on hover */}
+              <div className="flex-shrink-0 hidden group-hover:block">
+                <ActionButtons
+                  isStaged={isStaged}
+                  canRevert={canRevert}
+                  onStage={onStage}
+                  onUnstage={onUnstage}
+                  onRevert={onRevert}
+                />
+              </div>
 
               {/* Git status badge */}
               <GitBadge

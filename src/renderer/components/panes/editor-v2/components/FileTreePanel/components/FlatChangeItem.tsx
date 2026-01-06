@@ -14,6 +14,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { GitBadge, getStatusConfig } from "../../shared";
+import { FileDiffStats } from "../../FileDiffStats";
 import { ActionButtons } from "./ActionButtons";
 import { FileTreeItemRename } from "../FileTreeItemRename";
 
@@ -110,10 +111,7 @@ export function FlatChangeItem({
           data-testid={`change-item-${fileName}-renaming`}
         >
           {/* File icon */}
-          <FileText
-            className={cn("flex-shrink-0", iconColorClass)}
-            size={12}
-          />
+          <FileText className={cn("flex-shrink-0", iconColorClass)} size={12} />
 
           {/* Inline rename input */}
           <FileTreeItemRename
@@ -124,10 +122,7 @@ export function FlatChangeItem({
           />
 
           {/* Git status badge (keep visible during rename) */}
-          <GitBadge
-            status={status}
-            showUnseenIndicator={showUnseenIndicator}
-          />
+          <GitBadge status={status} showUnseenIndicator={showUnseenIndicator} />
         </div>
       </li>
     );
@@ -178,14 +173,24 @@ export function FlatChangeItem({
                 )}
               </div>
 
-              {/* Action buttons (stage/unstage/revert) */}
-              <ActionButtons
-                isStaged={isStaged}
-                canRevert={canRevert}
-                onStage={onStage}
-                onUnstage={onUnstage}
-                onRevert={onRevert}
-              />
+              {/* Diff stats / Action buttons - mutually exclusive via display:none/block */}
+              {/* Stats: shown by default, hidden on hover */}
+              <div className="flex-shrink-0 block group-hover:hidden">
+                <FileDiffStats
+                  filePath={filePath}
+                  isUnseen={showUnseenIndicator}
+                />
+              </div>
+              {/* Action buttons: hidden by default, shown on hover */}
+              <div className="flex-shrink-0 hidden group-hover:block">
+                <ActionButtons
+                  isStaged={isStaged}
+                  canRevert={canRevert}
+                  onStage={onStage}
+                  onUnstage={onUnstage}
+                  onRevert={onRevert}
+                />
+              </div>
 
               {/* Git status badge */}
               <GitBadge

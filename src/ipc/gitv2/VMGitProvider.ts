@@ -440,6 +440,21 @@ export class VMGitProvider implements GitProvider {
   }
 
   /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * Note: VM sandbox support not yet implemented, returns empty map.
+   */
+  async getPerFileDiffStats(): Promise<
+    Map<string, { added: number; removed: number }>
+  > {
+    this.ensureNotDisposed();
+
+    // VM sandbox support not implemented - return empty map
+    // The UI gracefully handles missing stats
+    return new Map();
+  }
+
+  /**
    * Get the most recently modified dirty file.
    */
   async getMostRecentDirtyFile(): Promise<string | null> {

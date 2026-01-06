@@ -76,6 +76,14 @@ export interface SerializedDiffStats {
   files: number;
 }
 
+/**
+ * Serialized per-file diff stats for IPC transport.
+ * Object with file paths as keys instead of Map.
+ */
+export interface SerializedPerFileDiffStats {
+  [filePath: string]: { added: number; removed: number };
+}
+
 // ============================================================================
 // Event Payload Types
 // ============================================================================
@@ -453,6 +461,19 @@ export default {
       cwd,
       vmId,
     }) as Promise<SerializedDiffStats>,
+
+  /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * @param cwd - Working directory
+   * @param vmId - Optional VM ID for cloud git operations
+   * @returns Object mapping file paths to their diff stats
+   */
+  getPerFileDiffStats: (cwd: string, vmId?: string) =>
+    ipcRenderer.invoke("git-v2:per-file-diff-stats", {
+      cwd,
+      vmId,
+    }) as Promise<SerializedPerFileDiffStats>,
 
   /**
    * Get the most recently modified dirty file.

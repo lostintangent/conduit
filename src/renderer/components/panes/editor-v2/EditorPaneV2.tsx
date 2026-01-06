@@ -39,6 +39,7 @@ import {
 import {
   BranchSelector,
   EditorViewPanel,
+  FileDiffStatsProvider,
   FileTreePanel,
   TreeResizer,
   type FileTreePanelHandle,
@@ -538,6 +539,7 @@ export function EditorPaneV2({
           setHasUpstream(!!event.status.upstream);
         }
         // Note: Unseen tracking is handled by useUnseenTracking hook
+        // Note: Per-file diff stats are handled by FileDiffStatsProvider
       }
     });
 
@@ -578,6 +580,7 @@ export function EditorPaneV2({
             setHasUpstream(!!status.upstream);
           }
         }
+        // Note: Per-file diff stats are handled by FileDiffStatsProvider
 
         // Load current branch
         const branch = await git.getCurrentBranch();
@@ -1441,161 +1444,163 @@ export function EditorPaneV2({
   const showEditor = layout === "split" || panelView === "editor";
 
   return (
-    <div
-      ref={containerRef}
-      className="relative flex h-full w-full overflow-hidden bg-background"
-      data-testid="editor-pane-v2"
-      onMouseEnter={() => onHover?.(true)}
-      onMouseLeave={() => onHover?.(false)}
-    >
-      {/* File Tree Panel
-       * IMPORTANT: We use CSS visibility (display: none + width: 0) instead of
-       * conditional rendering to preserve the tree's scroll position, expanded
-       * folders, and other DOM state when collapsed.
-       */}
+    <FileDiffStatsProvider git={git} fs={fs}>
       <div
-        ref={treePanelRef}
-        className={cn(
-          "flex-shrink-0 h-full overflow-hidden",
-          !showTree && "hidden",
-        )}
-        style={{
-          width: showTree ? (layout === "split" ? treeWidth : "100%") : 0,
-        }}
-        data-testid="tree-container"
-        data-collapsed={!showTree}
-        tabIndex={-1}
+        ref={containerRef}
+        className="relative flex h-full w-full overflow-hidden bg-background"
+        data-testid="editor-pane-v2"
+        onMouseEnter={() => onHover?.(true)}
+        onMouseLeave={() => onHover?.(false)}
       >
-        <FileTreePanel
-          ref={fileTreeRef}
-          paneId={pane.id}
-          cwd={currentCwd}
-          fs={fs}
+        {/* File Tree Panel
+         * IMPORTANT: We use CSS visibility (display: none + width: 0) instead of
+         * conditional rendering to preserve the tree's scroll position, expanded
+         * folders, and other DOM state when collapsed.
+         */}
+        <div
+          ref={treePanelRef}
+          className={cn(
+            "flex-shrink-0 h-full overflow-hidden",
+            !showTree && "hidden",
+          )}
+          style={{
+            width: showTree ? (layout === "split" ? treeWidth : "100%") : 0,
+          }}
+          data-testid="tree-container"
+          data-collapsed={!showTree}
+          tabIndex={-1}
+        >
+          <FileTreePanel
+            ref={fileTreeRef}
+            paneId={pane.id}
+            cwd={currentCwd}
+            fs={fs}
+            git={git}
+            selectedFile={selectedFile}
+            selectedMapKey={selectedMapKey}
+            onFileSelect={handleFileSelect}
+            treeViewMode={treeViewMode}
+            onTreeViewModeChange={handleTreeViewModeChange}
+            // Git Branch Props
+            currentBranch={currentBranch}
+            baseBranch={baseBranch}
+            isComparingToBranch={baseBranch !== null}
+            gitStatus={gitStatus}
+            changedFilesCount={gitChangedFiles.size}
+            onOpenBranchPicker={handleOpenBranchPicker}
+            onBranchSwitch={handleBranchSwitch}
+            // Git Operations Props
+            stagedCount={stagedCount}
+            onPull={handlePull}
+            onPush={handlePush}
+            isPulling={isPulling}
+            isPushing={isPushing}
+            hasUpstream={hasUpstream}
+            commitMessage={commitMessage}
+            onCommitMessageChange={setCommitMessage}
+            onCommit={handleCommit}
+            isCommitting={isCommitting}
+            // Navigation Props
+            canNavigateUp={canNavigateUp}
+            onNavigateUp={handleNavigateUp}
+            isTreeCollapsed={isTreeCollapsed}
+            onToggleCollapse={handleToggleTree}
+            showCollapseButton={layout === "split"}
+            onDirectoryChange={handleDirectoryChange}
+            // Changes View Mode Props
+            changesViewMode={changesViewMode}
+            onChangesViewModeChange={setChangesViewMode}
+            // Review Mode Props
+            isReviewModeActive={isReviewMode}
+            onReviewChanges={handleReviewChanges}
+            // Unseen Tracking Props (when enabled)
+            isFileUnseen={
+              trackUnseenChanges ? unseenTracking.isUnseen : undefined
+            }
+            onPathRename={
+              trackUnseenChanges ? unseenTracking.handlePathRename : undefined
+            }
+            triggerRead={trackUnseenChanges ? triggerRead : undefined}
+            // Dirty file checking (for preventing staging unsaved files)
+            isFileDirty={isFileDirty}
+          />
+        </div>
+
+        {/* Tree Resizer (split mode only, hidden when tree is collapsed) */}
+        {layout === "split" && showTree && (
+          <TreeResizer
+            currentWidth={treeWidth}
+            onResize={handleTreeResize}
+            minWidth={MIN_TREE_WIDTH}
+            maxWidth={MAX_TREE_WIDTH}
+          />
+        )}
+
+        {/* Editor View Panel */}
+        <div
+          className={cn(
+            "flex-1 min-w-0 h-full overflow-hidden",
+            layout === "single" && !showEditor && "hidden",
+          )}
+          data-testid="editor-container"
+        >
+          <EditorViewPanel
+            editorId={editorId}
+            cwd={currentCwd}
+            sandboxId={sandboxId}
+            git={git}
+            selectedFile={selectedFile}
+            selectedMapKey={selectedMapKey}
+            viewMode={viewMode}
+            baseBranch={baseBranch ?? undefined}
+            theme={editorTheme}
+            onSave={onSave}
+            showBackButton={layout === "single"}
+            onBack={() => setPanelView("tree")}
+            showExpandTreeButton={layout === "split" && isTreeCollapsed}
+            onExpandTree={() => setIsTreeCollapsed(false)}
+            showDiffToggle={isCurrentFileGitModified}
+            isDiffMode={viewMode.type === "diff"}
+            onToggleDiffMode={handleToggleDiffMode}
+            onExitReview={exitReviewMode}
+            isFileDeleted={isCurrentFileDeleted}
+            isFileStaged={isCurrentFileStaged}
+            hasIndexChanges={currentFileHasIndexChanges}
+            // Preview mode props
+            showPreviewToggle={isPreviewSupported}
+            isPreviewMode={viewMode.type === "preview"}
+            onTogglePreviewMode={handleTogglePreviewMode}
+            previewContent={previewContent}
+            // Remote operations
+            hasUpstream={hasUpstream}
+            isPulling={isPulling}
+            isPushing={isPushing}
+            onPull={handlePull}
+            onPush={handlePush}
+            // Unseen tracking (when enabled)
+            unseenTracking={trackUnseenChanges ? unseenTracking : undefined}
+            // Dirty file checking (for preventing staging unsaved files)
+            isFileDirty={isFileDirty}
+          />
+        </div>
+
+        {/* Branch Selector Dialog */}
+        <BranchSelector
           git={git}
-          selectedFile={selectedFile}
-          selectedMapKey={selectedMapKey}
-          onFileSelect={handleFileSelect}
-          treeViewMode={treeViewMode}
-          onTreeViewModeChange={handleTreeViewModeChange}
-          // Git Branch Props
-          currentBranch={currentBranch}
-          baseBranch={baseBranch}
-          isComparingToBranch={baseBranch !== null}
-          gitStatus={gitStatus}
-          changedFilesCount={gitChangedFiles.size}
-          onOpenBranchPicker={handleOpenBranchPicker}
-          onBranchSwitch={handleBranchSwitch}
-          // Git Operations Props
-          stagedCount={stagedCount}
-          onPull={handlePull}
-          onPush={handlePush}
-          isPulling={isPulling}
-          isPushing={isPushing}
-          hasUpstream={hasUpstream}
-          commitMessage={commitMessage}
-          onCommitMessageChange={setCommitMessage}
-          onCommit={handleCommit}
-          isCommitting={isCommitting}
-          // Navigation Props
-          canNavigateUp={canNavigateUp}
-          onNavigateUp={handleNavigateUp}
-          isTreeCollapsed={isTreeCollapsed}
-          onToggleCollapse={handleToggleTree}
-          showCollapseButton={layout === "split"}
-          onDirectoryChange={handleDirectoryChange}
-          // Changes View Mode Props
-          changesViewMode={changesViewMode}
-          onChangesViewModeChange={setChangesViewMode}
-          // Review Mode Props
-          isReviewModeActive={isReviewMode}
-          onReviewChanges={handleReviewChanges}
-          // Unseen Tracking Props (when enabled)
-          isFileUnseen={
-            trackUnseenChanges ? unseenTracking.isUnseen : undefined
-          }
-          onPathRename={
-            trackUnseenChanges ? unseenTracking.handlePathRename : undefined
-          }
-          triggerRead={trackUnseenChanges ? triggerRead : undefined}
-          // Dirty file checking (for preventing staging unsaved files)
-          isFileDirty={isFileDirty}
+          open={isBranchSelectorOpen}
+          currentBaseBranch={baseBranch}
+          onSelectBranch={handleBranchSelect}
+          onOpenChange={setIsBranchSelectorOpen}
+        />
+
+        {/* Cloud VM / Agent Session Indicator */}
+        <SandboxIndicator
+          sandboxId={sandboxId ?? null}
+          agentSessionId={agentSessionId ?? null}
+          onCompleteAgentSession={handleCompleteAgentSession}
+          onDeleteAgentSession={handleDeleteAgentSession}
         />
       </div>
-
-      {/* Tree Resizer (split mode only, hidden when tree is collapsed) */}
-      {layout === "split" && showTree && (
-        <TreeResizer
-          currentWidth={treeWidth}
-          onResize={handleTreeResize}
-          minWidth={MIN_TREE_WIDTH}
-          maxWidth={MAX_TREE_WIDTH}
-        />
-      )}
-
-      {/* Editor View Panel */}
-      <div
-        className={cn(
-          "flex-1 min-w-0 h-full overflow-hidden",
-          layout === "single" && !showEditor && "hidden",
-        )}
-        data-testid="editor-container"
-      >
-        <EditorViewPanel
-          editorId={editorId}
-          cwd={currentCwd}
-          sandboxId={sandboxId}
-          git={git}
-          selectedFile={selectedFile}
-          selectedMapKey={selectedMapKey}
-          viewMode={viewMode}
-          baseBranch={baseBranch ?? undefined}
-          theme={editorTheme}
-          onSave={onSave}
-          showBackButton={layout === "single"}
-          onBack={() => setPanelView("tree")}
-          showExpandTreeButton={layout === "split" && isTreeCollapsed}
-          onExpandTree={() => setIsTreeCollapsed(false)}
-          showDiffToggle={isCurrentFileGitModified}
-          isDiffMode={viewMode.type === "diff"}
-          onToggleDiffMode={handleToggleDiffMode}
-          onExitReview={exitReviewMode}
-          isFileDeleted={isCurrentFileDeleted}
-          isFileStaged={isCurrentFileStaged}
-          hasIndexChanges={currentFileHasIndexChanges}
-          // Preview mode props
-          showPreviewToggle={isPreviewSupported}
-          isPreviewMode={viewMode.type === "preview"}
-          onTogglePreviewMode={handleTogglePreviewMode}
-          previewContent={previewContent}
-          // Remote operations
-          hasUpstream={hasUpstream}
-          isPulling={isPulling}
-          isPushing={isPushing}
-          onPull={handlePull}
-          onPush={handlePush}
-          // Unseen tracking (when enabled)
-          unseenTracking={trackUnseenChanges ? unseenTracking : undefined}
-          // Dirty file checking (for preventing staging unsaved files)
-          isFileDirty={isFileDirty}
-        />
-      </div>
-
-      {/* Branch Selector Dialog */}
-      <BranchSelector
-        git={git}
-        open={isBranchSelectorOpen}
-        currentBaseBranch={baseBranch}
-        onSelectBranch={handleBranchSelect}
-        onOpenChange={setIsBranchSelectorOpen}
-      />
-
-      {/* Cloud VM / Agent Session Indicator */}
-      <SandboxIndicator
-        sandboxId={sandboxId ?? null}
-        agentSessionId={agentSessionId ?? null}
-        onCompleteAgentSession={handleCompleteAgentSession}
-        onDeleteAgentSession={handleDeleteAgentSession}
-      />
-    </div>
+    </FileDiffStatsProvider>
   );
 }

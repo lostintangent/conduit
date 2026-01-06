@@ -585,6 +585,44 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * Returns lines added/removed for each changed file.
+   * Useful for displaying diff stats next to file names in the UI.
+   */
+  async getPerFileDiffStats(): Promise<
+    Map<string, { added: number; removed: number }>
+  > {
+    const result = new Map<string, { added: number; removed: number }>();
+
+    try {
+      const diffOutput = await this.git.diff(["--numstat", "HEAD"]);
+      const lines = diffOutput.trim().split("\n").filter(Boolean);
+
+      for (const line of lines) {
+        // Format: <added>\t<removed>\t<filename>
+        // Binary files show "-" for added/removed
+        const [addedStr, removedStr, ...filenameParts] = line.split("\t");
+        const filename = filenameParts.join("\t"); // Handle filenames with tabs (rare but possible)
+
+        if (!filename) continue;
+
+        const added = addedStr === "-" ? 0 : parseInt(addedStr, 10) || 0;
+        const removed = removedStr === "-" ? 0 : parseInt(removedStr, 10) || 0;
+
+        result.set(filename, { added, removed });
+      }
+    } catch (error) {
+      console.error(
+        "[DiskGitProvider] Failed to get per-file diff stats:",
+        error,
+      );
+    }
+
+    return result;
+  }
+
+  /**
    * Get the most recently modified dirty file.
    *
    * Uses file modification times to find the file the user

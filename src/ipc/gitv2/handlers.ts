@@ -115,6 +115,14 @@ interface SerializedDiffStats {
 }
 
 /**
+ * Serialized per-file diff stats for IPC transport.
+ * Object with file paths as keys instead of Map.
+ */
+interface SerializedPerFileDiffStats {
+  [filePath: string]: { added: number; removed: number };
+}
+
+/**
  * Subscription tracking for event forwarding.
  */
 interface Subscription {
@@ -470,6 +478,31 @@ export function initializeGitV2Handlers(): void {
         return { added: 0, removed: 0, files: 0 };
       }
       return result.provider.getUncommittedDiffStats();
+    },
+  );
+
+  /**
+   * Get per-file diff statistics for uncommitted changes.
+   * Returns lines added/removed for each changed file.
+   * Returns empty object if no active provider.
+   */
+  ipcMain.handle(
+    "git-v2:per-file-diff-stats",
+    async (
+      _,
+      params: { cwd: string; vmId?: string },
+    ): Promise<SerializedPerFileDiffStats> => {
+      const result = await getExistingProvider(params.cwd, params.vmId);
+      if (!result) {
+        return {};
+      }
+      const statsMap = await result.provider.getPerFileDiffStats();
+      // Convert Map to plain object for IPC serialization
+      const serialized: SerializedPerFileDiffStats = {};
+      for (const [path, stats] of statsMap) {
+        serialized[path] = stats;
+      }
+      return serialized;
     },
   );
 

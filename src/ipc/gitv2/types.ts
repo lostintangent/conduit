@@ -196,6 +196,23 @@ export interface GitDiffStats {
 }
 
 /**
+ * Per-file diff statistics (lines added/removed).
+ */
+export interface FileDiffStat {
+  /** Lines added in this file */
+  added: number;
+
+  /** Lines removed from this file */
+  removed: number;
+}
+
+/**
+ * Map of file paths to their diff statistics.
+ * Key is the relative path from git root.
+ */
+export type PerFileDiffStats = Map<string, FileDiffStat>;
+
+/**
  * File with its modification timestamp.
  */
 export interface FileWithTime {
@@ -397,6 +414,16 @@ export interface GitProvider {
    * @returns Statistics about uncommitted changes
    */
   getUncommittedDiffStats(): Promise<GitDiffStats>;
+
+  /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * Returns lines added/removed for each changed file.
+   * Useful for displaying diff stats next to file names in the UI.
+   *
+   * @returns Map of file paths to their diff statistics
+   */
+  getPerFileDiffStats(): Promise<PerFileDiffStats>;
 
   /**
    * Get the most recently modified dirty file.
