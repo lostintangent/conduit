@@ -457,7 +457,7 @@ export function EditorPaneV2({
     git,
     cwd: currentCwd,
     sandboxId,
-    enabled: trackUnseenChanges,
+    enabled: trackUnseenChanges && gitStatus !== null,
     currentlyOpenFile,
     gitChangedFiles,
   });
