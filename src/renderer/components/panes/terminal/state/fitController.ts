@@ -59,7 +59,6 @@ export function createFitController({
       width !== lastContainerSize.width || height !== lastContainerSize.height;
     if (sizeChanged) {
       lastContainerSize = { width, height };
-      showDimensionsOverlay(width, height);
     }
 
     fitAddon.fit();
@@ -72,6 +71,7 @@ export function createFitController({
     if (terminalSizeChanged) {
       lastTerminalSize = { cols, rows };
       entry.resize(cols, rows);
+      showDimensionsOverlay(cols, rows);
     }
 
     if (!entry.ready) {
