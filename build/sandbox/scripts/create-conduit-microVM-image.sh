@@ -109,10 +109,10 @@ while [[ $ATTEMPT -lt $MAX_ATTEMPTS ]]; do
             echo "✅ VM image is ready!"
             echo ""
             echo "🚀 Create a VM with:"
-            echo "   curl -X POST \"\$MANAGER_URL/api/vms\" \\"
+            echo "   curl -X POST \"\${MANAGER_URL}/api/vms\" \\"
             echo "     -H \"Authorization: Bearer \$(gh auth token)\" \\"
             echo "     -H \"Content-Type: application/json\" \\"
-            echo "     -d '{\"image_id\": \"${IMAGE_ID}\", \"name\": \"my-sandbox\"}'"
+            echo "     -d '{\"image\": \"${IMAGE_ID}\", \"name\": \"my-sandbox\"}'"
             exit 0
             ;;
         "failed")
