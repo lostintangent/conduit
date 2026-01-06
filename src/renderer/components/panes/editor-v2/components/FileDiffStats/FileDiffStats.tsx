@@ -132,12 +132,19 @@ export const FileDiffStats = memo(function FileDiffStats({
   const opacityClass = isBright ? "opacity-100" : "opacity-60";
 
   // Transition for flash animation and font-weight changes
+  // Use will-change and transform to ensure GPU acceleration for smooth animation
   const fontWeightTransition = "font-weight 0.3s ease";
   const transitionStyle: React.CSSProperties = isBright
-    ? { transition: `opacity 0.15s ease-out, ${fontWeightTransition}` }
+    ? {
+        transition: `opacity 0.15s ease-out, ${fontWeightTransition}`,
+        willChange: "opacity",
+        transform: "translateZ(0)",
+      }
     : isFading
       ? {
           transition: `opacity ${FADE_OUT_DURATION_MS}ms ease-in, ${fontWeightTransition}`,
+          willChange: "opacity",
+          transform: "translateZ(0)",
         }
       : { transition: fontWeightTransition };
 
