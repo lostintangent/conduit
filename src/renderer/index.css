@@ -120,7 +120,7 @@
   --input: oklch(92.19% 0 0);
   --ring: oklch(21.56% 0 0);
 
-  --pane-divider: oklch(96.42% 0 0);
+  --pane-divider: oklch(75% 0 0);
   --pane-divider-gradient: oklch(100% 0 0 / 0.6);
 
   /* Git status colors - VS Code light theme */
@@ -339,6 +339,11 @@
     animation: none;
     transform: translate3d(0, 0, 0);
   }
+}
+
+.gradient-canvas-muted::before {
+  background: var(--pane-divider);
+  animation: none;
 }
 
 /* Design mode radial button fan-out */

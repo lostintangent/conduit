@@ -29,7 +29,12 @@ function AppWrapper() {
       {/* Gradient canvas technique - creates synchronized animated borders */}
       <div className={`relative w-full h-full overflow-hidden ${roundedClass}`}>
         {/* Animated gradient canvas - sits behind everything */}
-        <div className="gradient-canvas z-0" />
+        <div
+          className={cn(
+            "gradient-canvas z-0",
+            !useGradientBorders && "gradient-canvas-muted",
+          )}
+        />
 
         {/* Muting overlay - dims gradient or provides solid color for inner borders */}
         <div
