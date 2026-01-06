@@ -28,6 +28,7 @@ import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { cn } from "@/utils";
 import { forwardRef, memo } from "react";
+import type { ReadTriggerAction } from "../../hooks";
 import type { FileNode, TreeViewMode } from "../../types";
 import { FileTreeChanges } from "./FileTreeChanges";
 import { FileTreeNormal, type FileTreeNormalHandle } from "./FileTreeNormal";
@@ -182,6 +183,9 @@ export interface FileTreePanelProps {
   /** Callback when a file/folder is renamed - used to preserve seen status */
   onPathRename?: (oldPath: string, newPath: string) => void;
 
+  /** Callback to mark a file as seen (for unseen tracking) */
+  triggerRead?: (action: ReadTriggerAction, path: string) => void;
+
   // ---------------------------------------------------------------------------
   // Dirty File Props
   // ---------------------------------------------------------------------------
@@ -242,6 +246,7 @@ export const FileTreePanel = memo(
       // Follow Mode Props
       isFileUnseen,
       onPathRename,
+      triggerRead,
       // Dirty File Props
       isFileDirty,
     },
@@ -354,6 +359,7 @@ export const FileTreePanel = memo(
               isFileUnseen={isFileUnseen}
               isFileDirty={isFileDirty}
               onPathRename={onPathRename}
+              triggerRead={triggerRead}
             />
           </div>
         </div>

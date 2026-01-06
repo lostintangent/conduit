@@ -1516,6 +1516,7 @@ export function EditorPaneV2({
           onPathRename={
             trackUnseenChanges ? unseenTracking.handlePathRename : undefined
           }
+          triggerRead={trackUnseenChanges ? triggerRead : undefined}
           // Dirty file checking (for preventing staging unsaved files)
           isFileDirty={isFileDirty}
         />

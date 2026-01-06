@@ -38,6 +38,7 @@ import type { GitV2API } from "@/api/GitV2API";
 import {
   useScrollPersistence,
   useFileTreeChangesContextMenu,
+  type ReadTriggerAction,
 } from "../../hooks";
 import {
   filterDirtyFilesForStaging,
@@ -102,6 +103,8 @@ export interface FileTreeChangesProps {
   isFileDirty?: (filePath: string) => boolean;
   /** Callback when a file/folder is renamed - used to preserve seen status */
   onPathRename?: (oldPath: string, newPath: string) => void;
+  /** Callback to mark a file as seen (for unseen tracking) */
+  triggerRead?: (action: ReadTriggerAction, path: string) => void;
 }
 
 // ============================================================================
@@ -354,6 +357,7 @@ export function FileTreeChanges({
   isFileUnseen,
   isFileDirty,
   onPathRename,
+  triggerRead,
 }: FileTreeChangesProps) {
   const hasParentStatus = gitStatusFromParent !== undefined;
   const showActionButtons = !isComparingToBranch;
@@ -584,7 +588,10 @@ export function FileTreeChanges({
     if (allFilePaths.includes(relativePath)) {
       const name = relativePath.split("/").pop() ?? relativePath;
       // Pass relativePath as mapKey so the file tree highlights the item
-      onFileSelect({ path: pendingSelectPath, name, type: "file" }, relativePath);
+      onFileSelect(
+        { path: pendingSelectPath, name, type: "file" },
+        relativePath,
+      );
       setPendingSelectPath(null);
     }
   }, [pendingSelectPath, allFilePaths, cwd, onFileSelect]);
@@ -661,6 +668,11 @@ export function FileTreeChanges({
         applyOptimisticUpdate(p, "stage");
       }
 
+      // Mark files as seen when staging
+      for (const path of cleanPaths) {
+        triggerRead?.("file:stage", path);
+      }
+
       git.stage(cleanPaths).catch((error) => {
         console.error("Failed to stage file(s):", error);
         for (const p of cleanMapKeys) {
@@ -682,6 +694,7 @@ export function FileTreeChanges({
       mapKeyToActualPath,
       isFileDirty,
       clearSelection,
+      triggerRead,
     ],
   );
 
@@ -697,6 +710,11 @@ export function FileTreeChanges({
 
       for (const p of mapKeys) {
         applyOptimisticUpdate(p, "unstage");
+      }
+
+      // Mark files as seen when unstaging
+      for (const path of actualPaths) {
+        triggerRead?.("file:unstage", path);
       }
 
       git.unstage(actualPaths).catch((error) => {
@@ -717,6 +735,7 @@ export function FileTreeChanges({
       allFilePaths,
       getActualPaths,
       clearSelection,
+      triggerRead,
     ],
   );
 
@@ -731,6 +750,11 @@ export function FileTreeChanges({
       const actualPaths = getActualPaths(mapKeys);
 
       try {
+        // Mark files as seen when reverting
+        for (const path of actualPaths) {
+          triggerRead?.("file:revert", path);
+        }
+
         await git.revert(actualPaths);
         // Note: If the reverted file was untracked/added (deleted on revert),
         // EditorPaneV2's git status sync effect will auto-select the next file
@@ -747,6 +771,7 @@ export function FileTreeChanges({
       allFilePaths,
       getActualPaths,
       clearSelection,
+      triggerRead,
     ],
   );
 

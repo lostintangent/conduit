@@ -287,7 +287,7 @@ export function FileChangeDiff({
         return;
       }
 
-      triggerRead?.("file:stage"); // Mark as seen when staging
+      triggerRead?.("file:stage", filePath); // Mark as seen when staging
       try {
         await git.stage([filePath]);
       } catch (error) {
@@ -300,7 +300,7 @@ export function FileChangeDiff({
   const handleUnstage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
-      triggerRead?.("file:unstage"); // Mark as seen when unstaging
+      triggerRead?.("file:unstage", filePath); // Mark as seen when unstaging
       try {
         await git.unstage([filePath]);
       } catch (error) {
