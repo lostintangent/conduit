@@ -160,7 +160,7 @@ describe("useCommandSystem", () => {
       expect(toggleControlsCommand?.title).toBe("Toggle Design Mode");
 
       const keyboardShortcutsCommand = commandRegistry.getCommand(
-        ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
+        ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
       );
       expect(keyboardShortcutsCommand).toBeDefined();
       expect(keyboardShortcutsCommand?.title).toBe("Keyboard Shortcuts");
@@ -239,9 +239,9 @@ describe("useCommandSystem", () => {
         expect(
           keybindings.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE),
         ).toBe(true);
-        expect(
-          keybindings.has(ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS),
-        ).toBe(true);
+        expect(keybindings.has(ApplicationCommands.VIEW_OPEN_KEYBINDINGS)).toBe(
+          true,
+        );
       });
     });
   });

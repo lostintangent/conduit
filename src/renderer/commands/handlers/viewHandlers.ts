@@ -74,6 +74,17 @@ export function handleToggleDesignMode(
 }
 
 /**
+ * Open the general settings
+ *
+ * @param setShowGeneralSettings - Function to show the general settings
+ */
+export function handleOpenSettings(
+  setShowGeneralSettings: (show: boolean) => void,
+): void {
+  setShowGeneralSettings(true);
+}
+
+/**
  * Open the keyboard shortcuts editor
  *
  * @param setShowKeybindingsEditor - Function to show the keybindings editor

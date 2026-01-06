@@ -41,6 +41,7 @@ export interface UseCommandSystemOptions {
   hasCustomLayout: (tabId: string) => boolean;
   hasLastWorkspace: boolean;
   // UI state setters
+  setShowGeneralSettings: (show: boolean) => void;
   setShowKeybindingsEditor: (show: boolean) => void;
   setShowPaneActionsEditor: (show: boolean) => void;
   setShowAgentsEditor: (show: boolean) => void;
@@ -80,6 +81,7 @@ export function useCommandSystem(
     workspaceName,
     hasCustomLayout,
     hasLastWorkspace,
+    setShowGeneralSettings,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
@@ -171,16 +173,18 @@ export function useCommandSystem(
           setShowKeybindingsEditor(true);
         },
         openSettings: (
-          tab?: "keyboard" | "paneActions" | "agents" | "preferences",
+          tab?: "general" | "keybindings" | "paneActions" | "agents",
         ) => {
-          if (tab === "keyboard") {
+          if (tab === "general") {
+            setShowGeneralSettings(true);
+          } else if (tab === "keybindings") {
             setShowKeybindingsEditor(true);
           } else if (tab === "paneActions") {
             setShowPaneActionsEditor(true);
           } else if (tab === "agents") {
             setShowAgentsEditor(true);
           } else {
-            setShowKeybindingsEditor(true); // Default to keyboard for now
+            setShowGeneralSettings(true);
           }
         },
       },
@@ -201,6 +205,7 @@ export function useCommandSystem(
       setApplicationMode,
 
       // UI state setters
+      setShowGeneralSettings,
       setShowKeybindingsEditor,
       setShowPaneActionsEditor,
       setShowAgentsEditor,
@@ -225,6 +230,7 @@ export function useCommandSystem(
     applicationMode,
     setApplicationMode,
     workspaceName,
+    setShowGeneralSettings,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,

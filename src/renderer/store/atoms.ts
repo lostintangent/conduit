@@ -29,7 +29,7 @@ export const userSettingsAtom = atom<UserSettings>({
   tabPosition: "bottom",
   alwaysShowTabs: true,
   alwaysHighlightActivePane: false,
-  useGradientBorders: true,
+  useGradientBorders: false,
   dimInactivePanes: false,
   theme: "dark",
 

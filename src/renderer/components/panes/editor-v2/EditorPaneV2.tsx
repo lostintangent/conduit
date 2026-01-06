@@ -357,7 +357,7 @@ export function EditorPaneV2({
 
   // Changes view mode (flat or nested) for FileTreeChanges
   const [changesViewMode, setChangesViewModeInternal] =
-    useState<ChangesViewMode>(paneChangesViewMode ?? "flat");
+    useState<ChangesViewMode>(paneChangesViewMode ?? "nested");
 
   // Sync changesViewMode when pane config changes
   useEffect(() => {

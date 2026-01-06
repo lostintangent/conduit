@@ -70,6 +70,15 @@ type BoundaryInfo = {
   position: number;
 };
 
+/**
+ * Pre-computed tab context to avoid redundant calculations during render.
+ * These values are computed once per tab and passed through the render tree.
+ */
+type TabRenderContext = {
+  paneCount: number;
+  devToolsTargets: Set<string>;
+};
+
 type IntersectionHandleConfig = {
   key: string;
   position: number;
@@ -339,6 +348,7 @@ export function TabLayout({
       node: LayoutPaneNode,
       tab: Tab,
       hasUnifiedSandbox: boolean,
+      ctx: TabRenderContext,
       parentDirection?: SplitDirection,
     ): React.ReactNode => {
       const pane = tab.panes[node.paneId];
@@ -564,9 +574,7 @@ export function TabLayout({
                   }}
                   devToolsFor={pane.devToolsFor}
                   chromeless={pane.chromeless}
-                  isDevToolsOpen={Object.values(tab.panes).some(
-                    (p) => p.type === "browser" && p.devToolsFor === pane.id,
-                  )}
+                  isDevToolsOpen={ctx.devToolsTargets.has(pane.id)}
                   onToggleDevTools={() => {
                     const devToolsPane = Object.values(tab.panes).find(
                       (p) => p.type === "browser" && p.devToolsFor === pane.id,
@@ -626,7 +634,7 @@ export function TabLayout({
               canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
               canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
-              isOnlyPane={countPanesInLayout(tab.layout) === 1}
+              isOnlyPane={ctx.paneCount === 1}
               isOnlyTab={tabs.length === 1}
               onOpenPaneActions={onOpenPaneActions}
               {...dragHandlers}
@@ -671,9 +679,11 @@ export function TabLayout({
         node: LayoutNode,
         tab: Tab,
         hasUnifiedSandbox: boolean,
+        ctx: TabRenderContext,
         parentDirection: SplitDirection,
       ) => React.ReactNode,
       hasUnifiedSandbox: boolean,
+      ctx: TabRenderContext,
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
       const isLocked = tab.locked;
@@ -818,7 +828,13 @@ export function TabLayout({
                   </>
                 )}
 
-                {renderChild(child, tab, hasUnifiedSandbox, node.direction)}
+                {renderChild(
+                  child,
+                  tab,
+                  hasUnifiedSandbox,
+                  ctx,
+                  node.direction,
+                )}
               </div>
             );
           })}
@@ -830,6 +846,7 @@ export function TabLayout({
       handleResizeStart,
       hoveredAxisKeys,
       isInDesignMode,
+      isTabInPreview,
       resizingNode,
       setHoverKeys,
     ],
@@ -840,12 +857,19 @@ export function TabLayout({
       node: LayoutNode,
       tab: Tab,
       hasUnifiedSandbox: boolean,
+      ctx: TabRenderContext,
       parentDirection?: SplitDirection,
     ) => {
       if (node.type === "pane") {
-        return renderPaneNode(node, tab, hasUnifiedSandbox, parentDirection);
+        return renderPaneNode(
+          node,
+          tab,
+          hasUnifiedSandbox,
+          ctx,
+          parentDirection,
+        );
       }
-      return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox);
+      return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox, ctx);
     },
     [renderPaneNode, renderSplitNode],
   );
@@ -873,9 +897,17 @@ export function TabLayout({
       const unifiedSandbox = getUnifiedSandboxForTab(tab);
       const hasUnifiedSandbox = unifiedSandbox !== null;
 
-      const tabContent = (
-        <>{renderLayout(tab.layout, tab, hasUnifiedSandbox)}</>
-      );
+      // Pre-compute values that would otherwise be calculated per-pane
+      const ctx: TabRenderContext = {
+        paneCount: countPanesInLayout(tab.layout),
+        devToolsTargets: new Set(
+          Object.values(tab.panes)
+            .filter((p) => p.type === "browser" && p.devToolsFor)
+            .map((p) => (p as { devToolsFor: string }).devToolsFor),
+        ),
+      };
+
+      const tabContent = renderLayout(tab.layout, tab, hasUnifiedSandbox, ctx);
 
       return (
         <div

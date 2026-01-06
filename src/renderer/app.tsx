@@ -145,7 +145,7 @@ export function App() {
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<
-    "keyboard" | "paneActions" | "agents" | "preferences" | null
+    "general" | "keybindings" | "paneActions" | "agents" | null
   >(null);
   const [showAgentLauncher, setShowAgentLauncher] = useState(false);
 
@@ -220,8 +220,10 @@ export function App() {
     hasCustomLayout,
     hasLastWorkspace,
     // UI state setters
+    setShowGeneralSettings: (show: boolean) =>
+      setSettingsTab(show ? "general" : null),
     setShowKeybindingsEditor: (show: boolean) =>
-      setSettingsTab(show ? "keyboard" : null),
+      setSettingsTab(show ? "keybindings" : null),
     setShowPaneActionsEditor: (show: boolean) =>
       setSettingsTab(show ? "paneActions" : null),
     setShowAgentsEditor: (show: boolean) =>
@@ -784,7 +786,7 @@ export function App() {
         {tabPosition === "top" && !shouldUseDrawer && (
           <TabStrip
             onOpenCommandPalette={openCommandPalette}
-            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+            onTabContextMenu={handleContextMenu}
             position={tabPosition}
           />
         )}
@@ -794,7 +796,7 @@ export function App() {
             <DrawerContent side="top">
               <TabStrip
                 onOpenCommandPalette={openCommandPalette}
-                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+                onTabContextMenu={handleContextMenu}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -834,7 +836,7 @@ export function App() {
         {tabPosition === "bottom" && !shouldUseDrawer && (
           <TabStrip
             onOpenCommandPalette={openCommandPalette}
-            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+            onTabContextMenu={handleContextMenu}
             position={tabPosition}
           />
         )}
@@ -844,7 +846,7 @@ export function App() {
             <DrawerContent side="bottom">
               <TabStrip
                 onOpenCommandPalette={openCommandPalette}
-                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
+                onTabContextMenu={handleContextMenu}
                 position={tabPosition}
               />
             </DrawerContent>

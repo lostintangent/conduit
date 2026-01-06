@@ -2,10 +2,10 @@
  * Unified Settings Dialog Component
  *
  * Tabbed settings interface combining:
+ * - General Preferences
  * - Keyboard Shortcuts
  * - Pane Actions
  * - Agents & Teams
- * - Preferences
  */
 
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
@@ -17,8 +17,8 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import type { ICommandRegistry } from "../../../commands/core/CommandRegistry";
 import type { KeybindingRegistry } from "../../../commands/keybindings/KeybindingRegistry";
-import { AdvancedTab } from "./tabs/AdvancedTab";
 import { AgentsTab } from "./tabs/AgentsTab";
+import { GeneralTab } from "./tabs/general/GeneralTab";
 import { KeybindingsTab } from "./tabs/KeybindingsTab";
 import { PaneActionsTab } from "./tabs/PaneActionsTab";
 
@@ -27,7 +27,7 @@ interface SettingsDialogProps {
   commandRegistry: ICommandRegistry;
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
-  initialTab?: "keyboard" | "paneActions" | "agents" | "advanced";
+  initialTab?: "general" | "keybindings" | "paneActions" | "agents";
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
   userSettings: ReturnType<typeof useUserSettings>;
 }
@@ -37,7 +37,7 @@ export function SettingsDialog({
   commandRegistry,
   keybindingRegistry,
   homeDirectory,
-  initialTab = "keyboard",
+  initialTab = "general",
   onUpdateSettings,
   userSettings,
 }: SettingsDialogProps) {
@@ -70,16 +70,24 @@ export function SettingsDialog({
         >
           <div className="px-6 py-2 border-b border-tinted-border flex-shrink-0">
             <TabsList className="flex-shrink-0 border-b-0 w-auto">
-              <TabsTrigger value="keyboard">Keybindings</TabsTrigger>
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="keybindings">Keybindings</TabsTrigger>
               <TabsTrigger value="paneActions">Pane Actions</TabsTrigger>
               <TabsTrigger value="agents">Agents</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
             </TabsList>
           </div>
 
+          {/* General Tab */}
+          <TabsContent value="general" className="flex flex-col min-h-0 flex-1">
+            <GeneralTab
+              userSettings={userSettings}
+              onUpdateSettings={onUpdateSettings}
+            />
+          </TabsContent>
+
           {/* Keyboard Shortcuts Tab */}
           <TabsContent
-            value="keyboard"
+            value="keybindings"
             className="flex flex-col min-h-0 flex-1"
           >
             <KeybindingsTab
@@ -100,17 +108,6 @@ export function SettingsDialog({
           {/* Agents Tab */}
           <TabsContent value="agents" className="flex flex-col min-h-0 flex-1">
             <AgentsTab userSettings={userSettings} />
-          </TabsContent>
-
-          {/* Advanced Tab */}
-          <TabsContent
-            value="advanced"
-            className="flex flex-col min-h-0 flex-1"
-          >
-            <AdvancedTab
-              userSettings={userSettings}
-              onUpdateSettings={onUpdateSettings}
-            />
           </TabsContent>
         </Tabs>
       </DialogContent>

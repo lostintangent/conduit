@@ -31,6 +31,7 @@ import {
   handleOpenInVSCode,
   handleOpenKeyboardShortcuts,
   handleOpenLastWorkspace,
+  handleOpenSettings,
   handleOpenWebPage,
   handleOpenWorkspace,
   handleRenameWorkspace,
@@ -51,13 +52,13 @@ import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
+  activatePane,
   cloneTerminalPane,
   closeAgentSessionPanes,
   closePane,
   movePane,
   openBrowserPane,
   openEditorPane,
-  openTerminalCwd,
   setPaneCollapsed,
   splitPane,
   splitPaneWithAgentSession,
@@ -125,9 +126,24 @@ export function registerApplicationCommands(
     },
   });
 
+  // View: Open Settings
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_SETTINGS,
+    title: "Settings",
+    description: "Open application settings",
+    category: "View",
+    keybinding: {
+      key: "Cmd+,",
+      win: "Ctrl+,",
+    },
+    run: (context) => {
+      handleOpenSettings(context.setShowGeneralSettings);
+    },
+  });
+
   // View: Open Keyboard Shortcuts
   commandRegistry.registerCommand({
-    id: ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
+    id: ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
     title: "Keyboard Shortcuts",
     description: "View and customize keyboard shortcuts",
     category: "View",
@@ -570,7 +586,7 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        openTerminalCwd(targetTabId, targetPaneId);
+        handleToggleSidebar();
       }
     },
   });

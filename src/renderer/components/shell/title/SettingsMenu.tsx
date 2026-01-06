@@ -12,9 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export function SettingsMenu() {
-  const settingsCmd = useCommand(
-    ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
-  );
+  const settingsCmd = useCommand(ApplicationCommands.VIEW_OPEN_SETTINGS);
 
   return (
     <Tooltip>
