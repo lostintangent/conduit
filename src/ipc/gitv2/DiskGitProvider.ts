@@ -725,11 +725,18 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Revert changes to files (discard local modifications).
+   * Revert changes to files (discard working tree modifications).
    *
-   * Handles different file types appropriately:
-   * - Modified/deleted/renamed files: unstage and restore from HEAD via git checkout
-   * - Untracked/added files: delete from filesystem
+   * This discards ONLY working tree changes, preserving any staged changes.
+   * Mirrors VS Code's "Discard Changes" behavior.
+   *
+   * Handles different file types:
+   * - Untracked files: Delete from filesystem
+   * - All other files: Restore from index via `git checkout -- file`
+   *   - If file has staged changes, reverts to staged version
+   *   - If file has no staged changes, reverts to HEAD
+   *
+   * Note: Does NOT unstage files. Use unstage() separately if needed.
    */
   async revert(files: string[]): Promise<void> {
     await this.withOperationTracking(async () => {
@@ -744,19 +751,19 @@ export class DiskGitProvider implements GitProvider {
 
       for (const relPath of relativePaths) {
         const fileStatus = status.files.get(relPath);
-        if (
-          fileStatus?.status === "untracked" ||
-          fileStatus?.status === "added"
-        ) {
-          // Untracked/added files have no committed version - delete them
+        if (fileStatus?.status === "untracked") {
+          // Only truly untracked files should be deleted
+          // (files with no committed or staged version)
           filesToDelete.push(relPath);
         } else {
-          // Modified/deleted/renamed files can be restored via git checkout
+          // All other files (including "added") can be restored via git checkout
+          // - "added" files revert to their staged version
+          // - "modified" files revert to index (staged) or HEAD
           filesToCheckout.push(relPath);
         }
       }
 
-      // Delete untracked/added files from filesystem
+      // Delete untracked files from filesystem
       await Promise.all(
         filesToDelete.map(async (relPath) => {
           const fullPath = path.join(this.gitRoot, relPath);
@@ -768,16 +775,11 @@ export class DiskGitProvider implements GitProvider {
         }),
       );
 
-      // Restore tracked files via git
+      // Restore tracked/staged files via git checkout
+      // This restores working tree to match INDEX (not HEAD!)
+      // - If file has staged changes: reverts to staged version
+      // - If file has no staged changes: reverts to HEAD
       if (filesToCheckout.length > 0) {
-        // First, unstage any staged changes
-        try {
-          await this.git.reset(["HEAD", "--", ...filesToCheckout]);
-        } catch {
-          // Ignore errors (file might not be staged)
-        }
-
-        // Then checkout to discard working tree changes
         await this.git.checkout(["--", ...filesToCheckout]);
       }
     });

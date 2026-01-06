@@ -1086,7 +1086,7 @@ describe("DiskGitProvider", () => {
       mockFsUnlink.mockResolvedValue(undefined);
     });
 
-    it("should reset and checkout modified files", async () => {
+    it("should checkout modified files (not reset)", async () => {
       // Setup: file is modified (not untracked/added)
       mockGit.status.mockResolvedValue(
         createMockStatusResult({
@@ -1101,12 +1101,8 @@ describe("DiskGitProvider", () => {
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       await provider.revert(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGit.reset).toHaveBeenCalledWith([
-        "HEAD",
-        "--",
-        "src/file1.ts",
-        "src/file2.ts",
-      ]);
+      // Should NOT call reset - revert only affects working tree, not staging area
+      expect(mockGit.reset).not.toHaveBeenCalled();
       expect(mockGit.checkout).toHaveBeenCalledWith([
         "--",
         "src/file1.ts",
@@ -1145,7 +1141,8 @@ describe("DiskGitProvider", () => {
       expect(mockGit.checkout).not.toHaveBeenCalled();
     });
 
-    it("should delete added (staged new) files instead of checkout", async () => {
+    it("should checkout added (staged new) files, not delete them", async () => {
+      // A staged addition has a version in the index - git checkout restores to that
       mockGit.status.mockResolvedValue(
         createMockStatusResult({
           files: [{ path: "added-file.ts", index: "A", working_dir: " " }],
@@ -1156,9 +1153,10 @@ describe("DiskGitProvider", () => {
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       await provider.revert(["added-file.ts"]);
 
-      // Should delete the file, not checkout
-      expect(mockFsUnlink).toHaveBeenCalledWith("/test/repo/added-file.ts");
-      expect(mockGit.checkout).not.toHaveBeenCalled();
+      // Should checkout (restore from index), NOT delete
+      // The file exists in the staging area, so checkout restores it
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "added-file.ts"]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
     });
 
     it("should handle mixed file types (modified + untracked)", async () => {
@@ -1175,10 +1173,74 @@ describe("DiskGitProvider", () => {
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       await provider.revert(["modified.ts", "untracked.ts"]);
 
+      // Should NOT call reset - only affects working tree
+      expect(mockGit.reset).not.toHaveBeenCalled();
       // Modified file should be checked out
       expect(mockGit.checkout).toHaveBeenCalledWith(["--", "modified.ts"]);
       // Untracked file should be deleted
       expect(mockFsUnlink).toHaveBeenCalledWith("/test/repo/untracked.ts");
+    });
+
+    it("should preserve staged changes when reverting partially staged modifications (MM)", async () => {
+      // File has staged modification AND unstaged modification
+      // index: M (staged changes), working_dir: M (more unstaged changes)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "partial.ts", index: "M", working_dir: "M" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["partial.ts"]);
+
+      // Should NOT call reset - that would destroy staged changes
+      expect(mockGit.reset).not.toHaveBeenCalled();
+      // Should checkout from index (restores to staged version, not HEAD)
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "partial.ts"]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
+    });
+
+    it("should preserve staged addition when reverting modified staged addition (AM)", async () => {
+      // File was staged as new (A), then modified again in working dir (M)
+      // index: A (staged new file), working_dir: M (further modifications)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "new-modified.ts", index: "A", working_dir: "M" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["new-modified.ts"]);
+
+      // Should NOT call reset - that would unstage the addition
+      expect(mockGit.reset).not.toHaveBeenCalled();
+      // Should checkout from index (restores to staged version of new file)
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "new-modified.ts"]);
+      // Should NOT delete - file has a version in the index
+      expect(mockFsUnlink).not.toHaveBeenCalled();
+    });
+
+    it("should checkout staged deleted files (restores the file)", async () => {
+      // File was deleted and staged for deletion
+      // index: D (staged deletion), working_dir: " " (no further changes)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "deleted.ts", index: "D", working_dir: " " }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["deleted.ts"]);
+
+      // Should NOT call reset
+      expect(mockGit.reset).not.toHaveBeenCalled();
+      // Should checkout (this will fail if file doesn't exist in index,
+      // but for staged deletion, the file is deleted so checkout restores HEAD)
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "deleted.ts"]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
     });
 
     it("should ignore errors when deleting files that don't exist", async () => {
