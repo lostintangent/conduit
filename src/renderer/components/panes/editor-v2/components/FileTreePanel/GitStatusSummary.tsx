@@ -130,9 +130,9 @@ export function GitStatusSummary({
               <div className="flex items-center">
                 {/* Per-status count - visible when expanded */}
                 <span
-                  className="text-xs origin-left overflow-hidden whitespace-nowrap"
+                  className="origin-left overflow-hidden whitespace-nowrap"
                   style={{
-                    opacity: showExpanded ? 1 : 0,
+                    opacity: showExpanded ? 0.8 : 0,
                     transform: showExpanded
                       ? "scaleX(1) translateZ(0)"
                       : "scaleX(0) translateZ(0)",

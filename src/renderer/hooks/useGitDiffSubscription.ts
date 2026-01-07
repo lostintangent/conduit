@@ -10,9 +10,14 @@
  * Used by both FileDiffStatsContext (per-file stats) and
  * useUncommittedDiffStats (aggregate stats) to avoid duplication.
  *
+ * The callback receives an optional GitStatusChangedEvent parameter:
+ * - When triggered by git status change: event is defined (use event.status directly)
+ * - When triggered by file content change: event is undefined (must fetch)
+ *
  * @example
  * ```tsx
- * const fetchStats = useCallback(async () => {
+ * const fetchStats = useCallback(async (event) => {
+ *   // Can use event?.status.files directly if available
  *   const stats = await git.getPerFileDiffStats();
  *   setStats(stats);
  * }, [git]);
@@ -23,6 +28,7 @@
 
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
+import type { GitStatusChangedEvent } from "../../ipc/gitv2/types";
 import { useCallback, useEffect, useRef } from "react";
 
 /** Debounce delay for file content changes (ms) */
@@ -33,13 +39,15 @@ const FILE_CHANGE_DEBOUNCE_MS = 300;
  *
  * @param git - Git API instance
  * @param fs - FileSystem API instance
- * @param fetchStats - Async function to fetch stats (called on init and changes)
+ * @param fetchStats - Async function to fetch stats (called on init and changes).
+ *                     Receives GitStatusChangedEvent when triggered by status change,
+ *                     undefined when triggered by file content change or initial fetch.
  * @param skip - If true, skip all subscriptions (useful for known non-git directories)
  */
 export function useGitDiffSubscription(
   git: GitV2API,
   fs: FileSystemV2API,
-  fetchStats: () => Promise<void>,
+  fetchStats: (event?: GitStatusChangedEvent) => Promise<void>,
   skip = false,
 ): void {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,10 +81,10 @@ export function useGitDiffSubscription(
     };
     init();
 
-    // Subscribe to git status changes (immediate)
-    const cleanupGitStatus = git.onStatusChanged(() => {
+    // Subscribe to git status changes (immediate, pass event for direct access)
+    const cleanupGitStatus = git.onStatusChanged((event) => {
       if (!cancelled) {
-        fetchStats();
+        fetchStats(event);
       }
     });
 

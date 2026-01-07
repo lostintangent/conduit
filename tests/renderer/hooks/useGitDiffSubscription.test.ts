@@ -126,11 +126,13 @@ describe("useGitDiffSubscription", () => {
 
     it("should fetch stats immediately on git status change", async () => {
       const mockGit = createMockGit();
-      let statusChangeHandler: () => void;
-      mockGit.onStatusChanged.mockImplementation((handler: () => void) => {
-        statusChangeHandler = handler;
-        return vi.fn();
-      });
+      let statusChangeHandler: (event: unknown) => void;
+      mockGit.onStatusChanged.mockImplementation(
+        (handler: (event: unknown) => void) => {
+          statusChangeHandler = handler;
+          return vi.fn();
+        },
+      );
 
       const mockFs = createMockFs();
       const fetchStats = vi.fn().mockResolvedValue(undefined);
@@ -152,20 +154,67 @@ describe("useGitDiffSubscription", () => {
 
       // Trigger status change
       act(() => {
-        statusChangeHandler!();
+        statusChangeHandler!({});
       });
 
       // Should fetch immediately (no debounce)
       expect(fetchStats).toHaveBeenCalledTimes(initialCallCount + 1);
     });
 
+    it("should pass event to fetchStats on git status change", async () => {
+      const mockGit = createMockGit();
+      let statusChangeHandler: (event: unknown) => void;
+      mockGit.onStatusChanged.mockImplementation(
+        (handler: (event: unknown) => void) => {
+          statusChangeHandler = handler;
+          return vi.fn();
+        },
+      );
+
+      const mockFs = createMockFs();
+      const fetchStats = vi.fn().mockResolvedValue(undefined);
+
+      renderHook(() =>
+        useGitDiffSubscription(
+          mockGit as unknown as GitV2API,
+          mockFs as unknown as FileSystemV2API,
+          fetchStats,
+        ),
+      );
+
+      // Wait for initial fetch
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Create mock event with status.files
+      const mockEvent = {
+        status: {
+          files: new Map([
+            ["src/file.ts", { status: "modified", staged: false }],
+          ]),
+        },
+      };
+
+      // Trigger status change with event
+      act(() => {
+        statusChangeHandler!(mockEvent);
+      });
+
+      // fetchStats should have been called with the event
+      const lastCall = fetchStats.mock.calls[fetchStats.mock.calls.length - 1];
+      expect(lastCall[0]).toBe(mockEvent);
+    });
+
     it("should not fetch on status change if cancelled", async () => {
       const mockGit = createMockGit();
-      let statusChangeHandler: () => void;
-      mockGit.onStatusChanged.mockImplementation((handler: () => void) => {
-        statusChangeHandler = handler;
-        return vi.fn();
-      });
+      let statusChangeHandler: (event: unknown) => void;
+      mockGit.onStatusChanged.mockImplementation(
+        (handler: (event: unknown) => void) => {
+          statusChangeHandler = handler;
+          return vi.fn();
+        },
+      );
 
       const mockFs = createMockFs();
       const fetchStats = vi.fn().mockResolvedValue(undefined);
@@ -190,11 +239,52 @@ describe("useGitDiffSubscription", () => {
 
       // Trigger status change after unmount
       act(() => {
-        statusChangeHandler!();
+        statusChangeHandler!({});
       });
 
       // Should NOT have been called again
       expect(fetchStats).toHaveBeenCalledTimes(callCountBeforeUnmount);
+    });
+
+    it("should not pass event on file content change (debounced)", async () => {
+      const mockGit = createMockGit();
+      let fileChangeHandler: () => void;
+      const mockFs = createMockFs();
+      mockFs.onAnyFileContentChanged.mockImplementation(
+        (handler: () => void) => {
+          fileChangeHandler = handler;
+          return vi.fn();
+        },
+      );
+
+      const fetchStats = vi.fn().mockResolvedValue(undefined);
+
+      renderHook(() =>
+        useGitDiffSubscription(
+          mockGit as unknown as GitV2API,
+          mockFs as unknown as FileSystemV2API,
+          fetchStats,
+        ),
+      );
+
+      // Wait for initial fetch
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Trigger file content change
+      act(() => {
+        fileChangeHandler!();
+      });
+
+      // Advance past debounce
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      // fetchStats should have been called without event (undefined)
+      const lastCall = fetchStats.mock.calls[fetchStats.mock.calls.length - 1];
+      expect(lastCall[0]).toBeUndefined();
     });
   });
 

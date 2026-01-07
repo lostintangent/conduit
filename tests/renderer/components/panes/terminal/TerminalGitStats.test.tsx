@@ -67,6 +67,31 @@ vi.mock("@/components/panes/editor-v2/components/FileDiffStats", () => ({
   ),
 }));
 
+// Mock GitStatusSummary
+vi.mock(
+  "@/components/panes/editor-v2/components/FileTreePanel/GitStatusSummary",
+  () => ({
+    GitStatusSummary: ({
+      gitStatus,
+      changedFilesCount,
+      isHovered,
+    }: {
+      gitStatus: Map<string, unknown>;
+      changedFilesCount: number;
+      isHovered?: boolean;
+    }) => (
+      <span data-testid="git-status-summary" data-hovered={isHovered}>
+        {changedFilesCount} files
+      </span>
+    ),
+  }),
+);
+
+// Mock Separator
+vi.mock("@/components/ui/separator", () => ({
+  Separator: () => <span data-testid="separator">|</span>,
+}));
+
 // ============================================================================
 // Import after mocks
 // ============================================================================
@@ -78,10 +103,23 @@ import { TerminalGitStats } from "@/components/panes/terminal/shell/TerminalGitS
 // ============================================================================
 
 describe("TerminalGitStats", () => {
+  const mockGitStatus = new Map([
+    [
+      "src/file1.ts",
+      { status: "modified", staged: false, path: "src/file1.ts" },
+    ],
+    ["src/file2.ts", { status: "added", staged: true, path: "src/file2.ts" }],
+    [
+      "src/file3.ts",
+      { status: "modified", staged: false, path: "src/file3.ts" },
+    ],
+  ]);
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseUncommittedDiffStats.mockReturnValue({
       stats: { added: 10, removed: 5, files: 3 },
+      gitStatus: mockGitStatus,
       isGitRepo: true,
     });
   });
@@ -107,6 +145,7 @@ describe("TerminalGitStats", () => {
     it("should not render when not a git repo", () => {
       mockUseUncommittedDiffStats.mockReturnValue({
         stats: null,
+        gitStatus: null,
         isGitRepo: false,
       });
 
@@ -118,6 +157,7 @@ describe("TerminalGitStats", () => {
     it("should not render when stats are null", () => {
       mockUseUncommittedDiffStats.mockReturnValue({
         stats: null,
+        gitStatus: null,
         isGitRepo: true,
       });
 
@@ -126,9 +166,10 @@ describe("TerminalGitStats", () => {
       expect(screen.queryByTestId("diff-stats")).toBeNull();
     });
 
-    it("should not render when no changes (added=0, removed=0)", () => {
+    it("should not render when no changes (added=0, removed=0, no gitStatus)", () => {
       mockUseUncommittedDiffStats.mockReturnValue({
         stats: { added: 0, removed: 0, files: 0 },
+        gitStatus: new Map(),
         isGitRepo: true,
       });
 
@@ -140,6 +181,7 @@ describe("TerminalGitStats", () => {
     it("should render when only additions exist", () => {
       mockUseUncommittedDiffStats.mockReturnValue({
         stats: { added: 5, removed: 0, files: 1 },
+        gitStatus: new Map([["file.ts", { status: "added" }]]),
         isGitRepo: true,
       });
 
@@ -151,6 +193,19 @@ describe("TerminalGitStats", () => {
     it("should render when only removals exist", () => {
       mockUseUncommittedDiffStats.mockReturnValue({
         stats: { added: 0, removed: 3, files: 1 },
+        gitStatus: new Map([["file.ts", { status: "deleted" }]]),
+        isGitRepo: true,
+      });
+
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      expect(screen.getByTestId("diff-stats")).toBeDefined();
+    });
+
+    it("should render when gitStatus has files but diff stats are zero", () => {
+      mockUseUncommittedDiffStats.mockReturnValue({
+        stats: { added: 0, removed: 0, files: 1 },
+        gitStatus: new Map([["file.ts", { status: "untracked" }]]),
         isGitRepo: true,
       });
 
@@ -233,6 +288,84 @@ describe("TerminalGitStats", () => {
       expect(button.className).toContain("absolute");
       expect(button.className).toContain("top-3");
       expect(button.className).toContain("right-3");
+    });
+  });
+
+  // ===========================================================================
+  // GitStatusSummary Integration
+  // ===========================================================================
+
+  describe("GitStatusSummary integration", () => {
+    it("should render GitStatusSummary when gitStatus has files", () => {
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      expect(screen.getByTestId("git-status-summary")).toBeDefined();
+      expect(screen.getByText("3 files")).toBeDefined();
+    });
+
+    it("should render separator between DiffStatsDisplay and GitStatusSummary", () => {
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      expect(screen.getByTestId("separator")).toBeDefined();
+    });
+
+    it("should not render GitStatusSummary when gitStatus is empty", () => {
+      mockUseUncommittedDiffStats.mockReturnValue({
+        stats: { added: 10, removed: 5, files: 0 },
+        gitStatus: new Map(),
+        isGitRepo: true,
+      });
+
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      expect(screen.queryByTestId("git-status-summary")).toBeNull();
+      expect(screen.queryByTestId("separator")).toBeNull();
+    });
+
+    it("should not render GitStatusSummary when gitStatus is null", () => {
+      mockUseUncommittedDiffStats.mockReturnValue({
+        stats: { added: 10, removed: 5, files: 0 },
+        gitStatus: null,
+        isGitRepo: true,
+      });
+
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      expect(screen.queryByTestId("git-status-summary")).toBeNull();
+    });
+  });
+
+  // ===========================================================================
+  // Hover Behavior
+  // ===========================================================================
+
+  describe("hover behavior", () => {
+    it("should pass isHovered=false to GitStatusSummary initially", () => {
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      const summary = screen.getByTestId("git-status-summary");
+      expect(summary.getAttribute("data-hovered")).toBe("false");
+    });
+
+    it("should pass isHovered=true to GitStatusSummary on mouse enter", () => {
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      const button = screen.getByRole("button");
+      fireEvent.mouseEnter(button);
+
+      const summary = screen.getByTestId("git-status-summary");
+      expect(summary.getAttribute("data-hovered")).toBe("true");
+    });
+
+    it("should pass isHovered=false to GitStatusSummary on mouse leave", () => {
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      const button = screen.getByRole("button");
+      fireEvent.mouseEnter(button);
+      fireEvent.mouseLeave(button);
+
+      const summary = screen.getByTestId("git-status-summary");
+      expect(summary.getAttribute("data-hovered")).toBe("false");
     });
   });
 });

@@ -15,6 +15,7 @@ interface MockGitAPI {
   cwd: string;
   findRoot: ReturnType<typeof vi.fn>;
   getUncommittedDiffStats: ReturnType<typeof vi.fn>;
+  getStatus: ReturnType<typeof vi.fn>;
   whenReady: ReturnType<typeof vi.fn>;
   onStatusChanged: ReturnType<typeof vi.fn>;
 }
@@ -32,6 +33,18 @@ function createMockGitAPI(cwd: string): MockGitAPI {
       added: 10,
       removed: 5,
       files: 2,
+    }),
+    getStatus: vi.fn().mockResolvedValue({
+      files: new Map([
+        [
+          "src/file1.ts",
+          { status: "modified", staged: false, path: "src/file1.ts" },
+        ],
+        [
+          "src/file2.ts",
+          { status: "added", staged: true, path: "src/file2.ts" },
+        ],
+      ]),
     }),
     whenReady: vi.fn().mockResolvedValue(undefined),
     onStatusChanged: vi.fn().mockReturnValue(vi.fn()),
@@ -105,7 +118,7 @@ describe("useUncommittedDiffStats", () => {
   // ===========================================================================
 
   describe("basic functionality", () => {
-    it("should return stats and isGitRepo", async () => {
+    it("should return stats, gitStatus, and isGitRepo", async () => {
       const { result } = renderHook(() =>
         useUncommittedDiffStats("/test/project"),
       );
@@ -120,9 +133,11 @@ describe("useUncommittedDiffStats", () => {
         files: 2,
       });
       expect(result.current.isGitRepo).toBe(true);
+      expect(result.current.gitStatus).not.toBeNull();
+      expect(result.current.gitStatus?.size).toBe(2);
     });
 
-    it("should return null stats initially", () => {
+    it("should return null stats and gitStatus initially", () => {
       // Create a git API that never resolves
       const slowGitAPI = createMockGitAPI("/slow/project");
       slowGitAPI.getUncommittedDiffStats.mockImplementation(
@@ -136,6 +151,7 @@ describe("useUncommittedDiffStats", () => {
 
       // Initially null before async resolves
       expect(result.current.stats).toBeNull();
+      expect(result.current.gitStatus).toBeNull();
       expect(result.current.isGitRepo).toBeNull();
     });
   });
@@ -159,9 +175,10 @@ describe("useUncommittedDiffStats", () => {
       });
 
       expect(result.current.stats).toBeNull();
+      expect(result.current.gitStatus).toBeNull();
     });
 
-    it("should not fetch stats when not a git repo", async () => {
+    it("should not fetch stats or status when not a git repo", async () => {
       const nonGitAPI = createMockGitAPI("/not/a/repo");
       nonGitAPI.findRoot.mockResolvedValue(null);
       mockGitInstances.set("/not/a/repo", nonGitAPI);
@@ -172,8 +189,9 @@ describe("useUncommittedDiffStats", () => {
         expect(nonGitAPI.findRoot).toHaveBeenCalled();
       });
 
-      // getUncommittedDiffStats should NOT be called for non-git repos
+      // Neither should be called for non-git repos
       expect(nonGitAPI.getUncommittedDiffStats).not.toHaveBeenCalled();
+      expect(nonGitAPI.getStatus).not.toHaveBeenCalled();
     });
   });
 
