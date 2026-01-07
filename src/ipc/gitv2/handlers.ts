@@ -118,8 +118,16 @@ interface SerializedDiffStats {
  * Serialized per-file diff stats for IPC transport.
  * Object with file paths as keys instead of Map.
  */
-interface SerializedPerFileDiffStats {
+interface SerializedPerFileDiffStatsMap {
   [filePath: string]: { added: number; removed: number };
+}
+
+/**
+ * Serialized split diff stats (staged/unstaged) for IPC transport.
+ */
+interface SerializedSplitPerFileDiffStats {
+  staged: SerializedPerFileDiffStatsMap;
+  unstaged: SerializedPerFileDiffStatsMap;
 }
 
 /**
@@ -483,26 +491,36 @@ export function initializeGitV2Handlers(): void {
 
   /**
    * Get per-file diff statistics for uncommitted changes.
-   * Returns lines added/removed for each changed file.
-   * Returns empty object if no active provider.
+   * Returns lines added/removed for each changed file, split by staged/unstaged.
+   * Returns empty objects if no active provider.
    */
   ipcMain.handle(
     "git-v2:per-file-diff-stats",
     async (
       _,
       params: { cwd: string; vmId?: string },
-    ): Promise<SerializedPerFileDiffStats> => {
+    ): Promise<SerializedSplitPerFileDiffStats> => {
       const result = await getExistingProvider(params.cwd, params.vmId);
       if (!result) {
-        return {};
+        return { staged: {}, unstaged: {} };
       }
-      const statsMap = await result.provider.getPerFileDiffStats();
-      // Convert Map to plain object for IPC serialization
-      const serialized: SerializedPerFileDiffStats = {};
-      for (const [path, stats] of statsMap) {
-        serialized[path] = stats;
-      }
-      return serialized;
+      const { staged, unstaged } = await result.provider.getPerFileDiffStats();
+
+      // Convert Maps to plain objects for IPC serialization
+      const serializeMap = (
+        map: Map<string, { added: number; removed: number }>,
+      ): SerializedPerFileDiffStatsMap => {
+        const serialized: SerializedPerFileDiffStatsMap = {};
+        for (const [path, stats] of map) {
+          serialized[path] = stats;
+        }
+        return serialized;
+      };
+
+      return {
+        staged: serializeMap(staged),
+        unstaged: serializeMap(unstaged),
+      };
     },
   );
 

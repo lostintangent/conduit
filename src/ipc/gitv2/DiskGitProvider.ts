@@ -587,31 +587,45 @@ export class DiskGitProvider implements GitProvider {
   /**
    * Get per-file diff statistics for uncommitted changes.
    *
-   * Returns lines added/removed for each changed file.
-   * Useful for displaying diff stats next to file names in the UI.
+   * Returns lines added/removed for each changed file, split by staged/unstaged.
+   * - Staged: `git diff --numstat --cached` (index vs HEAD)
+   * - Unstaged: `git diff --numstat` (working tree vs index)
    */
-  async getPerFileDiffStats(): Promise<
-    Map<string, { added: number; removed: number }>
-  > {
-    const result = new Map<string, { added: number; removed: number }>();
+  async getPerFileDiffStats(): Promise<{
+    staged: Map<string, { added: number; removed: number }>;
+    unstaged: Map<string, { added: number; removed: number }>;
+  }> {
+    const staged = new Map<string, { added: number; removed: number }>();
+    const unstaged = new Map<string, { added: number; removed: number }>();
 
-    try {
-      const diffOutput = await this.git.diff(["--numstat", "HEAD"]);
-      const lines = diffOutput.trim().split("\n").filter(Boolean);
-
+    const parseDiffOutput = (
+      output: string,
+      targetMap: Map<string, { added: number; removed: number }>,
+    ) => {
+      const lines = output.trim().split("\n").filter(Boolean);
       for (const line of lines) {
         // Format: <added>\t<removed>\t<filename>
         // Binary files show "-" for added/removed
         const [addedStr, removedStr, ...filenameParts] = line.split("\t");
-        const filename = filenameParts.join("\t"); // Handle filenames with tabs (rare but possible)
+        const filename = filenameParts.join("\t"); // Handle filenames with tabs
 
         if (!filename) continue;
 
         const added = addedStr === "-" ? 0 : parseInt(addedStr, 10) || 0;
         const removed = removedStr === "-" ? 0 : parseInt(removedStr, 10) || 0;
 
-        result.set(filename, { added, removed });
+        targetMap.set(filename, { added, removed });
       }
+    };
+
+    try {
+      // Get staged changes (index vs HEAD)
+      const stagedOutput = await this.git.diff(["--numstat", "--cached"]);
+      parseDiffOutput(stagedOutput, staged);
+
+      // Get unstaged changes (working tree vs index)
+      const unstagedOutput = await this.git.diff(["--numstat"]);
+      parseDiffOutput(unstagedOutput, unstaged);
     } catch (error) {
       console.error(
         "[DiskGitProvider] Failed to get per-file diff stats:",
@@ -619,7 +633,7 @@ export class DiskGitProvider implements GitProvider {
       );
     }
 
-    return result;
+    return { staged, unstaged };
   }
 
   /**

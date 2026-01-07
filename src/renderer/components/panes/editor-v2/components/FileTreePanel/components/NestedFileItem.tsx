@@ -157,6 +157,7 @@ export function NestedFileItem({
               <div className="flex-shrink-0 block group-hover:hidden">
                 <FileDiffStats
                   filePath={file.path}
+                  staged={isStaged}
                   isUnseen={showUnseenIndicator}
                 />
               </div>

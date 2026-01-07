@@ -28,10 +28,10 @@ export interface NestedFolderItemProps {
   /** Toggle folder expansion */
   onToggleFolder: (path: string) => void;
   /**
-   * Selected map key for highlighting.
-   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   * Check if a file is selected by its map key.
+   * Passed from parent to ensure consistent selection logic.
    */
-  selectedMapKey?: string | null;
+  isFileSelected: (mapKey: string) => boolean;
   /** Set of multi-selected paths (includes folders) */
   multiSelectedPaths: Set<string>;
   /** Whether files in this folder are staged */
@@ -95,7 +95,7 @@ export function NestedFolderItem({
   cwd,
   expandedFolders,
   onToggleFolder,
-  selectedMapKey,
+  isFileSelected,
   multiSelectedPaths,
   isStaged,
   onFileSelect,
@@ -124,14 +124,6 @@ export function NestedFolderItem({
   const sortedFolders = [...folder.folders.values()].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
-
-  /**
-   * Check if a file should be shown as selected.
-   * Simply compares the entry's mapKey with the selectedMapKey.
-   */
-  const isFileSelected = (mapKey: string): boolean => {
-    return selectedMapKey === mapKey;
-  };
 
   /**
    * Handle folder click - toggle expansion OR select with shift/cmd.
@@ -270,7 +262,7 @@ export function NestedFolderItem({
               cwd={cwd}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
-              selectedMapKey={selectedMapKey}
+              isFileSelected={isFileSelected}
               multiSelectedPaths={multiSelectedPaths}
               isStaged={isStaged}
               onFileSelect={onFileSelect}

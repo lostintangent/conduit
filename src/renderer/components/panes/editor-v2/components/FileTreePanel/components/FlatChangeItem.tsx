@@ -178,6 +178,7 @@ export function FlatChangeItem({
               <div className="flex-shrink-0 block group-hover:hidden">
                 <FileDiffStats
                   filePath={filePath}
+                  staged={isStaged}
                   isUnseen={showUnseenIndicator}
                 />
               </div>

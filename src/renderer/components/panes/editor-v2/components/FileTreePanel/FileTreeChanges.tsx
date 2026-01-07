@@ -65,6 +65,7 @@ import {
 } from "./utils";
 import type { SelectableItem, FolderNode } from "./utils";
 import { FlatChangeItem, NestedFileItem, NestedFolderItem } from "./components";
+import { SectionDiffStats } from "../FileDiffStats";
 
 // ============================================================================
 // Types
@@ -118,6 +119,8 @@ interface SectionProps {
   onToggle: () => void;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  /** Whether this is the staged section (for diff stats) */
+  isStaged?: boolean;
 }
 
 /**
@@ -130,6 +133,7 @@ function Section({
   onToggle,
   children,
   actions,
+  isStaged,
 }: SectionProps) {
   return (
     <div data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}>
@@ -148,8 +152,17 @@ function Section({
           <span>{title}</span>
           <span className="text-foreground/50 ml-1">({count})</span>
         </button>
+        {/* Diff stats / Actions - mutually exclusive via display:none/block */}
+        {/* Stats: shown by default, hidden on hover */}
+        {/* Right margin aligns with file stats (accounts for GitBadge 14px + gap 6px) */}
+        {isStaged !== undefined && (
+          <div className="block group-hover:hidden mr-5">
+            <SectionDiffStats staged={isStaged} />
+          </div>
+        )}
+        {/* Actions: hidden by default, shown on hover (no margin - stays at hard right) */}
         {actions && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+          <div className="hidden group-hover:block flex items-center">
             {actions}
           </div>
         )}
@@ -157,6 +170,19 @@ function Section({
       {isExpanded && <ul className="ml-2">{children}</ul>}
     </div>
   );
+}
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Separate expansion state for staged and unstaged folder sections.
+ * This keeps folder collapse/expand independent between sections.
+ */
+interface ExpandedFoldersState {
+  staged: Set<string>;
+  unstaged: Set<string>;
 }
 
 // ============================================================================
@@ -170,34 +196,78 @@ function Section({
 function useChangesViewState() {
   const [stagedExpanded, setStagedExpanded] = useState(true);
   const [changesExpanded, setChangesExpanded] = useState(true);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    () => new Set(),
+  const [expandedFolders, setExpandedFolders] = useState<ExpandedFoldersState>(
+    () => ({ staged: new Set(), unstaged: new Set() }),
   );
 
-  const toggleFolder = useCallback((path: string) => {
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+  /**
+   * Toggle a folder's expansion state in a specific section.
+   */
+  const toggleFolder = useCallback(
+    (path: string, section: "staged" | "unstaged") => {
+      setExpandedFolders((prev) => {
+        const sectionSet = prev[section];
+        const next = new Set(sectionSet);
+        if (next.has(path)) {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        return { ...prev, [section]: next };
+      });
+    },
+    [],
+  );
 
+  /**
+   * Expand folders to reveal the given files.
+   * @param filePaths - File paths to reveal
+   * @param section - Which section to expand folders in
+   * @param replace - If true, replaces all expanded folders; if false, adds to existing
+   */
   const expandFoldersForFiles = useCallback(
-    (filePaths: string[], replace = false) => {
+    (filePaths: string[], section: "staged" | "unstaged", replace = false) => {
       if (filePaths.length === 0 && !replace) return;
 
       setExpandedFolders((prev) => {
-        const next = replace ? new Set<string>() : new Set(prev);
+        const next = replace ? new Set<string>() : new Set(prev[section]);
         for (const filePath of filePaths) {
           for (const folder of getParentPaths(filePath)) {
             next.add(folder);
           }
         }
-        return next;
+        return { ...prev, [section]: next };
+      });
+    },
+    [],
+  );
+
+  /**
+   * Expand folders in both sections (convenience for initial load).
+   * @param stagedPaths - Staged file paths
+   * @param unstagedPaths - Unstaged file paths
+   * @param replace - If true, replaces all expanded folders
+   */
+  const expandAllFoldersForFiles = useCallback(
+    (stagedPaths: string[], unstagedPaths: string[], replace = false) => {
+      setExpandedFolders((prev) => {
+        const nextStaged = replace ? new Set<string>() : new Set(prev.staged);
+        const nextUnstaged = replace
+          ? new Set<string>()
+          : new Set(prev.unstaged);
+
+        for (const filePath of stagedPaths) {
+          for (const folder of getParentPaths(filePath)) {
+            nextStaged.add(folder);
+          }
+        }
+        for (const filePath of unstagedPaths) {
+          for (const folder of getParentPaths(filePath)) {
+            nextUnstaged.add(folder);
+          }
+        }
+
+        return { staged: nextStaged, unstaged: nextUnstaged };
       });
     },
     [],
@@ -211,6 +281,7 @@ function useChangesViewState() {
     expandedFolders,
     toggleFolder,
     expandFoldersForFiles,
+    expandAllFoldersForFiles,
   };
 }
 
@@ -390,6 +461,7 @@ export function FileTreeChanges({
     expandedFolders,
     toggleFolder,
     expandFoldersForFiles,
+    expandAllFoldersForFiles,
   } = useChangesViewState();
 
   // Group files by staging status
@@ -457,28 +529,27 @@ export function FileTreeChanges({
   }, [stagedFiles, unstagedFiles]);
 
   // Build visual order based on view mode
-  const visualOrder = useMemo((): SelectableItem[] => {
+  // Split into separate memos so toggling a folder in one section
+  // doesn't recalculate the other section's visual order
+  const stagedVisualOrder = useMemo((): SelectableItem[] => {
     if (viewMode === "flat") {
-      return buildFlatVisualOrder(stagedFiles, unstagedFiles);
-    } else {
-      const stagedVisual = buildVisualOrderFromTree(
-        stagedTree,
-        expandedFolders,
-      );
-      const unstagedVisual = buildVisualOrderFromTree(
-        unstagedTree,
-        expandedFolders,
-      );
-      return [...stagedVisual, ...unstagedVisual];
+      return buildFlatVisualOrder(stagedFiles, []);
     }
-  }, [
-    viewMode,
-    stagedFiles,
-    unstagedFiles,
-    stagedTree,
-    unstagedTree,
-    expandedFolders,
-  ]);
+    return buildVisualOrderFromTree(stagedTree, expandedFolders.staged);
+  }, [viewMode, stagedFiles, stagedTree, expandedFolders.staged]);
+
+  const unstagedVisualOrder = useMemo((): SelectableItem[] => {
+    if (viewMode === "flat") {
+      return buildFlatVisualOrder([], unstagedFiles);
+    }
+    return buildVisualOrderFromTree(unstagedTree, expandedFolders.unstaged);
+  }, [viewMode, unstagedFiles, unstagedTree, expandedFolders.unstaged]);
+
+  // Combined for multi-select (needs full list for shift-click ranges)
+  const visualOrder = useMemo(
+    (): SelectableItem[] => [...stagedVisualOrder, ...unstagedVisualOrder],
+    [stagedVisualOrder, unstagedVisualOrder],
+  );
 
   // Multi-select state
   const {
@@ -898,10 +969,11 @@ export function FileTreeChanges({
       creationInProgressRef.current = parentPath;
 
       // Expand the folder in nested view if not already expanded
+      // File creation only happens in unstaged section
       if (viewMode === "nested") {
         const relativePath = getRelativePath(parentPath, cwd);
-        if (relativePath && !expandedFolders.has(relativePath)) {
-          toggleFolder(relativePath);
+        if (relativePath && !expandedFolders.unstaged.has(relativePath)) {
+          toggleFolder(relativePath, "unstaged");
         }
       }
       setCreatingInPath(parentPath);
@@ -912,7 +984,7 @@ export function FileTreeChanges({
         creationInProgressRef.current = null;
       }, 0);
     },
-    [cwd, viewMode, expandedFolders, toggleFolder],
+    [cwd, viewMode, expandedFolders.unstaged, toggleFolder],
   );
 
   /**
@@ -928,10 +1000,11 @@ export function FileTreeChanges({
       creationInProgressRef.current = parentPath;
 
       // Expand the folder in nested view if not already expanded
+      // Folder creation only happens in unstaged section
       if (viewMode === "nested") {
         const relativePath = getRelativePath(parentPath, cwd);
-        if (relativePath && !expandedFolders.has(relativePath)) {
-          toggleFolder(relativePath);
+        if (relativePath && !expandedFolders.unstaged.has(relativePath)) {
+          toggleFolder(relativePath, "unstaged");
         }
       }
       setCreatingInPath(parentPath);
@@ -942,7 +1015,7 @@ export function FileTreeChanges({
         creationInProgressRef.current = null;
       }, 0);
     },
-    [cwd, viewMode, expandedFolders, toggleFolder],
+    [cwd, viewMode, expandedFolders.unstaged, toggleFolder],
   );
 
   /**
@@ -1081,35 +1154,58 @@ export function FileTreeChanges({
   }, [git, stagedFiles, applyOptimisticUpdate, revertOptimisticUpdate]);
 
   // Auto-expand folders in nested view
-  const prevStateRef = useRef<{ viewMode: string; filePaths: Set<string> }>({
+  const prevStateRef = useRef<{
+    viewMode: string;
+    stagedPaths: Set<string>;
+    unstagedPaths: Set<string>;
+  }>({
     viewMode,
-    filePaths: new Set(),
+    stagedPaths: new Set(),
+    unstagedPaths: new Set(),
   });
 
   useEffect(() => {
-    const allPaths = [
-      ...stagedFiles.map(([p]) => p),
-      ...unstagedFiles.map(([p]) => p),
-    ];
-    const currentPaths = new Set(allPaths);
+    const stagedPaths = stagedFiles.map(([p]) => p);
+    const unstagedPaths = unstagedFiles.map(([p]) => p);
+
+    const currentStagedPaths = new Set(stagedPaths);
+    const currentUnstagedPaths = new Set(unstagedPaths);
     const wasNestedView = prevStateRef.current.viewMode === "nested";
     const isNestedView = viewMode === "nested";
 
     if (isNestedView) {
       if (!wasNestedView) {
-        expandFoldersForFiles(allPaths, true);
+        // Switching to nested view: expand all folders
+        expandAllFoldersForFiles(stagedPaths, unstagedPaths, true);
       } else {
-        const newPaths = allPaths.filter(
-          (p) => !prevStateRef.current.filePaths.has(p),
+        // Already in nested view: only expand folders for new files
+        const newStagedPaths = stagedPaths.filter(
+          (p) => !prevStateRef.current.stagedPaths.has(p),
         );
-        if (newPaths.length > 0) {
-          expandFoldersForFiles(newPaths, false);
+        const newUnstagedPaths = unstagedPaths.filter(
+          (p) => !prevStateRef.current.unstagedPaths.has(p),
+        );
+        if (newStagedPaths.length > 0) {
+          expandFoldersForFiles(newStagedPaths, "staged", false);
+        }
+        if (newUnstagedPaths.length > 0) {
+          expandFoldersForFiles(newUnstagedPaths, "unstaged", false);
         }
       }
     }
 
-    prevStateRef.current = { viewMode, filePaths: currentPaths };
-  }, [viewMode, stagedFiles, unstagedFiles, expandFoldersForFiles]);
+    prevStateRef.current = {
+      viewMode,
+      stagedPaths: currentStagedPaths,
+      unstagedPaths: currentUnstagedPaths,
+    };
+  }, [
+    viewMode,
+    stagedFiles,
+    unstagedFiles,
+    expandFoldersForFiles,
+    expandAllFoldersForFiles,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Render Helpers
@@ -1162,6 +1258,13 @@ export function FileTreeChanges({
       .filter((f) => f.name !== "")
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    // Get the appropriate section's expansion state
+    const section = isStaged ? "staged" : "unstaged";
+    const sectionExpandedFolders = expandedFolders[section];
+
+    // Wrapper that toggles in the correct section
+    const handleToggleFolder = (path: string) => toggleFolder(path, section);
+
     return (
       <>
         {folders.map((folder) => (
@@ -1169,9 +1272,9 @@ export function FileTreeChanges({
             key={folder.path}
             folder={folder}
             cwd={cwd}
-            expandedFolders={expandedFolders}
-            onToggleFolder={toggleFolder}
-            selectedMapKey={selectedMapKey}
+            expandedFolders={sectionExpandedFolders}
+            onToggleFolder={handleToggleFolder}
+            isFileSelected={isFileSelected}
             multiSelectedPaths={multiSelectedPaths}
             isStaged={isStaged}
             onFileSelect={handleSelect}
@@ -1286,6 +1389,7 @@ export function FileTreeChanges({
             count={stagedFiles.length}
             isExpanded={stagedExpanded}
             onToggle={() => setStagedExpanded(!stagedExpanded)}
+            isStaged={true}
             actions={
               showActionButtons && (
                 <div
@@ -1326,6 +1430,7 @@ export function FileTreeChanges({
             count={unstagedFiles.length}
             isExpanded={changesExpanded}
             onToggle={() => setChangesExpanded(!changesExpanded)}
+            isStaged={false}
             actions={
               showActionButtons && (
                 <div

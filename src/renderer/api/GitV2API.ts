@@ -49,6 +49,7 @@ import type {
   GitStatus,
   GitStatusChangedEvent,
   PerFileDiffStats,
+  SplitPerFileDiffStats,
 } from "../../ipc/gitv2/types";
 import type {
   BranchChangedPayload,
@@ -57,7 +58,7 @@ import type {
   SerializedGitBranch,
   SerializedGitCommit,
   SerializedGitStatus,
-  SerializedPerFileDiffStats,
+  SerializedSplitPerFileDiffStats,
   StatusChangedPayload,
 } from "../../preload/window/modules/gitv2";
 
@@ -757,22 +758,32 @@ export class GitV2API {
   /**
    * Get per-file diff statistics for uncommitted changes.
    *
-   * Returns lines added/removed for each changed file.
+   * Returns lines added/removed for each changed file, split by staged/unstaged.
    * Useful for displaying diff stats next to file names in the UI.
    *
-   * @returns Map of file paths to their diff statistics
+   * @returns Split stats for staged and unstaged changes
    * @throws {Error} If the API has been released
    */
-  async getPerFileDiffStats(): Promise<PerFileDiffStats> {
+  async getPerFileDiffStats(): Promise<SplitPerFileDiffStats> {
     this.ensureNotReleased();
-    const serialized: SerializedPerFileDiffStats =
+    const serialized: SerializedSplitPerFileDiffStats =
       await window.conduit.gitv2.getPerFileDiffStats(this.cwd, this.sandboxId);
-    // Convert plain object back to Map
-    const result: PerFileDiffStats = new Map();
-    for (const [path, stats] of Object.entries(serialized)) {
-      result.set(path, stats);
-    }
-    return result;
+
+    // Convert plain objects back to Maps
+    const deserializeMap = (
+      obj: Record<string, { added: number; removed: number }>,
+    ): PerFileDiffStats => {
+      const map: PerFileDiffStats = new Map();
+      for (const [path, stats] of Object.entries(obj)) {
+        map.set(path, stats);
+      }
+      return map;
+    };
+
+    return {
+      staged: deserializeMap(serialized.staged),
+      unstaged: deserializeMap(serialized.unstaged),
+    };
   }
 
   /**

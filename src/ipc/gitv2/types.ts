@@ -213,6 +213,16 @@ export interface FileDiffStat {
 export type PerFileDiffStats = Map<string, FileDiffStat>;
 
 /**
+ * Split diff statistics for staged and unstaged changes.
+ */
+export interface SplitPerFileDiffStats {
+  /** Stats for staged changes (index vs HEAD) */
+  staged: PerFileDiffStats;
+  /** Stats for unstaged changes (working tree vs index) */
+  unstaged: PerFileDiffStats;
+}
+
+/**
  * File with its modification timestamp.
  */
 export interface FileWithTime {
@@ -418,12 +428,12 @@ export interface GitProvider {
   /**
    * Get per-file diff statistics for uncommitted changes.
    *
-   * Returns lines added/removed for each changed file.
+   * Returns lines added/removed for each changed file, split by staged/unstaged.
    * Useful for displaying diff stats next to file names in the UI.
    *
-   * @returns Map of file paths to their diff statistics
+   * @returns Staged and unstaged stats separately
    */
-  getPerFileDiffStats(): Promise<PerFileDiffStats>;
+  getPerFileDiffStats(): Promise<SplitPerFileDiffStats>;
 
   /**
    * Get the most recently modified dirty file.
