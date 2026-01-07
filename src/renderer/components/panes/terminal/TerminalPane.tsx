@@ -33,6 +33,7 @@ import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
 import { createFitController } from "./state/fitController";
 import { attach, getOrCreate, serializeSession } from "./state/xtermCache";
+import { useImageDrop } from "./useImageDrop";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -244,6 +245,10 @@ export const TerminalPane = ({
 
     return terminalId;
   }, [cloneOf, tabId, tabs, terminalId]);
+
+  const { isImageDragOver, dragHandlers: imageDragHandlers } = useImageDrop({
+    sessionId,
+  });
 
   const handleSynchronizedInput = useCallback(
     (input: string) => {
@@ -596,7 +601,13 @@ export const TerminalPane = ({
       className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-background"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
+      {...imageDragHandlers}
     >
+      {/* Image drop overlay */}
+      {isImageDragOver && (
+        <div className="pointer-events-none absolute inset-0 z-30 bg-accent/40" />
+      )}
+
       {/** xTerm.js container (which can't have padding applied directly to it) */}
       <div className="w-full h-full pl-2 pt-2">
         <div className="w-full h-full" ref={containerRef} />
