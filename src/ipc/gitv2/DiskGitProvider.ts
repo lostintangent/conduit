@@ -664,6 +664,41 @@ export class DiskGitProvider implements GitProvider {
       const unstagedOutput = await this.git.diff(["--numstat"]);
       parseDiffOutput(unstagedOutput, unstaged);
 
+      // Handle untracked files (not in git diff output)
+      // Count lines in each untracked file and add to unstaged stats
+      const status = await this.getStatus();
+      const untrackedFiles = Array.from(status.files.entries()).filter(
+        ([, fileStatus]) => fileStatus.status === "untracked",
+      );
+
+      // Read all untracked files in parallel
+      const untrackedStats = await Promise.all(
+        untrackedFiles.map(async ([filePath]) => {
+          try {
+            const fullPath = path.join(this.gitRoot, filePath);
+            const content = await fsPromises.readFile(fullPath, "utf-8");
+            // Count lines (consistent with how git counts)
+            const lines = content.split("\n");
+            // Git counts the final newline as a line only if there's content after it
+            const added =
+              lines.length > 0 && lines[lines.length - 1] === ""
+                ? lines.length - 1
+                : lines.length;
+            return { filePath, added };
+          } catch {
+            // File might not exist or be unreadable (e.g., symlink to nowhere)
+            return null;
+          }
+        }),
+      );
+
+      // Add results to unstaged map
+      for (const stat of untrackedStats) {
+        if (stat) {
+          unstaged.set(stat.filePath, { added: stat.added, removed: 0 });
+        }
+      }
+
       // Cache the result
       const result = { staged, unstaged };
       this.perFileDiffStatsCache = { result, timestamp: now };

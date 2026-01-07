@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 // Create mockable fs/promises functions
 const mockFsStat = vi.fn();
 const mockFsUnlink = vi.fn();
+const mockFsReadFile = vi.fn();
 
 // ============================================================================
 // Mocks
@@ -94,13 +95,14 @@ vi.mock("node:fs", async () => {
   };
 });
 
-// Mock fs/promises for getMostRecentCommittedFile and revert tests
+// Mock fs/promises for getMostRecentCommittedFile, revert, and untracked file stats tests
 vi.mock("node:fs/promises", async () => {
   const actual = await vi.importActual("node:fs/promises");
   return {
     ...actual,
     stat: (...args: unknown[]) => mockFsStat(...args),
     unlink: (...args: unknown[]) => mockFsUnlink(...args),
+    readFile: (...args: unknown[]) => mockFsReadFile(...args),
   };
 });
 
@@ -1026,6 +1028,153 @@ describe("DiskGitProvider", () => {
       expect(mockGit.diff).toHaveBeenCalledTimes(4);
 
       vi.useRealTimers();
+    });
+
+    it("should include untracked files in unstaged stats", async () => {
+      // Mock git diff returns no results (untracked files don't appear in diff)
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      // Mock git status to return untracked file
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "new-file.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+
+      // Mock reading the untracked file content (5 lines)
+      mockFsReadFile.mockResolvedValue("line1\nline2\nline3\nline4\nline5\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      // Untracked file should appear in unstaged with all lines as "added"
+      expect(stats.unstaged.get("new-file.ts")).toEqual({
+        added: 5,
+        removed: 0,
+      });
+      expect(stats.staged.size).toBe(0);
+    });
+
+    it("should count lines correctly for files without trailing newline", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "no-newline.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+
+      // File without trailing newline (3 lines)
+      mockFsReadFile.mockResolvedValue("line1\nline2\nline3");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      expect(stats.unstaged.get("no-newline.ts")).toEqual({
+        added: 3,
+        removed: 0,
+      });
+    });
+
+    it("should handle multiple untracked files in parallel", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "file1.ts", index: "?", working_dir: "?" },
+            { path: "file2.ts", index: "?", working_dir: "?" },
+            { path: "file3.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+
+      // Different line counts for each file
+      mockFsReadFile.mockImplementation(async (filePath: string) => {
+        if (filePath.includes("file1.ts")) return "a\nb\n";
+        if (filePath.includes("file2.ts")) return "a\nb\nc\nd\n";
+        if (filePath.includes("file3.ts")) return "single line";
+        return "";
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      expect(stats.unstaged.get("file1.ts")).toEqual({ added: 2, removed: 0 });
+      expect(stats.unstaged.get("file2.ts")).toEqual({ added: 4, removed: 0 });
+      expect(stats.unstaged.get("file3.ts")).toEqual({ added: 1, removed: 0 });
+    });
+
+    it("should skip unreadable untracked files gracefully", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "readable.ts", index: "?", working_dir: "?" },
+            { path: "unreadable.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+
+      mockFsReadFile.mockImplementation(async (filePath: string) => {
+        if (filePath.includes("unreadable.ts")) {
+          throw new Error("ENOENT: no such file or directory");
+        }
+        return "content\n";
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      // Readable file should have stats
+      expect(stats.unstaged.get("readable.ts")).toEqual({
+        added: 1,
+        removed: 0,
+      });
+      // Unreadable file should be skipped (not in map)
+      expect(stats.unstaged.has("unreadable.ts")).toBe(false);
+    });
+
+    it("should combine tracked and untracked files in stats", async () => {
+      // Mock diff to return stats for tracked modified file
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce("5\t2\tmodified.ts\n"); // unstaged - modified file
+
+      // Status includes both modified and untracked
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "modified.ts", index: " ", working_dir: "M" },
+            { path: "untracked.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+
+      mockFsReadFile.mockResolvedValue("line1\nline2\nline3\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      // Modified file from git diff
+      expect(stats.unstaged.get("modified.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+      // Untracked file from file read
+      expect(stats.unstaged.get("untracked.ts")).toEqual({
+        added: 3,
+        removed: 0,
+      });
     });
   });
 
