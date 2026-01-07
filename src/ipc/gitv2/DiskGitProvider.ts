@@ -164,6 +164,18 @@ export class DiskGitProvider implements GitProvider {
   /** Last known HEAD commit (for head change detection) */
   private lastHead: string | null = null;
 
+  /** Cached per-file diff stats (single source of truth for all diff stat queries) */
+  private perFileDiffStatsCache: {
+    result: {
+      staged: Map<string, { added: number; removed: number }>;
+      unstaged: Map<string, { added: number; removed: number }>;
+    };
+    timestamp: number;
+  } | null = null;
+
+  /** Cache TTL for diff stats (ms) - short window to deduplicate concurrent calls */
+  private static readonly DIFF_STATS_CACHE_TTL_MS = 100;
+
   // -------------------------------------------------------------------------
   // Event Emitters
   // -------------------------------------------------------------------------
@@ -554,6 +566,9 @@ export class DiskGitProvider implements GitProvider {
 
   /**
    * Get diff statistics for uncommitted changes (lines added/removed).
+   *
+   * Derives aggregated stats from the cached per-file diff stats.
+   * This ensures a single source of truth and avoids redundant git operations.
    */
   async getUncommittedDiffStats(): Promise<{
     added: number;
@@ -561,22 +576,31 @@ export class DiskGitProvider implements GitProvider {
     files: number;
   }> {
     try {
-      const result = await this.git.diff(["--numstat", "HEAD"]);
-      const lines = result.trim().split("\n").filter(Boolean);
+      // Derive from per-file stats (uses cache if available)
+      const perFile = await this.getPerFileDiffStats();
 
       let totalAdded = 0;
       let totalRemoved = 0;
+      const allFiles = new Set<string>();
 
-      for (const line of lines) {
-        const [added, removed] = line.split("\t");
-        if (added !== "-") totalAdded += parseInt(added, 10) || 0;
-        if (removed !== "-") totalRemoved += parseInt(removed, 10) || 0;
+      // Sum staged stats
+      for (const [path, stat] of perFile.staged) {
+        totalAdded += stat.added;
+        totalRemoved += stat.removed;
+        allFiles.add(path);
+      }
+
+      // Sum unstaged stats
+      for (const [path, stat] of perFile.unstaged) {
+        totalAdded += stat.added;
+        totalRemoved += stat.removed;
+        allFiles.add(path);
       }
 
       return {
         added: totalAdded,
         removed: totalRemoved,
-        files: lines.length,
+        files: allFiles.size,
       };
     } catch (error) {
       console.error("[DiskGitProvider] Failed to get diff stats:", error);
@@ -590,11 +614,24 @@ export class DiskGitProvider implements GitProvider {
    * Returns lines added/removed for each changed file, split by staged/unstaged.
    * - Staged: `git diff --numstat --cached` (index vs HEAD)
    * - Unstaged: `git diff --numstat` (working tree vs index)
+   *
+   * Results are cached for a short window (100ms) to deduplicate concurrent calls.
+   * This is the single source of truth for all diff stat queries.
    */
   async getPerFileDiffStats(): Promise<{
     staged: Map<string, { added: number; removed: number }>;
     unstaged: Map<string, { added: number; removed: number }>;
   }> {
+    // Check cache first
+    const now = Date.now();
+    if (
+      this.perFileDiffStatsCache &&
+      now - this.perFileDiffStatsCache.timestamp <
+        DiskGitProvider.DIFF_STATS_CACHE_TTL_MS
+    ) {
+      return this.perFileDiffStatsCache.result;
+    }
+
     const staged = new Map<string, { added: number; removed: number }>();
     const unstaged = new Map<string, { added: number; removed: number }>();
 
@@ -626,14 +663,19 @@ export class DiskGitProvider implements GitProvider {
       // Get unstaged changes (working tree vs index)
       const unstagedOutput = await this.git.diff(["--numstat"]);
       parseDiffOutput(unstagedOutput, unstaged);
+
+      // Cache the result
+      const result = { staged, unstaged };
+      this.perFileDiffStatsCache = { result, timestamp: now };
+
+      return result;
     } catch (error) {
       console.error(
         "[DiskGitProvider] Failed to get per-file diff stats:",
         error,
       );
+      return { staged, unstaged };
     }
-
-    return { staged, unstaged };
   }
 
   /**
@@ -1341,6 +1383,9 @@ export class DiskGitProvider implements GitProvider {
     if (this.disposed) {
       return;
     }
+
+    // Invalidate diff stats cache - status change means stats may have changed
+    this.perFileDiffStatsCache = null;
 
     try {
       const currentStatus = await this.getStatus();

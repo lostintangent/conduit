@@ -35,15 +35,14 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useState,
   useCallback,
-  useRef,
   useMemo,
   type ReactNode,
 } from "react";
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
+import { useGitDiffSubscription } from "@/hooks/useGitDiffSubscription";
 import type {
   FileDiffStat,
   SplitPerFileDiffStats,
@@ -92,6 +91,13 @@ const FileDiffStatsContext = createContext<FileDiffStatsContextValue | null>(
 // Provider
 // =============================================================================
 
+/**
+ * Cache to track which directories are known to NOT be git repos.
+ * This prevents unnecessary subscriptions for non-git directories like home.
+ * Keyed by cwd.
+ */
+const nonGitRepoCache = new Set<string>();
+
 export interface FileDiffStatsProviderProps {
   /** Git API instance for fetching diff stats */
   git: GitV2API;
@@ -100,9 +106,6 @@ export interface FileDiffStatsProviderProps {
   /** Children to render */
   children: ReactNode;
 }
-
-/** Debounce delay for file content changes (ms) */
-const FILE_CHANGE_DEBOUNCE_MS = 300;
 
 /**
  * Provider that fetches and maintains per-file diff statistics.
@@ -120,11 +123,28 @@ export function FileDiffStatsProvider({
 }: FileDiffStatsProviderProps) {
   const [stats, setStats] = useState<SplitPerFileDiffStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Skip subscription if we know this is not a git repo
+  const skipSubscription = nonGitRepoCache.has(git.cwd);
 
   // Fetch diff stats
   const fetchStats = useCallback(async () => {
     try {
+      // Early exit if we know this isn't a git repo
+      if (nonGitRepoCache.has(git.cwd)) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if this is a git repo first
+      const root = await git.findRoot();
+      if (!root) {
+        setStats(null);
+        nonGitRepoCache.add(git.cwd);
+        setIsLoading(false);
+        return;
+      }
+
       const diffStats = await git.getPerFileDiffStats();
       setStats(diffStats);
     } catch (error) {
@@ -138,57 +158,8 @@ export function FileDiffStatsProvider({
     }
   }, [git]);
 
-  // Debounced fetch for file content changes (avoid excessive calls while typing)
-  const debouncedFetchStats = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      fetchStats();
-      debounceTimerRef.current = null;
-    }, FILE_CHANGE_DEBOUNCE_MS);
-  }, [fetchStats]);
-
-  // Initial fetch and subscribe to status changes
-  useEffect(() => {
-    let cancelled = false;
-
-    // Initial fetch
-    const init = async () => {
-      await git.whenReady();
-      if (!cancelled) {
-        await fetchStats();
-      }
-    };
-    init();
-
-    // Subscribe to git status changes (files added/removed, staging changes)
-    const cleanupGitStatus = git.onStatusChanged(() => {
-      if (!cancelled) {
-        fetchStats();
-      }
-    });
-
-    // Subscribe to file content changes (lines added/removed in editor)
-    // Note: fs.onAnyFileContentChanged may not exist in test environments
-    let cleanupFileContent: (() => void) | undefined;
-    if (fs.onAnyFileContentChanged) {
-      cleanupFileContent = fs.onAnyFileContentChanged(() => {
-        if (!cancelled) {
-          debouncedFetchStats();
-        }
-      });
-    }
-
-    return () => {
-      cancelled = true;
-      cleanupGitStatus();
-      cleanupFileContent?.();
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [git, fs, fetchStats, debouncedFetchStats]);
+  // Subscribe to git and file system changes (skip if we know it's not a git repo)
+  useGitDiffSubscription(git, fs, fetchStats, skipSubscription);
 
   // Memoized getter function for per-file stats
   const getStats = useCallback(

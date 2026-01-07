@@ -28,6 +28,7 @@ import React, {
 } from "react";
 import { AgentPanel } from "./shell/AgentPanel";
 import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
+import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { CloudTerminalOverlay } from "./shell/sandbox/CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
@@ -598,7 +599,7 @@ export const TerminalPane = ({
 
   return (
     <div
-      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-background"
+      className="group w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-background"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
       {...imageDragHandlers}
@@ -631,6 +632,9 @@ export const TerminalPane = ({
           </Tooltip>
         </div>
       )}
+
+      {/* Git stats badge (top-right, pinned) */}
+      <TerminalGitStats cwd={cwd} sandboxId={sandboxId} />
 
       <SearchWidget
         ref={searchWidgetRef}

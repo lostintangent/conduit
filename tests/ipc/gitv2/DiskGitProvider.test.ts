@@ -883,16 +883,25 @@ describe("DiskGitProvider", () => {
   // ===========================================================================
 
   describe("getUncommittedDiffStats()", () => {
+    beforeEach(() => {
+      // Clear diff mock - getUncommittedDiffStats now derives from per-file stats
+      mockGit.diff.mockReset();
+    });
+
     it("should return diff statistics", async () => {
-      // numstat format: added<tab>removed<tab>filename
-      mockGit.diff.mockResolvedValue(
-        "10\t5\tsrc/file1.ts\n20\t0\tsrc/file2.ts\n",
-      );
+      // New implementation calls getPerFileDiffStats which does 2 calls:
+      // 1. git diff --numstat --cached (staged)
+      // 2. git diff --numstat (unstaged)
+      mockGit.diff
+        .mockResolvedValueOnce("10\t5\tsrc/file1.ts\n") // staged
+        .mockResolvedValueOnce("20\t0\tsrc/file2.ts\n"); // unstaged
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const stats = await provider.getUncommittedDiffStats();
 
-      expect(mockGit.diff).toHaveBeenCalledWith(["--numstat", "HEAD"]);
+      // Calls getPerFileDiffStats which makes 2 calls
+      expect(mockGit.diff).toHaveBeenCalledWith(["--numstat", "--cached"]);
+      expect(mockGit.diff).toHaveBeenCalledWith(["--numstat"]);
       expect(stats).toEqual({
         added: 30,
         removed: 5,
@@ -901,7 +910,9 @@ describe("DiskGitProvider", () => {
     });
 
     it("should return zero stats for clean repo", async () => {
-      mockGit.diff.mockResolvedValue("");
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const stats = await provider.getUncommittedDiffStats();
@@ -914,7 +925,9 @@ describe("DiskGitProvider", () => {
     });
 
     it("should handle binary files (- indicates binary)", async () => {
-      mockGit.diff.mockResolvedValue("10\t5\tsrc/file.ts\n-\t-\timage.png\n");
+      mockGit.diff
+        .mockResolvedValueOnce("10\t5\tsrc/file.ts\n") // staged
+        .mockResolvedValueOnce("-\t-\timage.png\n"); // unstaged (binary)
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const stats = await provider.getUncommittedDiffStats();
@@ -927,6 +940,163 @@ describe("DiskGitProvider", () => {
       });
     });
   });
+
+  // ===========================================================================
+  // getPerFileDiffStats (with caching)
+  // ===========================================================================
+
+  describe("getPerFileDiffStats()", () => {
+    beforeEach(() => {
+      // Clear diff mock for these tests
+      mockGit.diff.mockReset();
+    });
+
+    it("should return staged and unstaged stats separately", async () => {
+      // Mock staged diff (--cached)
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/staged.ts\n") // staged
+        .mockResolvedValueOnce("10\t3\tsrc/unstaged.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      expect(stats.staged.get("src/staged.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+      expect(stats.unstaged.get("src/unstaged.ts")).toEqual({
+        added: 10,
+        removed: 3,
+      });
+    });
+
+    it("should cache results within TTL window", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/file.ts\n") // staged - first call
+        .mockResolvedValueOnce("10\t3\tsrc/file.ts\n") // unstaged - first call
+        .mockResolvedValueOnce("99\t99\tsrc/new.ts\n") // staged - would be second call
+        .mockResolvedValueOnce("88\t88\tsrc/new.ts\n"); // unstaged - would be second call
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // First call
+      const stats1 = await provider.getPerFileDiffStats();
+      expect(stats1.staged.get("src/file.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+
+      // Second call (should return cached)
+      const stats2 = await provider.getPerFileDiffStats();
+      expect(stats2.staged.get("src/file.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+
+      // Should only have called git.diff twice (for first call)
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+    });
+
+    it("should refresh cache after TTL expires", async () => {
+      vi.useFakeTimers();
+
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/file.ts\n") // staged - first call
+        .mockResolvedValueOnce("10\t3\tsrc/file.ts\n") // unstaged - first call
+        .mockResolvedValueOnce("99\t99\tsrc/new.ts\n") // staged - second call
+        .mockResolvedValueOnce("88\t88\tsrc/new.ts\n"); // unstaged - second call
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // First call
+      await provider.getPerFileDiffStats();
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+
+      // Advance time past TTL (100ms)
+      vi.advanceTimersByTime(150);
+
+      // Second call (cache expired, should fetch fresh)
+      const stats2 = await provider.getPerFileDiffStats();
+      expect(stats2.staged.get("src/new.ts")).toEqual({
+        added: 99,
+        removed: 99,
+      });
+
+      // Should have called git.diff 4 times total
+      expect(mockGit.diff).toHaveBeenCalledTimes(4);
+
+      vi.useRealTimers();
+    });
+  });
+
+  // ===========================================================================
+  // getUncommittedDiffStats derives from per-file stats
+  // ===========================================================================
+
+  describe("getUncommittedDiffStats() derivation", () => {
+    beforeEach(() => {
+      // Clear diff mock for these tests
+      mockGit.diff.mockReset();
+    });
+
+    it("should derive totals from cached per-file stats", async () => {
+      // Setup per-file stats (staged + unstaged)
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/a.ts\n10\t3\tsrc/b.ts\n") // staged
+        .mockResolvedValueOnce("20\t5\tsrc/c.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // Call getUncommittedDiffStats (should use per-file stats internally)
+      const stats = await provider.getUncommittedDiffStats();
+
+      // Total: staged(5+10=15 added, 2+3=5 removed) + unstaged(20 added, 5 removed)
+      expect(stats).toEqual({
+        added: 35, // 5+10+20
+        removed: 10, // 2+3+5
+        files: 3, // a.ts, b.ts, c.ts
+      });
+    });
+
+    it("should count partially staged files correctly", async () => {
+      // Same file in both staged and unstaged
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/partial.ts\n") // staged
+        .mockResolvedValueOnce("10\t3\tsrc/partial.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getUncommittedDiffStats();
+
+      // File appears in both, but should only count as 1 file
+      expect(stats).toEqual({
+        added: 15, // 5+10
+        removed: 5, // 2+3
+        files: 1, // only one unique file
+      });
+    });
+
+    it("should use cached per-file stats for aggregate stats", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/file.ts\n") // staged
+        .mockResolvedValueOnce("10\t3\tsrc/file.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // First call to getPerFileDiffStats populates cache
+      await provider.getPerFileDiffStats();
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+
+      // Call getUncommittedDiffStats - should use cached data
+      await provider.getUncommittedDiffStats();
+
+      // Should NOT have made additional git.diff calls
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ===========================================================================
+  // Cache behavior (TTL-based invalidation is tested in getPerFileDiffStats)
+  // ===========================================================================
 
   // ===========================================================================
   // getMostRecentDirtyFile
