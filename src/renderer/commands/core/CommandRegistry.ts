@@ -36,6 +36,11 @@ export interface ICommandRegistry {
   hasCommand(commandId: string): boolean;
 
   /**
+   * Check if a command is enabled (when clause passes)
+   */
+  isCommandEnabled(commandId: string): boolean;
+
+  /**
    * Set the context builder function to provide real app state
    */
   setContextBuilder(builder: () => CommandContext): void;

@@ -1,12 +1,21 @@
+import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
+import { IdleIndicator } from "@/components/ui/idle-indicator";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
+import {
+  acknowledgeTabState,
+  closeTab,
+  focusTab,
+  updateTabProperty,
+} from "@/store/actions/tab";
+import { userSettingsAtom } from "@/store/atoms";
 import type { TabDescriptor } from "@/store/tabLabels";
 import { cn } from "@/utils";
+import { useAtomValue } from "jotai";
 import { ChevronUp, Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -46,12 +55,18 @@ export function TabButton({
   onDragEnd,
   onHoverChange,
 }: TabButtonProps) {
+  const { showTabState } = useAtomValue(userSettingsAtom);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const showCloseButton = isHovered && !disableClick && !tab.locked;
+  const showIdleIndicator =
+    showTabState &&
+    (tab.tabState === "idle-unseen" || tab.tabState === "idle-notified");
+  const showRunningState =
+    showTabState && !tab.isActive && tab.tabState === "running";
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -155,6 +170,10 @@ export function TabButton({
               e.stopPropagation();
             }}
           />
+        ) : showRunningState ? (
+          <AnimatedShinyText className="overflow-hidden text-ellipsis whitespace-nowrap">
+            {tab.label}
+          </AnimatedShinyText>
         ) : (
           <span className="overflow-hidden text-ellipsis whitespace-nowrap">
             {tab.label}
@@ -181,6 +200,8 @@ export function TabButton({
               closeTab(tab.id);
             }}
           />
+        ) : showIdleIndicator ? (
+          <IdleIndicator tabState={tab.tabState} />
         ) : tab.locked ? (
           <Lock size={14} className="flex-none opacity-60" />
         ) : navigator.platform.toLowerCase().includes("mac") ? (

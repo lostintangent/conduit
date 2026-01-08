@@ -2,8 +2,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Polyfills for jsdom
@@ -86,6 +86,8 @@ const mockRename = vi.fn();
 
 // Create stable fs API object (passed as prop)
 const mockFsAPI = {
+  cwd: "/project",
+  isReleased: false,
   readDirectory: mockReadDirectory,
   onDirectoryListingChanged: mockOnDirectoryListingChanged,
   writeFile: mockWriteFile,
@@ -101,10 +103,22 @@ const mockWhenReady = vi.fn().mockResolvedValue(undefined);
 
 // Create stable git API object (passed as prop)
 const mockGitAPI = {
+  cwd: "/project",
+  isReleased: false,
   getStatus: mockGetStatus,
   onStatusChanged: mockOnStatusChanged,
   whenReady: mockWhenReady,
 };
+
+// Mock useFileSystemV2 hook
+vi.mock("@/hooks/useFileSystemV2", () => ({
+  useFileSystemV2: () => mockFsAPI,
+}));
+
+// Mock useGitV2 hook
+vi.mock("@/hooks/useGitV2", () => ({
+  useGitV2: () => mockGitAPI,
+}));
 
 // Mock useGitAvailable hook
 vi.mock("@/hooks/useGitAvailable", () => ({
@@ -301,11 +315,14 @@ describe("FileTreeNormal", () => {
 
       fireEvent.click(screen.getByTestId("tree-item-README.md"));
 
-      expect(mockOnFileSelect).toHaveBeenCalledWith({
-        path: "/project/README.md",
-        name: "README.md",
-        type: "file",
-      });
+      expect(mockOnFileSelect).toHaveBeenCalledWith(
+        {
+          path: "/project/README.md",
+          name: "README.md",
+          type: "file",
+        },
+        null, // mapKey is null for normal file tree (not changes mode)
+      );
     });
 
     it("should highlight selected file", async () => {

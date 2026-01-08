@@ -44,7 +44,7 @@ export async function handleCreateVM(): Promise<void> {
       sessionId: result.sessionId,
       cwd: result.cwd,
       title: result.title,
-      vmMetadata: result.vmMetadata ?? undefined,
+      sandboxId: result.sandboxId ?? undefined,
     });
 
     console.log("[handleCreateVM] Pane opened successfully");

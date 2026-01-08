@@ -1,31 +1,41 @@
 /**
  * useDiffContent Hook
  *
- * Provides the original and modified content for a diff view. The original
- * content comes from git (HEAD or a specified branch), while the modified
- * content comes from the current working directory via the Monaco model.
+ * Provides the original and modified content for a diff view. Supports
+ * configurable content sources for both sides of the diff.
+ *
+ * Content sources:
+ * - 'head': Content from HEAD commit
+ * - 'index': Content from git staging area
+ * - 'workingDirectory': Content from filesystem (only valid for modified side)
+ * - Any other string: Content from that git ref
  *
  * @example
  * ```tsx
- * function DiffEditor({ filePath, baseBranch, cwd }: Props) {
- *   const diff = useDiffContent(filePath, baseBranch, cwd);
+ * // Staged changes: HEAD → Index
+ * const diff = useDiffContent(filePath, cwd, {
+ *   originalSource: 'head',
+ *   modifiedSource: 'index',
+ * });
  *
- *   if (diff.isLoading) return <Loading />;
- *   if (diff.error) return <Error message={diff.error} />;
+ * // Unstaged changes: HEAD → Working Directory
+ * const diff = useDiffContent(filePath, cwd, {
+ *   originalSource: 'head',
+ *   modifiedSource: 'workingDirectory',
+ * });
  *
- *   return (
- *     <MonacoDiffEditor
- *       original={diff.original}
- *       modified={diff.modified}
- *     />
- *   );
- * }
+ * // Partially staged: Index → Working Directory
+ * const diff = useDiffContent(filePath, cwd, {
+ *   originalSource: 'index',
+ *   modifiedSource: 'workingDirectory',
+ * });
  * ```
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGitV2 } from "../../../../hooks/useGitV2";
-import { MonacoModelRegistry, pathToUri } from "../registry";
+import { MonacoModelRegistry, createModelKey } from "../registry";
+import { type ContentSource, contentSourceToGitRef } from "../types";
 
 // ============================================================================
 // Error Types
@@ -57,10 +67,10 @@ export interface DiffError {
  * Result returned by useDiffContent hook.
  */
 export interface DiffContent {
-  /** Original content from git (HEAD or baseBranch) */
+  /** Original content from the original source */
   original: string | null;
 
-  /** Modified content from working directory */
+  /** Modified content from the modified source */
   modified: string | null;
 
   /** Whether content is currently being loaded */
@@ -71,17 +81,34 @@ export interface DiffContent {
 
   /** Legacy: Simple error message (for backwards compatibility) */
   errorMessage: string | null;
+
+  /** Whether the modified side is editable (only true for workingDirectory) */
+  isModifiedEditable: boolean;
+}
+
+/**
+ * Options for useDiffContent hook.
+ */
+export interface UseDiffContentOptions {
+  /** Source for original content (default: 'head') */
+  originalSource?: ContentSource;
+
+  /** Source for modified content (default: 'workingDirectory') */
+  modifiedSource?: ContentSource;
+
+  /** Optional sandbox ID for VM file operations */
+  sandboxId?: string;
 }
 
 /**
  * Hook to get diff content for a file.
  *
- * Fetches the original content from git and the modified content from
- * the MonacoModelRegistry. Handles loading states and errors gracefully.
+ * Fetches original and modified content based on the specified sources.
+ * Handles loading states and errors gracefully.
  *
  * @param filePath - Absolute path to the file, or null for no content
- * @param baseBranch - Git ref for original content (default: 'HEAD')
  * @param cwd - Working directory for git operations
+ * @param options - Configuration for content sources
  * @returns DiffContent with original, modified, loading state, and error
  */
 /**
@@ -249,19 +276,29 @@ function createDiffError(
 
 export function useDiffContent(
   filePath: string | null,
-  baseBranch: string | undefined,
   cwd: string,
+  options: UseDiffContentOptions = {},
 ): DiffContent {
+  const {
+    originalSource = "head",
+    modifiedSource = "workingDirectory",
+    sandboxId,
+  } = options;
+
+  // Determine if modified side is editable (only workingDirectory is editable)
+  const isModifiedEditable = modifiedSource === "workingDirectory";
+
   const [state, setState] = useState<DiffContent>({
     original: null,
     modified: null,
     isLoading: filePath !== null,
     error: null,
     errorMessage: null,
+    isModifiedEditable,
   });
 
-  // Git API for fetching original content
-  const git = useGitV2(cwd);
+  // Git API for fetching content from git sources
+  const git = useGitV2(cwd, sandboxId);
 
   // Track mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true);
@@ -282,6 +319,7 @@ export function useDiffContent(
         isLoading: false,
         error: null,
         errorMessage: null,
+        isModifiedEditable,
       });
       return;
     }
@@ -300,8 +338,8 @@ export function useDiffContent(
 
     const loadContent = async () => {
       const registry = MonacoModelRegistry.getInstance();
-      const uri = pathToUri(filePath);
-      const ref = baseBranch || "HEAD";
+      const modelKey = createModelKey(filePath, sandboxId);
+      const originalRef = contentSourceToGitRef(originalSource);
 
       let originalContent: string | null = null;
       let modifiedContent: string | null = null;
@@ -309,14 +347,16 @@ export function useDiffContent(
 
       // 1. Fetch original content from git
       try {
-        originalContent = await git.getFileAtRef(filePath, ref);
+        originalContent = await git.getFileAtRef(filePath, originalRef);
       } catch (error) {
         // Create specific error for git fetch failure
-        diffError = createDiffError(error, ref, filePath);
+        diffError = createDiffError(error, originalRef, filePath);
       }
 
       // Check if effect was cleaned up during async operation
-      if (isStale) return;
+      if (isStale) {
+        return;
+      }
 
       // 2. Check for binary content in original
       if (originalContent !== null && isBinaryContent(originalContent)) {
@@ -327,7 +367,7 @@ export function useDiffContent(
         originalContent = null;
       }
 
-      // 3. Get modified content from model registry (if no error yet)
+      // 3. Get modified content based on source
       // Also load modified content for not_tracked and not_committed files
       // so we can show them as "added" in the diff
       if (
@@ -335,34 +375,56 @@ export function useDiffContent(
         diffError.type === "not_tracked" ||
         diffError.type === "not_committed"
       ) {
-        const modelState = registry.getModelState(uri);
+        if (modifiedSource === "workingDirectory") {
+          // Working directory: use MonacoModelRegistry for shared, editable model
+          const modelState = registry.getModelState(modelKey);
 
-        if (modelState !== undefined) {
-          // Model exists - get content from it
-          const model = registry.getModel(uri);
-          modifiedContent = model?.getValue() ?? null;
+          if (modelState !== undefined) {
+            // Model exists - get content from it
+            const model = registry.getModel(modelKey);
+            modifiedContent = model?.getValue() ?? null;
+          } else {
+            // Model doesn't exist - try to create it
+            try {
+              const model = await registry.getOrCreateModel(
+                filePath,
+                cwd,
+                sandboxId,
+              );
+
+              // Check if effect was cleaned up during async operation
+              if (isStale) {
+                return;
+              }
+
+              modifiedContent = model.getValue();
+            } catch {
+              // File doesn't exist in working directory either
+              if (diffError === null) {
+                diffError = {
+                  type: "file_not_found",
+                  message: `File "${filePath}" not found`,
+                };
+              }
+            }
+          }
         } else {
-          // Model doesn't exist - try to create it
+          // Git source: fetch from git (read-only)
+          const modifiedRef = contentSourceToGitRef(modifiedSource);
           try {
-            const model = await registry.getOrCreateModel(filePath, cwd);
-
-            // Check if effect was cleaned up during async operation
-            if (isStale) return;
-
-            modifiedContent = model.getValue();
-          } catch {
-            // File doesn't exist in working directory either
+            modifiedContent = await git.getFileAtRef(filePath, modifiedRef);
+          } catch (error) {
+            // Only set error if we don't already have one from original
             if (diffError === null) {
-              diffError = {
-                type: "file_not_found",
-                message: `File "${filePath}" not found`,
-              };
+              diffError = createDiffError(error, modifiedRef, filePath);
             }
           }
         }
 
         // Check if effect was cleaned up during async operation
-        if (isStale) return;
+        if (isStale) {
+          return;
+        }
 
         // 4. Check for binary content in modified
         if (
@@ -378,10 +440,10 @@ export function useDiffContent(
         }
       }
 
-      // 5. Handle case where file is new (not in git/branch but exists in working dir)
+      // 5. Handle case where file is new (not in original source but exists in modified)
       // This applies to:
       // - not_tracked: file is completely new and never been committed
-      // - not_committed: file exists on disk but not in the base branch (e.g., new file in feature branch)
+      // - not_committed: file exists but not in the original source
       if (
         (diffError?.type === "not_tracked" ||
           diffError?.type === "not_committed") &&
@@ -393,9 +455,6 @@ export function useDiffContent(
         diffError = null;
       }
 
-      // Note: Deleted files are handled by DeletedFileViewer, not the diff editor.
-      // The DeletedFileViewer shows a read-only editor with the git content.
-
       // Only update state if still mounted AND this effect is still current
       // The isStale check prevents race conditions when rapidly switching files
       if (isMountedRef.current && !isStale) {
@@ -405,6 +464,7 @@ export function useDiffContent(
           isLoading: false,
           error: diffError,
           errorMessage: diffError?.message ?? null,
+          isModifiedEditable,
         });
       }
     };
@@ -425,6 +485,7 @@ export function useDiffContent(
           },
           errorMessage:
             error instanceof Error ? error.message : "Failed to load diff",
+          isModifiedEditable,
         });
       }
     });
@@ -434,7 +495,7 @@ export function useDiffContent(
     return () => {
       isStale = true;
     };
-  }, [filePath, baseBranch, cwd, git]);
+  }, [filePath, cwd, originalSource, modifiedSource, isModifiedEditable, git]);
 
   return state;
 }

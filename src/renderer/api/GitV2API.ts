@@ -35,38 +35,41 @@
  * ```
  */
 
-import type {
-  GitStatus,
-  GitFileStatus,
-  GitCommit,
-  GitBranch,
-  GitDiffStats,
-  GitCommitOptions,
-  GitStatusChangedEvent,
-  GitBranchChangedEvent,
-  GitCommitCreatedEvent,
-  GitHeadChangedEvent,
-} from "../../ipc/gitv2/types";
 import type { Cleanup } from "../../ipc/fsv2/types";
 import type {
-  SerializedGitStatus,
-  SerializedGitCommit,
-  SerializedGitBranch,
-  SerializedHistoryCommit,
-  SerializedCommitFile,
-  SerializedCommitHistoryResult,
-  GetCommitHistoryOptions,
-  StatusChangedPayload,
-  BranchChangedPayload,
-  CommitCreatedPayload,
-  HeadChangedPayload,
-} from "../../preload/window/modules/gitv2";
-import type {
-  HistoryCommit,
   CommitFile,
   CommitHistoryResult,
+  FileWithTime,
+  GetCommitHistoryOptions,
+  GitBranch,
+  GitBranchChangedEvent,
+  GitCommit,
+  GitCommitCreatedEvent,
+  GitCommitOptions,
+  GitDiffStats,
+  GitFileStatus,
+  GitHeadChangedEvent,
+  GitStatus,
+  GitStatusChangedEvent,
+  HistoryCommit,
+  PerFileDiffStats,
+  SplitPerFileDiffStats,
   TrackedBranchInfo,
 } from "../../ipc/gitv2/types";
+import type {
+  BranchChangedPayload,
+  CommitCreatedPayload,
+  GetCommitHistoryOptions as PreloadGetCommitHistoryOptions,
+  HeadChangedPayload,
+  SerializedCommitFile,
+  SerializedCommitHistoryResult,
+  SerializedGitBranch,
+  SerializedGitCommit,
+  SerializedGitStatus,
+  SerializedHistoryCommit,
+  SerializedSplitPerFileDiffStats,
+  StatusChangedPayload,
+} from "../../preload/window/modules/gitv2";
 
 // ============================================================================
 // Types
@@ -235,6 +238,9 @@ export class GitV2API {
   /** The working directory this API is scoped to */
   readonly cwd: string;
 
+  /** Optional sandbox ID for cloud VM operations */
+  readonly sandboxId?: string;
+
   /** The git root directory (resolved after first operation) */
   private gitRoot: string | null = null;
 
@@ -275,9 +281,11 @@ export class GitV2API {
    * for missed events between construction and first listener registration.
    *
    * @param cwd - Working directory to scope operations to
+   * @param sandboxId - Optional sandbox ID for cloud VM git operations
    */
-  constructor(cwd: string) {
+  constructor(cwd: string, sandboxId?: string) {
     this.cwd = cwd;
+    this.sandboxId = sandboxId;
     this.setupEventListeners();
     // Eagerly subscribe to reduce race condition window
     this.ensureSubscribed();
@@ -322,7 +330,10 @@ export class GitV2API {
    */
   async getStatus(): Promise<GitStatus | null> {
     this.ensureNotReleased();
-    const serialized = await window.conduit.gitv2.getStatus(this.cwd);
+    const serialized = await window.conduit.gitv2.getStatus(
+      this.cwd,
+      this.sandboxId,
+    );
 
     if (!serialized) {
       return null;
@@ -429,7 +440,11 @@ export class GitV2API {
    */
   async getFileStatus(filePath: string): Promise<GitFileStatus | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getFileStatus(this.cwd, filePath);
+    return window.conduit.gitv2.getFileStatus(
+      this.cwd,
+      filePath,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -440,7 +455,7 @@ export class GitV2API {
    */
   async hasUncommittedChanges(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.hasUncommittedChanges(this.cwd);
+    return window.conduit.gitv2.hasUncommittedChanges(this.cwd, this.sandboxId);
   }
 
   /**
@@ -451,7 +466,7 @@ export class GitV2API {
    */
   async hasUnpushedCommits(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.hasUnpushedCommits(this.cwd);
+    return window.conduit.gitv2.hasUnpushedCommits(this.cwd, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -471,7 +486,12 @@ export class GitV2API {
     staged?: boolean,
   ): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getFileDiff(this.cwd, filePath, staged);
+    return window.conduit.gitv2.getFileDiff(
+      this.cwd,
+      filePath,
+      staged,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -486,7 +506,12 @@ export class GitV2API {
    */
   async getFileAtRef(filePath: string, ref: string): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getFileAtRef(this.cwd, filePath, ref);
+    return window.conduit.gitv2.getFileAtRef(
+      this.cwd,
+      filePath,
+      ref,
+      this.sandboxId,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -502,7 +527,7 @@ export class GitV2API {
    */
   async stage(files: string[]): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.stage(this.cwd, files);
+    return window.conduit.gitv2.stage(this.cwd, files, this.sandboxId);
   }
 
   /**
@@ -514,7 +539,7 @@ export class GitV2API {
    */
   async unstage(files: string[]): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.unstage(this.cwd, files);
+    return window.conduit.gitv2.unstage(this.cwd, files, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -539,6 +564,7 @@ export class GitV2API {
       this.cwd,
       message,
       options,
+      this.sandboxId,
     );
 
     if (!serialized) {
@@ -560,7 +586,7 @@ export class GitV2API {
    */
   async getCurrentBranch(): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getCurrentBranch(this.cwd);
+    return window.conduit.gitv2.getCurrentBranch(this.cwd, this.sandboxId);
   }
 
   /**
@@ -571,7 +597,10 @@ export class GitV2API {
    */
   async getBranches(): Promise<GitBranch[]> {
     this.ensureNotReleased();
-    const serialized = await window.conduit.gitv2.getBranches(this.cwd);
+    const serialized = await window.conduit.gitv2.getBranches(
+      this.cwd,
+      this.sandboxId,
+    );
     return serialized.map(deserializeGitBranch);
   }
 
@@ -585,7 +614,7 @@ export class GitV2API {
    */
   async checkout(ref: string, force = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.checkout(this.cwd, ref, force);
+    return window.conduit.gitv2.checkout(this.cwd, ref, force, this.sandboxId);
   }
 
   /**
@@ -621,7 +650,7 @@ export class GitV2API {
    */
   async stash(message?: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.stash(this.cwd, message);
+    return window.conduit.gitv2.stash(this.cwd, message, this.sandboxId);
   }
 
   /**
@@ -634,7 +663,7 @@ export class GitV2API {
    */
   async stashPop(): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.stashPop(this.cwd);
+    return window.conduit.gitv2.stashPop(this.cwd, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -654,7 +683,12 @@ export class GitV2API {
    */
   async push(force = false, setUpstream = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.push(this.cwd, force, setUpstream);
+    return window.conduit.gitv2.push(
+      this.cwd,
+      force,
+      setUpstream,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -666,7 +700,7 @@ export class GitV2API {
    */
   async pull(rebase = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.pull(this.cwd, rebase);
+    return window.conduit.gitv2.pull(this.cwd, rebase, this.sandboxId);
   }
 
   /**
@@ -679,7 +713,7 @@ export class GitV2API {
    */
   async hasUpstream(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.hasUpstream(this.cwd);
+    return window.conduit.gitv2.hasUpstream(this.cwd, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -699,7 +733,10 @@ export class GitV2API {
       return this.gitRoot;
     }
 
-    this.gitRoot = await window.conduit.gitv2.findRoot(this.cwd);
+    this.gitRoot = await window.conduit.gitv2.findRoot(
+      this.cwd,
+      this.sandboxId,
+    );
     return this.gitRoot;
   }
 
@@ -719,7 +756,11 @@ export class GitV2API {
    */
   async getChangedFilesFromBranch(baseBranch: string): Promise<string[]> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getChangedFilesFromBranch(this.cwd, baseBranch);
+    return window.conduit.gitv2.getChangedFilesFromBranch(
+      this.cwd,
+      baseBranch,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -739,6 +780,7 @@ export class GitV2API {
     const result = await window.conduit.gitv2.getStatusFromBranch(
       this.cwd,
       baseBranch,
+      this.sandboxId,
     );
     // Convert plain object back to Map
     return new Map(Object.entries(result));
@@ -752,7 +794,41 @@ export class GitV2API {
    */
   async getUncommittedDiffStats(): Promise<GitDiffStats> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getUncommittedDiffStats(this.cwd);
+    return window.conduit.gitv2.getUncommittedDiffStats(
+      this.cwd,
+      this.sandboxId,
+    );
+  }
+
+  /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * Returns lines added/removed for each changed file, split by staged/unstaged.
+   * Useful for displaying diff stats next to file names in the UI.
+   *
+   * @returns Split stats for staged and unstaged changes
+   * @throws {Error} If the API has been released
+   */
+  async getPerFileDiffStats(): Promise<SplitPerFileDiffStats> {
+    this.ensureNotReleased();
+    const serialized: SerializedSplitPerFileDiffStats =
+      await window.conduit.gitv2.getPerFileDiffStats(this.cwd, this.sandboxId);
+
+    // Convert plain objects back to Maps
+    const deserializeMap = (
+      obj: Record<string, { added: number; removed: number }>,
+    ): PerFileDiffStats => {
+      const map: PerFileDiffStats = new Map();
+      for (const [path, stats] of Object.entries(obj)) {
+        map.set(path, stats);
+      }
+      return map;
+    };
+
+    return {
+      staged: deserializeMap(serialized.staged),
+      unstaged: deserializeMap(serialized.unstaged),
+    };
   }
 
   /**
@@ -765,7 +841,10 @@ export class GitV2API {
    */
   async getMostRecentDirtyFile(): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.getMostRecentDirtyFile(this.cwd);
+    return window.conduit.gitv2.getMostRecentDirtyFile(
+      this.cwd,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -784,6 +863,23 @@ export class GitV2API {
     return window.conduit.gitv2.getMostRecentCommittedFile(
       this.cwd,
       commitLimit,
+      this.sandboxId,
+    );
+  }
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   *
+   * Useful for sorting files by modification time in Follow mode.
+   *
+   * @returns Array of files with their modification times, sorted most recent first
+   * @throws {Error} If the API has been released
+   */
+  async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
+    this.ensureNotReleased();
+    return window.conduit.gitv2.getDirtyFilesWithTimes(
+      this.cwd,
+      this.sandboxId,
     );
   }
 
@@ -799,7 +895,7 @@ export class GitV2API {
    */
   async revert(files: string[]): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.gitv2.revert(this.cwd, files);
+    return window.conduit.gitv2.revert(this.cwd, files, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -1160,7 +1256,10 @@ export class GitV2API {
     // Start subscription
     this.subscriptionPromise = (async () => {
       try {
-        const subscriptionId = await window.conduit.gitv2.subscribe(this.cwd);
+        const subscriptionId = await window.conduit.gitv2.subscribe(
+          this.cwd,
+          this.sandboxId,
+        );
 
         if (!subscriptionId) {
           // Not a git repository - subscriptions won't work
@@ -1181,7 +1280,10 @@ export class GitV2API {
         this.subscriptionId = subscriptionId;
 
         // Also resolve the git root while we're at it
-        this.gitRoot = await window.conduit.gitv2.findRoot(this.cwd);
+        this.gitRoot = await window.conduit.gitv2.findRoot(
+          this.cwd,
+          this.sandboxId,
+        );
       } catch (error) {
         console.error("[GitV2API] Failed to subscribe:", error);
       } finally {

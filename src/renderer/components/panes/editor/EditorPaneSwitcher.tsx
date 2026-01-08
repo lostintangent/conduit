@@ -27,13 +27,13 @@
  * @see docs/architecture/editor-global-container-plan.md
  */
 
-import { useEffect, useRef } from "react";
-import { useAtomValue } from "jotai";
 import { userSettingsAtom } from "@/store/atoms";
 import type { EditorTreeMode } from "@/types";
-import type { FileTreeNode } from "@shared/types";
-import { EditorPane } from "./EditorPane";
+import type { ChangesViewMode, FileTreeNode } from "@shared/types";
+import { useAtomValue } from "jotai";
+import { useEffect, useRef } from "react";
 import { EditorPaneAnchor, EditorPaneRegistry } from "../editor-v2";
+import { EditorPane } from "./EditorPane";
 
 // ============================================================================
 // Types
@@ -55,6 +55,9 @@ export interface EditorPaneSwitcherProps {
   /** Tree view mode ('all' or 'changes') */
   treeMode?: EditorTreeMode;
 
+  /** sandbox ID for cloud editor panes (routes file ops through VM) */
+  sandboxId?: string;
+
   /** Callback when file changes */
   onFileChange?: (fileData: {
     file: string;
@@ -73,6 +76,12 @@ export interface EditorPaneSwitcherProps {
 
   /** Callback when tree mode changes */
   onTreeModeChange?: (mode: EditorTreeMode) => void;
+
+  /** Changes view mode (flat list or nested tree) */
+  changesViewMode?: ChangesViewMode;
+
+  /** Callback when changes view mode changes */
+  onChangesViewModeChange?: (mode: ChangesViewMode) => void;
 
   /** Whether the pane is locked */
   isLocked?: boolean;
@@ -110,11 +119,14 @@ export function EditorPaneSwitcher({
   file,
   agentSessionId,
   treeMode,
+  changesViewMode,
+  sandboxId,
   onFileChange,
   onClearFile,
   onCwdChange,
   onFileOpen,
   onTreeModeChange,
+  onChangesViewModeChange,
   isLocked,
   onSave,
   hideIndividualSandboxIndicator,
@@ -155,7 +167,9 @@ export function EditorPaneSwitcher({
       cwd,
       file,
       treeMode,
+      changesViewMode,
       agentSessionId: agentSessionId ?? undefined,
+      sandboxId,
     };
 
     return (
@@ -167,6 +181,7 @@ export function EditorPaneSwitcher({
         onCwdChange={onCwdChange}
         onFileOpen={onFileOpen}
         onTreeModeChange={onTreeModeChange}
+        onChangesViewModeChange={onChangesViewModeChange}
         onSave={onSave}
         onHover={onHover}
         isInPreview={isInPreview}
@@ -183,6 +198,7 @@ export function EditorPaneSwitcher({
       file={file}
       agentSessionId={agentSessionId}
       treeMode={treeMode}
+      sandboxId={sandboxId}
       onFileChange={onFileChange}
       onClearFile={onClearFile}
       onCwdChange={onCwdChange}

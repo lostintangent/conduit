@@ -49,6 +49,17 @@ export interface GitFileStatus {
 
   /** Original path if file was renamed (undefined otherwise) */
   originalPath?: string;
+
+  /**
+   * Whether the file has changes in the git index (staging area).
+   *
+   * This is particularly useful for unstaged entries of partially staged files.
+   * When true on an unstaged entry, it indicates that the diff should be
+   * shown as Index → Working Directory, not HEAD → Working Directory.
+   *
+   * For staged entries, this is always true (implied by staged: true).
+   */
+  hasIndexChanges?: boolean;
 }
 
 /**
@@ -284,6 +295,43 @@ export interface GitDiffStats {
 
   /** Number of files with changes */
   files: number;
+}
+
+/**
+ * Per-file diff statistics (lines added/removed).
+ */
+export interface FileDiffStat {
+  /** Lines added in this file */
+  added: number;
+
+  /** Lines removed from this file */
+  removed: number;
+}
+
+/**
+ * Map of file paths to their diff statistics.
+ * Key is the relative path from git root.
+ */
+export type PerFileDiffStats = Map<string, FileDiffStat>;
+
+/**
+ * Split diff statistics for staged and unstaged changes.
+ */
+export interface SplitPerFileDiffStats {
+  /** Stats for staged changes (index vs HEAD) */
+  staged: PerFileDiffStats;
+  /** Stats for unstaged changes (working tree vs index) */
+  unstaged: PerFileDiffStats;
+}
+
+/**
+ * File with its modification timestamp.
+ */
+export interface FileWithTime {
+  /** Relative path from git root */
+  path: string;
+  /** Modification time in milliseconds since epoch */
+  mtime: number;
 }
 
 // ============================================================================
@@ -542,6 +590,16 @@ export interface GitProvider {
   getUncommittedDiffStats(): Promise<GitDiffStats>;
 
   /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * Returns lines added/removed for each changed file, split by staged/unstaged.
+   * Useful for displaying diff stats next to file names in the UI.
+   *
+   * @returns Staged and unstaged stats separately
+   */
+  getPerFileDiffStats(): Promise<SplitPerFileDiffStats>;
+
+  /**
    * Get the most recently modified dirty file.
    *
    * Useful for auto-selecting a file when opening the editor.
@@ -549,6 +607,15 @@ export interface GitProvider {
    * @returns Relative path from git root, or null if no dirty files
    */
   getMostRecentDirtyFile(): Promise<string | null>;
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   *
+   * Useful for sorting files by modification time in Follow mode.
+   *
+   * @returns Array of files with their modification times, sorted most recent first
+   */
+  getDirtyFilesWithTimes(): Promise<FileWithTime[]>;
 
   /**
    * Get the most recently modified file from recent commits.

@@ -4,7 +4,7 @@ import {
   enqueueNotification,
 } from "@/store/actions/notifications";
 import { activatePane } from "@/store/actions/pane";
-import { focusTab } from "@/store/actions/tab";
+import { focusTab, markTabAsNotified } from "@/store/actions/tab";
 
 export const notificationHandlers: Partial<HandlerMap> = {
   notify: (args, context) => {
@@ -19,27 +19,35 @@ export const notificationHandlers: Partial<HandlerMap> = {
       throw new Error("Unable to find the calling terminal's pane.");
     }
 
-    const isAlreadyActive =
-      matchingTab.id === context.activeTab?.id &&
-      callingPane[0] === context.activeTab?.activePaneId;
+    const isTabActive = matchingTab.id === context.activeTab?.id;
 
-    const notificationId = enqueueNotification({
-      kind: "info",
-      message: args.message,
-      system: true,
-      actions: !isAlreadyActive
-        ? [
-            {
-              label: "Focus terminal",
-              onClick: () => {
-                focusTab(matchingTab.id);
-                activatePane(matchingTab.id, callingPane[0]);
+    // Always mark background tabs as notified
+    if (!isTabActive) {
+      markTabAsNotified(matchingTab.id, context.sessionId);
+    }
 
-                dismissNotification(notificationId);
+    // Only show notification toast if message provided
+    if (args.message) {
+      const isPaneActive = callingPane[0] === context.activeTab?.activePaneId;
+      const isAlreadyActive = isTabActive && isPaneActive;
+
+      const notificationId = enqueueNotification({
+        kind: "info",
+        message: args.message,
+        system: true,
+        actions: !isAlreadyActive
+          ? [
+              {
+                label: "Focus terminal",
+                onClick: () => {
+                  focusTab(matchingTab.id);
+                  activatePane(matchingTab.id, callingPane[0]);
+                  dismissNotification(notificationId);
+                },
               },
-            },
-          ]
-        : undefined,
-    });
+            ]
+          : undefined,
+      });
+    }
   },
 };

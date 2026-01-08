@@ -207,11 +207,23 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   }
 
   /**
-   * Read complete file contents.
+   * Read complete file contents as binary.
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     const buffer = await fs.readFile(filePath);
     return new Uint8Array(buffer);
+  }
+
+  /**
+   * Read complete file contents as text (UTF-8).
+   *
+   * Convenience method that returns a string directly, avoiding the need
+   * for TextDecoder on the caller side.
+   *
+   * Note: Binary files will have invalid UTF-8 bytes replaced with U+FFFD.
+   */
+  async readTextFile(filePath: string): Promise<string> {
+    return fs.readFile(filePath, "utf-8");
   }
 
   /**
@@ -230,7 +242,10 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // Update cache in-place: add/update the file entry in parent directory
     const fileName = nodePath.basename(filePath);
-    DirectoryCache.addEntry(parentDir, { name: fileName, type: "file" });
+    DirectoryCache.addEntry(
+      parentDir,
+      this.buildCacheEntry(fileName, "file", filePath),
+    );
   }
 
   /**
@@ -270,9 +285,10 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    * Updates the directory cache in-place for immediate consistency.
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
-    // Get the type before rename (file or directory)
-    const stats = await fs.stat(oldPath);
+    // Get the type and symlink status before rename (use lstat to not follow symlinks)
+    const stats = await fs.lstat(oldPath);
     const entryType = stats.isDirectory() ? "directory" : "file";
+    const isSymlink = stats.isSymbolicLink();
 
     // Ensure parent directory of new path exists
     const newParentDir = nodePath.dirname(newPath);
@@ -288,8 +304,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     // Remove from old location
     DirectoryCache.removeEntry(oldParentDir, oldName);
 
-    // Add to new location
-    DirectoryCache.addEntry(newParentDir, { name: newName, type: entryType });
+    // Add to new location (preserve symlink status, recalculate gitignore for new path)
+    DirectoryCache.addEntry(
+      newParentDir,
+      this.buildCacheEntry(newName, entryType, newPath, isSymlink),
+    );
 
     // If it was a directory, update its cache key
     if (entryType === "directory") {
@@ -313,7 +332,10 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     // Update cache in-place: add the directory entry to parent
     const parentDir = nodePath.dirname(dirPath);
     const dirName = nodePath.basename(dirPath);
-    DirectoryCache.addEntry(parentDir, { name: dirName, type: "directory" });
+    DirectoryCache.addEntry(
+      parentDir,
+      this.buildCacheEntry(dirName, "directory", dirPath),
+    );
 
     // Initialize the new directory as empty in cache
     DirectoryCache.set(dirPath, []);
@@ -402,19 +424,99 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   }
 
   /**
+   * Build a DirectoryEntry for cache updates.
+   *
+   * Uses cached git root (if available) to set isGitignored synchronously.
+   * If git root isn't cached yet, isGitignored is omitted and will be set
+   * correctly when the watcher triggers a full directory refresh.
+   */
+  private buildCacheEntry(
+    name: string,
+    type: "file" | "directory",
+    fullPath: string,
+    isSymlink = false,
+  ): DirectoryEntry {
+    const entry: DirectoryEntry = { name, type, isSymlink };
+
+    // Set isGitignored if we have the git root cached
+    if (this.gitRoot) {
+      entry.isGitignored = GitIgnoreCache.isIgnored(this.gitRoot, fullPath);
+    }
+
+    return entry;
+  }
+
+  /**
+   * Refresh isGitignored status for all cached directories under the git root.
+   *
+   * Called when .gitignore changes. This is efficient because:
+   * 1. Only processes directories already in cache (no disk I/O)
+   * 2. Only fires events for directories where status actually changed
+   * 3. Recalculates in-place without re-reading directory contents
+   */
+  private async refreshGitignoreAffectedDirectories(): Promise<void> {
+    // Need git root to scope the refresh
+    const gitRoot = await this.getGitRoot();
+    if (!gitRoot) {
+      return;
+    }
+
+    // Get all cached directories under the git root
+    const cachedPaths = DirectoryCache.getPathsUnder(gitRoot);
+    if (cachedPaths.length === 0) {
+      return;
+    }
+
+    // Process each cached directory
+    for (const dirPath of cachedPaths) {
+      const cached = DirectoryCache.get(dirPath);
+      if (!cached || cached.entries.length === 0) {
+        continue;
+      }
+
+      // Recalculate gitignore status for all entries
+      const gitIgnored = await GitIgnoreCache.getIgnoredEntries(
+        dirPath,
+        cached.entries.map((e) => ({
+          name: e.name,
+          isDirectory: e.type === "directory",
+        })),
+        gitRoot,
+      );
+
+      // Check if anything actually changed and build updated entries
+      let hasChanges = false;
+      const updatedEntries = cached.entries.map((entry) => {
+        const newIsGitignored = gitIgnored.has(entry.name);
+        if (entry.isGitignored !== newIsGitignored) {
+          hasChanges = true;
+          return { ...entry, isGitignored: newIsGitignored };
+        }
+        return entry;
+      });
+
+      // Only update cache and fire event if something changed
+      if (hasChanges) {
+        DirectoryCache.set(dirPath, updatedEntries);
+        this._onDirectoryListingChanged.fire({
+          path: dirPath,
+          entries: updatedEntries,
+        });
+      }
+    }
+  }
+
+  /**
    * Wire up watcher events to provider events.
    */
   private setupWatcherEvents(): void {
     // File/directory created
     this.watcher.onCreated((event) => {
-      // Handle .gitignore changes first (before filtering)
+      // Handle .gitignore changes - invalidate cache and refresh all affected directories
       if (nodePath.basename(event.path) === ".gitignore") {
         GitIgnoreCache.invalidateForGitignore(event.path);
-      }
-
-      // Skip events for gitignored paths
-      if (this.isPathIgnored(event.path)) {
-        return;
+        // Fire-and-forget: refresh gitignore status for all cached directories
+        this.refreshGitignoreAffectedDirectories();
       }
 
       const parentDir = nodePath.dirname(event.path);
@@ -428,17 +530,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // File modified
     this.watcher.onModified((event) => {
-      // Handle .gitignore changes first (before filtering)
+      // Handle .gitignore changes - invalidate cache and refresh all affected directories
       if (nodePath.basename(event.path) === ".gitignore") {
         GitIgnoreCache.invalidateForGitignore(event.path);
-        // Refresh the directory containing .gitignore to reflect changes
-        const parentDir = nodePath.dirname(event.path);
-        this.scheduleRefresh(parentDir);
-      }
-
-      // Skip events for gitignored paths
-      if (this.isPathIgnored(event.path)) {
-        return;
+        // Fire-and-forget: refresh gitignore status for all cached directories
+        this.refreshGitignoreAffectedDirectories();
       }
 
       this._onFileContentChanged.fire({ path: event.path });
@@ -446,14 +542,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // File/directory deleted
     this.watcher.onDeleted((event) => {
-      // Handle .gitignore changes first (before filtering)
+      // Handle .gitignore changes - invalidate cache and refresh all affected directories
       if (nodePath.basename(event.path) === ".gitignore") {
         GitIgnoreCache.invalidateForGitignore(event.path);
-      }
-
-      // Skip events for gitignored paths
-      if (this.isPathIgnored(event.path)) {
-        return;
+        // Fire-and-forget: refresh gitignore status for all cached directories
+        this.refreshGitignoreAffectedDirectories();
       }
 
       const parentDir = nodePath.dirname(event.path);
@@ -463,22 +556,13 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       // Also invalidate the deleted directory's cache if it was a directory
       DirectoryCache.delete(event.path);
 
-      // Notify about deleted file (so git status gets refreshed)
-      if (!event.isDirectory) {
-        this._onFileContentChanged.fire({ path: event.path });
-      }
+      // Notify about deleted file/folder (so git status gets refreshed)
+      // For directories, this triggers refresh for all files inside
+      this._onFileContentChanged.fire({ path: event.path });
     });
 
     // File/directory renamed
     this.watcher.onRenamed((event) => {
-      // Skip events for gitignored paths (check both old and new)
-      if (
-        this.isPathIgnored(event.oldPath) &&
-        this.isPathIgnored(event.newPath)
-      ) {
-        return;
-      }
-
       // Refresh both old and new parent directories
       const oldParentDir = nodePath.dirname(event.oldPath);
       const newParentDir = nodePath.dirname(event.newPath);
@@ -493,10 +577,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       // Update cache for renamed directory
       if (event.isDirectory) {
         DirectoryCache.delete(event.oldPath);
-      } else {
-        // Notify about renamed file (so git status gets refreshed)
-        this._onFileContentChanged.fire({ path: event.newPath });
       }
+
+      // Notify about renamed file/folder (so git status gets refreshed)
+      // For directories, this triggers refresh for all files inside
+      this._onFileContentChanged.fire({ path: event.newPath });
     });
   }
 
@@ -520,6 +605,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    *
    * Filters out:
    * - Always-hidden entries (.git, node_modules)
+   *
+   * Marks with isGitignored:
    * - Gitignored files (via .gitignore)
    */
   private async readDirectoryFromDisk(
@@ -527,15 +614,16 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   ): Promise<DirectoryEntry[]> {
     const dirents = await fs.readdir(dirPath, { withFileTypes: true });
 
-    // Initial entries (before filtering)
+    // Initial entries (before gitignore marking)
     let entries: DirectoryEntry[] = dirents
       .filter((dirent) => !ALWAYS_HIDDEN.has(dirent.name))
       .map((dirent) => ({
         name: dirent.name,
         type: dirent.isDirectory() ? "directory" : "file",
+        isSymlink: dirent.isSymbolicLink(),
       }));
 
-    // Filter gitignored entries (using shared cache with pre-resolved git root)
+    // Mark gitignored entries (using shared cache with pre-resolved git root)
     const gitRoot = await this.getGitRoot();
     const gitIgnored = await GitIgnoreCache.getIgnoredEntries(
       dirPath,
@@ -546,7 +634,10 @@ export class DiskFileSystemProvider implements FileSystemProvider {
       gitRoot,
     );
     if (gitIgnored.size > 0) {
-      entries = entries.filter((e) => !gitIgnored.has(e.name));
+      entries = entries.map((e) => ({
+        ...e,
+        isGitignored: gitIgnored.has(e.name),
+      }));
     }
 
     // Sort: directories first, then files, alphabetically
@@ -628,6 +719,12 @@ export class DiskFileSystemProvider implements FileSystemProvider {
         entries,
       });
     } catch (error) {
+      // Silently ignore permission errors (common when watching home directory
+      // and system directories like ~/Library have restricted access)
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EPERM" || code === "EACCES") {
+        return;
+      }
       console.error(
         `[DiskFileSystemProvider] Failed to refresh directory ${normalizedPath}:`,
         error,
@@ -658,6 +755,11 @@ export class DiskFileSystemProvider implements FileSystemProvider {
 
     // Verify in background (don't await)
     this.verifyCache(dirPath).catch((error) => {
+      // Silently ignore permission errors
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EPERM" || code === "EACCES") {
+        return;
+      }
       console.error(
         `[DiskFileSystemProvider] Cache verification failed for ${dirPath}:`,
         error,

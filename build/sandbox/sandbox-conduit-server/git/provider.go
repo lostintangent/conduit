@@ -663,6 +663,65 @@ func (p *Provider) Revert(files []string) error {
 	return err
 }
 
+// Stash saves uncommitted changes to the stash.
+func (p *Provider) Stash(message string) error {
+	args := []string{"stash", "push"}
+	if message != "" {
+		args = append(args, "-m", message)
+	}
+	_, err := p.runGit(args...)
+	return err
+}
+
+// StashPop applies and removes the most recent stash entry.
+func (p *Provider) StashPop() error {
+	_, err := p.runGit("stash", "pop")
+	return err
+}
+
+// Push pushes commits to the remote.
+func (p *Provider) Push(force bool, setUpstream bool) error {
+	args := []string{"push"}
+	if force {
+		args = append(args, "--force-with-lease")
+	}
+	if setUpstream {
+		// Get current branch name
+		branch, err := p.GetCurrentBranch()
+		if err != nil {
+			return err
+		}
+		args = append(args, "--set-upstream", "origin", branch)
+	}
+	_, err := p.runGit(args...)
+	return err
+}
+
+// Pull fetches and merges changes from the remote.
+func (p *Provider) Pull(rebase bool) error {
+	args := []string{"pull"}
+	if rebase {
+		args = append(args, "--rebase")
+	}
+	_, err := p.runGit(args...)
+	return err
+}
+
+// HasUpstream checks if the current branch has an upstream configured.
+func (p *Provider) HasUpstream() (bool, error) {
+	branch, err := p.GetCurrentBranch()
+	if err != nil {
+		return false, err
+	}
+	// Try to get the upstream ref
+	_, err = p.runGit("rev-parse", "--abbrev-ref", branch+"@{upstream}")
+	if err != nil {
+		// No upstream configured
+		return false, nil
+	}
+	return true, nil
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================

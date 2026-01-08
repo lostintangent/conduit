@@ -29,10 +29,10 @@
  */
 
 import type {
+  Cleanup,
+  DeleteOptions,
   DirectoryEntry,
   FileStat,
-  DeleteOptions,
-  Cleanup,
 } from "../../ipc/fsv2/types";
 import type {
   DirectoryListingChangedPayload,
@@ -80,10 +80,15 @@ export type { Cleanup };
  *
  * All operations are scoped to the CWD provided at construction.
  * Manages subscriptions automatically and cleans up on release.
+ *
+ * When sandboxId is provided, operations are routed to the VM via conduit-server.
  */
 export class FileSystemV2API {
   /** The working directory this API is scoped to */
   readonly cwd: string;
+
+  /** Optional sandbox ID for cloud filesystem operations */
+  readonly sandboxId?: string;
 
   /** Active subscription ID, if subscribed to events */
   private subscriptionId: string | null = null;
@@ -128,9 +133,11 @@ export class FileSystemV2API {
    * for missed events between construction and first listener registration.
    *
    * @param cwd - Working directory to scope operations to
+   * @param sandboxId - Optional sandbox ID for cloud filesystem operations
    */
-  constructor(cwd: string) {
+  constructor(cwd: string, sandboxId?: string) {
     this.cwd = cwd;
+    this.sandboxId = sandboxId;
     this.setupEventListeners();
     // Eagerly subscribe to reduce race condition window
     this.ensureSubscribed();
@@ -150,7 +157,7 @@ export class FileSystemV2API {
    */
   async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readDirectory(dirPath);
+    return window.conduit.fsv2.readDirectory(this.cwd, dirPath, this.sandboxId);
   }
 
   /**
@@ -163,13 +170,18 @@ export class FileSystemV2API {
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readFile(filePath);
+    return window.conduit.fsv2.readFile(this.cwd, filePath, this.sandboxId);
   }
 
   /**
-   * Read file contents as text.
+   * Read file contents as text (UTF-8).
    *
-   * Convenience method that decodes the binary data as UTF-8.
+   * Convenience method for text files that avoids the need for
+   * TextDecoder on the caller side. The main benefit is eliminating
+   * duplicate file reads - Monaco model registry uses this directly.
+   *
+   * Note: Only use for known text files. Binary files will have invalid
+   * UTF-8 bytes replaced with the Unicode replacement character (U+FFFD).
    *
    * @param filePath - Absolute path to file
    * @returns File contents as string
@@ -177,8 +189,8 @@ export class FileSystemV2API {
    * @throws {Error} If the file does not exist or is not accessible
    */
   async readTextFile(filePath: string): Promise<string> {
-    const data = await this.readFile(filePath);
-    return new TextDecoder().decode(data);
+    this.ensureNotReleased();
+    return window.conduit.fsv2.readTextFile(this.cwd, filePath, this.sandboxId);
   }
 
   /**
@@ -191,7 +203,7 @@ export class FileSystemV2API {
    */
   async stat(path: string): Promise<FileStat> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.stat(path);
+    return window.conduit.fsv2.stat(this.cwd, path, this.sandboxId);
   }
 
   /**
@@ -203,7 +215,7 @@ export class FileSystemV2API {
    */
   async exists(path: string): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.exists(path);
+    return window.conduit.fsv2.exists(this.cwd, path, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -223,7 +235,12 @@ export class FileSystemV2API {
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.writeFile(filePath, content);
+    return window.conduit.fsv2.writeFile(
+      this.cwd,
+      filePath,
+      content,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -251,7 +268,7 @@ export class FileSystemV2API {
    */
   async delete(path: string, options?: DeleteOptions): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.delete(path, options);
+    return window.conduit.fsv2.delete(this.cwd, path, options, this.sandboxId);
   }
 
   /**
@@ -264,7 +281,12 @@ export class FileSystemV2API {
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.rename(oldPath, newPath);
+    return window.conduit.fsv2.rename(
+      this.cwd,
+      oldPath,
+      newPath,
+      this.sandboxId,
+    );
   }
 
   /**
@@ -278,7 +300,11 @@ export class FileSystemV2API {
    */
   async createDirectory(dirPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.createDirectory(dirPath);
+    return window.conduit.fsv2.createDirectory(
+      this.cwd,
+      dirPath,
+      this.sandboxId,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -692,8 +718,7 @@ export class FileSystemV2API {
    *
    * Uses a promise to prevent multiple concurrent subscription requests.
    * If a subscription is already in progress, returns the existing promise.
-   *
-   * Handles the race condition where release() is called while the
+   * Also handles the race condition where release() is called while the
    * subscription IPC is in flight - in that case, immediately unsubscribes.
    */
   private ensureSubscribed(): void {
@@ -708,8 +733,9 @@ export class FileSystemV2API {
     }
 
     // Start subscription
+    // Note: subscribe takes (cwd, type, path?, sandboxId?) - path is optional filter, sandboxId for VM routing
     this.subscriptionPromise = window.conduit.fsv2
-      .subscribe(this.cwd, "all")
+      .subscribe(this.cwd, "all", undefined, this.sandboxId)
       .then((id: string) => {
         // Check if we were released while waiting for the subscription
         // This handles the race condition where release() is called
@@ -719,12 +745,14 @@ export class FileSystemV2API {
           window.conduit.fsv2.unsubscribe(id).catch(() => {
             // Ignore errors during cleanup
           });
+          this.subscriptionPromise = null;
           return;
         }
         this.subscriptionId = id;
         this.subscriptionPromise = null;
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error("[FileSystemV2API] Failed to subscribe:", error);
         this.subscriptionPromise = null;
       });
   }

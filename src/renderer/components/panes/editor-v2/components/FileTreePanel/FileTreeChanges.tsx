@@ -33,10 +33,26 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
+import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
-import { useScrollPersistence } from "../../hooks/useScrollPersistence";
-import { pathsEqual, getParentPaths } from "../../utils";
+import {
+  useScrollPersistence,
+  useFileTreeChangesContextMenu,
+  type ReadTriggerAction,
+} from "../../hooks";
+import {
+  filterDirtyFilesForStaging,
+  getParentPath,
+  getParentPaths,
+  getRelativePath,
+  joinCwdPath,
+  notifyDirtyFilesSkipped,
+  // MapKey helpers (centralized operations)
+  normalizeMapKey,
+} from "../../utils";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";
 
 // Local imports from extracted modules
@@ -49,6 +65,7 @@ import {
 } from "./utils";
 import type { SelectableItem, FolderNode } from "./utils";
 import { FlatChangeItem, NestedFileItem, NestedFolderItem } from "./components";
+import { SectionDiffStats } from "../FileDiffStats";
 
 // ============================================================================
 // Types
@@ -59,12 +76,20 @@ export interface FileTreeChangesProps {
   paneId: string;
   /** Working directory */
   cwd: string;
+  /** FileSystem API instance (shared from parent) - required for rename/delete */
+  fs: FileSystemV2API;
   /** Git API instance (shared from parent) */
   git: GitV2API;
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
+  /**
+   * Selected map key for changes mode.
+   * Identifies which entry is selected for partially staged files.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
   /** Callback when a file is selected */
-  onFileSelect: (file: FileNode) => void;
+  onFileSelect: (file: FileNode, mapKey: string | null) => void;
   /** View mode for changes list (flat or nested) - controlled by parent */
   viewMode?: "flat" | "nested";
   /** Git status from parent (source of truth). When provided, component uses this instead of fetching its own. */
@@ -73,6 +98,14 @@ export interface FileTreeChangesProps {
   isComparingToBranch?: boolean;
   /** Base branch name for display (e.g., "main") */
   baseBranchName?: string | null;
+  /** Check if a file is unseen - returns true if file has unacknowledged changes */
+  isFileUnseen?: (path: string) => boolean;
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
+  /** Callback when a file/folder is renamed - used to preserve seen status */
+  onPathRename?: (oldPath: string, newPath: string) => void;
+  /** Callback to mark a file as seen (for unseen tracking) */
+  triggerRead?: (action: ReadTriggerAction, path: string) => void;
 }
 
 // ============================================================================
@@ -86,6 +119,8 @@ interface SectionProps {
   onToggle: () => void;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  /** Whether this is the staged section (for diff stats) */
+  isStaged?: boolean;
 }
 
 /**
@@ -98,33 +133,57 @@ function Section({
   onToggle,
   children,
   actions,
+  isStaged,
 }: SectionProps) {
   return (
     <div data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <div className="group flex items-center gap-1.5 w-full py-1 px-1.5 hover:bg-foreground/10 rounded-md text-[13px] font-medium text-foreground transition cursor-pointer">
         <button
           type="button"
-          className="flex items-center gap-1.5 flex-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+          className="flex items-center gap-1.5 flex-1 min-w-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
           onClick={onToggle}
           data-testid="section-toggle"
         >
           {isExpanded ? (
-            <ChevronDown className="text-foreground" size={12} />
+            <ChevronDown className="text-foreground flex-shrink-0" size={12} />
           ) : (
-            <ChevronRight className="text-foreground" size={12} />
+            <ChevronRight className="text-foreground flex-shrink-0" size={12} />
           )}
-          <span>{title}</span>
-          <span className="text-foreground/50 ml-1">({count})</span>
+          <span className="truncate">
+            {title} <span className="text-foreground/50">({count})</span>
+          </span>
         </button>
+        {/* Diff stats / Actions - mutually exclusive via display:none/block */}
+        {/* Stats: shown by default, hidden on hover */}
+        {/* Right margin aligns with file stats (accounts for GitBadge 14px + gap 6px) */}
+        {isStaged !== undefined && (
+          <div className="block group-hover:hidden mr-5">
+            <SectionDiffStats staged={isStaged} />
+          </div>
+        )}
+        {/* Actions: hidden by default, shown on hover (no margin - stays at hard right) */}
         {actions && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+          <div className="hidden group-hover:block flex items-center">
             {actions}
           </div>
         )}
       </div>
-      {isExpanded && <ul className="ml-2">{children}</ul>}
+      {isExpanded && <ul className="ml-2 pb-2">{children}</ul>}
     </div>
   );
+}
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Separate expansion state for staged and unstaged folder sections.
+ * This keeps folder collapse/expand independent between sections.
+ */
+interface ExpandedFoldersState {
+  staged: Set<string>;
+  unstaged: Set<string>;
 }
 
 // ============================================================================
@@ -138,34 +197,78 @@ function Section({
 function useChangesViewState() {
   const [stagedExpanded, setStagedExpanded] = useState(true);
   const [changesExpanded, setChangesExpanded] = useState(true);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    () => new Set(),
+  const [expandedFolders, setExpandedFolders] = useState<ExpandedFoldersState>(
+    () => ({ staged: new Set(), unstaged: new Set() }),
   );
 
-  const toggleFolder = useCallback((path: string) => {
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+  /**
+   * Toggle a folder's expansion state in a specific section.
+   */
+  const toggleFolder = useCallback(
+    (path: string, section: "staged" | "unstaged") => {
+      setExpandedFolders((prev) => {
+        const sectionSet = prev[section];
+        const next = new Set(sectionSet);
+        if (next.has(path)) {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        return { ...prev, [section]: next };
+      });
+    },
+    [],
+  );
 
+  /**
+   * Expand folders to reveal the given files.
+   * @param filePaths - File paths to reveal
+   * @param section - Which section to expand folders in
+   * @param replace - If true, replaces all expanded folders; if false, adds to existing
+   */
   const expandFoldersForFiles = useCallback(
-    (filePaths: string[], replace = false) => {
+    (filePaths: string[], section: "staged" | "unstaged", replace = false) => {
       if (filePaths.length === 0 && !replace) return;
 
       setExpandedFolders((prev) => {
-        const next = replace ? new Set<string>() : new Set(prev);
+        const next = replace ? new Set<string>() : new Set(prev[section]);
         for (const filePath of filePaths) {
           for (const folder of getParentPaths(filePath)) {
             next.add(folder);
           }
         }
-        return next;
+        return { ...prev, [section]: next };
+      });
+    },
+    [],
+  );
+
+  /**
+   * Expand folders in both sections (convenience for initial load).
+   * @param stagedPaths - Staged file paths
+   * @param unstagedPaths - Unstaged file paths
+   * @param replace - If true, replaces all expanded folders
+   */
+  const expandAllFoldersForFiles = useCallback(
+    (stagedPaths: string[], unstagedPaths: string[], replace = false) => {
+      setExpandedFolders((prev) => {
+        const nextStaged = replace ? new Set<string>() : new Set(prev.staged);
+        const nextUnstaged = replace
+          ? new Set<string>()
+          : new Set(prev.unstaged);
+
+        for (const filePath of stagedPaths) {
+          for (const folder of getParentPaths(filePath)) {
+            nextStaged.add(folder);
+          }
+        }
+        for (const filePath of unstagedPaths) {
+          for (const folder of getParentPaths(filePath)) {
+            nextUnstaged.add(folder);
+          }
+        }
+
+        return { staged: nextStaged, unstaged: nextUnstaged };
       });
     },
     [],
@@ -179,6 +282,7 @@ function useChangesViewState() {
     expandedFolders,
     toggleFolder,
     expandFoldersForFiles,
+    expandAllFoldersForFiles,
   };
 }
 
@@ -250,8 +354,8 @@ function useGitStatus(git: GitV2API, cwd: string, skip = false) {
       return;
     }
 
-    const unsubscribe = git.onStatusChanged((status) => {
-      setGitStatus(status);
+    const unsubscribe = git.onStatusChanged((event) => {
+      setGitStatus(event.status);
       setOptimisticUpdates([]);
     });
 
@@ -313,13 +417,19 @@ function useGitStatus(git: GitV2API, cwd: string, skip = false) {
 export function FileTreeChanges({
   paneId,
   cwd,
+  fs,
   git,
-  selectedFile,
+  selectedFile: _selectedFile,
+  selectedMapKey,
   onFileSelect,
   viewMode = "flat",
   gitStatus: gitStatusFromParent,
   isComparingToBranch = false,
   baseBranchName,
+  isFileUnseen,
+  isFileDirty,
+  onPathRename,
+  triggerRead,
 }: FileTreeChangesProps) {
   const hasParentStatus = gitStatusFromParent !== undefined;
   const showActionButtons = !isComparingToBranch;
@@ -352,6 +462,7 @@ export function FileTreeChanges({
     expandedFolders,
     toggleFolder,
     expandFoldersForFiles,
+    expandAllFoldersForFiles,
   } = useChangesViewState();
 
   // Group files by staging status
@@ -377,13 +488,38 @@ export function FileTreeChanges({
     return { stagedFiles: staged, unstagedFiles: unstaged };
   }, [gitStatus, isComparingToBranch]);
 
-  // All file paths (for expanding folders)
+  // All file paths (Map keys, for expanding folders and multi-select tracking)
   const allFilePaths = useMemo(() => {
     return [
       ...stagedFiles.map(([path]) => path),
       ...unstagedFiles.map(([path]) => path),
     ];
   }, [stagedFiles, unstagedFiles]);
+
+  /**
+   * Lookup map from Map key to actual file path.
+   *
+   * For partially staged files, the Map key includes a suffix (e.g., "foo.ts\0unstaged")
+   * but git operations need the actual file path ("foo.ts").
+   * This map provides fast lookup to convert Map keys to actual paths.
+   */
+  const mapKeyToActualPath = useMemo(() => {
+    const lookup = new Map<string, string>();
+    for (const [mapKey, status] of [...stagedFiles, ...unstagedFiles]) {
+      lookup.set(mapKey, status.path);
+    }
+    return lookup;
+  }, [stagedFiles, unstagedFiles]);
+
+  /**
+   * Convert a Map key (or set of keys) to actual file paths for git operations.
+   */
+  const getActualPaths = useCallback(
+    (mapKeys: string[]): string[] => {
+      return mapKeys.map((key) => mapKeyToActualPath.get(key) ?? key);
+    },
+    [mapKeyToActualPath],
+  );
 
   // Build folder trees for nested view
   const { stagedTree, unstagedTree } = useMemo(() => {
@@ -394,32 +530,32 @@ export function FileTreeChanges({
   }, [stagedFiles, unstagedFiles]);
 
   // Build visual order based on view mode
-  const visualOrder = useMemo((): SelectableItem[] => {
+  // Split into separate memos so toggling a folder in one section
+  // doesn't recalculate the other section's visual order
+  const stagedVisualOrder = useMemo((): SelectableItem[] => {
     if (viewMode === "flat") {
-      return buildFlatVisualOrder(stagedFiles, unstagedFiles);
-    } else {
-      const stagedVisual = buildVisualOrderFromTree(
-        stagedTree,
-        expandedFolders,
-      );
-      const unstagedVisual = buildVisualOrderFromTree(
-        unstagedTree,
-        expandedFolders,
-      );
-      return [...stagedVisual, ...unstagedVisual];
+      return buildFlatVisualOrder(stagedFiles, []);
     }
-  }, [
-    viewMode,
-    stagedFiles,
-    unstagedFiles,
-    stagedTree,
-    unstagedTree,
-    expandedFolders,
-  ]);
+    return buildVisualOrderFromTree(stagedTree, expandedFolders.staged);
+  }, [viewMode, stagedFiles, stagedTree, expandedFolders.staged]);
+
+  const unstagedVisualOrder = useMemo((): SelectableItem[] => {
+    if (viewMode === "flat") {
+      return buildFlatVisualOrder([], unstagedFiles);
+    }
+    return buildVisualOrderFromTree(unstagedTree, expandedFolders.unstaged);
+  }, [viewMode, unstagedFiles, unstagedTree, expandedFolders.unstaged]);
+
+  // Combined for multi-select (needs full list for shift-click ranges)
+  const visualOrder = useMemo(
+    (): SelectableItem[] => [...stagedVisualOrder, ...unstagedVisualOrder],
+    [stagedVisualOrder, unstagedVisualOrder],
+  );
 
   // Multi-select state
   const {
     selectedPaths: multiSelectedPaths,
+    anchorPath,
     handleItemClick: handleMultiSelectClick,
     clearSelection,
     isSelected: isMultiSelected,
@@ -427,35 +563,191 @@ export function FileTreeChanges({
   } = useMultiSelect(visualOrder, allFilePaths);
 
   // ---------------------------------------------------------------------------
+  // Rename/Delete State (for unstaged files only)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Path of the file currently being renamed (relative to cwd).
+   * Only unstaged files can be renamed.
+   */
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+
+  /**
+   * Path of the file pending deletion (relative to cwd).
+   * Only unstaged files can be deleted.
+   */
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // File/Folder Creation State
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Path of the folder where a new file/folder is being created (absolute path).
+   * null when not creating anything.
+   */
+  const [creatingInPath, setCreatingInPath] = useState<string | null>(null);
+
+  /**
+   * Type of item being created: "file" or "folder".
+   * null when not creating anything.
+   */
+  const [creatingType, setCreatingType] = useState<"file" | "folder" | null>(
+    null,
+  );
+
+  /**
+   * Path of a newly created file waiting to be selected.
+   * Used to handle the delay between file creation and git detecting it.
+   * When git status updates to include this file, we select it.
+   */
+  const [pendingSelectPath, setPendingSelectPath] = useState<string | null>(
+    null,
+  );
+
+  /**
+   * Ref to guard against double invocation of creation handlers.
+   * Stores the path being processed to prevent duplicate calls.
+   */
+  const creationInProgressRef = useRef<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Selected MapKey Normalization
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Normalize selectedMapKey to match the actual mapKey in the file list.
+   *
+   * Uses the centralized normalizeMapKey helper which handles:
+   * - Direct match (selectedMapKey exists in the list)
+   * - Suffix normalization (selectedMapKey has suffix but file isn't partially staged)
+   */
+  const normalizedSelectedMapKey = useMemo(() => {
+    if (!selectedMapKey) return null;
+    return normalizeMapKey(selectedMapKey, allFilePaths);
+  }, [selectedMapKey, allFilePaths]);
+
+  // ---------------------------------------------------------------------------
+  // Sync anchor with selectedMapKey from parent
+  // ---------------------------------------------------------------------------
+
+  // When selectedMapKey changes or anchor is cleared, set the anchor
+  // so shift-click works from the selected file.
+  useEffect(() => {
+    if (!normalizedSelectedMapKey) return;
+
+    // Only set anchor if it's not already set to the correct value
+    if (anchorPath !== normalizedSelectedMapKey) {
+      clearSelection(normalizedSelectedMapKey);
+    }
+  }, [normalizedSelectedMapKey, anchorPath, clearSelection]);
+
+  // ---------------------------------------------------------------------------
+  // Pending File Selection (after creation)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Select a newly created file once git detects it.
+   * This handles the delay between file creation and git status update.
+   */
+  useEffect(() => {
+    if (!pendingSelectPath) return;
+
+    // Convert absolute path to relative for comparison with allFilePaths
+    const relativePath = getRelativePath(pendingSelectPath, cwd);
+
+    // Check if the file has appeared in git status
+    if (allFilePaths.includes(relativePath)) {
+      const name = relativePath.split("/").pop() ?? relativePath;
+      // Pass relativePath as mapKey so the file tree highlights the item
+      onFileSelect(
+        { path: pendingSelectPath, name, type: "file" },
+        relativePath,
+      );
+      setPendingSelectPath(null);
+    }
+  }, [pendingSelectPath, allFilePaths, cwd, onFileSelect]);
+
+  // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Handle file/folder selection.
+   *
+   * For files, constructs a FileNode with the actual path.
+   * The mapKey parameter uniquely identifies the entry (staged vs unstaged for partially staged files).
+   * The filePath parameter is the actual filesystem path (from status.path).
+   */
   const handleSelect = useCallback(
-    (path: string, event: React.MouseEvent, isFolder = false) => {
-      handleMultiSelectClick(path, event);
+    (
+      mapKey: string,
+      filePath: string,
+      event: React.MouseEvent,
+      isFolder = false,
+    ) => {
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        // Multi-select: add/toggle/range selection
+        handleMultiSelectClick(mapKey, event);
+      } else {
+        // Single click: clear multi-selection but set anchor for future shift-clicks
+        clearSelection(mapKey);
 
-      if (!isFolder) {
-        const fullPath = cwd.endsWith("/") ? cwd + path : cwd + "/" + path;
-        const name = path.split("/").pop() ?? path;
-        onFileSelect({ path: fullPath, name, type: "file" });
+        if (!isFolder) {
+          // Use actual file path for FileNode, pass mapKey for selection tracking
+          const fullPath = joinCwdPath(cwd, filePath);
+          const name = filePath.split("/").pop() ?? filePath;
+          onFileSelect({ path: fullPath, name, type: "file" }, mapKey);
+        }
       }
     },
-    [cwd, onFileSelect, handleMultiSelectClick],
+    [cwd, onFileSelect, handleMultiSelectClick, clearSelection],
   );
 
   const handleStage = useCallback(
-    (path: string) => {
-      const pathsToStage = isMultiSelected(path)
+    (mapKey: string) => {
+      // Get Map keys for tracking (may include suffix for partially staged files)
+      const mapKeys = isMultiSelected(mapKey)
         ? getSelectedFilePaths()
-        : expandFoldersToFiles(new Set([path]), allFilePaths);
+        : expandFoldersToFiles(new Set([mapKey]), allFilePaths);
 
-      for (const p of pathsToStage) {
+      // Convert to actual paths for git operations
+      const actualPaths = getActualPaths(mapKeys);
+
+      // Filter out dirty files (files with unsaved changes in editor)
+      const {
+        cleanFiles: cleanPaths,
+        allDirty,
+        skippedCount,
+      } = filterDirtyFilesForStaging(
+        actualPaths,
+        (path) => joinCwdPath(cwd, path),
+        isFileDirty,
+      );
+
+      // Show notification if any files were skipped
+      notifyDirtyFilesSkipped(skippedCount, allDirty);
+
+      if (allDirty) return;
+
+      // Get map keys for clean paths only (for optimistic updates)
+      const cleanMapKeys = mapKeys.filter((key) => {
+        const actualPath = mapKeyToActualPath.get(key) ?? key;
+        return !isFileDirty || !isFileDirty(joinCwdPath(cwd, actualPath));
+      });
+
+      for (const p of cleanMapKeys) {
         applyOptimisticUpdate(p, "stage");
       }
 
-      git.stage(pathsToStage).catch((error) => {
+      // Mark files as seen when staging
+      for (const path of cleanPaths) {
+        triggerRead?.("file:stage", path);
+      }
+
+      git.stage(cleanPaths).catch((error) => {
         console.error("Failed to stage file(s):", error);
-        for (const p of pathsToStage) {
+        for (const p of cleanMapKeys) {
           revertOptimisticUpdate(p);
         }
       });
@@ -464,28 +756,42 @@ export function FileTreeChanges({
     },
     [
       git,
+      cwd,
       applyOptimisticUpdate,
       revertOptimisticUpdate,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
+      getActualPaths,
+      mapKeyToActualPath,
+      isFileDirty,
       clearSelection,
+      triggerRead,
     ],
   );
 
   const handleUnstage = useCallback(
-    (path: string) => {
-      const pathsToUnstage = isMultiSelected(path)
+    (mapKey: string) => {
+      // Get Map keys for tracking (may include suffix for partially staged files)
+      const mapKeys = isMultiSelected(mapKey)
         ? getSelectedFilePaths()
-        : expandFoldersToFiles(new Set([path]), allFilePaths);
+        : expandFoldersToFiles(new Set([mapKey]), allFilePaths);
 
-      for (const p of pathsToUnstage) {
+      // Convert to actual paths for git operations
+      const actualPaths = getActualPaths(mapKeys);
+
+      for (const p of mapKeys) {
         applyOptimisticUpdate(p, "unstage");
       }
 
-      git.unstage(pathsToUnstage).catch((error) => {
+      // Mark files as seen when unstaging
+      for (const path of actualPaths) {
+        triggerRead?.("file:unstage", path);
+      }
+
+      git.unstage(actualPaths).catch((error) => {
         console.error("Failed to unstage file(s):", error);
-        for (const p of pathsToUnstage) {
+        for (const p of mapKeys) {
           revertOptimisticUpdate(p);
         }
       });
@@ -499,118 +805,446 @@ export function FileTreeChanges({
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
+      getActualPaths,
       clearSelection,
+      triggerRead,
     ],
   );
 
   const handleRevert = useCallback(
-    async (path: string) => {
-      const pathsToRevert = isMultiSelected(path)
+    async (mapKey: string) => {
+      // Get Map keys for tracking (may include suffix for partially staged files)
+      const mapKeys = isMultiSelected(mapKey)
         ? getSelectedFilePaths()
-        : expandFoldersToFiles(new Set([path]), allFilePaths);
+        : expandFoldersToFiles(new Set([mapKey]), allFilePaths);
+
+      // Convert to actual paths for git operations
+      const actualPaths = getActualPaths(mapKeys);
 
       try {
-        await git.revert(pathsToRevert);
+        // Mark files as seen when reverting
+        for (const path of actualPaths) {
+          triggerRead?.("file:revert", path);
+        }
+
+        await git.revert(actualPaths);
+        // Note: If the reverted file was untracked/added (deleted on revert),
+        // EditorPaneV2's git status sync effect will auto-select the next file
       } catch (error) {
         console.error("Failed to revert file(s):", error);
       }
 
       clearSelection();
     },
-    [git, isMultiSelected, getSelectedFilePaths, allFilePaths, clearSelection],
+    [
+      git,
+      isMultiSelected,
+      getSelectedFilePaths,
+      allFilePaths,
+      getActualPaths,
+      clearSelection,
+      triggerRead,
+    ],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Rename/Delete Handlers (for unstaged files via context menu)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Start renaming a file. Sets the renamingPath state to show inline editor.
+   * Path should be relative to cwd.
+   */
+  const beginRename = useCallback((relativePath: string) => {
+    setRenamingPath(relativePath);
+  }, []);
+
+  /**
+   * Commit the rename operation. Performs the actual filesystem rename.
+   */
+  const commitRename = useCallback(
+    async (newName: string) => {
+      if (!renamingPath) return;
+
+      const parentDir = getParentPath(renamingPath);
+      const newPath = parentDir ? `${parentDir}/${newName}` : newName;
+      const oldAbsolutePath = joinCwdPath(cwd, renamingPath);
+      const newAbsolutePath = joinCwdPath(cwd, newPath);
+
+      try {
+        await fs.rename(oldAbsolutePath, newAbsolutePath);
+
+        // Transfer seen status from old path to new path
+        // This works for both files and folders (handles nested files too)
+        onPathRename?.(renamingPath, newPath);
+
+        setRenamingPath(null);
+      } catch (error) {
+        const itemName = renamingPath.split("/").pop() ?? "item";
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to rename "${itemName}"`,
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
+        setRenamingPath(null);
+      }
+    },
+    [renamingPath, cwd, fs, onPathRename],
+  );
+
+  /**
+   * Cancel the rename operation.
+   */
+  const cancelRename = useCallback(() => {
+    setRenamingPath(null);
+  }, []);
+
+  /**
+   * Handle rename command from context menu.
+   * Converts absolute path to relative and starts inline rename.
+   */
+  const handleRenameCommand = useCallback(
+    (absolutePath: string) => {
+      const relativePath = getRelativePath(absolutePath, cwd);
+      beginRename(relativePath);
+    },
+    [cwd, beginRename],
+  );
+
+  /**
+   * Handle delete command from context menu.
+   * Converts absolute path to relative and shows delete confirmation.
+   */
+  const handleDeleteCommand = useCallback(
+    (absolutePath: string) => {
+      const relativePath = getRelativePath(absolutePath, cwd);
+      setDeletingPath(relativePath);
+    },
+    [cwd],
+  );
+
+  /**
+   * Confirm and execute delete operation.
+   */
+  const confirmDelete = useCallback(async () => {
+    if (!deletingPath) return;
+
+    const absolutePath = joinCwdPath(cwd, deletingPath);
+    const itemName = deletingPath.split("/").pop() ?? "file";
+
+    try {
+      // Use recursive: true to handle both files and folders
+      await fs.delete(absolutePath, { recursive: true });
+      setDeletingPath(null);
+    } catch (error) {
+      enqueueNotification({
+        kind: "error",
+        message: `Failed to delete "${itemName}"`,
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+      setDeletingPath(null);
+    }
+  }, [deletingPath, cwd, fs]);
+
+  /**
+   * Cancel delete operation.
+   */
+  const cancelDelete = useCallback(() => {
+    setDeletingPath(null);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // File/Folder Creation Handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Begin creating a new file in the specified directory.
+   * Expands the folder in nested view so the creation input is visible.
+   */
+  const beginCreateFile = useCallback(
+    (parentPath: string) => {
+      // Guard against double invocation using ref (state updates are batched)
+      if (creationInProgressRef.current === parentPath) {
+        return;
+      }
+      creationInProgressRef.current = parentPath;
+
+      // Expand the folder in nested view if not already expanded
+      // File creation only happens in unstaged section
+      if (viewMode === "nested") {
+        const relativePath = getRelativePath(parentPath, cwd);
+        if (relativePath && !expandedFolders.unstaged.has(relativePath)) {
+          toggleFolder(relativePath, "unstaged");
+        }
+      }
+      setCreatingInPath(parentPath);
+      setCreatingType("file");
+
+      // Clear the guard after state updates
+      setTimeout(() => {
+        creationInProgressRef.current = null;
+      }, 0);
+    },
+    [cwd, viewMode, expandedFolders.unstaged, toggleFolder],
+  );
+
+  /**
+   * Begin creating a new folder in the specified directory.
+   * Expands the folder in nested view so the creation input is visible.
+   */
+  const beginCreateFolder = useCallback(
+    (parentPath: string) => {
+      // Guard against double invocation using ref (state updates are batched)
+      if (creationInProgressRef.current === parentPath) {
+        return;
+      }
+      creationInProgressRef.current = parentPath;
+
+      // Expand the folder in nested view if not already expanded
+      // Folder creation only happens in unstaged section
+      if (viewMode === "nested") {
+        const relativePath = getRelativePath(parentPath, cwd);
+        if (relativePath && !expandedFolders.unstaged.has(relativePath)) {
+          toggleFolder(relativePath, "unstaged");
+        }
+      }
+      setCreatingInPath(parentPath);
+      setCreatingType("folder");
+
+      // Clear the guard after state updates
+      setTimeout(() => {
+        creationInProgressRef.current = null;
+      }, 0);
+    },
+    [cwd, viewMode, expandedFolders.unstaged, toggleFolder],
+  );
+
+  /**
+   * Cancel the current creation operation.
+   */
+  const cancelCreate = useCallback(() => {
+    setCreatingInPath(null);
+    setCreatingType(null);
+  }, []);
+
+  /**
+   * Commit the creation of a new file or folder.
+   */
+  const commitCreate = useCallback(
+    async (name: string) => {
+      if (!creatingInPath || !creatingType) return;
+
+      const newPath = `${creatingInPath}/${name}`;
+
+      try {
+        if (creatingType === "file") {
+          await fs.writeTextFile(newPath, "");
+          // Queue the file for selection once git detects it
+          setPendingSelectPath(newPath);
+        } else {
+          await fs.createDirectory(newPath);
+        }
+        setCreatingInPath(null);
+        setCreatingType(null);
+      } catch (error) {
+        enqueueNotification({
+          kind: "error",
+          message: `Failed to create ${creatingType}`,
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    },
+    [creatingInPath, creatingType, fs],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Context Menu Hook
+  // ---------------------------------------------------------------------------
+
+  const { showContextMenu } = useFileTreeChangesContextMenu({
+    cwd,
+    onStage: handleStage,
+    onUnstage: handleUnstage,
+    onRevert: handleRevert,
+    onRename: handleRenameCommand,
+    onDelete: handleDeleteCommand,
+    onNewFile: beginCreateFile,
+    onNewFolder: beginCreateFolder,
+  });
+
+  /**
+   * Handle context menu for files and folders.
+   * Builds the absolute path and shows the context menu with appropriate options.
+   */
+  const handleContextMenu = useCallback(
+    (
+      mapKey: string,
+      filePath: string,
+      isStaged: boolean,
+      isDirectory: boolean,
+      event: React.MouseEvent,
+    ) => {
+      const absolutePath = joinCwdPath(cwd, filePath);
+      showContextMenu({
+        path: absolutePath,
+        mapKey,
+        isStaged,
+        isDirectory,
+        event,
+      });
+    },
+    [cwd, showContextMenu],
   );
 
   const handleStageAll = useCallback(() => {
     if (unstagedFiles.length === 0) return;
-    const paths = unstagedFiles.map(([path]) => path);
 
-    for (const path of paths) {
+    // Filter out dirty files
+    const { cleanFiles, allDirty, skippedCount } = filterDirtyFilesForStaging(
+      unstagedFiles,
+      ([, status]) => joinCwdPath(cwd, status.path),
+      isFileDirty,
+    );
+
+    // Show notification if any files were skipped
+    notifyDirtyFilesSkipped(skippedCount, allDirty);
+
+    if (allDirty) return;
+
+    // Map keys for optimistic updates
+    const mapKeys = cleanFiles.map(([path]) => path);
+    // Actual paths for git operations
+    const actualPaths = cleanFiles.map(([, status]) => status.path);
+
+    for (const path of mapKeys) {
       applyOptimisticUpdate(path, "stage");
     }
 
-    git.stage(paths).catch((error) => {
+    git.stage(actualPaths).catch((error) => {
       console.error("Failed to stage all files:", error);
-      for (const path of paths) {
+      for (const path of mapKeys) {
         revertOptimisticUpdate(path);
       }
     });
-  }, [git, unstagedFiles, applyOptimisticUpdate, revertOptimisticUpdate]);
+  }, [
+    git,
+    cwd,
+    unstagedFiles,
+    isFileDirty,
+    applyOptimisticUpdate,
+    revertOptimisticUpdate,
+  ]);
 
   const handleUnstageAll = useCallback(() => {
     if (stagedFiles.length === 0) return;
-    const paths = stagedFiles.map(([path]) => path);
+    // Map keys for optimistic updates
+    const mapKeys = stagedFiles.map(([path]) => path);
+    // Actual paths for git operations
+    const actualPaths = stagedFiles.map(([, status]) => status.path);
 
-    for (const path of paths) {
+    for (const path of mapKeys) {
       applyOptimisticUpdate(path, "unstage");
     }
 
-    git.unstage(paths).catch((error) => {
+    git.unstage(actualPaths).catch((error) => {
       console.error("Failed to unstage all files:", error);
-      for (const path of paths) {
+      for (const path of mapKeys) {
         revertOptimisticUpdate(path);
       }
     });
   }, [git, stagedFiles, applyOptimisticUpdate, revertOptimisticUpdate]);
 
   // Auto-expand folders in nested view
-  const prevStateRef = useRef<{ viewMode: string; filePaths: Set<string> }>({
+  const prevStateRef = useRef<{
+    viewMode: string;
+    stagedPaths: Set<string>;
+    unstagedPaths: Set<string>;
+  }>({
     viewMode,
-    filePaths: new Set(),
+    stagedPaths: new Set(),
+    unstagedPaths: new Set(),
   });
 
   useEffect(() => {
-    const allPaths = [
-      ...stagedFiles.map(([p]) => p),
-      ...unstagedFiles.map(([p]) => p),
-    ];
-    const currentPaths = new Set(allPaths);
+    const stagedPaths = stagedFiles.map(([p]) => p);
+    const unstagedPaths = unstagedFiles.map(([p]) => p);
+
+    const currentStagedPaths = new Set(stagedPaths);
+    const currentUnstagedPaths = new Set(unstagedPaths);
     const wasNestedView = prevStateRef.current.viewMode === "nested";
     const isNestedView = viewMode === "nested";
 
     if (isNestedView) {
       if (!wasNestedView) {
-        expandFoldersForFiles(allPaths, true);
+        // Switching to nested view: expand all folders
+        expandAllFoldersForFiles(stagedPaths, unstagedPaths, true);
       } else {
-        const newPaths = allPaths.filter(
-          (p) => !prevStateRef.current.filePaths.has(p),
+        // Already in nested view: only expand folders for new files
+        const newStagedPaths = stagedPaths.filter(
+          (p) => !prevStateRef.current.stagedPaths.has(p),
         );
-        if (newPaths.length > 0) {
-          expandFoldersForFiles(newPaths, false);
+        const newUnstagedPaths = unstagedPaths.filter(
+          (p) => !prevStateRef.current.unstagedPaths.has(p),
+        );
+        if (newStagedPaths.length > 0) {
+          expandFoldersForFiles(newStagedPaths, "staged", false);
+        }
+        if (newUnstagedPaths.length > 0) {
+          expandFoldersForFiles(newUnstagedPaths, "unstaged", false);
         }
       }
     }
 
-    prevStateRef.current = { viewMode, filePaths: currentPaths };
-  }, [viewMode, stagedFiles, unstagedFiles, expandFoldersForFiles]);
+    prevStateRef.current = {
+      viewMode,
+      stagedPaths: currentStagedPaths,
+      unstagedPaths: currentUnstagedPaths,
+    };
+  }, [
+    viewMode,
+    stagedFiles,
+    unstagedFiles,
+    expandFoldersForFiles,
+    expandAllFoldersForFiles,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Render Helpers
   // ---------------------------------------------------------------------------
 
-  const selectedRelativePath = selectedFile?.path
-    ? selectedFile.path.startsWith(cwd)
-      ? selectedFile.path.slice(cwd.length).replace(/^\//, "")
-      : selectedFile.path
-    : null;
+  /**
+   * Check if a file should be shown as selected.
+   * Uses normalizedSelectedMapKey which handles suffix normalization.
+   */
+  const isFileSelected = (mapKey: string): boolean => {
+    return normalizedSelectedMapKey === mapKey;
+  };
 
   const renderFlatFiles = (
     files: Array<[string, GitFileStatus]>,
     isStaged: boolean,
   ) => {
-    return files.map(([path, status]) => (
+    return files.map(([mapKey, status]) => (
       <FlatChangeItem
-        key={path}
-        path={path}
+        key={mapKey}
+        path={status.path}
         status={status}
         cwd={cwd}
-        isSelected={pathsEqual(selectedRelativePath, path)}
-        isMultiSelected={multiSelectedPaths.has(path)}
+        isSelected={isFileSelected(mapKey)}
+        isMultiSelected={multiSelectedPaths.has(mapKey)}
         isStaged={isStaged}
-        canRevert={showActionButtons && status.status !== "untracked"}
-        onSelect={(event) => handleSelect(path, event)}
-        onStage={showActionButtons ? () => handleStage(path) : undefined}
-        onUnstage={showActionButtons ? () => handleUnstage(path) : undefined}
-        onRevert={showActionButtons ? () => handleRevert(path) : undefined}
+        canRevert={showActionButtons}
+        onSelect={(event) => handleSelect(mapKey, status.path, event)}
+        onStage={showActionButtons ? () => handleStage(mapKey) : undefined}
+        onUnstage={showActionButtons ? () => handleUnstage(mapKey) : undefined}
+        onRevert={showActionButtons ? () => handleRevert(mapKey) : undefined}
+        showUnseenIndicator={isFileUnseen?.(status.path)}
+        onContextMenu={(e) =>
+          handleContextMenu(mapKey, status.path, isStaged, false, e)
+        }
+        isRenaming={!isStaged && renamingPath === status.path}
+        onCommitRename={commitRename}
+        onCancelRename={cancelRename}
       />
     ));
   };
@@ -625,6 +1259,13 @@ export function FileTreeChanges({
       .filter((f) => f.name !== "")
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    // Get the appropriate section's expansion state
+    const section = isStaged ? "staged" : "unstaged";
+    const sectionExpandedFolders = expandedFolders[section];
+
+    // Wrapper that toggles in the correct section
+    const handleToggleFolder = (path: string) => toggleFolder(path, section);
+
     return (
       <>
         {folders.map((folder) => (
@@ -632,40 +1273,56 @@ export function FileTreeChanges({
             key={folder.path}
             folder={folder}
             cwd={cwd}
-            expandedFolders={expandedFolders}
-            onToggleFolder={toggleFolder}
-            selectedPath={selectedRelativePath}
+            expandedFolders={sectionExpandedFolders}
+            onToggleFolder={handleToggleFolder}
+            isFileSelected={isFileSelected}
             multiSelectedPaths={multiSelectedPaths}
             isStaged={isStaged}
             onFileSelect={handleSelect}
             onStage={showActionButtons ? handleStage : undefined}
             onUnstage={showActionButtons ? handleUnstage : undefined}
             onRevert={showActionButtons ? handleRevert : undefined}
+            isFileUnseen={isFileUnseen}
+            onContextMenu={(mapKey, filePath, isDirectory, e) =>
+              handleContextMenu(mapKey, filePath, isStaged, isDirectory, e)
+            }
+            renamingPath={!isStaged ? renamingPath : null}
+            onCommitRename={commitRename}
+            onCancelRename={cancelRename}
+            creatingInPath={creatingInPath}
+            creatingType={creatingType}
+            onCommitCreate={commitCreate}
+            onCancelCreate={cancelCreate}
           />
         ))}
         {rootFiles
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((file) => (
             <NestedFileItem
-              key={file.path}
+              key={file.mapKey}
               file={file}
               cwd={cwd}
-              isSelected={pathsEqual(selectedRelativePath, file.path)}
-              isMultiSelected={multiSelectedPaths.has(file.path)}
+              isSelected={isFileSelected(file.mapKey)}
+              isMultiSelected={multiSelectedPaths.has(file.mapKey)}
               isStaged={isStaged}
-              canRevert={
-                showActionButtons && file.status.status !== "untracked"
-              }
-              onSelect={(event) => handleSelect(file.path, event)}
+              canRevert={showActionButtons}
+              onSelect={(event) => handleSelect(file.mapKey, file.path, event)}
               onStage={
-                showActionButtons ? () => handleStage(file.path) : undefined
+                showActionButtons ? () => handleStage(file.mapKey) : undefined
               }
               onUnstage={
-                showActionButtons ? () => handleUnstage(file.path) : undefined
+                showActionButtons ? () => handleUnstage(file.mapKey) : undefined
               }
               onRevert={
-                showActionButtons ? () => handleRevert(file.path) : undefined
+                showActionButtons ? () => handleRevert(file.mapKey) : undefined
               }
+              showUnseenIndicator={isFileUnseen?.(file.path)}
+              onContextMenu={(e) =>
+                handleContextMenu(file.mapKey, file.path, isStaged, false, e)
+              }
+              isRenaming={!isStaged && renamingPath === file.path}
+              onCommitRename={commitRename}
+              onCancelRename={cancelRename}
             />
           ))}
       </>
@@ -733,6 +1390,7 @@ export function FileTreeChanges({
             count={stagedFiles.length}
             isExpanded={stagedExpanded}
             onToggle={() => setStagedExpanded(!stagedExpanded)}
+            isStaged={true}
             actions={
               showActionButtons && (
                 <div
@@ -773,6 +1431,7 @@ export function FileTreeChanges({
             count={unstagedFiles.length}
             isExpanded={changesExpanded}
             onToggle={() => setChangesExpanded(!changesExpanded)}
+            isStaged={false}
             actions={
               showActionButtons && (
                 <div
@@ -804,6 +1463,16 @@ export function FileTreeChanges({
           </Section>
         )}
       </nav>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deletingPath !== null}
+        title="Delete"
+        description={`Are you sure you want to delete "${deletingPath?.split("/").pop() ?? ""}"? This action cannot be undone.`}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        variant="destructive"
+      />
     </div>
   );
 }

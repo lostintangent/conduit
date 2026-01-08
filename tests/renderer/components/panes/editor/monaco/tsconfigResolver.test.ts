@@ -10,16 +10,16 @@ import {
 function createMockApi(existingPaths: Set<string>): FileSystemApi {
   // Normalize paths in the set to handle different separators
   const normalizedPaths = new Set(
-    Array.from(existingPaths).map((p) => p.replace(/[\/\\]+/g, "/")),
+    Array.from(existingPaths).map((p) => p.replace(/[/\\]+/g, "/")),
   );
 
   return {
     fileExists: vi.fn(async (path: string) => {
-      const normalized = path.replace(/[\/\\]+/g, "/");
+      const normalized = path.replace(/[/\\]+/g, "/");
       return normalizedPaths.has(normalized);
     }),
     readFile: vi.fn(async (path: string) => {
-      const normalized = path.replace(/[\/\\]+/g, "/");
+      const normalized = path.replace(/[/\\]+/g, "/");
       if (!normalizedPaths.has(normalized)) {
         throw new Error(`File not found: ${path}`);
       }

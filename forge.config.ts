@@ -69,6 +69,12 @@ const config: ForgeConfig = {
       setupIcon: path.resolve(__dirname, "build/assets/icon.ico"),
       iconUrl:
         "https://raw.githubusercontent.com/lostintangent/conduit/main/build/assets/icon.ico",
+      windowsSign: process.env.WINDOWS_CERTIFICATE_FILE
+        ? {
+            certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+            certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+          }
+        : undefined,
     }),
     new MakerRpm({}),
     new MakerDeb({}),

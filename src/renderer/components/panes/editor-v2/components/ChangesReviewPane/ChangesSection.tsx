@@ -25,10 +25,12 @@
  * ```
  */
 
-import { ChevronDown, ChevronRight } from "lucide-react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";
+import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";
+import type { ReadTriggerAction } from "../../hooks";
 import { FileChangeDiff } from "./FileChangeDiff";
 
 export interface ChangesSectionProps {
@@ -63,6 +65,9 @@ export interface ChangesSectionProps {
   /** Working directory */
   cwd: string;
 
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
+
   /** Git API instance */
   git: GitV2API;
 
@@ -74,6 +79,35 @@ export interface ChangesSectionProps {
 
   /** Callback to toggle individual file expansion */
   onToggleFile: (path: string) => void;
+
+  /** Callback to expand all files in this section */
+  onExpandAll?: () => void;
+
+  /** Callback to collapse all files in this section */
+  onCollapseAll?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Follow Mode Props (optional)
+  // ---------------------------------------------------------------------------
+
+  /** Count of unseen files in this section (for header indicator) */
+  unseenCount?: number;
+
+  /** Check if a file is unseen */
+  isFileUnseen?: (path: string) => boolean;
+
+  /** Get timestamp for a file */
+  getFileTimestamp?: (path: string) => number | null;
+
+  /** Trigger a read action for a file (marks as seen) */
+  triggerRead?: (action: ReadTriggerAction, path: string) => void;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -90,14 +124,28 @@ export function ChangesSection({
   onBulkAction,
   isBulkActionLoading = false,
   cwd,
+  sandboxId,
   git,
   baseBranch,
   expandedFiles,
   onToggleFile,
+  onExpandAll,
+  onCollapseAll,
+  // Follow mode props
+  unseenCount = 0,
+  isFileUnseen,
+  getFileTimestamp,
+  triggerRead,
+  // Dirty file checking
+  isFileDirty,
 }: ChangesSectionProps) {
   if (files.length === 0) {
     return null;
   }
+
+  // Determine if all files in this section are expanded
+  const allFilesExpanded = files.every(([path]) => expandedFiles.has(path));
+  const hasExpandCollapseHandlers = onExpandAll && onCollapseAll;
 
   return (
     <div data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}>
@@ -123,7 +171,31 @@ export function ChangesSection({
           <span className={iconColorClass}>{icon}</span>
           <span>{title}</span>
           <span className="text-muted-foreground">({files.length})</span>
+          {/* Unseen indicator for section (Follow mode) */}
+          {unseenCount > 0 && (
+            <Asterisk
+              className="text-yellow-500 flex-shrink-0"
+              size={12}
+              data-testid="section-unseen-indicator"
+            />
+          )}
         </button>
+
+        {/* Expand/Collapse all button */}
+        {hasExpandCollapseHandlers && (
+          <>
+            <button
+              onClick={allFilesExpanded ? onCollapseAll : onExpandAll}
+              className={cn(
+                "text-xs text-muted-foreground hover:text-foreground transition-colors",
+              )}
+              data-testid="expand-collapse-button"
+            >
+              {allFilesExpanded ? "Collapse all" : "Expand all"}
+            </button>
+            <Separator orientation="vertical" className="h-4" />
+          </>
+        )}
 
         {/* Bulk action button */}
         <button
@@ -142,16 +214,27 @@ export function ChangesSection({
       {/* File list (visible when expanded) */}
       {isExpanded && (
         <div>
-          {files.map(([path, status]) => (
+          {files.map(([mapKey, status]) => (
             <FileChangeDiff
-              key={path}
-              filePath={path}
+              key={mapKey}
+              filePath={status.path}
               cwd={cwd}
+              sandboxId={sandboxId}
               git={git}
               status={status}
               baseBranch={baseBranch}
-              isExpanded={expandedFiles.has(path)}
-              onToggle={() => onToggleFile(path)}
+              isExpanded={expandedFiles.has(mapKey)}
+              onToggle={() => onToggleFile(mapKey)}
+              // Follow mode props
+              isUnseen={isFileUnseen?.(status.path)}
+              timestamp={getFileTimestamp?.(status.path)}
+              triggerRead={
+                triggerRead
+                  ? (action) => triggerRead(action, status.path)
+                  : undefined
+              }
+              // Dirty file checking
+              isFileDirty={isFileDirty}
             />
           ))}
         </div>

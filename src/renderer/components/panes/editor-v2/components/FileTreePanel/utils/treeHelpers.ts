@@ -17,14 +17,20 @@ export function getDirectoryPath(filePath: string): string {
 /**
  * Build a nested tree structure from a flat list of file paths.
  * Groups files by their directory hierarchy.
+ *
+ * Note: The input `files` array contains [mapKey, status] tuples where:
+ * - mapKey is the git status Map key (may include suffix for partially staged files)
+ * - status.path is the actual file path (no suffix)
  */
 export function buildFolderTree(
   files: Array<[string, GitFileStatus]>,
 ): Map<string, FolderNode> {
   const rootFolders = new Map<string, FolderNode>();
 
-  for (const [path, status] of files) {
-    const parts = path.split("/");
+  for (const [mapKey, status] of files) {
+    // Use actual file path for folder navigation and display
+    const actualPath = status.path;
+    const parts = actualPath.split("/");
     const fileName = parts.pop()!;
 
     // Navigate/create folder structure
@@ -47,6 +53,14 @@ export function buildFolderTree(
       currentLevel = folder.folders;
     }
 
+    // Create file entry with both mapKey and actual path
+    const fileEntry = {
+      mapKey,
+      path: actualPath,
+      name: fileName,
+      status,
+    };
+
     // Add file to appropriate location
     if (parts.length === 0) {
       // Root level file - create a virtual "root" folder
@@ -58,7 +72,7 @@ export function buildFolderTree(
           folders: new Map(),
         });
       }
-      rootFolders.get("")!.files.push({ path, name: fileName, status });
+      rootFolders.get("")!.files.push(fileEntry);
     } else {
       // Navigate back to the correct folder and add file
       let parentLevel = rootFolders;
@@ -66,7 +80,7 @@ export function buildFolderTree(
         parentLevel = parentLevel.get(parts[i])!.folders;
       }
       const parentFolder = parentLevel.get(parts[parts.length - 1])!;
-      parentFolder.files.push({ path, name: fileName, status });
+      parentFolder.files.push(fileEntry);
     }
   }
 
@@ -116,7 +130,8 @@ export function buildVisualOrderFromTree(
         a.name.localeCompare(b.name),
       );
       for (const file of sortedFiles) {
-        result.push({ path: file.path, type: "file" });
+        // Use mapKey for multi-select tracking (handles partially staged files)
+        result.push({ path: file.mapKey, type: "file" });
       }
     }
   }
@@ -128,7 +143,8 @@ export function buildVisualOrderFromTree(
 
   // Add root-level files
   for (const file of rootFiles.sort((a, b) => a.name.localeCompare(b.name))) {
-    result.push({ path: file.path, type: "file" });
+    // Use mapKey for multi-select tracking (handles partially staged files)
+    result.push({ path: file.mapKey, type: "file" });
   }
 
   return result;

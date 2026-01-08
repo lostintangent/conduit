@@ -27,12 +27,10 @@ import { useCallback, useEffect, useRef } from "react";
 import {
   useHistoricalDiff,
   useEditorTheme,
-  useAutoSizeEditor,
   usePreventFocusScroll,
 } from "../../hooks";
 import { detectLanguage } from "../../utils/languageDetection";
 import type { GitV2API } from "@/api/GitV2API";
-import type { AutoSizeConfig } from "./constants";
 
 export interface HistoricalDiffViewerProps {
   /** Unique ID for this diff editor instance */
@@ -58,12 +56,6 @@ export interface HistoricalDiffViewerProps {
 
   /** Callback when diff editor is mounted/ready */
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
-
-  /**
-   * Auto-size configuration. When provided, the editor height adjusts
-   * based on content between minHeight and maxHeight bounds.
-   */
-  autoSize?: AutoSizeConfig;
 }
 
 // ============================================================================
@@ -115,7 +107,6 @@ export function HistoricalDiffViewer({
   git,
   theme: themeProp,
   onMount,
-  autoSize,
 }: HistoricalDiffViewerProps) {
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
@@ -148,13 +139,6 @@ export function HistoricalDiffViewer({
 
   // Detect language from file path
   const language = detectLanguage(filePath);
-
-  // Auto-sizing hook - adjusts height based on content
-  const { containerStyle } = useAutoSizeEditor({
-    diffEditor: diffEditorRef.current,
-    config: autoSize,
-    deps: [diffContent.isLoading],
-  });
 
   // ---------------------------------------------------------------------------
   // Diff Editor Setup
@@ -300,7 +284,7 @@ export function HistoricalDiffViewer({
   }, []);
 
   return (
-    <div className="relative h-full" style={containerStyle}>
+    <div className="relative h-full">
       {/* Diff editor container */}
       <div
         ref={containerRef}

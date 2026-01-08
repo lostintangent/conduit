@@ -159,6 +159,7 @@ export function convertWorkspaceToTemplate(
         const canUseShorthand =
           pane.url &&
           !pane.devToolsFor &&
+          !pane.chromeless &&
           !needsActiveMarker &&
           !isCollapsed &&
           !needsExplicitId(pane.id, "browser");
@@ -170,7 +171,10 @@ export function convertWorkspaceToTemplate(
 
       if (pane.type === "editor") {
         const canUseShorthand =
-          !needsActiveMarker && !isCollapsed && !hasDifferentCwd;
+          !needsActiveMarker &&
+          !isCollapsed &&
+          !hasDifferentCwd &&
+          !pane.preview;
 
         if (canUseShorthand) {
           // Return file:// or file://<path>
@@ -216,6 +220,9 @@ export function convertWorkspaceToTemplate(
         if (pane.file) {
           basePane.file = pane.file;
         }
+        if (pane.preview) {
+          basePane.preview = true;
+        }
         // Editor panes need explicit type unless they have a file
         if (!pane.file) {
           explicitTypeRequired = true;
@@ -229,6 +236,9 @@ export function convertWorkspaceToTemplate(
         }
         if (pane.url && !basePane.devToolsFor) {
           basePane.url = pane.url;
+        }
+        if (pane.chromeless) {
+          basePane.chromeless = true;
         }
         if (!basePane.url && !basePane.devToolsFor) {
           explicitTypeRequired = true;

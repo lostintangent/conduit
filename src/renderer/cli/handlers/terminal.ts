@@ -1,5 +1,6 @@
+import { waitForIdle } from "@/components/panes/terminal/state/stateTracker";
+import { serializeSession } from "@/components/panes/terminal/state/xtermCache";
 import type { HandlerMap } from "./types";
-import { serializeSession } from "@/components/panes/terminal/xtermCache";
 
 export const terminalHandlers: Partial<HandlerMap> = {
   "terminal-read": async (args, context) => {
@@ -49,5 +50,10 @@ export const terminalHandlers: Partial<HandlerMap> = {
         window.conduit.sendKeypress(targetSessionId, "\r");
       }
     }
+  },
+
+  "terminal-wait": async (args, context) => {
+    const [sessionId] = context.resolveTerminalSessions(args?.paneId, false);
+    return waitForIdle(sessionId, args?.timeout);
   },
 };

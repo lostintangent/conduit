@@ -71,6 +71,11 @@ export type CliCommand =
       "terminal-write",
       { paneId?: string; all?: boolean; input: string; enter?: boolean }
     >
+  | DefineCommand<
+      "terminal-wait",
+      { paneId?: string; timeout?: number },
+      boolean
+    >
   // Browser commands
   | DefineCommand<"browser-capture", BrowserCaptureArgs, string>
   | DefineCommand<"browser-navigate", { paneId?: string; url: string }>
@@ -88,7 +93,7 @@ export type CliCommand =
   // Editor commands
   | DefineCommand<"editor-open", { cwd: string; filePath?: string }>
   // Notification commands
-  | DefineCommand<"notify", { message: string }>;
+  | DefineCommand<"notify", { message?: string }>;
 
 /* Response types (Renderer -> IPC -> CLI) */
 

@@ -57,6 +57,7 @@ export type {
   FileTreeChangesProps,
   FileTreeItemProps,
   FileTreeNormalProps,
+  FileTreePanelHandle,
   FileTreePanelProps,
 } from "./FileTreePanel";
 
@@ -78,6 +79,18 @@ export type { CommitReviewPaneProps } from "./CommitReviewPane";
 // Shared components
 export { getStatusConfig, GitBadge } from "./shared";
 export type { GitBadgeProps } from "./shared";
+
+// FileDiffStats - Per-file diff statistics display
+export {
+  FileDiffStats,
+  FileDiffStatsProvider,
+  useFileDiffStats,
+} from "./FileDiffStats";
+export type {
+  FileDiffStat,
+  FileDiffStatsProps,
+  FileDiffStatsProviderProps,
+} from "./FileDiffStats";
 
 // Global container for editor panes (keeps editors alive across tab switches)
 export { GlobalEditorContainer } from "./GlobalEditorContainer";

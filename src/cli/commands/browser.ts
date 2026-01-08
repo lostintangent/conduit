@@ -83,7 +83,9 @@ export default function (program: Command): Command {
         const commandArgs = command.buildArgs(rawArgs, options);
 
         const result = await request(commandArgs);
-        if (result) {
+        // Only print non-boolean results (e.g., element descriptors)
+        // Boolean results indicate success/failure via exit code
+        if (result && typeof result !== "boolean") {
           process.stdout.write(JSON.stringify(result, null, 2) + "\n");
         }
       })

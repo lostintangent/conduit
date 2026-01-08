@@ -1,4 +1,5 @@
 import type { VMState } from "@shared/types";
+import { withRetry } from "../utils/retry";
 import { loadConfig, reloadConfig as reloadVMConfig } from "./config";
 
 /**
@@ -71,12 +72,16 @@ export type SSHConnectionInfo = {
   username: string;
 };
 
+/** Default timeout for API calls (30 seconds) */
+const API_TIMEOUT_MS = 30000;
+
 /**
- * Make an API call to the VM manager
+ * Make an API call to the VM manager with timeout and retries
  */
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {},
+  timeoutMs = API_TIMEOUT_MS,
 ): Promise<T> {
   const config = await loadConfig();
   const url = `${config.managerUrl.replace(/\/$/, "")}/api${endpoint}`;
@@ -87,21 +92,54 @@ async function apiCall<T>(
     ...options.headers,
   };
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  return withRetry(
+    async () => {
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`VM API error (${response.status}): ${text}`);
-  }
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers,
+          signal: controller.signal,
+        });
 
-  if (response.status === 204) {
-    return null as T;
-  }
+        clearTimeout(timeoutId);
 
-  return response.json();
+        if (!response.ok) {
+          const text = await response.text();
+          // Include status code in error message so isRetryableError can detect it
+          throw new Error(`${response.status}: ${text.slice(0, 200)}`);
+        }
+
+        if (response.status === 204) {
+          return null as T;
+        }
+
+        return response.json();
+      } catch (error) {
+        clearTimeout(timeoutId);
+
+        const err = error instanceof Error ? error : new Error(String(error));
+
+        // Convert abort to timeout error
+        if (err.name === "AbortError") {
+          throw new Error(`Timeout after ${timeoutMs}ms: ${endpoint}`);
+        }
+
+        throw err;
+      }
+    },
+    {
+      maxRetries: 3,
+      onRetry: (attempt, error) => {
+        console.log(
+          `[VM API] Request to ${endpoint} failed: ${error.message.slice(0, 100)}. Attempt ${attempt}/3. Retrying...`,
+        );
+      },
+    },
+  );
 }
 
 /**

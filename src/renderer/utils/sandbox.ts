@@ -7,7 +7,7 @@ export type UnifiedSandboxInfo =
     }
   | {
       type: "vm";
-      vmId: string;
+      sandboxId: string;
     }
   | null;
 
@@ -44,19 +44,19 @@ export function getUnifiedSandboxForTab(tab: Tab): UnifiedSandboxInfo {
   }
 
   // Check for unified VM
-  const firstVmId =
-    firstPane.type === "terminal" ? firstPane.vmMetadata?.vmId : undefined;
+  const firstSandboxId =
+    firstPane.type === "terminal" ? firstPane.sandboxId : undefined;
 
-  if (firstVmId) {
-    // Check if all panes have the same vmId
-    const allHaveSameVm = nonBrowserPanes.every((pane) =>
-      pane.type === "terminal" ? pane.vmMetadata?.vmId === firstVmId : false,
+  if (firstSandboxId) {
+    // Check if all panes have the same sandboxId
+    const allHaveSameSandbox = nonBrowserPanes.every((pane) =>
+      pane.type === "terminal" ? pane.sandboxId === firstSandboxId : false,
     );
 
-    if (allHaveSameVm) {
+    if (allHaveSameSandbox) {
       return {
         type: "vm",
-        vmId: firstVmId,
+        sandboxId: firstSandboxId,
       };
     }
   }

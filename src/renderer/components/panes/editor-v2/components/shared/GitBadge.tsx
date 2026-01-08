@@ -21,6 +21,9 @@ export interface GitBadgeProps {
   /** Whether this badge is for a folder (shows dot instead of letter) */
   isFolder?: boolean;
 
+  /** Whether to show unseen indicator (Follow mode) */
+  showUnseenIndicator?: boolean;
+
   /** Optional additional class names */
   className?: string;
 }
@@ -141,6 +144,7 @@ export function getStatusConfig(status: GitFileStatus): StatusConfig | null {
 export function GitBadge({
   status,
   isFolder = false,
+  showUnseenIndicator = false,
   className,
 }: GitBadgeProps) {
   const config = getStatusConfig(status);
@@ -166,7 +170,7 @@ export function GitBadge({
   return (
     <div
       className={cn(
-        "flex-shrink-0 flex items-center justify-center",
+        "relative flex-shrink-0 flex items-center justify-center",
         "text-[10px] font-semibold leading-none",
         "w-[14px] h-[14px] rounded-sm text-background",
         config.colorClass,
@@ -177,6 +181,15 @@ export function GitBadge({
       data-status={status.status}
     >
       {config.letter}
+      {/* Unseen indicator (Follow mode) - asterisk in upper-right */}
+      {showUnseenIndicator && (
+        <span
+          className="absolute -top-1.5 -right-1.5 text-yellow-500 text-[15px] font-bold leading-none"
+          data-testid="git-badge-unseen-indicator"
+        >
+          *
+        </span>
+      )}
     </div>
   );
 }

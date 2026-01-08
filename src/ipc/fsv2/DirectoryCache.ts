@@ -28,6 +28,11 @@
  * - Reasonable for long-running editor sessions
  */
 
+import {
+  isCaseInsensitiveFS,
+  normalizePathForComparison,
+  pathStartsWith,
+} from "./pathUtils";
 import type { DirectoryEntry, Disposable } from "./types";
 
 // ============================================================================
@@ -226,7 +231,10 @@ class DirectoryCacheImpl {
     }
 
     // Remove existing entry with same name if present
-    const entries = cached.entries.filter((e) => e.name !== entry.name);
+    // Use case-insensitive comparison on macOS/Windows
+    const entries = cached.entries.filter(
+      (e) => !this.entryNamesMatch(e.name, entry.name),
+    );
     entries.push(entry);
 
     // Sort entries: directories first, then alphabetically
@@ -261,7 +269,10 @@ class DirectoryCacheImpl {
     }
 
     const originalLength = cached.entries.length;
-    cached.entries = cached.entries.filter((e) => e.name !== entryName);
+    // Use case-insensitive comparison on macOS/Windows
+    cached.entries = cached.entries.filter(
+      (e) => !this.entryNamesMatch(e.name, entryName),
+    );
 
     // Only update version if something was actually removed
     if (cached.entries.length !== originalLength) {
@@ -395,6 +406,36 @@ class DirectoryCacheImpl {
     return this.cache.size;
   }
 
+  /**
+   * Get all cached directory paths under a given prefix.
+   *
+   * Used for bulk operations like refreshing gitignore status.
+   * Does NOT update access order (peek operation).
+   *
+   * @param prefix - Path prefix to filter by (e.g., git root)
+   * @returns Array of cached paths that start with the prefix
+   */
+  getPathsUnder(prefix: string): string[] {
+    const normalizedPrefix = this.normalizePath(prefix);
+    const paths: string[] = [];
+
+    // Use case-aware comparison (handles macOS/Windows case-insensitivity)
+    const prefixToMatch = normalizePathForComparison(normalizedPrefix);
+
+    for (const cachedPath of this.cache.keys()) {
+      const pathToMatch = normalizePathForComparison(cachedPath);
+      // Include exact match and children (prefix + /)
+      if (
+        pathToMatch === prefixToMatch ||
+        pathStartsWith(cachedPath, normalizedPrefix)
+      ) {
+        paths.push(cachedPath); // Return original path, not lowercased
+      }
+    }
+
+    return paths;
+  }
+
   // -------------------------------------------------------------------------
   // Internal Helpers
   // -------------------------------------------------------------------------
@@ -403,14 +444,34 @@ class DirectoryCacheImpl {
    * Normalize a path for consistent cache keys.
    *
    * - Removes trailing slashes (except for root '/')
+   * - Lowercases on case-insensitive filesystems (macOS/Windows)
    * - Ensures consistent format
    */
   private normalizePath(dirPath: string): string {
+    let normalized = dirPath;
+
     // Remove trailing slash unless it's the root
-    if (dirPath.length > 1 && dirPath.endsWith("/")) {
-      return dirPath.slice(0, -1);
+    if (normalized.length > 1 && normalized.endsWith("/")) {
+      normalized = normalized.slice(0, -1);
     }
-    return dirPath;
+
+    // Normalize case on case-insensitive filesystems
+    // This ensures watcher events (with canonical casing) match cached entries
+    return normalizePathForComparison(normalized);
+  }
+
+  /**
+   * Check if two entry names match, handling case sensitivity correctly.
+   *
+   * On case-insensitive filesystems (macOS/Windows), comparison is case-insensitive.
+   * This ensures that when a watcher reports a file with different casing than
+   * what's in the cache, we still match correctly.
+   */
+  private entryNamesMatch(name1: string, name2: string): boolean {
+    if (isCaseInsensitiveFS) {
+      return name1.toLowerCase() === name2.toLowerCase();
+    }
+    return name1 === name2;
   }
 
   /**

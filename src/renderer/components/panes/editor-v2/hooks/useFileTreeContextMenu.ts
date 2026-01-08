@@ -10,6 +10,7 @@
  * ```tsx
  * const { showContextMenu, setFocusState } = useFileTreeContextMenu({
  *   cwd,
+ *   homeDirectory,
  *   onNewFile: handleNewFile,
  *   onNewFolder: handleNewFolder,
  *   onRename: handleRename,
@@ -17,14 +18,13 @@
  * });
  *
  * // Call on right-click
- * showContextMenu(path, isFile, e);
+ * showContextMenu(path, isFile, isSymlink, e);
  *
  * // Call on focus changes
  * setFocusState(isFocused, focusedPath, entryType);
  * ```
  */
 
-import { useCallback, useEffect, useRef } from "react";
 import {
   getCommandRegistry,
   getContextKeyService,
@@ -32,11 +32,14 @@ import {
   getMenuRegistry,
 } from "@/commands";
 import {
+  fileTreeChangesMode,
   fileTreeCwd,
   fileTreeFocused,
   fileTreeItemFocused,
+  fileTreeItemInHomeDirectory,
   fileTreeItemIsDirectory,
   fileTreeItemIsFile,
+  fileTreeItemIsSymlink,
   fileTreeTargetPath,
 } from "@/commands/contextKeys/appContextKeys";
 import {
@@ -45,10 +48,14 @@ import {
 } from "@/commands/fileTreeCommands";
 import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { MenuId } from "@/commands/menus/types";
+import { useCallback, useEffect, useRef } from "react";
 
 export interface UseFileTreeContextMenuOptions {
   /** Current working directory of the file tree */
   cwd: string;
+
+  /** User's home directory (for dotfiles context) */
+  homeDirectory?: string;
 
   /** Callback when "New File" command is executed (path is parent directory) */
   onNewFile: (parentPath: string) => void;
@@ -68,7 +75,12 @@ export interface UseFileTreeContextMenuResult {
    * Show the context menu for a file tree item.
    * Call this on right-click.
    */
-  showContextMenu: (path: string, isFile: boolean, e: React.MouseEvent) => void;
+  showContextMenu: (
+    path: string,
+    isFile: boolean,
+    isSymlink: boolean,
+    e: React.MouseEvent,
+  ) => void;
 
   /**
    * Update the focus state context keys.
@@ -86,6 +98,7 @@ export interface UseFileTreeContextMenuResult {
  */
 export function useFileTreeContextMenu({
   cwd,
+  homeDirectory,
   onNewFile,
   onNewFolder,
   onRename,
@@ -101,7 +114,12 @@ export function useFileTreeContextMenu({
 
   // Update callbacks ref when they change
   useEffect(() => {
-    callbacksRef.current = { onNewFile, onNewFolder, onRename, onDelete };
+    callbacksRef.current = {
+      onNewFile,
+      onNewFolder,
+      onRename,
+      onDelete,
+    };
   }, [onNewFile, onNewFolder, onRename, onDelete]);
 
   // Register callbacks with the command system
@@ -163,7 +181,12 @@ export function useFileTreeContextMenu({
    * Show the context menu for a file tree item.
    */
   const showContextMenu = useCallback(
-    (path: string, isFile: boolean, e: React.MouseEvent) => {
+    (
+      path: string,
+      isFile: boolean,
+      isSymlink: boolean,
+      e: React.MouseEvent,
+    ) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -173,13 +196,26 @@ export function useFileTreeContextMenu({
         const commandRegistry = getCommandRegistry();
         const keybindingRegistry = getKeybindingRegistry();
 
+        // Determine if the path is in the home directory
+        const isInHomeDirectory = homeDirectory
+          ? path.startsWith(homeDirectory + "/") || path === homeDirectory
+          : false;
+
         // Set context keys for the right-clicked item
         contextKeyService.setGlobal(fileTreeFocused.key, true);
         contextKeyService.setGlobal(fileTreeItemFocused.key, true);
         contextKeyService.setGlobal(fileTreeTargetPath.key, path);
         contextKeyService.setGlobal(fileTreeItemIsFile.key, isFile);
         contextKeyService.setGlobal(fileTreeItemIsDirectory.key, !isFile);
+        contextKeyService.setGlobal(fileTreeItemIsSymlink.key, isSymlink);
+        contextKeyService.setGlobal(
+          fileTreeItemInHomeDirectory.key,
+          isInHomeDirectory,
+        );
         contextKeyService.setGlobal(fileTreeCwd.key, cwd);
+
+        // Explicitly set changes mode to false (normal file tree mode)
+        contextKeyService.setGlobal(fileTreeChangesMode.key, false);
 
         // Get context values for evaluating when clauses
         const contextValues = contextKeyService.getAll();
@@ -223,7 +259,7 @@ export function useFileTreeContextMenu({
         console.error("Failed to show file tree context menu:", error);
       }
     },
-    [cwd],
+    [cwd, homeDirectory],
   );
 
   // Listen for context menu command events

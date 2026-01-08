@@ -12,3 +12,5 @@ export { EditorActionButtons } from "./EditorActionButtons";
 export type { EditorActionButtonsProps } from "./EditorActionButtons";
 export { DiffModeToggle } from "./DiffModeToggle";
 export type { DiffModeToggleProps } from "./DiffModeToggle";
+export { PreviewModeToggle } from "./PreviewModeToggle";
+export type { PreviewModeToggleProps } from "./PreviewModeToggle";

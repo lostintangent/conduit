@@ -152,7 +152,7 @@ type TerminalPane = {
   sessionId: string; // PTY session ID
   cwd: string | null; // Working directory
   processTitle: string; // Current process
-  vmMetadata?: VMMetadata; // Cloud VM details
+  vmId?: string; // Cloud VM ID (connection details managed by backend)
   agentSessionId?: string; // Agent context
 };
 
@@ -162,6 +162,7 @@ type EditorPane = {
   cwd: string; // Base directory
   filePath?: string; // Currently open file
   treeMode?: "all" | "changes"; // File tree filter
+  vmId?: string; // Cloud VM ID (connection details managed by backend)
   agentSessionId?: string; // Agent context
 };
 

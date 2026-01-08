@@ -35,11 +35,13 @@ export interface UseCommandSystemOptions {
   applicationMode: ApplicationMode;
   setApplicationMode: (mode: ApplicationMode) => void;
   homeDirectory?: string;
+  dotfilesRepo?: string;
   workspaceName?: string;
   // Context key data
   hasCustomLayout: (tabId: string) => boolean;
   hasLastWorkspace: boolean;
   // UI state setters
+  setShowGeneralSettings: (show: boolean) => void;
   setShowKeybindingsEditor: (show: boolean) => void;
   setShowPaneActionsEditor: (show: boolean) => void;
   setShowAgentsEditor: (show: boolean) => void;
@@ -75,9 +77,11 @@ export function useCommandSystem(
     applicationMode,
     setApplicationMode,
     homeDirectory,
+    dotfilesRepo,
     workspaceName,
     hasCustomLayout,
     hasLastWorkspace,
+    setShowGeneralSettings,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
@@ -169,16 +173,18 @@ export function useCommandSystem(
           setShowKeybindingsEditor(true);
         },
         openSettings: (
-          tab?: "keyboard" | "paneActions" | "agents" | "preferences",
+          tab?: "general" | "keybindings" | "paneActions" | "agents",
         ) => {
-          if (tab === "keyboard") {
+          if (tab === "general") {
+            setShowGeneralSettings(true);
+          } else if (tab === "keybindings") {
             setShowKeybindingsEditor(true);
           } else if (tab === "paneActions") {
             setShowPaneActionsEditor(true);
           } else if (tab === "agents") {
             setShowAgentsEditor(true);
           } else {
-            setShowKeybindingsEditor(true); // Default to keyboard for now
+            setShowGeneralSettings(true);
           }
         },
       },
@@ -199,6 +205,7 @@ export function useCommandSystem(
       setApplicationMode,
 
       // UI state setters
+      setShowGeneralSettings,
       setShowKeybindingsEditor,
       setShowPaneActionsEditor,
       setShowAgentsEditor,
@@ -223,6 +230,7 @@ export function useCommandSystem(
     applicationMode,
     setApplicationMode,
     workspaceName,
+    setShowGeneralSettings,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
     setShowAgentsEditor,
@@ -256,6 +264,7 @@ export function useCommandSystem(
     );
     contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
     contextKeyService.setGlobal("tabIsLocked", Boolean(activeTab?.locked));
+    contextKeyService.setGlobal("dotfilesEnabled", !!dotfilesRepo);
 
     // Update hasCustomLayout context key
     if (activeTab && hasCustomLayout) {
@@ -300,6 +309,7 @@ export function useCommandSystem(
     activeTab,
     hasCustomLayout,
     applicationMode,
+    dotfilesRepo,
   ]);
 
   // Watch keybindings file for external changes

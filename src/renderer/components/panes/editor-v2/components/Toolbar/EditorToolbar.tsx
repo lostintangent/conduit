@@ -7,15 +7,23 @@
  * - size={14} icons
  */
 
-import { ChevronLeft, PanelLeftOpen } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  ChevronLeft,
+  Code,
+  Eye,
+  GitCompare,
+  PanelLeftOpen,
+} from "lucide-react";
+import { useCallback, useState } from "react";
 import type { ModelState } from "../../types";
-import { EditorActionButtons, DiffModeToggle } from "../shared";
+import { EditorActionButtons } from "../shared";
 
 export interface EditorToolbarProps {
   /** Current model state (dirty, orphaned, etc.) */
@@ -65,6 +73,15 @@ export interface EditorToolbarProps {
 
   /** Handler for toggling between diff and edit modes */
   onToggleDiffMode?: (isDiff: boolean) => void;
+
+  /** Whether to show the preview toggle (for supported file types like .md) */
+  showPreviewToggle?: boolean;
+
+  /** Whether currently in preview mode */
+  isPreviewMode?: boolean;
+
+  /** Handler for toggling between preview and editor modes */
+  onTogglePreviewMode?: (isPreview: boolean) => void;
 }
 
 /**
@@ -88,11 +105,23 @@ export function EditorToolbar({
   showDiffToggle = false,
   isDiffMode = false,
   onToggleDiffMode,
+  showPreviewToggle = false,
+  isPreviewMode = false,
+  onTogglePreviewMode,
 }: EditorToolbarProps) {
   const isDirty = modelState?.isDirty ?? false;
+  const [copied, setCopied] = useState(false);
 
   // Use displayPath if provided, otherwise fall back to filePath
   const pathToShow = displayPath ?? filePath ?? "";
+
+  const handleCopyPath = useCallback(() => {
+    if (pathToShow) {
+      navigator.clipboard.writeText(pathToShow);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }, [pathToShow]);
 
   // Common button class matching v1
   const buttonClass =
@@ -161,35 +190,67 @@ export function EditorToolbar({
           />
         )}
 
-        {/* File name with full path tooltip */}
+        {/* File name with full path tooltip - click to copy */}
         {pathToShow && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate cursor-help">
+              <button
+                type="button"
+                onClick={handleCopyPath}
+                className="truncate cursor-pointer hover:text-foreground/80 transition-colors text-left"
+              >
                 {pathToShow.split("/").pop() ?? pathToShow}
-              </span>
+              </button>
             </TooltipTrigger>
-            <TooltipContent>{pathToShow}</TooltipContent>
+            <TooltipContent>
+              {copied ? "Copied!" : `${pathToShow} - Click to copy`}
+            </TooltipContent>
           </Tooltip>
         )}
 
-        {/* Diff/Edit mode toggle (only for git-modified files) */}
-        {showDiffToggle && onToggleDiffMode && (
+        {/* Editor/Diff/Preview mode toggle group (only shown when diff or preview is available) */}
+        {(showDiffToggle || showPreviewToggle) && (
           <>
             <Separator
               orientation="vertical"
               className="h-4 mx-1 bg-elevated-border"
             />
-            <DiffModeToggle
-              isDiffMode={isDiffMode}
-              onToggle={() => onToggleDiffMode(!isDiffMode)}
-              variant="toolbar"
-            />
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              className="gap-0 h-5.5 [&>*]:h-5.5 [&>*]:px-1.5 [&>*]:py-0 [&>*:first-child]:rounded-r-none [&>*:last-child]:rounded-l-none [&>*:not(:first-child):not(:last-child)]:rounded-none [&>*:not(:first-child)]:-ml-px"
+              value={isPreviewMode ? "preview" : isDiffMode ? "diff" : "editor"}
+              onValueChange={(value) => {
+                if (!value) return; // Don't allow deselecting
+                if (value === "editor") {
+                  onToggleDiffMode?.(false);
+                  onTogglePreviewMode?.(false);
+                } else if (value === "diff") {
+                  onToggleDiffMode?.(true);
+                } else if (value === "preview") {
+                  onTogglePreviewMode?.(true);
+                }
+              }}
+            >
+              <ToggleGroupItem value="editor" aria-label="Editor mode">
+                <Code className="w-3 h-3" />
+              </ToggleGroupItem>
+              {showDiffToggle && (
+                <ToggleGroupItem value="diff" aria-label="Diff mode">
+                  <GitCompare className="w-3 h-3" />
+                </ToggleGroupItem>
+              )}
+              {showPreviewToggle && (
+                <ToggleGroupItem value="preview" aria-label="Preview mode">
+                  <Eye className="w-3 h-3" />
+                </ToggleGroupItem>
+              )}
+            </ToggleGroup>
           </>
         )}
-
         {/* Edit actions (after file path, with separator) */}
-        {pathToShow && (
+        {pathToShow && !isPreviewMode && (
           <>
             <Separator
               orientation="vertical"

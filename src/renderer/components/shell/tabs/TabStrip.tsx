@@ -4,7 +4,6 @@ import {
   useCommand,
 } from "@/commands/hooks/useCommand";
 import { TabPreviewOverlay } from "@/components/layout/overview/TabPreviewOverlay";
-import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton } from "@/components/shell/tabs/TabButton";
 import { TabPlaceholder } from "@/components/shell/tabs/TabPlaceholder";
@@ -21,7 +20,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { openHyperTerminal } from "@/store/actions/hyperTerminal";
+import {
+  openHyperTerminal,
+  restoreMinimizedHyperTerminals,
+} from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
   enqueueNotification,
@@ -30,6 +32,7 @@ import {
 import {
   focusTab,
   getActiveTabCwd,
+  getActiveTabSandboxId,
   moveTab,
   openTab,
 } from "@/store/actions/tab";
@@ -37,13 +40,15 @@ import {
   activeTabAtom,
   activeTabIdAtom,
   applicationModeAtom,
+  hyperTerminalsAtom,
+  quickPaneAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import type { TabPosition } from "@shared/types";
 import { generateId } from "@shared/utils";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   ChevronDown,
   Cloud,
@@ -71,20 +76,22 @@ const isWindows = window.conduit.platform === "win32";
 type TabStripProps = {
   onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
-  onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   position?: TabPosition;
 };
 
 export const TabStrip = ({
   onOpenCommandPalette,
   onTabContextMenu,
-  onOpenQuickPane,
   position = "top",
 }: TabStripProps) => {
   const tabLabels = useAtomValue(tabLabelsAtom);
   const tabs = useAtomValue(tabsAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const hyperTerminals = useAtomValue(hyperTerminalsAtom);
+  const hasMinimizedTerminals = hyperTerminals.some(
+    (t) => t.state === "minimized",
+  );
   const activePane =
     activeTab?.activePaneId !== undefined
       ? activeTab?.panes[activeTab.activePaneId]
@@ -94,6 +101,7 @@ export const TabStrip = ({
   const shouldShowLaunchButton = showLaunchButton ?? false;
   const scriptTarget = playButtonTarget ?? "newPane";
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const setQuickPaneState = useSetAtom(quickPaneAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
   const hasMultipleTabs = tabs.length > 1;
@@ -537,6 +545,23 @@ export const TabStrip = ({
   ]);
 
   const handleOpenHyperTerminal = useCallback(async () => {
+    // If there are minimized terminals, restore them instead of opening a new one
+    if (hasMinimizedTerminals) {
+      restoreMinimizedHyperTerminals();
+      return;
+    }
+
+    const api = window.conduit;
+    const cwd = getActiveTabCwd(activeTab, homeDirectory);
+    const result = await api.createTerminal({ cwd });
+    if (!result) return;
+
+    const paneId = generateId();
+    openHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
+  }, [activeTab, homeDirectory, hasMinimizedTerminals]);
+
+  // Always opens a new hyper terminal (used in dropdown menu)
+  const handleNewHyperTerminal = useCallback(async () => {
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
@@ -547,18 +572,17 @@ export const TabStrip = ({
   }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
-    if (!onOpenQuickPane) return;
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
     const result = await api.createTerminal({ cwd });
     if (!result) return;
 
-    onOpenQuickPane({
+    setQuickPaneState({
       type: "terminal",
       sessionId: result.sessionId,
       cwd: result.cwd ?? null,
     });
-  }, [activeTab, homeDirectory, onOpenQuickPane]);
+  }, [activeTab, homeDirectory, setQuickPaneState]);
 
   const handleOpenQuickCloudTerminal = useCallback(() => {
     setIsRepoDialogOpen(true);
@@ -566,12 +590,12 @@ export const TabStrip = ({
 
   const handleOpenQuickFileExplorer = useCallback(() => {
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    onOpenQuickPane({ type: "editor", cwd });
-  }, [activeTab, homeDirectory, onOpenQuickPane]);
+    const sandboxId = getActiveTabSandboxId(activeTab);
+    setQuickPaneState({ type: "editor", cwd, sandboxId });
+  }, [activeTab, homeDirectory, setQuickPaneState]);
 
   const handleRepoSubmit = useCallback(
     async (repo?: { owner: string; name: string }) => {
-      if (!onOpenQuickPane) return;
       const api = window.conduit;
 
       const notificationId = enqueueNotification({
@@ -592,11 +616,11 @@ export const TabStrip = ({
 
         dismissNotification(notificationId);
 
-        onOpenQuickPane({
+        setQuickPaneState({
           type: "terminal",
           sessionId: result.sessionId,
           cwd: result.cwd ?? null,
-          vmMetadata: result.vmMetadata ?? undefined,
+          sandboxId: result.sandboxId ?? undefined,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -608,7 +632,7 @@ export const TabStrip = ({
         });
       }
     },
-    [onOpenQuickPane],
+    [setQuickPaneState],
   );
 
   // Use margins to create gaps that reveal the overlay underneath
@@ -616,9 +640,7 @@ export const TabStrip = ({
   const marginClass = alwaysShowTabs
     ? position === "top"
       ? "mb-[1px]"
-      : isWindows
-        ? "mt-[1px] rounded-b"
-        : "mt-[1px] rounded-b-xl"
+      : "mt-[1px]"
     : "";
 
   return (
@@ -725,14 +747,25 @@ export const TabStrip = ({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10"
-                  aria-label="Open hyper terminal"
+                  className="w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10 relative"
+                  aria-label={
+                    hasMinimizedTerminals
+                      ? "Restore hyper terminal"
+                      : "Open hyper terminal"
+                  }
                   onClick={handleOpenHyperTerminal}
                 >
                   <SquareTerminal size={18} />
+                  {hasMinimizedTerminals && (
+                    <span className="absolute top-1 right-0.5 w-2 h-2 rounded-full bg-[#FFBD2E]" />
+                  )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Open hyper terminal</TooltipContent>
+              <TooltipContent side="bottom">
+                {hasMinimizedTerminals
+                  ? "Restore hyper terminal"
+                  : "Open hyper terminal"}
+              </TooltipContent>
             </Tooltip>
 
             <DropdownMenu>
@@ -746,7 +779,7 @@ export const TabStrip = ({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleOpenHyperTerminal}>
+                <DropdownMenuItem onClick={handleNewHyperTerminal}>
                   <Zap size={16} className="mr-3" />
                   Hyper Terminal
                 </DropdownMenuItem>

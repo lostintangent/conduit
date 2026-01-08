@@ -26,13 +26,15 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AgentPanel } from "./AgentPanel";
-import { CloudTerminalOverlay } from "./CloudTerminalOverlay";
-import { ComputeTargetIndicator } from "./ComputeTargetIndicator";
-import { createFitController } from "./FitController";
-import { RepoScriptsMenu } from "./RepoScriptsMenu";
-import { SearchWidget, type SearchWidgetHandle } from "./SearchWidget";
-import { attach, getOrCreate, serializeSession } from "./xtermCache";
+import { AgentPanel } from "./shell/AgentPanel";
+import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
+import { TerminalGitStats } from "./shell/TerminalGitStats";
+import { CloudTerminalOverlay } from "./shell/sandbox/CloudTerminalOverlay";
+import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
+import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
+import { createFitController } from "./state/fitController";
+import { attach, getOrCreate, serializeSession } from "./state/xtermCache";
+import { useImageDrop } from "./useImageDrop";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -113,11 +115,29 @@ const registerTerminalKeyHandler = ({
       event.key.toLowerCase() === "c"
     ) {
       if (terminal.hasSelection()) {
+        if (api.platform === "win32") {
+          // On Windows, we need to explicitly copy the selection to the clipboard
+          // because returning true to let the browser handle it doesn't work in Electron.
+          navigator.clipboard.writeText(terminal.getSelection());
+          return false;
+        }
         return true;
       }
 
       api.sendKeypress(sessionId, "\u0003");
       onSynchronizedInput?.("\u0003");
+      return false;
+    }
+
+    if (
+      api.platform === "win32" && //windows only handler
+      isCtrlOrMeta &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.key.toLowerCase() === "t"
+    ) {
+      // Ctrl+T / Cmd+T: Open new terminal tab, let the global handler deal with it
+      // If we don't do this, the Windows terminal will capture the event and insert a '^T' character.
       return false;
     }
 
@@ -171,7 +191,7 @@ export const TerminalPane = ({
   isTabSynchronized = false,
   fontSize,
 }: TerminalPaneProps) => {
-  const { id: paneId, sessionId: terminalId, cwd, cloneOf } = pane;
+  const { id: paneId, sessionId: terminalId, cwd, cloneOf, sandboxId } = pane;
   const settings = useAtomValue(userSettingsAtom);
   const tabs = useAtomValue(tabsAtom);
   const { showTerminalRuler } = settings;
@@ -226,6 +246,10 @@ export const TerminalPane = ({
 
     return terminalId;
   }, [cloneOf, tabId, tabs, terminalId]);
+
+  const { isImageDragOver, dragHandlers: imageDragHandlers } = useImageDrop({
+    sessionId,
+  });
 
   const handleSynchronizedInput = useCallback(
     (input: string) => {
@@ -575,10 +599,16 @@ export const TerminalPane = ({
 
   return (
     <div
-      className="w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-background"
+      className="group w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-background"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
+      {...imageDragHandlers}
     >
+      {/* Image drop overlay */}
+      {isImageDragOver && (
+        <div className="pointer-events-none absolute inset-0 z-30 bg-accent/40" />
+      )}
+
       {/** xTerm.js container (which can't have padding applied directly to it) */}
       <div className="w-full h-full pl-2 pt-2">
         <div className="w-full h-full" ref={containerRef} />
@@ -602,6 +632,9 @@ export const TerminalPane = ({
           </Tooltip>
         </div>
       )}
+
+      {/* Git stats badge (top-right, pinned) */}
+      <TerminalGitStats cwd={cwd} sandboxId={sandboxId} />
 
       <SearchWidget
         ref={searchWidgetRef}
@@ -628,7 +661,11 @@ export const TerminalPane = ({
 
       {/* Repository scripts menu */}
       <div className="pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-50">
-        <RepoScriptsMenu cwd={cwd} onRunScript={handleRunScript} />
+        <RepoScriptsMenu
+          cwd={cwd}
+          sandboxId={sandboxId}
+          onRunScript={handleRunScript}
+        />
       </div>
 
       {/* Cloud terminal SSH connection state overlays */}

@@ -132,6 +132,8 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   cs: "csharp",
   php: "php",
   rb: "ruby",
+  zig: "zig",
+  zon: "zig",
 
   // Database
   sql: "sql",

@@ -100,7 +100,7 @@ type Pane = TerminalPane | BrowserPane | EditorPane;
   cwd: "/Users/dev/project",
   processTitle: "zsh",           // Current process name
   command: null,                 // Captured on save
-  vmMetadata: { ... }            // Cloud VM info if applicable
+  vmId: "vm-123"                 // Cloud VM ID (connection details managed by backend)
 }
 ```
 
@@ -406,7 +406,7 @@ type TerminalPane = {
 type TerminalPane = SharedTerminalPane & {
   sessionId: string; // PTY session reference
   processTitle: string; // Current process name
-  vmMetadata?: VMMetadata; // Cloud VM info
+  vmId?: string; // Cloud VM ID (connection details managed by backend)
   // Agent session metadata...
 };
 ```

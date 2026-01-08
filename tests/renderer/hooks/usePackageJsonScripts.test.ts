@@ -2,16 +2,14 @@
  * @vitest-environment jsdom
  */
 import { renderHook } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing the hook - must be at module level
 const mockReadFile = vi.fn();
-const mockExists = vi.fn();
 (global as any).window = {
   conduit: {
     fsv2: {
       readFile: mockReadFile,
-      exists: mockExists,
     },
   },
 };
@@ -21,7 +19,6 @@ import { usePackageJsonScripts } from "@/hooks/usePackageJsonScripts";
 describe("usePackageJsonScripts", () => {
   beforeEach(() => {
     mockReadFile.mockReset();
-    mockExists.mockReset();
   });
 
   it("should return null when no cwd provided", async () => {
@@ -45,11 +42,8 @@ describe("usePackageJsonScripts", () => {
       },
     };
 
-    mockExists.mockImplementation((filePath) => {
-      return Promise.resolve(filePath === "/path/to/project/package.json");
-    });
-
-    mockReadFile.mockImplementation((filePath) => {
+    // New API: readFile(cwd, filePath, sandboxId)
+    mockReadFile.mockImplementation((cwd, filePath) => {
       if (filePath === "/path/to/project/package.json") {
         return Promise.resolve(
           new TextEncoder().encode(JSON.stringify(mockPackageJson)),
@@ -79,13 +73,8 @@ describe("usePackageJsonScripts", () => {
       },
     };
 
-    // Mock exists to return false for subdir, true for parent
-    mockExists.mockImplementation((filePath) => {
-      return Promise.resolve(filePath === "/path/to/project/package.json");
-    });
-
-    // Mock implementation that succeeds for parent
-    mockReadFile.mockImplementation((filePath) => {
+    // New API: readFile(cwd, filePath, sandboxId) - throw for subdir, succeed for parent
+    mockReadFile.mockImplementation((cwd, filePath) => {
       if (filePath === "/path/to/project/package.json") {
         return Promise.resolve(
           new TextEncoder().encode(JSON.stringify(mockPackageJson)),
@@ -105,8 +94,8 @@ describe("usePackageJsonScripts", () => {
   });
 
   it("should return null when package.json not found", async () => {
-    // No package.json exists anywhere
-    mockExists.mockResolvedValue(false);
+    // No package.json exists anywhere - all reads throw
+    mockReadFile.mockRejectedValue(new Error("File not found"));
 
     const { result } = renderHook(() =>
       usePackageJsonScripts("/path/to/project"),
@@ -125,7 +114,6 @@ describe("usePackageJsonScripts", () => {
       version: "1.0.0",
     };
 
-    mockExists.mockResolvedValue(true);
     mockReadFile.mockResolvedValue(
       new TextEncoder().encode(JSON.stringify(mockPackageJson)),
     );
@@ -141,7 +129,6 @@ describe("usePackageJsonScripts", () => {
   });
 
   it("should handle invalid JSON gracefully", async () => {
-    mockExists.mockResolvedValue(true);
     mockReadFile.mockResolvedValue(
       new TextEncoder().encode("{ invalid json }"),
     );

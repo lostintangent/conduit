@@ -163,3 +163,71 @@ export const fileTreeTargetPath = new ContextKey<string>(
  * Used for computing relative paths
  */
 export const fileTreeCwd = new ContextKey<string>("fileTreeCwd", "");
+
+/**
+ * Whether the focused file tree item is a symlink
+ * Used by: fileTree.addToDotfiles (hide for symlinks)
+ */
+export const fileTreeItemIsSymlink = new ContextKey<boolean>(
+  "fileTreeItemIsSymlink",
+  false,
+);
+
+/**
+ * Whether the focused file tree item is in the home directory
+ * Used by: fileTree.addToDotfiles (only show for home directory files)
+ */
+export const fileTreeItemInHomeDirectory = new ContextKey<boolean>(
+  "fileTreeItemInHomeDirectory",
+  false,
+);
+
+// ============================================================================
+// File Tree Changes Mode Context Keys
+// ============================================================================
+
+/**
+ * Whether the file tree is in "changes" mode (showing only changed files).
+ * When true, shows git-specific actions (stage/unstage/revert) instead of
+ * file operations like New File/New Folder.
+ * Used by: fileTree.stage, fileTree.unstage, fileTree.revert commands
+ */
+export const fileTreeChangesMode = new ContextKey<boolean>(
+  "fileTreeChangesMode",
+  false,
+);
+
+/**
+ * Whether the focused file tree item is in the staged section.
+ * Only relevant when fileTreeChangesMode is true.
+ * Used by: fileTree.stage (hide), fileTree.unstage (show),
+ *          fileTree.rename/delete (hide for staged items)
+ */
+export const fileTreeItemIsStaged = new ContextKey<boolean>(
+  "fileTreeItemIsStaged",
+  false,
+);
+
+/**
+ * The map key of the file tree item being acted upon.
+ * In changes mode, this may differ from the path (includes suffix for unstaged
+ * entries of partially staged files).
+ * Used by: fileTree.stage, fileTree.unstage, fileTree.revert commands
+ */
+export const fileTreeItemMapKey = new ContextKey<string>(
+  "fileTreeItemMapKey",
+  "",
+);
+
+// ============================================================================
+// Dotfiles Context Keys
+// ============================================================================
+
+/**
+ * Whether dotfiles is enabled (user has configured a dotfiles repo)
+ * Used by: fileTree.addToDotfiles command visibility
+ */
+export const dotfilesEnabled = new ContextKey<boolean>(
+  "dotfilesEnabled",
+  false,
+);

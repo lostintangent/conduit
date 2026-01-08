@@ -8,7 +8,9 @@ export const ApplicationCommands = {
   // View commands
   VIEW_TOGGLE_FOCUS_MODE: "view.toggleFocusMode",
   VIEW_TOGGLE_DESIGN_MODE: "view.toggleDesignMode",
-  VIEW_OPEN_KEYBOARD_SHORTCUTS: "view.openKeyboardShortcuts",
+  VIEW_TOGGLE_SIDEBAR: "view.toggleSidebar",
+  VIEW_OPEN_SETTINGS: "view.openSettings",
+  VIEW_OPEN_KEYBINDINGS: "view.openKeybindings",
   VIEW_OPEN_PANE_ACTIONS: "view.openPaneActions",
   VIEW_OPEN_AGENTS: "view.openAgents",
   VIEW_SHOW_COMMAND_PALETTE: "view.showCommandPalette",
@@ -37,6 +39,10 @@ export const ApplicationCommands = {
   PANE_OPEN_WEB_PAGE: "pane.openWebPage",
   PANE_FOCUS: "pane.focus",
   PANE_CLOSE: "pane.close",
+  PANE_NAVIGATE_LEFT: "pane.navigateLeft",
+  PANE_NAVIGATE_RIGHT: "pane.navigateRight",
+  PANE_NAVIGATE_UP: "pane.navigateUp",
+  PANE_NAVIGATE_DOWN: "pane.navigateDown",
   PANE_SPLIT_LEFT: "pane.splitLeft",
   PANE_SPLIT_RIGHT: "pane.splitRight",
   PANE_SPLIT_TOP: "pane.splitTop",
@@ -61,6 +67,7 @@ export const ApplicationCommands = {
   PANE_SPLIT_TOP_EDITOR: "pane.splitTopEditor",
   PANE_SPLIT_BOTTOM_EDITOR: "pane.splitBottomEditor",
   PANE_CLONE: "pane.clone",
+  PANE_VIEW_FILES: "pane.viewFiles",
 
   // Terminal commands
   TERMINAL_CREATE_CLOUD: "terminal.createCloud",
@@ -72,6 +79,9 @@ export const ApplicationCommands = {
   AGENT_MERGE_AND_CLOSE: "agent.mergeAndClose",
   AGENT_TERMINATE: "agent.terminate",
   AGENT_DELETE_ALL_WORKTREES: "agent.deleteAllWorktrees",
+
+  // Browser commands
+  BROWSER_TOGGLE_TOOLBAR: "browser.toggleToolbar",
 
   // Editor commands
   EDITOR_TOGGLE_SIDEBAR: "editor.toggleSidebar",

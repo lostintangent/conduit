@@ -106,6 +106,24 @@ function uriToPath(uri: string): string {
   return monaco.Uri.parse(uri).fsPath;
 }
 
+/**
+ * Create a model key that uniquely identifies a model.
+ *
+ * For local files, the key is simply the URI.
+ * For VM files (with sandboxId), the key includes the sandboxId suffix.
+ *
+ * @param filePath - Absolute path to the file
+ * @param sandboxId - Optional sandbox ID for VM files
+ * @returns A unique key for the model
+ */
+function createModelKey(filePath: string, sandboxId?: string): string {
+  const uri = pathToUri(filePath);
+  if (sandboxId) {
+    return `${uri}::vm:${sandboxId}`;
+  }
+  return uri;
+}
+
 // ============================================================================
 // MonacoModelRegistry
 // ============================================================================
@@ -191,11 +209,17 @@ export class MonacoModelRegistry {
   /** Event emitter for model state changes */
   private readonly _onModelStateChanged = new EventEmitter<ModelStateEvent>();
 
+  /** Event emitter for model availability changes (for useSyncExternalStore) */
+  private readonly _onModelAvailabilityChanged = new EventEmitter<string>();
+
   /** Maximum number of models (for LRU eviction) */
   private maxModels: number = DEFAULT_MAX_MODELS;
 
   /** Maximum file size in bytes */
   private maxFileSize: number = DEFAULT_MAX_FILE_SIZE;
+
+  /** Paths temporarily suppressed from orphan warnings (e.g., during dotfiles move) */
+  private suppressedOrphanPaths = new Set<string>();
 
   /** Debug: History of reference events (only in debug mode) */
   private referenceHistory: ReferenceEvent[] = [];
@@ -214,6 +238,30 @@ export class MonacoModelRegistry {
    * Event fired when model state changes (dirty, orphaned, external changes).
    */
   readonly onModelStateChanged = this._onModelStateChanged.event;
+
+  /**
+   * Subscribe to model availability changes for a specific model key.
+   *
+   * Used by useSyncExternalStore to synchronously read model state during render.
+   * The callback is called when a model with the given key becomes available.
+   *
+   * @param modelKey - The model key to watch (use createModelKey to generate)
+   * @param callback - Function to call when model availability changes
+   * @returns Unsubscribe function
+   */
+  subscribeToModelAvailability(
+    modelKey: string,
+    callback: () => void,
+  ): () => void {
+    // Subscribe to the event and filter by modelKey
+    const disposable = this._onModelAvailabilityChanged.event((changedKey) => {
+      if (changedKey === modelKey) {
+        callback();
+      }
+    });
+
+    return () => disposable.dispose();
+  }
 
   // ---------------------------------------------------------------------------
   // Public Methods - Model Lifecycle
@@ -239,14 +287,16 @@ export class MonacoModelRegistry {
   async getOrCreateModel(
     filePath: string,
     cwd: string,
+    sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
     // Prevent new loads during disposal
     if (this.isDisposing) {
       throw new Error("Registry is being disposed, cannot create new models");
     }
 
-    const uri = pathToUri(filePath);
-    const existing = this.models.get(uri);
+    // Create composite key that includes sandboxId for VM isolation
+    const modelKey = createModelKey(filePath, sandboxId);
+    const existing = this.models.get(modelKey);
 
     if (existing) {
       // Cancel any pending disposal
@@ -258,14 +308,18 @@ export class MonacoModelRegistry {
       // Update lastUsed timestamp for LRU tracking
       existing.lastUsed = Date.now();
 
+      // Background freshness check for files that might have changed externally
+      // (especially important for files in watcher-ignored directories)
+      this.checkAndReloadIfStale(modelKey, existing);
+
       return existing.model;
     }
 
-    // Key includes cwd to prevent incorrect deduplication when same
-    // relative path exists in different working directories
-    const loadingKey = `${cwd}:${uri}`;
+    // Key includes cwd and sandboxId to prevent incorrect deduplication when same
+    // relative path exists in different working directories or different sandboxes
+    const loadingKey = `${cwd}:${sandboxId || "local"}:${modelKey}`;
 
-    // Check if a load is already in progress for this URI+cwd
+    // Check if a load is already in progress for this URI+cwd+sandboxId
     const pendingLoad = this.loadingPromises.get(loadingKey);
     if (pendingLoad) {
       // Return the existing promise - don't start a second load
@@ -277,7 +331,12 @@ export class MonacoModelRegistry {
     this.loadingAbortControllers.set(loadingKey, abortController);
 
     // Start loading and track the promise
-    const loadPromise = this.createModel(filePath, cwd, abortController.signal)
+    const loadPromise = this.createModel(
+      filePath,
+      cwd,
+      abortController.signal,
+      sandboxId,
+    )
       .then((model) => {
         // Run LRU eviction after successful load
         this.evictLRU();
@@ -411,6 +470,19 @@ export class MonacoModelRegistry {
     return this.models.get(uri)?.references.size ?? 0;
   }
 
+  /**
+   * Suppress the orphan warning for a file path.
+   *
+   * Use this when moving a file (e.g., to dotfiles) where a symlink
+   * will be created immediately, to avoid showing a "file deleted" warning.
+   * The suppression is automatically cleared after the first deletion event.
+   *
+   * @param filePath - The absolute file path to suppress
+   */
+  suppressOrphanWarning(filePath: string): void {
+    this.suppressedOrphanPaths.add(filePath);
+  }
+
   // ---------------------------------------------------------------------------
   // Public Methods - File Operations
   // ---------------------------------------------------------------------------
@@ -429,14 +501,16 @@ export class MonacoModelRegistry {
       throw new Error(`Model not found: ${uri}`);
     }
 
-    const filePath = uriToPath(uri);
+    // Use entry.filePath directly instead of uriToPath(uri) because
+    // uri is now a composite key (may include ::vm:sandboxId suffix)
+    const filePath = entry.filePath;
 
     // IMPORTANT: Capture both content AND version at the same time to avoid
     // race conditions if user edits during the async save operation.
     const content = entry.model.getValue();
     const versionAtSave = entry.model.getAlternativeVersionId();
 
-    const fsApi = this.getOrCreateFsApi(entry.cwd);
+    const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
 
     await fsApi.writeTextFile(filePath, content);
 
@@ -479,8 +553,10 @@ export class MonacoModelRegistry {
       throw new Error(`Model not found: ${uri}`);
     }
 
-    const filePath = uriToPath(uri);
-    const fsApi = this.getOrCreateFsApi(entry.cwd);
+    // Use entry.filePath directly instead of uriToPath(uri) because
+    // uri is now a composite key (may include ::vm:sandboxId suffix)
+    const filePath = entry.filePath;
+    const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
 
     const content = await fsApi.readTextFile(filePath);
 
@@ -665,8 +741,9 @@ export class MonacoModelRegistry {
     }
     this.fsApis.clear();
 
-    // Dispose event emitter
+    // Dispose event emitters
     this._onModelStateChanged.dispose();
+    this._onModelAvailabilityChanged.dispose();
 
     // Reset disposing flag (in case instance is reused)
     this.isDisposing = false;
@@ -790,25 +867,28 @@ export class MonacoModelRegistry {
     filePath: string,
     cwd: string,
     signal: AbortSignal,
+    sandboxId?: string,
   ): Promise<monaco.editor.ITextModel> {
-    const uri = pathToUri(filePath);
-    const fsApi = this.getOrCreateFsApi(cwd);
+    // Composite key for registry storage AND Monaco model URI
+    // This includes sandboxId for VM isolation, ensuring each VM gets its own Monaco model
+    const modelKey = createModelKey(filePath, sandboxId);
+    const fsApi = this.getOrCreateFsApi(cwd, sandboxId);
 
     // Check if already aborted
     if (signal.aborted) {
       throw new Error("Model load was aborted");
     }
 
-    // Check file size before reading content
-    // Wrapped in try/catch to handle file system errors gracefully
-    let fileSize: number;
+    // Read file content directly - skip separate stat call for performance
+    // (stat was taking 60-314ms due to FileSystem provider initialization overhead)
+    // We check content size after reading instead
+    let content: string;
     try {
-      const stats = await fsApi.stat(filePath);
-      fileSize = stats.size;
-    } catch (statError) {
+      content = await fsApi.readTextFile(filePath);
+    } catch (readError) {
       // Handle specific file system errors
       const errorMessage =
-        statError instanceof Error ? statError.message : String(statError);
+        readError instanceof Error ? readError.message : String(readError);
 
       // ENOENT - file not found (may have been deleted)
       if (
@@ -827,7 +907,7 @@ export class MonacoModelRegistry {
       }
 
       // Re-throw with context for other errors
-      throw new Error(`Failed to stat file "${filePath}": ${errorMessage}`);
+      throw new Error(`Failed to read file "${filePath}": ${errorMessage}`);
     }
 
     // Check abort after async operation
@@ -835,37 +915,19 @@ export class MonacoModelRegistry {
       throw new Error("Model load was aborted");
     }
 
-    // Reject files that exceed the maximum size limit
-    if (fileSize > this.maxFileSize) {
-      throw new FileTooLargeError(filePath, fileSize, this.maxFileSize);
+    // Check content size (use byte count estimate: content.length * 2 for UTF-16)
+    const contentBytes = content.length * 2;
+    if (contentBytes > this.maxFileSize) {
+      throw new FileTooLargeError(filePath, contentBytes, this.maxFileSize);
     }
 
     // Warn about large files (above warning threshold but below max)
-    if (fileSize > WARNING_FILE_SIZE) {
+    if (contentBytes > WARNING_FILE_SIZE) {
       this._onModelStateChanged.fire({
         type: "fileSizeWarning",
-        uri,
-        fileSize,
+        uri: modelKey,
+        fileSize: contentBytes,
       });
-    }
-
-    // Read file content
-    const content = await fsApi.readTextFile(filePath);
-
-    // Check abort after async operation
-    if (signal.aborted) {
-      throw new Error("Model load was aborted");
-    }
-
-    // Re-check content size after read (file may have grown since stat)
-    // Use byte count estimate (content.length * 2 for UTF-16)
-    const actualContentBytes = content.length * 2;
-    if (actualContentBytes > this.maxFileSize) {
-      throw new FileTooLargeError(
-        filePath,
-        actualContentBytes,
-        this.maxFileSize,
-      );
     }
 
     // Detect language
@@ -873,7 +935,8 @@ export class MonacoModelRegistry {
 
     // Check for pre-existing Monaco model (can happen during HMR when our
     // registry resets but Monaco's internal model registry persists)
-    const monacoUri = monaco.Uri.parse(uri);
+    // Use modelKey (which includes sandboxId) to ensure VM isolation
+    const monacoUri = monaco.Uri.parse(modelKey);
     let model = monaco.editor.getModel(monacoUri);
 
     if (model && !model.isDisposed()) {
@@ -890,6 +953,7 @@ export class MonacoModelRegistry {
       model,
       references: new Set(),
       cwd,
+      sandboxId,
       filePath,
       savedVersionId: model.getAlternativeVersionId(),
       isDirty: false,
@@ -903,14 +967,17 @@ export class MonacoModelRegistry {
 
     // Set up content change listener for dirty tracking
     entry.contentChangeDisposable = model.onDidChangeContent(() => {
-      this.handleContentChange(uri, entry);
+      this.handleContentChange(modelKey, entry);
     });
 
     // Set up file system event subscriptions
-    this.setupFileWatching(uri, filePath, entry, fsApi);
+    this.setupFileWatching(modelKey, filePath, entry, fsApi);
 
     // Add to registry
-    this.models.set(uri, entry);
+    this.models.set(modelKey, entry);
+
+    // Fire availability event for useSyncExternalStore subscribers
+    this._onModelAvailabilityChanged.fire(modelKey);
 
     return model;
   }
@@ -1025,7 +1092,7 @@ export class MonacoModelRegistry {
       entry.isReloading = true;
       try {
         // Use entry.filePath directly for consistency (avoids uri conversion)
-        const fsApi = this.getOrCreateFsApi(entry.cwd);
+        const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
         const content = await fsApi.readTextFile(entry.filePath);
 
         // Re-check isDirty after async read - user may have typed while loading
@@ -1070,9 +1137,66 @@ export class MonacoModelRegistry {
   }
 
   /**
+   * Background freshness check for cached models.
+   *
+   * Called when accessing a cached model to ensure it's up-to-date with disk.
+   * This is important for files in watcher-ignored directories (build/, dist/, etc.)
+   * that don't receive automatic file change notifications.
+   *
+   * Fire-and-forget: doesn't block model access, runs in background.
+   */
+  private checkAndReloadIfStale(uri: string, entry: ModelEntry): void {
+    // Skip if already reloading or has unsaved changes
+    if (entry.isReloading || entry.isDirty) {
+      return;
+    }
+
+    // Run check in background (don't await)
+    (async () => {
+      try {
+        const fsApi = this.getOrCreateFsApi(entry.cwd, entry.sandboxId);
+
+        // First, check mtime to avoid reading file content unnecessarily
+        const stat = await fsApi.stat(entry.filePath);
+        const currentMtime = stat.mtime;
+
+        // If mtime hasn't changed since last check, file is unchanged
+        if (
+          entry.lastCheckedMtime !== undefined &&
+          currentMtime === entry.lastCheckedMtime
+        ) {
+          return;
+        }
+
+        // Mtime changed (or first check) - read content to verify
+        const diskContent = await fsApi.readTextFile(entry.filePath);
+        const modelContent = entry.model.getValue();
+
+        // Update last checked mtime
+        entry.lastCheckedMtime = currentMtime;
+
+        // If content differs and model is still clean, reload
+        if (diskContent !== modelContent && !entry.isDirty) {
+          // Reuse existing external change handling logic
+          await this.handleExternalFileChange(uri, entry);
+        }
+      } catch (error) {
+        // Silently ignore errors (file might be deleted, permission issues, etc.)
+        // The user will see the cached content which is fine
+      }
+    })();
+  }
+
+  /**
    * Handle file deletion.
    */
   private handleFileDeleted(uri: string, entry: ModelEntry): void {
+    // Skip orphan warning if path is suppressed (e.g., during dotfiles move)
+    if (this.suppressedOrphanPaths.has(entry.filePath)) {
+      this.suppressedOrphanPaths.delete(entry.filePath);
+      return;
+    }
+
     entry.isOrphaned = true;
 
     // Clear ViewState for this file across all editors
@@ -1200,14 +1324,16 @@ export class MonacoModelRegistry {
    * Get or create a FileSystemV2API for a CWD.
    *
    * Uses FileSystemV2APIService to share instances with other components
-   * using the same cwd, reducing duplicate IPC subscriptions.
+   * using the same cwd and sandboxId, reducing duplicate IPC subscriptions.
    */
-  private getOrCreateFsApi(cwd: string): FileSystemV2API {
-    let fsApi = this.fsApis.get(cwd);
+  private getOrCreateFsApi(cwd: string, sandboxId?: string): FileSystemV2API {
+    // Use composite key to differentiate local vs VM file systems
+    const key = `${cwd}::${sandboxId || "local"}`;
+    let fsApi = this.fsApis.get(key);
     if (!fsApi) {
       // Acquire from service (increments refCount)
-      fsApi = FileSystemV2APIService.getInstance().acquire(cwd);
-      this.fsApis.set(cwd, fsApi);
+      fsApi = FileSystemV2APIService.getInstance().acquire(cwd, sandboxId);
+      this.fsApis.set(key, fsApi);
     }
     return fsApi;
   }
@@ -1243,4 +1369,4 @@ export class MonacoModelRegistry {
 // Utility Exports
 // ============================================================================
 
-export { pathToUri, uriToPath };
+export { createModelKey, pathToUri, uriToPath };

@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitReviewFileItem } from "@/components/panes/editor-v2/components/CommitReviewPane/CommitReviewFileItem";
-import type { CommitFile } from "@/components/panes/editor-v2/components/CommitGraph/types";
+import type { CommitFile } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 
 // =============================================================================
@@ -46,6 +46,7 @@ function createMockFile(overrides: Partial<CommitFile> = {}): CommitFile {
     status: "modified",
     additions: 10,
     deletions: 5,
+    isBinary: false,
     ...overrides,
   };
 }

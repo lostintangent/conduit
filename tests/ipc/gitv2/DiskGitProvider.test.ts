@@ -6,8 +6,10 @@ import * as fs from "node:fs";
 // Hoisted Mocks (must be defined before vi.mock calls)
 // ============================================================================
 
-// Create a mockable fs/promises stat function
+// Create mockable fs/promises functions
 const mockFsStat = vi.fn();
+const mockFsUnlink = vi.fn();
+const mockFsReadFile = vi.fn();
 
 // ============================================================================
 // Mocks
@@ -93,12 +95,14 @@ vi.mock("node:fs", async () => {
   };
 });
 
-// Mock fs/promises stat for getMostRecentCommittedFile tests
+// Mock fs/promises for getMostRecentCommittedFile, revert, and untracked file stats tests
 vi.mock("node:fs/promises", async () => {
   const actual = await vi.importActual("node:fs/promises");
   return {
     ...actual,
     stat: (...args: unknown[]) => mockFsStat(...args),
+    unlink: (...args: unknown[]) => mockFsUnlink(...args),
+    readFile: (...args: unknown[]) => mockFsReadFile(...args),
   };
 });
 
@@ -302,6 +306,27 @@ describe("DiskGitProvider", () => {
       const fileStatus = await provider.getFileStatus("clean-file.ts");
 
       expect(fileStatus).toBeNull();
+    });
+
+    it("should find file status with different case on case-insensitive FS", async () => {
+      // Git returns path with certain casing
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "README.md", index: "M", working_dir: " " }],
+        }),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // Look up with different case
+      const fileStatus = await provider.getFileStatus("readme.md");
+
+      if (process.platform === "darwin" || process.platform === "win32") {
+        expect(fileStatus).not.toBeNull();
+        expect(fileStatus?.status).toBe("modified");
+        // The path in the status object should preserve git's casing
+        expect(fileStatus?.path).toBe("README.md");
+      }
     });
   });
 
@@ -860,16 +885,25 @@ describe("DiskGitProvider", () => {
   // ===========================================================================
 
   describe("getUncommittedDiffStats()", () => {
+    beforeEach(() => {
+      // Clear diff mock - getUncommittedDiffStats now derives from per-file stats
+      mockGit.diff.mockReset();
+    });
+
     it("should return diff statistics", async () => {
-      // numstat format: added<tab>removed<tab>filename
-      mockGit.diff.mockResolvedValue(
-        "10\t5\tsrc/file1.ts\n20\t0\tsrc/file2.ts\n",
-      );
+      // New implementation calls getPerFileDiffStats which does 2 calls:
+      // 1. git diff --numstat --cached (staged)
+      // 2. git diff --numstat (unstaged)
+      mockGit.diff
+        .mockResolvedValueOnce("10\t5\tsrc/file1.ts\n") // staged
+        .mockResolvedValueOnce("20\t0\tsrc/file2.ts\n"); // unstaged
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const stats = await provider.getUncommittedDiffStats();
 
-      expect(mockGit.diff).toHaveBeenCalledWith(["--numstat", "HEAD"]);
+      // Calls getPerFileDiffStats which makes 2 calls
+      expect(mockGit.diff).toHaveBeenCalledWith(["--numstat", "--cached"]);
+      expect(mockGit.diff).toHaveBeenCalledWith(["--numstat"]);
       expect(stats).toEqual({
         added: 30,
         removed: 5,
@@ -878,7 +912,9 @@ describe("DiskGitProvider", () => {
     });
 
     it("should return zero stats for clean repo", async () => {
-      mockGit.diff.mockResolvedValue("");
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const stats = await provider.getUncommittedDiffStats();
@@ -891,7 +927,9 @@ describe("DiskGitProvider", () => {
     });
 
     it("should handle binary files (- indicates binary)", async () => {
-      mockGit.diff.mockResolvedValue("10\t5\tsrc/file.ts\n-\t-\timage.png\n");
+      mockGit.diff
+        .mockResolvedValueOnce("10\t5\tsrc/file.ts\n") // staged
+        .mockResolvedValueOnce("-\t-\timage.png\n"); // unstaged (binary)
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const stats = await provider.getUncommittedDiffStats();
@@ -904,6 +942,310 @@ describe("DiskGitProvider", () => {
       });
     });
   });
+
+  // ===========================================================================
+  // getPerFileDiffStats (with caching)
+  // ===========================================================================
+
+  describe("getPerFileDiffStats()", () => {
+    beforeEach(() => {
+      // Clear diff mock for these tests
+      mockGit.diff.mockReset();
+    });
+
+    it("should return staged and unstaged stats separately", async () => {
+      // Mock staged diff (--cached)
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/staged.ts\n") // staged
+        .mockResolvedValueOnce("10\t3\tsrc/unstaged.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      expect(stats.staged.get("src/staged.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+      expect(stats.unstaged.get("src/unstaged.ts")).toEqual({
+        added: 10,
+        removed: 3,
+      });
+    });
+
+    it("should cache results within TTL window", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/file.ts\n") // staged - first call
+        .mockResolvedValueOnce("10\t3\tsrc/file.ts\n") // unstaged - first call
+        .mockResolvedValueOnce("99\t99\tsrc/new.ts\n") // staged - would be second call
+        .mockResolvedValueOnce("88\t88\tsrc/new.ts\n"); // unstaged - would be second call
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // First call
+      const stats1 = await provider.getPerFileDiffStats();
+      expect(stats1.staged.get("src/file.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+
+      // Second call (should return cached)
+      const stats2 = await provider.getPerFileDiffStats();
+      expect(stats2.staged.get("src/file.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+
+      // Should only have called git.diff twice (for first call)
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+    });
+
+    it("should refresh cache after TTL expires", async () => {
+      vi.useFakeTimers();
+
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/file.ts\n") // staged - first call
+        .mockResolvedValueOnce("10\t3\tsrc/file.ts\n") // unstaged - first call
+        .mockResolvedValueOnce("99\t99\tsrc/new.ts\n") // staged - second call
+        .mockResolvedValueOnce("88\t88\tsrc/new.ts\n"); // unstaged - second call
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // First call
+      await provider.getPerFileDiffStats();
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+
+      // Advance time past TTL (100ms)
+      vi.advanceTimersByTime(150);
+
+      // Second call (cache expired, should fetch fresh)
+      const stats2 = await provider.getPerFileDiffStats();
+      expect(stats2.staged.get("src/new.ts")).toEqual({
+        added: 99,
+        removed: 99,
+      });
+
+      // Should have called git.diff 4 times total
+      expect(mockGit.diff).toHaveBeenCalledTimes(4);
+
+      vi.useRealTimers();
+    });
+
+    it("should include untracked files in unstaged stats", async () => {
+      // Mock git diff returns no results (untracked files don't appear in diff)
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      // Mock git status to return untracked file
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "new-file.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+
+      // Mock reading the untracked file content (5 lines)
+      mockFsReadFile.mockResolvedValue("line1\nline2\nline3\nline4\nline5\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      // Untracked file should appear in unstaged with all lines as "added"
+      expect(stats.unstaged.get("new-file.ts")).toEqual({
+        added: 5,
+        removed: 0,
+      });
+      expect(stats.staged.size).toBe(0);
+    });
+
+    it("should count lines correctly for files without trailing newline", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "no-newline.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+
+      // File without trailing newline (3 lines)
+      mockFsReadFile.mockResolvedValue("line1\nline2\nline3");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      expect(stats.unstaged.get("no-newline.ts")).toEqual({
+        added: 3,
+        removed: 0,
+      });
+    });
+
+    it("should handle multiple untracked files in parallel", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "file1.ts", index: "?", working_dir: "?" },
+            { path: "file2.ts", index: "?", working_dir: "?" },
+            { path: "file3.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+
+      // Different line counts for each file
+      mockFsReadFile.mockImplementation(async (filePath: string) => {
+        if (filePath.includes("file1.ts")) return "a\nb\n";
+        if (filePath.includes("file2.ts")) return "a\nb\nc\nd\n";
+        if (filePath.includes("file3.ts")) return "single line";
+        return "";
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      expect(stats.unstaged.get("file1.ts")).toEqual({ added: 2, removed: 0 });
+      expect(stats.unstaged.get("file2.ts")).toEqual({ added: 4, removed: 0 });
+      expect(stats.unstaged.get("file3.ts")).toEqual({ added: 1, removed: 0 });
+    });
+
+    it("should skip unreadable untracked files gracefully", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce(""); // unstaged
+
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "readable.ts", index: "?", working_dir: "?" },
+            { path: "unreadable.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+
+      mockFsReadFile.mockImplementation(async (filePath: string) => {
+        if (filePath.includes("unreadable.ts")) {
+          throw new Error("ENOENT: no such file or directory");
+        }
+        return "content\n";
+      });
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      // Readable file should have stats
+      expect(stats.unstaged.get("readable.ts")).toEqual({
+        added: 1,
+        removed: 0,
+      });
+      // Unreadable file should be skipped (not in map)
+      expect(stats.unstaged.has("unreadable.ts")).toBe(false);
+    });
+
+    it("should combine tracked and untracked files in stats", async () => {
+      // Mock diff to return stats for tracked modified file
+      mockGit.diff
+        .mockResolvedValueOnce("") // staged
+        .mockResolvedValueOnce("5\t2\tmodified.ts\n"); // unstaged - modified file
+
+      // Status includes both modified and untracked
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "modified.ts", index: " ", working_dir: "M" },
+            { path: "untracked.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+
+      mockFsReadFile.mockResolvedValue("line1\nline2\nline3\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getPerFileDiffStats();
+
+      // Modified file from git diff
+      expect(stats.unstaged.get("modified.ts")).toEqual({
+        added: 5,
+        removed: 2,
+      });
+      // Untracked file from file read
+      expect(stats.unstaged.get("untracked.ts")).toEqual({
+        added: 3,
+        removed: 0,
+      });
+    });
+  });
+
+  // ===========================================================================
+  // getUncommittedDiffStats derives from per-file stats
+  // ===========================================================================
+
+  describe("getUncommittedDiffStats() derivation", () => {
+    beforeEach(() => {
+      // Clear diff mock for these tests
+      mockGit.diff.mockReset();
+    });
+
+    it("should derive totals from cached per-file stats", async () => {
+      // Setup per-file stats (staged + unstaged)
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/a.ts\n10\t3\tsrc/b.ts\n") // staged
+        .mockResolvedValueOnce("20\t5\tsrc/c.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // Call getUncommittedDiffStats (should use per-file stats internally)
+      const stats = await provider.getUncommittedDiffStats();
+
+      // Total: staged(5+10=15 added, 2+3=5 removed) + unstaged(20 added, 5 removed)
+      expect(stats).toEqual({
+        added: 35, // 5+10+20
+        removed: 10, // 2+3+5
+        files: 3, // a.ts, b.ts, c.ts
+      });
+    });
+
+    it("should count partially staged files correctly", async () => {
+      // Same file in both staged and unstaged
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/partial.ts\n") // staged
+        .mockResolvedValueOnce("10\t3\tsrc/partial.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const stats = await provider.getUncommittedDiffStats();
+
+      // File appears in both, but should only count as 1 file
+      expect(stats).toEqual({
+        added: 15, // 5+10
+        removed: 5, // 2+3
+        files: 1, // only one unique file
+      });
+    });
+
+    it("should use cached per-file stats for aggregate stats", async () => {
+      mockGit.diff
+        .mockResolvedValueOnce("5\t2\tsrc/file.ts\n") // staged
+        .mockResolvedValueOnce("10\t3\tsrc/file.ts\n"); // unstaged
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+
+      // First call to getPerFileDiffStats populates cache
+      await provider.getPerFileDiffStats();
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+
+      // Call getUncommittedDiffStats - should use cached data
+      await provider.getUncommittedDiffStats();
+
+      // Should NOT have made additional git.diff calls
+      expect(mockGit.diff).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ===========================================================================
+  // Cache behavior (TTL-based invalidation is tested in getPerFileDiffStats)
+  // ===========================================================================
 
   // ===========================================================================
   // getMostRecentDirtyFile
@@ -1059,38 +1401,181 @@ describe("DiskGitProvider", () => {
   // ===========================================================================
 
   describe("revert()", () => {
-    it("should reset and checkout files", async () => {
+    beforeEach(() => {
+      mockFsUnlink.mockResolvedValue(undefined);
+    });
+
+    it("should checkout modified files (not reset)", async () => {
+      // Setup: file is modified (not untracked/added)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "src/file1.ts", index: " ", working_dir: "M" },
+            { path: "src/file2.ts", index: " ", working_dir: "M" },
+          ],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       await provider.revert(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGit.reset).toHaveBeenCalledWith([
-        "HEAD",
-        "--",
-        "src/file1.ts",
-        "src/file2.ts",
-      ]);
+      // Should NOT call reset - revert only affects working tree, not staging area
+      expect(mockGit.reset).not.toHaveBeenCalled();
       expect(mockGit.checkout).toHaveBeenCalledWith([
         "--",
         "src/file1.ts",
         "src/file2.ts",
       ]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
     });
 
     it("should convert absolute paths to relative", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "src/file.ts", index: " ", working_dir: "M" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       await provider.revert(["/test/repo/src/file.ts"]);
 
       expect(mockGit.checkout).toHaveBeenCalledWith(["--", "src/file.ts"]);
     });
 
-    it("should continue even if reset fails (for untracked files)", async () => {
-      mockGit.reset.mockRejectedValueOnce(new Error("pathspec did not match"));
+    it("should delete untracked files instead of checkout", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "new-file.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["new-file.ts"]);
+
+      // Should delete the file, not checkout
+      expect(mockFsUnlink).toHaveBeenCalledWith("/test/repo/new-file.ts");
+      expect(mockGit.checkout).not.toHaveBeenCalled();
+    });
+
+    it("should checkout added (staged new) files, not delete them", async () => {
+      // A staged addition has a version in the index - git checkout restores to that
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "added-file.ts", index: "A", working_dir: " " }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["added-file.ts"]);
+
+      // Should checkout (restore from index), NOT delete
+      // The file exists in the staging area, so checkout restores it
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "added-file.ts"]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
+    });
+
+    it("should handle mixed file types (modified + untracked)", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [
+            { path: "modified.ts", index: " ", working_dir: "M" },
+            { path: "untracked.ts", index: "?", working_dir: "?" },
+          ],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["modified.ts", "untracked.ts"]);
+
+      // Should NOT call reset - only affects working tree
+      expect(mockGit.reset).not.toHaveBeenCalled();
+      // Modified file should be checked out
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "modified.ts"]);
+      // Untracked file should be deleted
+      expect(mockFsUnlink).toHaveBeenCalledWith("/test/repo/untracked.ts");
+    });
+
+    it("should preserve staged changes when reverting partially staged modifications (MM)", async () => {
+      // File has staged modification AND unstaged modification
+      // index: M (staged changes), working_dir: M (more unstaged changes)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "partial.ts", index: "M", working_dir: "M" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["partial.ts"]);
+
+      // Should NOT call reset - that would destroy staged changes
+      expect(mockGit.reset).not.toHaveBeenCalled();
+      // Should checkout from index (restores to staged version, not HEAD)
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "partial.ts"]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
+    });
+
+    it("should preserve staged addition when reverting modified staged addition (AM)", async () => {
+      // File was staged as new (A), then modified again in working dir (M)
+      // index: A (staged new file), working_dir: M (further modifications)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "new-modified.ts", index: "A", working_dir: "M" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["new-modified.ts"]);
+
+      // Should NOT call reset - that would unstage the addition
+      expect(mockGit.reset).not.toHaveBeenCalled();
+      // Should checkout from index (restores to staged version of new file)
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "new-modified.ts"]);
+      // Should NOT delete - file has a version in the index
+      expect(mockFsUnlink).not.toHaveBeenCalled();
+    });
+
+    it("should checkout staged deleted files (restores the file)", async () => {
+      // File was deleted and staged for deletion
+      // index: D (staged deletion), working_dir: " " (no further changes)
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "deleted.ts", index: "D", working_dir: " " }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.revert(["deleted.ts"]);
+
+      // Should NOT call reset
+      expect(mockGit.reset).not.toHaveBeenCalled();
+      // Should checkout (this will fail if file doesn't exist in index,
+      // but for staged deletion, the file is deleted so checkout restores HEAD)
+      expect(mockGit.checkout).toHaveBeenCalledWith(["--", "deleted.ts"]);
+      expect(mockFsUnlink).not.toHaveBeenCalled();
+    });
+
+    it("should ignore errors when deleting files that don't exist", async () => {
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({
+          files: [{ path: "ghost-file.ts", index: "?", working_dir: "?" }],
+        }),
+      );
+      mockGit.branch.mockResolvedValue(createMockBranchSummary("main"));
+      mockFsUnlink.mockRejectedValueOnce(new Error("ENOENT: file not found"));
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       // Should not throw
-      await provider.revert(["new-file.ts"]);
+      await provider.revert(["ghost-file.ts"]);
 
-      expect(mockGit.checkout).toHaveBeenCalled();
+      expect(mockFsUnlink).toHaveBeenCalled();
     });
   });
 

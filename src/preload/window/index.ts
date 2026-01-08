@@ -10,6 +10,7 @@ import type {
   BrowserPage,
   CreateVMPayload,
   DeleteVMPayload,
+  DotfilesStatus,
   FileChangedEvent,
   FileDiffResult,
   FileRenamedEvent,
@@ -20,7 +21,6 @@ import type {
   GitFileStatus,
   ListVMsPayload,
   NotificationKind,
-  TabPosition,
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
   TerminalCreateResponse,
@@ -126,13 +126,6 @@ const conduitAPI = {
   onBeforeClose: (listener: () => void) =>
     createEventListener("app:before-close", listener),
 
-  // Notify when the user changes the tab position setting
-  onTabPositionChange: (listener: (position: TabPosition) => void) =>
-    createEventListener("ui:set-tab-position", listener),
-
-  onAlwaysShowTabsChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-always-show-tabs", listener),
-
   // Notify when showing a notification/toast message
   onShowNotification: (
     listener: (payload: {
@@ -142,14 +135,23 @@ const conduitAPI = {
     }) => void,
   ) => createEventListener("notification:show", listener),
 
-  onShowTerminalRulerChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-show-terminal-ruler", listener),
+  // Notify when dotfiles repo status changes
+  onDotfilesStatusChanged: (listener: (status: DotfilesStatus) => void) =>
+    createEventListener("dotfiles:status-changed", listener),
 
-  onUseConduitAsEditorChange: (listener: (value: boolean) => void) =>
-    createEventListener<boolean>("ui:set-use-conduit-editor", listener),
+  getDotfilesRepoPath: () =>
+    ipcRenderer.invoke("dotfiles:get-path") as Promise<string | null>,
 
-  onOpenTerminalFontSettings: (listener: () => void) =>
-    createEventListener("ui:open-terminal-font-settings", listener),
+  getDotfilesStatus: () =>
+    ipcRenderer.invoke("dotfiles:get-status") as Promise<DotfilesStatus>,
+
+  createDotfilesRepo: () =>
+    ipcRenderer.invoke("dotfiles:create-repo") as Promise<string>,
+
+  fetchDotfiles: () => ipcRenderer.invoke("dotfiles:fetch") as Promise<void>,
+
+  addToDotfiles: (filePath: string) =>
+    ipcRenderer.invoke("dotfiles:add-file", filePath) as Promise<void>,
 
   /* UI-related methods (UI->main) */
 

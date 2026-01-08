@@ -11,12 +11,12 @@
  */
 
 import { ipcRenderer } from "electron";
-import { createEventListener } from "../utils";
 import type {
+  DeleteOptions,
   DirectoryEntry,
   FileStat,
-  DeleteOptions,
 } from "../../../ipc/fsv2/types";
+import { createEventListener } from "../utils";
 
 // ============================================================================
 // Types
@@ -71,42 +71,71 @@ export default {
   /**
    * Read contents of a directory.
    *
+   * @param cwd - Working directory (provider scope)
    * @param dirPath - Absolute path to directory
+   * @param vmId - Optional VM ID for cloud filesystem operations
    * @returns Array of directory entries
    */
-  readDirectory: (dirPath: string) =>
+  readDirectory: (cwd: string, dirPath: string, vmId?: string) =>
     ipcRenderer.invoke("fs-v2:read-directory", {
+      cwd,
       dirPath,
+      vmId,
     }) as Promise<DirectoryEntry[]>,
 
   /**
    * Read file contents as binary data.
    *
+   * @param cwd - Working directory (provider scope)
    * @param filePath - Absolute path to file
+   * @param vmId - Optional VM ID for cloud filesystem operations
    * @returns File contents as Uint8Array
    */
-  readFile: (filePath: string) =>
+  readFile: (cwd: string, filePath: string, vmId?: string) =>
     ipcRenderer.invoke("fs-v2:read-file", {
+      cwd,
       filePath,
+      vmId,
     }) as Promise<Uint8Array>,
+
+  /**
+   * Read file contents as text (UTF-8 string).
+   * More efficient than readFile for text files because string
+   * serialization over IPC is faster than Uint8Array.
+   *
+   * @param cwd - Working directory (provider scope)
+   * @param filePath - Absolute path to file
+   * @param vmId - Optional VM ID for cloud filesystem operations
+   * @returns File contents as string
+   */
+  readTextFile: (cwd: string, filePath: string, vmId?: string) =>
+    ipcRenderer.invoke("fs-v2:read-text-file", {
+      cwd,
+      filePath,
+      vmId,
+    }) as Promise<string>,
 
   /**
    * Get file or directory metadata.
    *
+   * @param cwd - Working directory (provider scope)
    * @param path - Absolute path to file/directory
+   * @param vmId - Optional VM ID for cloud filesystem operations
    * @returns File stats
    */
-  stat: (path: string) =>
-    ipcRenderer.invoke("fs-v2:stat", { path }) as Promise<FileStat>,
+  stat: (cwd: string, path: string, vmId?: string) =>
+    ipcRenderer.invoke("fs-v2:stat", { cwd, path, vmId }) as Promise<FileStat>,
 
   /**
    * Check if a path exists.
    *
+   * @param cwd - Working directory (provider scope)
    * @param path - Absolute path to check
+   * @param vmId - Optional VM ID for cloud filesystem operations
    * @returns true if path exists
    */
-  exists: (path: string) =>
-    ipcRenderer.invoke("fs-v2:exists", { path }) as Promise<boolean>,
+  exists: (cwd: string, path: string, vmId?: string) =>
+    ipcRenderer.invoke("fs-v2:exists", { cwd, path, vmId }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
   // Write Operations
@@ -121,37 +150,54 @@ export default {
    * Creates the file if it doesn't exist.
    * Creates parent directories if they don't exist.
    *
+   * @param cwd - Working directory (provider scope)
    * @param filePath - Absolute path to file
    * @param content - File contents as Uint8Array
+   * @param vmId - Optional VM ID for cloud filesystem operations
    */
-  writeFile: (filePath: string, content: Uint8Array) =>
+  writeFile: (
+    cwd: string,
+    filePath: string,
+    content: Uint8Array,
+    vmId?: string,
+  ) =>
     ipcRenderer.invoke("fs-v2:write-file", {
+      cwd,
       filePath,
       content,
+      vmId,
     }) as Promise<void>,
 
   /**
    * Delete a file or directory.
    *
+   * @param cwd - Working directory (provider scope)
    * @param path - Absolute path to delete
    * @param options - Delete options (recursive for directories)
+   * @param vmId - Optional VM ID for cloud filesystem operations
    */
-  delete: (path: string, options?: DeleteOptions) =>
+  delete: (cwd: string, path: string, options?: DeleteOptions, vmId?: string) =>
     ipcRenderer.invoke("fs-v2:delete", {
+      cwd,
       path,
       options,
+      vmId,
     }) as Promise<void>,
 
   /**
    * Rename or move a file/directory.
    *
+   * @param cwd - Working directory (provider scope)
    * @param oldPath - Current absolute path
    * @param newPath - New absolute path
+   * @param vmId - Optional VM ID for cloud filesystem operations
    */
-  rename: (oldPath: string, newPath: string) =>
+  rename: (cwd: string, oldPath: string, newPath: string, vmId?: string) =>
     ipcRenderer.invoke("fs-v2:rename", {
+      cwd,
       oldPath,
       newPath,
+      vmId,
     }) as Promise<void>,
 
   /**
@@ -159,11 +205,15 @@ export default {
    *
    * Creates parent directories if they don't exist.
    *
+   * @param cwd - Working directory (provider scope)
    * @param dirPath - Absolute path to create
+   * @param vmId - Optional VM ID for cloud filesystem operations
    */
-  createDirectory: (dirPath: string) =>
+  createDirectory: (cwd: string, dirPath: string, vmId?: string) =>
     ipcRenderer.invoke("fs-v2:create-directory", {
+      cwd,
       dirPath,
+      vmId,
     }) as Promise<void>,
 
   // ---------------------------------------------------------------------------
@@ -176,13 +226,20 @@ export default {
    * @param cwd - Working directory (provider scope)
    * @param type - Type of events to subscribe to
    * @param path - Optional path filter
+   * @param vmId - Optional VM ID for cloud filesystem operations
    * @returns Subscription ID for unsubscribing
    */
-  subscribe: (cwd: string, type: "directory" | "file" | "all", path?: string) =>
+  subscribe: (
+    cwd: string,
+    type: "directory" | "file" | "all",
+    path?: string,
+    vmId?: string,
+  ) =>
     ipcRenderer.invoke("fs-v2:subscribe", {
       cwd,
       type,
       path,
+      vmId,
     }) as Promise<string>,
 
   /**

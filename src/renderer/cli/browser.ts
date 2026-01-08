@@ -1,6 +1,7 @@
 import type {
-  BrowserAutomationArgs,
-  BrowserAutomationCommand,
+  BrowserAutomationAction,
+  BrowserAutomationCommandArgs,
+  BrowserAutomationCommandResult,
   BrowserAutomationRequest,
   BrowserAutomationResponse,
 } from "@shared/cli/browser";
@@ -14,11 +15,11 @@ function getWebview(paneId: string) {
   return webview;
 }
 
-function sendAutomationCommand<T extends BrowserAutomationCommand["command"]>(
+function sendAutomationCommand<T extends BrowserAutomationAction>(
   webview: WebviewTag,
-  command: T,
-  args: Omit<BrowserAutomationArgs<T>["args"], "paneId">,
-): Promise<BrowserAutomationArgs<T>["result"]> {
+  name: T,
+  args: Omit<BrowserAutomationCommandArgs<T>, "paneId">,
+): Promise<BrowserAutomationCommandResult<T>> {
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   return new Promise((resolve, reject) => {
@@ -36,25 +37,23 @@ function sendAutomationCommand<T extends BrowserAutomationCommand["command"]>(
         reject(new Error(response.error));
         return;
       }
-      resolve(response.result as BrowserAutomationArgs<T>["result"]);
+      resolve(response.result as BrowserAutomationCommandResult<T>);
     };
 
     webview.addEventListener("ipc-message", handleMessage as any);
     const request: BrowserAutomationRequest<T> = {
       requestId,
-      command,
-      args: args as BrowserAutomationArgs<T>["args"],
+      name,
+      args: args as BrowserAutomationCommandArgs<T>,
     };
     webview.send("browser:request", request);
   });
 }
 
-export async function browserAutomate<
-  T extends BrowserAutomationCommand["command"],
->(
-  command: T,
-  request: BrowserAutomationArgs<T>["args"],
-): Promise<BrowserAutomationArgs<T>["result"]> {
+export async function browserAutomate<T extends BrowserAutomationAction>(
+  name: T,
+  request: BrowserAutomationCommandArgs<T>,
+): Promise<BrowserAutomationCommandResult<T>> {
   const { paneId, ...rest } = request;
 
   if (!paneId) {
@@ -63,5 +62,5 @@ export async function browserAutomate<
 
   const webview = getWebview(paneId);
 
-  return sendAutomationCommand(webview, command, rest);
+  return sendAutomationCommand(webview, name, rest);
 }

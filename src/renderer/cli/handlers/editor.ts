@@ -1,6 +1,6 @@
-import type { HandlerMap } from "./types";
-import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import type { EditorPane } from "@/types";
+import type { HandlerMap } from "./types";
 
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
 

@@ -14,7 +14,7 @@
  */
 
 export { FileTreePanel } from "./FileTreePanel";
-export type { FileTreePanelProps } from "./FileTreePanel";
+export type { FileTreePanelHandle, FileTreePanelProps } from "./FileTreePanel";
 
 export { FileTreeToolbar } from "./FileTreeToolbar";
 export type { FileTreeToolbarProps } from "./FileTreeToolbar";

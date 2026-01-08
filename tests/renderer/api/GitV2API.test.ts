@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Mocks
@@ -171,6 +171,7 @@ describe("GitV2API", () => {
       expect(mockGitv2.getFileStatus).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
+        undefined,
       );
       expect(result).toEqual(fileStatus);
 
@@ -198,6 +199,7 @@ describe("GitV2API", () => {
 
       expect(mockGitv2.hasUncommittedChanges).toHaveBeenCalledWith(
         "/test/project",
+        undefined,
       );
       expect(result).toBe(true);
 
@@ -225,6 +227,7 @@ describe("GitV2API", () => {
 
       expect(mockGitv2.hasUnpushedCommits).toHaveBeenCalledWith(
         "/test/project",
+        undefined,
       );
       expect(result).toBe(true);
 
@@ -248,6 +251,7 @@ describe("GitV2API", () => {
         "/test/project",
         "src/file.ts",
         undefined,
+        undefined,
       );
       expect(result).toBe(diff);
 
@@ -264,6 +268,7 @@ describe("GitV2API", () => {
         "/test/project",
         "src/file.ts",
         true,
+        undefined,
       );
 
       api.release();
@@ -282,6 +287,7 @@ describe("GitV2API", () => {
         "/test/project",
         "src/file.ts",
         "HEAD",
+        undefined,
       );
       expect(result).toBe(content);
 
@@ -300,10 +306,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.stage(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGitv2.stage).toHaveBeenCalledWith("/test/project", [
-        "src/file1.ts",
-        "src/file2.ts",
-      ]);
+      expect(mockGitv2.stage).toHaveBeenCalledWith(
+        "/test/project",
+        ["src/file1.ts", "src/file2.ts"],
+        undefined,
+      );
 
       api.release();
     });
@@ -316,9 +323,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.unstage(["src/file.ts"]);
 
-      expect(mockGitv2.unstage).toHaveBeenCalledWith("/test/project", [
-        "src/file.ts",
-      ]);
+      expect(mockGitv2.unstage).toHaveBeenCalledWith(
+        "/test/project",
+        ["src/file.ts"],
+        undefined,
+      );
 
       api.release();
     });
@@ -348,6 +357,7 @@ describe("GitV2API", () => {
         "/test/project",
         "Test commit",
         undefined,
+        undefined,
       );
 
       expect(result).not.toBeNull();
@@ -372,10 +382,15 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.commit("Test", { amend: true, signoff: true });
 
-      expect(mockGitv2.commit).toHaveBeenCalledWith("/test/project", "Test", {
-        amend: true,
-        signoff: true,
-      });
+      expect(mockGitv2.commit).toHaveBeenCalledWith(
+        "/test/project",
+        "Test",
+        {
+          amend: true,
+          signoff: true,
+        },
+        undefined,
+      );
 
       api.release();
     });
@@ -485,6 +500,7 @@ describe("GitV2API", () => {
         "/test/project",
         "feature/new",
         false,
+        undefined,
       );
 
       api.release();
@@ -500,6 +516,7 @@ describe("GitV2API", () => {
         "/test/project",
         "feature/new",
         true,
+        undefined,
       );
 
       api.release();
@@ -517,7 +534,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.stash();
 
-      expect(mockGitv2.stash).toHaveBeenCalledWith("/test/project", undefined);
+      expect(mockGitv2.stash).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+        undefined,
+      );
 
       api.release();
     });
@@ -531,6 +552,7 @@ describe("GitV2API", () => {
       expect(mockGitv2.stash).toHaveBeenCalledWith(
         "/test/project",
         "WIP: feature work",
+        undefined,
       );
 
       api.release();
@@ -544,7 +566,10 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.stashPop();
 
-      expect(mockGitv2.stashPop).toHaveBeenCalledWith("/test/project");
+      expect(mockGitv2.stashPop).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+      );
 
       api.release();
     });
@@ -565,6 +590,7 @@ describe("GitV2API", () => {
         "/test/project",
         false,
         false,
+        undefined,
       );
 
       api.release();
@@ -576,7 +602,12 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.push(true);
 
-      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", true, false);
+      expect(mockGitv2.push).toHaveBeenCalledWith(
+        "/test/project",
+        true,
+        false,
+        undefined,
+      );
 
       api.release();
     });
@@ -587,7 +618,12 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.push(false, true);
 
-      expect(mockGitv2.push).toHaveBeenCalledWith("/test/project", false, true);
+      expect(mockGitv2.push).toHaveBeenCalledWith(
+        "/test/project",
+        false,
+        true,
+        undefined,
+      );
 
       api.release();
     });
@@ -600,7 +636,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.pull();
 
-      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", false);
+      expect(mockGitv2.pull).toHaveBeenCalledWith(
+        "/test/project",
+        false,
+        undefined,
+      );
 
       api.release();
     });
@@ -611,7 +651,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.pull(true);
 
-      expect(mockGitv2.pull).toHaveBeenCalledWith("/test/project", true);
+      expect(mockGitv2.pull).toHaveBeenCalledWith(
+        "/test/project",
+        true,
+        undefined,
+      );
 
       api.release();
     });
@@ -624,7 +668,10 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       const result = await api.hasUpstream();
 
-      expect(mockGitv2.hasUpstream).toHaveBeenCalledWith("/test/project");
+      expect(mockGitv2.hasUpstream).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+      );
       expect(result).toBe(true);
 
       api.release();
@@ -651,7 +698,10 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project/src");
       const result = await api.findRoot();
 
-      expect(mockGitv2.findRoot).toHaveBeenCalledWith("/test/project/src");
+      expect(mockGitv2.findRoot).toHaveBeenCalledWith(
+        "/test/project/src",
+        undefined,
+      );
       expect(result).toBe("/test/repo");
 
       api.release();
@@ -693,6 +743,7 @@ describe("GitV2API", () => {
       expect(mockGitv2.getChangedFilesFromBranch).toHaveBeenCalledWith(
         "/test/project",
         "main",
+        undefined,
       );
       expect(result).toEqual(changedFiles);
 
@@ -734,6 +785,7 @@ describe("GitV2API", () => {
       expect(mockGitv2.getStatusFromBranch).toHaveBeenCalledWith(
         "/test/project",
         "main",
+        undefined,
       );
       expect(result).toBeInstanceOf(Map);
       expect(result.get("src/newFile.ts")?.status).toBe("added");
@@ -774,6 +826,7 @@ describe("GitV2API", () => {
 
       expect(mockGitv2.getUncommittedDiffStats).toHaveBeenCalledWith(
         "/test/project",
+        undefined,
       );
       expect(result).toEqual(stats);
 
@@ -804,6 +857,7 @@ describe("GitV2API", () => {
 
       expect(mockGitv2.getMostRecentDirtyFile).toHaveBeenCalledWith(
         "/test/project",
+        undefined,
       );
       expect(result).toBe("src/recent.ts");
 
@@ -832,6 +886,7 @@ describe("GitV2API", () => {
       expect(mockGitv2.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         undefined,
+        undefined,
       );
       expect(result).toBe("src/index.ts");
 
@@ -847,6 +902,7 @@ describe("GitV2API", () => {
       expect(mockGitv2.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         5,
+        undefined,
       );
 
       api.release();
@@ -871,10 +927,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.revert(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGitv2.revert).toHaveBeenCalledWith("/test/project", [
-        "src/file1.ts",
-        "src/file2.ts",
-      ]);
+      expect(mockGitv2.revert).toHaveBeenCalledWith(
+        "/test/project",
+        ["src/file1.ts", "src/file2.ts"],
+        undefined,
+      );
 
       api.release();
     });
@@ -885,7 +942,11 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.revert([]);
 
-      expect(mockGitv2.revert).toHaveBeenCalledWith("/test/project", []);
+      expect(mockGitv2.revert).toHaveBeenCalledWith(
+        "/test/project",
+        [],
+        undefined,
+      );
 
       api.release();
     });
@@ -912,7 +973,10 @@ describe("GitV2API", () => {
       const cleanup = api.onStatusChanged(callback);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockGitv2.subscribe).toHaveBeenCalledWith("/test/project");
+      expect(mockGitv2.subscribe).toHaveBeenCalledWith(
+        "/test/project",
+        undefined,
+      );
 
       expect(typeof cleanup).toBe("function");
       cleanup();

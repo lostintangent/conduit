@@ -30,6 +30,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { simpleGit } from "simple-git";
+import { normalizePathForComparison } from "../fsv2/pathUtils";
 import { DiskGitProvider } from "./DiskGitProvider";
 
 /** Grace period before disposing a provider with zero references (ms) */
@@ -460,17 +461,11 @@ export class GitProviderService {
 
   /**
    * Normalize a path for consistent lookup.
-   * On case-insensitive filesystems (macOS, Windows), also lowercases the path
-   * to ensure consistent Map key lookups regardless of casing.
+   * Resolves to absolute path and handles case-insensitivity on macOS/Windows.
    */
   private normalizePath(filePath: string): string {
     const resolved = path.resolve(filePath);
-    // On macOS (darwin) and Windows, filesystems are case-insensitive
-    // Lowercase for consistent Map key comparison
-    if (process.platform === "darwin" || process.platform === "win32") {
-      return resolved.toLowerCase();
-    }
-    return resolved;
+    return normalizePathForComparison(resolved);
   }
 
   /**

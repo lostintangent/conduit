@@ -5,10 +5,10 @@ import { PaneHighlight } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
-import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
-import { SandboxIndicator } from "@/components/panes/terminal/SandboxIndicator";
+import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import type {
   LayoutResizeAxis,
@@ -25,6 +25,7 @@ import {
   closePane,
   openBrowserPane,
   setPaneCollapsed,
+  updatePaneProperty,
 } from "@/store/actions/pane";
 import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
@@ -33,6 +34,7 @@ import {
   activeTabAtom,
   applicationModeAtom,
   tabsAtom,
+  userSettingsAtom,
 } from "@/store/atoms";
 import type {
   EditorPane as EditorPaneType,
@@ -52,12 +54,29 @@ import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
 
+// Stable empty handlers for locked tabs to avoid creating new objects on each render
+const LOCKED_DRAG_HANDLERS = { onDragStart: () => {}, onDragEnd: () => {} };
+const LOCKED_DROP_HANDLERS = {
+  onDragOver: () => {},
+  onDragLeave: () => {},
+  onDrop: () => {},
+};
+
 type BoundaryInfo = {
   leadingId: string;
   trailingId: string;
   leadingSize: number;
   trailingSize: number;
   position: number;
+};
+
+/**
+ * Pre-computed tab context to avoid redundant calculations during render.
+ * These values are computed once per tab and passed through the render tree.
+ */
+type TabRenderContext = {
+  paneCount: number;
+  devToolsTargets: Set<string>;
 };
 
 type IntersectionHandleConfig = {
@@ -279,6 +298,8 @@ export function TabLayout({
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
 
+  const { dimInactivePanes } = useAtomValue(userSettingsAtom);
+
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
   const [hoveredPreviewPaneId, setHoveredPreviewPaneId] = useState<
@@ -327,6 +348,7 @@ export function TabLayout({
       node: LayoutPaneNode,
       tab: Tab,
       hasUnifiedSandbox: boolean,
+      ctx: TabRenderContext,
       parentDirection?: SplitDirection,
     ): React.ReactNode => {
       const pane = tab.panes[node.paneId];
@@ -402,14 +424,10 @@ export function TabLayout({
       };
 
       const dragHandlers = isLocked
-        ? { onDragStart: () => {}, onDragEnd: () => {} }
+        ? LOCKED_DRAG_HANDLERS
         : createDragHandlers(pane.id, tab.id);
       const dropHandlers = isLocked
-        ? {
-            onDragOver: () => {},
-            onDragLeave: () => {},
-            onDrop: () => {},
-          }
+        ? LOCKED_DROP_HANDLERS
         : createDropHandlers(pane.id, tab.id);
 
       // While in design mode, show the pane controls if the current pane meets any of:
@@ -434,7 +452,11 @@ export function TabLayout({
           }}
           {...dropHandlers}
           onMouseEnter={() => {
-            setHoveredPaneId(pane.id);
+            // Only track hover state in design mode (for showing pane controls)
+            // to avoid unnecessary re-renders in normal mode
+            if (isInDesignMode) {
+              setHoveredPaneId(pane.id);
+            }
             if (isInPreview) {
               setHoveredPreviewPaneId(pane.id);
             }
@@ -444,7 +466,7 @@ export function TabLayout({
             // rendered via React portal. This causes onMouseLeave to fire when
             // entering the editor (React sees it as leaving this tree). Instead,
             // editor panes manage hover state via their onHover callback.
-            if (pane.type !== "editor") {
+            if (isInDesignMode && pane.type !== "editor") {
               setHoveredPaneId(null);
             }
             if (isInPreview) {
@@ -477,8 +499,10 @@ export function TabLayout({
                   paneId={pane.id}
                   cwd={pane.cwd}
                   file={pane.file}
+                  sandboxId={pane.sandboxId}
                   agentSessionId={pane.agentSessionId}
                   treeMode={pane.treeMode}
+                  changesViewMode={pane.changesViewMode}
                   onFileChange={(fileData) =>
                     handleEditorUpdate(tab.id, pane.id, {
                       file: fileData.file,
@@ -495,15 +519,23 @@ export function TabLayout({
                   onTreeModeChange={(mode) =>
                     handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
                   }
+                  onChangesViewModeChange={(mode) =>
+                    handleEditorUpdate(tab.id, pane.id, {
+                      changesViewMode: mode,
+                    })
+                  }
                   onFileOpen={(node) =>
                     onOpenQuickPane({
                       type: "editor",
                       cwd: pane?.cwd,
                       file: node.path,
+                      sandboxId: pane?.sandboxId,
                     })
                   }
                   onHover={(isHovering) => {
-                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInDesignMode) {
+                      setHoveredPaneId(isHovering ? pane.id : null);
+                    }
                     if (isInPreview) {
                       setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
@@ -533,15 +565,16 @@ export function TabLayout({
                   }
                   isInPreview={isInPreview}
                   onHover={(isHovering) => {
-                    setHoveredPaneId(isHovering ? pane.id : null);
+                    if (isInDesignMode) {
+                      setHoveredPaneId(isHovering ? pane.id : null);
+                    }
                     if (isInPreview) {
                       setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
                   }}
                   devToolsFor={pane.devToolsFor}
-                  isDevToolsOpen={Object.values(tab.panes).some(
-                    (p) => p.type === "browser" && p.devToolsFor === pane.id,
-                  )}
+                  chromeless={pane.chromeless}
+                  isDevToolsOpen={ctx.devToolsTargets.has(pane.id)}
                   onToggleDevTools={() => {
                     const devToolsPane = Object.values(tab.panes).find(
                       (p) => p.type === "browser" && p.devToolsFor === pane.id,
@@ -559,13 +592,27 @@ export function TabLayout({
                       );
                     }
                   }}
+                  onHideToolbar={() =>
+                    updatePaneProperty(tab.id, pane.id, { chromeless: true })
+                  }
                 />
               </div>
             )}
           </div>
 
+          {/* Pane-type-agnostic overlays... */}
+
           {isInDesignMode && (
             <div className="pointer-events-none absolute inset-0 z-10 bg-accent/20 backdrop-blur-[0.5px]" />
+          )}
+
+          {/* Dim inactive panes overlay (only in normal mode) */}
+          {dimInactivePanes && applicationMode === "normal" && (
+            <div
+              className={`pointer-events-none absolute inset-0 z-5 bg-black/40 transition-opacity duration-150 ${
+                isActivePane ? "opacity-0" : "opacity-100"
+              }`}
+            />
           )}
 
           {/* Pane highlight overlay */}
@@ -587,7 +634,7 @@ export function TabLayout({
               canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
               canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
-              isOnlyPane={countPanesInLayout(tab.layout) === 1}
+              isOnlyPane={ctx.paneCount === 1}
               isOnlyTab={tabs.length === 1}
               onOpenPaneActions={onOpenPaneActions}
               {...dragHandlers}
@@ -620,6 +667,7 @@ export function TabLayout({
       setHoveredPreviewPaneId,
       setApplicationMode,
       setPaneCollapsed,
+      dimInactivePanes,
     ],
   );
 
@@ -631,9 +679,11 @@ export function TabLayout({
         node: LayoutNode,
         tab: Tab,
         hasUnifiedSandbox: boolean,
+        ctx: TabRenderContext,
         parentDirection: SplitDirection,
       ) => React.ReactNode,
       hasUnifiedSandbox: boolean,
+      ctx: TabRenderContext,
     ): React.ReactNode => {
       const isInFocusMode = applicationMode === "focus";
       const isLocked = tab.locked;
@@ -778,7 +828,13 @@ export function TabLayout({
                   </>
                 )}
 
-                {renderChild(child, tab, hasUnifiedSandbox, node.direction)}
+                {renderChild(
+                  child,
+                  tab,
+                  hasUnifiedSandbox,
+                  ctx,
+                  node.direction,
+                )}
               </div>
             );
           })}
@@ -790,6 +846,7 @@ export function TabLayout({
       handleResizeStart,
       hoveredAxisKeys,
       isInDesignMode,
+      isTabInPreview,
       resizingNode,
       setHoverKeys,
     ],
@@ -800,12 +857,19 @@ export function TabLayout({
       node: LayoutNode,
       tab: Tab,
       hasUnifiedSandbox: boolean,
+      ctx: TabRenderContext,
       parentDirection?: SplitDirection,
     ) => {
       if (node.type === "pane") {
-        return renderPaneNode(node, tab, hasUnifiedSandbox, parentDirection);
+        return renderPaneNode(
+          node,
+          tab,
+          hasUnifiedSandbox,
+          ctx,
+          parentDirection,
+        );
       }
-      return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox);
+      return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox, ctx);
     },
     [renderPaneNode, renderSplitNode],
   );
@@ -833,9 +897,17 @@ export function TabLayout({
       const unifiedSandbox = getUnifiedSandboxForTab(tab);
       const hasUnifiedSandbox = unifiedSandbox !== null;
 
-      const tabContent = (
-        <>{renderLayout(tab.layout, tab, hasUnifiedSandbox)}</>
-      );
+      // Pre-compute values that would otherwise be calculated per-pane
+      const ctx: TabRenderContext = {
+        paneCount: countPanesInLayout(tab.layout),
+        devToolsTargets: new Set(
+          Object.values(tab.panes)
+            .filter((p) => p.type === "browser" && p.devToolsFor)
+            .map((p) => (p as { devToolsFor: string }).devToolsFor),
+        ),
+      };
+
+      const tabContent = renderLayout(tab.layout, tab, hasUnifiedSandbox, ctx);
 
       return (
         <div
@@ -852,7 +924,9 @@ export function TabLayout({
           {portalTarget ? createPortal(tabContent, portalTarget) : null}
           {unifiedSandbox && (
             <SandboxIndicator
-              vmId={unifiedSandbox.type === "vm" ? unifiedSandbox.vmId : null}
+              sandboxId={
+                unifiedSandbox.type === "vm" ? unifiedSandbox.sandboxId : null
+              }
               agentSessionId={
                 unifiedSandbox.type === "agent"
                   ? unifiedSandbox.agentSessionId
@@ -882,7 +956,7 @@ export function TabLayout({
                       handleForkVMAction(
                         tab.id,
                         tab.activePaneId,
-                        unifiedSandbox.vmId,
+                        unifiedSandbox.sandboxId,
                       )
                   : undefined
               }

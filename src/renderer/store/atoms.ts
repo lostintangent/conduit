@@ -1,7 +1,11 @@
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
-import type { UserSettings, WorkspaceState } from "@shared/types";
+import type {
+  HyperTerminal,
+  UserSettings,
+  WorkspaceState,
+} from "@shared/types";
 import { atom } from "jotai";
 import { atomWithImmer } from "jotai-immer";
 
@@ -24,15 +28,19 @@ export const userSettingsAtom = atom<UserSettings>({
   // UI/Layout settings
   tabPosition: "bottom",
   alwaysShowTabs: true,
-  useGradientBorders: true,
+  alwaysHighlightActivePane: false,
+  useGradientBorders: false,
+  dimInactivePanes: false,
   theme: "dark",
 
   // Terminal settings
   showTerminalRuler: true,
+  showTabState: true,
 
   // Editor settings
   useConduitAsEditor: true,
   useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
+  trackUnseenChangesInReviewMode: true,
 
   // Workspace settings
   autoSaveWorkspaces: true,
@@ -92,10 +100,27 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  */
 export const paneActionsAtom = atom<Action[]>([]);
 
-export const hyperTerminalsAtom = atomWithImmer<
-  Array<{
-    terminalId: string;
-    paneId: string;
-    cwd: string | null;
-  }>
->([]);
+export const hyperTerminalsAtom = atomWithImmer<HyperTerminal[]>([]);
+
+/**
+ * Quick pane atom - stores the current quick pane descriptor
+ * Used to display the quick action dialog
+ */
+export const quickPaneAtom = atom<any | null>();
+
+/**
+ * Tab terminal state for background tabs.
+ * - "running": Terminal is actively receiving output
+ * - "idle": Terminal has been idle (no output for 2+ seconds)
+ * - "idle-unseen": Terminal is idle and user hasn't seen it yet
+ * - "idle-notified": Terminal was explicitly notified via CLI command
+ */
+export type TabState = "running" | "idle" | "idle-unseen" | "idle-notified";
+
+export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
+
+/**
+ * Editor sidebar open state - controls visibility of the slide-out editor panel.
+ * Toggled via Cmd+E. Not persisted across reloads.
+ */
+export const isSidebarOpenAtom = atom<boolean>(false);

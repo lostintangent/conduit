@@ -12,16 +12,15 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { TabsOverview } from "@/components/layout/overview/TabsOverview";
 import { HyperTerminal } from "@/components/layout/quick/HyperTerminal";
 import {
-  QuickDialog,
+  QuickPaneDialog,
   type PaneDescriptor,
-  type QuickPaneDescriptor,
-} from "@/components/layout/quick/QuickDialog";
+} from "@/components/layout/quick/QuickPaneDialog";
 import { GlobalEditorContainer } from "@/components/panes/editor-v2";
 import {
   disposeSession,
-  updateTerminalFonts,
   updateTerminalThemes,
-} from "@/components/panes/terminal/xtermCache";
+} from "@/components/panes/terminal/state/xtermCache";
+import { EditorSidebar } from "@/components/shell/sidebar/EditorSidebar";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
@@ -31,7 +30,6 @@ import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
-import { TerminalFontSettingsDialog } from "@/components/shell/title/TerminalFontSettingsDialog";
 import { TitleBar } from "@/components/shell/title/TitleBar";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
@@ -46,8 +44,10 @@ import {
   closeHyperTerminal,
   handleHyperTerminalExit,
   maximizeHyperTerminal,
+  minimizeHyperTerminal,
   moveHyperTerminalToTab,
   openHyperTerminal,
+  updateHyperTerminalPosition,
 } from "@/store/actions/hyperTerminal";
 import {
   dismissNotification,
@@ -69,6 +69,7 @@ import {
   applicationModeAtom,
   hyperTerminalsAtom,
   keybindingsAtom,
+  quickPaneAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { EditorPane } from "@/types";
@@ -76,7 +77,7 @@ import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { getDefaultStore, useAtom, useAtomValue, useSetAtom } from "jotai";
 import path from "path-browserify";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -136,8 +137,7 @@ export function App() {
     tabId: string;
     initialValue: string;
   } | null>(null);
-  const [quickPaneState, setQuickPaneState] =
-    useState<QuickPaneDescriptor | null>(null);
+  const [quickPaneState, setQuickPaneState] = useAtom(quickPaneAtom);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
@@ -145,11 +145,9 @@ export function App() {
   >(null);
   const [isTabDrawerOpen, setIsTabDrawerOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<
-    "keyboard" | "paneActions" | "agents" | "preferences" | null
+    "general" | "keybindings" | "paneActions" | "agents" | null
   >(null);
   const [showAgentLauncher, setShowAgentLauncher] = useState(false);
-  const [showTerminalFontSettings, setShowTerminalFontSettings] =
-    useState(false);
 
   const {
     workspaceName,
@@ -171,9 +169,39 @@ export function App() {
   const [duplicateTabWithCwdDialogState, setDuplicateTabWithCwdDialogState] =
     useState<{ tabId: string } | null>(null);
 
-  useCliClient({
-    onOpenFile: setQuickPaneState,
-  });
+  // Active CWD - tracks the active pane's CWD with "sticky" behavior.
+  // When the active pane is a terminal or editor, use its CWD and remember it.
+  // When the active pane is a browser or other type, keep the last known CWD.
+  // This is used by components that need to know the "current" directory context.
+  const lastKnownCwdRef = useRef<string | null>(null);
+
+  const activeCwd = useMemo(() => {
+    if (!activeTab) {
+      return lastKnownCwdRef.current ?? homeDirectory ?? "/";
+    }
+
+    const activePane = activeTab.panes[activeTab.activePaneId];
+
+    // Terminal and editor panes have a CWD - use it
+    if (activePane?.type === "terminal" || activePane?.type === "editor") {
+      return activePane.cwd ?? homeDirectory ?? "/";
+    }
+
+    // Browser or other pane types: keep previous CWD (sticky)
+    return lastKnownCwdRef.current ?? homeDirectory ?? "/";
+  }, [activeTab, homeDirectory]);
+
+  // Update the sticky CWD ref as a proper side effect (not inside useMemo)
+  useEffect(() => {
+    if (!activeTab) return;
+
+    const activePane = activeTab.panes[activeTab.activePaneId];
+    if (activePane?.type === "terminal" || activePane?.type === "editor") {
+      lastKnownCwdRef.current = activePane.cwd ?? homeDirectory ?? "/";
+    }
+  }, [activeTab, homeDirectory]);
+
+  useCliClient();
 
   // TODO: Once we ship a web variant of Conduit, this should
   // be conditioned on whether we're running in Electron or not.
@@ -186,13 +214,16 @@ export function App() {
     applicationMode,
     setApplicationMode,
     homeDirectory,
+    dotfilesRepo: userSettings.dotfilesRepo,
     workspaceName,
     // Context key data
     hasCustomLayout,
     hasLastWorkspace,
     // UI state setters
+    setShowGeneralSettings: (show: boolean) =>
+      setSettingsTab(show ? "general" : null),
     setShowKeybindingsEditor: (show: boolean) =>
-      setSettingsTab(show ? "keyboard" : null),
+      setSettingsTab(show ? "keybindings" : null),
     setShowPaneActionsEditor: (show: boolean) =>
       setSettingsTab(show ? "paneActions" : null),
     setShowAgentsEditor: (show: boolean) =>
@@ -306,17 +337,10 @@ export function App() {
       }
     });
 
-    const unsubscribeOpenTerminalFontSettings = api.onOpenTerminalFontSettings(
-      () => {
-        setShowTerminalFontSettings(true);
-      },
-    );
-
     return () => {
       unsubscribeExit();
       unsubscribeNotification();
       unsubscribeBeforeClose();
-      unsubscribeOpenTerminalFontSettings();
     };
   }, [tabs, activeTab]);
 
@@ -493,7 +517,7 @@ export function App() {
           sessionId: result.sessionId,
           cwd: result.cwd,
           title: result.title,
-          vmMetadata: result.vmMetadata ?? undefined,
+          sandboxId: result.sandboxId ?? undefined,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -671,10 +695,6 @@ export function App() {
     [duplicateTabWithCwdDialogState, tabs],
   );
 
-  const handleOpenQuickPane = useCallback((descriptor: PaneDescriptor) => {
-    setQuickPaneState(descriptor);
-  }, []);
-
   // Get commands from registry (or empty array if command system not ready)
   const commandItems = useCommands(
     commandSystem?.commandRegistry,
@@ -766,8 +786,7 @@ export function App() {
         {tabPosition === "top" && !shouldUseDrawer && (
           <TabStrip
             onOpenCommandPalette={openCommandPalette}
-            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-            onOpenQuickPane={handleOpenQuickPane}
+            onTabContextMenu={handleContextMenu}
             position={tabPosition}
           />
         )}
@@ -777,8 +796,7 @@ export function App() {
             <DrawerContent side="top">
               <TabStrip
                 onOpenCommandPalette={openCommandPalette}
-                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-                onOpenQuickPane={handleOpenQuickPane}
+                onTabContextMenu={handleContextMenu}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -800,7 +818,6 @@ export function App() {
               resizingNode={resizingNode}
               handleBrowserUpdate={handleBrowserUpdate}
               handleEditorUpdate={handleEditorUpdate}
-              onOpenQuickPane={handleOpenQuickPane}
               onOpenPaneActions={() => setSettingsTab("paneActions")}
             />
           </div>
@@ -810,14 +827,16 @@ export function App() {
               <TabsOverview />
             </div>
           ) : null}
+
+          {/* Editor sidebar overlay */}
+          <EditorSidebar cwd={activeCwd} />
         </div>
 
         {/* Bottom positioned tabs */}
         {tabPosition === "bottom" && !shouldUseDrawer && (
           <TabStrip
             onOpenCommandPalette={openCommandPalette}
-            onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-            onOpenQuickPane={handleOpenQuickPane}
+            onTabContextMenu={handleContextMenu}
             position={tabPosition}
           />
         )}
@@ -827,8 +846,7 @@ export function App() {
             <DrawerContent side="bottom">
               <TabStrip
                 onOpenCommandPalette={openCommandPalette}
-                onTabContextMenu={(e, tabId) => handleContextMenu(e, tabId)}
-                onOpenQuickPane={handleOpenQuickPane}
+                onTabContextMenu={handleContextMenu}
                 position={tabPosition}
               />
             </DrawerContent>
@@ -858,11 +876,21 @@ export function App() {
           // Extract directory from file path
           const cwd = path.dirname(filePath);
 
+          // Get sandboxId from active pane if it's a terminal or editor with VM
+          const activePane = activeTab.panes[activeTab.activePaneId];
+          const sandboxId =
+            activePane?.type === "terminal"
+              ? activePane.sandboxId
+              : activePane?.type === "editor"
+                ? activePane.sandboxId
+                : undefined;
+
           // Create a quick pane with the file
           setQuickPaneState({
             type: "editor",
             cwd,
             file: filePath,
+            sandboxId,
           });
         }}
       />
@@ -881,7 +909,7 @@ export function App() {
       />
 
       {quickPaneState && (
-        <QuickDialog
+        <QuickPaneDialog
           paneDescriptor={quickPaneState}
           onClose={handleCloseQuickPane}
           onOpenAsTab={handleOpenQuickPaneAsTab}
@@ -889,22 +917,27 @@ export function App() {
         />
       )}
 
-      {hyperTerminals.map((terminal, index) => (
-        <HyperTerminal
-          key={terminal.terminalId}
-          terminalId={terminal.terminalId}
-          paneId={terminal.paneId}
-          cwd={terminal.cwd}
-          index={index}
-          onClose={() => closeHyperTerminal(terminal.terminalId)}
-          onMaximize={() =>
-            handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
-          }
-          onOpenAsTab={() =>
-            moveHyperTerminalToTab(terminal.terminalId, terminal.cwd)
-          }
-        />
-      ))}
+      {hyperTerminals
+        .filter((terminal) => terminal.state === "visible")
+        .map((terminal, index) => (
+          <HyperTerminal
+            key={terminal.terminalId}
+            terminal={terminal}
+            index={index}
+            hidden={applicationMode !== "normal"}
+            onClose={() => closeHyperTerminal(terminal.terminalId)}
+            onMinimize={() => minimizeHyperTerminal(terminal.terminalId)}
+            onMaximize={() =>
+              handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
+            }
+            onOpenAsTab={() =>
+              moveHyperTerminalToTab(terminal.terminalId, terminal.cwd)
+            }
+            onPositionChange={(position) =>
+              updateHyperTerminalPosition(terminal.terminalId, position)
+            }
+          />
+        ))}
 
       <InputDialog
         isOpen={isUrlDialogOpen}
@@ -993,9 +1026,7 @@ export function App() {
           keybindingRegistry={commandSystem.keybindingRegistry}
           homeDirectory={homeDirectory}
           initialTab={settingsTab}
-          onOpenQuickPane={handleOpenQuickPane}
           onUpdateSettings={userSettings.updateSettings}
-          onOpenTerminalFontSettings={() => setShowTerminalFontSettings(true)}
           userSettings={userSettings}
         />
       ) : settingsTab ? (
@@ -1061,20 +1092,6 @@ export function App() {
               message: `Launch failed: ${errorMessage}`,
             });
           }
-        }}
-      />
-
-      <TerminalFontSettingsDialog
-        isOpen={showTerminalFontSettings}
-        initialFontFamily={terminalFontFamily}
-        initialFontSize={terminalFontSize}
-        onClose={() => setShowTerminalFontSettings(false)}
-        onSave={async (fontFamily, fontSize) => {
-          await updateSettings({
-            terminalFontFamily: fontFamily,
-            terminalFontSize: fontSize,
-          });
-          updateTerminalFonts(fontFamily, fontSize);
         }}
       />
     </div>

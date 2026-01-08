@@ -28,6 +28,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { EventEmitter } from "../../shared/EventEmitter";
+import { isCaseInsensitiveFS, normalizePathForComparison } from "./pathUtils";
 import type {
   Event,
   FileContentChangedEvent,
@@ -90,24 +91,41 @@ const DEFAULT_IGNORED_PATTERNS = [
  * This class correlates these events within a time window to detect renames.
  */
 class RenameDetector {
-  /** Pending DELETE events: path → timestamp */
-  private pendingDeletes = new Map<string, number>();
+  /** Pending DELETE events: normalized path → { originalPath, timestamp } */
+  private pendingDeletes = new Map<
+    string,
+    { originalPath: string; timestamp: number }
+  >();
 
-  /** Pending CREATE events: path → timestamp */
-  private pendingCreates = new Map<string, number>();
+  /** Pending CREATE events: normalized path → { originalPath, timestamp } */
+  private pendingCreates = new Map<
+    string,
+    { originalPath: string; timestamp: number }
+  >();
 
   /** Time window for correlating events (ms) */
   private readonly correlationWindow = 500;
 
   /**
+   * Normalize a path for case-insensitive comparison on macOS/Windows.
+   */
+  private normalizePath(filePath: string): string {
+    return normalizePathForComparison(filePath);
+  }
+
+  /**
    * Record a DELETE event for potential rename detection.
    */
   recordDelete(filePath: string): void {
-    this.pendingDeletes.set(filePath, Date.now());
+    const normalized = this.normalizePath(filePath);
+    this.pendingDeletes.set(normalized, {
+      originalPath: filePath,
+      timestamp: Date.now(),
+    });
 
     // Auto-cleanup after correlation window
     setTimeout(() => {
-      this.pendingDeletes.delete(filePath);
+      this.pendingDeletes.delete(normalized);
     }, this.correlationWindow);
   }
 
@@ -115,11 +133,15 @@ class RenameDetector {
    * Record a CREATE event for potential rename detection.
    */
   recordCreate(filePath: string): void {
-    this.pendingCreates.set(filePath, Date.now());
+    const normalized = this.normalizePath(filePath);
+    this.pendingCreates.set(normalized, {
+      originalPath: filePath,
+      timestamp: Date.now(),
+    });
 
     // Auto-cleanup after correlation window
     setTimeout(() => {
-      this.pendingCreates.delete(filePath);
+      this.pendingCreates.delete(normalized);
     }, this.correlationWindow);
   }
 
@@ -130,28 +152,33 @@ class RenameDetector {
    * @returns The old path if this is a rename, null otherwise
    */
   matchCreateWithDelete(newPath: string): string | null {
-    const newDir = path.dirname(newPath);
+    const newDirNormalized = this.normalizePath(path.dirname(newPath));
+    const newPathNormalized = this.normalizePath(newPath);
     const now = Date.now();
 
-    for (const [oldPath, timestamp] of this.pendingDeletes.entries()) {
+    for (const [oldPathNormalized, entry] of this.pendingDeletes.entries()) {
       // Must be within correlation window
-      if (now - timestamp > this.correlationWindow) {
+      if (now - entry.timestamp > this.correlationWindow) {
         continue;
       }
 
       // Must be in same directory (rename, not move)
-      if (path.dirname(oldPath) !== newDir) {
+      // Use normalized comparison for case-insensitive filesystems
+      const oldDirNormalized = this.normalizePath(
+        path.dirname(entry.originalPath),
+      );
+      if (oldDirNormalized !== newDirNormalized) {
         continue;
       }
 
-      // Must be different paths
-      if (oldPath === newPath) {
+      // Must be different paths (use normalized comparison)
+      if (oldPathNormalized === newPathNormalized) {
         continue;
       }
 
       // Found a match - consume the pending delete
-      this.pendingDeletes.delete(oldPath);
-      return oldPath;
+      this.pendingDeletes.delete(oldPathNormalized);
+      return entry.originalPath;
     }
 
     return null;
@@ -164,28 +191,33 @@ class RenameDetector {
    * @returns The new path if this is a rename, null otherwise
    */
   matchDeleteWithCreate(oldPath: string): string | null {
-    const oldDir = path.dirname(oldPath);
+    const oldDirNormalized = this.normalizePath(path.dirname(oldPath));
+    const oldPathNormalized = this.normalizePath(oldPath);
     const now = Date.now();
 
-    for (const [newPath, timestamp] of this.pendingCreates.entries()) {
+    for (const [newPathNormalized, entry] of this.pendingCreates.entries()) {
       // Must be within correlation window
-      if (now - timestamp > this.correlationWindow) {
+      if (now - entry.timestamp > this.correlationWindow) {
         continue;
       }
 
       // Must be in same directory (rename, not move)
-      if (path.dirname(newPath) !== oldDir) {
+      // Use normalized comparison for case-insensitive filesystems
+      const newDirNormalized = this.normalizePath(
+        path.dirname(entry.originalPath),
+      );
+      if (newDirNormalized !== oldDirNormalized) {
         continue;
       }
 
-      // Must be different paths
-      if (oldPath === newPath) {
+      // Must be different paths (use normalized comparison)
+      if (oldPathNormalized === newPathNormalized) {
         continue;
       }
 
       // Found a match - consume the pending create
-      this.pendingCreates.delete(newPath);
-      return newPath;
+      this.pendingCreates.delete(newPathNormalized);
+      return entry.originalPath;
     }
 
     return null;
@@ -437,34 +469,44 @@ export class ParcelFileWatcher {
    * - Double-star/name/double-star: contains /name/ anywhere
    * - Double-star/*.ext: ends with .ext
    * - Double-star/name: ends with /name or equals name
+   *
+   * On case-insensitive filesystems (macOS/Windows), matching is case-insensitive.
    */
   private matchPattern(filePath: string, pattern: string): boolean {
+    // Normalize case on case-insensitive filesystems
+    const normalizedPath = isCaseInsensitiveFS
+      ? filePath.toLowerCase()
+      : filePath;
+    const normalizedPattern = isCaseInsensitiveFS
+      ? pattern.toLowerCase()
+      : pattern;
+
     // Handle `**/dir/**` pattern (match path containing /dir/)
-    const dirMatch = pattern.match(/^\*\*\/(.+)\/\*\*$/);
+    const dirMatch = normalizedPattern.match(/^\*\*\/(.+)\/\*\*$/);
     if (dirMatch) {
       const dirName = dirMatch[1];
       return (
-        filePath.includes(`/${dirName}/`) ||
-        filePath.startsWith(`${dirName}/`) ||
-        filePath.endsWith(`/${dirName}`)
+        normalizedPath.includes(`/${dirName}/`) ||
+        normalizedPath.startsWith(`${dirName}/`) ||
+        normalizedPath.endsWith(`/${dirName}`)
       );
     }
 
     // Handle `**/*.ext` pattern (match files with extension)
-    const extMatch = pattern.match(/^\*\*\/\*(\.[^/]+)$/);
+    const extMatch = normalizedPattern.match(/^\*\*\/\*(\.[^/]+)$/);
     if (extMatch) {
-      return filePath.endsWith(extMatch[1]);
+      return normalizedPath.endsWith(extMatch[1]);
     }
 
     // Handle `**/name` pattern (match files/dirs named exactly)
-    const nameMatch = pattern.match(/^\*\*\/(.+)$/);
+    const nameMatch = normalizedPattern.match(/^\*\*\/(.+)$/);
     if (nameMatch) {
       const name = nameMatch[1];
-      return filePath.endsWith(`/${name}`) || filePath === name;
+      return normalizedPath.endsWith(`/${name}`) || normalizedPath === name;
     }
 
     // Fallback: check if pattern (as literal) is in path
-    return filePath.includes(pattern);
+    return normalizedPath.includes(normalizedPattern);
   }
 
   /**

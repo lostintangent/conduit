@@ -22,6 +22,7 @@
  */
 
 import type { EditorPane } from "@/types";
+import type { ChangesViewMode } from "@shared/types";
 import { useCallback, useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
 import { useEditorVisibility } from "./hooks/useEditorVisibility";
@@ -66,6 +67,11 @@ export interface EditorPaneAnchorProps {
   onTreeModeChange?: (mode: "all" | "changes") => void;
 
   /**
+   * Callback fired when changes view mode changes.
+   */
+  onChangesViewModeChange?: (mode: ChangesViewMode) => void;
+
+  /**
    * Callback fired after a successful file save.
    */
   onSave?: () => void;
@@ -106,6 +112,7 @@ export function EditorPaneAnchor({
   onCwdChange,
   onFileOpen,
   onTreeModeChange,
+  onChangesViewModeChange,
   onSave,
   onHover,
   isInPreview = false,
@@ -122,6 +129,7 @@ export function EditorPaneAnchor({
     onCwdChange,
     onFileOpen,
     onTreeModeChange,
+    onChangesViewModeChange,
     onSave,
     onHover,
   });
@@ -134,6 +142,7 @@ export function EditorPaneAnchor({
       onCwdChange,
       onFileOpen,
       onTreeModeChange,
+      onChangesViewModeChange,
       onSave,
       onHover,
     };
@@ -143,6 +152,7 @@ export function EditorPaneAnchor({
     onCwdChange,
     onFileOpen,
     onTreeModeChange,
+    onChangesViewModeChange,
     onSave,
     onHover,
   ]);
@@ -155,6 +165,8 @@ export function EditorPaneAnchor({
     onCwdChange: (cwd) => callbacksRef.current.onCwdChange?.(cwd),
     onFileOpen: (node) => callbacksRef.current.onFileOpen?.(node),
     onTreeModeChange: (mode) => callbacksRef.current.onTreeModeChange?.(mode),
+    onChangesViewModeChange: (mode) =>
+      callbacksRef.current.onChangesViewModeChange?.(mode),
     onSave: () => callbacksRef.current.onSave?.(),
     onHover: (isHovering) => callbacksRef.current.onHover?.(isHovering),
   });

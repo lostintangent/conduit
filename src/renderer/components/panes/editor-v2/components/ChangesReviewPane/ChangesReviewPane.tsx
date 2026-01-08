@@ -32,18 +32,30 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { GitCommit, Check, Minus } from "lucide-react";
 import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
+import { Check, GitCommit, Minus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DISABLED_UNSEEN_TRACKING,
+  type UnseenTrackingResult,
+} from "../../hooks";
+import {
+  filterDirtyFilesForStaging,
+  joinCwdPath,
+  notifyDirtyFilesSkipped,
+} from "../../utils";
+import { ChangesFooter } from "./ChangesFooter";
 import { ChangesReviewToolbar } from "./ChangesReviewToolbar";
 import { ChangesSection } from "./ChangesSection";
-import { ChangesFooter } from "./ChangesFooter";
 import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
 
 export interface ChangesReviewPaneProps {
   /** Working directory */
   cwd: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Git API instance (shared from parent) */
   git: GitV2API;
@@ -56,6 +68,13 @@ export interface ChangesReviewPaneProps {
 
   /** Selected file path from tree (relative path) - will expand and scroll to this file */
   selectedFilePath?: string;
+
+  /**
+   * Selected map key from tree - used for scrolling to correct entry.
+   * For partially staged files, this distinguishes between staged and unstaged entries.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
 
   // ---------------------------------------------------------------------------
   // Remote Operations (controlled by parent - EditorPaneV2)
@@ -75,6 +94,20 @@ export interface ChangesReviewPaneProps {
 
   /** Callback to trigger a push operation */
   onPush: () => void;
+
+  // ---------------------------------------------------------------------------
+  // File Change Tracking (shared state from parent)
+  // ---------------------------------------------------------------------------
+
+  /** Unseen tracking state and functions (shared from EditorPaneV2) */
+  unseenTracking?: UnseenTrackingResult;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -82,15 +115,19 @@ export interface ChangesReviewPaneProps {
  */
 export function ChangesReviewPane({
   cwd,
+  sandboxId,
   git,
   baseBranch,
   onExitReview,
   selectedFilePath,
+  selectedMapKey,
   hasUpstream,
   isPulling,
   isPushing,
   onPull,
   onPush,
+  unseenTracking: unseenTrackingProp,
+  isFileDirty,
 }: ChangesReviewPaneProps) {
   // Ref for the scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -115,6 +152,16 @@ export function ChangesReviewPane({
 
   const [stagedSectionExpanded, setStagedSectionExpanded] = useState(true);
   const [unstagedSectionExpanded, setUnstagedSectionExpanded] = useState(true);
+
+  // ---------------------------------------------------------------------------
+  // Sort Order State
+  // ---------------------------------------------------------------------------
+
+  const [sortByLastEdited, setSortByLastEdited] = useState(false);
+
+  const toggleSortOrder = useCallback(() => {
+    setSortByLastEdited((prev) => !prev);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Computed: File Lists
@@ -152,9 +199,49 @@ export function ChangesReviewPane({
   // ---------------------------------------------------------------------------
 
   // Auto-expand files by default to match v1 behavior
-  const { expandedFiles, toggleFile, expandFile } = useExpandedFiles(
-    allFilePaths,
-    true,
+  const { expandedFiles, toggleFile, expandFile, expandFiles, collapseFiles } =
+    useExpandedFiles(allFilePaths, true);
+
+  // ---------------------------------------------------------------------------
+  // Unseen Tracking (from parent EditorPaneV2)
+  // ---------------------------------------------------------------------------
+
+  // Subscriptions are handled by useUnseenTracking in EditorPaneV2
+  // This component just uses the tracking state and triggerRead function
+  const {
+    isUnseen,
+    getTimestamp,
+    triggerRead,
+    markAllSeen,
+    getUnseenCount,
+    unseenCount,
+    sortByTimestamp,
+  } = unseenTrackingProp ?? DISABLED_UNSEEN_TRACKING;
+
+  // ---------------------------------------------------------------------------
+  // Sorted File Lists (by timestamp when sortByLastEdited is true)
+  // ---------------------------------------------------------------------------
+
+  // Sort files by modification time (most recent first) when sortByLastEdited is true
+  const sortedStagedFiles = useMemo(
+    () => (sortByLastEdited ? sortByTimestamp(stagedFiles) : stagedFiles),
+    [sortByTimestamp, stagedFiles, sortByLastEdited],
+  );
+
+  const sortedUnstagedFiles = useMemo(
+    () => (sortByLastEdited ? sortByTimestamp(unstagedFiles) : unstagedFiles),
+    [sortByTimestamp, unstagedFiles, sortByLastEdited],
+  );
+
+  // Get unseen counts for each section
+  const stagedUnseenCount = useMemo(
+    () => getUnseenCount(stagedFiles.map(([path]) => path)),
+    [getUnseenCount, stagedFiles],
+  );
+
+  const unstagedUnseenCount = useMemo(
+    () => getUnseenCount(unstagedFiles.map(([path]) => path)),
+    [getUnseenCount, unstagedFiles],
   );
 
   // ---------------------------------------------------------------------------
@@ -163,6 +250,7 @@ export function ChangesReviewPane({
 
   useScrollToSelectedFile({
     selectedFilePath,
+    selectedMapKey: selectedMapKey ?? undefined,
     scrollContainerRef,
     stagedFiles,
     unstagedFiles,
@@ -210,11 +298,12 @@ export function ChangesReviewPane({
   // Git Status Subscription
   // ---------------------------------------------------------------------------
 
+  // Subscribe to git status changes to keep our local status in sync
+  // Note: Unseen tracking subscriptions are handled by useUnseenTracking in EditorPaneV2
   useEffect(() => {
     const cleanup = git.onStatusChanged((event) => {
       setGitStatus(event.status);
     });
-
     return cleanup;
   }, [git]);
 
@@ -248,8 +337,21 @@ export function ChangesReviewPane({
   // ---------------------------------------------------------------------------
 
   const handleStageAll = useCallback(async () => {
-    const paths = unstagedFiles.map(([path]) => path);
-    if (paths.length === 0) return;
+    if (unstagedFiles.length === 0) return;
+
+    // Filter out dirty files (files with unsaved changes in editor)
+    const { cleanFiles, allDirty, skippedCount } = filterDirtyFilesForStaging(
+      unstagedFiles,
+      ([, status]) => joinCwdPath(cwd, status.path),
+      isFileDirty,
+    );
+
+    // Show notification if any files were skipped
+    notifyDirtyFilesSkipped(skippedCount, allDirty);
+
+    if (allDirty) return;
+
+    const paths = cleanFiles.map(([, status]) => status.path);
 
     try {
       await git.stage(paths);
@@ -259,7 +361,7 @@ export function ChangesReviewPane({
       setError(`Failed to stage files: ${errorMessage}`);
       console.error("Failed to stage files:", err);
     }
-  }, [git, unstagedFiles]);
+  }, [git, cwd, unstagedFiles, isFileDirty]);
 
   const handleUnstageAll = useCallback(async () => {
     const paths = stagedFiles.map(([path]) => path);
@@ -282,6 +384,35 @@ export function ChangesReviewPane({
   const handleDismissError = useCallback(() => {
     setError(null);
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Section-Specific Expand/Collapse Handlers
+  // ---------------------------------------------------------------------------
+
+  const stagedFilePaths = useMemo(
+    () => stagedFiles.map(([path]) => path),
+    [stagedFiles],
+  );
+  const unstagedFilePaths = useMemo(
+    () => unstagedFiles.map(([path]) => path),
+    [unstagedFiles],
+  );
+
+  const handleExpandAllStaged = useCallback(() => {
+    expandFiles(stagedFilePaths);
+  }, [expandFiles, stagedFilePaths]);
+
+  const handleCollapseAllStaged = useCallback(() => {
+    collapseFiles(stagedFilePaths);
+  }, [collapseFiles, stagedFilePaths]);
+
+  const handleExpandAllUnstaged = useCallback(() => {
+    expandFiles(unstagedFilePaths);
+  }, [expandFiles, unstagedFilePaths]);
+
+  const handleCollapseAllUnstaged = useCallback(() => {
+    collapseFiles(unstagedFilePaths);
+  }, [collapseFiles, unstagedFilePaths]);
 
   // ---------------------------------------------------------------------------
   // Render: Loading State
@@ -347,6 +478,12 @@ export function ChangesReviewPane({
         onExitReview={onExitReview}
         error={error}
         onDismissError={handleDismissError}
+        // Sort order props
+        sortByLastEdited={sortByLastEdited}
+        onToggleSortOrder={toggleSortOrder}
+        // Unseen tracking props (always active)
+        unseenCount={unseenCount}
+        onMarkAllSeen={markAllSeen}
       />
 
       {/* Scrollable File List */}
@@ -358,7 +495,7 @@ export function ChangesReviewPane({
         {/* Staged Changes Section */}
         <ChangesSection
           title="Staged Changes"
-          files={stagedFiles}
+          files={sortedStagedFiles}
           icon={<Check className="w-3.5 h-3.5" />}
           iconColorClass="text-green-500"
           isExpanded={stagedSectionExpanded}
@@ -366,16 +503,24 @@ export function ChangesReviewPane({
           bulkActionLabel="Unstage all"
           onBulkAction={handleUnstageAll}
           cwd={cwd}
+          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
           onToggleFile={toggleFile}
+          onExpandAll={handleExpandAllStaged}
+          onCollapseAll={handleCollapseAllStaged}
+          // Unseen tracking props (always active)
+          unseenCount={stagedUnseenCount}
+          isFileUnseen={isUnseen}
+          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+          triggerRead={triggerRead}
         />
 
         {/* Unstaged Changes Section */}
         <ChangesSection
           title="Changes"
-          files={unstagedFiles}
+          files={sortedUnstagedFiles}
           icon={<Minus className="w-3.5 h-3.5" />}
           iconColorClass="text-yellow-500"
           isExpanded={unstagedSectionExpanded}
@@ -383,10 +528,20 @@ export function ChangesReviewPane({
           bulkActionLabel="Stage all"
           onBulkAction={handleStageAll}
           cwd={cwd}
+          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
           onToggleFile={toggleFile}
+          onExpandAll={handleExpandAllUnstaged}
+          onCollapseAll={handleCollapseAllUnstaged}
+          // Unseen tracking props (always active)
+          unseenCount={unstagedUnseenCount}
+          isFileUnseen={isUnseen}
+          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+          triggerRead={triggerRead}
+          // Dirty file checking (for preventing staging unsaved files)
+          isFileDirty={isFileDirty}
         />
       </div>
 

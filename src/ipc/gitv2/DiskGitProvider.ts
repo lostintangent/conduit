@@ -27,10 +27,12 @@ import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
+import { isCaseInsensitiveFS } from "../fsv2/pathUtils";
 import type { Disposable, Event } from "../fsv2/types";
 import type {
   CommitFile,
   CommitHistoryResult,
+  FileWithTime,
   GetCommitHistoryOptions,
   GitBranch,
   GitBranchChangedEvent,
@@ -55,6 +57,19 @@ import type {
 
 /** Delay before refreshing status after a .git/ change (ms) */
 const STATUS_REFRESH_DEBOUNCE_MS = 100;
+
+/**
+ * Suffix appended to Map keys for unstaged entries of partially staged files.
+ *
+ * When a file has both staged and unstaged changes (e.g., git status "MM"),
+ * we create two entries:
+ * - Staged entry: key = path
+ * - Unstaged entry: key = path + UNSTAGED_KEY_SUFFIX
+ *
+ * This allows consumers iterating over entries to see both states while
+ * maintaining backward compatibility for .get(path) lookups.
+ */
+const UNSTAGED_KEY_SUFFIX = "\0unstaged";
 
 /**
  * Paths within .git/ to ignore when watching.
@@ -154,6 +169,18 @@ export class DiskGitProvider implements GitProvider {
 
   /** Last known HEAD commit (for head change detection) */
   private lastHead: string | null = null;
+
+  /** Cached per-file diff stats (single source of truth for all diff stat queries) */
+  private perFileDiffStatsCache: {
+    result: {
+      staged: Map<string, { added: number; removed: number }>;
+      unstaged: Map<string, { added: number; removed: number }>;
+    };
+    timestamp: number;
+  } | null = null;
+
+  /** Cache TTL for diff stats (ms) - short window to deduplicate concurrent calls */
+  private static readonly DIFF_STATS_CACHE_TTL_MS = 100;
 
   // -------------------------------------------------------------------------
   // Event Emitters
@@ -313,7 +340,24 @@ export class DiskGitProvider implements GitProvider {
   async getFileStatus(filePath: string): Promise<GitFileStatus | null> {
     const status = await this.getStatus();
     const relativePath = this.toRelativePath(filePath);
-    return status.files.get(relativePath) ?? null;
+
+    // Try exact match first
+    const exactMatch = status.files.get(relativePath);
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    // On case-insensitive filesystems, try case-insensitive lookup
+    if (isCaseInsensitiveFS) {
+      const normalizedLookup = relativePath.toLowerCase();
+      for (const [key, value] of status.files) {
+        if (key.toLowerCase() === normalizedLookup) {
+          return value;
+        }
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -528,6 +572,9 @@ export class DiskGitProvider implements GitProvider {
 
   /**
    * Get diff statistics for uncommitted changes (lines added/removed).
+   *
+   * Derives aggregated stats from the cached per-file diff stats.
+   * This ensures a single source of truth and avoids redundant git operations.
    */
   async getUncommittedDiffStats(): Promise<{
     added: number;
@@ -535,26 +582,140 @@ export class DiskGitProvider implements GitProvider {
     files: number;
   }> {
     try {
-      const result = await this.git.diff(["--numstat", "HEAD"]);
-      const lines = result.trim().split("\n").filter(Boolean);
+      // Derive from per-file stats (uses cache if available)
+      const perFile = await this.getPerFileDiffStats();
 
       let totalAdded = 0;
       let totalRemoved = 0;
+      const allFiles = new Set<string>();
 
-      for (const line of lines) {
-        const [added, removed] = line.split("\t");
-        if (added !== "-") totalAdded += parseInt(added, 10) || 0;
-        if (removed !== "-") totalRemoved += parseInt(removed, 10) || 0;
+      // Sum staged stats
+      for (const [path, stat] of perFile.staged) {
+        totalAdded += stat.added;
+        totalRemoved += stat.removed;
+        allFiles.add(path);
+      }
+
+      // Sum unstaged stats
+      for (const [path, stat] of perFile.unstaged) {
+        totalAdded += stat.added;
+        totalRemoved += stat.removed;
+        allFiles.add(path);
       }
 
       return {
         added: totalAdded,
         removed: totalRemoved,
-        files: lines.length,
+        files: allFiles.size,
       };
     } catch (error) {
       console.error("[DiskGitProvider] Failed to get diff stats:", error);
       return { added: 0, removed: 0, files: 0 };
+    }
+  }
+
+  /**
+   * Get per-file diff statistics for uncommitted changes.
+   *
+   * Returns lines added/removed for each changed file, split by staged/unstaged.
+   * - Staged: `git diff --numstat --cached` (index vs HEAD)
+   * - Unstaged: `git diff --numstat` (working tree vs index)
+   *
+   * Results are cached for a short window (100ms) to deduplicate concurrent calls.
+   * This is the single source of truth for all diff stat queries.
+   */
+  async getPerFileDiffStats(): Promise<{
+    staged: Map<string, { added: number; removed: number }>;
+    unstaged: Map<string, { added: number; removed: number }>;
+  }> {
+    // Check cache first
+    const now = Date.now();
+    if (
+      this.perFileDiffStatsCache &&
+      now - this.perFileDiffStatsCache.timestamp <
+        DiskGitProvider.DIFF_STATS_CACHE_TTL_MS
+    ) {
+      return this.perFileDiffStatsCache.result;
+    }
+
+    const staged = new Map<string, { added: number; removed: number }>();
+    const unstaged = new Map<string, { added: number; removed: number }>();
+
+    const parseDiffOutput = (
+      output: string,
+      targetMap: Map<string, { added: number; removed: number }>,
+    ) => {
+      const lines = output.trim().split("\n").filter(Boolean);
+      for (const line of lines) {
+        // Format: <added>\t<removed>\t<filename>
+        // Binary files show "-" for added/removed
+        const [addedStr, removedStr, ...filenameParts] = line.split("\t");
+        const filename = filenameParts.join("\t"); // Handle filenames with tabs
+
+        if (!filename) continue;
+
+        const added = addedStr === "-" ? 0 : parseInt(addedStr, 10) || 0;
+        const removed = removedStr === "-" ? 0 : parseInt(removedStr, 10) || 0;
+
+        targetMap.set(filename, { added, removed });
+      }
+    };
+
+    try {
+      // Get staged changes (index vs HEAD)
+      const stagedOutput = await this.git.diff(["--numstat", "--cached"]);
+      parseDiffOutput(stagedOutput, staged);
+
+      // Get unstaged changes (working tree vs index)
+      const unstagedOutput = await this.git.diff(["--numstat"]);
+      parseDiffOutput(unstagedOutput, unstaged);
+
+      // Handle untracked files (not in git diff output)
+      // Count lines in each untracked file and add to unstaged stats
+      const status = await this.getStatus();
+      const untrackedFiles = Array.from(status.files.entries()).filter(
+        ([, fileStatus]) => fileStatus.status === "untracked",
+      );
+
+      // Read all untracked files in parallel
+      const untrackedStats = await Promise.all(
+        untrackedFiles.map(async ([filePath]) => {
+          try {
+            const fullPath = path.join(this.gitRoot, filePath);
+            const content = await fsPromises.readFile(fullPath, "utf-8");
+            // Count lines (consistent with how git counts)
+            const lines = content.split("\n");
+            // Git counts the final newline as a line only if there's content after it
+            const added =
+              lines.length > 0 && lines[lines.length - 1] === ""
+                ? lines.length - 1
+                : lines.length;
+            return { filePath, added };
+          } catch {
+            // File might not exist or be unreadable (e.g., symlink to nowhere)
+            return null;
+          }
+        }),
+      );
+
+      // Add results to unstaged map
+      for (const stat of untrackedStats) {
+        if (stat) {
+          unstaged.set(stat.filePath, { added: stat.added, removed: 0 });
+        }
+      }
+
+      // Cache the result
+      const result = { staged, unstaged };
+      this.perFileDiffStatsCache = { result, timestamp: now };
+
+      return result;
+    } catch (error) {
+      console.error(
+        "[DiskGitProvider] Failed to get per-file diff stats:",
+        error,
+      );
+      return { staged, unstaged };
     }
   }
 
@@ -597,6 +758,48 @@ export class DiskGitProvider implements GitProvider {
         error,
       );
       return null;
+    }
+  }
+
+  /**
+   * Get all dirty files with their modification timestamps.
+   *
+   * Returns files sorted by modification time (most recent first).
+   */
+  async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
+    try {
+      const status = await this.git.status();
+
+      if (status.files.length === 0) {
+        return [];
+      }
+
+      // Get all dirty file paths with their modification times
+      const filesWithTimes: FileWithTime[] = [];
+
+      for (const file of status.files) {
+        const absolutePath = path.join(this.gitRoot, file.path);
+        try {
+          const stats = await fsPromises.stat(absolutePath);
+          filesWithTimes.push({
+            path: file.path,
+            mtime: stats.mtimeMs,
+          });
+        } catch {
+          // File might not exist (deleted) - skip it
+        }
+      }
+
+      // Sort by mtime descending (most recent first)
+      filesWithTimes.sort((a, b) => b.mtime - a.mtime);
+
+      return filesWithTimes;
+    } catch (error) {
+      console.error(
+        "[DiskGitProvider] Failed to get dirty files with times:",
+        error,
+      );
+      return [];
     }
   }
 
@@ -1186,24 +1389,63 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Revert changes to files (discard local modifications).
+   * Revert changes to files (discard working tree modifications).
    *
-   * For staged files, unstages them first then reverts.
-   * For unstaged files, reverts directly.
+   * This discards ONLY working tree changes, preserving any staged changes.
+   * Mirrors VS Code's "Discard Changes" behavior.
+   *
+   * Handles different file types:
+   * - Untracked files: Delete from filesystem
+   * - All other files: Restore from index via `git checkout -- file`
+   *   - If file has staged changes, reverts to staged version
+   *   - If file has no staged changes, reverts to HEAD
+   *
+   * Note: Does NOT unstage files. Use unstage() separately if needed.
    */
   async revert(files: string[]): Promise<void> {
     await this.withOperationTracking(async () => {
       const relativePaths = files.map((f) => this.toRelativePath(f));
 
-      // First, unstage any staged changes
-      try {
-        await this.git.reset(["HEAD", "--", ...relativePaths]);
-      } catch {
-        // Ignore errors (file might not be staged)
+      // Get current status to determine how to handle each file
+      const status = await this.getStatus();
+
+      // Categorize files by revert strategy
+      const filesToCheckout: string[] = [];
+      const filesToDelete: string[] = [];
+
+      for (const relPath of relativePaths) {
+        const fileStatus = status.files.get(relPath);
+        if (fileStatus?.status === "untracked") {
+          // Only truly untracked files should be deleted
+          // (files with no committed or staged version)
+          filesToDelete.push(relPath);
+        } else {
+          // All other files (including "added") can be restored via git checkout
+          // - "added" files revert to their staged version
+          // - "modified" files revert to index (staged) or HEAD
+          filesToCheckout.push(relPath);
+        }
       }
 
-      // Then checkout to discard working tree changes
-      await this.git.checkout(["--", ...relativePaths]);
+      // Delete untracked files from filesystem
+      await Promise.all(
+        filesToDelete.map(async (relPath) => {
+          const fullPath = path.join(this.gitRoot, relPath);
+          try {
+            await fsPromises.unlink(fullPath);
+          } catch {
+            // Ignore errors (file might already be deleted)
+          }
+        }),
+      );
+
+      // Restore tracked/staged files via git checkout
+      // This restores working tree to match INDEX (not HEAD!)
+      // - If file has staged changes: reverts to staged version
+      // - If file has no staged changes: reverts to HEAD
+      if (filesToCheckout.length > 0) {
+        await this.git.checkout(["--", ...filesToCheckout]);
+      }
     });
   }
 
@@ -1500,9 +1742,16 @@ export class DiskGitProvider implements GitProvider {
 
     // Process all file statuses
     for (const file of statusResult.files) {
-      const fileStatus = this.parseFileStatus(file);
-      if (fileStatus) {
-        files.set(fileStatus.path, fileStatus);
+      const entries = this.parseFileStatuses(file);
+      for (const entry of entries) {
+        // For partially staged files, we have two entries:
+        // - Staged entry uses the path as key (backward compatible)
+        // - Unstaged entry uses path + suffix to avoid key collision
+        const key =
+          entry.staged || !entry.hasIndexChanges
+            ? entry.path
+            : entry.path + UNSTAGED_KEY_SUFFIX;
+        files.set(key, entry);
       }
     }
 
@@ -1516,27 +1765,84 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Parse a single file status from simple-git.
+   * Parse a single file from simple-git into one or two GitFileStatus entries.
+   *
+   * For most files, returns a single entry. For partially staged files
+   * (e.g., "MM" - modified in both index and working directory), returns
+   * two entries: one for staged changes and one for unstaged changes.
    */
-  private parseFileStatus(file: {
+  private parseFileStatuses(file: {
     path: string;
     index: string;
     working_dir: string;
-  }): GitFileStatus | null {
+  }): GitFileStatus[] {
     const { path: filePath, index, working_dir } = file;
+    const entries: GitFileStatus[] = [];
 
-    // Determine status code and staged state
-    const { status, staged } = this.interpretStatusCodes(index, working_dir);
-
-    if (!status) {
-      return null;
+    // Handle special cases first
+    // Untracked files
+    if (index === "?" && working_dir === "?") {
+      entries.push({
+        path: filePath,
+        status: "untracked",
+        staged: false,
+      });
+      return entries;
     }
 
-    return {
-      path: filePath,
-      status,
-      staged,
-    };
+    // Ignored files
+    if (index === "!" && working_dir === "!") {
+      entries.push({
+        path: filePath,
+        status: "ignored",
+        staged: false,
+      });
+      return entries;
+    }
+
+    // Unmerged (conflict)
+    if (
+      index === "U" ||
+      working_dir === "U" ||
+      (index === "A" && working_dir === "A") ||
+      (index === "D" && working_dir === "D")
+    ) {
+      entries.push({
+        path: filePath,
+        status: "unmerged",
+        staged: false,
+      });
+      return entries;
+    }
+
+    // Check if file has changes in index (staged area)
+    const hasIndexChange = index !== " " && index !== "?";
+    // Check if file has changes in working directory (unstaged)
+    const hasWorkingDirChange = working_dir !== " " && working_dir !== "?";
+
+    // Create staged entry if there are index changes
+    if (hasIndexChange) {
+      entries.push({
+        path: filePath,
+        status: this.codeToStatus(index),
+        staged: true,
+        hasIndexChanges: true,
+      });
+    }
+
+    // Create unstaged entry if there are working directory changes
+    if (hasWorkingDirChange) {
+      entries.push({
+        path: filePath,
+        status: this.codeToStatus(working_dir),
+        staged: false,
+        // hasIndexChanges indicates the diff should be Index → Working Dir
+        // instead of HEAD → Working Dir
+        hasIndexChanges: hasIndexChange,
+      });
+    }
+
+    return entries;
   }
 
   /**
@@ -1549,11 +1855,13 @@ export class DiskGitProvider implements GitProvider {
    * Common patterns:
    * - "M " = Modified and staged
    * - " M" = Modified but not staged
-   * - "MM" = Modified, staged, then modified again
+   * - "MM" = Modified, staged, then modified again (partially staged)
    * - "A " = Added (new file, staged)
    * - "??" = Untracked
    * - " D" = Deleted but not staged
    * - "D " = Deleted and staged
+   *
+   * @deprecated Use parseFileStatuses instead which handles partially staged files
    */
   private interpretStatusCodes(
     index: string,
@@ -1645,6 +1953,9 @@ export class DiskGitProvider implements GitProvider {
     if (this.disposed) {
       return;
     }
+
+    // Invalidate diff stats cache - status change means stats may have changed
+    this.perFileDiffStatsCache = null;
 
     try {
       const currentStatus = await this.getStatus();

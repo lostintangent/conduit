@@ -27,15 +27,16 @@
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef } from "react";
 import {
-  useDiffContent,
-  useMonacoModel,
-  useEditorTheme,
   useAutoSizeEditor,
+  useDiffContent,
+  useEditorTheme,
+  useMonacoModel,
   usePreventFocusScroll,
 } from "../../hooks";
+import { createModelKey } from "../../registry";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
-import { detectLanguage } from "../../utils/languageDetection";
-import type { AutoSizeConfig } from "./constants";
+import type { ContentSource } from "../../types";
+import { detectLanguage, forceTokenizeVisibleLines } from "../../utils";
 
 export interface DiffEditorWrapperProps {
   /** Unique ID for this diff editor instance */
@@ -47,13 +48,36 @@ export interface DiffEditorWrapperProps {
   /** Absolute path to the file to diff */
   filePath: string;
 
-  /** Git ref for the original content (default: 'HEAD') */
+  /**
+   * Source for original (left) side content.
+   * Default: 'head'
+   */
+  originalSource?: ContentSource;
+
+  /**
+   * Source for modified (right) side content.
+   * Default: 'workingDirectory'
+   *
+   * Note: Only 'workingDirectory' is editable. Git sources are read-only.
+   */
+  modifiedSource?: ContentSource;
+
+  /**
+   * @deprecated Use originalSource instead. Kept for backward compatibility.
+   * If originalSource is not provided, baseBranch is used as the original source.
+   */
   baseBranch?: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Monaco theme name */
   theme?: string;
 
-  /** Whether the modified side should be read-only */
+  /**
+   * Whether the modified side should be read-only.
+   * Only applies when modifiedSource is 'workingDirectory'.
+   */
   readOnly?: boolean;
 
   /** Callback when modified content changes */
@@ -63,11 +87,14 @@ export interface DiffEditorWrapperProps {
   onMount?: (editor: monaco.editor.IStandaloneDiffEditor) => void;
 
   /**
-   * Auto-size configuration. When provided, the editor height adjusts
-   * based on content between minHeight and maxHeight bounds.
-   * If not provided, auto-sizing is enabled with default values.
+   * Maximum height in pixels. When provided, the editor is constrained
+   * to this height with internal scrolling. If not provided, the editor
+   * fills its container.
    */
-  autoSize?: AutoSizeConfig;
+  autoSize?: number;
+
+  /** Whether to collapse unchanged regions in the diff view */
+  hideUnchangedRegions?: boolean;
 }
 
 // ============================================================================
@@ -102,23 +129,44 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
   };
 
 /**
+ * Configuration for hiding unchanged regions in diff view.
+ * Shows only changed areas with configurable context lines.
+ */
+const HIDE_UNCHANGED_REGIONS_CONFIG: monaco.editor.IDiffEditorBaseOptions["hideUnchangedRegions"] =
+  {
+    enabled: true,
+    contextLineCount: 3,
+    minimumLineCount: 3,
+    revealLineCount: 20,
+  };
+
+/**
  * Monaco diff editor wrapper with content loading.
  *
- * Creates a diff editor that compares:
- * - Original: Content from git (HEAD or baseBranch)
- * - Modified: Current working directory content (via MonacoModelRegistry)
+ * Creates a diff editor that compares content from configurable sources:
+ * - Original: Content from originalSource (default: 'head')
+ * - Modified: Content from modifiedSource (default: 'workingDirectory')
  */
 export function DiffEditorWrapper({
   editorId,
   cwd,
   filePath,
+  originalSource: originalSourceProp,
+  modifiedSource: modifiedSourceProp = "workingDirectory",
   baseBranch,
+  sandboxId,
   theme: themeProp,
   readOnly = false,
   onChange,
   onMount,
   autoSize,
+  hideUnchangedRegions = false,
 }: DiffEditorWrapperProps) {
+  // Resolve original source: prefer originalSource prop, fall back to baseBranch for backward compat
+  const originalSource: ContentSource =
+    originalSourceProp ?? baseBranch ?? "head";
+  const modifiedSource: ContentSource = modifiedSourceProp;
+
   // Use provided theme or fall back to user's preferred theme
   const defaultTheme = useEditorTheme();
   const theme = themeProp ?? defaultTheme;
@@ -129,6 +177,7 @@ export function DiffEditorWrapper({
     null,
   );
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
+  const modifiedModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
   const currentFilePathRef = useRef<string>(filePath);
 
@@ -149,21 +198,38 @@ export function DiffEditorWrapper({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // Get diff content (original from git, modified from file system)
-  const diffContent = useDiffContent(filePath, baseBranch, cwd);
+  // Get diff content based on sources
+  const diffContent = useDiffContent(filePath, cwd, {
+    originalSource,
+    modifiedSource,
+    sandboxId,
+  });
 
-  // Get the shared model for the modified side
+  // Effective read-only state: read-only if explicitly set OR if modified source is not editable
+  const effectiveReadOnly = readOnly || !diffContent.isModifiedEditable;
+
+  // Ref to track effectiveReadOnly for cleanup (defined after effectiveReadOnly is calculated)
+  const effectiveReadOnlyRef = useRef(effectiveReadOnly);
+  useEffect(() => {
+    effectiveReadOnlyRef.current = effectiveReadOnly;
+  }, [effectiveReadOnly]);
+
+  // Get the shared model for the modified side (only when modifiedSource is 'workingDirectory')
   // Pass editorId to ensure consistent reference counting with other registries
-  const modifiedModel = useMonacoModel(editorId, filePath, cwd);
+  const registryModel = useMonacoModel(
+    editorId,
+    modifiedSource === "workingDirectory" ? filePath : null,
+    cwd,
+    sandboxId,
+  );
 
   // Detect language from file path
   const language = detectLanguage(filePath);
 
-  // Auto-sizing hook - adjusts height based on content
-  const { containerStyle } = useAutoSizeEditor({
+  // Auto-sizing hook - grows height with content up to maxHeight
+  const { containerRef: autoSizeRef } = useAutoSizeEditor({
     diffEditor: diffEditorRef.current,
-    config: autoSize,
-    deps: [diffContent.isLoading, modifiedModel],
+    maxHeight: autoSize,
   });
 
   // ---------------------------------------------------------------------------
@@ -175,27 +241,35 @@ export function DiffEditorWrapper({
     if (!container) return;
 
     // Create a fresh diff editor (like v1 does with @monaco-editor/react)
+    // Note: readOnly is set via updateOptions below to avoid having it in dependencies
     const diffEditor = monaco.editor.createDiffEditor(container, {
       ...DEFAULT_DIFF_OPTIONS,
       theme,
-      readOnly,
+      ...(hideUnchangedRegions && {
+        hideUnchangedRegions: HIDE_UNCHANGED_REGIONS_CONFIG,
+      }),
     });
 
     diffEditorRef.current = diffEditor;
+
+    // Set initial readOnly option
+    diffEditor.updateOptions({ readOnly: effectiveReadOnly });
 
     // Call onMount callback via ref to avoid dependency
     onMountRef.current?.(diffEditor);
 
     // Cleanup on unmount
     return () => {
-      // Save ViewState before disposing so it can be restored later
-      const modifiedEditor = diffEditor.getModifiedEditor();
-      if (modifiedEditor && currentFilePathRef.current) {
-        ViewStateRegistry.getInstance().save(
-          `diff-modified-${editorId}`,
-          currentFilePathRef.current,
-          modifiedEditor,
-        );
+      // Save ViewState before disposing so it can be restored later (only for editable content)
+      if (!effectiveReadOnlyRef.current) {
+        const modifiedEditor = diffEditor.getModifiedEditor();
+        if (modifiedEditor && currentFilePathRef.current) {
+          ViewStateRegistry.getInstance().save(
+            `diff-modified-${editorId}`,
+            currentFilePathRef.current,
+            modifiedEditor,
+          );
+        }
       }
 
       // Dispose content change listener
@@ -218,12 +292,20 @@ export function DiffEditorWrapper({
         originalModelRef.current = null;
       }
 
+      // Dispose modified model if we own it (git source mode)
+      if (modifiedModelRef.current) {
+        modifiedModelRef.current.dispose();
+        modifiedModelRef.current = null;
+      }
+
       // Dispose diff editor
       diffEditor.dispose();
       diffEditorRef.current = null;
     };
     // Note: onMount handled via ref, filePath via ref for cleanup
-  }, [theme, readOnly, editorId]);
+    // Note: effectiveReadOnly is NOT in dependencies - we update it via updateOptions
+    // to avoid recreating the entire editor (which causes keyboard listener leaks)
+  }, [theme, editorId, hideUnchangedRegions]);
 
   // ---------------------------------------------------------------------------
   // Model Setup
@@ -233,31 +315,65 @@ export function DiffEditorWrapper({
     const diffEditor = diffEditorRef.current;
     if (!diffEditor) return;
 
-    // Need both original content and modified model to set up the diff
+    // Need both original and modified content to set up the diff
     if (
       diffContent.isLoading ||
       diffContent.original === null ||
-      !modifiedModel
+      diffContent.modified === null
     ) {
       return;
     }
 
+    // Determine which model to use for the modified side
+    let modifiedModel: monaco.editor.ITextModel | null = null;
+
+    if (modifiedSource === "workingDirectory") {
+      // Working directory: use the shared registry model
+      if (!registryModel) {
+        return;
+      }
+
+      // IMPORTANT: Verify the registryModel matches the current filePath before attaching.
+      // When filePath changes, React may re-run this effect with the OLD model
+      // before useMonacoModel updates with the new model.
+      const modelUri = registryModel.uri.toString();
+      const expectedModelKey = createModelKey(filePath, sandboxId);
+      const modelMatchesFile =
+        modelUri === expectedModelKey ||
+        modelUri.startsWith(expectedModelKey.split("::")[0] + "::") ||
+        registryModel.uri.fsPath === filePath;
+
+      if (!modelMatchesFile) {
+        return;
+      }
+
+      modifiedModel = registryModel;
+    }
+    // For git sources, we'll create a standalone model below
+
     // Wrap in try-catch to prevent any errors from crashing the app
     try {
-      // Create original model (read-only, we own this)
-      // Dispose previous if exists - must reset diff editor model first
-      if (originalModelRef.current) {
-        // Reset diff editor model before disposing to prevent race condition
+      // Reset diff editor model before disposing old models
+      if (originalModelRef.current || modifiedModelRef.current) {
         try {
           diffEditor.setModel(null);
         } catch {
           // Ignore if already disposed
         }
+      }
+
+      // Dispose previous original model
+      if (originalModelRef.current) {
         originalModelRef.current.dispose();
       }
 
-      // Use editorId in URI to ensure uniqueness across multiple diff editors
-      // showing the same file (e.g., different panes comparing same file)
+      // Dispose previous modified model (only if we own it - git source mode)
+      if (modifiedModelRef.current) {
+        modifiedModelRef.current.dispose();
+        modifiedModelRef.current = null;
+      }
+
+      // Create original model (read-only, we own this)
       const originalUri = monaco.Uri.parse(
         `inmemory://original/${editorId}/${filePath}`,
       );
@@ -267,63 +383,84 @@ export function DiffEditorWrapper({
         originalUri,
       );
 
+      // Create modified model for git sources (we own this)
+      if (modifiedSource !== "workingDirectory") {
+        const modifiedUri = monaco.Uri.parse(
+          `inmemory://modified/${editorId}/${filePath}`,
+        );
+        modifiedModelRef.current = monaco.editor.createModel(
+          diffContent.modified,
+          language,
+          modifiedUri,
+        );
+        modifiedModel = modifiedModelRef.current;
+      }
+
+      if (!modifiedModel) {
+        console.error("No modified model available for diff editor");
+        return;
+      }
+
       // Set the diff models
       diffEditor.setModel({
         original: originalModelRef.current,
         modified: modifiedModel,
       });
+
+      // Force immediate tokenization to prevent white flash before syntax highlighting
+      forceTokenizeVisibleLines(originalModelRef.current);
+      forceTokenizeVisibleLines(modifiedModel);
     } catch (error) {
       console.error("Error setting up diff editor models:", error);
       return;
     }
 
-    // Restore ViewState for the modified editor (scroll position, cursor, etc.)
-    const modifiedEditor = diffEditor.getModifiedEditor();
-    if (modifiedEditor) {
-      ViewStateRegistry.getInstance().restore(
-        `diff-modified-${editorId}`,
-        filePath,
-        modifiedEditor,
-      );
+    // Restore ViewState for the modified editor (only for editable content)
+    if (!effectiveReadOnly) {
+      const modifiedEditor = diffEditor.getModifiedEditor();
+      if (modifiedEditor) {
+        ViewStateRegistry.getInstance().restore(
+          `diff-modified-${editorId}`,
+          filePath,
+          modifiedEditor,
+        );
+      }
     }
 
     // Automatically scroll to the first diff after a short delay
-    // to ensure diff computation is complete
     const revealTimeoutId = setTimeout(() => diffEditor.revealFirstDiff(), 100);
 
-    // Set up content change listener for onChange callback
+    // Set up content change listener for onChange callback (only for editable content)
     if (contentChangeDisposableRef.current) {
       contentChangeDisposableRef.current.dispose();
     }
 
-    // Use ref to always call latest onChange without effect dependency
-    if (!readOnly) {
-      contentChangeDisposableRef.current = modifiedModel.onDidChangeContent(
-        () => {
-          onChangeRef.current?.(modifiedModel.getValue());
-        },
-      );
+    if (!effectiveReadOnly && modifiedModel) {
+      const model = modifiedModel;
+      contentChangeDisposableRef.current = model.onDidChangeContent(() => {
+        onChangeRef.current?.(model.getValue());
+      });
     }
 
     return () => {
-      // Clear the reveal timeout
       clearTimeout(revealTimeoutId);
 
-      // Cleanup content change listener
       if (contentChangeDisposableRef.current) {
         contentChangeDisposableRef.current.dispose();
         contentChangeDisposableRef.current = null;
       }
     };
-    // Note: onChange handled via ref to avoid listener re-setup when callback changes
   }, [
     editorId,
     filePath,
     language,
+    modifiedSource,
     diffContent.isLoading,
     diffContent.original,
-    modifiedModel,
-    readOnly,
+    diffContent.modified,
+    registryModel,
+    effectiveReadOnly,
+    sandboxId,
   ]);
 
   // ---------------------------------------------------------------------------
@@ -339,9 +476,9 @@ export function DiffEditorWrapper({
 
     // Update editor-specific options
     diffEditor.updateOptions({
-      readOnly,
+      readOnly: effectiveReadOnly,
     });
-  }, [theme, readOnly]);
+  }, [theme, effectiveReadOnly]);
 
   // ---------------------------------------------------------------------------
   // Focus Handler
@@ -355,7 +492,10 @@ export function DiffEditorWrapper({
   }, []);
 
   return (
-    <div className="relative" style={containerStyle}>
+    <div
+      ref={autoSizeRef}
+      className={`relative ${autoSize ? "" : "h-full w-full"}`}
+    >
       {/* Diff editor container */}
       <div
         ref={containerRef}

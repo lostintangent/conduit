@@ -164,8 +164,6 @@ export const automation = {
       element.dispatchEvent(new MouseEvent("mouseup", init));
       element.dispatchEvent(new MouseEvent("click", init));
     }
-
-    return describeElement(element);
   },
 
   async type(payload: BrowserTypeArgs) {
@@ -217,8 +215,6 @@ export const automation = {
       });
       element.dispatchEvent(enter);
     }
-
-    return describeElement(element);
   },
 
   keys(payload: BrowserKeysArgs) {
@@ -230,7 +226,6 @@ export const automation = {
       active.dispatchEvent(down);
       active.dispatchEvent(up);
     }
-    return true;
   },
 
   scroll(payload?: BrowserScrollArgs) {
@@ -238,10 +233,23 @@ export const automation = {
     const target = handle ? handles.resolve(handle) : null;
     const behavior: ScrollBehavior = smooth ? "smooth" : "auto";
 
+    // Determine sign based on direction (negative for up/left, positive for down/right)
+    const xSign = direction === "left" ? -1 : direction === "right" ? 1 : 1;
+    const ySign = direction === "up" ? -1 : direction === "down" ? 1 : 1;
+
+    // Use provided value with direction sign, or default to 200 if direction is set
     const scrollX =
-      x ?? (direction === "left" ? -200 : direction === "right" ? 200 : 0);
+      x !== undefined
+        ? x * xSign
+        : direction === "left" || direction === "right"
+          ? 200 * xSign
+          : 0;
     const scrollY =
-      y ?? (direction === "up" ? -200 : direction === "down" ? 200 : 0);
+      y !== undefined
+        ? y * ySign
+        : direction === "up" || direction === "down"
+          ? 200 * ySign
+          : 0;
 
     if (target && typeof (target as HTMLElement).scrollBy === "function") {
       (target as HTMLElement).scrollBy({
@@ -252,16 +260,16 @@ export const automation = {
     } else {
       window.scrollBy({ left: scrollX, top: scrollY, behavior });
     }
-
-    return true;
   },
 
-  async waitFor(payload?: BrowserWaitArgs): Promise<boolean> {
-    const { state, selector, timeout = 5000 } = payload ?? {};
-
+  async wait({
+    state,
+    selector,
+    timeout = 5000,
+  }: BrowserWaitArgs): Promise<void> {
     if (state === "domcontentloaded") {
-      if (document.readyState !== "loading") return true;
-      await new Promise((resolve, reject) => {
+      if (document.readyState !== "loading") return;
+      await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(
           () => reject(new Error("ERR_TIMEOUT")),
           timeout,
@@ -270,29 +278,25 @@ export const automation = {
           "DOMContentLoaded",
           () => {
             clearTimeout(timer);
-            resolve(true);
+            resolve();
           },
           { once: true },
         );
       });
-      return true;
+      return;
     }
 
     if (selector) {
       await waitForSelector(selector, timeout);
-      return true;
+      return;
     }
 
     if (state === "networkidle") {
       await new Promise((resolve) => setTimeout(resolve, 300));
-      return true;
     }
-
-    return true;
   },
 
-  hover(payload: BrowserHoverArgs) {
-    const { handle, offset } = payload ?? {};
+  hover({ handle, offset }: BrowserHoverArgs) {
     const element = handles.resolve(handle);
 
     scrollElementIntoView(element);
@@ -312,23 +316,16 @@ export const automation = {
     ["pointerenter", "pointerover", "mousemove", "mouseover"].forEach((type) =>
       dispatchMouseEvent(element, type, init),
     );
-
-    return describeElement(element);
   },
 
-  focus(payload: BrowserFocusArgs) {
-    const { handle, scroll = true } = payload ?? {};
-    const element = handles.resolve(handle);
+  focus({ handle, scroll = true }: BrowserFocusArgs) {
+    const element = handles.resolve(handle) as HTMLElement;
 
     if (scroll) {
       scrollElementIntoView(element);
     }
 
-    if (typeof (element as HTMLElement).focus === "function") {
-      (element as HTMLElement).focus();
-    }
-
-    return describeElement(element);
+    element.focus?.();
   },
 };
 

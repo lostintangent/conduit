@@ -1,9 +1,8 @@
-import { disposeSession } from "@/components/panes/terminal/xtermCache";
+import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
 import { openTabFromExistingSession } from "@/store/actions/tab";
 import { hyperTerminalsAtom } from "@/store/atoms";
+import type { HyperTerminalPosition } from "@shared/types";
 import { getDefaultStore } from "jotai";
-
-type HyperTerminal = { terminalId: string; paneId: string; cwd: string | null };
 
 const api = window.conduit;
 const store = getDefaultStore();
@@ -12,17 +11,24 @@ const store = getDefaultStore();
  * Removes a hyper terminal from the store by its terminal ID.
  *
  * @param terminalId - The terminal session ID to remove
- * @returns The removed terminal, or undefined if not found
+ * @returns True if the terminal was found and removed, false otherwise
  */
-function removeHyperTerminal(terminalId: string): HyperTerminal | undefined {
-  let removed: HyperTerminal | undefined;
-  store.set(hyperTerminalsAtom, (terminals) => {
-    const index = terminals.findIndex((t) => t.terminalId === terminalId);
+function removeHyperTerminal(terminalId: string): boolean {
+  const terminals = store.get(hyperTerminalsAtom);
+  const exists = terminals.some((t) => t.terminalId === terminalId);
+
+  if (!exists) {
+    return false;
+  }
+
+  store.set(hyperTerminalsAtom, (draft) => {
+    const index = draft.findIndex((t) => t.terminalId === terminalId);
     if (index !== -1) {
-      removed = terminals.splice(index, 1)[0];
+      draft.splice(index, 1);
     }
   });
-  return removed;
+
+  return true;
 }
 
 /**
@@ -51,9 +57,69 @@ export function openHyperTerminal(
   store.set(hyperTerminalsAtom, (terminals) => {
     // Prevent duplicate terminals
     if (!terminals.some((t) => t.terminalId === terminalId)) {
-      terminals.push({ terminalId, paneId, cwd });
+      terminals.push({
+        terminalId,
+        paneId,
+        cwd,
+        state: "visible",
+        position: null,
+      });
     }
   });
+}
+
+/**
+ * Updates the position of a hyper terminal.
+ *
+ * @param terminalId - The terminal session ID
+ * @param position - The new position
+ */
+export function updateHyperTerminalPosition(
+  terminalId: string,
+  position: HyperTerminalPosition,
+) {
+  store.set(hyperTerminalsAtom, (terminals) => {
+    const terminal = terminals.find((t) => t.terminalId === terminalId);
+    if (terminal) {
+      terminal.position = position;
+    }
+  });
+}
+
+/**
+ * Minimizes a hyper terminal by setting its state to minimized.
+ *
+ * @param terminalId - The terminal session ID to minimize
+ */
+export function minimizeHyperTerminal(terminalId: string) {
+  store.set(hyperTerminalsAtom, (terminals) => {
+    const terminal = terminals.find((t) => t.terminalId === terminalId);
+    if (terminal) {
+      terminal.state = "minimized";
+    }
+  });
+}
+
+/**
+ * Restores all minimized hyper terminals to visible state.
+ */
+export function restoreMinimizedHyperTerminals() {
+  store.set(hyperTerminalsAtom, (terminals) => {
+    for (const terminal of terminals) {
+      if (terminal.state === "minimized") {
+        terminal.state = "visible";
+      }
+    }
+  });
+}
+
+/**
+ * Checks if there are any minimized hyper terminals.
+ *
+ * @returns True if there are minimized terminals, false otherwise
+ */
+export function hasMinimizedHyperTerminals(): boolean {
+  return store.get(hyperTerminalsAtom).some((t) => t.state === "minimized");
 }
 
 /**
@@ -63,13 +129,12 @@ export function openHyperTerminal(
  * @param terminalId - The terminal session ID to close
  */
 export function closeHyperTerminal(terminalId: string) {
-  const terminal = removeHyperTerminal(terminalId);
-  if (!terminal) {
+  if (!removeHyperTerminal(terminalId)) {
     return;
   }
 
-  api.closeTerminal(terminal.terminalId);
-  disposeSession(terminal.terminalId);
+  api.closeTerminal(terminalId);
+  disposeSession(terminalId);
 }
 
 /**

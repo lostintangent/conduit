@@ -1,11 +1,13 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
+import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
+import { IdleIndicator } from "@/components/ui/idle-indicator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { closeTab, focusTab, openTab } from "@/store/actions/tab";
-import { applicationModeAtom } from "@/store/atoms";
+import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Lock, Minimize2, Plus, Trash2 } from "lucide-react";
@@ -16,6 +18,7 @@ export function TabsOverview() {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
 
   const tabLabels = useAtomValue(tabLabelsAtom);
+  const { showTabState } = useAtomValue(userSettingsAtom);
   const setApplicationMode = useSetAtom(applicationModeAtom);
 
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
@@ -85,10 +88,15 @@ export function TabsOverview() {
               <button
                 type="button"
                 onClick={() => focusTab(tab.id)}
-                className="inline-flex items-center justify-center truncate text-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+                className="inline-flex items-center justify-center gap-1.5 truncate text-sm text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
                 title={tab.label}
               >
-                {tab.label}
+                {showTabState && <IdleIndicator tabState={tab.tabState} />}
+                {showTabState && tab.tabState === "running" ? (
+                  <AnimatedShinyText>{tab.label}</AnimatedShinyText>
+                ) : (
+                  tab.label
+                )}
               </button>
               {tab.locked ? (
                 <span

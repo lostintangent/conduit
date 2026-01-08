@@ -25,7 +25,7 @@
 import { useMemo } from "react";
 import { ChevronRight, ChevronDown, FileText } from "lucide-react";
 import type { GitV2API } from "@/api/GitV2API";
-import type { CommitFile } from "../CommitGraph/types";
+import type { CommitFile, GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import { HistoricalDiffViewer } from "../EditorViewPanel/HistoricalDiffViewer";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { GitBadge } from "../shared";
@@ -52,18 +52,17 @@ export interface CommitReviewFileItemProps {
 }
 
 /**
- * Map CommitFile status to GitFileStatus format for GitBadge.
+ * Map CommitFile to GitFileStatus format for GitBadge.
  */
-function mapToGitFileStatus(status: CommitFile["status"]): {
-  status: string;
-  staged: boolean;
-} {
+function mapToGitFileStatus(file: CommitFile): GitFileStatus {
   // Map commit file statuses to the format GitBadge expects
   // For historical commits, staged doesn't apply - we use true
   // to show the "committed" color variant
+  const mappedStatus = file.status === "copied" ? "renamed" : file.status;
   return {
-    status: status === "copied" ? "renamed" : status,
+    status: mappedStatus,
     staged: true, // Historical commits are "staged" (committed)
+    path: file.path,
   };
 }
 
@@ -143,7 +142,7 @@ export function CommitReviewFileItem({
         <div className="flex-1" />
 
         {/* Status badge */}
-        <GitBadge status={mapToGitFileStatus(file.status)} />
+        <GitBadge status={mapToGitFileStatus(file)} />
 
         {/* Stats */}
         {(additions > 0 || deletions > 0) && (
@@ -168,11 +167,6 @@ export function CommitReviewFileItem({
               parentCommitId={parentCommitId}
               filePath={file.path}
               git={git}
-              autoSize={{
-                enabled: true,
-                minHeight: 100,
-                maxHeight: 500,
-              }}
             />
           </EditorErrorBoundary>
         </div>

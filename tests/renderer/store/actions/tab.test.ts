@@ -37,8 +37,66 @@ vi.mock("@/store/actions/focusMode", () => ({
 }));
 
 // Import after setting up mocks
-import { duplicateTab } from "@/store/actions/tab";
+import { duplicateTab, translateFilePath } from "@/store/actions/tab";
 import type { Tab } from "@/types";
+
+describe("translateFilePath", () => {
+  it("should return file unchanged when source and target CWDs are the same", () => {
+    const result = translateFilePath(
+      "/home/user/project/src/index.ts",
+      "/home/user/project",
+      "/home/user/project",
+    );
+    expect(result).toBe("/home/user/project/src/index.ts");
+  });
+
+  it("should return file unchanged when file is outside source CWD", () => {
+    const result = translateFilePath(
+      "/other/location/file.ts",
+      "/home/user/project",
+      "/home/user/other-project",
+    );
+    expect(result).toBe("/other/location/file.ts");
+  });
+
+  it("should translate file path from source CWD to target CWD", () => {
+    const result = translateFilePath(
+      "/home/user/project/src/index.ts",
+      "/home/user/project",
+      "/home/user/other-project",
+    );
+    expect(result).toBe("/home/user/other-project/src/index.ts");
+  });
+
+  it("should handle nested directories correctly", () => {
+    const result = translateFilePath(
+      "/home/user/project/src/components/Button.tsx",
+      "/home/user/project",
+      "/tmp/worktree",
+    );
+    expect(result).toBe("/tmp/worktree/src/components/Button.tsx");
+  });
+
+  it("should handle paths without trailing slashes", () => {
+    // Standard case without trailing slashes
+    const result = translateFilePath(
+      "/home/user/project/file.ts",
+      "/home/user/project",
+      "/home/user/other",
+    );
+    expect(result).toBe("/home/user/other/file.ts");
+  });
+
+  it("should not translate file that partially matches source CWD", () => {
+    // File path starts with source CWD string but is not inside it
+    const result = translateFilePath(
+      "/home/user/project-extra/file.ts",
+      "/home/user/project",
+      "/home/user/other",
+    );
+    expect(result).toBe("/home/user/project-extra/file.ts");
+  });
+});
 
 describe("duplicateTab", () => {
   beforeEach(() => {

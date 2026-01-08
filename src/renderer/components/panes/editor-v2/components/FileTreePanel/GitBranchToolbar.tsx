@@ -2,17 +2,20 @@
  * GitBranchToolbar - Git branch and operations toolbar.
  *
  * A compact toolbar that provides:
- * - Branch comparison toggle (compare to base branch)
- * - Branch label display (baseBranch → currentBranch)
- * - Git status summary with animated badges
- * - Filter toggle for showing only changed files
- * - Pull/Push operations (when available)
- * - Review changes action
- * - Commit UI (message input + button)
+ * - Branch selector/display with comparison mode (baseBranch → currentBranch)
+ * - Base branch comparison toggle (always visible)
+ * - View mode toggle (tree/flat - only in changes mode)
+ * - Review changes action (only in changes mode)
+ * - Git status summary with filter toggle
+ * - Commit UI with Pull/Push operations (only in changes mode)
  *
- * The toolbar has two rows:
- * 1. Branch info: comparison toggle, branch label, status summary, actions
- * 2. Commit row: message input and commit button (visible when filter active)
+ * Layout:
+ * - Row 1: [Branch] | [Compare][ViewMode][Review] | [StatusBadge]
+ * - Row 2: [Commit input] [Commit][Pull][Push] (only in changes mode)
+ *
+ * Responsive behavior:
+ * - At narrow widths (<280px), action buttons collapse into an overflow menu
+ * - Pull/Push in commit row also collapse to overflow menu
  *
  * @example
  * ```tsx
@@ -28,18 +31,26 @@
  * ```
  */
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import {
   ArrowDownToLine,
   ArrowRight,
   ArrowUpFromLine,
+  BookOpen,
   GitCommitVertical,
   GitCompare,
   Send,
-  SquareArrowOutUpRight,
   List,
   FolderTree,
+  MoreVertical,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FillingIcon } from "@/components/ui/filling-icon";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -53,6 +64,9 @@ import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import { GitStatusSummary } from "./GitStatusSummary";
 import { BranchSwitcher } from "./BranchSwitcher";
+
+/** Width threshold for collapsing action buttons into overflow menu */
+const COMPACT_MODE_BREAKPOINT = 280;
 
 export interface GitBranchToolbarProps {
   /** Current branch name (null if no git repo) */
@@ -177,12 +191,32 @@ export function GitBranchToolbar({
   // ---------------------------------------------------------------------------
 
   const commitInputRef = useRef<HTMLInputElement>(null);
+  const [toolbarEl, setToolbarEl] = useState<HTMLDivElement | null>(null);
   const [isStatusHovered, setIsStatusHovered] = useState(false);
+  const [isCompactMode, setIsCompactMode] = useState(false);
 
   /**
    * Any git operation is running - operations are mutually exclusive.
    */
   const isGitOperationRunning = isPulling || isPushing || isCommitting;
+
+  /**
+   * Track toolbar width to determine if we need compact mode.
+   * At narrow widths, action buttons collapse into an overflow menu.
+   * Uses callback ref pattern so observer is set up when element mounts,
+   * even if component initially returned early due to no currentBranch.
+   */
+  useEffect(() => {
+    if (!toolbarEl) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      setIsCompactMode(width < COMPACT_MODE_BREAKPOINT);
+    });
+
+    observer.observe(toolbarEl);
+    return () => observer.disconnect();
+  }, [toolbarEl]);
 
   /**
    * Whether branch comparison is active (comparing to a specific branch).
@@ -247,59 +281,198 @@ export function GitBranchToolbar({
   const toggleButtonClass = "[&_svg]:size-3.5";
 
   return (
-    <div className="flex flex-col" data-testid="git-branch-toolbar">
+    <div
+      ref={setToolbarEl}
+      className="flex flex-col"
+      data-testid="git-branch-toolbar"
+    >
       {/* First row: Branch info and actions */}
       <div className="px-3 py-1.5 text-xs flex items-center gap-2 min-h-[32px]">
-        {/* Branch comparison toggle */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              pressed={isComparingBranch}
-              onPressedChange={() => onOpenBranchPicker?.()}
-              size="sm"
-              className={toggleButtonClass}
-              data-testid="branch-compare-toggle"
-            >
-              <GitCompare />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent>
-            {isComparingBranch
-              ? `Comparing ${baseBranch} → ${currentBranch}`
-              : "Comparing against HEAD"}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Branch label/switcher + view mode toggle (grouped together) */}
+        {/* Branch label/switcher */}
         <div className="flex flex-1 items-center gap-2 min-w-0">
           <div className="min-w-0">{branchDisplay}</div>
 
-          {/* Changes view mode toggle (only shown when in changes view) */}
-          {showOnlyChangedFiles && onChangesViewModeChange && (
+          {/* Action buttons - base branch always visible, others only in changes mode */}
+          {onOpenBranchPicker && (
             <>
               <Separator orientation="vertical" className="h-4 flex-shrink-0" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Toggle
-                    pressed={false}
-                    onPressedChange={() =>
-                      onChangesViewModeChange(
-                        changesViewMode === "flat" ? "nested" : "flat",
-                      )
-                    }
-                    size="sm"
-                    className={`${toggleButtonClass} flex-shrink-0`}
-                    data-testid="changes-view-mode-toggle"
-                  >
-                    {changesViewMode === "flat" ? <FolderTree /> : <List />}
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {changesViewMode === "flat"
-                    ? "Switch to tree view"
-                    : "Switch to flat view"}
-                </TooltipContent>
-              </Tooltip>
+
+              {/* Inline buttons - visible at wider widths (>=280px) */}
+              {!isCompactMode && (
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  {/* Base branch comparison toggle - always visible */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Toggle
+                        pressed={isComparingBranch}
+                        onPressedChange={() => onOpenBranchPicker()}
+                        size="sm"
+                        className={toggleButtonClass}
+                        data-testid="branch-compare-toggle"
+                      >
+                        <GitCompare />
+                      </Toggle>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {isComparingBranch
+                        ? `Comparing ${baseBranch} → ${currentBranch}`
+                        : "Select base branch to compare"}
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Changes view mode toggle - only in changes mode */}
+                  {showOnlyChangedFiles && onChangesViewModeChange && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Toggle
+                          pressed={false}
+                          onPressedChange={() =>
+                            onChangesViewModeChange(
+                              changesViewMode === "flat" ? "nested" : "flat",
+                            )
+                          }
+                          size="sm"
+                          className={toggleButtonClass}
+                          data-testid="changes-view-mode-toggle"
+                        >
+                          {changesViewMode === "flat" ? (
+                            <FolderTree />
+                          ) : (
+                            <List />
+                          )}
+                        </Toggle>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {changesViewMode === "flat"
+                          ? "Switch to tree view"
+                          : "Switch to flat view"}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/* Review changes button - only in changes mode */}
+                  {showOnlyChangedFiles &&
+                    !isReviewModeActive &&
+                    onReviewChanges &&
+                    changedFilesCount > 0 &&
+                    (baseBranch === null || baseBranch === "HEAD") && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Toggle
+                            pressed={false}
+                            onPressedChange={onReviewChanges}
+                            size="sm"
+                            className={toggleButtonClass}
+                            data-testid="review-button"
+                          >
+                            <BookOpen />
+                          </Toggle>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          Review all changes in detail
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                </div>
+              )}
+
+              {/* Overflow menu - visible at narrow widths (<280px) */}
+              {isCompactMode && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Toggle
+                      pressed={false}
+                      size="sm"
+                      className={toggleButtonClass}
+                      data-testid="view-options-overflow-menu"
+                      aria-label="More options"
+                    >
+                      <MoreVertical />
+                    </Toggle>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {/* Base branch option - always visible */}
+                    <DropdownMenuItem onClick={() => onOpenBranchPicker()}>
+                      <GitCompare className="w-4 h-4 mr-2" />
+                      {isComparingBranch
+                        ? "Change base branch"
+                        : "Select base branch"}
+                    </DropdownMenuItem>
+
+                    {/* View mode option - only in changes mode */}
+                    {showOnlyChangedFiles && onChangesViewModeChange && (
+                      <DropdownMenuItem
+                        onClick={() =>
+                          onChangesViewModeChange(
+                            changesViewMode === "flat" ? "nested" : "flat",
+                          )
+                        }
+                      >
+                        {changesViewMode === "flat" ? (
+                          <FolderTree className="w-4 h-4 mr-2" />
+                        ) : (
+                          <List className="w-4 h-4 mr-2" />
+                        )}
+                        {changesViewMode === "flat" ? "Tree view" : "Flat view"}
+                      </DropdownMenuItem>
+                    )}
+
+                    {/* Review option - only in changes mode */}
+                    {showOnlyChangedFiles &&
+                      !isReviewModeActive &&
+                      onReviewChanges &&
+                      changedFilesCount > 0 &&
+                      (baseBranch === null || baseBranch === "HEAD") && (
+                        <DropdownMenuItem onClick={onReviewChanges}>
+                          <BookOpen className="w-4 h-4 mr-2" />
+                          Review changes
+                        </DropdownMenuItem>
+                      )}
+
+                    {/* Separator before git sync actions */}
+                    {showOnlyChangedFiles && (onPull || onPush) && (
+                      <DropdownMenuSeparator />
+                    )}
+
+                    {/* Pull option - only in changes mode */}
+                    {showOnlyChangedFiles && onPull && (
+                      <DropdownMenuItem
+                        onClick={onPull}
+                        disabled={isGitOperationRunning || !hasUpstream}
+                      >
+                        <ArrowDownToLine className="w-4 h-4 mr-2" />
+                        {!hasUpstream
+                          ? "Pull (no upstream)"
+                          : isPulling
+                            ? "Pulling..."
+                            : "Pull"}
+                      </DropdownMenuItem>
+                    )}
+
+                    {/* Push option (with upstream) - only in changes mode */}
+                    {showOnlyChangedFiles && onPush && hasUpstream && (
+                      <DropdownMenuItem
+                        onClick={onPush}
+                        disabled={isGitOperationRunning}
+                      >
+                        <ArrowUpFromLine className="w-4 h-4 mr-2" />
+                        {isPushing ? "Pushing..." : "Push"}
+                      </DropdownMenuItem>
+                    )}
+
+                    {/* Publish option (no upstream) - only in changes mode */}
+                    {showOnlyChangedFiles && onPush && !hasUpstream && (
+                      <DropdownMenuItem
+                        onClick={onPush}
+                        disabled={isGitOperationRunning}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {isPushing ? "Publishing..." : "Publish branch"}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </>
           )}
         </div>
@@ -330,7 +503,7 @@ export function GitBranchToolbar({
                 />
               </Toggle>
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent side="bottom">
               {showOnlyChangedFiles
                 ? "Showing only changed files - Click to show all files"
                 : changedFilesCount > 0
@@ -338,17 +511,66 @@ export function GitBranchToolbar({
                   : "No changed files"}
             </TooltipContent>
           </Tooltip>
+        </div>
+      </div>
 
-          {/* Pull/Push/Review actions - visible when in "show only changes" mode */}
-          {!isReviewModeActive &&
-            showOnlyChangedFiles &&
-            (onPull || onPush) &&
-            (baseBranch === null || baseBranch === "HEAD") && (
-              <div className="flex items-center">
-                {/* Separator */}
-                <Separator orientation="vertical" className="h-4 mx-2" />
+      {/* Second row: Commit message input and git action buttons */}
+      {!isReviewModeActive &&
+        showOnlyChangedFiles &&
+        onCommit &&
+        onCommitMessageChange &&
+        (baseBranch === null || baseBranch === "HEAD") && (
+          <div
+            className="px-3 pb-1.5 flex items-center gap-1"
+            data-testid="commit-row"
+          >
+            <Input
+              ref={commitInputRef}
+              type="text"
+              placeholder="Commit message"
+              value={commitMessage}
+              onChange={(e) => onCommitMessageChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleCommitClick();
+                }
+              }}
+              disabled={isGitOperationRunning}
+              className="flex-1 h-7 text-xs min-w-0"
+              data-testid="commit-message-input"
+            />
 
-                {/* Action buttons */}
+            {/* Git action buttons */}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {/* Commit button - always visible */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={false}
+                    onPressedChange={handleCommitClick}
+                    disabled={!hasStagedFiles || isGitOperationRunning}
+                    size="sm"
+                    className={toggleButtonClass}
+                    data-testid="commit-button"
+                  >
+                    <FillingIcon
+                      icon={GitCommitVertical}
+                      isAnimating={isCommitting}
+                    />
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {isCommitting
+                    ? "Committing..."
+                    : !hasStagedFiles
+                      ? "No staged files to commit"
+                      : "Commit staged changes"}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Pull/Push buttons - visible at wider widths (>=280px) */}
+              {(onPull || onPush) && !isCompactMode && (
                 <div className="flex items-center gap-0.5">
                   {/* Pull button */}
                   {onPull && (
@@ -368,7 +590,7 @@ export function GitBranchToolbar({
                           />
                         </Toggle>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="bottom">
                         {!hasUpstream
                           ? "No upstream branch configured"
                           : isPulling
@@ -396,7 +618,7 @@ export function GitBranchToolbar({
                           />
                         </Toggle>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="bottom">
                         {isPushing ? "Pushing..." : "Push to remote"}
                       </TooltipContent>
                     </Tooltip>
@@ -417,87 +639,14 @@ export function GitBranchToolbar({
                           <FillingIcon icon={Send} isAnimating={isPushing} />
                         </Toggle>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="bottom">
                         {isPushing ? "Publishing..." : "Publish branch"}
                       </TooltipContent>
                     </Tooltip>
                   )}
-
-                  {/* Review changes button - only show when there are changes */}
-                  {onReviewChanges && changedFilesCount > 0 && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Toggle
-                          pressed={false}
-                          onPressedChange={onReviewChanges}
-                          size="sm"
-                          className={toggleButtonClass}
-                          data-testid="review-button"
-                        >
-                          <SquareArrowOutUpRight />
-                        </Toggle>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Review all changes in detail
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
                 </div>
-              </div>
-            )}
-        </div>
-      </div>
-
-      {/* Second row: Commit message input and button */}
-      {!isReviewModeActive &&
-        showOnlyChangedFiles &&
-        onCommit &&
-        onCommitMessageChange &&
-        (baseBranch === null || baseBranch === "HEAD") && (
-          <div
-            className="px-3 pb-1.5 flex items-center gap-2"
-            data-testid="commit-row"
-          >
-            <Input
-              ref={commitInputRef}
-              type="text"
-              placeholder="Commit message"
-              value={commitMessage}
-              onChange={(e) => onCommitMessageChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleCommitClick();
-                }
-              }}
-              disabled={isGitOperationRunning}
-              className="flex-1 h-7 text-xs"
-              data-testid="commit-message-input"
-            />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Toggle
-                  pressed={false}
-                  onPressedChange={handleCommitClick}
-                  disabled={!hasStagedFiles || isGitOperationRunning}
-                  size="sm"
-                  className={toggleButtonClass}
-                  data-testid="commit-button"
-                >
-                  <FillingIcon
-                    icon={GitCommitVertical}
-                    isAnimating={isCommitting}
-                  />
-                </Toggle>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isCommitting
-                  ? "Committing..."
-                  : !hasStagedFiles
-                    ? "No staged files to commit"
-                    : "Commit staged changes"}
-              </TooltipContent>
-            </Tooltip>
+              )}
+            </div>
           </div>
         )}
     </div>

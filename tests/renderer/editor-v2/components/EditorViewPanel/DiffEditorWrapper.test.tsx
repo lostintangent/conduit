@@ -16,16 +16,28 @@ const mockState = vi.hoisted(() => ({
     modified: "modified content",
     isLoading: false,
     error: null as string | null,
+    isModifiedEditable: true, // Default to editable (working directory mode)
   },
 }));
 
-// Mock Monaco model
+// Mock Monaco model - uses a dynamic filePath that can be updated per test
+let mockModelFilePath = "/test/file.ts";
+
 const mockModifiedModel = {
   getValue: vi.fn(() => "modified content"),
   setValue: vi.fn(),
   dispose: vi.fn(),
-  uri: { toString: () => "file:///test/file.ts" },
+  uri: {
+    toString: () => `file://${mockModelFilePath}`,
+    fsPath: mockModelFilePath,
+  },
   onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
+};
+
+// Helper to update mock model's file path for tests that use different files
+const setMockModelFilePath = (filePath: string) => {
+  mockModelFilePath = filePath;
+  mockModifiedModel.uri.fsPath = filePath;
 };
 
 // Mock modified editor (returned by getModifiedEditor)
@@ -46,6 +58,7 @@ const mockDiffEditor = {
   updateOptions: vi.fn(),
   dispose: vi.fn(),
   layout: vi.fn(),
+  revealFirstDiff: vi.fn(),
 };
 
 // Mock monaco.editor.createDiffEditor
@@ -129,6 +142,13 @@ vi.mock(
       }),
       resetInstance: vi.fn(),
     },
+    createModelKey: (filePath: string, sandboxId?: string) => {
+      const uri = `file://${filePath}`;
+      if (sandboxId) {
+        return `${uri}::vm:${sandboxId}`;
+      }
+      return uri;
+    },
   }),
 );
 
@@ -143,12 +163,15 @@ import { useDiffContent } from "../../../../../src/renderer/components/panes/edi
 describe("DiffEditorWrapper", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mock model file path to default for clean test state
+    setMockModelFilePath("/test/file.ts");
     // Reset to default state
     mockState.diffContent = {
       original: "original content",
       modified: "modified content",
       isLoading: false,
       error: null,
+      isModifiedEditable: true, // Default to editable (working directory mode)
     };
     // Reset the mock implementation to use default state
     (useDiffContent as ReturnType<typeof vi.fn>).mockImplementation(
@@ -299,12 +322,18 @@ describe("DiffEditorWrapper", () => {
       );
 
       await waitFor(() => {
+        // Editor is created with base options (readOnly is set via updateOptions)
         expect(mockCreateDiffEditor).toHaveBeenCalledWith(
           expect.any(HTMLElement),
           expect.objectContaining({
             theme: "vs-dark",
-            readOnly: false,
             renderSideBySide: true,
+          }),
+        );
+        // readOnly is set via updateOptions after creation
+        expect(mockDiffEditor.updateOptions).toHaveBeenCalledWith(
+          expect.objectContaining({
+            readOnly: false,
           }),
         );
       });
@@ -528,8 +557,8 @@ describe("DiffEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockCreateDiffEditor).toHaveBeenCalledWith(
-          expect.any(HTMLElement),
+        // readOnly is set via updateOptions, not in createDiffEditor
+        expect(mockDiffEditor.updateOptions).toHaveBeenCalledWith(
           expect.objectContaining({
             readOnly: false,
           }),
@@ -568,6 +597,9 @@ describe("DiffEditorWrapper", () => {
 
   describe("language detection", () => {
     it("should detect typescript for .ts files", async () => {
+      // Set mock model to match the test file path
+      setMockModelFilePath("/test/file.ts");
+
       render(
         <DiffEditorWrapper
           editorId="test-diff"
@@ -586,6 +618,9 @@ describe("DiffEditorWrapper", () => {
     });
 
     it("should detect javascript for .js files", async () => {
+      // Set mock model to match the test file path
+      setMockModelFilePath("/test/file.js");
+
       render(
         <DiffEditorWrapper
           editorId="test-diff"
@@ -604,6 +639,9 @@ describe("DiffEditorWrapper", () => {
     });
 
     it("should detect json for .json files", async () => {
+      // Set mock model to match the test file path
+      setMockModelFilePath("/test/file.json");
+
       render(
         <DiffEditorWrapper
           editorId="test-diff"
@@ -622,6 +660,9 @@ describe("DiffEditorWrapper", () => {
     });
 
     it("should default to plaintext for unknown extensions", async () => {
+      // Set mock model to match the test file path
+      setMockModelFilePath("/test/file.xyz");
+
       render(
         <DiffEditorWrapper
           editorId="test-diff"
@@ -640,6 +681,9 @@ describe("DiffEditorWrapper", () => {
     });
 
     it("should detect shell for .gitignore (filename-based detection)", async () => {
+      // Set mock model to match the test file path
+      setMockModelFilePath("/test/.gitignore");
+
       render(
         <DiffEditorWrapper
           editorId="test-diff"
@@ -658,6 +702,9 @@ describe("DiffEditorWrapper", () => {
     });
 
     it("should detect dockerfile for Dockerfile (filename-based detection)", async () => {
+      // Set mock model to match the test file path
+      setMockModelFilePath("/test/Dockerfile");
+
       render(
         <DiffEditorWrapper
           editorId="test-diff"

@@ -15,6 +15,11 @@ import ignore, { type Ignore } from "ignore";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import {
+  isPathOutside,
+  normalizePathForComparison,
+  safeRelativePath,
+} from "./pathUtils";
 
 // ============================================================================
 // GitIgnoreCache
@@ -44,25 +49,33 @@ class GitIgnoreCacheImpl {
   // -------------------------------------------------------------------------
 
   /**
+   * Normalize a path for cache key (case-insensitive on macOS/Windows).
+   */
+  private normalizeCacheKey(filePath: string): string {
+    return normalizePathForComparison(path.resolve(filePath));
+  }
+
+  /**
    * Find the git root for a directory, with caching.
    */
   async getGitRoot(dirPath: string): Promise<string | null> {
-    const normalized = path.resolve(dirPath);
+    const cacheKey = this.normalizeCacheKey(dirPath);
 
     // Check cache
-    if (this.gitRootCache.has(normalized)) {
-      return this.gitRootCache.get(normalized) ?? null;
+    if (this.gitRootCache.has(cacheKey)) {
+      return this.gitRootCache.get(cacheKey) ?? null;
     }
 
     // Find git root
-    const gitRoot = await this.findGitRoot(normalized);
-    this.gitRootCache.set(normalized, gitRoot);
+    const resolved = path.resolve(dirPath);
+    const gitRoot = await this.findGitRoot(resolved);
+    this.gitRootCache.set(cacheKey, gitRoot);
 
     // Also cache all parent directories up to git root
     if (gitRoot) {
-      let current = path.dirname(normalized);
+      let current = path.dirname(resolved);
       while (current.length >= gitRoot.length) {
-        this.gitRootCache.set(current, gitRoot);
+        this.gitRootCache.set(this.normalizeCacheKey(current), gitRoot);
         const parent = path.dirname(current);
         if (parent === current) break;
         current = parent;
@@ -74,27 +87,32 @@ class GitIgnoreCacheImpl {
 
   private findGitRoot(dirPath: string): Promise<string | null> {
     return new Promise((resolve) => {
-      const child = spawn("git", ["rev-parse", "--show-toplevel"], {
-        cwd: dirPath,
-        stdio: ["ignore", "pipe", "ignore"],
-      });
+      try {
+        const child = spawn("git", ["rev-parse", "--show-toplevel"], {
+          cwd: dirPath,
+          stdio: ["ignore", "pipe", "ignore"],
+        });
 
-      let output = "";
-      child.stdout.on("data", (chunk) => {
-        output += chunk.toString();
-      });
+        let output = "";
+        child.stdout.on("data", (chunk) => {
+          output += chunk.toString();
+        });
 
-      child.once("error", () => {
-        resolve(null);
-      });
-
-      child.once("close", (code) => {
-        if (code === 0 && output.trim()) {
-          resolve(output.trim());
-        } else {
+        child.once("error", () => {
           resolve(null);
-        }
-      });
+        });
+
+        child.once("close", (code) => {
+          if (code === 0 && output.trim()) {
+            resolve(output.trim());
+          } else {
+            resolve(null);
+          }
+        });
+      } catch {
+        // Handle spawn errors (e.g., ENOTDIR when cwd doesn't exist)
+        resolve(null);
+      }
     });
   }
 
@@ -107,14 +125,21 @@ class GitIgnoreCacheImpl {
    * Automatically loads the root .gitignore if not already loaded.
    */
   private getOrCreateMatcher(gitRoot: string): Ignore {
-    let matcher = this.matcherCache.get(gitRoot);
+    // Normalize git root for case-insensitive cache key on macOS/Windows
+    const normalizedRoot = normalizePathForComparison(gitRoot);
+
+    let matcher = this.matcherCache.get(normalizedRoot);
     if (!matcher) {
       matcher = ignore();
-      this.matcherCache.set(gitRoot, matcher);
-      this.loadedGitignoreFiles.set(gitRoot, new Set());
+      this.matcherCache.set(normalizedRoot, matcher);
+      this.loadedGitignoreFiles.set(normalizedRoot, new Set());
 
-      // Load root .gitignore
-      this.loadGitignoreFile(gitRoot, path.join(gitRoot, ".gitignore"));
+      // Load root .gitignore (use original gitRoot for filesystem access)
+      this.loadGitignoreFile(
+        normalizedRoot,
+        gitRoot,
+        path.join(gitRoot, ".gitignore"),
+      );
     }
     return matcher;
   }
@@ -122,9 +147,17 @@ class GitIgnoreCacheImpl {
   /**
    * Load a .gitignore file and add its rules to the matcher.
    * Rules are prefixed with the relative directory path to handle nested .gitignore files.
+   *
+   * @param normalizedRoot - Normalized cache key for lookups (case-insensitive on macOS/Windows)
+   * @param originalGitRoot - Original git root path for filesystem operations
+   * @param gitignorePath - Path to the .gitignore file to load
    */
-  private loadGitignoreFile(gitRoot: string, gitignorePath: string): void {
-    const loadedFiles = this.loadedGitignoreFiles.get(gitRoot);
+  private loadGitignoreFile(
+    normalizedRoot: string,
+    originalGitRoot: string,
+    gitignorePath: string,
+  ): void {
+    const loadedFiles = this.loadedGitignoreFiles.get(normalizedRoot);
     if (!loadedFiles || loadedFiles.has(gitignorePath)) {
       return; // Already loaded
     }
@@ -135,12 +168,12 @@ class GitIgnoreCacheImpl {
 
     try {
       const content = fs.readFileSync(gitignorePath, "utf-8");
-      const matcher = this.matcherCache.get(gitRoot);
+      const matcher = this.matcherCache.get(normalizedRoot);
       if (!matcher) return;
 
       // Get the directory containing this .gitignore relative to git root
       const gitignoreDir = path.dirname(gitignorePath);
-      const relativeDir = path.relative(gitRoot, gitignoreDir);
+      const relativeDir = path.relative(originalGitRoot, gitignoreDir);
 
       // Parse and prefix rules for nested .gitignore files
       const rules = content
@@ -194,15 +227,23 @@ class GitIgnoreCacheImpl {
       return new Set();
     }
 
+    // Get relative path from git root to this directory
+    // Uses case-aware comparison to handle macOS/Windows case-insensitivity
+    const relativeDir = safeRelativePath(resolvedGitRoot, dirPath);
+
+    // If the directory is outside the git root, nothing is ignored
+    // (path.relative returns "../.." paths which the ignore library rejects)
+    if (isPathOutside(relativeDir)) {
+      return new Set();
+    }
+
     // Get the matcher (creates one if needed, loads root .gitignore)
     const matcher = this.getOrCreateMatcher(resolvedGitRoot);
+    const normalizedRoot = normalizePathForComparison(resolvedGitRoot);
 
     // Check for .gitignore in this directory and load if present
     const localGitignore = path.join(dirPath, ".gitignore");
-    this.loadGitignoreFile(resolvedGitRoot, localGitignore);
-
-    // Get relative path from git root to this directory
-    const relativeDir = path.relative(resolvedGitRoot, dirPath);
+    this.loadGitignoreFile(normalizedRoot, resolvedGitRoot, localGitignore);
 
     // Check each entry
     const ignored = new Set<string>();
@@ -235,8 +276,9 @@ class GitIgnoreCacheImpl {
    * @returns true if the path is ignored
    */
   isIgnored(gitRoot: string, filePath: string): boolean {
-    const relativePath = path.relative(gitRoot, filePath);
-    if (relativePath.startsWith("..")) {
+    // Uses case-aware comparison to handle macOS/Windows case-insensitivity
+    const relativePath = safeRelativePath(gitRoot, filePath);
+    if (isPathOutside(relativePath)) {
       return false;
     }
 
@@ -258,13 +300,16 @@ class GitIgnoreCacheImpl {
   invalidateForGitignore(gitignorePath: string): void {
     const gitignoreDir = path.dirname(gitignorePath);
 
-    // Find the git root for this .gitignore
-    const gitRoot = this.gitRootCache.get(gitignoreDir);
+    // Find the git root for this .gitignore (use normalized key for lookup)
+    const cacheKey = this.normalizeCacheKey(gitignoreDir);
+    const gitRoot = this.gitRootCache.get(cacheKey);
 
     if (gitRoot) {
       // Clear the matcher and loaded files - will be rebuilt on next access
-      this.matcherCache.delete(gitRoot);
-      this.loadedGitignoreFiles.delete(gitRoot);
+      // Use normalized git root as key (matcherCache uses normalized keys)
+      const normalizedGitRoot = normalizePathForComparison(gitRoot);
+      this.matcherCache.delete(normalizedGitRoot);
+      this.loadedGitignoreFiles.delete(normalizedGitRoot);
     } else {
       // If we don't know the git root, clear everything to be safe
       this.matcherCache.clear();

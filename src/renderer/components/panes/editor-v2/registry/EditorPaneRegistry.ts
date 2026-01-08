@@ -20,6 +20,7 @@
  */
 
 import type { EditorPane } from "@/types";
+import type { ChangesViewMode } from "@shared/types";
 import type { FileChangeData } from "../EditorPaneV2";
 import type { FileNode } from "../types";
 import { EventEmitter } from "@shared/EventEmitter";
@@ -29,7 +30,7 @@ import { EventEmitter } from "@shared/EventEmitter";
  * This is a subset of EditorPaneV2Props that the registry tracks.
  */
 export interface EditorPaneConfig {
-  /** The pane configuration (cwd, filePath, etc.) */
+  /** The pane configuration (cwd, filePath, changesViewMode, etc.) */
   pane: EditorPane;
 
   /** Callback when file changes */
@@ -46,6 +47,9 @@ export interface EditorPaneConfig {
 
   /** Callback when tree mode changes */
   onTreeModeChange?: (mode: "all" | "changes") => void;
+
+  /** Callback when changes view mode changes */
+  onChangesViewModeChange?: (mode: ChangesViewMode) => void;
 
   /** Callback after successful save */
   onSave?: () => void;

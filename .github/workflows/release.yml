@@ -122,6 +122,9 @@ jobs:
           DISPLAY: ":99.0"
           # Ensure Windows builds use the correct MSVS version
           npm_config_msvs_version: "2022"
+          # Windows code signing (when windows-latest is added to matrix)
+          # WINDOWS_CERTIFICATE_FILE: ${{ secrets.WINDOWS_CERTIFICATE_FILE }}
+          # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
       - name: Debug - List build output
         run: |

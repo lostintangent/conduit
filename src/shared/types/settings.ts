@@ -43,25 +43,36 @@ export type Team = LaunchGroup;
 
 export type PlayButtonTarget = "hyper" | "newPane";
 
+export type DotfilesStatus =
+  | "disabled"
+  | "cloning"
+  | "idle"
+  | "fetching"
+  | "pushing"
+  | "failed";
+
 export type UserSettings = {
   // UI/Layout settings
   tabPosition: TabPosition;
   alwaysShowTabs: boolean;
   useGradientBorders: boolean;
+  dimInactivePanes: boolean;
+  alwaysHighlightActivePane: boolean;
   theme: ThemeMode;
   themeOverrides?: ThemeOverrides;
 
   // Terminal settings
-  showTerminalRuler: boolean;
-  terminalPromptBufferLines?: number;
-  agents?: AgentConfig[];
-  launchGroups?: LaunchGroup[];
+  dotfilesRepo?: string;
+  terminalShell?: string;
   terminalFontFamily?: string;
   terminalFontSize?: number;
+  showTerminalRuler: boolean;
+  showTabState: boolean;
 
   // Editor settings
   useConduitAsEditor: boolean;
   useEditorV2: boolean; // Feature flag for the new Editor v2 implementation
+  trackUnseenChangesInReviewMode: boolean; // Show unseen indicators for externally modified files in Review Mode
 
   // Workspace settings
   autoSaveWorkspaces: boolean;
@@ -76,4 +87,9 @@ export type UserSettings = {
   urlHistory: string[];
   starredPages: BrowserPage[];
   homeDirectory: string | null;
+
+  // Agent settings
+  agents?: AgentConfig[];
+  launchGroups?: LaunchGroup[];
+  terminalPromptBufferLines?: number;
 };

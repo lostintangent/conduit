@@ -1,7 +1,3 @@
-import {
-  navigatePane,
-  type PaneNavigationDirection,
-} from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, applicationModeAtom, tabsAtom } from "@/store/atoms";
 import { useAtom, useAtomValue } from "jotai";
@@ -10,8 +6,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 // This hook handles a small set of global keyboard shortcuts
 // that aren't otherwise handled by the command system. In particular:
 // 1. Escape to exit modes like focus/design/overview
-// 2. Cmd+Arrow to navigate panes
-// 3. Cmd+1, Cmd+2, ... Cmd+9 to focus tabs by index
+// 2. Cmd+1, Cmd+2, ... Cmd+9 to focus tabs by index
 
 type UseGlobalKeyHandlersResult = {
   isCommandPaletteOpen: boolean;
@@ -22,7 +17,6 @@ type UseGlobalKeyHandlersResult = {
 export function useGlobalKeyHandlers(): UseGlobalKeyHandlersResult {
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const tabs = useAtomValue(tabsAtom);
-  const activeTab = useAtomValue(activeTabAtom);
 
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
@@ -46,20 +40,6 @@ export function useGlobalKeyHandlers(): UseGlobalKeyHandlersResult {
     }
 
     const key = event.key.toLowerCase();
-    const directionKeyMap: Record<string, PaneNavigationDirection> = {
-      arrowleft: "left",
-      arrowright: "right",
-      arrowup: "up",
-      arrowdown: "down",
-    };
-
-    // Cmd+Arrow: Navigate pane (without modifiers)
-    const direction = directionKeyMap[key];
-    if (direction && !event.altKey && !event.shiftKey) {
-      event.preventDefault();
-      navigatePane(activeTab.id, activeTab.activePaneId, direction);
-      return;
-    }
 
     // Cmd+1, Cmd+2, ... Cmd+9: Focus tab by index
     const tabNumber = Number.parseInt(key, 10);

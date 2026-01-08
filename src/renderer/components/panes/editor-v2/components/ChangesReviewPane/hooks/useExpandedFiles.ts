@@ -54,11 +54,17 @@ export interface UseExpandedFilesResult {
   /** Expand a single file (no-op if already expanded) */
   expandFile: (path: string) => void;
 
-  /** Expand all specified files */
+  /** Expand all specified files (replaces entire set) */
   expandAll: (files: string[]) => void;
 
   /** Collapse all files */
   collapseAll: () => void;
+
+  /** Expand specific files (adds to existing set) */
+  expandFiles: (files: string[]) => void;
+
+  /** Collapse specific files (removes from existing set) */
+  collapseFiles: (files: string[]) => void;
 
   /** Whether all files in the provided list are expanded */
   allExpanded: boolean;
@@ -137,6 +143,32 @@ export function useExpandedFiles(
   }, []);
 
   /**
+   * Expand specific files (adds to existing set, preserves others).
+   */
+  const expandFiles = useCallback((files: string[]) => {
+    setExpandedFiles((prev) => {
+      const next = new Set(prev);
+      for (const file of files) {
+        next.add(file);
+      }
+      return next;
+    });
+  }, []);
+
+  /**
+   * Collapse specific files (removes from set, preserves others).
+   */
+  const collapseFiles = useCallback((files: string[]) => {
+    setExpandedFiles((prev) => {
+      const next = new Set(prev);
+      for (const file of files) {
+        next.delete(file);
+      }
+      return next;
+    });
+  }, []);
+
+  /**
    * Derived state: whether all files are expanded.
    */
   const allExpanded = useMemo(() => {
@@ -157,6 +189,8 @@ export function useExpandedFiles(
     expandFile,
     expandAll,
     collapseAll,
+    expandFiles,
+    collapseFiles,
     allExpanded,
     noneExpanded,
   };

@@ -12,10 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useCommitDetails } from "@/components/panes/editor-v2/components/CommitReviewPane/hooks";
 import type { GitV2API } from "@/api/GitV2API";
-import type {
-  HistoryCommit,
-  CommitFile,
-} from "@/components/panes/editor-v2/components/CommitGraph/types";
+import type { HistoryCommit, CommitFile } from "@/../../src/ipc/gitv2/types";
 
 // =============================================================================
 // Test Helpers
@@ -31,9 +28,11 @@ function createMockCommit(
     id: "abc123def456789",
     shortId: "abc123d",
     subject: "Fix authentication bug",
+    message: "Fix authentication bug\n\nDetailed description here.",
     author: "John Doe",
+    authorEmail: "john@example.com",
     timestamp: Date.now() / 1000 - 3600,
-    parents: ["parent123"],
+    parentIds: ["parent123"],
     refs: [],
     ...overrides,
   };
@@ -44,9 +43,27 @@ function createMockCommit(
  */
 function createMockFiles(): CommitFile[] {
   return [
-    { path: "src/auth.ts", status: "modified", additions: 10, deletions: 5 },
-    { path: "src/utils.ts", status: "added", additions: 25, deletions: 0 },
-    { path: "src/old.ts", status: "deleted", additions: 0, deletions: 15 },
+    {
+      path: "src/auth.ts",
+      status: "modified",
+      additions: 10,
+      deletions: 5,
+      isBinary: false,
+    },
+    {
+      path: "src/utils.ts",
+      status: "added",
+      additions: 25,
+      deletions: 0,
+      isBinary: false,
+    },
+    {
+      path: "src/old.ts",
+      status: "deleted",
+      additions: 0,
+      deletions: 15,
+      isBinary: false,
+    },
   ];
 }
 

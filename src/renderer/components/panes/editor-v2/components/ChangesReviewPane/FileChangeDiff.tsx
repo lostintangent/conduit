@@ -21,35 +21,38 @@
  * ```
  */
 
-import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import * as monaco from "monaco-editor";
-import {
-  ChevronRight,
-  ChevronDown,
-  FileText,
-  Plus,
-  Minus,
-  RotateCcw,
-} from "lucide-react";
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
-import {
-  DiffEditorWrapper,
-  RegularEditorWrapper,
-  DeletedFileViewer,
-  DEFAULT_AUTO_SIZE_CONFIG,
-} from "../EditorViewPanel";
-import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
-import { GitBadge, EditorActionButtons, DiffModeToggle } from "../shared";
 import {
-  useModelState,
+  Asterisk,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Minus,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
+import { canStageFile, formatRelativeTime, joinCwdPath } from "../../utils";
+import * as monaco from "monaco-editor";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useDiffModeTransition,
   useEditorActions,
   useEditorSaveKeybinding,
-  useDiffModeTransition,
+  useModelState,
+  type ReadTriggerAction,
 } from "../../hooks";
-import { MonacoModelRegistry, pathToUri } from "../../registry";
+import { MonacoModelRegistry, createModelKey } from "../../registry";
+import type { ContentSource } from "../../types";
+import { EditorErrorBoundary } from "../EditorErrorBoundary";
+import {
+  DiffEditorWrapper,
+  EDITOR_MAX_HEIGHT,
+  RegularEditorWrapper,
+} from "../EditorViewPanel";
+import { DiffModeToggle, EditorActionButtons, GitBadge } from "../shared";
 
 export interface FileChangeDiffProps {
   /** Relative file path from git root */
@@ -57,6 +60,9 @@ export interface FileChangeDiffProps {
 
   /** Working directory */
   cwd: string;
+
+  /** Optional sandbox ID for cloud VM operations */
+  sandboxId?: string;
 
   /** Git API instance (shared from parent) */
   git: GitV2API;
@@ -72,6 +78,26 @@ export interface FileChangeDiffProps {
 
   /** Toggle expansion callback */
   onToggle: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Follow Mode Props (optional)
+  // ---------------------------------------------------------------------------
+
+  /** Whether this file has unseen changes (Follow mode) */
+  isUnseen?: boolean;
+
+  /** Timestamp when this file was last modified (Follow mode) */
+  timestamp?: number | null;
+
+  /** Callback when user interacts with the file (marks as seen) */
+  triggerRead?: (action: ReadTriggerAction) => void;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -80,34 +106,86 @@ export interface FileChangeDiffProps {
 export function FileChangeDiff({
   filePath,
   cwd,
+  sandboxId,
   git,
   status,
   baseBranch,
   isExpanded,
   onToggle,
+  isUnseen = false,
+  timestamp,
+  triggerRead,
+  isFileDirty,
 }: FileChangeDiffProps) {
+  // Ref to hold latest triggerRead for event handlers that capture closures at mount time
+  const triggerReadRef = useRef(triggerRead);
+  useEffect(() => {
+    triggerReadRef.current = triggerRead;
+  }, [triggerRead]);
+
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
   }, [filePath]);
 
   // Full path for the diff editor
   const fullFilePath = useMemo(() => {
-    return cwd.endsWith("/") ? cwd + filePath : cwd + "/" + filePath;
+    return joinCwdPath(cwd, filePath);
   }, [cwd, filePath]);
 
-  // Stable editor ID based on file path
+  // Stable editor ID based on file path and staging status
+  // Important: Include staged suffix to prevent Monaco model URI conflicts
+  // when both staged and unstaged entries of a partially staged file are rendered
   const editorId = useMemo(() => {
-    return `file-change-diff-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}`;
-  }, [filePath]);
+    const stageSuffix = status.staged ? "-staged" : "-unstaged";
+    return `file-change-diff-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}${stageSuffix}`;
+  }, [filePath, status.staged]);
 
   const isStaged = status.staged;
+
+  // ---------------------------------------------------------------------------
+  // Content Source Calculation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calculate content sources for diff view based on staging status.
+   *
+   * For normal staged/unstaged view (no baseBranch or baseBranch === 'HEAD'):
+   * - Staged changes: HEAD → Index (comparing what was committed vs what's staged)
+   * - Unstaged with index changes: Index → Working Directory (partially staged file)
+   * - Unstaged without index changes: HEAD → Working Directory (normal unstaged)
+   *
+   * For branch comparison mode (baseBranch !== 'HEAD'):
+   * - All files compared against the base branch
+   */
+  const { originalSource, modifiedSource } = useMemo((): {
+    originalSource: ContentSource;
+    modifiedSource: ContentSource;
+  } => {
+    // Branch comparison mode: compare against the specified branch
+    if (baseBranch && baseBranch !== "HEAD") {
+      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
+    }
+
+    // Normal staged/unstaged view
+    if (status.staged) {
+      // Staged changes: show HEAD → Index
+      return { originalSource: "head", modifiedSource: "index" };
+    } else if (status.hasIndexChanges) {
+      // Unstaged changes for a partially staged file: show Index → Working Directory
+      return { originalSource: "index", modifiedSource: "workingDirectory" };
+    } else {
+      // Normal unstaged changes: show HEAD → Working Directory
+      return { originalSource: "head", modifiedSource: "workingDirectory" };
+    }
+  }, [baseBranch, status.staged, status.hasIndexChanges]);
 
   // ---------------------------------------------------------------------------
   // Editor Controls State
   // ---------------------------------------------------------------------------
 
-  // Editor ref for actions
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Editor instance state - using state instead of ref so changes trigger re-renders
+  const [editor, setEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Track if editor controls have been "activated" (shown due to dirty state)
   // Once activated, controls remain visible even after save
@@ -121,20 +199,12 @@ export function FileChangeDiff({
     status.status !== "added" &&
     status.status !== "deleted";
 
-  // Diff/edit mode transition with height preservation
-  const {
-    isDiffMode,
-    handleToggle: handleToggleDiffMode,
-    autoSizeConfig,
-    containerRef: editorContainerRef,
-    transitionStyle,
-  } = useDiffModeTransition({
-    defaultConfig: DEFAULT_AUTO_SIZE_CONFIG,
-    initialMode: true,
-  });
+  // Diff/edit mode toggle state
+  const { isDiffMode, handleToggle: handleToggleDiffMode } =
+    useDiffModeTransition();
 
   // Get model state for this file
-  const modelState = useModelState(fullFilePath);
+  const modelState = useModelState(fullFilePath, sandboxId);
   const isDirty = modelState?.isDirty ?? false;
 
   // Activate controls when file becomes dirty
@@ -154,11 +224,12 @@ export function FileChangeDiff({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.saveModel(pathToUri(fullFilePath));
+      // Use composite key that includes sandboxId for VM file support
+      await registry.saveModel(createModelKey(fullFilePath, sandboxId));
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [fullFilePath]);
+  }, [fullFilePath, sandboxId]);
 
   // Keybinding hook for Cmd+S
   const { registerSaveKeybinding } = useEditorSaveKeybinding(
@@ -167,23 +238,38 @@ export function FileChangeDiff({
   );
 
   // Editor actions hook
-  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+  const editorActions = useEditorActions(editor, modelState, handleSave);
 
-  // Handle editor mount - store ref and register keybindings
+  // Handle editor mount - store editor, register keybindings, and track focus for Follow mode
   const handleEditorMount = useCallback(
-    (editor: monaco.editor.IStandaloneCodeEditor) => {
-      editorRef.current = editor;
-      registerSaveKeybinding(editor);
+    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
+      setEditor(mountedEditor);
+      registerSaveKeybinding(mountedEditor);
+
+      // Mark as seen when user focuses the editor (clicks into it)
+      // Use ref to ensure we always call the latest triggerRead
+      mountedEditor.onDidFocusEditorText(() => {
+        triggerReadRef.current?.("file:focus");
+      });
     },
     [registerSaveKeybinding],
   );
 
-  // Handle diff editor mount - get modified editor and register keybindings
+  // Handle diff editor mount - get modified editor, register keybindings, and track focus
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       const modifiedEditor = diffEditor.getModifiedEditor();
-      editorRef.current = modifiedEditor;
+      setEditor(modifiedEditor);
       registerSaveKeybinding(modifiedEditor);
+
+      // Mark as seen when user focuses either side of the diff editor
+      // Use ref to ensure we always call the latest triggerRead
+      modifiedEditor.onDidFocusEditorText(() => {
+        triggerReadRef.current?.("file:focus");
+      });
+      diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
+        triggerReadRef.current?.("file:focus");
+      });
     },
     [registerSaveKeybinding],
   );
@@ -195,25 +281,33 @@ export function FileChangeDiff({
   const handleStage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
+
+      // Check if file has unsaved changes
+      if (!canStageFile(fullFilePath, isFileDirty)) {
+        return;
+      }
+
+      triggerRead?.("file:stage", filePath); // Mark as seen when staging
       try {
         await git.stage([filePath]);
       } catch (error) {
         console.error("Failed to stage file:", error);
       }
     },
-    [git, filePath],
+    [git, filePath, fullFilePath, triggerRead, isFileDirty],
   );
 
   const handleUnstage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
+      triggerRead?.("file:unstage", filePath); // Mark as seen when unstaging
       try {
         await git.unstage([filePath]);
       } catch (error) {
         console.error("Failed to unstage file:", error);
       }
     },
-    [git, filePath],
+    [git, filePath, triggerRead],
   );
 
   /**
@@ -233,24 +327,37 @@ export function FileChangeDiff({
         return;
       }
 
+      triggerRead?.("file:revert"); // Mark as seen when reverting
       try {
         await git.revert([filePath]);
       } catch (error) {
         console.error("Failed to revert file:", error);
       }
     },
-    [git, filePath],
+    [git, filePath, triggerRead],
   );
 
-  // Determine if revert button should be shown
-  // Don't show revert for untracked files (they have nothing to revert to)
-  const canRevert = status.status !== "untracked";
+  /**
+   * Handle toggle with interaction tracking.
+   * Marks as seen on both expand and collapse (user has interacted with the file).
+   */
+  const handleToggle = useCallback(() => {
+    const action = isExpanded ? "file:collapse" : "file:expand";
+    triggerRead?.(action);
+    onToggle();
+  }, [isExpanded, triggerRead, onToggle]);
+
+  // Revert is available for all file types:
+  // - Modified/deleted files: restore from HEAD
+  // - Untracked/added files: delete the file
+  const canRevert = true;
 
   return (
     <div
       className="border-b border-border last:border-b-0"
       data-testid={`file-change-diff-${fileName}`}
       data-filepath={filePath}
+      data-staged={isStaged ? "true" : "false"}
     >
       {/* Collapsible Header */}
       <div
@@ -266,13 +373,13 @@ export function FileChangeDiff({
           {/* Clickable area for expand/collapse */}
           <div
             className="flex items-center gap-2 min-w-0"
-            onClick={onToggle}
+            onClick={handleToggle}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onToggle();
+                handleToggle();
               }
             }}
           >
@@ -289,7 +396,16 @@ export function FileChangeDiff({
               />
             )}
 
-            {/* Dirty indicator */}
+            {/* Unseen indicator (Follow mode) - yellow asterisk */}
+            {isUnseen && (
+              <Asterisk
+                className="text-yellow-500 flex-shrink-0"
+                size={12}
+                data-testid="unseen-indicator"
+              />
+            )}
+
+            {/* Dirty indicator (unsaved editor changes) */}
             {isDirty && (
               <div
                 className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"
@@ -308,6 +424,17 @@ export function FileChangeDiff({
             <span className="truncate" title={filePath}>
               {filePath}
             </span>
+
+            {/* Timestamp (Follow mode) */}
+            {timestamp != null && (
+              <span
+                className="text-muted-foreground text-xs flex-shrink-0"
+                title={new Date(timestamp).toLocaleString()}
+                data-testid="timestamp"
+              >
+                {formatRelativeTime(timestamp)}
+              </span>
+            )}
           </div>
 
           {/* Diff/Edit mode toggle for modified files */}
@@ -387,44 +514,50 @@ export function FileChangeDiff({
       </div>
 
       {/* Editor (expanded only) - height is auto-sized */}
-      {/* Use deleted file viewer for deleted files (read-only, shows git content) */}
+      {/* Use read-only editor for deleted files (shows git content from original source) */}
       {/* Use regular editor for new files (untracked/added) or when in edit mode */}
       {/* Use diff editor for modified files when in diff mode */}
       {isExpanded && (
-        <div
-          ref={editorContainerRef}
-          className="bg-background"
-          style={transitionStyle}
-          data-testid="file-change-diff-content"
-        >
+        <div className="bg-background" data-testid="file-change-diff-content">
           <EditorErrorBoundary filePath={filePath}>
             {status.status === "deleted" ? (
-              <DeletedFileViewer
+              // Deleted files: show read-only content from git (HEAD or index)
+              <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
-                baseBranch={baseBranch}
-                autoSize={autoSizeConfig}
+                source={originalSource}
+                autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : status.status === "untracked" ||
               status.status === "added" ||
               !isDiffMode ? (
+              // New files or edit mode: show content based on staging status
+              // - Staged files: show index content (read-only)
+              // - Unstaged/untracked files: show working directory (editable)
               <RegularEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
-                autoSize={autoSizeConfig}
+                source={modifiedSource}
+                autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleEditorMount}
               />
             ) : (
+              // Diff mode: show comparison based on staging status
               <DiffEditorWrapper
                 editorId={editorId}
                 cwd={cwd}
+                sandboxId={sandboxId}
                 filePath={fullFilePath}
-                baseBranch={baseBranch}
-                autoSize={autoSizeConfig}
+                originalSource={originalSource}
+                modifiedSource={modifiedSource}
+                autoSize={EDITOR_MAX_HEIGHT}
                 onMount={handleDiffEditorMount}
+                hideUnchangedRegions
               />
             )}
           </EditorErrorBoundary>

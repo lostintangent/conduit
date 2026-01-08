@@ -52,7 +52,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(65);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(77);
 
       // View commands
       expect(
@@ -62,9 +62,7 @@ describe("applicationCommands", () => {
         registeredCommands.has(ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE),
       ).toBe(true);
       expect(
-        registeredCommands.has(
-          ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
-        ),
+        registeredCommands.has(ApplicationCommands.VIEW_OPEN_KEYBINDINGS),
       ).toBe(true);
       expect(
         registeredCommands.has(ApplicationCommands.VIEW_OPEN_PANE_ACTIONS),
@@ -261,7 +259,7 @@ describe("applicationCommands", () => {
       const commandsWithKeybindings = [
         ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
         ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
-        ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
+        ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
         ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
         ApplicationCommands.WORKSPACE_SAVE,
         ApplicationCommands.WORKSPACE_RENAME,
@@ -481,10 +479,10 @@ describe("applicationCommands", () => {
       });
     });
 
-    describe("VIEW_OPEN_KEYBOARD_SHORTCUTS", () => {
+    describe("VIEW_OPEN_KEYBINDINGS", () => {
       it("should call handleOpenKeyboardShortcuts handler", () => {
         const command = registeredCommands.get(
-          ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
+          ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
         )!;
         const mockContext: CommandContext = {
           setShowKeybindingsEditor: vi.fn(),

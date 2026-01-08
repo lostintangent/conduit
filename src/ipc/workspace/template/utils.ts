@@ -45,7 +45,8 @@ export function createBrowserPane(
   return {
     type: "browser",
     id: paneId,
-    url: url,
+    url,
+    ...(paneNode.chromeless && { chromeless: true }),
   };
 }
 
@@ -61,6 +62,7 @@ export function createEditorPane(
     cwd: paneCwd,
     file: paneNode.file,
     treeMode: "all",
+    ...(paneNode.preview && { preview: true }),
   };
 }
 

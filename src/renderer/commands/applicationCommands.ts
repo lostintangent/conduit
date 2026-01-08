@@ -31,6 +31,7 @@ import {
   handleOpenInVSCode,
   handleOpenKeyboardShortcuts,
   handleOpenLastWorkspace,
+  handleOpenSettings,
   handleOpenWebPage,
   handleOpenWorkspace,
   handleRenameWorkspace,
@@ -39,6 +40,7 @@ import {
   handleShowCommandPalette,
   handleTerminate,
   handleToggleDesignMode,
+  handleToggleSidebar,
   invokeEditorCommand,
 } from "@/commands/handlers";
 import {
@@ -50,6 +52,7 @@ import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
+  activatePane,
   cloneTerminalPane,
   closeAgentSessionPanes,
   closePane,
@@ -59,7 +62,9 @@ import {
   setPaneCollapsed,
   splitPane,
   splitPaneWithAgentSession,
+  updatePaneProperty,
 } from "@/store/actions/pane";
+import { navigatePane } from "@/store/actions/paneNavigation";
 import {
   closeTab,
   duplicateTab,
@@ -121,9 +126,24 @@ export function registerApplicationCommands(
     },
   });
 
+  // View: Open Settings
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_SETTINGS,
+    title: "Settings",
+    description: "Open application settings",
+    category: "View",
+    keybinding: {
+      key: "Cmd+,",
+      win: "Ctrl+,",
+    },
+    run: (context) => {
+      handleOpenSettings(context.setShowGeneralSettings);
+    },
+  });
+
   // View: Open Keyboard Shortcuts
   commandRegistry.registerCommand({
-    id: ApplicationCommands.VIEW_OPEN_KEYBOARD_SHORTCUTS,
+    id: ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
     title: "Keyboard Shortcuts",
     description: "View and customize keyboard shortcuts",
     category: "View",
@@ -170,6 +190,21 @@ export function registerApplicationCommands(
     },
     run: (context) => {
       handleShowCommandPalette(context.setIsCommandPaletteOpenOverride);
+    },
+  });
+
+  // View: Toggle Sidebar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_TOGGLE_SIDEBAR,
+    title: "Toggle Sidebar",
+    description: "Show or hide the sidebar overlay",
+    category: "View",
+    keybinding: {
+      key: "Cmd+E",
+      win: "Ctrl+E",
+    },
+    run: () => {
+      handleToggleSidebar();
     },
   });
 
@@ -531,6 +566,31 @@ export function registerApplicationCommands(
     },
   });
 
+  // Pane: View Files
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_VIEW_FILES,
+    title: "View Files (CWD)",
+    description: "View files in the terminal's current directory",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+E",
+      win: "Ctrl+E",
+    },
+    when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "1_pane",
+      order: 2,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        handleToggleSidebar();
+      }
+    },
+  });
+
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_COLLAPSE,
     title: "Collapse Pane",
@@ -539,8 +599,8 @@ export function registerApplicationCommands(
     when: When.and(paneCanBeCollapsed.isTrue(), paneIsCollapsed.isFalse()),
     menu: {
       id: MenuId.PaneContext,
-      group: "1_pane",
-      order: 3,
+      group: "2_pane",
+      order: 4,
       when: When.and(paneIsCollapsed.isFalse()),
     },
     run: (context, tabId?: string, paneId?: string) => {
@@ -558,8 +618,8 @@ export function registerApplicationCommands(
     when: When.and(paneIsCollapsed.isTrue()),
     menu: {
       id: MenuId.PaneContext,
-      group: "1_pane",
-      order: 3,
+      group: "2_pane",
+      order: 4,
       when: paneIsCollapsed.isTrue(),
     },
     run: (context, tabId?: string, paneId?: string) => {
@@ -802,6 +862,86 @@ export function registerApplicationCommands(
     },
   });
 
+  // Pane: Navigate Left
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_LEFT,
+    title: "Navigate to Pane on Left",
+    description: "Focus the pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Left",
+      win: "Ctrl+Left",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "left");
+      }
+    },
+  });
+
+  // Pane: Navigate Right
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_RIGHT,
+    title: "Navigate to Pane on Right",
+    description: "Focus the pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Right",
+      win: "Ctrl+Right",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "right");
+      }
+    },
+  });
+
+  // Pane: Navigate Up
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_UP,
+    title: "Navigate to Pane Above",
+    description: "Focus the pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Up",
+      win: "Ctrl+Up",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "up");
+      }
+    },
+  });
+
+  // Pane: Navigate Down
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_DOWN,
+    title: "Navigate to Pane Below",
+    description: "Focus the pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Down",
+      win: "Ctrl+Down",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "down");
+      }
+    },
+  });
+
   // Pane: Move Left
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_MOVE_LEFT,
@@ -809,7 +949,7 @@ export function registerApplicationCommands(
     description: "Move the current pane to the left",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Left",
+      key: "Ctrl+Cmd+Left",
       win: "Ctrl+Alt+Left",
     },
     when: paneActionsEnabled,
@@ -834,7 +974,7 @@ export function registerApplicationCommands(
     description: "Move the current pane to the right",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Right",
+      key: "Ctrl+Cmd+Right",
       win: "Ctrl+Alt+Right",
     },
     when: paneActionsEnabled,
@@ -859,7 +999,7 @@ export function registerApplicationCommands(
     description: "Move the current pane upward",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Up",
+      key: "Ctrl+Cmd+Up",
       win: "Ctrl+Alt+Up",
     },
     when: paneActionsEnabled,
@@ -884,7 +1024,7 @@ export function registerApplicationCommands(
     description: "Move the current pane downward",
     category: "Pane",
     keybinding: {
-      key: "Cmd+Alt+Down",
+      key: "Ctrl+Cmd+Down",
       win: "Ctrl+Alt+Down",
     },
     when: paneActionsEnabled,
@@ -915,8 +1055,8 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "1_pane",
-      order: 2,
+      group: "2_pane",
+      order: 3,
     },
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -1105,8 +1245,14 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "row", true);
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", true, {
+            sandboxId,
+          });
         }
       }
     },
@@ -1138,8 +1284,14 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "row", false);
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", false, {
+            sandboxId,
+          });
         }
       }
     },
@@ -1171,8 +1323,14 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "column", true);
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", true, {
+            sandboxId,
+          });
         }
       }
     },
@@ -1204,8 +1362,14 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "column", false);
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", false, {
+            sandboxId,
+          });
         }
       }
     },
@@ -1377,6 +1541,25 @@ export function registerApplicationCommands(
   });
 
   // ============================================================================
+  // Browser Commands
+  // ============================================================================
+
+  // Browser: Toggle Browser Toolbar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.BROWSER_TOGGLE_TOOLBAR,
+    title: "Toggle Browser Toolbar",
+    description: "Show or hide the toolbar in the active browser pane",
+    category: "Browser",
+    when: activePaneType.equals("browser"),
+    run: ({ activeTab, activePaneId }) => {
+      const pane = activeTab.panes[activePaneId];
+      updatePaneProperty(activeTab.id, activePaneId, {
+        chromeless: !pane.chromeless,
+      });
+    },
+  });
+
+  // ============================================================================
   // Editor Commands
   // ============================================================================
 
@@ -1398,20 +1581,20 @@ export function registerApplicationCommands(
     },
   });
 
-  // Editor: Focus Sidebar
+  // Editor: Reveal Active File in File Tree
   commandRegistry.registerCommand({
     id: ApplicationCommands.EDITOR_FOCUS_SIDEBAR,
-    title: "Focus File Tree",
-    description: "Show and focus the file tree sidebar in the editor",
+    title: "Reveal Active File in File Tree",
+    description: "Reveal and select the currently active file in the file tree",
     category: "Editor",
     keybinding: {
-      key: "Cmd+Shift+E",
-      win: "Ctrl+Shift+E",
+      key: "Cmd+Shift+T",
+      win: "Ctrl+Shift+T",
     },
     when: activePaneType.equals("editor"),
     run: (context) => {
       if (context.activePaneId) {
-        invokeEditorCommand(context.activePaneId, "focusSidebar");
+        invokeEditorCommand(context.activePaneId, "revealActiveFile");
       }
     },
   });
@@ -1529,18 +1712,18 @@ export function registerMenuContextBuilders(): void {
   registerSubmenu(
     MenuId.PaneContext,
     "3_split_more/split_browser",
-    "Split browser...",
+    "Split Browser...",
   );
 
   registerSubmenu(
     MenuId.PaneContext,
     "3_split_more/split_editor",
-    "Split editor...",
+    "Split Editor...",
   );
 
   registerSubmenu(
     MenuId.PaneContext,
     "3_split_more/split_agent_session",
-    "Split agent session...",
+    "Split Agent Session...",
   );
 }

@@ -1,8 +1,19 @@
-import type { PaneDescriptor } from "@/components/layout/quick/QuickDialog";
+import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
-import { disposeSession } from "@/components/panes/terminal/xtermCache";
+import {
+  getSessionState,
+  markAsIdle,
+  onSessionStateChange,
+} from "@/components/panes/terminal/state/stateTracker";
+import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
 import { detachPane, removePane } from "@/store/actions/pane";
-import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import {
+  activeTabAtom,
+  activeTabIdAtom,
+  tabsAtom,
+  tabStateAtom,
+  type TabState,
+} from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
 import { generateId } from "@shared/utils";
@@ -32,6 +43,60 @@ export function getActiveTabCwd(
   }
 
   return fallback;
+}
+
+/**
+ * Get the sandboxId from a tab's active pane (for VM operations)
+ * @param tab - The tab to get the sandboxId from
+ * @returns The sandboxId from the active pane, or undefined if not in a VM context
+ */
+export function getActiveTabSandboxId(
+  tab: Tab | null | undefined,
+): string | undefined {
+  if (!tab) {
+    return undefined;
+  }
+
+  const activePane = tab.panes[tab.activePaneId];
+  if (activePane?.type === "terminal" || activePane?.type === "editor") {
+    return activePane.sandboxId;
+  }
+
+  return undefined;
+}
+
+/**
+ * Translate a file path from one CWD to another.
+ * If the file is within the source CWD, returns the equivalent path in the target CWD.
+ * Otherwise, returns the original file path unchanged.
+ *
+ * @param filePath - The absolute file path to translate
+ * @param sourceCwd - The source working directory
+ * @param targetCwd - The target working directory
+ * @returns The translated file path, or the original if not within source CWD
+ */
+export function translateFilePath(
+  filePath: string,
+  sourceCwd: string,
+  targetCwd: string,
+): string {
+  const normalizedFile = path.normalize(filePath);
+  const normalizedSourceCwd = path.normalize(sourceCwd);
+  const normalizedTargetCwd = path.normalize(targetCwd);
+
+  // No translation needed if CWDs are the same
+  if (normalizedSourceCwd === normalizedTargetCwd) {
+    return filePath;
+  }
+
+  // Only translate if file is within the source CWD
+  if (!normalizedFile.startsWith(normalizedSourceCwd + path.sep)) {
+    return filePath;
+  }
+
+  // Get the relative path and construct the new path
+  const relativePath = path.relative(normalizedSourceCwd, normalizedFile);
+  return path.join(normalizedTargetCwd, relativePath);
 }
 
 /**
@@ -94,6 +159,7 @@ export async function openTab(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     processTitle: result.title,
+    sandboxId: result.sandboxId,
   };
 
   const layout: LayoutNode = {
@@ -145,12 +211,12 @@ export function openTabFromExistingSession({
   sessionId,
   cwd,
   title,
-  vmMetadata,
+  sandboxId,
 }: {
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
-  vmMetadata?: TerminalPane["vmMetadata"] | null;
+  sandboxId?: TerminalPane["sandboxId"] | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -160,7 +226,7 @@ export function openTabFromExistingSession({
     sessionId,
     cwd: cwd ?? null,
     processTitle: title ?? "Terminal",
-    vmMetadata: vmMetadata ?? undefined,
+    sandboxId: sandboxId ?? undefined,
   };
 
   return createTabWithPane(paneState);
@@ -238,12 +304,36 @@ export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
   );
 }
 
+// Tracks tabs that were recently switched away from, to suppress
+// "idle-unseen" notifications for trailing activity (e.g., TUI redraws)
+const RECENTLY_BACKGROUNDED_MS = 3000;
+const recentlyBackgroundedTabs = new Map<string, NodeJS.Timeout>();
+
 export function focusTab(tabId: string) {
   const tabs = store.get(tabsAtom);
-  if (!tabs.some((tab) => tab.id === tabId)) {
+  const currentTabId = store.get(activeTabIdAtom);
+
+  if (!tabs.some((tab) => tab.id === tabId) || tabId === currentTabId) {
     return;
   }
 
+  // Track the outgoing tab as recently backgrounded to suppress
+  // "idle-unseen" for trailing activity (TUI redraws, etc.)
+  if (currentTabId) {
+    clearTimeout(recentlyBackgroundedTabs.get(currentTabId));
+    recentlyBackgroundedTabs.set(
+      currentTabId,
+      setTimeout(() => {
+        recentlyBackgroundedTabs.delete(currentTabId);
+      }, RECENTLY_BACKGROUNDED_MS),
+    );
+  }
+
+  // Clear recently-backgrounded state for the incoming tab
+  clearTimeout(recentlyBackgroundedTabs.get(tabId));
+  recentlyBackgroundedTabs.delete(tabId);
+
+  acknowledgeTabState(tabId);
   store.set(activeTabIdAtom, tabId);
 }
 
@@ -327,6 +417,13 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   // Dispose editor panes from EditorPaneRegistry
   // This fully removes editors (vs detach which just moves them off-screen)
   editorPaneIdsToDispose.forEach((paneId) => disposeEditorPane(paneId));
+
+  // Clean up tab state tracking for the closed tab
+  store.set(tabStateAtom, (draft) => {
+    draft.delete(tabId);
+  });
+  clearTimeout(recentlyBackgroundedTabs.get(tabId));
+  recentlyBackgroundedTabs.delete(tabId);
 
   if (shouldOpenReplacement) {
     openTab();
@@ -456,7 +553,7 @@ export async function duplicateTab(
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
         processTitle: result.title,
-        vmMetadata: result.vmMetadata,
+        sandboxId: result.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
@@ -464,31 +561,26 @@ export async function duplicateTab(
         agentWorktreePath,
       };
     } else if (sourcePane.type === "editor") {
-      // Translate file path if duplicating into a worktree
+      // Translate file path if duplicating into a new CWD or worktree
       let translatedFile = sourcePane.file;
-      if (
-        options?.agentSession &&
-        sourcePane.file &&
-        options.agentSession.repoRoot &&
-        options.agentSession.worktreePath
-      ) {
-        // Normalize paths for comparison
-        const normalizedFile = path.normalize(sourcePane.file);
-        const normalizedRepoRoot = path.normalize(
-          options.agentSession.repoRoot,
-        );
 
-        // Check if file is within the repository
-        if (normalizedFile.startsWith(normalizedRepoRoot + path.sep)) {
-          // Get the relative path from repo root
-          const relativePath = path.relative(
-            normalizedRepoRoot,
-            normalizedFile,
-          );
-          // Construct the new path in the worktree
-          translatedFile = path.join(
+      if (sourcePane.file) {
+        if (
+          options?.agentSession?.repoRoot &&
+          options.agentSession.worktreePath
+        ) {
+          // Worktree duplication: translate from repo root to worktree path
+          translatedFile = translateFilePath(
+            sourcePane.file,
+            options.agentSession.repoRoot,
             options.agentSession.worktreePath,
-            relativePath,
+          );
+        } else if (options?.cwd && sourcePane.cwd) {
+          // Custom CWD duplication: translate from source CWD to new CWD
+          translatedFile = translateFilePath(
+            sourcePane.file,
+            sourcePane.cwd,
+            options.cwd,
           );
         }
       }
@@ -510,6 +602,7 @@ export async function duplicateTab(
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         file: translatedFile,
+        sandboxId: sourcePane.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
@@ -650,6 +743,49 @@ export async function duplicateTabIntoWorktree(
   };
 }
 
+/**
+ * Acknowledge the tab state (called on hover/focus).
+ * Transitions "idle-unseen" or "idle-notified" to "idle".
+ */
+export function acknowledgeTabState(tabId: string) {
+  store.set(tabStateAtom, (draft) => {
+    const state = draft.get(tabId);
+    if (state === "idle-unseen" || state === "idle-notified") {
+      draft.set(tabId, "idle");
+    }
+  });
+}
+
+/**
+ * Mark a tab as notified (called by the notify CLI command).
+ * Marks the session as idle and sets the tab state to "idle-notified".
+ */
+export function markTabAsNotified(tabId: string, sessionId: string) {
+  markAsIdle(sessionId);
+  store.set(tabStateAtom, (draft) => {
+    draft.set(tabId, "idle-notified");
+  });
+}
+
+/**
+ * Get the priority of a tab state for transition ordering.
+ * Higher priority states should not be overwritten by lower priority ones.
+ * Priority: running (3) > idle-notified (2) > idle-unseen (1) > idle (0)
+ */
+function getTabStatePriority(state: TabState | undefined): number {
+  switch (state) {
+    case "running":
+      return 3;
+    case "idle-notified":
+      return 2;
+    case "idle-unseen":
+      return 1;
+    case "idle":
+    default:
+      return 0;
+  }
+}
+
 export function registerTabEventHandlers() {
   const unsubscribeExit = api.onExit(({ sessionId }) => {
     const tabs = store.get(tabsAtom);
@@ -674,8 +810,53 @@ export function registerTabEventHandlers() {
     void openTab();
   });
 
+  // Track terminal state changes for tab indicators
+  const unsubscribeStateChange = onSessionStateChange((sessionId, state) => {
+    const tab = store
+      .get(tabsAtom)
+      .find((t) =>
+        Object.values(t.panes).some(
+          (p) => p.type === "terminal" && p.sessionId === sessionId,
+        ),
+      );
+
+    if (!tab) return;
+
+    if (state === "running") {
+      store.set(tabStateAtom, (draft) => draft.set(tab.id, "running"));
+      return;
+    }
+
+    // A terminal went idle - check if any other terminal in this tab is still running
+    const isAnyRunning = Object.values(tab.panes)
+      .filter((p): p is TerminalPane => p.type === "terminal")
+      .some((p) => getSessionState(p.sessionId) === "running");
+
+    if (isAnyRunning) return;
+
+    // Determine the target idle state based on tab visibility
+    const isBackground = tab.id !== store.get(activeTabIdAtom);
+    const isRecentlyBackgrounded = recentlyBackgroundedTabs.has(tab.id);
+    const targetState: TabState =
+      isBackground && !isRecentlyBackgrounded ? "idle-unseen" : "idle";
+
+    // Apply priority-based transition: only update if target has strictly higher priority.
+    // This prevents idle/idle-unseen from overwriting idle-notified.
+    // Exception: transitions from "running" are always allowed (natural idle detection).
+    store.set(tabStateAtom, (draft) => {
+      const currentState = draft.get(tab.id);
+      if (
+        currentState === "running" ||
+        getTabStatePriority(targetState) > getTabStatePriority(currentState)
+      ) {
+        draft.set(tab.id, targetState);
+      }
+    });
+  });
+
   return () => {
     unsubscribeExit();
     unsubscribeNewTab();
+    unsubscribeStateChange();
   };
 }

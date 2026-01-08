@@ -4,27 +4,28 @@ import path from "node:path";
 import { initializeAgentHandlers } from "./agent";
 import { initializeBrowserHandlers } from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
+import { initialize as initializeDotfiles } from "./dotfiles";
 import { initializeFsHandlers } from "./fs";
 import { initializeFileWatcherHandlers } from "./fs/watcher";
 import {
-  initializeFileSystemV2Handlers,
   cleanupFileSystemV2Handlers,
   handleWindowClose as handleFsWindowClose,
+  initializeFileSystemV2Handlers,
 } from "./fsv2/handlers";
 import {
-  initializeGitV2Handlers,
   cleanupGitV2Handlers,
   handleGitWindowClose,
+  initializeGitV2Handlers,
 } from "./gitv2/handlers";
+import { registerSearchHandlers } from "./search";
 import {
   cleanupTerminalSessions,
   initializeTerminalHandlers,
 } from "./terminal";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
-import { initializeUpdateHandlers, cleanupUpdateHandlers } from "./updates";
+import { cleanupUpdateHandlers, initializeUpdateHandlers } from "./updates";
 import { initializeVMHandlers } from "./vm";
 import initializeWorkspaceHandlers from "./workspace";
-import { registerSearchHandlers } from "./search";
 
 async function ensureConduitDirectory(): Promise<string> {
   const homeDir = app.getPath("home");
@@ -47,6 +48,8 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   };
 
   const conduitStateDirectory = await ensureConduitDirectory();
+
+  initializeDotfiles(conduitStateDirectory, app.getPath("home"), window);
 
   const { refreshMenu } = await initializeUserSettings(
     window,
@@ -82,10 +85,10 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 }
 
 export {
-  cleanupTerminalSessions,
-  cleanupUpdateHandlers,
   cleanupFileSystemV2Handlers,
   cleanupGitV2Handlers,
+  cleanupTerminalSessions,
+  cleanupUpdateHandlers,
   initializeIpcHandlers,
   shutdownCliServer,
 };

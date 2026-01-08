@@ -23,16 +23,22 @@ const shouldUseEditorV2 = (): boolean => {
 const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   tabPosition: "bottom",
   alwaysShowTabs: true,
+  alwaysHighlightActivePane: false,
   commandHistory: [],
   urlHistory: [],
   starredPages: [],
   showTerminalRuler: true,
+  showTabState: true,
   autoSaveWorkspaces: true,
-  useGradientBorders: true,
+  useGradientBorders: false,
+  dimInactivePanes: false,
   useConduitAsEditor: true,
   useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
+  trackUnseenChangesInReviewMode: true, // Show unseen indicators in Review Mode by default
   theme: "dark",
   terminalPromptBufferLines: 100,
+  terminalFontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',
+  terminalFontSize: 13,
 };
 
 export async function loadSettings(
@@ -55,12 +61,6 @@ export async function loadSettings(
       ...settings,
       ...savedSettings,
     };
-
-    console.log("[Settings] Loaded settings:", {
-      defaultAgents: defaultSettings.agents,
-      savedAgents: savedSettings.agents,
-      finalAgents: result.agents,
-    });
 
     // Environment variable takes precedence over saved settings for useEditorV2
     // This allows developers to easily test either version without modifying saved settings

@@ -41,44 +41,66 @@ function normalizePath(path: string): string {
 /**
  * Hook to acquire a shared FileSystemV2API instance.
  *
- * The returned API instance is shared across all components using the same cwd.
- * When cwd changes, the old reference is released and a new one is acquired.
- * On unmount, the reference is released (instance may be kept alive by other users).
+ * The returned API instance is shared across all components using the same cwd
+ * and sandboxId combination. When cwd or sandboxId changes, the old reference is released
+ * and a new one is acquired. On unmount, the reference is released (instance may
+ * be kept alive by other users).
  *
  * @param cwd - Working directory to scope operations to
+ * @param sandboxId - Optional sandbox ID for cloud VM operations
  * @returns FileSystemV2API instance (shared)
  */
-export function useFileSystemV2(cwd: string): FileSystemV2API {
+export function useFileSystemV2(
+  cwd: string,
+  sandboxId?: string,
+): FileSystemV2API {
   const service = FileSystemV2APIService.getInstance();
 
   // Normalize path to match service's normalization
   const normalizedCwd = normalizePath(cwd);
 
+  // Create a key for tracking (includes sandboxId if present)
+  const key = sandboxId ? `${normalizedCwd}::vm:${sandboxId}` : normalizedCwd;
+
   // Use ref to hold the API instance - avoids recreating on every render
   const apiRef = useRef<FileSystemV2API | null>(null);
 
-  // Track the CWD we acquired (for releasing the correct one)
-  const acquiredCwdRef = useRef<string | null>(null);
+  // Track the key we acquired (for releasing the correct one)
+  const acquiredKeyRef = useRef<{ cwd: string; sandboxId?: string } | null>(
+    null,
+  );
 
-  // Acquire instance or re-acquire if CWD changed
-  if (apiRef.current === null || acquiredCwdRef.current !== normalizedCwd) {
+  // Acquire instance or re-acquire if key changed
+  const currentKey = acquiredKeyRef.current
+    ? acquiredKeyRef.current.sandboxId
+      ? `${normalizePath(acquiredKeyRef.current.cwd)}::vm:${acquiredKeyRef.current.sandboxId}`
+      : normalizePath(acquiredKeyRef.current.cwd)
+    : null;
+
+  if (apiRef.current === null || currentKey !== key) {
     // Release previous reference if we had one
-    if (acquiredCwdRef.current !== null) {
-      service.release(acquiredCwdRef.current);
+    if (acquiredKeyRef.current !== null) {
+      service.release(
+        acquiredKeyRef.current.cwd,
+        acquiredKeyRef.current.sandboxId,
+      );
     }
 
     // Acquire new instance via service
-    apiRef.current = service.acquire(normalizedCwd);
-    acquiredCwdRef.current = normalizedCwd;
+    apiRef.current = service.acquire(normalizedCwd, sandboxId);
+    acquiredKeyRef.current = { cwd: normalizedCwd, sandboxId };
   }
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       // Release our reference via service
-      if (acquiredCwdRef.current !== null) {
-        service.release(acquiredCwdRef.current);
-        acquiredCwdRef.current = null;
+      if (acquiredKeyRef.current !== null) {
+        service.release(
+          acquiredKeyRef.current.cwd,
+          acquiredKeyRef.current.sandboxId,
+        );
+        acquiredKeyRef.current = null;
         apiRef.current = null;
       }
     };
@@ -92,11 +114,11 @@ export function useFileSystemV2(cwd: string): FileSystemV2API {
  * Re-export types for convenience
  */
 export type {
+  Cleanup,
   DirectoryListingChangedCallback,
   FileContentChangedCallback,
   FileDeletedCallback,
   FileRenamedCallback,
-  Cleanup,
 } from "../api/FileSystemV2API";
 
 export { FileSystemV2API } from "../api/FileSystemV2API";

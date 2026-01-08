@@ -26,14 +26,14 @@ export async function createTerminal(
   const id = randomUUID();
 
   // Check if this should be a remote VM session
-  if (options?.isRemoteVM || options?.existingVMId) {
+  if (options?.isRemoteVM || options?.existingSandboxId) {
     try {
       let vm;
 
-      if (options?.existingVMId) {
+      if (options?.existingSandboxId) {
         // Connect to an existing VM
         const { getVM } = await import("../../vm/client");
-        vm = await getVM(options.existingVMId);
+        vm = await getVM(options.existingSandboxId);
       } else {
         // Create the VM with conduitVM label
         const labels = options.vmLabels
@@ -61,7 +61,7 @@ export async function createTerminal(
       // Check if we have SSH keys and set them up in the VM (only for new VMs)
       let useSSHKey = false;
 
-      if (!options?.existingVMId) {
+      if (!options?.existingSandboxId) {
         const keysAvailable = await hasSSHKeys();
         if (keysAvailable) {
           const { loadConfig } = await import("../../vm/config");
@@ -117,12 +117,17 @@ export async function createTerminal(
         process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
       const pty = spawnTerminalProcess(id, homeDirectory);
 
+      // For VM terminals, the cwd is the remote workspace path on the VM
+      // The sandbox-ipc server runs with workspace at /workspace by default
+      const remoteCwd = "/workspace";
+
       const session: TerminalInstance = {
         id,
         pty,
         lastProcessName: `VM ${vm.id}`,
         isRendererReady: false,
         bufferedOutput: [],
+        cwd: remoteCwd,
         cloudEnvironment: {
           vmId: vm.id,
           vmHost: sshInfo.host,
@@ -183,6 +188,7 @@ export async function createTerminal(
     isRendererReady: false,
     bufferedOutput: [],
     pendingCommand,
+    cwd,
   };
 
   storeTerminal(terminal);

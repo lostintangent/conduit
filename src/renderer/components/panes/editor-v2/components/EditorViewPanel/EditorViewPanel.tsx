@@ -26,25 +26,33 @@
  * ```
  */
 
+import type { GitV2API } from "@/api/GitV2API";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorActions,
   useEditorSaveKeybinding,
   useModelState,
+  type UnseenTrackingResult,
 } from "../../hooks";
-import { MonacoModelRegistry, pathToUri } from "../../registry";
-import type { FileNode, ModelState, ViewMode } from "../../types";
-import type { GitV2API } from "@/api/GitV2API";
+import { createModelKey, MonacoModelRegistry } from "../../registry";
+import type {
+  ContentSource,
+  FileNode,
+  ModelState,
+  ViewMode,
+} from "../../types";
 import { ChangesReviewPane } from "../ChangesReviewPane";
 import { CommitReviewPane } from "../CommitReviewPane";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { EditorToolbar, CommitDiffToolbar } from "../Toolbar";
-import { DeletedFileViewer } from "./DeletedFileViewer";
+import { DeletedFileBanner } from "./DeletedFileBanner";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { HistoricalDiffViewer } from "./HistoricalDiffViewer";
 import { HistoricalFileViewer } from "./HistoricalFileViewer";
+import { ImagePreview } from "./ImagePreview";
+import { MarkdownPreview } from "./MarkdownPreview";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
 /**
@@ -55,6 +63,26 @@ import { RegularEditorWrapper } from "./RegularEditorWrapper";
  */
 const MODE_TRANSITION_DELAY_MS = 50;
 
+/** Image extensions supported for preview */
+const IMAGE_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".ico",
+  ".svg",
+];
+
+/**
+ * Check if a file path is an image that can be previewed.
+ */
+function isImageFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
 export interface EditorViewPanelProps {
   /** Unique ID for the editor instance */
   editorId: string;
@@ -62,11 +90,21 @@ export interface EditorViewPanelProps {
   /** Working directory for file operations */
   cwd: string;
 
+  /** Sandbox/VM ID for remote operations (optional - if not provided, uses local filesystem) */
+  sandboxId?: string;
+
   /** Git API instance (shared from parent) */
   git?: GitV2API;
 
   /** Currently selected file (null for empty state) */
   selectedFile: FileNode | null;
+
+  /**
+   * Selected map key for changes review mode.
+   * Used to distinguish between staged and unstaged entries of partially staged files.
+   * The key matches the git status Map key (includes UNSTAGED_KEY_SUFFIX for unstaged entries).
+   */
+  selectedMapKey?: string | null;
 
   /** Current view mode (editor, diff, changesReview) */
   viewMode: ViewMode;
@@ -110,6 +148,33 @@ export interface EditorViewPanelProps {
   /** Whether the selected file is a deleted file (shows read-only git content) */
   isFileDeleted?: boolean;
 
+  /**
+   * Whether the selected file is staged (in "Showing only changed files" mode).
+   * Used to determine content sources for diff view:
+   * - Staged: HEAD → Index (read-only)
+   * - Unstaged: HEAD → Working Directory (or Index → Working Directory if hasIndexChanges)
+   */
+  isFileStaged?: boolean;
+
+  /**
+   * Whether the file has changes in the git index (staging area).
+   * When true on an unstaged file, the diff shows Index → Working Directory
+   * instead of HEAD → Working Directory.
+   */
+  hasIndexChanges?: boolean;
+
+  /** Whether to show the preview toggle (for supported file types like .md) */
+  showPreviewToggle?: boolean;
+
+  /** Whether currently in preview mode */
+  isPreviewMode?: boolean;
+
+  /** Handler for toggling between preview and editor modes */
+  onTogglePreviewMode?: (isPreview: boolean) => void;
+
+  /** Content to display in markdown preview mode */
+  previewContent?: string;
+
   // ---------------------------------------------------------------------------
   // Remote Operations (for ChangesReviewPane)
   // ---------------------------------------------------------------------------
@@ -128,6 +193,20 @@ export interface EditorViewPanelProps {
 
   /** Callback to trigger a push operation */
   onPush?: () => void;
+
+  // ---------------------------------------------------------------------------
+  // Unseen Tracking (shared state from parent)
+  // ---------------------------------------------------------------------------
+
+  /** Unseen tracking state and functions (shared from EditorPaneV2) */
+  unseenTracking?: UnseenTrackingResult;
+
+  // ---------------------------------------------------------------------------
+  // Dirty File Checking
+  // ---------------------------------------------------------------------------
+
+  /** Check if a file has unsaved changes - used to prevent staging dirty files */
+  isFileDirty?: (filePath: string) => boolean;
 }
 
 /**
@@ -135,14 +214,19 @@ export interface EditorViewPanelProps {
  *
  * Orchestrates the editor view based on the current mode:
  * - `editor`: Shows RegularEditorWrapper
+ * - `preview`: Shows MarkdownPreview (for .md files) or ImagePreview (for images)
  * - `diff`: Shows DiffEditorWrapper
  * - `changesReview`: Shows multi-file diff view (TODO: Phase 4+)
+ *
+ * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export function EditorViewPanel({
+export const EditorViewPanel = memo(function EditorViewPanel({
   editorId,
   cwd,
+  sandboxId,
   git,
   selectedFile,
+  selectedMapKey,
   viewMode,
   baseBranch = "HEAD",
   theme = "vs-dark",
@@ -157,15 +241,27 @@ export function EditorViewPanel({
   onExitReview,
   onExitCommitMode,
   isFileDeleted = false,
+  isFileStaged = false,
+  hasIndexChanges = false,
+  showPreviewToggle = false,
+  isPreviewMode = false,
+  onTogglePreviewMode,
+  previewContent = "",
   // Remote operations for ChangesReviewPane
   hasUpstream = true,
   isPulling = false,
   isPushing = false,
   onPull,
   onPush,
+  // Unseen tracking
+  unseenTracking,
+  // Dirty file checking
+  isFileDirty,
 }: EditorViewPanelProps) {
-  // Editor ref for actions
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Editor instance state - using state instead of ref so changes trigger re-renders
+  // This ensures useEditorActions re-subscribes when the editor changes
+  const [editor, setEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
@@ -193,7 +289,45 @@ export function EditorViewPanel({
   }, [filePath, cwd]);
 
   // Get model state for the current file
-  const modelState = useModelState(filePath);
+  const modelState = useModelState(filePath, sandboxId);
+
+  // ---------------------------------------------------------------------------
+  // Content Source Calculation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calculate content sources for diff view based on staging status.
+   *
+   * For normal staged/unstaged view (no baseBranch or baseBranch === 'HEAD'):
+   * - Staged changes: HEAD → Index (comparing what was committed vs what's staged)
+   * - Unstaged with index changes: Index → Working Directory (partially staged file)
+   * - Unstaged without index changes: HEAD → Working Directory (normal unstaged)
+   *
+   * For branch comparison mode (baseBranch !== 'HEAD'):
+   * - All files compared against the base branch
+   */
+  const { originalSource, modifiedSource } = useMemo((): {
+    originalSource: ContentSource;
+    modifiedSource: ContentSource;
+  } => {
+    // Branch comparison mode: compare against the specified branch
+    if (baseBranch && baseBranch !== "HEAD") {
+      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
+    }
+
+    // Normal staged/unstaged view
+    if (isFileStaged) {
+      // Staged changes: show HEAD → Index (read-only on both sides conceptually,
+      // but modified side shows what's staged)
+      return { originalSource: "head", modifiedSource: "index" };
+    } else if (hasIndexChanges) {
+      // Unstaged changes for a partially staged file: show Index → Working Directory
+      return { originalSource: "index", modifiedSource: "workingDirectory" };
+    } else {
+      // Normal unstaged changes: show HEAD → Working Directory
+      return { originalSource: "head", modifiedSource: "workingDirectory" };
+    }
+  }, [baseBranch, isFileStaged, hasIndexChanges]);
 
   // ---------------------------------------------------------------------------
   // Mode Transition Handling
@@ -258,12 +392,13 @@ export function EditorViewPanel({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.saveModel(pathToUri(filePath));
+      // Use composite key that includes sandboxId for VM file support
+      await registry.saveModel(createModelKey(filePath, sandboxId));
       onSave?.();
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, onSave]);
+  }, [filePath, sandboxId, onSave]);
 
   // ---------------------------------------------------------------------------
   // Editor Keybindings
@@ -285,31 +420,31 @@ export function EditorViewPanel({
    * Get editor actions from hook - provides undo/redo/find and state tracking.
    * The hook properly manages subscriptions to model changes for canUndo/canRedo.
    */
-  const editorActions = useEditorActions(editorRef, modelState, handleSave);
+  const editorActions = useEditorActions(editor, modelState, handleSave);
 
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
 
   /**
-   * Handle editor mount - store ref for actions hook and register keybindings.
+   * Handle editor mount - store editor for actions hook and register keybindings.
    */
   const handleEditorMount = useCallback(
-    (editor: monaco.editor.IStandaloneCodeEditor) => {
-      editorRef.current = editor;
-      registerSaveKeybinding(editor);
+    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
+      setEditor(mountedEditor);
+      registerSaveKeybinding(mountedEditor);
     },
     [registerSaveKeybinding],
   );
 
   /**
-   * Handle diff editor mount - store ref and register keybindings on modified editor.
+   * Handle diff editor mount - store modified editor and register keybindings.
    */
   const handleDiffEditorMount = useCallback(
     (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
       // For diff editor, we need to get the modified (right side) editor
       const modifiedEditor = diffEditor.getModifiedEditor();
-      editorRef.current = modifiedEditor;
+      setEditor(modifiedEditor);
       registerSaveKeybinding(modifiedEditor);
     },
     [registerSaveKeybinding],
@@ -324,11 +459,12 @@ export function EditorViewPanel({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.reloadModel(pathToUri(filePath));
+      // Use composite key that includes sandboxId for VM file support
+      await registry.reloadModel(createModelKey(filePath, sandboxId));
     } catch (error) {
       console.error("Failed to reload file:", error);
     }
-  }, [filePath]);
+  }, [filePath, sandboxId]);
 
   /**
    * Handle keep changes - user acknowledges external changes but wants to keep editing.
@@ -338,8 +474,9 @@ export function EditorViewPanel({
     if (!filePath) return;
 
     const registry = MonacoModelRegistry.getInstance();
-    registry.clearExternalChanges(pathToUri(filePath));
-  }, [filePath]);
+    // Use composite key that includes sandboxId for VM file support
+    registry.clearExternalChanges(createModelKey(filePath, sandboxId));
+  }, [filePath, sandboxId]);
 
   // Changes review mode - render full-height pane with its own toolbar
   // This is checked first because review mode doesn't require a selected file
@@ -351,15 +488,19 @@ export function EditorViewPanel({
       >
         <ChangesReviewPane
           cwd={cwd}
+          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           onExitReview={onExitReview}
           selectedFilePath={displayFilePath || undefined}
+          selectedMapKey={selectedMapKey}
           hasUpstream={hasUpstream}
           isPulling={isPulling}
           isPushing={isPushing}
           onPull={onPull ?? (() => {})}
           onPush={onPush ?? (() => {})}
+          unseenTracking={unseenTracking}
+          isFileDirty={isFileDirty}
         />
       </div>
     );
@@ -479,10 +620,13 @@ export function EditorViewPanel({
     );
   }
 
-  // Show warning when there's a conflict (external changes while dirty) or file was deleted
+  // Show warning when there's a conflict (external changes while dirty) or file was deleted externally
   // The warning hides automatically when the user takes action (reload, save, keep changes)
+  // Don't show when isFileDeleted is true - that's a git-deleted file, which shows DeletedFileBanner instead
   const shouldShowWarning =
-    modelState && (modelState.isOrphaned || modelState.hasExternalChanges);
+    !isFileDeleted &&
+    modelState &&
+    (modelState.isOrphaned || modelState.hasExternalChanges);
 
   // Build effective model state for toolbar
   const effectiveModelState: ModelState = modelState ?? {
@@ -514,6 +658,9 @@ export function EditorViewPanel({
         showDiffToggle={showDiffToggle}
         isDiffMode={isDiffMode}
         onToggleDiffMode={onToggleDiffMode}
+        showPreviewToggle={showPreviewToggle}
+        isPreviewMode={isPreviewMode}
+        onTogglePreviewMode={onTogglePreviewMode}
       />
 
       {/* External change warning */}
@@ -528,6 +675,9 @@ export function EditorViewPanel({
           onSave={handleSave}
         />
       )}
+
+      {/* Deleted file banner - shows when viewing a deleted file in changes mode */}
+      {isFileDeleted && <DeletedFileBanner />}
 
       {/* Editor content - uses conditional rendering to switch between modes.
        * When transitioning between editor and diff modes, we show a brief loading
@@ -546,21 +696,34 @@ export function EditorViewPanel({
         ) : isFileDeleted ? (
           // Deleted file viewer - shows read-only content from git
           <EditorErrorBoundary filePath={filePath}>
-            <DeletedFileViewer
+            <RegularEditorWrapper
               editorId={`${editorId}-deleted`}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
-              baseBranch={baseBranch}
+              source={originalSource}
+              theme={theme}
               onMount={handleEditorMount}
             />
           </EditorErrorBoundary>
+        ) : viewMode.type === "preview" ? (
+          // Preview - shows rendered markdown or image
+          isImageFile(filePath) ? (
+            <ImagePreview filePath={filePath} cwd={cwd} sandboxId={sandboxId} />
+          ) : (
+            <MarkdownPreview content={previewContent} />
+          )
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered
+          // For staged files, show index content (read-only)
+          // For unstaged/normal files, show working directory (editable)
           <EditorErrorBoundary filePath={filePath}>
             <RegularEditorWrapper
               editorId={editorId}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
+              source={modifiedSource}
               theme={theme}
               onMount={handleEditorMount}
             />
@@ -571,8 +734,10 @@ export function EditorViewPanel({
             <DiffEditorWrapper
               editorId={`${editorId}-diff`}
               cwd={cwd}
+              sandboxId={sandboxId}
               filePath={filePath}
-              baseBranch={baseBranch}
+              originalSource={originalSource}
+              modifiedSource={modifiedSource}
               theme={theme}
               onMount={handleDiffEditorMount}
             />
@@ -581,18 +746,22 @@ export function EditorViewPanel({
           // Changes review pane
           <ChangesReviewPane
             cwd={cwd}
+            sandboxId={sandboxId}
             git={git}
             baseBranch={baseBranch}
             onExitReview={onExitReview}
             selectedFilePath={displayFilePath || undefined}
+            selectedMapKey={selectedMapKey}
             hasUpstream={hasUpstream}
             isPulling={isPulling}
             isPushing={isPushing}
             onPull={onPull ?? (() => {})}
             onPush={onPush ?? (() => {})}
+            unseenTracking={unseenTracking}
+            isFileDirty={isFileDirty}
           />
         ) : null}
       </div>
     </div>
   );
-}
+});

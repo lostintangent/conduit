@@ -113,6 +113,20 @@ export class CommandRegistry implements ICommandRegistry {
     return this.commands.has(commandId);
   }
 
+  isCommandEnabled(commandId: string): boolean {
+    const descriptor = this.commands.get(commandId);
+    if (!descriptor) {
+      return false;
+    }
+
+    if (!descriptor.when) {
+      return true;
+    }
+
+    const contextValues = this.contextKeyService.getAll();
+    return descriptor.when.evaluate(contextValues);
+  }
+
   private contextBuilder?: () => CommandContext;
 
   /**
