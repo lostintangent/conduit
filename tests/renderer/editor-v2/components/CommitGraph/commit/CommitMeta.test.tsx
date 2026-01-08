@@ -63,7 +63,7 @@ describe("CommitMeta", () => {
       />,
     );
 
-    expect(screen.getByTestId("commit-meta-time").textContent).toBe("1h ago");
+    expect(screen.getByTestId("commit-meta-time").textContent).toBe("1h");
   });
 
   it("should display author name", () => {
@@ -100,7 +100,7 @@ describe("CommitMeta", () => {
     );
 
     const container = screen.getByTestId("commit-meta");
-    expect(container.textContent).toContain("1d ago");
+    expect(container.textContent).toContain("1d");
     expect(container.textContent).toContain("·");
     expect(container.textContent).toContain("Alice");
     expect(container.textContent).toContain("xyz9999");
@@ -132,7 +132,7 @@ describe("CommitMeta", () => {
     );
   });
 
-  it("should handle 'just now' time", () => {
+  it("should handle recent time in seconds", () => {
     renderWithProvider(
       <CommitMeta
         timestamp={NOW / 1000 - 5} // 5 seconds ago
@@ -141,6 +141,6 @@ describe("CommitMeta", () => {
       />,
     );
 
-    expect(screen.getByTestId("commit-meta-time").textContent).toBe("just now");
+    expect(screen.getByTestId("commit-meta-time").textContent).toBe("5s");
   });
 });

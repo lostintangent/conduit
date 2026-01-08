@@ -24,7 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
-import { formatRelativeTime, formatFullDate } from "./utils";
+import { formatRelativeTime, formatFullDate } from "../../../utils";
 
 // =============================================================================
 // Props

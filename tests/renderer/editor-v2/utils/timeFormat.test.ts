@@ -1,5 +1,8 @@
 /**
  * Tests for time formatting utilities.
+ *
+ * All timestamps are Unix seconds. The optional `now` param is in milliseconds
+ * (matching Date.now()) for test convenience.
  */
 
 import { describe, expect, it } from "vitest";
@@ -7,51 +10,52 @@ import { describe, expect, it } from "vitest";
 import { formatRelativeTime } from "@/components/panes/editor-v2/utils/timeFormat";
 
 describe("formatRelativeTime", () => {
-  const now = 1700000000000; // Fixed "now" timestamp for testing
+  const nowMs = 1700000000000; // Fixed "now" in ms for testing
+  const nowSec = nowMs / 1000; // Same instant in seconds
 
   describe("seconds", () => {
     it("should format 0 seconds", () => {
-      expect(formatRelativeTime(now, now)).toBe("0s");
+      expect(formatRelativeTime(nowSec, nowMs)).toBe("0s");
     });
 
     it("should format seconds under a minute", () => {
-      expect(formatRelativeTime(now - 5000, now)).toBe("5s");
-      expect(formatRelativeTime(now - 30000, now)).toBe("30s");
-      expect(formatRelativeTime(now - 59000, now)).toBe("59s");
+      expect(formatRelativeTime(nowSec - 5, nowMs)).toBe("5s");
+      expect(formatRelativeTime(nowSec - 30, nowMs)).toBe("30s");
+      expect(formatRelativeTime(nowSec - 59, nowMs)).toBe("59s");
     });
   });
 
   describe("minutes", () => {
     it("should format minutes under an hour", () => {
-      expect(formatRelativeTime(now - 60000, now)).toBe("1m");
-      expect(formatRelativeTime(now - 120000, now)).toBe("2m");
-      expect(formatRelativeTime(now - 3540000, now)).toBe("59m");
+      expect(formatRelativeTime(nowSec - 60, nowMs)).toBe("1m");
+      expect(formatRelativeTime(nowSec - 120, nowMs)).toBe("2m");
+      expect(formatRelativeTime(nowSec - 3540, nowMs)).toBe("59m");
     });
   });
 
   describe("hours", () => {
     it("should format hours under a day", () => {
-      expect(formatRelativeTime(now - 3600000, now)).toBe("1h");
-      expect(formatRelativeTime(now - 7200000, now)).toBe("2h");
-      expect(formatRelativeTime(now - 82800000, now)).toBe("23h");
+      expect(formatRelativeTime(nowSec - 3600, nowMs)).toBe("1h");
+      expect(formatRelativeTime(nowSec - 7200, nowMs)).toBe("2h");
+      expect(formatRelativeTime(nowSec - 82800, nowMs)).toBe("23h");
     });
   });
 
   describe("days", () => {
     it("should format days", () => {
-      expect(formatRelativeTime(now - 86400000, now)).toBe("1d");
-      expect(formatRelativeTime(now - 172800000, now)).toBe("2d");
-      expect(formatRelativeTime(now - 604800000, now)).toBe("7d");
+      expect(formatRelativeTime(nowSec - 86400, nowMs)).toBe("1d");
+      expect(formatRelativeTime(nowSec - 172800, nowMs)).toBe("2d");
+      expect(formatRelativeTime(nowSec - 604800, nowMs)).toBe("7d");
     });
   });
 
   describe("edge cases", () => {
     it("should handle future timestamps by showing 0s", () => {
-      expect(formatRelativeTime(now + 5000, now)).toBe("0s");
+      expect(formatRelativeTime(nowSec + 5, nowMs)).toBe("0s");
     });
 
     it("should use Date.now() by default", () => {
-      const recentTimestamp = Date.now() - 5000;
+      const recentTimestamp = Math.floor(Date.now() / 1000) - 5;
       const result = formatRelativeTime(recentTimestamp);
       // Should be approximately "5s" (might vary slightly due to test execution time)
       expect(result).toMatch(/^\d+s$/);

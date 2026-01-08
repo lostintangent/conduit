@@ -7,75 +7,71 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-  formatRelativeTime,
-  formatFullDate,
   truncateText,
   getFirstLine,
 } from "@/components/panes/editor-v2/components/CommitGraph/commit/utils";
+import {
+  formatRelativeTime,
+  formatFullDate,
+} from "@/components/panes/editor-v2/utils";
 
 // =============================================================================
 // formatRelativeTime
 // =============================================================================
 
 describe("formatRelativeTime", () => {
-  const NOW = 1702400000000; // Fixed "now" for consistent tests
-
-  it("should return 'just now' for very recent times", () => {
-    // 10 seconds ago
-    const timestamp = NOW / 1000 - 10;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("just now");
-  });
-
-  it("should return 'just now' for times less than 30 seconds", () => {
-    const timestamp = NOW / 1000 - 29;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("just now");
-  });
+  const NOW = 1702400000000; // Fixed "now" for consistent tests (ms)
 
   it("should format seconds correctly", () => {
-    const timestamp = NOW / 1000 - 45;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("45s ago");
+    const timestamp = NOW / 1000 - 10;
+    expect(formatRelativeTime(timestamp, NOW)).toBe("10s");
+  });
+
+  it("should format seconds at boundary", () => {
+    const timestamp = NOW / 1000 - 59;
+    expect(formatRelativeTime(timestamp, NOW)).toBe("59s");
   });
 
   it("should format minutes correctly", () => {
     const timestamp = NOW / 1000 - 60 * 5;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("5m ago");
+    expect(formatRelativeTime(timestamp, NOW)).toBe("5m");
   });
 
   it("should format hours correctly", () => {
     const timestamp = NOW / 1000 - 60 * 60 * 2;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("2h ago");
+    expect(formatRelativeTime(timestamp, NOW)).toBe("2h");
   });
 
   it("should format days correctly", () => {
     const timestamp = NOW / 1000 - 60 * 60 * 24 * 3;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("3d ago");
+    expect(formatRelativeTime(timestamp, NOW)).toBe("3d");
   });
 
   it("should format weeks correctly", () => {
     const timestamp = NOW / 1000 - 60 * 60 * 24 * 14;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("2w ago");
+    expect(formatRelativeTime(timestamp, NOW)).toBe("2w");
   });
 
   it("should format months correctly", () => {
     const timestamp = NOW / 1000 - 60 * 60 * 24 * 60;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("2mo ago");
+    expect(formatRelativeTime(timestamp, NOW)).toBe("2mo");
   });
 
   it("should format years correctly", () => {
     const timestamp = NOW / 1000 - 60 * 60 * 24 * 400;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("1y ago");
+    expect(formatRelativeTime(timestamp, NOW)).toBe("1y");
   });
 
-  it("should handle future timestamps", () => {
+  it("should handle future timestamps as 0s", () => {
     const timestamp = NOW / 1000 + 1000;
-    expect(formatRelativeTime(timestamp, NOW)).toBe("in the future");
+    expect(formatRelativeTime(timestamp, NOW)).toBe("0s");
   });
 
   it("should use Date.now() by default", () => {
     const now = Date.now();
-    const timestamp = now / 1000 - 3600; // 1 hour ago
+    const timestamp = Math.floor(now / 1000) - 3600; // 1 hour ago
     const result = formatRelativeTime(timestamp);
-    expect(result).toBe("1h ago");
+    expect(result).toBe("1h");
   });
 });
 

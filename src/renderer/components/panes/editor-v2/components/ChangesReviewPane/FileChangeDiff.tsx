@@ -432,7 +432,7 @@ export function FileChangeDiff({
                 title={new Date(timestamp).toLocaleString()}
                 data-testid="timestamp"
               >
-                {formatRelativeTime(timestamp)}
+                {formatRelativeTime(Math.floor(timestamp / 1000))}
               </span>
             )}
           </div>

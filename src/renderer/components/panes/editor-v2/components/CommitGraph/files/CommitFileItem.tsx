@@ -30,6 +30,7 @@ import type { GitFileStatus } from "@/api/GitV2API";
 import type { CommitFile } from "../types";
 import { GitBadge, getStatusConfig } from "../../shared";
 import { DiffStatsDisplay } from "../../FileDiffStats/DiffStatsDisplay";
+import { getFileName, getDirectoryPath } from "../../../utils";
 
 // =============================================================================
 // Types
@@ -52,22 +53,6 @@ export interface CommitFileItemProps {
 // =============================================================================
 // Helpers
 // =============================================================================
-
-/**
- * Extract file name from path.
- */
-function getFileName(filePath: string): string {
-  return filePath.split("/").pop() ?? filePath;
-}
-
-/**
- * Extract directory path from file path.
- * Returns empty string for root-level files.
- */
-function getDirectoryPath(filePath: string): string {
-  const lastSlash = filePath.lastIndexOf("/");
-  return lastSlash === -1 ? "" : filePath.slice(0, lastSlash);
-}
 
 /**
  * Format a path for display, handling renames.

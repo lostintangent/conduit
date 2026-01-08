@@ -49,9 +49,8 @@ export type { ViewAllButtonProps } from "./ViewAllButton";
 // Utilities (for formatting)
 // =============================================================================
 
-export {
-  formatRelativeTime,
-  formatFullDate,
-  truncateText,
-  getFirstLine,
-} from "./utils";
+// Text utilities (local)
+export { truncateText, getFirstLine } from "./utils";
+
+// Time utilities (re-exported from shared for backward compatibility)
+export { formatRelativeTime, formatFullDate } from "../../../utils";
