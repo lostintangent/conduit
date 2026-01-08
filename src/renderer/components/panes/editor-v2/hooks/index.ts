@@ -6,6 +6,8 @@
  * @see docs/architecture/editor-v2-design-narrative.md
  */
 
+export { useAutoOpenFile } from "./useAutoOpenFile";
+export type { UseAutoOpenFileOptions } from "./useAutoOpenFile";
 export { useAutoSizeEditor } from "./useAutoSizeEditor";
 export type {
   UseAutoSizeEditorOptions,

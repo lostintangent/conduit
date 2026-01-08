@@ -66,6 +66,40 @@ export function getActiveTabSandboxId(
 }
 
 /**
+ * Translate a file path from one CWD to another.
+ * If the file is within the source CWD, returns the equivalent path in the target CWD.
+ * Otherwise, returns the original file path unchanged.
+ *
+ * @param filePath - The absolute file path to translate
+ * @param sourceCwd - The source working directory
+ * @param targetCwd - The target working directory
+ * @returns The translated file path, or the original if not within source CWD
+ */
+export function translateFilePath(
+  filePath: string,
+  sourceCwd: string,
+  targetCwd: string,
+): string {
+  const normalizedFile = path.normalize(filePath);
+  const normalizedSourceCwd = path.normalize(sourceCwd);
+  const normalizedTargetCwd = path.normalize(targetCwd);
+
+  // No translation needed if CWDs are the same
+  if (normalizedSourceCwd === normalizedTargetCwd) {
+    return filePath;
+  }
+
+  // Only translate if file is within the source CWD
+  if (!normalizedFile.startsWith(normalizedSourceCwd + path.sep)) {
+    return filePath;
+  }
+
+  // Get the relative path and construct the new path
+  const relativePath = path.relative(normalizedSourceCwd, normalizedFile);
+  return path.join(normalizedTargetCwd, relativePath);
+}
+
+/**
  * Generate an incremented title for a duplicated tab
  * @param baseTitle - The title of the source tab
  * @param existingTabs - Array of existing tabs to check for conflicts
@@ -527,31 +561,26 @@ export async function duplicateTab(
         agentWorktreePath,
       };
     } else if (sourcePane.type === "editor") {
-      // Translate file path if duplicating into a worktree
+      // Translate file path if duplicating into a new CWD or worktree
       let translatedFile = sourcePane.file;
-      if (
-        options?.agentSession &&
-        sourcePane.file &&
-        options.agentSession.repoRoot &&
-        options.agentSession.worktreePath
-      ) {
-        // Normalize paths for comparison
-        const normalizedFile = path.normalize(sourcePane.file);
-        const normalizedRepoRoot = path.normalize(
-          options.agentSession.repoRoot,
-        );
 
-        // Check if file is within the repository
-        if (normalizedFile.startsWith(normalizedRepoRoot + path.sep)) {
-          // Get the relative path from repo root
-          const relativePath = path.relative(
-            normalizedRepoRoot,
-            normalizedFile,
-          );
-          // Construct the new path in the worktree
-          translatedFile = path.join(
+      if (sourcePane.file) {
+        if (
+          options?.agentSession?.repoRoot &&
+          options.agentSession.worktreePath
+        ) {
+          // Worktree duplication: translate from repo root to worktree path
+          translatedFile = translateFilePath(
+            sourcePane.file,
+            options.agentSession.repoRoot,
             options.agentSession.worktreePath,
-            relativePath,
+          );
+        } else if (options?.cwd && sourcePane.cwd) {
+          // Custom CWD duplication: translate from source CWD to new CWD
+          translatedFile = translateFilePath(
+            sourcePane.file,
+            sourcePane.cwd,
+            options.cwd,
           );
         }
       }

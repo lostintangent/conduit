@@ -45,6 +45,7 @@ import {
   type FileTreePanelHandle,
 } from "./components";
 import {
+  useAutoOpenFile,
   useEditorTheme,
   useModelState,
   useResponsiveLayout,
@@ -646,80 +647,24 @@ export function EditorPaneV2({
     };
   }, [git, baseBranch, updateGitStatusState]);
 
-  // Track if auto-open has been attempted (ref to avoid re-triggering effect)
-  const autoOpenAttemptedRef = useRef(false);
-
-  // Auto-open most recently modified file on mount (dirty files first, then committed)
-  useEffect(() => {
-    // Only attempt once per component instance
-    if (autoOpenAttemptedRef.current) {
-      return;
-    }
-    autoOpenAttemptedRef.current = true;
-
-    // Don't auto-open if a file is already selected
-    if (selectedFile || initialFilePath || filePath) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const autoOpenFile = async () => {
-      try {
-        // Wait for git subscription to be ready before querying
-        await git.whenReady();
-
-        // Select the next available file (dirty first, then committed)
-        const { file, relativePath } = await selectNextAvailableFile(
-          git,
-          currentCwd,
-          { fallbackToCommitted: true },
-        );
-
-        if (!file || !relativePath || cancelled) {
-          return;
-        }
-
-        setSelectedFile(file);
-
-        // Check if file is specifically "modified" in git status and user prefers diff view
-        // Only "modified" files get diff view option, not "added" files
-        const status = await git.getStatus();
-        const fileStatus = status?.files.get(relativePath);
-        if (fileStatus?.status === "modified" && preferDiffForModified) {
-          setViewMode({
-            type: "diff",
-            filePath: file.path,
-            baseBranch: baseBranch ?? undefined,
-          });
-        } else {
-          setViewMode({ type: "editor" });
-        }
-      } catch (error) {
-        // Silently fail - not critical if auto-open doesn't work
-        console.debug("[EditorPaneV2] Auto-open failed:", error);
-      }
-    };
-
-    autoOpenFile();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    selectedFile,
-    initialFilePath,
-    currentCwd,
-    git,
-    baseBranch,
-    preferDiffForModified,
-  ]);
-
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
   // FileSystem API for reading file content (for callbacks)
   const fs = useFileSystemV2(currentCwd, sandboxId);
+
+  // Auto-open file on mount (validates initial file, falls back to most recently modified)
+  useAutoOpenFile({
+    initialFilePath,
+    selectedFile,
+    setSelectedFile,
+    cwd: currentCwd,
+    fs,
+    git,
+    baseBranch,
+    preferDiffForModified,
+    setViewMode,
+  });
 
   // ---------------------------------------------------------------------------
   // Handlers
