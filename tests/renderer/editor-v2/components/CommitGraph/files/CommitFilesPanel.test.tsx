@@ -20,6 +20,7 @@ function createFile(overrides: Partial<CommitFile> = {}): CommitFile {
     status: "modified",
     additions: 10,
     deletions: 5,
+    isBinary: false,
     ...overrides,
   };
 }
@@ -102,9 +103,10 @@ describe("CommitFilesPanel", () => {
     it("should calculate correct totals in header", () => {
       render(<CommitFilesPanel files={createFiles()} />);
       // 10+8+20 = 38 additions, 5+3+0 = 8 deletions
-      const totals = screen.getByTestId("line-totals");
-      expect(totals.textContent).toContain("+38");
-      expect(totals.textContent).toContain("-8");
+      // Header uses shared DiffStatsDisplay - find by content within header
+      const header = screen.getByTestId("commit-files-header");
+      expect(header.textContent).toContain("+38");
+      expect(header.textContent).toContain("-8");
     });
 
     it("should display correct file count", () => {
@@ -194,12 +196,18 @@ describe("CommitFilesPanel", () => {
 
   describe("edge cases", () => {
     it("should handle files without line stats", () => {
-      const files: CommitFile[] = [{ path: "binary.png", status: "modified" }];
+      const files: CommitFile[] = [
+        {
+          path: "binary.png",
+          status: "modified",
+          additions: 0,
+          deletions: 0,
+          isBinary: true,
+        },
+      ];
       render(<CommitFilesPanel files={files} />);
       expect(screen.getByTestId("commit-file-item-binary.png")).toBeTruthy();
-      expect(screen.getByTestId("line-totals").textContent).toBe(
-        "no line changes",
-      );
+      expect(screen.getByText("no line changes")).toBeTruthy();
     });
 
     it("should handle single file", () => {
@@ -212,22 +220,36 @@ describe("CommitFilesPanel", () => {
 
     it("should handle files with only additions", () => {
       const files: CommitFile[] = [
-        { path: "new.ts", status: "added", additions: 100, deletions: 0 },
+        {
+          path: "new.ts",
+          status: "added",
+          additions: 100,
+          deletions: 0,
+          isBinary: false,
+        },
       ];
       render(<CommitFilesPanel files={files} />);
-      const totals = screen.getByTestId("line-totals");
-      expect(totals.textContent).toContain("+100");
-      expect(totals.textContent).not.toContain("-");
+      // Uses shared DiffStatsDisplay - verify by content in header
+      const header = screen.getByTestId("commit-files-header");
+      expect(header.textContent).toContain("+100");
+      expect(header.textContent).not.toMatch(/-\d+/);
     });
 
     it("should handle files with only deletions", () => {
       const files: CommitFile[] = [
-        { path: "removed.ts", status: "deleted", additions: 0, deletions: 50 },
+        {
+          path: "removed.ts",
+          status: "deleted",
+          additions: 0,
+          deletions: 50,
+          isBinary: false,
+        },
       ];
       render(<CommitFilesPanel files={files} />);
-      const totals = screen.getByTestId("line-totals");
-      expect(totals.textContent).toContain("-50");
-      expect(totals.textContent).not.toContain("+");
+      // Uses shared DiffStatsDisplay - verify by content in header
+      const header = screen.getByTestId("commit-files-header");
+      expect(header.textContent).toContain("-50");
+      expect(header.textContent).not.toMatch(/\+\d+/);
     });
   });
 });

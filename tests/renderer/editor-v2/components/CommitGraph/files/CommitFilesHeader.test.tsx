@@ -69,6 +69,7 @@ describe("CommitFilesHeader", () => {
   });
 
   describe("line totals", () => {
+    // Uses shared DiffStatsDisplay component - verify by content
     it("should display both additions and deletions", () => {
       render(
         <CommitFilesHeader
@@ -77,9 +78,8 @@ describe("CommitFilesHeader", () => {
           totalDeletions={10}
         />,
       );
-      const totals = screen.getByTestId("line-totals");
-      expect(totals.textContent).toContain("+25");
-      expect(totals.textContent).toContain("-10");
+      expect(screen.getByText("+25")).toBeTruthy();
+      expect(screen.getByText("-10")).toBeTruthy();
     });
 
     it("should display only additions when no deletions", () => {
@@ -90,9 +90,8 @@ describe("CommitFilesHeader", () => {
           totalDeletions={0}
         />,
       );
-      const totals = screen.getByTestId("line-totals");
-      expect(totals.textContent).toContain("+15");
-      expect(totals.textContent).not.toContain("-");
+      expect(screen.getByText("+15")).toBeTruthy();
+      expect(screen.queryByText(/-\d+/)).toBeNull();
     });
 
     it("should display only deletions when no additions", () => {
@@ -103,9 +102,8 @@ describe("CommitFilesHeader", () => {
           totalDeletions={8}
         />,
       );
-      const totals = screen.getByTestId("line-totals");
-      expect(totals.textContent).toContain("-8");
-      expect(totals.textContent).not.toContain("+");
+      expect(screen.getByText("-8")).toBeTruthy();
+      expect(screen.queryByText(/\+\d+/)).toBeNull();
     });
 
     it("should display 'no line changes' when both are 0", () => {
@@ -116,9 +114,7 @@ describe("CommitFilesHeader", () => {
           totalDeletions={0}
         />,
       );
-      expect(screen.getByTestId("line-totals").textContent).toBe(
-        "no line changes",
-      );
+      expect(screen.getByText("no line changes")).toBeTruthy();
     });
   });
 

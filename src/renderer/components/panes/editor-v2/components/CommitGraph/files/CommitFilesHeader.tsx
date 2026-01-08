@@ -24,8 +24,9 @@
  * ```
  */
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { cn } from "@/utils";
+import { DiffStatsDisplay } from "../../FileDiffStats/DiffStatsDisplay";
 
 // =============================================================================
 // Types
@@ -61,6 +62,16 @@ function CommitFilesHeaderComponent({
   // Pluralize "file(s)"
   const filesText = fileCount === 1 ? "file" : "files";
 
+  // Stats for DiffStatsDisplay
+  const diffStats = useMemo(
+    () => ({
+      added: totalAdditions,
+      removed: totalDeletions,
+    }),
+    [totalAdditions, totalDeletions],
+  );
+  const hasStats = totalAdditions > 0 || totalDeletions > 0;
+
   return (
     <div
       className={cn(
@@ -76,21 +87,12 @@ function CommitFilesHeaderComponent({
         {fileCount} {filesText} changed
       </span>
 
-      {/* Line statistics */}
-      <span className="font-mono" data-testid="line-totals">
-        {totalAdditions > 0 && (
-          <span className="text-git-added">+{totalAdditions}</span>
-        )}
-        {totalAdditions > 0 && totalDeletions > 0 && (
-          <span className="mx-1">/</span>
-        )}
-        {totalDeletions > 0 && (
-          <span className="text-git-deleted">-{totalDeletions}</span>
-        )}
-        {totalAdditions === 0 && totalDeletions === 0 && (
-          <span>no line changes</span>
-        )}
-      </span>
+      {/* Line statistics - right margin accounts for badge width (14px) + gap (6px) in file items */}
+      {hasStats ? (
+        <DiffStatsDisplay stats={diffStats} className="mr-5" />
+      ) : (
+        <span className="font-mono mr-5">no line changes</span>
+      )}
     </div>
   );
 }

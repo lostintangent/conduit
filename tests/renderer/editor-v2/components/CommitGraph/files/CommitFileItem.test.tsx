@@ -20,6 +20,7 @@ function createFile(overrides: Partial<CommitFile> = {}): CommitFile {
     status: "modified",
     additions: 10,
     deletions: 5,
+    isBinary: false,
     ...overrides,
   };
 }
@@ -49,7 +50,8 @@ describe("CommitFileItem", () => {
 
     it("should render the status badge", () => {
       render(<CommitFileItem file={createFile()} />);
-      expect(screen.getByTestId("commit-file-status-badge")).toBeTruthy();
+      // Uses shared GitBadge component
+      expect(screen.getByTestId("git-badge")).toBeTruthy();
     });
 
     it("should set data-testid with file name", () => {
@@ -67,40 +69,38 @@ describe("CommitFileItem", () => {
   });
 
   describe("line statistics", () => {
+    // DiffStatsDisplay is used for stats - verify by content
     it("should display additions and deletions", () => {
       render(
         <CommitFileItem file={createFile({ additions: 12, deletions: 3 })} />,
       );
-      const stats = screen.getByTestId("line-stats");
-      expect(stats.textContent).toContain("+12");
-      expect(stats.textContent).toContain("-3");
+      expect(screen.getByText("+12")).toBeTruthy();
+      expect(screen.getByText("-3")).toBeTruthy();
     });
 
     it("should display only additions when no deletions", () => {
       render(
         <CommitFileItem file={createFile({ additions: 5, deletions: 0 })} />,
       );
-      const stats = screen.getByTestId("line-stats");
-      expect(stats.textContent).toContain("+5");
-      expect(stats.textContent).not.toContain("-0");
+      expect(screen.getByText("+5")).toBeTruthy();
+      expect(screen.queryByText("-0")).toBeNull();
     });
 
     it("should display only deletions when no additions", () => {
       render(
         <CommitFileItem file={createFile({ additions: 0, deletions: 8 })} />,
       );
-      const stats = screen.getByTestId("line-stats");
-      expect(stats.textContent).toContain("-8");
-      expect(stats.textContent).not.toContain("+0");
+      expect(screen.getByText("-8")).toBeTruthy();
+      expect(screen.queryByText("+0")).toBeNull();
     });
 
-    it("should not display stats when not provided", () => {
+    it("should not display stats when zero values", () => {
       render(
-        <CommitFileItem
-          file={createFile({ additions: undefined, deletions: undefined })}
-        />,
+        <CommitFileItem file={createFile({ additions: 0, deletions: 0 })} />,
       );
-      expect(screen.queryByTestId("line-stats")).toBeNull();
+      // No stats rendered when both are 0
+      expect(screen.queryByText(/^\+\d/)).toBeNull();
+      expect(screen.queryByText(/^-\d/)).toBeNull();
     });
   });
 
@@ -187,21 +187,22 @@ describe("CommitFileItem", () => {
   });
 
   describe("different statuses", () => {
+    // Uses shared GitBadge component
     it("should render added file", () => {
       render(<CommitFileItem file={createFile({ status: "added" })} />);
-      const badge = screen.getByTestId("commit-file-status-badge");
+      const badge = screen.getByTestId("git-badge");
       expect(badge.getAttribute("data-status")).toBe("added");
     });
 
     it("should render deleted file", () => {
       render(<CommitFileItem file={createFile({ status: "deleted" })} />);
-      const badge = screen.getByTestId("commit-file-status-badge");
+      const badge = screen.getByTestId("git-badge");
       expect(badge.getAttribute("data-status")).toBe("deleted");
     });
 
     it("should render copied file", () => {
       render(<CommitFileItem file={createFile({ status: "copied" })} />);
-      const badge = screen.getByTestId("commit-file-status-badge");
+      const badge = screen.getByTestId("git-badge");
       expect(badge.getAttribute("data-status")).toBe("copied");
     });
   });

@@ -23,14 +23,13 @@
  * ```
  */
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { FileText } from "lucide-react";
 import { cn } from "@/utils";
+import type { GitFileStatus } from "@/api/GitV2API";
 import type { CommitFile } from "../types";
-import {
-  CommitFileStatusBadge,
-  getCommitFileStatusConfig,
-} from "./CommitFileStatusBadge";
+import { GitBadge, getStatusConfig } from "../../shared";
+import { DiffStatsDisplay } from "../../FileDiffStats/DiffStatsDisplay";
 
 // =============================================================================
 // Types
@@ -92,41 +91,16 @@ function formatDisplayPath(file: CommitFile): {
   return { fileName, folderPath, tooltip };
 }
 
-// =============================================================================
-// Sub-components
-// =============================================================================
-
 /**
- * Displays +N -M line statistics.
+ * Convert CommitFile status to GitFileStatus for GitBadge.
+ * Historical commits are treated as "staged" (committed).
  */
-function LineStats({
-  additions,
-  deletions,
-}: {
-  additions?: number;
-  deletions?: number;
-}) {
-  if (additions === undefined && deletions === undefined) {
-    return null;
-  }
-
-  return (
-    <span
-      className="flex-shrink-0 text-[11px] font-mono text-muted-foreground"
-      data-testid="line-stats"
-    >
-      {additions !== undefined && additions > 0 && (
-        <span className="text-git-added">+{additions}</span>
-      )}
-      {additions !== undefined &&
-        additions > 0 &&
-        deletions !== undefined &&
-        deletions > 0 && <span className="mx-0.5">/</span>}
-      {deletions !== undefined && deletions > 0 && (
-        <span className="text-git-deleted">-{deletions}</span>
-      )}
-    </span>
-  );
+function toGitFileStatus(file: CommitFile): GitFileStatus {
+  return {
+    status: file.status,
+    staged: true, // Historical commits are committed (effectively "staged")
+    path: file.path,
+  };
 }
 
 // =============================================================================
@@ -149,7 +123,20 @@ function CommitFileItemComponent({
   className,
 }: CommitFileItemProps) {
   const { fileName, folderPath, tooltip } = formatDisplayPath(file);
-  const statusConfig = getCommitFileStatusConfig(file.status);
+
+  // Convert to GitFileStatus for shared components
+  const gitFileStatus = useMemo(() => toGitFileStatus(file), [file]);
+  const statusConfig = getStatusConfig(gitFileStatus);
+
+  // Stats for DiffStatsDisplay
+  const diffStats = useMemo(
+    () => ({
+      added: file.additions ?? 0,
+      removed: file.deletions ?? 0,
+    }),
+    [file.additions, file.deletions],
+  );
+  const hasStats = diffStats.added > 0 || diffStats.removed > 0;
 
   const handleClick = useCallback(() => {
     onClick?.(file);
@@ -188,7 +175,7 @@ function CommitFileItemComponent({
       >
         {/* File icon - colored based on status */}
         <FileText
-          className={cn("flex-shrink-0", statusConfig.textColor)}
+          className={cn("flex-shrink-0", statusConfig?.textColorClass)}
           size={12}
         />
 
@@ -202,7 +189,7 @@ function CommitFileItemComponent({
               : "minmax(0, 1fr)",
           }}
         >
-          <span className={cn("truncate", statusConfig.textColor)}>
+          <span className={cn("truncate", statusConfig?.textColorClass)}>
             {fileName}
           </span>
           {folderPath && (
@@ -213,10 +200,10 @@ function CommitFileItemComponent({
         </div>
 
         {/* Line statistics */}
-        <LineStats additions={file.additions} deletions={file.deletions} />
+        {hasStats && <DiffStatsDisplay stats={diffStats} />}
 
         {/* Status badge */}
-        <CommitFileStatusBadge status={file.status} />
+        <GitBadge status={gitFileStatus} />
       </button>
     </li>
   );

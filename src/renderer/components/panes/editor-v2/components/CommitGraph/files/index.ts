@@ -7,10 +7,11 @@
  * - CommitFilesPanel.tsx: Container with header and file list
  * - CommitFilesHeader.tsx: Shows file count and +/- stats
  * - CommitFileItem.tsx: Individual file row with status badge
- * - CommitFileStatusBadge.tsx: Status indicator (A, M, D, R, C)
  *
  * Files are lazy-loaded when a commit is expanded to avoid
  * fetching data for commits the user doesn't explore.
+ *
+ * Note: Status badges use the shared GitBadge component from editor-v2/shared.
  *
  * @example
  * ```tsx
@@ -36,9 +37,3 @@ export type { CommitFileItemProps } from "./CommitFileItem";
 
 export { CommitFilesHeader } from "./CommitFilesHeader";
 export type { CommitFilesHeaderProps } from "./CommitFilesHeader";
-
-export {
-  CommitFileStatusBadge,
-  getCommitFileStatusConfig,
-} from "./CommitFileStatusBadge";
-export type { CommitFileStatusBadgeProps } from "./CommitFileStatusBadge";
