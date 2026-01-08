@@ -447,6 +447,15 @@ export function useCommitGraph(
 
   /**
    * Load commits on mount (if enabled).
+   *
+   * Uses a ref to track if initial load has happened. This pattern prevents
+   * double-loading in React strict mode (which mounts/unmounts twice in dev)
+   * while still allowing the effect to properly list its dependencies.
+   *
+   * Alternative patterns considered:
+   * - Empty dependency array: Would suppress the lint warning but wouldn't
+   *   reload if loadOnMount changes from false to true
+   * - No ref guard: Would cause double-load in strict mode
    */
   useEffect(() => {
     if (loadOnMount && !hasLoadedRef.current) {

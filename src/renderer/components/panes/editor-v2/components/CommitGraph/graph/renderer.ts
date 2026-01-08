@@ -434,72 +434,73 @@ export function calculateCircle(
 }
 
 // =============================================================================
-// Complete Cell Calculation
+// Path Calculation Helpers
 // =============================================================================
 
 /**
- * Calculate all render data for a single graph cell.
+ * Calculate incoming paths from input lanes that target this commit.
  *
- * This is the main function that computes everything needed to render
- * the SVG graph for one commit row. It analyzes the swimlane transitions
- * and generates appropriate paths and circle data.
+ * Handles branches converging on the same commit (e.g., branch start points).
+ * HEAD commits have no incoming paths (no children above in the graph).
  *
- * ## Path Generation Logic
- *
- * 1. **Incoming line**: From the input lane to the commit circle
- * 2. **Outgoing lines**: From the commit circle to each parent lane
- * 3. **Pass-through lines**: For lanes that continue without connecting
- *
- * @param node - The commit graph node to render
- * @param height - Row height (may be larger for expanded commits)
+ * @param node - The commit graph node
+ * @param centerY - Y coordinate of commit center
  * @param config - Render configuration
- * @returns Complete render data for the cell
+ * @returns Array of incoming paths
  */
-export function calculateGraphCell(
+function calculateIncomingPaths(
   node: CommitGraphNode,
-  height: number,
+  centerY: number,
   config: GraphRenderConfig,
-): GraphCellRenderData {
+): GraphPath[] {
+  // HEAD commits have no children above them in the graph
+  if (node.isHead) {
+    return [];
+  }
+
   const paths: GraphPath[] = [];
-  // Circle is always at the commit row level, not centered in expanded container
-  const centerY = rowCenterY(ROW_HEIGHT);
 
-  // Calculate total width based on maximum lanes
-  const maxLanes = Math.max(
-    node.inputSwimlanes.length,
-    node.outputSwimlanes.length,
-    node.laneIndex + 1,
-  );
-  const width = maxLanes * config.laneWidth;
+  for (let i = 0; i < node.inputSwimlanes.length; i++) {
+    if (node.inputSwimlanes[i].targetId === node.commit.id) {
+      // Use segment color for the main lane (lane matching this commit)
+      const isMainLane = i === node.laneIndex;
+      const pathColor = isMainLane
+        ? getEffectivePathColor(node.segmentType, node.inputSwimlanes[i].color)
+        : node.inputSwimlanes[i].color;
 
-  // 1. Add incoming paths from ALL input lanes that target this commit
-  // This handles branches converging on the same commit (e.g., branch start points)
-  // Skip for HEAD commits - they have no children above them in the graph
-  if (!node.isHead) {
-    for (let i = 0; i < node.inputSwimlanes.length; i++) {
-      if (node.inputSwimlanes[i].targetId === node.commit.id) {
-        // Use segment color for the main lane (lane matching this commit)
-        const isMainLane = i === node.laneIndex;
-        const pathColor = isMainLane
-          ? getEffectivePathColor(
-              node.segmentType,
-              node.inputSwimlanes[i].color,
-            )
-          : node.inputSwimlanes[i].color;
-
-        paths.push({
-          d: pathFromAbove(i, node.laneIndex, centerY, config),
-          color: pathColor,
-          isPassThrough: false,
-        });
-      }
+      paths.push({
+        d: pathFromAbove(i, node.laneIndex, centerY, config),
+        color: pathColor,
+        isPassThrough: false,
+      });
     }
   }
 
-  // 2. Add outgoing paths to parent lanes
-  // Iterate through PARENTS (not outputSwimlanes) to avoid duplicate curves
-  // when multiple lanes target the same parent
+  return paths;
+}
+
+/**
+ * Calculate outgoing paths from this commit to its parents.
+ *
+ * Iterates through parents (not outputSwimlanes) to avoid duplicate curves
+ * when multiple lanes target the same parent. First parent uses segment color
+ * for the main path; additional parents (merges) use swimlane colors.
+ *
+ * @param node - The commit graph node
+ * @param centerY - Y coordinate of commit center
+ * @param height - Row height
+ * @param config - Render configuration
+ * @returns Array of outgoing paths
+ */
+function calculateOutgoingPaths(
+  node: CommitGraphNode,
+  centerY: number,
+  height: number,
+  config: GraphRenderConfig,
+): GraphPath[] {
+  const paths: GraphPath[] = [];
   const gap = getGap(config);
+
   // HEAD commits render with a larger circle (1.25x scale), so we add extra
   // padding to prevent the line from overlapping the larger ring
   const effectiveRadius = node.isHead
@@ -588,7 +589,26 @@ export function calculateGraphCell(
     }
   }
 
-  // 3. Add pass-through lanes
+  return paths;
+}
+
+/**
+ * Calculate pass-through paths for lanes that continue without connecting.
+ *
+ * Pass-through lanes exist in both input and output but don't connect to
+ * the current commit. They represent branches that continue past this commit.
+ *
+ * @param node - The commit graph node
+ * @param height - Row height
+ * @param config - Render configuration
+ * @returns Array of pass-through paths
+ */
+function calculatePassThroughPathsForCell(
+  node: CommitGraphNode,
+  height: number,
+  config: GraphRenderConfig,
+): GraphPath[] {
+  const paths: GraphPath[] = [];
   const passThroughLanes = getPassThroughLanes(
     node.inputSwimlanes,
     node.outputSwimlanes,
@@ -608,13 +628,63 @@ export function calculateGraphCell(
     });
   }
 
-  // 4. Calculate circle
+  return paths;
+}
+
+// =============================================================================
+// Complete Cell Calculation
+// =============================================================================
+
+/**
+ * Calculate all render data for a single graph cell.
+ *
+ * This is the main function that computes everything needed to render
+ * the SVG graph for one commit row. It analyzes the swimlane transitions
+ * and generates appropriate paths and circle data.
+ *
+ * ## Path Generation Logic
+ *
+ * 1. **Incoming paths**: From input lanes to the commit circle
+ * 2. **Outgoing paths**: From the commit circle to parent lanes
+ * 3. **Pass-through paths**: For lanes that continue without connecting
+ *
+ * @param node - The commit graph node to render
+ * @param height - Row height (may be larger for expanded commits)
+ * @param config - Render configuration
+ * @returns Complete render data for the cell
+ */
+export function calculateGraphCell(
+  node: CommitGraphNode,
+  height: number,
+  config: GraphRenderConfig,
+): GraphCellRenderData {
+  // Circle is always at the commit row level, not centered in expanded container
+  const centerY = rowCenterY(ROW_HEIGHT);
+
+  // Calculate total width based on maximum lanes
+  const maxLanes = Math.max(
+    node.inputSwimlanes.length,
+    node.outputSwimlanes.length,
+    node.laneIndex + 1,
+  );
+  const width = maxLanes * config.laneWidth;
+
+  // Calculate all path types
+  const incomingPaths = calculateIncomingPaths(node, centerY, config);
+  const outgoingPaths = calculateOutgoingPaths(node, centerY, height, config);
+  const passThroughPaths = calculatePassThroughPathsForCell(
+    node,
+    height,
+    config,
+  );
+
+  // Calculate circle
   const circle = calculateCircle(node, height, config);
 
   return {
     width,
     height,
-    paths,
+    paths: [...incomingPaths, ...outgoingPaths, ...passThroughPaths],
     circle,
   };
 }
