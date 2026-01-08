@@ -140,17 +140,18 @@ function Section({
       <div className="group flex items-center gap-1.5 w-full py-1 px-1.5 hover:bg-foreground/10 rounded-md text-[13px] font-medium text-foreground transition cursor-pointer">
         <button
           type="button"
-          className="flex items-center gap-1.5 flex-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
+          className="flex items-center gap-1.5 flex-1 min-w-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
           onClick={onToggle}
           data-testid="section-toggle"
         >
           {isExpanded ? (
-            <ChevronDown className="text-foreground" size={12} />
+            <ChevronDown className="text-foreground flex-shrink-0" size={12} />
           ) : (
-            <ChevronRight className="text-foreground" size={12} />
+            <ChevronRight className="text-foreground flex-shrink-0" size={12} />
           )}
-          <span>{title}</span>
-          <span className="text-foreground/50 ml-1">({count})</span>
+          <span className="truncate">
+            {title} <span className="text-foreground/50">({count})</span>
+          </span>
         </button>
         {/* Diff stats / Actions - mutually exclusive via display:none/block */}
         {/* Stats: shown by default, hidden on hover */}
@@ -167,7 +168,7 @@ function Section({
           </div>
         )}
       </div>
-      {isExpanded && <ul className="ml-2">{children}</ul>}
+      {isExpanded && <ul className="ml-2 pb-2">{children}</ul>}
     </div>
   );
 }
