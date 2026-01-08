@@ -24,6 +24,11 @@
 import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
 import type { GitV2API } from "@/api/GitV2API";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 import {
   Asterisk,
@@ -191,6 +196,9 @@ export function FileChangeDiff({
   // Once activated, controls remain visible even after save
   const [controlsActivated, setControlsActivated] = useState(false);
 
+  // Copy path to clipboard state
+  const [copied, setCopied] = useState(false);
+
   // Show diff toggle for modified files only
   // - Not for untracked/added (no original to diff against)
   // - Not for deleted (file doesn't exist, shown as read-only from git)
@@ -278,6 +286,16 @@ export function FileChangeDiff({
   // Handlers
   // ---------------------------------------------------------------------------
 
+  const handleCopyPath = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(filePath);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    },
+    [filePath],
+  );
+
   const handleStage = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -359,7 +377,7 @@ export function FileChangeDiff({
       data-filepath={filePath}
       data-staged={isStaged ? "true" : "false"}
     >
-      {/* Collapsible Header */}
+      {/* Collapsible Header - clicking anywhere toggles expand/collapse */}
       <div
         className={cn(
           "flex items-center gap-2 w-full py-1 px-3",
@@ -367,22 +385,20 @@ export function FileChangeDiff({
           "cursor-pointer text-[13px]",
         )}
         data-testid="file-change-diff-header"
+        onClick={handleToggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleToggle();
+          }
+        }}
       >
         {/* Left side: expand/collapse + file info + editor controls */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* Clickable area for expand/collapse */}
-          <div
-            className="flex items-center gap-2 min-w-0"
-            onClick={handleToggle}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleToggle();
-              }
-            }}
-          >
+          {/* File info section */}
+          <div className="flex items-center gap-2 min-w-0">
             {/* Expand/Collapse Icon */}
             {isExpanded ? (
               <ChevronDown
@@ -420,10 +436,21 @@ export function FileChangeDiff({
               size={12}
             />
 
-            {/* File Path */}
-            <span className="truncate" title={filePath}>
-              {filePath}
-            </span>
+            {/* File Path - click to copy */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleCopyPath}
+                  className="truncate cursor-pointer hover:text-foreground/80 transition-colors text-left"
+                >
+                  {filePath}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {copied ? "Copied!" : `${filePath} - Click to copy`}
+              </TooltipContent>
+            </Tooltip>
 
             {/* Timestamp (Follow mode) */}
             {timestamp != null && (
