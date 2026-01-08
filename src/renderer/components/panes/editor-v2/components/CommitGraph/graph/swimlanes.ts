@@ -175,9 +175,8 @@ export function computeSwimlanes(
   }
 
   // Post-process to assign segment types based on tracked branches
-  assignSegmentTypes(result, trackedBranches);
-
-  return result;
+  // Returns a new array with segment types applied (pure function)
+  return assignSegmentTypes(result, trackedBranches);
 }
 
 // =============================================================================
@@ -193,27 +192,26 @@ export function computeSwimlanes(
  * - Commits from base onwards: "base" (orange)
  * - Commits not on the main path: null (default colors)
  *
- * @param nodes - Graph nodes to update (mutated in place)
+ * This is a pure function - returns a new array with segment types applied.
+ *
+ * @param nodes - Graph nodes (not mutated)
  * @param trackedBranches - Tracked branch information
+ * @returns New array of nodes with segment types assigned
  */
 function assignSegmentTypes(
   nodes: CommitGraphNode[],
   trackedBranches?: TrackedBranchInfo,
-): void {
-  // If no tracked branches, all nodes get null segment type (already set)
-  if (!trackedBranches) {
-    return;
-  }
-
-  if (nodes.length === 0) {
-    return;
+): CommitGraphNode[] {
+  // If no tracked branches, return nodes as-is (segment types already null)
+  if (!trackedBranches || nodes.length === 0) {
+    return nodes;
   }
 
   const { upstream, base } = trackedBranches;
   const upstreamId = upstream?.commitId;
   const baseId = base?.commitId;
 
-  // Build a map for quick commit lookup
+  // Build a map for quick commit lookup (using original nodes for traversal)
   const nodeMap = new Map<string, CommitGraphNode>();
   for (const node of nodes) {
     nodeMap.set(node.commit.id, node);
@@ -233,8 +231,8 @@ function assignSegmentTypes(
     currentId = node.commit.parentIds[0];
   }
 
-  // Assign segment types to main path commits
-  // Track current segment, transitioning at tracked branch commits
+  // First pass: Determine segment type for each node
+  const segmentTypes = new Map<string, SegmentColor | null>();
   let currentSegment: SegmentColor = "current";
   let sawUpstream = false;
   let sawBase = false;
@@ -242,7 +240,7 @@ function assignSegmentTypes(
   for (const node of nodes) {
     // Only main path commits get segment colors
     if (!mainPathIds.has(node.commit.id)) {
-      node.segmentType = null;
+      segmentTypes.set(node.commit.id, null);
       continue;
     }
 
@@ -259,10 +257,10 @@ function assignSegmentTypes(
       currentSegment = "base";
     }
 
-    node.segmentType = currentSegment;
+    segmentTypes.set(node.commit.id, currentSegment);
   }
 
-  // Second pass: Propagate segment colors to swimlanes
+  // Second pass: Create new nodes with segment types and propagate to swimlanes
   // Track the "active segment" as we process nodes top-to-bottom.
   // Pass-through lanes for the main branch should use the active segment,
   // not the segment of their target (which might be further down in a different segment).
@@ -276,46 +274,43 @@ function assignSegmentTypes(
   let activeSegment: SegmentColor | null = null;
   let mainLaneIndex = 0; // Main branch is typically at lane 0
 
-  for (const node of nodes) {
-    if (node.segmentType) {
+  return nodes.map((node) => {
+    const nodeSegmentType = segmentTypes.get(node.commit.id) ?? null;
+
+    // Clone swimlanes for modification
+    const newInputSwimlanes = node.inputSwimlanes.map((s) => ({ ...s }));
+    const newOutputSwimlanes = node.outputSwimlanes.map((s) => ({ ...s }));
+
+    if (nodeSegmentType) {
       // This is a main path node - update tracking
-      const prevSegment = activeSegment ?? node.segmentType;
-      activeSegment = node.segmentType;
+      const prevSegment = activeSegment ?? nodeSegmentType;
+      activeSegment = nodeSegmentType;
       mainLaneIndex = node.laneIndex;
 
       // Only assign segment color to swimlanes at the main lane index
-      for (let i = 0; i < node.inputSwimlanes.length; i++) {
-        if (i === mainLaneIndex) {
-          (
-            node.inputSwimlanes[i] as { segmentColor?: SegmentColor }
-          ).segmentColor = prevSegment;
-        }
+      if (newInputSwimlanes[mainLaneIndex]) {
+        newInputSwimlanes[mainLaneIndex].segmentColor = prevSegment;
       }
-      for (let i = 0; i < node.outputSwimlanes.length; i++) {
-        if (i === mainLaneIndex) {
-          (
-            node.outputSwimlanes[i] as { segmentColor?: SegmentColor }
-          ).segmentColor = activeSegment;
-        }
+      if (newOutputSwimlanes[mainLaneIndex]) {
+        newOutputSwimlanes[mainLaneIndex].segmentColor = activeSegment;
       }
     } else if (activeSegment !== null) {
       // Side branch node - only the pass-through at mainLaneIndex gets segment color
-      for (let i = 0; i < node.inputSwimlanes.length; i++) {
-        if (i === mainLaneIndex) {
-          (
-            node.inputSwimlanes[i] as { segmentColor?: SegmentColor }
-          ).segmentColor = activeSegment;
-        }
+      if (newInputSwimlanes[mainLaneIndex]) {
+        newInputSwimlanes[mainLaneIndex].segmentColor = activeSegment;
       }
-      for (let i = 0; i < node.outputSwimlanes.length; i++) {
-        if (i === mainLaneIndex) {
-          (
-            node.outputSwimlanes[i] as { segmentColor?: SegmentColor }
-          ).segmentColor = activeSegment;
-        }
+      if (newOutputSwimlanes[mainLaneIndex]) {
+        newOutputSwimlanes[mainLaneIndex].segmentColor = activeSegment;
       }
     }
-  }
+
+    return {
+      ...node,
+      segmentType: nodeSegmentType,
+      inputSwimlanes: newInputSwimlanes,
+      outputSwimlanes: newOutputSwimlanes,
+    };
+  });
 }
 
 // =============================================================================

@@ -40,7 +40,10 @@ import type {
   HistoryCommit,
   TrackedBranchInfo,
 } from "@/api/GitV2API";
-import type { CommitGraphNode, CommitFile } from "../components/CommitGraph/types";
+import type {
+  CommitGraphNode,
+  CommitFile,
+} from "../components/CommitGraph/types";
 import { computeSwimlanes } from "../components/CommitGraph/graph/swimlanes";
 
 // =============================================================================
@@ -274,8 +277,23 @@ export function useCommitGraph(
   // Actions
   // ---------------------------------------------------------------------------
 
+  // Error Handling Strategy:
+  // -------------------------
+  // This hook uses two error handling patterns based on failure criticality:
+  //
+  // 1. Critical failures (loadCommits): Set error state, let UI handle display.
+  //    The error state causes the UI to show an error message with retry option.
+  //
+  // 2. Optional failures (loadTrackedBranches): Log warning, provide fallback.
+  //    The graph still works without segment coloring, so we don't fail the load.
+  //
+  // Neither pattern throws to the caller - all errors are handled internally
+  // and exposed through the `error` state for the UI to display.
+
   /**
    * Load commits from the Git API.
+   *
+   * Critical operation - failure sets error state for UI display.
    */
   const loadCommits = useCallback(
     async (skip: number, append: boolean) => {
@@ -298,7 +316,7 @@ export function useCommitGraph(
         setError(null);
       } catch (err) {
         setError(getErrorMessage(err));
-        throw err;
+        // Don't re-throw - error state is set for UI to display
       }
     },
     [git, pageSize],
@@ -306,15 +324,16 @@ export function useCommitGraph(
 
   /**
    * Load tracked branch information.
-   * Fetched separately from commits since it's a different API call.
+   *
+   * Optional operation - failure logs warning and provides null fallback.
+   * The graph will work without segment coloring if this fails.
    */
   const loadTrackedBranches = useCallback(async () => {
     try {
       const branches = await git.getTrackedBranches();
       setTrackedBranches(branches);
     } catch (err) {
-      // Don't fail the whole load if tracked branches fail
-      // Just log and continue - the graph will work without segment coloring
+      // Optional feature - log and continue with null fallback
       console.warn("Failed to load tracked branches:", err);
       setTrackedBranches(null);
     }

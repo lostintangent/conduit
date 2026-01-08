@@ -112,6 +112,14 @@ export const CIRCLE_CENTER_Y = ROW_HEIGHT / 2;
  */
 export const HEAD_OUTER_RADIUS = CIRCLE_RADIUS + 3;
 
+/**
+ * Extra padding between lines and HEAD commit circle.
+ *
+ * HEAD commits render with a larger circle (1.25x scale), so we add
+ * extra padding to prevent lines from overlapping the larger ring.
+ */
+export const HEAD_CIRCLE_EXTRA_PADDING = 1.5;
+
 // =============================================================================
 // Configuration Object
 // =============================================================================

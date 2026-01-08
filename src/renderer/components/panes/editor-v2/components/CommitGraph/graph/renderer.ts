@@ -36,7 +36,7 @@ import type {
   GraphColor,
   SegmentColor,
 } from "../types";
-import { ROW_HEIGHT } from "./constants";
+import { HEAD_CIRCLE_EXTRA_PADDING, ROW_HEIGHT } from "./constants";
 
 // =============================================================================
 // Position Calculations
@@ -501,8 +501,7 @@ export function calculateGraphCell(
   // when multiple lanes target the same parent
   const gap = getGap(config);
   // HEAD commits render with a larger circle (1.25x scale), so we add extra
-  // padding (1.5px) to prevent the line from overlapping the larger ring
-  const HEAD_CIRCLE_EXTRA_PADDING = 1.5;
+  // padding to prevent the line from overlapping the larger ring
   const effectiveRadius = node.isHead
     ? config.circleRadius + HEAD_CIRCLE_EXTRA_PADDING + gap
     : config.circleRadius + gap;

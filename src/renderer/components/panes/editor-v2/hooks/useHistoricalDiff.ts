@@ -29,6 +29,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import type { GitV2API } from "@/api/GitV2API";
+import { isBinaryContent } from "../utils";
 
 // ============================================================================
 // Error Types
@@ -74,71 +75,6 @@ export interface HistoricalDiffContent {
 // ============================================================================
 // Helpers
 // ============================================================================
-
-/**
- * Check if content has a UTF-16 BOM (Byte Order Mark).
- *
- * UTF-16 files legitimately contain null bytes and should not be
- * flagged as binary.
- */
-function hasUnicodeBOM(content: string): boolean {
-  if (content.length === 0) return false;
-
-  const firstChar = content.charCodeAt(0);
-
-  // UTF-8 BOM or UTF-16 BE BOM (both result in 0xFEFF)
-  if (firstChar === 0xfeff) return true;
-
-  // UTF-16 LE BOM
-  if (firstChar === 0xfffe) return true;
-
-  return false;
-}
-
-/**
- * Check if content appears to be binary.
- *
- * Uses a heuristic based on control characters that indicate binary content.
- */
-function isBinaryContent(content: string): boolean {
-  // Files with Unicode BOMs are text files
-  if (hasUnicodeBOM(content)) {
-    return false;
-  }
-
-  const checkLength = Math.min(content.length, 8192);
-
-  for (let i = 0; i < checkLength; i++) {
-    const charCode = content.charCodeAt(i);
-
-    // Null byte - strong indicator of binary
-    if (charCode === 0) {
-      return true;
-    }
-
-    // Control characters 0x01-0x08 (rarely used in text)
-    if (charCode >= 0x01 && charCode <= 0x08) {
-      return true;
-    }
-
-    // Control characters 0x0B (VT) and 0x0C (FF)
-    if (charCode === 0x0b || charCode === 0x0c) {
-      return true;
-    }
-
-    // Control characters 0x0E-0x1A
-    if (charCode >= 0x0e && charCode <= 0x1a) {
-      return true;
-    }
-
-    // Control characters 0x1C-0x1F
-    if (charCode >= 0x1c && charCode <= 0x1f) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 /**
  * Create a HistoricalDiffError from an error object and context.

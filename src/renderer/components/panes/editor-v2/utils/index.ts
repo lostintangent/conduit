@@ -43,3 +43,4 @@ export {
   type SelectNextFileOptions,
   type SelectNextFileResult,
 } from "./fileSelectionHelpers";
+export { hasUnicodeBOM, isBinaryContent } from "./binaryDetection";
