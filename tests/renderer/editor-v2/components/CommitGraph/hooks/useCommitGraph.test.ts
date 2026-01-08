@@ -47,7 +47,8 @@ function createMockGitAPI() {
 }
 
 // Import hook after mocks are set up
-import { useCommitGraph } from "../../../../../../src/renderer/components/panes/editor-v2/components/CommitGraph/hooks/useCommitGraph";
+// Hook was moved from CommitGraph/hooks to editor-v2/hooks
+import { useCommitGraph } from "../../../../../../src/renderer/components/panes/editor-v2/hooks/useCommitGraph";
 import type { GitV2API } from "../../../../../../src/renderer/api/GitV2API";
 
 // =============================================================================
