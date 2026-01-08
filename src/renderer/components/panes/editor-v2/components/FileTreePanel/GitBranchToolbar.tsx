@@ -60,7 +60,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { GitStatusSummary } from "./GitStatusSummary";
 import { BranchSwitcher } from "./BranchSwitcher";

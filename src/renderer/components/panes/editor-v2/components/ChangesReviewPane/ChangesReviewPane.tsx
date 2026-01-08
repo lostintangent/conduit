@@ -32,7 +32,7 @@
  * ```
  */
 
-import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

@@ -16,7 +16,7 @@
 
 import { memo } from "react";
 import { cn } from "@/utils";
-import type { CommitFile } from "../types";
+import type { GitFileStatusCode } from "@/api/GitV2API";
 
 // =============================================================================
 // Types
@@ -24,7 +24,7 @@ import type { CommitFile } from "../types";
 
 export interface CommitFileStatusBadgeProps {
   /** The file change status */
-  status: CommitFile["status"];
+  status: GitFileStatusCode;
 
   /** Optional additional class names */
   className?: string;
@@ -54,8 +54,12 @@ interface StatusDisplayConfig {
 /**
  * Status display configurations.
  * Uses the same color scheme as GitBadge for consistency.
+ *
+ * Note: For commit files, only added/modified/deleted/renamed/copied are
+ * typically used. The others (untracked/ignored/unmerged) are included
+ * for type completeness but shouldn't appear in commit history.
  */
-const STATUS_CONFIG: Record<CommitFile["status"], StatusDisplayConfig> = {
+const STATUS_CONFIG: Record<GitFileStatusCode, StatusDisplayConfig> = {
   added: {
     letter: "A",
     bgColor: "bg-git-added",
@@ -86,13 +90,32 @@ const STATUS_CONFIG: Record<CommitFile["status"], StatusDisplayConfig> = {
     textColor: "text-git-copied",
     label: "Copied",
   },
+  // Working directory statuses (not typically seen in commit history)
+  untracked: {
+    letter: "U",
+    bgColor: "bg-git-untracked",
+    textColor: "text-git-untracked",
+    label: "Untracked",
+  },
+  ignored: {
+    letter: "I",
+    bgColor: "bg-foreground/30",
+    textColor: "text-foreground/50",
+    label: "Ignored",
+  },
+  unmerged: {
+    letter: "!",
+    bgColor: "bg-git-conflict",
+    textColor: "text-git-conflict",
+    label: "Unmerged",
+  },
 };
 
 /**
  * Get the display configuration for a status.
  */
 export function getCommitFileStatusConfig(
-  status: CommitFile["status"],
+  status: GitFileStatusCode,
 ): StatusDisplayConfig {
   return STATUS_CONFIG[status];
 }

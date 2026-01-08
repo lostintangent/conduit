@@ -13,7 +13,7 @@
  * Use the branded types (MapKey, FilePath) from types.ts for type safety.
  */
 
-import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { type MapKey, type FilePath, asMapKey, asFilePath } from "../types";
 
 // ============================================================================

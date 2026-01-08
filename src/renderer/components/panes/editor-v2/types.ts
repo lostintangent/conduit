@@ -8,6 +8,7 @@
  */
 
 import type * as monaco from "monaco-editor";
+import type { GitFileStatusCode } from "@/api/GitV2API";
 
 // ============================================================================
 // Common Types
@@ -270,7 +271,7 @@ export type ViewMode =
       /** Parent commit for comparison (first parent for merges) */
       parentCommitId: string;
       /** File status (added, modified, deleted, etc.) */
-      fileStatus?: "added" | "modified" | "deleted" | "renamed" | "copied";
+      fileStatus?: GitFileStatusCode;
       /** Original path before rename/copy (for renamed/copied files) */
       originalPath?: string;
     }

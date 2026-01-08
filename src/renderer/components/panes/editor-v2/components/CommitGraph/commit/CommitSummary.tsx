@@ -26,7 +26,7 @@
 import { memo, useMemo } from "react";
 import { cn } from "@/utils";
 import type { HistoryCommit } from "../types";
-import type { TrackedBranchInfo } from "@/../../src/ipc/gitv2/types";
+import type { TrackedBranchInfo } from "@/api/GitV2API";
 import { ViewAllButton } from "./ViewAllButton";
 import {
   parseRefs,

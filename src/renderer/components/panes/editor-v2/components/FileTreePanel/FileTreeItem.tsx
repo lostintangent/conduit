@@ -24,7 +24,7 @@
  */
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
-import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { cn } from "@/utils";
 import {
   ChevronDown,

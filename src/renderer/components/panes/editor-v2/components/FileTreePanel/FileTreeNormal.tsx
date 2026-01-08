@@ -53,7 +53,7 @@ import {
 } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fsv2/types";
-import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";

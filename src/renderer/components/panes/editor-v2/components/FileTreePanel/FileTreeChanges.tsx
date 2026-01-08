@@ -50,7 +50,7 @@ import {
   // MapKey helpers (centralized operations)
   normalizeMapKey,
 } from "../../utils";
-import type { GitFileStatus, GitStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";

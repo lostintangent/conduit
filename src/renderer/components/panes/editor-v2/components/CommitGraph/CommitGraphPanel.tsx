@@ -49,7 +49,7 @@ import type {
   CommitFileSelectEvent,
   CommitViewEvent,
 } from "./types";
-import { useCommitGraph } from "./hooks/useCommitGraph";
+import { useCommitGraph } from "./hooks";
 import { CommitGraphHeader } from "./CommitGraphHeader";
 import { CommitGraphList } from "./CommitGraphList";
 import { LoadingState, ErrorState, EmptyState } from "./states";

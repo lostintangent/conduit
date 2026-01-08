@@ -41,7 +41,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
 import type { CommitGraphNode, CommitFile, GraphRenderConfig } from "./types";
-import type { TrackedBranchInfo } from "@/../../src/ipc/gitv2/types";
+import type { TrackedBranchInfo } from "@/api/GitV2API";
 import { CommitGraphRow } from "./CommitGraphRow";
 import { GRAPH_CONFIG } from "./graph/constants";
 

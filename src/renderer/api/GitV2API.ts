@@ -48,13 +48,16 @@ import type {
   GitCommitOptions,
   GitDiffStats,
   GitFileStatus,
+  GitFileStatusCode,
   GitHeadChangedEvent,
   GitStatus,
   GitStatusChangedEvent,
   HistoryCommit,
   PerFileDiffStats,
   SplitPerFileDiffStats,
+  TrackedBranch,
   TrackedBranchInfo,
+  TrackedBranchType,
 } from "../../ipc/gitv2/types";
 import type {
   BranchChangedPayload,
@@ -97,6 +100,37 @@ export type HeadChangedCallback = (event: GitHeadChangedEvent) => void;
 
 // Re-export Cleanup from shared types for convenience
 export type { Cleanup };
+
+// =============================================================================
+// Re-export Git Types for Convenience
+// =============================================================================
+// These types are used throughout the renderer and can be imported from here
+// instead of the awkward "@/../../src/ipc/gitv2/types" path.
+
+export type {
+  CommitFile,
+  CommitHistoryResult,
+  FileDiffStat,
+  FileWithTime,
+  GetCommitHistoryOptions,
+  GitBranch,
+  GitBranchChangedEvent,
+  GitCommit,
+  GitCommitCreatedEvent,
+  GitCommitOptions,
+  GitDiffStats,
+  GitFileStatus,
+  GitFileStatusCode,
+  GitHeadChangedEvent,
+  GitStatus,
+  GitStatusChangedEvent,
+  HistoryCommit,
+  PerFileDiffStats,
+  SplitPerFileDiffStats,
+  TrackedBranch,
+  TrackedBranchInfo,
+  TrackedBranchType,
+} from "../../ipc/gitv2/types";
 
 // ============================================================================
 // Deserialization Helpers

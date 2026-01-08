@@ -21,7 +21,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";

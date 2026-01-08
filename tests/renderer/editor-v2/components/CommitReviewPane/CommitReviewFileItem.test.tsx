@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitReviewFileItem } from "@/components/panes/editor-v2/components/CommitReviewPane/CommitReviewFileItem";
-import type { CommitFile } from "@/../../src/ipc/gitv2/types";
+import type { CommitFile } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 
 // =============================================================================

@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useScrollToSelectedFile } from "../../../../../../src/renderer/components/panes/editor-v2/components/ChangesReviewPane/hooks/useScrollToSelectedFile";
 import { UNSTAGED_KEY_SUFFIX } from "../../../../../../src/renderer/components/panes/editor-v2/utils/gitStatusHelpers";
-import type { GitFileStatus } from "../../../../../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 
 // ============================================================================
 // Test Helpers

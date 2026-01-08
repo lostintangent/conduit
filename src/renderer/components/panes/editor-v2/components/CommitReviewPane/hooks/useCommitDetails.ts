@@ -24,7 +24,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import type { GitV2API } from "@/api/GitV2API";
-import type { HistoryCommit, CommitFile } from "@/../../src/ipc/gitv2/types";
+import type { HistoryCommit, CommitFile } from "@/api/GitV2API";
 
 // ============================================================================
 // Types

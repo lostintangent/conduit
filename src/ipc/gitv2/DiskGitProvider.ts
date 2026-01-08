@@ -996,31 +996,69 @@ export class DiskGitProvider implements GitProvider {
 
   /**
    * Get files changed in a specific commit.
+   *
+   * For merge commits, git diff-tree with a single commit shows a "combined diff"
+   * (files differing from ALL parents), which is usually empty for clean merges.
+   * To get the actual changes, we explicitly compare to the first parent using
+   * `commit^1 commit` syntax. This works for both regular and merge commits.
+   *
+   * For root commits (no parent), we fall back to the single-commit syntax which
+   * compares against an empty tree.
    */
   async getCommitFiles(commitId: string): Promise<CommitFile[]> {
     try {
       // Use --numstat for additions/deletions, --name-status for status codes
       // Combine with diff-tree for accurate results
-      const result = await this.git.raw([
-        "diff-tree",
-        "--no-commit-id",
-        "--name-status",
-        "-r",
-        "--find-renames",
-        "-M",
-        commitId,
-      ]);
 
-      // Also get numstat for additions/deletions
-      const numstatResult = await this.git.raw([
-        "diff-tree",
-        "--no-commit-id",
-        "--numstat",
-        "-r",
-        "--find-renames",
-        "-M",
-        commitId,
-      ]);
+      let result: string;
+      let numstatResult: string;
+
+      try {
+        // Compare to first parent (commit^1) to handle merge commits correctly
+        result = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--name-status",
+          "-r",
+          "--find-renames",
+          "-M",
+          `${commitId}^1`,
+          commitId,
+        ]);
+
+        numstatResult = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--numstat",
+          "-r",
+          "--find-renames",
+          "-M",
+          `${commitId}^1`,
+          commitId,
+        ]);
+      } catch {
+        // Root commits have no parent - fall back to single-commit syntax
+        // which compares against an empty tree
+        result = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--name-status",
+          "-r",
+          "--find-renames",
+          "-M",
+          commitId,
+        ]);
+
+        numstatResult = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--numstat",
+          "-r",
+          "--find-renames",
+          "-M",
+          commitId,
+        ]);
+      }
 
       // Parse numstat for additions/deletions
       const statsMap = new Map<

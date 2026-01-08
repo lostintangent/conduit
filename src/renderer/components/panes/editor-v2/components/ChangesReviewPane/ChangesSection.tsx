@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";

@@ -35,13 +35,13 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import type { GitV2API } from "@/api/GitV2API";
-import type { CommitGraphNode, CommitFile } from "../types";
-import { computeSwimlanes } from "../graph/swimlanes";
 import type {
-  HistoryCommit as IpcHistoryCommit,
+  GitV2API,
+  HistoryCommit,
   TrackedBranchInfo,
-} from "@/../../src/ipc/gitv2/types";
+} from "@/api/GitV2API";
+import type { CommitGraphNode, CommitFile } from "../components/CommitGraph/types";
+import { computeSwimlanes } from "../components/CommitGraph/graph/swimlanes";
 
 // =============================================================================
 // Types
@@ -151,24 +151,6 @@ const DEFAULT_PAGE_SIZE = 50;
 // =============================================================================
 
 /**
- * Convert IPC HistoryCommit to local HistoryCommit type.
- * The types are structurally identical, this is mainly for type safety.
- */
-function toLocalCommit(commit: IpcHistoryCommit): CommitGraphNode["commit"] {
-  return {
-    id: commit.id,
-    shortId: commit.shortId,
-    subject: commit.subject,
-    message: commit.message,
-    author: commit.author,
-    authorEmail: commit.authorEmail,
-    timestamp: commit.timestamp,
-    parentIds: commit.parentIds,
-    refs: commit.refs,
-  };
-}
-
-/**
  * Extract user-friendly error message from various error types.
  */
 function getErrorMessage(error: unknown): string {
@@ -219,7 +201,7 @@ export function useCommitGraph(
   // ---------------------------------------------------------------------------
 
   // Raw commits from Git API
-  const [commits, setCommits] = useState<CommitGraphNode["commit"][]>([]);
+  const [commits, setCommits] = useState<HistoryCommit[]>([]);
 
   // Pagination state
   const [hasMore, setHasMore] = useState(false);
@@ -258,29 +240,35 @@ export function useCommitGraph(
   // Computed State: Swimlane Nodes
   // ---------------------------------------------------------------------------
 
-  const nodes = useMemo<CommitGraphNode[]>(() => {
+  // Memoize the expensive swimlane computation separately.
+  // This only recomputes when commits or tracking info changes.
+  const graphNodes = useMemo<CommitGraphNode[]>(() => {
     if (commits.length === 0) {
       return [];
     }
 
     // Compute swimlane positions with tracked branch info for segment coloring
-    const graphNodes = computeSwimlanes(commits, {
+    return computeSwimlanes(commits, {
       headCommitId,
       trackedBranches: trackedBranches ?? undefined,
     });
+  }, [commits, headCommitId, trackedBranches]);
 
-    // Attach files from cache
-    return graphNodes.map((node) => {
-      const files = filesCache.current.get(node.commit.id);
-      const isLoadingFiles = loadingFilesIds.has(node.commit.id);
+  // Enrich nodes with files and loading state.
+  // This runs on every render but is cheap (O(n) lookups).
+  // Kept outside useMemo to avoid:
+  // 1. Set<string> in dependency array (reference equality issues)
+  // 2. Accessing mutable ref (filesCache.current) inside useMemo
+  const nodes: CommitGraphNode[] = graphNodes.map((node) => {
+    const files = filesCache.current.get(node.commit.id);
+    const isLoadingFiles = loadingFilesIds.has(node.commit.id);
 
-      return {
-        ...node,
-        files,
-        isLoadingFiles,
-      };
-    });
-  }, [commits, headCommitId, trackedBranches, loadingFilesIds]);
+    return {
+      ...node,
+      files,
+      isLoadingFiles,
+    };
+  });
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -297,7 +285,7 @@ export function useCommitGraph(
           skip,
         });
 
-        const newCommits = result.commits.map(toLocalCommit);
+        const newCommits = result.commits;
 
         if (append) {
           setCommits((prev) => [...prev, ...newCommits]);
@@ -379,17 +367,7 @@ export function useCommitGraph(
 
       try {
         const files = await git.getCommitFiles(commitId);
-
-        // Convert to local type and cache
-        const localFiles: CommitFile[] = files.map((f) => ({
-          path: f.path,
-          status: f.status as CommitFile["status"],
-          originalPath: f.originalPath,
-          additions: f.additions,
-          deletions: f.deletions,
-        }));
-
-        filesCache.current.set(commitId, localFiles);
+        filesCache.current.set(commitId, files);
       } catch (err) {
         // Log error but don't fail the whole operation
         console.error(`Failed to load files for commit ${commitId}:`, err);

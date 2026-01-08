@@ -107,3 +107,10 @@ export type {
   UnseenTrackingResult,
   UseUnseenTrackingOptions,
 } from "./useUnseenTracking";
+export { useCommitGraph } from "./useCommitGraph";
+export type {
+  CommitGraphActions,
+  CommitGraphState,
+  UseCommitGraphOptions,
+  UseCommitGraphResult,
+} from "./useCommitGraph";

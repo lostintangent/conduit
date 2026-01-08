@@ -17,7 +17,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
@@ -1570,6 +1570,9 @@ export function EditorPaneV2({
             triggerRead={trackUnseenChanges ? triggerRead : undefined}
             // Dirty file checking (for preventing staging unsaved files)
             isFileDirty={isFileDirty}
+            // Commit graph callbacks
+            onCommitFileSelect={handleCommitFileSelect}
+            onViewCommit={handleViewCommit}
           />
         </div>
 

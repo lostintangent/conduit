@@ -25,7 +25,7 @@
 import { useMemo } from "react";
 import { ChevronRight, ChevronDown, FileText } from "lucide-react";
 import type { GitV2API } from "@/api/GitV2API";
-import type { CommitFile, GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { CommitFile, GitFileStatus } from "@/api/GitV2API";
 import { HistoricalDiffViewer } from "../EditorViewPanel/HistoricalDiffViewer";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { GitBadge } from "../shared";

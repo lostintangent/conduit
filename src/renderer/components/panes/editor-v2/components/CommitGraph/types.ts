@@ -9,13 +9,31 @@
  * - The graph shows how branches diverge and merge
  *
  * Key type categories:
- * - Commit types: Raw data from git
+ * - Commit types: Re-exported from GitV2API (canonical source)
  * - Graph types: Computed visualization data
  * - Render types: SVG rendering instructions
  * - State types: Component state management
  *
  * @see docs/architecture/commit-graph-design.md
  */
+
+// ============================================================================
+// Re-exported Types from Git API
+// ============================================================================
+// These are the canonical types from the Git layer. Re-exported here for
+// convenience so consumers can import everything from CommitGraph/types.
+
+import type {
+  CommitFile as GitCommitFile,
+  HistoryCommit as GitHistoryCommit,
+} from "@/api/GitV2API";
+
+// Re-export with original names for external consumers
+export type { GitCommitFile as CommitFile, GitHistoryCommit as HistoryCommit };
+
+// Alias for local use in this file
+type HistoryCommit = GitHistoryCommit;
+type CommitFile = GitCommitFile;
 
 // ============================================================================
 // Ref Types - Branch and tag information
@@ -54,7 +72,7 @@ export interface GitRef {
 }
 
 // ============================================================================
-// Commit Types - Raw data from Git
+// Commit Types - Additional types for graph visualization
 // ============================================================================
 
 /**
@@ -69,87 +87,6 @@ export interface CommitStats {
 
   /** Total lines deleted */
   deletions: number;
-}
-
-/**
- * A file changed in a commit.
- *
- * Represents a single file's change status within a commit,
- * including rename tracking and line-level statistics.
- */
-export interface CommitFile {
-  /** Relative path from repository root */
-  path: string;
-
-  /**
-   * Type of change.
-   * - added: New file created
-   * - modified: Existing file changed
-   * - deleted: File removed
-   * - renamed: File moved/renamed (see originalPath)
-   * - copied: File duplicated (see originalPath)
-   */
-  status: "added" | "modified" | "deleted" | "renamed" | "copied";
-
-  /** Original path before rename/copy (only for renamed/copied status) */
-  originalPath?: string;
-
-  /** Lines added in this file */
-  additions?: number;
-
-  /** Lines removed in this file */
-  deletions?: number;
-}
-
-/**
- * A commit from the repository history.
- *
- * Contains all metadata needed to display and navigate commits.
- * The parentIds array is crucial for graph computation - it defines
- * the topology of branches and merges.
- */
-export interface HistoryCommit {
-  /** Full commit hash (40 characters) */
-  id: string;
-
-  /** Short commit hash for display (7 characters) */
-  shortId: string;
-
-  /** First line of commit message (summary) */
-  subject: string;
-
-  /** Full commit message including body */
-  message: string;
-
-  /** Author's name */
-  author: string;
-
-  /** Author's email address */
-  authorEmail: string;
-
-  /** Commit timestamp as Unix epoch (seconds) */
-  timestamp: number;
-
-  /**
-   * Parent commit hashes.
-   * - Empty array: Root commit (initial commit)
-   * - Single element: Regular commit
-   * - Multiple elements: Merge commit (first parent is mainline)
-   */
-  parentIds: string[];
-
-  /**
-   * Raw refs pointing to this commit (branch names, tags).
-   *
-   * These are the raw strings from git log --decorate format (%D).
-   * Examples: "HEAD -> main", "origin/main", "tag: v1.0.0"
-   *
-   * Use parseRefs() to convert to GitRef objects for display.
-   */
-  refs?: string[];
-
-  /** Change statistics (may be lazy-loaded) */
-  stats?: CommitStats;
 }
 
 // ============================================================================
