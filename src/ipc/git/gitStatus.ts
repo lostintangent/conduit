@@ -45,10 +45,12 @@ function parseGitStatusLine(
 
     // Parse the path (might have rename info)
     let relativePath = filePath;
+    let originalPath: string | undefined;
     if (parts[0] === "2") {
       // Renamed/copied file - format is "<path><tab><origPath>"
       const pathParts = filePath.split("\t");
       relativePath = pathParts[0] || filePath;
+      originalPath = pathParts[1];
     }
 
     // XY codes:
@@ -101,6 +103,7 @@ function parseGitStatusLine(
       status,
       staged,
       relativePath,
+      originalPath,
       stagedStatus,
       unstagedStatus,
     };
@@ -221,28 +224,43 @@ export async function getGitStatusRelativeToBranch(
       if (parts.length < 2) continue;
 
       const statusCode = parts[0]?.trim();
-      const filePath = parts[1]?.trim();
 
-      if (!statusCode || !filePath) continue;
+      if (!statusCode) continue;
 
       let status: GitFileStatus["status"] = "modified";
+      let filePath: string;
+      let originalPath: string | undefined;
 
       if (statusCode.startsWith("A")) {
         status = "added";
+        filePath = parts[1]?.trim() || "";
       } else if (statusCode.startsWith("D")) {
         status = "deleted";
+        filePath = parts[1]?.trim() || "";
       } else if (statusCode.startsWith("M")) {
         status = "modified";
+        filePath = parts[1]?.trim() || "";
       } else if (statusCode.startsWith("R")) {
+        // Renamed: R100\told-path\tnew-path
         status = "renamed";
+        originalPath = parts[1]?.trim();
+        filePath = parts[2]?.trim() || parts[1]?.trim() || "";
       } else if (statusCode.startsWith("C")) {
+        // Copied: C100\told-path\tnew-path
         status = "copied";
+        originalPath = parts[1]?.trim();
+        filePath = parts[2]?.trim() || parts[1]?.trim() || "";
+      } else {
+        filePath = parts[1]?.trim() || "";
       }
+
+      if (!filePath) continue;
 
       statusMap.set(filePath, {
         status,
         staged: true, // Changes in commits are considered "staged"
         relativePath: filePath,
+        originalPath,
       });
     }
 

@@ -2,7 +2,7 @@
  * Editor v2 components barrel export.
  *
  * Phase 3 components:
- * - EditorViewPanel: Main editor orchestrator
+ * - EditorPane: Main editor orchestrator
  * - RegularEditorWrapper: Monaco standalone editor wrapper
  * - DiffEditorWrapper: Monaco diff editor wrapper
  * - ExternalChangeWarning: External change warning banner
@@ -18,24 +18,24 @@
  * - TreeResizer: Draggable divider for tree panel resizing
  *
  * Phase 6 components:
- * - ChangesReviewPane: Multi-file changes review with inline diffs
- * - FileChangeDiff: Individual file diff with actions
+ * - ReviewWorkingPane: Multi-file working changes with inline diffs
+ * - ReviewCommitPane: Read-only view of historical commit changes
  */
 
-// EditorViewPanel and related components
+// EditorPane and related components
 export {
   DiffEditorWrapper,
-  EditorViewPanel,
+  EditorPane,
   ExternalChangeWarning,
   RegularEditorWrapper,
-} from "./EditorViewPanel";
+} from "./EditorPane";
 
 export type {
   DiffEditorWrapperProps,
-  EditorViewPanelProps,
+  EditorPaneProps,
   ExternalChangeWarningProps,
   RegularEditorWrapperProps,
-} from "./EditorViewPanel";
+} from "./EditorPane";
 
 // Toolbar components
 export { EditorToolbar } from "./Toolbar";
@@ -65,20 +65,17 @@ export type {
 export { TreeResizer } from "./TreeResizer";
 export type { TreeResizerProps } from "./TreeResizer";
 
-// ChangesReviewPane components
-export { ChangesReviewPane, FileChangeDiff } from "./ChangesReviewPane";
-export type {
-  ChangesReviewPaneProps,
-  FileChangeDiffProps,
-} from "./ChangesReviewPane";
+// ReviewWorking components (working changes review)
+export { ReviewWorkingPane } from "./ReviewWorking";
+export type { ReviewWorkingPaneProps } from "./ReviewWorking";
 
-// CommitReviewPane components
-export { CommitReviewPane } from "./CommitReviewPane";
-export type { CommitReviewPaneProps } from "./CommitReviewPane";
+// ReviewCommitPane (historical commit review)
+export { ReviewCommitPane } from "./ReviewCommit";
+export type { CommitMetadata, ReviewCommitPaneProps } from "./ReviewCommit";
 
 // Shared components
-export { getStatusConfig, GitBadge } from "./shared";
-export type { GitBadgeProps } from "./shared";
+export { getStatusConfig, GitBadge, ReviewPaneFile } from "./shared";
+export type { GitBadgeProps, ReviewPaneFileProps } from "./shared";
 
 // FileDiffStats - Per-file diff statistics display
 export {

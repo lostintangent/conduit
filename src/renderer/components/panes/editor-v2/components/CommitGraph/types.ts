@@ -375,7 +375,7 @@ export interface CommitFileSelectEvent {
 /**
  * Data passed when "view all changes" is requested for a commit.
  *
- * Used to open the CommitReviewPane showing all files in a commit.
+ * Used to open the ReviewCommitPane showing all files in a commit.
  */
 export interface CommitViewEvent {
   /** The commit to view */

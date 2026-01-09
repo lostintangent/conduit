@@ -3,7 +3,7 @@
  *
  * Used in:
  * - EditorToolbar (main editor toolbar)
- * - FileChangeDiff (review mode file headers)
+ * - ReviewWorkingPaneFile (review mode file headers)
  *
  * @example
  * ```tsx

@@ -399,3 +399,54 @@ export function contentSourceToGitRef(source: ContentSource): string {
       return source;
   }
 }
+
+// ============================================================================
+// File Change Display Types
+// ============================================================================
+
+/**
+ * Display-focused representation of a changed file.
+ *
+ * This is a presentation type used by file change components. Unlike
+ * `GitFileStatus` (which includes working-tree concepts like `staged`) or
+ * `CommitFile` (which includes statistics), this type focuses on what's
+ * needed for display:
+ *
+ * - The file path and status for rendering
+ * - Optional original path for renames
+ * - No `staged` field - that's a working tree concept, not a display concept
+ *
+ * Use the converter functions to create from API types:
+ * - `gitStatusToFileChange()` - from working tree status
+ * - `commitFileToFileChange()` - from historical commit file
+ */
+export interface FileChangeDisplay {
+  /** Relative path from repository root */
+  path: string;
+
+  /** Type of change - matches GitFileStatusCode for compatibility */
+  status: GitFileStatusCode;
+
+  /** Original path before rename/copy (only present for renamed/copied files) */
+  originalPath?: string;
+}
+
+/**
+ * File change with additional context needed for rendering in a list.
+ *
+ * Extends FileChangeDisplay with:
+ * - A unique key for React rendering (handles partial staging where same path appears twice)
+ * - Context about the change (staged vs unstaged, or commit info)
+ */
+export interface FileChangeEntry {
+  /** Unique key for this entry (may differ from path for partial staging) */
+  key: string;
+
+  /** The file change display info */
+  file: FileChangeDisplay;
+
+  /** Context for working tree changes */
+  context:
+    | { type: "working"; staged: boolean; hasIndexChanges?: boolean }
+    | { type: "historical"; commitId: string; parentCommitId: string };
+}

@@ -62,11 +62,12 @@ export type { EditorPaneConfig, EditorPaneRegistryEvent } from "./registry";
 
 // Re-export components for advanced usage
 export {
-  ChangesReviewPane,
+  EditorPane,
   EditorToolbar,
-  EditorViewPanel,
-  FileChangeDiff,
   FileTreePanel,
   GlobalEditorContainer,
+  ReviewCommitPane,
+  ReviewPaneFile,
+  ReviewWorkingPane,
   TreeResizer,
 } from "./components";

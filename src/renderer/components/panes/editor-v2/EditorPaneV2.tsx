@@ -3,7 +3,7 @@
  *
  * This component ties together all the editor subsystems:
  * - FileTreePanel for file navigation
- * - EditorViewPanel for file editing
+ * - EditorPane for file editing
  * - TreeResizer for panel resizing
  *
  * It handles responsive layout switching between split and single modes,
@@ -38,7 +38,7 @@ import {
 } from "react";
 import {
   BranchSelector,
-  EditorViewPanel,
+  EditorPane,
   FileDiffStatsProvider,
   FileTreePanel,
   TreeResizer,
@@ -1594,7 +1594,7 @@ export function EditorPaneV2({
           )}
           data-testid="editor-container"
         >
-          <EditorViewPanel
+          <EditorPane
             editorId={editorId}
             cwd={currentCwd}
             sandboxId={sandboxId}

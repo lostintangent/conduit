@@ -946,8 +946,10 @@ export class DiskGitProvider implements GitProvider {
    */
   async getCommit(commitId: string): Promise<HistoryCommit | null> {
     try {
-      // Format: hash|shortHash|subject|body|author|email|timestamp|parentHashes|refs
-      const format = "%H|%h|%s|%b|%an|%ae|%at|%P|%D";
+      // Use null byte separator (%x00) to handle commit bodies that contain
+      // newlines or pipe characters. The body (%b) can contain any text.
+      // Format: hash\0shortHash\0subject\0body\0author\0email\0timestamp\0parentHashes\0refs
+      const format = "%H%x00%h%x00%s%x00%b%x00%an%x00%ae%x00%at%x00%P%x00%D";
 
       const result = await this.git.raw([
         "log",
@@ -960,22 +962,30 @@ export class DiskGitProvider implements GitProvider {
         return null;
       }
 
-      // Split by | but handle body which may contain | characters
-      // Body is the 4th field, so we need to be careful
-      const firstLine = result.split("\n")[0] || "";
-      const parts = firstLine.split("|");
+      // Split by null byte - this correctly handles bodies with newlines
+      const parts = result.split("\0");
 
       if (parts.length < 8) {
         return null;
       }
 
-      const [hash, shortHash, subject, ...rest] = parts;
-      // Body might contain |, so join remaining parts except last 4
-      const bodyParts = rest.slice(0, -4);
-      const body = bodyParts.join("|");
-      const [author, email, timestamp, parents, refs] = rest.slice(-5);
+      const [
+        hash,
+        shortHash,
+        subject,
+        body,
+        author,
+        email,
+        timestamp,
+        parents,
+        refs,
+      ] = parts;
 
-      const fullMessage = body ? `${subject}\n\n${body}` : subject || "";
+      // Clean up body - trim trailing newlines that git adds
+      const cleanBody = body?.trim() || "";
+      const fullMessage = cleanBody
+        ? `${subject}\n\n${cleanBody}`
+        : subject || "";
 
       return {
         id: hash || "",
@@ -988,8 +998,7 @@ export class DiskGitProvider implements GitProvider {
         parentIds: parents ? parents.split(" ").filter(Boolean) : [],
         refs: refs ? refs.split(", ").filter(Boolean) : undefined,
       };
-    } catch (error) {
-      console.error("[DiskGitProvider] Failed to get commit:", error);
+    } catch {
       return null;
     }
   }

@@ -21,6 +21,11 @@ export {
   isDeletedOnRevert,
   computeStagedForChangesMode,
   getFileEntryPresence,
+  // FileChangeDisplay converters
+  gitStatusToFileChange,
+  commitFileToFileChange,
+  gitStatusToFileEntry,
+  commitFileToFileEntry,
 } from "./gitStatusHelpers";
 export {
   pathsEqual,

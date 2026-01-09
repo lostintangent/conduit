@@ -13,8 +13,15 @@
  * Use the branded types (MapKey, FilePath) from types.ts for type safety.
  */
 
-import type { GitFileStatus } from "@/api/GitV2API";
-import { type MapKey, type FilePath, asMapKey, asFilePath } from "../types";
+import type { CommitFile, GitFileStatus } from "@/api/GitV2API";
+import {
+  type FileChangeDisplay,
+  type FileChangeEntry,
+  type FilePath,
+  type MapKey,
+  asFilePath,
+  asMapKey,
+} from "../types";
 
 // ============================================================================
 // Constants
@@ -205,6 +212,84 @@ export function computeStagedForChangesMode(
     return true; // Only staged changes exist
   }
   return undefined; // File not in changes
+}
+
+// ============================================================================
+// FileChangeDisplay Converters
+// ============================================================================
+
+/**
+ * Convert a GitFileStatus to a FileChangeDisplay.
+ *
+ * Maps the working tree status to a display-focused type.
+ */
+export function gitStatusToFileChange(
+  status: GitFileStatus,
+): FileChangeDisplay {
+  return {
+    path: status.path,
+    status: status.status,
+    originalPath: status.originalPath,
+  };
+}
+
+/**
+ * Convert a CommitFile to a FileChangeDisplay.
+ *
+ * Maps the historical commit file info to a display-focused type.
+ * Note: "copied" status is mapped to "renamed" for consistent display.
+ */
+export function commitFileToFileChange(file: CommitFile): FileChangeDisplay {
+  return {
+    path: file.path,
+    // "copied" is displayed the same as "renamed"
+    status: file.status === "copied" ? "renamed" : file.status,
+    originalPath: file.originalPath,
+  };
+}
+
+/**
+ * Convert a GitFileStatus to a FileChangeEntry with working tree context.
+ *
+ * @param mapKey - The unique key for this entry (handles partial staging)
+ * @param status - The git file status
+ */
+export function gitStatusToFileEntry(
+  mapKey: string,
+  status: GitFileStatus,
+): FileChangeEntry {
+  return {
+    key: mapKey,
+    file: gitStatusToFileChange(status),
+    context: {
+      type: "working",
+      staged: status.staged,
+      hasIndexChanges: status.hasIndexChanges,
+    },
+  };
+}
+
+/**
+ * Convert a CommitFile to a FileChangeEntry with historical context.
+ *
+ * @param file - The commit file info
+ * @param commitId - The commit containing this change
+ * @param parentCommitId - The parent commit for comparison
+ */
+export function commitFileToFileEntry(
+  file: CommitFile,
+  commitId: string,
+  parentCommitId: string,
+): FileChangeEntry {
+  return {
+    key: file.path,
+    file: commitFileToFileChange(file),
+    context: {
+      type: "historical",
+      commitId,
+      parentCommitId,
+    },
+  };
 }
 
 /**

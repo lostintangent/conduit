@@ -77,12 +77,6 @@ export { useResponsiveLayout } from "./useResponsiveLayout";
 export type { LayoutMode } from "./useResponsiveLayout";
 export { useReviewModeState } from "./useReviewModeState";
 export type { UseReviewModeStateResult } from "./useReviewModeState";
-export { useHistoricalDiff } from "./useHistoricalDiff";
-export type {
-  HistoricalDiffContent,
-  HistoricalDiffError,
-  HistoricalDiffErrorType,
-} from "./useHistoricalDiff";
 export { usePanelHeight } from "./usePanelHeight";
 export type {
   UsePanelHeightOptions,
@@ -114,3 +108,5 @@ export type {
   UseCommitGraphOptions,
   UseCommitGraphResult,
 } from "./useCommitGraph";
+export { useCommitDetails } from "./useCommitDetails";
+export type { CommitDetailsResult } from "./useCommitDetails";

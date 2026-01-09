@@ -99,6 +99,13 @@ export interface UseDiffContentOptions {
 
   /** Optional sandbox ID for VM file operations */
   sandboxId?: string;
+
+  /**
+   * For renamed/copied files, the original path before the rename.
+   * When provided, this path is used to fetch content from originalSource,
+   * while filePath is used for modifiedSource.
+   */
+  originalFilePath?: string;
 }
 
 /**
@@ -189,6 +196,7 @@ export function useDiffContent(
     originalSource = "head",
     modifiedSource = "workingDirectory",
     sandboxId,
+    originalFilePath,
   } = options;
 
   // Determine if modified side is editable (only workingDirectory is editable)
@@ -247,16 +255,19 @@ export function useDiffContent(
       const modelKey = createModelKey(filePath, sandboxId);
       const originalRef = contentSourceToGitRef(originalSource);
 
+      // For renamed files, use originalFilePath to fetch from original source
+      const pathForOriginal = originalFilePath || filePath;
+
       let originalContent: string | null = null;
       let modifiedContent: string | null = null;
       let diffError: DiffError | null = null;
 
       // 1. Fetch original content from git
       try {
-        originalContent = await git.getFileAtRef(filePath, originalRef);
+        originalContent = await git.getFileAtRef(pathForOriginal, originalRef);
       } catch (error) {
         // Create specific error for git fetch failure
-        diffError = createDiffError(error, originalRef, filePath);
+        diffError = createDiffError(error, originalRef, pathForOriginal);
       }
 
       // Check if effect was cleaned up during async operation
@@ -401,7 +412,15 @@ export function useDiffContent(
     return () => {
       isStale = true;
     };
-  }, [filePath, cwd, originalSource, modifiedSource, isModifiedEditable, git]);
+  }, [
+    filePath,
+    cwd,
+    originalSource,
+    modifiedSource,
+    isModifiedEditable,
+    git,
+    originalFilePath,
+  ]);
 
   return state;
 }
