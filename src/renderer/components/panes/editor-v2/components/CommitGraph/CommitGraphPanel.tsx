@@ -138,29 +138,48 @@ function CommitGraphPanelComponent({
     undefined,
   );
 
-  // Track if initial load has happened to avoid double-refresh
-  const hasInitialLoadRef = useRef(false);
-
   // ---------------------------------------------------------------------------
   // Effects
   // ---------------------------------------------------------------------------
 
+  // Track ahead/behind for push detection
+  const lastAheadBehindRef = useRef<{ ahead: number; behind: number } | null>(
+    null,
+  );
+
   /**
-   * Auto-refresh commit list when git status changes.
+   * Auto-refresh commit list when HEAD changes.
    *
-   * This catches commits, pushes, pulls, and branch switches.
-   * Also triggers on staging/unstaging (minor overhead, but harmless).
+   * This catches commits, pulls, and branch switches.
    */
   useEffect(() => {
-    const cleanup = git.onStatusChanged(() => {
-      // Skip the first event (initial load already happened via hook)
-      if (!hasInitialLoadRef.current) {
-        hasInitialLoadRef.current = true;
-        return;
-      }
-
-      // Refresh the commit list
+    const cleanup = git.onHeadChanged(() => {
       refresh();
+    });
+
+    return cleanup;
+  }, [git, refresh]);
+
+  /**
+   * Also refresh when ahead/behind changes (catches push).
+   *
+   * Push doesn't change HEAD, but it does change the ahead count.
+   * We track ahead/behind to avoid refreshing on file edits.
+   */
+  useEffect(() => {
+    const cleanup = git.onStatusChanged((event) => {
+      const { ahead, behind } = event.status;
+      const last = lastAheadBehindRef.current;
+
+      // Update tracked values
+      const changed =
+        last !== null && (last.ahead !== ahead || last.behind !== behind);
+      lastAheadBehindRef.current = { ahead, behind };
+
+      // Only refresh if ahead/behind actually changed
+      if (changed) {
+        refresh();
+      }
     });
 
     return cleanup;

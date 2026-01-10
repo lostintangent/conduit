@@ -86,7 +86,13 @@ function createMockGitApi(): GitV2API {
     stashList: vi.fn(),
     getConfig: vi.fn(),
     setConfig: vi.fn(),
+    getTrackedBranches: vi.fn().mockResolvedValue({
+      current: null,
+      upstream: null,
+      base: null,
+    }),
     onStatusChanged: vi.fn().mockReturnValue(() => {}),
+    onHeadChanged: vi.fn().mockReturnValue(() => {}),
     cwd: "/test/cwd",
   } as unknown as GitV2API;
 }
@@ -252,6 +258,49 @@ describe("CommitGraphPanel", () => {
       });
 
       expect(screen.getByTestId("commit-graph-panel")).toBeTruthy();
+    });
+  });
+
+  describe("auto-refresh", () => {
+    it("should subscribe to onHeadChanged for commit/pull/branch switch detection", async () => {
+      const git = createMockGitApi();
+
+      await act(async () => {
+        renderWithProvider(<CommitGraphPanel git={git} />);
+      });
+
+      expect(git.onHeadChanged).toHaveBeenCalled();
+    });
+
+    it("should subscribe to onStatusChanged for push detection", async () => {
+      const git = createMockGitApi();
+
+      await act(async () => {
+        renderWithProvider(<CommitGraphPanel git={git} />);
+      });
+
+      expect(git.onStatusChanged).toHaveBeenCalled();
+    });
+
+    it("should cleanup subscriptions on unmount", async () => {
+      const git = createMockGitApi();
+      const headCleanup = vi.fn();
+      const statusCleanup = vi.fn();
+      (git.onHeadChanged as ReturnType<typeof vi.fn>).mockReturnValue(
+        headCleanup,
+      );
+      (git.onStatusChanged as ReturnType<typeof vi.fn>).mockReturnValue(
+        statusCleanup,
+      );
+
+      const { unmount } = await act(async () => {
+        return renderWithProvider(<CommitGraphPanel git={git} />);
+      });
+
+      unmount();
+
+      expect(headCleanup).toHaveBeenCalled();
+      expect(statusCleanup).toHaveBeenCalled();
     });
   });
 });

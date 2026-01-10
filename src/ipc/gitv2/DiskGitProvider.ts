@@ -107,7 +107,7 @@ const IGNORED_GIT_PATHS = [
   "**/info/**",
   "**/description",
   "**/config",
-  "**/packed-refs",
+  // NOTE: packed-refs is NOT ignored - it updates on push/fetch and affects commit graph
   "**/shallow",
   "**/commondir",
   "**/gitdir",
@@ -2013,10 +2013,19 @@ export class DiskGitProvider implements GitProvider {
       if (this.lastStatus) {
         const delta = this.calculateStatusDelta(this.lastStatus, currentStatus);
 
+        // Fire if files changed OR if ahead/behind counts changed (push/pull/fetch)
+        // OR if HEAD changed (new commits from pull/fetch even when already up-to-date)
+        const aheadBehindChanged =
+          this.lastStatus.ahead !== currentStatus.ahead ||
+          this.lastStatus.behind !== currentStatus.behind;
+        const headChanged = this.lastHead !== currentHead;
+
         if (
           delta.added.length > 0 ||
           delta.modified.length > 0 ||
-          delta.removed.length > 0
+          delta.removed.length > 0 ||
+          aheadBehindChanged ||
+          headChanged
         ) {
           this._onStatusChanged.fire({
             status: currentStatus,
