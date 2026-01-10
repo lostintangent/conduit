@@ -46,7 +46,6 @@ export class ParcelGitWatcher implements IGitWatcher {
             return (
               basename === "index" ||
               basename === "HEAD" ||
-              basename === "packed-refs" || // Remote branches are often packed
               dirname.includes("refs")
             );
           });
