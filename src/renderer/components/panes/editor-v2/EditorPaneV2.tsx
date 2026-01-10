@@ -1253,6 +1253,15 @@ export function EditorPaneV2({
   }, [selectedFile, selectedGitStatus, treeViewMode]);
 
   /**
+   * Label for changes mode: "Staged" or "Unstaged".
+   * Only shown when in "changes" mode to indicate which version is being viewed.
+   */
+  const changesViewLabel = useMemo(() => {
+    if (treeViewMode !== "changes" || !selectedGitStatus) return undefined;
+    return selectedGitStatus.staged ? "Staged" : "Unstaged";
+  }, [treeViewMode, selectedGitStatus]);
+
+  /**
    * Determine if the current file has changes in the git index.
    * Used to show Index → Working Directory diff for partially staged files.
    *
@@ -1278,6 +1287,20 @@ export function EditorPaneV2({
     const baseEntry = gitStatus?.get(relativePath);
     return baseEntry?.hasIndexChanges ?? false;
   }, [selectedFile, selectedGitStatus, treeViewMode, currentCwd, gitStatus]);
+
+  /**
+   * Git status for the current file (for toolbar badge).
+   * In "changes" mode, uses selectedGitStatus from the map key.
+   * In "files" mode, looks up by relative path.
+   */
+  const currentFileGitStatus = useMemo(() => {
+    if (!selectedFile) return undefined;
+    // In changes mode, use the entry from selectedMapKey
+    if (selectedGitStatus) return selectedGitStatus;
+    // In files mode, look up by relative path
+    const relativePath = getRelativePath(selectedFile.path, currentCwd);
+    return gitStatus?.get(relativePath) ?? undefined;
+  }, [selectedFile, selectedGitStatus, currentCwd, gitStatus]);
 
   /**
    * Determine if the current file supports preview mode (e.g., markdown files, images).
@@ -1617,6 +1640,8 @@ export function EditorPaneV2({
             isFileDeleted={isCurrentFileDeleted}
             isFileStaged={isCurrentFileStaged}
             hasIndexChanges={currentFileHasIndexChanges}
+            selectedGitStatus={currentFileGitStatus}
+            changesViewLabel={changesViewLabel}
             // Preview mode props
             showPreviewToggle={isPreviewSupported}
             isPreviewMode={viewMode.type === "preview"}

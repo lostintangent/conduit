@@ -4,7 +4,7 @@
  * A focused component for displaying files changed in a commit.
  * Unlike ReviewWorkingPane (working changes), this is entirely read-only.
  *
- * Uses shared ReviewPaneFile component (from ../shared) for consistent
+ * Uses shared FileEditor component (from ../shared) for consistent
  * file rendering with ReviewWorkingPane.
  */
 

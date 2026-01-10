@@ -26,7 +26,7 @@
  * ```
  */
 
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitFileStatus, GitV2API } from "@/api/GitV2API";
 import * as monaco from "monaco-editor";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -47,7 +47,8 @@ import { joinCwdPath } from "../../utils";
 import { ReviewWorkingPane } from "../ReviewWorking";
 import { ReviewCommitPane } from "../ReviewCommit";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
-import { EditorToolbar, CommitDiffToolbar } from "../Toolbar";
+import { EditorToolbar } from "../Toolbar";
+import { FileEditor } from "../shared";
 import { DeletedFileBanner } from "./DeletedFileBanner";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
@@ -163,6 +164,18 @@ export interface EditorPaneProps {
    */
   hasIndexChanges?: boolean;
 
+  /**
+   * Git status for the selected file (for toolbar badge).
+   * Shows the status badge (M, A, D, etc.) on the right side of the toolbar.
+   */
+  selectedGitStatus?: GitFileStatus;
+
+  /**
+   * Label for changes mode: "Staged" or "Unstaged".
+   * Shown in the toolbar when viewing files in "changes" mode.
+   */
+  changesViewLabel?: string;
+
   /** Whether to show the preview toggle (for supported file types like .md) */
   showPreviewToggle?: boolean;
 
@@ -243,6 +256,8 @@ export const EditorPane = memo(function EditorPane({
   isFileDeleted = false,
   isFileStaged = false,
   hasIndexChanges = false,
+  selectedGitStatus,
+  changesViewLabel,
   showPreviewToggle = false,
   isPreviewMode = false,
   onTogglePreviewMode,
@@ -313,7 +328,8 @@ export const EditorPane = memo(function EditorPane({
     return {
       subject: commitData.subject,
       author: commitData.author,
-      timestamp: commitData.timestamp,
+      // Convert milliseconds to seconds for formatRelativeTime
+      timestamp: Math.floor(commitData.timestamp / 1000),
       shortId: commitData.shortId,
       fullId: commitData.id,
     };
@@ -535,7 +551,7 @@ export const EditorPane = memo(function EditorPane({
   }
 
   // Commit file diff mode - read-only historical diff view
-  // Shows diff between parent commit and the commit
+  // Shows diff between parent commit and the commit using FileEditor in standalone mode
   if (viewMode.type === "commitFileDiff" && git) {
     const {
       filePath: commitFilePath,
@@ -545,7 +561,7 @@ export const EditorPane = memo(function EditorPane({
       originalPath,
     } = viewMode;
 
-    // Calculate display path for the commit file
+    // Calculate display path for the commit file (relative to cwd)
     const commitDisplayPath = (() => {
       const normalizedFilePath = commitFilePath.replace(/\\/g, "/");
       const normalizedCwd = cwd.replace(/\\/g, "/");
@@ -559,62 +575,29 @@ export const EditorPane = memo(function EditorPane({
       return commitFilePath;
     })();
 
-    // For added/deleted/renamed/copied files, show a read-only single file viewer instead of diff
-    // Added files: show the file at the commit (no parent version exists)
-    // Deleted files: show the file at the parent commit (no commit version exists)
-    // Renamed/copied files: show the file at the commit (content at new location)
-    const showSingleFileViewer =
-      fileStatus === "added" ||
-      fileStatus === "deleted" ||
-      fileStatus === "renamed" ||
-      fileStatus === "copied";
-
     return (
       <div
         className="flex flex-col h-full w-full bg-background"
         data-testid="editor-pane"
       >
-        <CommitDiffToolbar
-          displayPath={commitDisplayPath}
-          filePath={commitFilePath}
-          commitShortId={commitId.slice(0, 7)}
+        <FileEditor
+          layout="standalone"
+          context="commit"
+          filePath={commitDisplayPath}
+          cwd={cwd}
+          commitFile={{
+            path: commitDisplayPath,
+            status: fileStatus,
+            originalPath: originalPath,
+            additions: 0,
+            deletions: 0,
+            isBinary: false,
+          }}
+          commitId={commitId}
+          parentCommitId={parentCommitId}
           onBack={onExitCommitMode}
+          theme={theme}
         />
-        <div className="flex-1 min-h-0">
-          <EditorErrorBoundary filePath={commitFilePath}>
-            {showSingleFileViewer ? (
-              // For added/renamed/copied files, show content at the commit
-              // For deleted files, show content at the parent commit
-              <RegularEditorWrapper
-                key={`${commitId}-${parentCommitId}-${commitDisplayPath}`}
-                editorId={`${editorId}-commit-file`}
-                cwd={cwd}
-                filePath={
-                  fileStatus === "deleted"
-                    ? joinCwdPath(cwd, originalPath || commitDisplayPath)
-                    : commitFilePath
-                }
-                source={fileStatus === "deleted" ? parentCommitId : commitId}
-                theme={theme}
-              />
-            ) : (
-              // For modified files, show diff view
-              <DiffEditorWrapper
-                key={`${commitId}-${parentCommitId}-${commitDisplayPath}`}
-                editorId={`${editorId}-commit-diff`}
-                cwd={cwd}
-                filePath={commitFilePath}
-                originalFilePath={
-                  originalPath ? joinCwdPath(cwd, originalPath) : undefined
-                }
-                originalSource={parentCommitId}
-                modifiedSource={commitId}
-                theme={theme}
-                hideUnchangedRegions
-              />
-            )}
-          </EditorErrorBoundary>
-        </div>
       </div>
     );
   }
@@ -656,7 +639,6 @@ export const EditorPane = memo(function EditorPane({
       >
         <ReviewCommitPane
           cwd={cwd}
-          git={git}
           commitId={commitId}
           parentCommitId={parentCommitId}
           files={historicalFiles}
@@ -720,6 +702,9 @@ export const EditorPane = memo(function EditorPane({
         showPreviewToggle={showPreviewToggle}
         isPreviewMode={isPreviewMode}
         onTogglePreviewMode={onTogglePreviewMode}
+        readOnly={modifiedSource !== "workingDirectory"}
+        gitStatus={selectedGitStatus}
+        commitShortId={changesViewLabel}
       />
 
       {/* External change warning */}

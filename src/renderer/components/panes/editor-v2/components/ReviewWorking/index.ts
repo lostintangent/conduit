@@ -7,7 +7,7 @@
  * - ReviewWorkingPaneSection: Collapsible section for staged/unstaged files
  * - ReviewWorkingPaneFooter: Summary footer with file counts
  *
- * File rendering uses shared ReviewPaneFile component (from ../shared)
+ * File rendering uses shared FileEditor component (from ../shared)
  * for consistency with ReviewCommitPane.
  *
  * Also exports hooks and types for extensibility:

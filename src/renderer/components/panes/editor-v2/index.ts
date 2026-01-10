@@ -64,10 +64,10 @@ export type { EditorPaneConfig, EditorPaneRegistryEvent } from "./registry";
 export {
   EditorPane,
   EditorToolbar,
+  FileEditor,
   FileTreePanel,
   GlobalEditorContainer,
   ReviewCommitPane,
-  ReviewPaneFile,
   ReviewWorkingPane,
   TreeResizer,
 } from "./components";

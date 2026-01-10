@@ -74,8 +74,8 @@ export { ReviewCommitPane } from "./ReviewCommit";
 export type { CommitMetadata, ReviewCommitPaneProps } from "./ReviewCommit";
 
 // Shared components
-export { getStatusConfig, GitBadge, ReviewPaneFile } from "./shared";
-export type { GitBadgeProps, ReviewPaneFileProps } from "./shared";
+export { FileEditor, getStatusConfig, GitBadge } from "./shared";
+export type { FileEditorProps, GitBadgeProps } from "./shared";
 
 // FileDiffStats - Per-file diff statistics display
 export {

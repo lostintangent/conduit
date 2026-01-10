@@ -6,7 +6,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
 import { ReviewWorkingPane } from "../../../../../src/renderer/components/panes/editor-v2/components/ReviewWorking/ReviewWorkingPane";
-import { ReviewPaneFile } from "../../../../../src/renderer/components/panes/editor-v2/components/shared/ReviewPaneFile";
+import { FileEditor } from "../../../../../src/renderer/components/panes/editor-v2/components/shared/FileEditor";
 import { TooltipProvider } from "../../../../../src/renderer/components/ui/tooltip";
 
 // ============================================================================
@@ -97,10 +97,10 @@ function createMockStatus(
 const TEST_CWD = "/project";
 
 // ============================================================================
-// ReviewPaneFile Tests (working mode)
+// FileEditor Tests (inline working mode)
 // ============================================================================
 
-describe("ReviewPaneFile (working mode)", () => {
+describe("FileEditor (inline working mode)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockStage.mockResolvedValue(undefined);
@@ -111,7 +111,8 @@ describe("ReviewPaneFile (working mode)", () => {
   });
 
   const defaultProps = {
-    mode: "working" as const,
+    layout: "inline" as const,
+    context: "working" as const,
     filePath: "src/test.ts",
     cwd: TEST_CWD,
     git: mockGitApi as any,
@@ -122,33 +123,29 @@ describe("ReviewPaneFile (working mode)", () => {
 
   describe("rendering", () => {
     it("should render the file header", () => {
-      renderWithProviders(<ReviewPaneFile {...defaultProps} />);
+      renderWithProviders(<FileEditor {...defaultProps} />);
 
-      expect(screen.getByTestId("review-pane-file-header")).toBeDefined();
+      expect(screen.getByTestId("editor-toolbar")).toBeDefined();
       expect(screen.getByText("src/test.ts")).toBeDefined();
     });
 
     it("should show git status badge", () => {
-      renderWithProviders(<ReviewPaneFile {...defaultProps} />);
+      renderWithProviders(<FileEditor {...defaultProps} />);
 
       // Modified status shows "M" badge
       expect(screen.getByTitle("Modified")).toBeDefined();
     });
 
     it("should not show diff editor when collapsed", () => {
-      renderWithProviders(
-        <ReviewPaneFile {...defaultProps} isExpanded={false} />,
-      );
+      renderWithProviders(<FileEditor {...defaultProps} isExpanded={false} />);
 
-      expect(screen.queryByTestId("review-pane-file-content")).toBeNull();
+      expect(screen.queryByTestId("file-editor-content")).toBeNull();
     });
 
     it("should show diff editor when expanded", () => {
-      renderWithProviders(
-        <ReviewPaneFile {...defaultProps} isExpanded={true} />,
-      );
+      renderWithProviders(<FileEditor {...defaultProps} isExpanded={true} />);
 
-      expect(screen.getByTestId("review-pane-file-content")).toBeDefined();
+      expect(screen.getByTestId("file-editor-content")).toBeDefined();
       expect(screen.getByTestId("mock-diff-editor")).toBeDefined();
     });
   });
@@ -156,12 +153,10 @@ describe("ReviewPaneFile (working mode)", () => {
   describe("toggle", () => {
     it("should call onToggle when header is clicked", () => {
       const onToggle = vi.fn();
-      renderWithProviders(
-        <ReviewPaneFile {...defaultProps} onToggle={onToggle} />,
-      );
+      renderWithProviders(<FileEditor {...defaultProps} onToggle={onToggle} />);
 
-      // Click on the file path text area (clickable part of header)
-      fireEvent.click(screen.getByText("src/test.ts"));
+      // Click on the toolbar header (not the file path which copies to clipboard)
+      fireEvent.click(screen.getByTestId("editor-toolbar"));
 
       expect(onToggle).toHaveBeenCalledTimes(1);
     });
@@ -169,19 +164,19 @@ describe("ReviewPaneFile (working mode)", () => {
 
   describe("action buttons - unstaged file", () => {
     it("should show stage button for unstaged files", () => {
-      renderWithProviders(<ReviewPaneFile {...defaultProps} />);
+      renderWithProviders(<FileEditor {...defaultProps} />);
 
       expect(screen.getByTestId("stage-button")).toBeDefined();
     });
 
     it("should show revert button for unstaged files", () => {
-      renderWithProviders(<ReviewPaneFile {...defaultProps} />);
+      renderWithProviders(<FileEditor {...defaultProps} />);
 
       expect(screen.getByTestId("revert-button")).toBeDefined();
     });
 
     it("should call git.stage when stage button is clicked", async () => {
-      renderWithProviders(<ReviewPaneFile {...defaultProps} />);
+      renderWithProviders(<FileEditor {...defaultProps} />);
 
       fireEvent.click(screen.getByTestId("stage-button"));
 
@@ -191,7 +186,7 @@ describe("ReviewPaneFile (working mode)", () => {
     });
 
     it("should call git.revert when revert button is clicked", async () => {
-      renderWithProviders(<ReviewPaneFile {...defaultProps} />);
+      renderWithProviders(<FileEditor {...defaultProps} />);
 
       fireEvent.click(screen.getByTestId("revert-button"));
 
@@ -212,20 +207,20 @@ describe("ReviewPaneFile (working mode)", () => {
     };
 
     it("should show unstage button for staged files", () => {
-      renderWithProviders(<ReviewPaneFile {...stagedProps} />);
+      renderWithProviders(<FileEditor {...stagedProps} />);
 
       expect(screen.getByTestId("unstage-button")).toBeDefined();
     });
 
     it("should not show stage or revert buttons for staged files", () => {
-      renderWithProviders(<ReviewPaneFile {...stagedProps} />);
+      renderWithProviders(<FileEditor {...stagedProps} />);
 
       expect(screen.queryByTestId("stage-button")).toBeNull();
       expect(screen.queryByTestId("revert-button")).toBeNull();
     });
 
     it("should call git.unstage when unstage button is clicked", async () => {
-      renderWithProviders(<ReviewPaneFile {...stagedProps} />);
+      renderWithProviders(<FileEditor {...stagedProps} />);
 
       fireEvent.click(screen.getByTestId("unstage-button"));
 
@@ -238,7 +233,7 @@ describe("ReviewPaneFile (working mode)", () => {
   describe("git status badges", () => {
     it("should show added status", () => {
       renderWithProviders(
-        <ReviewPaneFile
+        <FileEditor
           {...defaultProps}
           status={{ path: "src/new.ts", status: "added", staged: true }}
         />,
@@ -249,7 +244,7 @@ describe("ReviewPaneFile (working mode)", () => {
 
     it("should show deleted status", () => {
       renderWithProviders(
-        <ReviewPaneFile
+        <FileEditor
           {...defaultProps}
           status={{ path: "src/old.ts", status: "deleted", staged: false }}
         />,
@@ -260,7 +255,7 @@ describe("ReviewPaneFile (working mode)", () => {
 
     it("should show untracked status", () => {
       renderWithProviders(
-        <ReviewPaneFile
+        <FileEditor
           {...defaultProps}
           status={{
             path: "src/untracked.ts",
@@ -385,15 +380,15 @@ describe("ReviewWorkingPane", () => {
 
       // Files should auto-expand on mount
       await waitFor(() => {
-        expect(screen.getByTestId("review-pane-file-content")).toBeDefined();
+        expect(screen.getByTestId("file-editor-content")).toBeDefined();
       });
 
-      // Click on file path to collapse
-      fireEvent.click(screen.getByText("src/file.ts"));
+      // Click on toolbar header to collapse (not file path which copies to clipboard)
+      fireEvent.click(screen.getByTestId("editor-toolbar"));
 
       // Wait for collapse to occur
       await waitFor(() => {
-        expect(screen.queryByTestId("review-pane-file-content")).toBeNull();
+        expect(screen.queryByTestId("file-editor-content")).toBeNull();
       });
     });
 
@@ -414,19 +409,19 @@ describe("ReviewWorkingPane", () => {
 
       // Files start expanded
       await waitFor(() => {
-        expect(screen.getByTestId("review-pane-file-content")).toBeDefined();
+        expect(screen.getByTestId("file-editor-content")).toBeDefined();
       });
 
-      // Collapse
-      fireEvent.click(screen.getByText("src/file.ts"));
+      // Collapse (click toolbar, not file path which copies to clipboard)
+      fireEvent.click(screen.getByTestId("editor-toolbar"));
       await waitFor(() => {
-        expect(screen.queryByTestId("review-pane-file-content")).toBeNull();
+        expect(screen.queryByTestId("file-editor-content")).toBeNull();
       });
 
       // Re-expand
-      fireEvent.click(screen.getByText("src/file.ts"));
+      fireEvent.click(screen.getByTestId("editor-toolbar"));
       await waitFor(() => {
-        expect(screen.getByTestId("review-pane-file-content")).toBeDefined();
+        expect(screen.getByTestId("file-editor-content")).toBeDefined();
       });
     });
   });
@@ -450,9 +445,7 @@ describe("ReviewWorkingPane", () => {
 
       // All files should auto-expand on mount
       await waitFor(() => {
-        expect(screen.getAllByTestId("review-pane-file-content")).toHaveLength(
-          2,
-        );
+        expect(screen.getAllByTestId("file-editor-content")).toHaveLength(2);
       });
     });
 
@@ -475,9 +468,7 @@ describe("ReviewWorkingPane", () => {
 
       // Files start auto-expanded
       await waitFor(() => {
-        expect(screen.getAllByTestId("review-pane-file-content")).toHaveLength(
-          2,
-        );
+        expect(screen.getAllByTestId("file-editor-content")).toHaveLength(2);
       });
 
       // Click collapse all (toggle button acts as collapse when all are expanded)
@@ -485,9 +476,7 @@ describe("ReviewWorkingPane", () => {
 
       // Wait for all files to be collapsed
       await waitFor(() => {
-        expect(
-          screen.queryAllByTestId("review-pane-file-content"),
-        ).toHaveLength(0);
+        expect(screen.queryAllByTestId("file-editor-content")).toHaveLength(0);
       });
     });
   });

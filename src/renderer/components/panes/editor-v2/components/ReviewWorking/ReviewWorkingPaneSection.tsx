@@ -31,7 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";
 import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";
 import type { ReadTriggerAction } from "../../hooks";
-import { ReviewPaneFile } from "../shared";
+import { FileEditor } from "../shared";
 
 export interface ReviewWorkingPaneSectionProps {
   /** Section title (e.g., "Staged Changes", "Changes") */
@@ -215,9 +215,10 @@ export function ReviewWorkingPaneSection({
       {isExpanded && (
         <div>
           {files.map(([mapKey, status]) => (
-            <ReviewPaneFile
+            <FileEditor
               key={mapKey}
-              mode="working"
+              layout="inline"
+              context="working"
               filePath={status.path}
               cwd={cwd}
               sandboxId={sandboxId}

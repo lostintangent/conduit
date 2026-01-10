@@ -4,7 +4,7 @@
  * Displays a list of files changed in a commit with inline diffs.
  * This is a focused, read-only component - no staging, editing, or git operations.
  *
- * Uses shared ReviewPaneFile component in commit mode for consistent
+ * Uses shared FileEditor component in commit mode for consistent
  * rendering with ReviewWorkingPane.
  *
  * @example
@@ -23,7 +23,7 @@
 import type { CommitFile } from "@/api/GitV2API";
 import { GitCommit } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { ReviewPaneFile } from "../shared";
+import { FileEditor } from "../shared";
 import { ReviewCommitPaneFooter } from "./ReviewCommitPaneFooter";
 import { ReviewCommitPaneHeader } from "./ReviewCommitPaneHeader";
 
@@ -125,18 +125,16 @@ export function ReviewCommitPane({
       <ReviewCommitPaneHeader
         shortId={commitMetadata?.shortId ?? commitId.slice(0, 7)}
         subject={commitMetadata?.subject ?? "Commit details"}
-        author={commitMetadata?.author ?? "Unknown"}
-        timestamp={commitMetadata?.timestamp ?? Date.now() / 1000}
-        fileCount={files.length}
         onClose={onClose}
       />
 
       {/* Scrollable File List */}
       <div className="flex-1 overflow-auto" data-testid="changes-list">
         {sortedFiles.map((file) => (
-          <ReviewPaneFile
+          <FileEditor
             key={file.path}
-            mode="commit"
+            layout="inline"
+            context="commit"
             filePath={file.path}
             cwd={cwd}
             commitFile={file}
@@ -149,7 +147,11 @@ export function ReviewCommitPane({
       </div>
 
       {/* Footer */}
-      <ReviewCommitPaneFooter fileCount={files.length} />
+      <ReviewCommitPaneFooter
+        fileCount={files.length}
+        author={commitMetadata?.author}
+        timestamp={commitMetadata?.timestamp}
+      />
     </div>
   );
 }
