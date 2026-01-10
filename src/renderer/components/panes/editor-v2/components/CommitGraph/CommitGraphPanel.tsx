@@ -41,7 +41,7 @@
  * ```
  */
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/utils";
 import type { GitV2API } from "@/api/GitV2API";
 import type {
@@ -137,6 +137,34 @@ function CommitGraphPanelComponent({
   const [selectedFilePath, setSelectedFilePath] = useState<string | undefined>(
     undefined,
   );
+
+  // Track if initial load has happened to avoid double-refresh
+  const hasInitialLoadRef = useRef(false);
+
+  // ---------------------------------------------------------------------------
+  // Effects
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Auto-refresh commit list when git status changes.
+   *
+   * This catches commits, pushes, pulls, and branch switches.
+   * Also triggers on staging/unstaging (minor overhead, but harmless).
+   */
+  useEffect(() => {
+    const cleanup = git.onStatusChanged(() => {
+      // Skip the first event (initial load already happened via hook)
+      if (!hasInitialLoadRef.current) {
+        hasInitialLoadRef.current = true;
+        return;
+      }
+
+      // Refresh the commit list
+      refresh();
+    });
+
+    return cleanup;
+  }, [git, refresh]);
 
   // ---------------------------------------------------------------------------
   // Handlers

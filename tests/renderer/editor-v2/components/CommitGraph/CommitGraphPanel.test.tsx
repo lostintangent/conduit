@@ -86,6 +86,8 @@ function createMockGitApi(): GitV2API {
     stashList: vi.fn(),
     getConfig: vi.fn(),
     setConfig: vi.fn(),
+    onStatusChanged: vi.fn().mockReturnValue(() => {}),
+    cwd: "/test/cwd",
   } as unknown as GitV2API;
 }
 
