@@ -12,6 +12,7 @@ import {
   createShapeElement,
   createStrokeElement,
   createTextElement,
+  generateElementId,
 } from "@shared/types/canvas";
 import {
   useCallback,
@@ -110,6 +111,26 @@ function getThemeBackgroundColor(): string {
  */
 function getThemeForegroundColor(): string {
   return resolveColor("foreground") || "#ffffff";
+}
+
+/** Convert a File/Blob to base64 data URL */
+function fileToBase64(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Load an image and get its dimensions */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
 // =============================================================================
@@ -263,14 +284,35 @@ export function CanvasPane({
     [tool, clearSelection],
   );
 
+  // Shared handler for adding an image to the canvas (used by both paste and drop)
+  const addImageToCanvas = useCallback(
+    async (file: File) => {
+      try {
+        const dataUrl = await fileToBase64(file);
+        const img = await loadImage(dataUrl);
+
+        const imageElement = createImageElement(
+          dataUrl.split(",")[1],
+          file.type,
+          { width: img.width, height: img.height },
+          canvasSize.width / 2 / viewport.zoom - viewport.panX,
+          canvasSize.height / 2 / viewport.zoom - viewport.panY,
+        );
+
+        addElement(imageElement);
+        recordAdd([imageElement]);
+        selectElements([imageElement.id]);
+        setToolInternal("select");
+      } catch (err) {
+        console.error("Failed to add image to canvas:", err);
+      }
+    },
+    [canvasSize, viewport, addElement, recordAdd, selectElements],
+  );
+
   // Image drag and drop
   const { isImageDragOver, dragHandlers: imageDragHandlers } = useImageDrop({
-    addElement,
-    recordAdd,
-    selectElements,
-    switchToSelectTool: () => setToolInternal("select"),
-    canvasSize,
-    viewport,
+    onImageDrop: addImageToCanvas,
   });
 
   // Text input state
@@ -630,40 +672,6 @@ export function CanvasPane({
     await navigator.clipboard.writeText(clipboardData);
   }, [elements, selectedIds]);
 
-  const handlePasteElements = useCallback(async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const parsedData = JSON.parse(text);
-
-      // Check if this is canvas element data
-      if (
-        parsedData?.type !== "conduit-canvas-elements" ||
-        !Array.isArray(parsedData.elements)
-      ) {
-        return;
-      }
-
-      // Create new elements with new IDs and offset positions
-      const newElements = parsedData.elements.map((el: CanvasElement) => ({
-        ...el,
-        id: `el_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-        transform: {
-          ...el.transform,
-          x: el.transform.x + PASTE_OFFSET,
-          y: el.transform.y + PASTE_OFFSET,
-        },
-      })) as CanvasElement[];
-
-      for (const element of newElements) {
-        addElement(element);
-      }
-      recordAdd(newElements);
-      selectElements(newElements.map((el) => el.id));
-    } catch {
-      // No valid canvas elements in clipboard - silently ignore
-    }
-  }, [addElement, recordAdd, selectElements]);
-
   // ---------------------------------------------------------------------------
   // Keyboard handlers (attached to container, not window)
   // ---------------------------------------------------------------------------
@@ -698,11 +706,6 @@ export function CanvasPane({
           handleCopyToClipboard();
         }
       }
-      // Ctrl+V or Cmd+V to paste elements
-      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        e.preventDefault();
-        handlePasteElements();
-      }
       // Ctrl+0 or Cmd+0 for zoom to fit
       if ((e.ctrlKey || e.metaKey) && e.key === "0") {
         e.preventDefault();
@@ -735,7 +738,6 @@ export function CanvasPane({
       handleZoomToFit,
       handleCopyToClipboard,
       handleCopyElements,
-      handlePasteElements,
       selectedIds,
       elements,
       deleteSelectedElements,
@@ -777,54 +779,58 @@ export function CanvasPane({
     };
   }, []);
 
+  // Paste canvas elements from JSON clipboard data
+  const pasteElements = useCallback(
+    (text: string) => {
+      try {
+        const data = JSON.parse(text);
+        if (data?.type !== "conduit-canvas-elements") return;
+        if (!Array.isArray(data.elements)) return;
+
+        const newElements = data.elements.map((el: CanvasElement) => ({
+          ...el,
+          id: generateElementId(),
+          transform: {
+            ...el.transform,
+            x: el.transform.x + PASTE_OFFSET,
+            y: el.transform.y + PASTE_OFFSET,
+          },
+        })) as CanvasElement[];
+
+        for (const element of newElements) {
+          addElement(element);
+        }
+        recordAdd(newElements);
+        selectElements(newElements.map((el) => el.id));
+      } catch {
+        // Not valid canvas element data - ignore
+      }
+    },
+    [addElement, recordAdd, selectElements],
+  );
+
   // ---------------------------------------------------------------------------
-  // Paste handler for images (attached to container, not window)
+  // Paste handler for images and elements (attached to container, not window)
   // ---------------------------------------------------------------------------
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+      const items = Array.from(e.clipboardData?.items ?? []);
 
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          e.preventDefault();
-          const blob = item.getAsFile();
-          if (!blob) continue;
+      // Priority: image > elements
+      const imageItem = items.find((item) => item.type.startsWith("image/"));
 
-          const reader = new FileReader();
-          reader.onload = () => {
-            const dataUrl = reader.result as string;
-            const base64 = dataUrl.split(",")[1];
+      if (imageItem) {
+        const file = imageItem.getAsFile();
+        if (!file) return;
 
-            const img = new Image();
-            img.onload = () => {
-              const imageElement = createImageElement(
-                base64,
-                item.type,
-                { width: img.width, height: img.height },
-                canvasSize.width / 2 / viewport.zoom - viewport.panX,
-                canvasSize.height / 2 / viewport.zoom - viewport.panY,
-              );
-              addElement(imageElement);
-              recordAdd([imageElement]);
-              selectElements([imageElement.id]);
-              setToolInternal("select");
-            };
-            img.src = dataUrl;
-          };
-          reader.readAsDataURL(blob);
-          break;
-        }
+        e.preventDefault();
+        addImageToCanvas(file);
+      } else {
+        const text = e.clipboardData?.getData("text/plain");
+        if (text) pasteElements(text);
       }
     },
-    [
-      canvasSize,
-      viewport,
-      addElement,
-      recordAdd,
-      selectElements,
-      setToolInternal,
-    ],
+    [addImageToCanvas, pasteElements],
   );
 
   // ---------------------------------------------------------------------------

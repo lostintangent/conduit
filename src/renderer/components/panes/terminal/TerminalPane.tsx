@@ -633,8 +633,8 @@ export const TerminalPane = ({
         </div>
       )}
 
-      {/* Git stats badge (top-right, pinned) */}
-      <TerminalGitStats cwd={cwd} sandboxId={sandboxId} />
+      {/* Git stats badge (top-right, pinned) - only show when in a tab (not hyper terminal or quick pane) */}
+      {tabId && <TerminalGitStats cwd={cwd} sandboxId={sandboxId} />}
 
       <SearchWidget
         ref={searchWidgetRef}

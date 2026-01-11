@@ -2,11 +2,9 @@
  * Hook for handling image drag and drop onto the canvas pane.
  *
  * When an image file is dragged over the canvas, shows an overlay.
- * When dropped, converts it to base64 and adds it as an image element.
+ * When dropped, calls the provided handler with the image file.
  */
 
-import type { CanvasElement } from "@shared/types/canvas";
-import { createImageElement } from "@shared/types/canvas";
 import { getImageFile, hasImageFile } from "@/utils/dragDrop";
 import { useCallback, useState } from "react";
 
@@ -15,18 +13,8 @@ import { useCallback, useState } from "react";
 // =============================================================================
 
 export interface UseImageDropOptions {
-  /** Function to add an element to the canvas */
-  addElement: (element: CanvasElement) => void;
-  /** Function to record the add for undo */
-  recordAdd: (elements: CanvasElement[]) => void;
-  /** Function to select the newly added element */
-  selectElements: (ids: string[]) => void;
-  /** Function to switch to the select tool after adding an image */
-  switchToSelectTool: () => void;
-  /** Canvas size for centering the dropped image */
-  canvasSize: { width: number; height: number };
-  /** Current viewport for coordinate transformation */
-  viewport: { zoom: number; panX: number; panY: number };
+  /** Called when an image file is dropped */
+  onImageDrop: (file: File) => Promise<void>;
 }
 
 export interface UseImageDropResult {
@@ -41,40 +29,11 @@ export interface UseImageDropResult {
 }
 
 // =============================================================================
-// Helpers
-// =============================================================================
-
-/** Convert a File to base64 data URL */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-/** Load an image and get its dimensions */
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-// =============================================================================
 // Hook
 // =============================================================================
 
 export function useImageDrop({
-  addElement,
-  recordAdd,
-  selectElements,
-  switchToSelectTool,
-  canvasSize,
-  viewport,
+  onImageDrop,
 }: UseImageDropOptions): UseImageDropResult {
   const [isImageDragOver, setIsImageDragOver] = useState(false);
 
@@ -101,43 +60,9 @@ export function useImageDrop({
       e.stopPropagation();
       setIsImageDragOver(false);
 
-      try {
-        // Convert file to base64
-        const dataUrl = await fileToBase64(imageFile);
-        const base64 = dataUrl.split(",")[1];
-
-        // Load image to get dimensions
-        const img = await loadImage(dataUrl);
-
-        // Calculate center position in canvas coordinates
-        const centerX = canvasSize.width / 2 / viewport.zoom - viewport.panX;
-        const centerY = canvasSize.height / 2 / viewport.zoom - viewport.panY;
-
-        // Create and add the image element
-        const imageElement = createImageElement(
-          base64,
-          imageFile.type,
-          { width: img.width, height: img.height },
-          centerX,
-          centerY,
-        );
-
-        addElement(imageElement);
-        recordAdd([imageElement]);
-        selectElements([imageElement.id]);
-        switchToSelectTool();
-      } catch (err) {
-        console.error("Failed to process dropped image:", err);
-      }
+      await onImageDrop(imageFile);
     },
-    [
-      addElement,
-      recordAdd,
-      selectElements,
-      switchToSelectTool,
-      canvasSize,
-      viewport,
-    ],
+    [onImageDrop],
   );
 
   return {
