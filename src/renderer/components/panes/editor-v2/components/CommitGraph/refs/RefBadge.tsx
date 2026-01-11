@@ -22,6 +22,7 @@ import { memo } from "react";
 import { GitBranch, Tag } from "lucide-react";
 import { cn } from "@/utils";
 import type { GitRef } from "../types";
+import { getColorCss } from "../graph/colors";
 
 // =============================================================================
 // Types
@@ -80,6 +81,7 @@ function RefBadgeComponent({ gitRef, colorHint, className }: RefBadgeProps) {
 
   // Color hint styles (for tracked branch visualization)
   // These override the default type-based coloring
+  // Note: base uses inline style to match swimlane color exactly
   const colorHintStyles = colorHint
     ? cn({
         // Current branch - Blue
@@ -90,11 +92,14 @@ function RefBadgeComponent({ gitRef, colorHint, className }: RefBadgeProps) {
         "bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30":
           colorHint === "upstream",
 
-        // Base branch - Orange
-        "bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30":
-          colorHint === "base",
+        // Base branch - Orange background/border (text via inline style)
+        "bg-orange-500/20 border border-orange-500/30": colorHint === "base",
       })
     : null;
+
+  // Inline style for base color to exactly match swimlane
+  const inlineStyle =
+    colorHint === "base" ? { color: getColorCss("base") } : undefined;
 
   // Type-specific styles (used when no colorHint)
   const typeStyles = !colorHint
@@ -116,6 +121,7 @@ function RefBadgeComponent({ gitRef, colorHint, className }: RefBadgeProps) {
   return (
     <span
       className={cn(baseStyles, colorHintStyles, typeStyles, className)}
+      style={inlineStyle}
       title={displayText}
       data-testid={`ref-badge-${type}`}
       data-ref-name={name}
