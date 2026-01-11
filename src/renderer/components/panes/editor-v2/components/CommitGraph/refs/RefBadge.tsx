@@ -47,6 +47,15 @@ export interface RefBadgeProps {
    */
   colorHint?: RefBadgeColorHint;
 
+  /**
+   * When true, shows only the icon without the branch name.
+   *
+   * Used for VS Code-style badge display where the first badge
+   * shows full text and subsequent badges show only icons.
+   * This avoids redundant text when multiple refs point to the same commit.
+   */
+  iconOnly?: boolean;
+
   /** Optional additional class names */
   className?: string;
 }
@@ -61,22 +70,28 @@ export interface RefBadgeProps {
  * Uses compact styling to fit inline with commit messages.
  * Color and icon vary based on ref type, with optional colorHint override.
  */
-function RefBadgeComponent({ gitRef, colorHint, className }: RefBadgeProps) {
+function RefBadgeComponent({
+  gitRef,
+  colorHint,
+  iconOnly = false,
+  className,
+}: RefBadgeProps) {
   const { type, name, remote, isHead } = gitRef;
 
-  // Build display text
+  // Build display text (used for title tooltip even when iconOnly)
   const displayText = type === "remote" && remote ? `${remote}/${name}` : name;
 
   // Determine icon
   const Icon = type === "tag" ? Tag : GitBranch;
 
   // Base styles - compact inline badge
+  // When iconOnly, remove gap and use symmetric padding
   const baseStyles = cn(
-    "inline-flex items-center gap-1",
-    "px-1.5 py-0.5",
+    "inline-flex items-center",
+    iconOnly ? "p-1" : "gap-1 px-1.5 py-0.5",
     "rounded text-[11px] font-medium",
     "leading-none whitespace-nowrap",
-    "max-w-[150px]", // Prevent very long branch names from breaking layout
+    !iconOnly && "max-w-[150px]", // Only limit width when showing text
   );
 
   // Color hint styles (for tracked branch visualization)
@@ -126,9 +141,10 @@ function RefBadgeComponent({ gitRef, colorHint, className }: RefBadgeProps) {
       data-testid={`ref-badge-${type}`}
       data-ref-name={name}
       data-color-hint={colorHint}
+      data-icon-only={iconOnly || undefined}
     >
       <Icon className="w-3 h-3 flex-shrink-0" />
-      <span className="truncate">{displayText}</span>
+      {!iconOnly && <span className="truncate">{displayText}</span>}
     </span>
   );
 }
@@ -140,11 +156,16 @@ export const RefBadge = memo(RefBadgeComponent);
 // =============================================================================
 
 /**
- * A ref with optional color hint for tracked branch visualization.
+ * A ref with optional display hints for tracked branch visualization.
  */
 export interface RefWithColorHint {
   ref: GitRef;
   colorHint?: RefBadgeColorHint;
+  /**
+   * When true, shows only the icon without the branch name.
+   * Used when multiple refs point to the same commit to avoid redundancy.
+   */
+  iconOnly?: boolean;
 }
 
 export interface RefBadgeListProps {
@@ -168,14 +189,19 @@ function isRefWithColorHint(
 }
 
 /**
- * Normalize a ref item to get the GitRef and optional colorHint
+ * Normalize a ref item to get the GitRef and optional display hints
  */
 function normalizeRefItem(item: GitRef | RefWithColorHint): {
   gitRef: GitRef;
   colorHint?: RefBadgeColorHint;
+  iconOnly?: boolean;
 } {
   if (isRefWithColorHint(item)) {
-    return { gitRef: item.ref, colorHint: item.colorHint };
+    return {
+      gitRef: item.ref,
+      colorHint: item.colorHint,
+      iconOnly: item.iconOnly,
+    };
   }
   return { gitRef: item };
 }
@@ -203,12 +229,13 @@ function RefBadgeListComponent({
       data-testid="ref-badge-list"
     >
       {visibleRefs.map((item, index) => {
-        const { gitRef, colorHint } = normalizeRefItem(item);
+        const { gitRef, colorHint, iconOnly } = normalizeRefItem(item);
         return (
           <RefBadge
             key={`${gitRef.type}-${gitRef.remote || ""}-${gitRef.name}-${index}`}
             gitRef={gitRef}
             colorHint={colorHint}
+            iconOnly={iconOnly}
           />
         );
       })}

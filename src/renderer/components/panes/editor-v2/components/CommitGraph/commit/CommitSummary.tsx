@@ -65,6 +65,17 @@ export interface CommitSummaryProps {
 // =============================================================================
 
 /**
+ * Check if two branch refs are the same (same remote and name).
+ */
+function isSameBranch(
+  a: { remote?: string; displayName: string } | null | undefined,
+  b: { remote?: string; displayName: string } | null | undefined,
+): boolean {
+  if (!a || !b) return false;
+  return a.remote === b.remote && a.displayName === b.displayName;
+}
+
+/**
  * Build tracked branch badges for a commit.
  *
  * Each badge appears on the commit it actually points to:
@@ -74,6 +85,12 @@ export interface CommitSummaryProps {
  *
  * If upstream or base point to HEAD, those badges appear alongside current.
  * If they point to different commits, they appear on those commits instead.
+ *
+ * VS Code-style filtering and display:
+ * - Base badge is HIDDEN when it's the same branch as upstream
+ *   (avoids showing redundant badges when on main branch)
+ * - First badge shows full text (branch name)
+ * - Subsequent badges show icon only (to avoid redundancy)
  */
 function buildTrackedBranchBadges(
   commitId: string,
@@ -87,7 +104,13 @@ function buildTrackedBranchBadges(
   const badges: RefWithColorHint[] = [];
   const { current, upstream, base } = trackedBranches;
 
+  // VS Code-style: Hide base when it's the same branch as upstream
+  // This prevents redundant badges when on main branch where
+  // upstream (origin/main) and base (origin/main) would be identical
+  const showBase = base && !isSameBranch(base, upstream);
+
   // Current branch badge always appears on HEAD
+  // First badge shows full text
   if (isHead && current) {
     const ref: GitRef = {
       type: "head",
@@ -98,6 +121,7 @@ function buildTrackedBranchBadges(
   }
 
   // Upstream badge appears on the commit it points to
+  // Shows icon only if there's already a badge (VS Code style)
   if (upstream && commitId === upstream.commitId) {
     const ref: GitRef = {
       type: "remote",
@@ -106,17 +130,19 @@ function buildTrackedBranchBadges(
         upstream.displayName,
       remote: upstream.remote || "origin",
     };
-    badges.push({ ref, colorHint: "upstream" });
+    badges.push({ ref, colorHint: "upstream", iconOnly: badges.length > 0 });
   }
 
   // Base badge appears on the commit it points to
-  if (base && commitId === base.commitId) {
+  // Hidden when same as upstream (VS Code style)
+  // Shows icon only if there's already a badge
+  if (showBase && commitId === base.commitId) {
     const ref: GitRef = {
       type: "remote",
       name: base.displayName.split("/").slice(1).join("/") || base.displayName,
       remote: base.remote || "origin",
     };
-    badges.push({ ref, colorHint: "base" });
+    badges.push({ ref, colorHint: "base", iconOnly: badges.length > 0 });
   }
 
   return badges;

@@ -10,6 +10,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitSummary } from "@/components/panes/editor-v2/components/CommitGraph/commit/CommitSummary";
 import type { HistoryCommit } from "@/components/panes/editor-v2/components/CommitGraph/types";
+import type { TrackedBranchInfo } from "@/api/GitV2API";
 
 // =============================================================================
 // Test Helpers
@@ -211,6 +212,175 @@ describe("CommitSummary", () => {
       expect(
         screen.getByTestId("commit-meta-author").classList.contains("truncate"),
       ).toBe(true);
+    });
+  });
+
+  describe("Tracked Branch Badges", () => {
+    const headCommitId = "abc123def456abc123def456abc123def456abc1";
+
+    it("should show current branch badge on HEAD commit", () => {
+      const commit = createCommit({ id: headCommitId });
+      const trackedBranches: TrackedBranchInfo = {
+        current: {
+          displayName: "feature-branch",
+          commitId: headCommitId,
+        },
+        upstream: null,
+        base: null,
+      };
+
+      renderWithProvider(
+        <CommitSummary
+          commit={commit}
+          isHead
+          trackedBranches={trackedBranches}
+        />,
+      );
+
+      expect(screen.getByTestId("ref-badge-head")).toBeTruthy();
+      expect(screen.getByText("feature-branch")).toBeTruthy();
+    });
+
+    it("should show upstream badge as icon-only when on same commit as current", () => {
+      const commit = createCommit({ id: headCommitId });
+      const trackedBranches: TrackedBranchInfo = {
+        current: {
+          displayName: "feature-branch",
+          commitId: headCommitId,
+        },
+        upstream: {
+          displayName: "origin/feature-branch",
+          remote: "origin",
+          commitId: headCommitId,
+        },
+        base: null,
+      };
+
+      renderWithProvider(
+        <CommitSummary
+          commit={commit}
+          isHead
+          trackedBranches={trackedBranches}
+        />,
+      );
+
+      // Current badge should show full text
+      const headBadge = screen.getByTestId("ref-badge-head");
+      expect(headBadge.textContent).toContain("feature-branch");
+      expect(headBadge.dataset.iconOnly).toBeUndefined();
+
+      // Upstream badge should be icon-only
+      const remoteBadge = screen.getByTestId("ref-badge-remote");
+      expect(remoteBadge.dataset.iconOnly).toBe("true");
+    });
+
+    it("should hide base badge when same branch as upstream (VS Code style)", () => {
+      const commit = createCommit({ id: headCommitId });
+      // On main branch, upstream and base are both origin/main
+      const trackedBranches: TrackedBranchInfo = {
+        current: {
+          displayName: "main",
+          commitId: headCommitId,
+        },
+        upstream: {
+          displayName: "origin/main",
+          remote: "origin",
+          commitId: headCommitId,
+        },
+        base: {
+          displayName: "origin/main",
+          remote: "origin",
+          commitId: headCommitId,
+        },
+      };
+
+      renderWithProvider(
+        <CommitSummary
+          commit={commit}
+          isHead
+          trackedBranches={trackedBranches}
+        />,
+      );
+
+      // Should have current badge
+      expect(screen.getByTestId("ref-badge-head")).toBeTruthy();
+
+      // Should have exactly ONE remote badge (upstream), not two
+      // Base is hidden because it's the same branch as upstream
+      const remoteBadges = screen.getAllByTestId("ref-badge-remote");
+      expect(remoteBadges.length).toBe(1);
+    });
+
+    it("should show base badge when different from upstream", () => {
+      const commit = createCommit({ id: headCommitId });
+      // On feature branch, upstream is origin/feature, base is origin/main
+      const trackedBranches: TrackedBranchInfo = {
+        current: {
+          displayName: "feature-branch",
+          commitId: headCommitId,
+        },
+        upstream: {
+          displayName: "origin/feature-branch",
+          remote: "origin",
+          commitId: headCommitId,
+        },
+        base: {
+          displayName: "origin/main",
+          remote: "origin",
+          commitId: headCommitId,
+        },
+      };
+
+      renderWithProvider(
+        <CommitSummary
+          commit={commit}
+          isHead
+          trackedBranches={trackedBranches}
+        />,
+      );
+
+      // Should have current badge
+      expect(screen.getByTestId("ref-badge-head")).toBeTruthy();
+
+      // Should have TWO remote badges (upstream + base, different branches)
+      const remoteBadges = screen.getAllByTestId("ref-badge-remote");
+      expect(remoteBadges.length).toBe(2);
+    });
+
+    it("should show badges on different commits based on commitId", () => {
+      const upstreamCommitId = "upstream123456789012345678901234567890";
+      const commit = createCommit({ id: upstreamCommitId });
+
+      // This is NOT the HEAD commit, so current badge won't show
+      // But upstream points here, so upstream badge should show
+      const trackedBranches: TrackedBranchInfo = {
+        current: {
+          displayName: "feature-branch",
+          commitId: headCommitId, // Different from this commit
+        },
+        upstream: {
+          displayName: "origin/feature-branch",
+          remote: "origin",
+          commitId: upstreamCommitId, // Same as this commit
+        },
+        base: null,
+      };
+
+      renderWithProvider(
+        <CommitSummary
+          commit={commit}
+          isHead={false}
+          trackedBranches={trackedBranches}
+        />,
+      );
+
+      // No current badge (not HEAD)
+      expect(screen.queryByTestId("ref-badge-head")).toBeNull();
+
+      // Upstream badge should show with full text (it's the first badge)
+      const remoteBadge = screen.getByTestId("ref-badge-remote");
+      expect(remoteBadge).toBeTruthy();
+      expect(remoteBadge.dataset.iconOnly).toBeUndefined();
     });
   });
 });
