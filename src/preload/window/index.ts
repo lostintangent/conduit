@@ -371,6 +371,12 @@ const conduitAPI = {
   getFileStats: (filePath: string) =>
     ipcRenderer.invoke("fs:get-stats", filePath) as Promise<FileStats>,
 
+  writeTempFile: (content: Uint8Array, extension?: string) =>
+    ipcRenderer.invoke("fs:write-temp-file", {
+      content,
+      extension,
+    }) as Promise<string>,
+
   /* File watcher methods (UI->main) */
 
   subscribeFileWatcher: (cwd: string, paneId: string) =>

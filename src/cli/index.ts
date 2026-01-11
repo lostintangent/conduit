@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { CLI_COMMAND_NAME } from "../shared/cli/types";
 import registerBrowserCommands from "./commands/browser";
+import registerCanvasCommands from "./commands/canvas";
 import registerEditorCommands from "./commands/editor";
 import registerPaneCommands from "./commands/pane";
 import registerTabCommands from "./commands/tab";
@@ -23,6 +24,7 @@ registerTabCommands(program);
 registerTerminalCommands(program);
 registerEditorCommands(program);
 registerBrowserCommands(program);
+registerCanvasCommands(program);
 
 // Execute the CLI program
 program.parseAsync(process.argv).catch(({ message }) => {

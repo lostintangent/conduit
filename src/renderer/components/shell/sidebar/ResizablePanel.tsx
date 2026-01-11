@@ -184,7 +184,7 @@ export function ResizablePanel({
         <div
           className={cn(
             "absolute h-full transition-all",
-            showAccentBorder ? "w-2 bg-accent" : "w-px bg-border",
+            showAccentBorder ? "w-1 bg-accent" : "w-px bg-border",
           )}
         />
 

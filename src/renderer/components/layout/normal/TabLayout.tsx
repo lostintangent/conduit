@@ -7,6 +7,7 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
+import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
 import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
@@ -320,8 +321,10 @@ export function TabLayout({
   const {
     draggedPaneId,
     dragHoverPaneId,
+    tabEdgeDropZone,
     createDragHandlers,
     createDropHandlers,
+    createTabContainerDropHandlers,
     renderDropZone,
   } = usePaneDragDrop({ onDropComplete: setHoveredPaneId });
 
@@ -544,7 +547,7 @@ export function TabLayout({
                   isInPreview={isInPreview}
                 />
               </div>
-            ) : (
+            ) : pane.type === "browser" ? (
               <div
                 className="flex flex-1 w-full h-full min-h-0 min-w-0"
                 onContextMenu={onPaneContextMenu}
@@ -597,7 +600,21 @@ export function TabLayout({
                   }
                 />
               </div>
-            )}
+            ) : pane.type === "canvas" ? (
+              <div
+                className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                onContextMenu={onPaneContextMenu}
+                onMouseDown={onPaneActivate}
+              >
+                <CanvasPane
+                  key={pane.id}
+                  pane={pane}
+                  paneId={pane.id}
+                  tabId={tab.id}
+                  onContextMenu={onPaneContextMenu}
+                />
+              </div>
+            ) : null}
           </div>
 
           {/* Pane-type-agnostic overlays... */}
@@ -909,6 +926,16 @@ export function TabLayout({
 
       const tabContent = renderLayout(tab.layout, tab, hasUnifiedSandbox, ctx);
 
+      // Get drop handlers for root-level splits (only for active, unlocked tabs)
+      const tabDropHandlers =
+        isActive && !tab.locked
+          ? createTabContainerDropHandlers(tab.id)
+          : undefined;
+
+      // Determine if we should show the tab edge drop zone overlay
+      const showTabEdgeOverlay =
+        isActive && isInDesignMode && draggedPaneId && tabEdgeDropZone;
+
       return (
         <div
           key={tab.id}
@@ -920,8 +947,32 @@ export function TabLayout({
               : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
           }
           ref={tabContainerRef}
+          onDragOver={tabDropHandlers?.onDragOver}
+          onDragLeave={tabDropHandlers?.onDragLeave}
+          onDrop={tabDropHandlers?.onDrop}
         >
           {portalTarget ? createPortal(tabContent, portalTarget) : null}
+
+          {/* Tab edge drop zone overlay for root-level splits */}
+          {showTabEdgeOverlay && (
+            <div
+              className="pointer-events-none absolute z-50 bg-accent/40"
+              style={{
+                top: tabEdgeDropZone === "bottom" ? "auto" : 0,
+                bottom: tabEdgeDropZone === "top" ? "auto" : 0,
+                left: tabEdgeDropZone === "right" ? "auto" : 0,
+                right: tabEdgeDropZone === "left" ? "auto" : 0,
+                width:
+                  tabEdgeDropZone === "left" || tabEdgeDropZone === "right"
+                    ? "80px"
+                    : "100%",
+                height:
+                  tabEdgeDropZone === "top" || tabEdgeDropZone === "bottom"
+                    ? "80px"
+                    : "100%",
+              }}
+            />
+          )}
           {unifiedSandbox && (
             <SandboxIndicator
               sandboxId={
@@ -965,7 +1016,16 @@ export function TabLayout({
         </div>
       );
     },
-    [activeTabId, getActiveMountPoint, renderLayout, setLayoutMountPoint],
+    [
+      activeTabId,
+      getActiveMountPoint,
+      renderLayout,
+      setLayoutMountPoint,
+      createTabContainerDropHandlers,
+      isInDesignMode,
+      draggedPaneId,
+      tabEdgeDropZone,
+    ],
   );
 
   return (

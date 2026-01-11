@@ -4,12 +4,10 @@
  * Based on: docs/pane-actions-schema.md
  */
 
-import type { CloudTerminalOptions } from "@shared/types";
+import type { CloudTerminalOptions, PaneType } from "@shared/types";
 
-/**
- * Supported pane types
- */
-export type PaneType = "terminal" | "editor" | "browser";
+// Re-export PaneType for consumers of this module
+export type { PaneType };
 
 /**
  * Icon identifier from lucide-react
@@ -67,9 +65,20 @@ export interface BrowserConfig {
 }
 
 /**
+ * Canvas pane configuration
+ */
+export interface CanvasConfig {
+  // No configuration needed for canvas panes
+}
+
+/**
  * Union of all pane configurations
  */
-export type PaneConfig = TerminalConfig | EditorConfig | BrowserConfig;
+export type PaneConfig =
+  | TerminalConfig
+  | EditorConfig
+  | BrowserConfig
+  | CanvasConfig;
 
 /**
  * Action definition
@@ -125,4 +134,12 @@ export function isEditorConfig(config: PaneConfig): config is EditorConfig {
  */
 export function isBrowserConfig(config: PaneConfig): config is BrowserConfig {
   return "url" in config;
+}
+
+/**
+ * Type guard to check if config is CanvasConfig.
+ * Note: Use after checking paneType === "canvas".
+ */
+export function isCanvasConfig(config: PaneConfig): config is CanvasConfig {
+  return !("command" in config) && !("url" in config);
 }

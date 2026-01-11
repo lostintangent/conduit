@@ -113,6 +113,11 @@ export const tabLabelsAtom = atom((get): TabDescriptor[] => {
 
         break;
       }
+
+      case "canvas": {
+        label = "Canvas";
+        break;
+      }
     }
 
     const name = tab.name?.trim();

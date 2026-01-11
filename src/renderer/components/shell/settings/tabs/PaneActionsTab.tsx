@@ -726,6 +726,7 @@ export function PaneActionsTab({
                                       <option value="terminal">terminal</option>
                                       <option value="editor">editor</option>
                                       <option value="browser">browser</option>
+                                      <option value="canvas">canvas</option>
                                     </select>
                                     <ChevronDown className="w-4 h-4 text-tinted-foreground/60 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                                   </div>
@@ -733,37 +734,125 @@ export function PaneActionsTab({
                               </div>
                             </div>
 
-                            {/* Configuration (Edit Mode) */}
-                            <div>
-                              <h4 className="text-xs font-medium text-tinted-foreground/60 uppercase tracking-wider mb-2">
-                                Configuration
-                              </h4>
-                              <div className="bg-tinted-muted/50 rounded-lg p-3 space-y-2">
-                                {editedAction.paneType === "terminal" &&
-                                  isTerminalConfig(editedAction.config) && (
-                                    <>
-                                      <div>
-                                        <label className="text-xs text-tinted-foreground/60 block mb-1">
-                                          Command
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={
-                                            editedAction.config.command || ""
-                                          }
-                                          onChange={(e) =>
-                                            setEditedAction({
-                                              ...editedAction,
-                                              config: {
-                                                ...editedAction.config,
-                                                command: e.target.value,
-                                              } as TerminalConfig,
-                                            })
-                                          }
-                                          className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
-                                          placeholder="e.g., git status"
-                                        />
-                                      </div>
+                            {/* Configuration (Edit Mode) - hidden for canvas since it has no config */}
+                            {editedAction.paneType !== "canvas" && (
+                              <div>
+                                <h4 className="text-xs font-medium text-tinted-foreground/60 uppercase tracking-wider mb-2">
+                                  Configuration
+                                </h4>
+                                <div className="bg-tinted-muted/50 rounded-lg p-3 space-y-2">
+                                  {editedAction.paneType === "terminal" &&
+                                    isTerminalConfig(editedAction.config) && (
+                                      <>
+                                        <div>
+                                          <label className="text-xs text-tinted-foreground/60 block mb-1">
+                                            Command
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={
+                                              editedAction.config.command || ""
+                                            }
+                                            onChange={(e) =>
+                                              setEditedAction({
+                                                ...editedAction,
+                                                config: {
+                                                  ...editedAction.config,
+                                                  command: e.target.value,
+                                                } as TerminalConfig,
+                                              })
+                                            }
+                                            className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
+                                            placeholder="e.g., git status"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-tinted-foreground/60 block mb-1">
+                                            Working Directory (optional)
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={
+                                              editedAction.config.cwd || ""
+                                            }
+                                            onChange={(e) =>
+                                              setEditedAction({
+                                                ...editedAction,
+                                                config: {
+                                                  ...editedAction.config,
+                                                  cwd:
+                                                    e.target.value || undefined,
+                                                } as TerminalConfig,
+                                              })
+                                            }
+                                            className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
+                                            placeholder="e.g., ~/Projects"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-tinted-foreground/60 flex items-center gap-1 mb-1">
+                                            Pre-Command (optional)
+                                            <span title="Run a command before creating the terminal (e.g., validate git repo, create worktree)">
+                                              <Info className="w-3 h-3 text-tinted-foreground/50" />
+                                            </span>
+                                          </label>
+                                          <div className="relative">
+                                            <select
+                                              value={
+                                                editedAction.config
+                                                  .preCommandId || ""
+                                              }
+                                              onChange={(e) =>
+                                                setEditedAction({
+                                                  ...editedAction,
+                                                  config: {
+                                                    ...editedAction.config,
+                                                    preCommandId:
+                                                      e.target.value ||
+                                                      undefined,
+                                                  } as TerminalConfig,
+                                                })
+                                              }
+                                              className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent appearance-none pr-8"
+                                            >
+                                              <option value="">None</option>
+                                              {preCommands.map((preCommand) => (
+                                                <option
+                                                  key={preCommand.id}
+                                                  value={preCommand.id}
+                                                >
+                                                  {preCommand.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            <ChevronDown className="w-4 h-4 text-tinted-foreground/60 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                          </div>
+                                          {isTerminalConfig(
+                                            editedAction.config,
+                                          ) &&
+                                            editedAction.config.preCommandId &&
+                                            (() => {
+                                              const selectedPreCommand =
+                                                preCommands.find(
+                                                  (pc) =>
+                                                    pc.id ===
+                                                    (
+                                                      editedAction.config as TerminalConfig
+                                                    ).preCommandId,
+                                                );
+                                              return selectedPreCommand?.description ? (
+                                                <p className="mt-1 text-xs text-tinted-foreground/50 italic">
+                                                  {
+                                                    selectedPreCommand.description
+                                                  }
+                                                </p>
+                                              ) : null;
+                                            })()}
+                                        </div>
+                                      </>
+                                    )}
+                                  {editedAction.paneType === "editor" &&
+                                    isEditorConfig(editedAction.config) && (
                                       <div>
                                         <label className="text-xs text-tinted-foreground/60 block mb-1">
                                           Working Directory (optional)
@@ -778,120 +867,40 @@ export function PaneActionsTab({
                                                 ...editedAction.config,
                                                 cwd:
                                                   e.target.value || undefined,
-                                              } as TerminalConfig,
+                                              } as EditorConfig,
                                             })
                                           }
                                           className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
                                           placeholder="e.g., ~/Projects"
                                         />
                                       </div>
+                                    )}
+                                  {editedAction.paneType === "browser" &&
+                                    isBrowserConfig(editedAction.config) && (
                                       <div>
-                                        <label className="text-xs text-tinted-foreground/60 flex items-center gap-1 mb-1">
-                                          Pre-Command (optional)
-                                          <span title="Run a command before creating the terminal (e.g., validate git repo, create worktree)">
-                                            <Info className="w-3 h-3 text-tinted-foreground/50" />
-                                          </span>
+                                        <label className="text-xs text-tinted-foreground/60 block mb-1">
+                                          URL
                                         </label>
-                                        <div className="relative">
-                                          <select
-                                            value={
-                                              editedAction.config
-                                                .preCommandId || ""
-                                            }
-                                            onChange={(e) =>
-                                              setEditedAction({
-                                                ...editedAction,
-                                                config: {
-                                                  ...editedAction.config,
-                                                  preCommandId:
-                                                    e.target.value || undefined,
-                                                } as TerminalConfig,
-                                              })
-                                            }
-                                            className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent appearance-none pr-8"
-                                          >
-                                            <option value="">None</option>
-                                            {preCommands.map((preCommand) => (
-                                              <option
-                                                key={preCommand.id}
-                                                value={preCommand.id}
-                                              >
-                                                {preCommand.label}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <ChevronDown className="w-4 h-4 text-tinted-foreground/60 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                        </div>
-                                        {isTerminalConfig(
-                                          editedAction.config,
-                                        ) &&
-                                          editedAction.config.preCommandId &&
-                                          (() => {
-                                            const selectedPreCommand =
-                                              preCommands.find(
-                                                (pc) =>
-                                                  pc.id ===
-                                                  (
-                                                    editedAction.config as TerminalConfig
-                                                  ).preCommandId,
-                                              );
-                                            return selectedPreCommand?.description ? (
-                                              <p className="mt-1 text-xs text-tinted-foreground/50 italic">
-                                                {selectedPreCommand.description}
-                                              </p>
-                                            ) : null;
-                                          })()}
+                                        <input
+                                          type="text"
+                                          value={editedAction.config.url || ""}
+                                          onChange={(e) =>
+                                            setEditedAction({
+                                              ...editedAction,
+                                              config: {
+                                                ...editedAction.config,
+                                                url: e.target.value,
+                                              } as BrowserConfig,
+                                            })
+                                          }
+                                          className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
+                                          placeholder="e.g., https://github.com"
+                                        />
                                       </div>
-                                    </>
-                                  )}
-                                {editedAction.paneType === "editor" &&
-                                  isEditorConfig(editedAction.config) && (
-                                    <div>
-                                      <label className="text-xs text-tinted-foreground/60 block mb-1">
-                                        Working Directory (optional)
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={editedAction.config.cwd || ""}
-                                        onChange={(e) =>
-                                          setEditedAction({
-                                            ...editedAction,
-                                            config: {
-                                              ...editedAction.config,
-                                              cwd: e.target.value || undefined,
-                                            } as EditorConfig,
-                                          })
-                                        }
-                                        className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
-                                        placeholder="e.g., ~/Projects"
-                                      />
-                                    </div>
-                                  )}
-                                {editedAction.paneType === "browser" &&
-                                  isBrowserConfig(editedAction.config) && (
-                                    <div>
-                                      <label className="text-xs text-tinted-foreground/60 block mb-1">
-                                        URL
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={editedAction.config.url || ""}
-                                        onChange={(e) =>
-                                          setEditedAction({
-                                            ...editedAction,
-                                            config: {
-                                              ...editedAction.config,
-                                              url: e.target.value,
-                                            } as BrowserConfig,
-                                          })
-                                        }
-                                        className="w-full px-2 py-1 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground font-mono focus:outline-none focus:border-accent"
-                                        placeholder="e.g., https://github.com"
-                                      />
-                                    </div>
-                                  )}
+                                    )}
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         ) : (
                           <div className="pl-9 space-y-3">

@@ -25,7 +25,7 @@ import {
   getCommandDisplayTitle,
 } from "@/commands/hooks/useCommand";
 import { useUncommittedDiffStats } from "@/hooks/useUncommittedDiffStats";
-import { isSidebarOpenAtom } from "@/store/atoms";
+import { isSidebarOpenAtom, sidebarViewAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
 import { useSetAtom } from "jotai";
 import { memo, useCallback, useState } from "react";
@@ -46,12 +46,14 @@ const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
     sandboxId,
   );
   const setIsSidebarOpen = useSetAtom(isSidebarOpenAtom);
+  const setSidebarView = useSetAtom(sidebarViewAtom);
   const toggleSidebarCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_SIDEBAR);
   const [isHovered, setIsHovered] = useState(false);
 
   const handleClick = useCallback(() => {
+    setSidebarView("editor"); // Ensure file explorer view is shown
     setIsSidebarOpen(true);
-  }, [setIsSidebarOpen]);
+  }, [setSidebarView, setIsSidebarOpen]);
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);

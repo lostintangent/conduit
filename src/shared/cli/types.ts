@@ -32,10 +32,21 @@ export type DefineCommand<
   args?: Args;
 };
 
-export const PANE_TYPES = ["editor", "browser", "terminal", "all"] as const;
+export const PANE_TYPES = [
+  "editor",
+  "browser",
+  "terminal",
+  "canvas",
+  "all",
+] as const;
 export type PaneType = (typeof PANE_TYPES)[number];
 
-export const PANE_SPLIT_TYPES = ["editor", "browser", "terminal"] as const;
+export const PANE_SPLIT_TYPES = [
+  "editor",
+  "browser",
+  "terminal",
+  "canvas",
+] as const;
 export type PaneSplitType = (typeof PANE_SPLIT_TYPES)[number];
 
 export const PANE_MOVE_TARGETS = [
@@ -92,6 +103,8 @@ export type CliCommand =
   | DefineCommand<"browser-wait", BrowserWaitArgs>
   // Editor commands
   | DefineCommand<"editor-open", { cwd: string; filePath?: string }>
+  // Canvas commands
+  | DefineCommand<"canvas-capture", { paneId?: string }, string>
   // Notification commands
   | DefineCommand<"notify", { message?: string }>;
 

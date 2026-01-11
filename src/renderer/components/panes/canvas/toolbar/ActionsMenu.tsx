@@ -1,0 +1,101 @@
+import {
+  Check,
+  Copy,
+  ImagePlus,
+  Minimize2,
+  MoreHorizontal,
+  Trash2,
+  X,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useCommand } from "@/commands/hooks/useCommand";
+import { ApplicationCommands } from "@shared/commands";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+type ActionsMenuProps = {
+  onCopyToClipboard: () => void;
+  onAddImage: () => void;
+  onClear: () => void;
+  showCopySuccess?: boolean;
+  tabId?: string;
+};
+
+// =============================================================================
+// Component
+// =============================================================================
+
+export function ActionsMenu({
+  onCopyToClipboard,
+  onAddImage,
+  onClear,
+  showCopySuccess,
+  tabId,
+}: ActionsMenuProps) {
+  const collapsePane = useCommand(ApplicationCommands.PANE_COLLAPSE);
+  const closePane = useCommand(ApplicationCommands.PANE_CLOSE);
+
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0"
+            >
+              {showCopySuccess ? (
+                <Check size={14} className="text-green-500" />
+              ) : (
+                <MoreHorizontal size={14} />
+              )}
+            </button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Actions</TooltipContent>
+      </Tooltip>
+
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onCopyToClipboard}>
+          <Copy size={14} className="mr-2" />
+          Copy to clipboard
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onAddImage}>
+          <ImagePlus size={14} className="mr-2" />
+          Insert image
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onClear}>
+          <Trash2 size={14} className="mr-2" />
+          Clear canvas
+        </DropdownMenuItem>
+        {tabId && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={collapsePane.execute}>
+              <Minimize2 size={14} className="mr-2" />
+              Collapse canvas
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={closePane.execute}>
+              <X size={14} className="mr-2" />
+              Close canvas
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

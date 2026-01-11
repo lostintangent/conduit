@@ -1,4 +1,5 @@
 import { applicationModeAtom } from "@/store/atoms";
+import { getImageFile, hasImageFile } from "@/utils/dragDrop";
 import { useAtomValue } from "jotai";
 import { useCallback, useState } from "react";
 
@@ -7,16 +8,6 @@ const api = window.conduit;
 interface UseImageDropOptions {
   sessionId: string;
 }
-
-const hasImageFile = (e: React.DragEvent) =>
-  Array.from(e.dataTransfer.items).some(
-    (item) => item.kind === "file" && item.type.startsWith("image/"),
-  );
-
-const getImageFile = (e: React.DragEvent) =>
-  Array.from(e.dataTransfer.files).find((file) =>
-    file.type.startsWith("image/"),
-  );
 
 // Convert image to PNG blob (Clipboard API only supports PNG)
 const toPngBlob = (file: File): Promise<Blob> =>

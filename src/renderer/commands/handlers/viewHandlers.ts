@@ -6,6 +6,7 @@
 
 import {
   isSidebarOpenAtom,
+  sidebarViewAtom,
   tabsAtom,
   type ApplicationMode,
 } from "@/store/atoms";
@@ -139,4 +140,15 @@ export function handleResetLayout(tabId: string): void {
 export function handleToggleSidebar(): void {
   const currentState = store.get(isSidebarOpenAtom);
   store.set(isSidebarOpenAtom, !currentState);
+}
+
+/**
+ * Open the sidebar and set the view to file explorer (editor view)
+ */
+export function handleViewFileExplorer(): void {
+  // Set the sidebar view to editor (which contains the file explorer)
+  store.set(sidebarViewAtom, "editor");
+
+  // Always open the sidebar
+  store.set(isSidebarOpenAtom, true);
 }

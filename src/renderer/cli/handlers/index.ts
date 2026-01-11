@@ -1,4 +1,5 @@
 import { browserHandlers } from "./browser";
+import { canvasHandlers } from "./canvas";
 import { editorHandlers } from "./editor";
 import { notificationHandlers } from "./notification";
 import { paneHandlers } from "./pane";
@@ -12,6 +13,7 @@ export const handlerMap = {
   ...tabHandlers,
   ...terminalHandlers,
   ...browserHandlers,
+  ...canvasHandlers,
   ...notificationHandlers,
 } as HandlerMap;
 

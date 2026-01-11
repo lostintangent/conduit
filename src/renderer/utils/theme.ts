@@ -64,6 +64,18 @@ export function watchSystemTheme(
   return () => mediaQuery.removeEventListener("change", handler);
 }
 
+/**
+ * Watch for app theme changes (class/attribute changes on document element)
+ */
+export function watchAppTheme(callback: () => void): () => void {
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class", "data-theme", "style"],
+  });
+  return () => observer.disconnect();
+}
+
 const hashedColorCache = new Map<string, string>();
 
 const hashString = (value: string): number => {

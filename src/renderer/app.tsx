@@ -20,7 +20,7 @@ import {
   disposeSession,
   updateTerminalThemes,
 } from "@/components/panes/terminal/state/xtermCache";
-import { EditorSidebar } from "@/components/shell/sidebar/EditorSidebar";
+import { Sidebar } from "@/components/shell/sidebar/Sidebar";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
@@ -201,7 +201,7 @@ export function App() {
     }
   }, [activeTab, homeDirectory]);
 
-  useCliClient();
+  useCliClient(activeCwd);
 
   // TODO: Once we ship a web variant of Conduit, this should
   // be conditioned on whether we're running in Electron or not.
@@ -828,8 +828,8 @@ export function App() {
             </div>
           ) : null}
 
-          {/* Editor sidebar overlay */}
-          <EditorSidebar cwd={activeCwd} />
+          {/* Sidebar overlay */}
+          <Sidebar cwd={activeCwd} />
         </div>
 
         {/* Bottom positioned tabs */}

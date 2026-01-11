@@ -12,6 +12,7 @@ import type {
   TerminalConfig,
   EditorConfig,
   BrowserConfig,
+  CanvasConfig,
 } from "../core/types";
 import { MAX_ACTIONS } from "../core/types";
 
@@ -108,7 +109,7 @@ export function validateAction(data: unknown, index: number): Action {
   }
   if (!isValidPaneType(data.paneType)) {
     throw new ValidationError(
-      `paneType must be one of: terminal, editor, browser. Got: "${data.paneType}"`,
+      `paneType must be one of: terminal, editor, browser, canvas. Got: "${data.paneType}"`,
       context,
     );
   }
@@ -157,6 +158,8 @@ export function validatePaneConfig(
       return validateEditorConfig(data, context);
     case "browser":
       return validateBrowserConfig(data, context);
+    case "canvas":
+      return validateCanvasConfig(data, context);
     default:
       throw new ValidationError(`Unknown paneType: ${paneType}`, context);
   }
@@ -289,10 +292,27 @@ function validateBrowserConfig(
 }
 
 /**
+ * Validate canvas configuration
+ */
+function validateCanvasConfig(
+  data: Record<string, unknown>,
+  context: string,
+): CanvasConfig {
+  // Canvas has no configuration properties
+  // Just return an empty object
+  return {};
+}
+
+/**
  * Type guard for valid pane types
  */
 function isValidPaneType(value: string): value is PaneType {
-  return value === "terminal" || value === "editor" || value === "browser";
+  return (
+    value === "terminal" ||
+    value === "editor" ||
+    value === "browser" ||
+    value === "canvas"
+  );
 }
 
 /**

@@ -3,10 +3,17 @@ import {
   executeWebviewAction,
   findCallingTerminalTab,
   resolveBrowserPane,
+  resolveCanvasPane,
   resolveTerminalSessions,
 } from "@/cli/utils";
 import { useCommand } from "@/commands/hooks/useCommand";
-import { activeTabAtom, quickPaneAtom, tabsAtom } from "@/store/atoms";
+import {
+  activeTabAtom,
+  isSidebarOpenAtom,
+  quickPaneAtom,
+  sidebarViewAtom,
+  tabsAtom,
+} from "@/store/atoms";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -46,9 +53,11 @@ function useSplitCommandMap<T extends string>(commands: SplitCommandConfig<T>) {
   ) as Record<T, Record<string, ReturnTypeUseCommand>>;
 }
 
-export function useCliClient() {
+export function useCliClient(activeCwd: string) {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const isSidebarOpen = useAtomValue(isSidebarOpenAtom);
+  const sidebarView = useAtomValue(sidebarViewAtom);
   const setQuickPane = useSetAtom(quickPaneAtom);
 
   const moveCommandMap = useCommandMap({
@@ -78,6 +87,12 @@ export function useCliClient() {
       top: ApplicationCommands.PANE_SPLIT_TOP_EDITOR,
       bottom: ApplicationCommands.PANE_SPLIT_BOTTOM_EDITOR,
     },
+    canvas: {
+      left: ApplicationCommands.PANE_SPLIT_LEFT_CANVAS,
+      right: ApplicationCommands.PANE_SPLIT_RIGHT_CANVAS,
+      top: ApplicationCommands.PANE_SPLIT_TOP_CANVAS,
+      bottom: ApplicationCommands.PANE_SPLIT_BOTTOM_CANVAS,
+    },
   } as const);
 
   const focusPaneCommand = useCommand(ApplicationCommands.PANE_FOCUS);
@@ -105,6 +120,13 @@ export function useCliClient() {
         activeTab,
       } as const;
 
+      const canvasResolutionContext = {
+        ...resolutionContext,
+        isSidebarOpen,
+        sidebarView,
+        activeCwd,
+      } as const;
+
       const handler = handlerMap[name];
 
       if (!handler) {
@@ -128,6 +150,8 @@ export function useCliClient() {
           resolveTerminalSessions(resolutionContext, paneId, all),
         resolveBrowserPane: (paneId?: string) =>
           resolveBrowserPane(resolutionContext, paneId),
+        resolveCanvasPane: (paneId?: string) =>
+          resolveCanvasPane(canvasResolutionContext, paneId),
         executeWebviewAction: (paneId, action) =>
           executeWebviewAction(resolutionContext, paneId, action),
         automateBrowser: (command, automationArgs) =>

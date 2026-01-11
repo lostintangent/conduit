@@ -1,4 +1,5 @@
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
+import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -177,6 +178,18 @@ export function QuickPaneDialog({
               paneId={quickPaneId}
               onUrlChange={(url) => handleBrowserUpdate({ url })}
               onTitleChange={(title) => handleBrowserUpdate({ title })}
+            />
+          )}
+          {currentDescriptor.type === "canvas" && (
+            <CanvasPane
+              pane={{
+                ...currentDescriptor,
+                id: quickPaneId,
+                type: "canvas",
+              }}
+              paneId={quickPaneId}
+              tabId=""
+              onContextMenu={() => {}}
             />
           )}
         </div>

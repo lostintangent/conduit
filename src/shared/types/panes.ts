@@ -2,7 +2,7 @@
  * Shared pane types used across Workspace, WorkspaceTemplate, and renderer.
  */
 
-export type PaneType = "terminal" | "browser" | "editor";
+export type PaneType = "terminal" | "browser" | "editor" | "canvas";
 
 export type TerminalPane = {
   id: string;
@@ -34,7 +34,14 @@ export type EditorPane = {
   preview?: boolean;
 };
 
-export type Pane = TerminalPane | BrowserPane | EditorPane;
+export type CanvasPane = {
+  id: string;
+  type: "canvas";
+  title?: string;
+  lastSavedPath?: string;
+};
+
+export type Pane = TerminalPane | BrowserPane | EditorPane | CanvasPane;
 
 /**
  * Common tab metadata shared across workspace, template, and renderer types.

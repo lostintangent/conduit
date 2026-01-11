@@ -41,6 +41,7 @@ import {
   handleTerminate,
   handleToggleDesignMode,
   handleToggleSidebar,
+  handleViewFileExplorer,
   invokeEditorCommand,
 } from "@/commands/handlers";
 import {
@@ -58,6 +59,7 @@ import {
   closePane,
   movePane,
   openBrowserPane,
+  openCanvasPane,
   openEditorPane,
   setPaneCollapsed,
   splitPane,
@@ -566,10 +568,10 @@ export function registerApplicationCommands(
     },
   });
 
-  // Pane: View Files
+  // Pane: View File Explorer
   commandRegistry.registerCommand({
     id: ApplicationCommands.PANE_VIEW_FILES,
-    title: "View Files (CWD)",
+    title: "View File Explorer",
     description: "View files in the terminal's current directory",
     category: "Pane",
     keybinding: {
@@ -586,7 +588,7 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        handleToggleSidebar();
+        handleViewFileExplorer();
       }
     },
   });
@@ -761,7 +763,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_agent_session",
+      group: "3_split_more/1_split_agent_session",
       order: 1,
       when: hasGitRepo.isTrue(),
       title: "Left",
@@ -789,7 +791,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_agent_session",
+      group: "3_split_more/1_split_agent_session",
       order: 2,
       when: hasGitRepo.isTrue(),
       title: "Right",
@@ -816,7 +818,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_agent_session",
+      group: "3_split_more/1_split_agent_session",
       order: 3,
       when: hasGitRepo.isTrue(),
       title: "Top",
@@ -848,7 +850,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_agent_session",
+      group: "3_split_more/1_split_agent_session",
       order: 4,
       when: hasGitRepo.isTrue(),
       title: "Bottom",
@@ -1116,7 +1118,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_browser",
+      group: "3_split_more/3_split_browser",
       order: 1,
       title: "Left",
     },
@@ -1142,7 +1144,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_browser",
+      group: "3_split_more/3_split_browser",
       order: 2,
       title: "Right",
     },
@@ -1168,7 +1170,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_browser",
+      group: "3_split_more/3_split_browser",
       order: 3,
       title: "Top",
     },
@@ -1200,7 +1202,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_browser",
+      group: "3_split_more/3_split_browser",
       order: 4,
       title: "Bottom",
     },
@@ -1232,7 +1234,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_editor",
+      group: "3_split_more/2_split_editor",
       order: 1,
       title: "Left",
     },
@@ -1271,7 +1273,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_editor",
+      group: "3_split_more/2_split_editor",
       order: 2,
       title: "Right",
     },
@@ -1310,7 +1312,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_editor",
+      group: "3_split_more/2_split_editor",
       order: 3,
       title: "Top",
     },
@@ -1349,7 +1351,7 @@ export function registerApplicationCommands(
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
-      group: "3_split_more/split_editor",
+      group: "3_split_more/2_split_editor",
       order: 4,
       title: "Bottom",
     },
@@ -1371,6 +1373,94 @@ export function registerApplicationCommands(
             sandboxId,
           });
         }
+      }
+    },
+  });
+
+  // Pane: Split Left with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_CANVAS,
+    title: "Split Canvas Left",
+    description: "Create a new canvas pane to the left of the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 1,
+      title: "Left",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_CANVAS,
+    title: "Split Canvas Right",
+    description: "Create a new canvas pane to the right of the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 2,
+      title: "Right",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "row", false);
+      }
+    },
+  });
+
+  // Pane: Split Top with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_CANVAS,
+    title: "Split Canvas Top",
+    description: "Create a new canvas pane above the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 3,
+      title: "Top",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "column", true);
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_CANVAS,
+    title: "Split Canvas Bottom",
+    description: "Create a new canvas pane below the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 4,
+      title: "Bottom",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "column", false);
       }
     },
   });
@@ -1711,19 +1801,25 @@ export function registerMenuContextBuilders(): void {
 
   registerSubmenu(
     MenuId.PaneContext,
-    "3_split_more/split_browser",
-    "Split Browser...",
+    "3_split_more/1_split_agent_session",
+    "Split Agent Session...",
   );
 
   registerSubmenu(
     MenuId.PaneContext,
-    "3_split_more/split_editor",
+    "3_split_more/2_split_editor",
     "Split Editor...",
   );
 
   registerSubmenu(
     MenuId.PaneContext,
-    "3_split_more/split_agent_session",
-    "Split Agent Session...",
+    "3_split_more/3_split_browser",
+    "Split Browser...",
+  );
+
+  registerSubmenu(
+    MenuId.PaneContext,
+    "3_split_more/4_split_canvas",
+    "Split Canvas...",
   );
 }

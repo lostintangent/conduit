@@ -1,5 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
+import { randomUUID } from "node:crypto";
 import { FSWatcher, promises as fs } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { listDirectory, readFile } from "./utils";
 
@@ -124,4 +126,22 @@ export function initializeFsHandlers() {
       throw error;
     }
   });
+
+  ipcMain.handle(
+    "fs:write-temp-file",
+    async (
+      _,
+      { content, extension }: { content: Uint8Array; extension?: string },
+    ) => {
+      try {
+        const ext = extension ? `.${extension}` : "";
+        const filePath = path.join(tmpdir(), `conduit-${randomUUID()}${ext}`);
+        await fs.writeFile(filePath, content);
+        return filePath;
+      } catch (error) {
+        console.error("Failed to write temp file", error);
+        throw error;
+      }
+    },
+  );
 }

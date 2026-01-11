@@ -19,6 +19,10 @@ export type HandlerContext = {
     paneId: string;
     webview: Electron.WebviewTag;
   };
+  resolveCanvasPane: (paneId?: string) => {
+    paneId: string;
+    canvas: HTMLCanvasElement;
+  };
   executeWebviewAction: (
     paneId: string | undefined,
     action: (webview: Electron.WebviewTag) => void,
@@ -38,6 +42,7 @@ export type HandlerContext = {
     terminal: Record<string, ReturnTypeUseCommand>;
     browser: Record<string, ReturnTypeUseCommand>;
     editor: Record<string, ReturnTypeUseCommand>;
+    canvas: Record<string, ReturnTypeUseCommand>;
   };
   focusPaneCommand: ReturnTypeUseCommand;
   closePaneCommand: ReturnTypeUseCommand;
