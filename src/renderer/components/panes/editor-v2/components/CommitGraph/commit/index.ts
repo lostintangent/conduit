@@ -32,6 +32,9 @@
 export { CommitSummary } from "./CommitSummary";
 export type { CommitSummaryProps } from "./CommitSummary";
 
+export { CommitTooltip } from "./CommitTooltip";
+export type { CommitTooltipProps } from "./CommitTooltip";
+
 // =============================================================================
 // Sub-components (for advanced usage)
 // =============================================================================

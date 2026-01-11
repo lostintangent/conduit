@@ -42,7 +42,7 @@ import { cn } from "@/utils";
 import type { CommitGraphNode, GraphRenderConfig, CommitFile } from "./types";
 import type { TrackedBranchInfo } from "@/api/GitV2API";
 import { GraphCell } from "./graph";
-import { CommitSummary } from "./commit";
+import { CommitSummary, CommitTooltip } from "./commit";
 import { CommitFilesPanel } from "./files";
 import { ROW_HEIGHT } from "./graph/constants";
 
@@ -212,43 +212,51 @@ function CommitGraphRowComponent({
       data-commit-id={node.commit.id}
     >
       {/* Commit summary row - graph + content, highlights on hover */}
-      <div
-        className={cn(
-          "flex items-stretch",
-          "cursor-pointer",
-          "rounded-md",
-          "transition-colors duration-150",
-          // Use same colors as FileTreeItem
-          isSelected
-            ? "bg-accent/20 hover:bg-accent/25"
-            : "hover:bg-foreground/10",
-          // Focus styling
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        )}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        tabIndex={0}
-        role="button"
-        aria-expanded={isExpanded}
-        aria-label={`Commit: ${node.commit.subject}`}
-        data-testid="commit-summary-row"
+      <CommitTooltip
+        commit={node.commit}
+        isHead={node.isHead}
+        trackedBranches={trackedBranches}
+        side="bottom"
+        delayDuration={500}
       >
-        {/* Graph - just the commit row portion */}
-        <div className="flex-shrink-0 pr-2" data-testid="graph-column">
-          <GraphCell node={node} height={ROW_HEIGHT} config={config} />
-        </div>
+        <div
+          className={cn(
+            "flex items-stretch",
+            "cursor-pointer",
+            "rounded-md",
+            "transition-colors duration-150",
+            // Use same colors as FileTreeItem
+            isSelected
+              ? "bg-accent/20 hover:bg-accent/25"
+              : "hover:bg-foreground/10",
+            // Focus styling
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          )}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="button"
+          aria-expanded={isExpanded}
+          aria-label={`Commit: ${node.commit.subject}`}
+          data-testid="commit-summary-row"
+        >
+          {/* Graph - just the commit row portion */}
+          <div className="flex-shrink-0 pr-2" data-testid="graph-column">
+            <GraphCell node={node} height={ROW_HEIGHT} config={config} />
+          </div>
 
-        {/* Commit summary - pt-px nudges text down 1px to align with graph dot */}
-        <div className="flex-1 min-w-0 h-6 flex items-center pr-2 pt-px group">
-          <CommitSummary
-            commit={node.commit}
-            isHead={node.isHead}
-            trackedBranches={trackedBranches}
-            onViewAll={onViewAll}
-            className="flex-1 min-w-0"
-          />
+          {/* Commit summary - pt-px nudges text down 1px to align with graph dot */}
+          <div className="flex-1 min-w-0 h-6 flex items-center pr-2 pt-px group">
+            <CommitSummary
+              commit={node.commit}
+              isHead={node.isHead}
+              trackedBranches={trackedBranches}
+              onViewAll={onViewAll}
+              className="flex-1 min-w-0"
+            />
+          </div>
         </div>
-      </div>
+      </CommitTooltip>
 
       {/* Expanded section - graph continuation + files panel, no hover */}
       {isExpanded && (

@@ -32,3 +32,7 @@ export type {
   RefBadgeColorHint,
   RefWithColorHint,
 } from "./RefBadge";
+
+// Tracked branch badge utilities
+export { buildTrackedBranchBadges, isSameBranch } from "./trackedBranchBadges";
+export type { BuildTrackedBadgesOptions } from "./trackedBranchBadges";
