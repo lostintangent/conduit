@@ -56,6 +56,7 @@ import {
   Fullscreen,
   LayoutGrid,
   MoreHorizontal,
+  Palette,
   PlusSquare,
   Rocket,
   SquareDashedMousePointer,
@@ -594,6 +595,10 @@ export const TabStrip = ({
     setQuickPaneState({ type: "editor", cwd, sandboxId });
   }, [activeTab, homeDirectory, setQuickPaneState]);
 
+  const handleOpenQuickCanvas = useCallback(() => {
+    setQuickPaneState({ type: "canvas" });
+  }, [setQuickPaneState]);
+
   const handleRepoSubmit = useCallback(
     async (repo?: { owner: string; name: string }) => {
       const api = window.conduit;
@@ -795,7 +800,11 @@ export const TabStrip = ({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
                   <FolderTree size={16} className="mr-3" />
-                  File explorer
+                  File Explorer
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenQuickCanvas}>
+                  <Palette size={16} className="mr-3" />
+                  Drawing Canvas
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

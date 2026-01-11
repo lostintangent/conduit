@@ -1,3 +1,4 @@
+import { deleteCanvasState } from "@/store/canvasStore";
 import { disposeEditorPane } from "@/components/panes/editor-v2";
 import {
   pauseStateTracking,
@@ -722,6 +723,139 @@ export async function splitPane(
   return newPaneState;
 }
 
+/**
+ * Create a new terminal pane at the root level of the tab layout.
+ * This wraps the entire existing layout in a new split, creating a
+ * full-width or full-height pane alongside all existing content.
+ */
+export async function splitTabLayoutAtRoot(
+  tabId: string,
+  direction: SplitDirection,
+  insertBefore = false,
+  options: SplitPaneOptions = {},
+) {
+  const tabs = store.get(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId);
+  if (!tab) {
+    return;
+  }
+
+  if (tab.locked) {
+    return;
+  }
+
+  // Get cwd from active pane if it's a terminal
+  const activePane = tab.panes[tab.activePaneId];
+  const defaultCwd =
+    activePane?.type === "terminal" ? (activePane.cwd ?? undefined) : undefined;
+
+  const requestOptions = options.terminalOptions
+    ? { ...options.terminalOptions }
+    : defaultCwd
+      ? { cwd: defaultCwd }
+      : undefined;
+
+  const result = await api.createTerminal(requestOptions);
+  if (!result) {
+    return;
+  }
+
+  const newPaneId = generateId();
+  const newPaneState: Pane = {
+    id: newPaneId,
+    type: "terminal",
+    sessionId: result.sessionId,
+    cwd: result.cwd ?? null,
+    processTitle: result.title,
+    sandboxId: result.sandboxId,
+  };
+
+  const newLayoutNode: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: newPaneId,
+  };
+
+  store.set(tabsAtom, (current) =>
+    current.map((currentTab) => {
+      if (currentTab.id !== tabId) {
+        return currentTab;
+      }
+
+      // Wrap entire existing layout in a new split at root level
+      const newLayout: LayoutSplitNode = {
+        id: generateId(),
+        type: "split",
+        direction,
+        children: insertBefore
+          ? [newLayoutNode, currentTab.layout]
+          : [currentTab.layout, newLayoutNode],
+      };
+
+      return {
+        ...currentTab,
+        panes: {
+          ...currentTab.panes,
+          [newPaneId]: newPaneState,
+        },
+        layout: newLayout,
+        activePaneId: newPaneId,
+      };
+    }),
+  );
+
+  return newPaneState;
+}
+
+/**
+ * Insert an existing pane at the root level of the tab layout.
+ * Used by drag/drop to create full-width or full-height panes.
+ */
+export function insertPaneAtTabRoot(
+  tabId: string,
+  pane: Pane,
+  direction: SplitDirection,
+  insertBefore = false,
+) {
+  store.set(tabsAtom, (current) =>
+    current.map((currentTab) => {
+      if (currentTab.id !== tabId) {
+        return currentTab;
+      }
+
+      if (currentTab.locked) {
+        return currentTab;
+      }
+
+      const newLayoutNode: LayoutNode = {
+        id: generateId(),
+        type: "pane",
+        paneId: pane.id,
+      };
+
+      // Wrap entire existing layout in a new split at root level
+      const newLayout: LayoutSplitNode = {
+        id: generateId(),
+        type: "split",
+        direction,
+        children: insertBefore
+          ? [newLayoutNode, currentTab.layout]
+          : [currentTab.layout, newLayoutNode],
+      };
+
+      return {
+        ...currentTab,
+        panes: {
+          ...currentTab.panes,
+          [pane.id]: pane,
+        },
+        layout: newLayout,
+        activePaneId: pane.id,
+      };
+    }),
+  );
+}
+
 export async function splitPaneWithAgentSession(
   tabId: string,
   paneId: string,
@@ -899,6 +1033,57 @@ export function openEditorPane(
   return newPaneId;
 }
 
+export function openCanvasPane(
+  tabId: string,
+  paneId: string,
+  direction: SplitDirection = "row",
+  insertBefore = false,
+) {
+  const newPaneId = generateId();
+  const newPaneState: Pane = {
+    id: newPaneId,
+    type: "canvas",
+  };
+
+  const newLayoutNode: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: newPaneId,
+  };
+
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      const { node: newLayout, modified } = splitLayoutNode(
+        tab.layout,
+        paneId,
+        direction,
+        newLayoutNode,
+        insertBefore,
+      );
+
+      if (!modified) {
+        return tab;
+      }
+
+      return {
+        ...tab,
+        panes: {
+          ...tab.panes,
+          [newPaneId]: newPaneState,
+        },
+        layout: newLayout,
+        activePaneId: newPaneId,
+      };
+    }),
+  );
+
+  return newPaneId;
+}
+
 export function cloneTerminalPane(
   tabId: string,
   paneId: string,
@@ -1001,6 +1186,9 @@ export function removePane(
         // Dispose the editor pane from EditorPaneRegistry
         // This fully removes the editor (vs detach which just moves it off-screen)
         disposeEditorPane(pane.id);
+      } else if (pane.type === "canvas") {
+        // Clean up canvas state (including history) from the global store
+        deleteCanvasState(paneId);
       }
 
       const newPanes = { ...tab.panes };

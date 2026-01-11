@@ -1,13 +1,15 @@
 import { enterFocusMode } from "@/store/actions/focusMode";
-import { detachPane } from "@/store/actions/pane";
+import { detachPane, insertPaneAtTabRoot } from "@/store/actions/pane";
 import { applicationModeAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, SplitDirection } from "@/types";
 import { cn } from "@/utils";
+import { type EdgeZone, getDirectionFromZone } from "@/utils/dragDrop";
 import { generateId } from "@shared/utils";
 import { useAtomValue, useSetAtom } from "jotai";
 import React, { useCallback, useState } from "react";
 
 const DROP_ZONE_THRESHOLD = 0.4; // 40% threshold for edge detection
+const TAB_EDGE_THRESHOLD = 40; // pixels from tab edge for root-level drops
 
 const DropZoneOverlay = ({
   className,
@@ -22,7 +24,8 @@ const DropZoneOverlay = ({
   />
 );
 
-type DropZone = "top" | "bottom" | "left" | "right" | null;
+type DropZone = EdgeZone | null;
+type TabEdgeZone = EdgeZone | null;
 
 interface UsePaneDragDropParams {
   onDropComplete: (paneId: string) => void;
@@ -31,6 +34,7 @@ interface UsePaneDragDropParams {
 interface UsePaneDragDropReturn {
   draggedPaneId: string | null;
   dragHoverPaneId: string | null;
+  tabEdgeDropZone: TabEdgeZone;
   createDragHandlers: (
     paneId: string,
     tabId: string,
@@ -46,6 +50,11 @@ interface UsePaneDragDropReturn {
     onDragLeave: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent) => void;
   };
+  createTabContainerDropHandlers: (tabId: string) => {
+    onDragOver: (e: React.DragEvent) => void;
+    onDragLeave: (e: React.DragEvent) => void;
+    onDrop: (e: React.DragEvent) => void;
+  };
   renderDropZone: (paneId: string) => React.ReactNode;
 }
 
@@ -57,6 +66,7 @@ export function usePaneDragDrop({
   const [dropZone, setDropZone] = useState<DropZone>(null);
   const [dragHoverPaneId, setDragHoverPaneId] = useState<string | null>(null);
   const [isFocusModeDrag, setIsFocusModeDrag] = useState(false);
+  const [tabEdgeDropZone, setTabEdgeDropZone] = useState<TabEdgeZone>(null);
 
   const applicationMode = useAtomValue(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
@@ -85,6 +95,24 @@ export function usePaneDragDrop({
       if (relY > 1 - DROP_ZONE_THRESHOLD) return "bottom";
       if (relX < DROP_ZONE_THRESHOLD) return "left";
       if (relX > 1 - DROP_ZONE_THRESHOLD) return "right";
+
+      return null;
+    },
+    [],
+  );
+
+  // Helper to determine if cursor is at tab container edge (for root-level splits)
+  const getTabEdgeZone = useCallback(
+    (event: React.DragEvent, element: HTMLElement): TabEdgeZone => {
+      const rect = element.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      // Check if within threshold of container edges
+      if (y < TAB_EDGE_THRESHOLD) return "top";
+      if (y > rect.height - TAB_EDGE_THRESHOLD) return "bottom";
+      if (x < TAB_EDGE_THRESHOLD) return "left";
+      if (x > rect.width - TAB_EDGE_THRESHOLD) return "right";
 
       return null;
     },
@@ -242,9 +270,80 @@ export function usePaneDragDrop({
         setDraggedPaneId(null);
         setSourceTabId(null);
         setDropZone(null);
+        setTabEdgeDropZone(null);
       },
     }),
     [isInDesignMode],
+  );
+
+  // Create drop handlers for the tab container (for root-level splits)
+  const createTabContainerDropHandlers = useCallback(
+    (tabId: string) => ({
+      onDragOver: (e: React.DragEvent) => {
+        if (!isInDesignMode || !draggedPaneId) return;
+
+        const zone = getTabEdgeZone(e, e.currentTarget as HTMLElement);
+        if (zone) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+          setTabEdgeDropZone(zone);
+        } else {
+          setTabEdgeDropZone(null);
+        }
+      },
+      onDragLeave: (e: React.DragEvent) => {
+        // Only clear if leaving the container entirely
+        const rect = e.currentTarget.getBoundingClientRect();
+        const { clientX, clientY } = e;
+        if (
+          clientX < rect.left ||
+          clientX > rect.right ||
+          clientY < rect.top ||
+          clientY > rect.bottom
+        ) {
+          setTabEdgeDropZone(null);
+        }
+      },
+      onDrop: (e: React.DragEvent) => {
+        if (!isInDesignMode || !draggedPaneId || !tabEdgeDropZone) {
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Determine direction and insertBefore based on tab edge zone
+        const { direction, insertBefore } =
+          getDirectionFromZone(tabEdgeDropZone);
+
+        // Detach the pane from its original location
+        const sourceTab = sourceTabId || tabId;
+        const detachResult = detachPane(sourceTab, draggedPaneId);
+        if (!detachResult) return;
+
+        // Insert at root level of tab layout
+        insertPaneAtTabRoot(tabId, detachResult.pane, direction, insertBefore);
+
+        // Clear drag state
+        setDraggedPaneId(null);
+        setSourceTabId(null);
+        setDropZone(null);
+        setTabEdgeDropZone(null);
+        setDragHoverPaneId(null);
+
+        // Notify that drop is complete
+        onDropComplete(draggedPaneId);
+      },
+    }),
+    [
+      isInDesignMode,
+      draggedPaneId,
+      sourceTabId,
+      tabEdgeDropZone,
+      getTabEdgeZone,
+      onDropComplete,
+    ],
   );
 
   // Create drop handlers for a specific pane
@@ -306,29 +405,7 @@ export function usePaneDragDrop({
           }
 
           // Determine direction and insertBefore based on drop zone
-          let direction: SplitDirection;
-          let insertBefore: boolean;
-
-          switch (dropZone) {
-            case "top":
-              direction = "column";
-              insertBefore = true;
-              break;
-            case "bottom":
-              direction = "column";
-              insertBefore = false;
-              break;
-            case "left":
-              direction = "row";
-              insertBefore = true;
-              break;
-            case "right":
-              direction = "row";
-              insertBefore = false;
-              break;
-            default:
-              return;
-          }
+          const { direction, insertBefore } = getDirectionFromZone(dropZone);
 
           // Detach the pane from its original location
           // Use sourceTabId if available (cross-tab drag), otherwise use tabId (same-tab drag)
@@ -370,6 +447,11 @@ export function usePaneDragDrop({
   // Render the drop zone overlay for a specific pane
   const renderDropZone = useCallback(
     (paneId: string): React.ReactNode => {
+      // Suppress pane-level overlay when tab edge drop is active
+      if (tabEdgeDropZone) {
+        return null;
+      }
+
       const isDragging = draggedPaneId === paneId;
       const isHoveredDuringDrag =
         draggedPaneId !== null && dragHoverPaneId === paneId && !isDragging;
@@ -401,14 +483,23 @@ export function usePaneDragDrop({
 
       return null;
     },
-    [draggedPaneId, dragHoverPaneId, isInDesignMode, dropZone, isFocusModeDrag],
+    [
+      draggedPaneId,
+      dragHoverPaneId,
+      isInDesignMode,
+      dropZone,
+      isFocusModeDrag,
+      tabEdgeDropZone,
+    ],
   );
 
   return {
     draggedPaneId,
     dragHoverPaneId,
+    tabEdgeDropZone,
     createDragHandlers,
     createDropHandlers,
+    createTabContainerDropHandlers,
     renderDropZone,
   };
 }

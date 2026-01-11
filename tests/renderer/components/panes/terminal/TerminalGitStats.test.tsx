@@ -16,13 +16,24 @@ vi.mock("@/hooks/useUncommittedDiffStats", () => ({
     mockUseUncommittedDiffStats(...args),
 }));
 
-// Mock useSetAtom
+// Mock useSetAtom - track calls for both sidebar atoms
 const mockSetIsSidebarOpen = vi.fn();
+const mockSetSidebarView = vi.fn();
+
+// Track which atom is which by order of useSetAtom calls in the component
+let useSetAtomCallCount = 0;
 vi.mock("jotai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("jotai")>();
   return {
     ...actual,
-    useSetAtom: () => mockSetIsSidebarOpen,
+    useSetAtom: () => {
+      // Component calls useSetAtom in order: isSidebarOpenAtom, then sidebarViewAtom
+      useSetAtomCallCount++;
+      // Odd calls are for isSidebarOpenAtom, even calls are for sidebarViewAtom
+      return useSetAtomCallCount % 2 === 1
+        ? mockSetIsSidebarOpen
+        : mockSetSidebarView;
+    },
   };
 });
 
@@ -117,6 +128,7 @@ describe("TerminalGitStats", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useSetAtomCallCount = 0; // Reset atom call counter
     mockUseUncommittedDiffStats.mockReturnValue({
       stats: { added: 10, removed: 5, files: 3 },
       gitStatus: mockGitStatus,
@@ -227,6 +239,15 @@ describe("TerminalGitStats", () => {
       fireEvent.click(button);
 
       expect(mockSetIsSidebarOpen).toHaveBeenCalledWith(true);
+    });
+
+    it("should set sidebar view to editor when clicked", () => {
+      render(<TerminalGitStats cwd="/test/project" />);
+
+      const button = screen.getByRole("button");
+      fireEvent.click(button);
+
+      expect(mockSetSidebarView).toHaveBeenCalledWith("editor");
     });
   });
 

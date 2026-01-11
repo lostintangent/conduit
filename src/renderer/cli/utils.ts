@@ -1,5 +1,7 @@
 import { browserAutomate } from "@/cli/browser";
+import { getSidebarCanvasPaneId } from "@/components/shell/sidebar/CanvasSidebarContent";
 import { isHyperTerminal } from "@/store/actions/hyperTerminal";
+import type { SidebarView } from "@/store/atoms";
 import type { Tab, TerminalPane } from "@/types";
 import type { WebviewTag } from "electron";
 
@@ -7,6 +9,12 @@ export type CliRequestContext = {
   tabs: Tab[];
   sessionId: string;
   activeTab?: Tab;
+};
+
+export type CanvasResolutionContext = CliRequestContext & {
+  isSidebarOpen: boolean;
+  sidebarView: SidebarView;
+  activeCwd: string;
 };
 
 export function findCallingTerminalTab({
@@ -127,4 +135,41 @@ export function executeWebviewAction(
 ) {
   const resolvedPane = resolveBrowserPane(context, paneId);
   action(resolvedPane.webview);
+}
+
+export function resolveCanvasPane(
+  context: CanvasResolutionContext,
+  paneId?: string,
+): { paneId: string; canvas: HTMLCanvasElement } {
+  const findCanvasPane = () => {
+    // First, check if sidebar is open with canvas view
+    if (context.isSidebarOpen && context.sidebarView === "canvas") {
+      return getSidebarCanvasPaneId(context.activeCwd);
+    }
+
+    // Fall back to checking for a canvas pane in the tab
+    const matchingTab = findCallingTerminalTab(context);
+
+    const canvasPane = Object.entries(matchingTab.panes).find(
+      ([, pane]) => pane.type === "canvas",
+    );
+
+    if (!canvasPane) {
+      throw new Error("No canvas pane found in the calling tab.");
+    }
+
+    return canvasPane[0];
+  };
+
+  const resolvedPaneId = paneId ?? findCanvasPane();
+
+  const canvas = document.getElementById(
+    `canvas-${resolvedPaneId}`,
+  ) as HTMLCanvasElement | null;
+
+  if (!canvas) {
+    throw new Error(`Canvas pane ${resolvedPaneId} not found.`);
+  }
+
+  return { paneId: resolvedPaneId, canvas } as const;
 }

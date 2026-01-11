@@ -1,4 +1,5 @@
 import { applicationModeAtom } from "@/store/atoms";
+import { getImageFile, hasImageFile } from "@/utils/dragDrop";
 import { useAtomValue } from "jotai";
 import { useCallback, useState } from "react";
 
@@ -8,15 +9,28 @@ interface UseImageDropOptions {
   sessionId: string;
 }
 
-const hasImageFile = (e: React.DragEvent) =>
-  Array.from(e.dataTransfer.items).some(
-    (item) => item.kind === "file" && item.type.startsWith("image/"),
-  );
-
-const getImageFile = (e: React.DragEvent) =>
-  Array.from(e.dataTransfer.files).find((file) =>
-    file.type.startsWith("image/"),
-  );
+// Convert image to PNG blob (Clipboard API only supports PNG)
+const toPngBlob = (file: File): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Failed to convert image to PNG"));
+        }, "image/png");
+      };
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 export function useImageDrop({ sessionId }: UseImageDropOptions) {
   const [isImageDragOver, setIsImageDragOver] = useState(false);
@@ -49,15 +63,20 @@ export function useImageDrop({ sessionId }: UseImageDropOptions) {
       e.stopPropagation();
       setIsImageDragOver(false);
 
-      // Copy image to clipboard
-      await navigator.clipboard.write([
-        new ClipboardItem({ [imageFile.type]: imageFile }),
-      ]);
+      try {
+        // Copy image to clipboard (convert to PNG since Clipboard API only supports PNG)
+        const pngBlob = await toPngBlob(imageFile);
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": pngBlob }),
+        ]);
 
-      // Small delay to ensure clipboard is ready before sending paste
-      setTimeout(() => {
-        api.sendKeypress(sessionId, "\u0016");
-      }, 50);
+        // Small delay to ensure clipboard is ready before sending paste
+        setTimeout(() => {
+          api.sendKeypress(sessionId, "\u0016");
+        }, 50);
+      } catch (err) {
+        console.error("Failed to process dropped image:", err);
+      }
     },
     [applicationMode, sessionId],
   );

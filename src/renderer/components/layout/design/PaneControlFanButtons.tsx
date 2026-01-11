@@ -11,6 +11,7 @@ import { PreCommandRegistry } from "@/commands/preCommands/registry";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
   openBrowserPane,
+  openCanvasPane,
   openEditorPane,
   splitPane,
 } from "@/store/actions/pane";
@@ -230,6 +231,11 @@ export function PaneControlFanButtons({
             sandboxId,
           });
         }
+        break;
+      }
+
+      case "canvas": {
+        openCanvasPane(tabId, paneId, direction, insertBefore);
         break;
       }
     }

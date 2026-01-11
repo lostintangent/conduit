@@ -11,21 +11,14 @@ import type { Action } from "./types";
  * Get the default pane actions
  *
  * Returns:
- * - Source Control (enabled)
- * - Editor (enabled)
  * - Agent (enabled)
- * - Browser (disabled)
- * - Cloud Terminal (disbled)
+ * - Editor (enabled)
+ * - Browser (enabled)
+ * - Canvas (enabled)
+ * - Cloud Terminal (disabled)
  */
 export function getDefaultActions(): Action[] {
   return [
-    {
-      name: "Editor",
-      icon: "code",
-      enabled: true,
-      paneType: "editor",
-      config: {},
-    },
     {
       name: "Agent",
       icon: "bot",
@@ -37,6 +30,13 @@ export function getDefaultActions(): Action[] {
       },
     },
     {
+      name: "Editor",
+      icon: "code",
+      enabled: true,
+      paneType: "editor",
+      config: {},
+    },
+    {
       name: "Browser",
       icon: "globe",
       enabled: true,
@@ -46,6 +46,13 @@ export function getDefaultActions(): Action[] {
       },
     },
     {
+      name: "Canvas",
+      icon: "palette",
+      enabled: true,
+      paneType: "canvas",
+      config: {},
+    },
+    {
       name: "Cloud",
       icon: "cloud",
       enabled: false,
@@ -53,15 +60,6 @@ export function getDefaultActions(): Action[] {
       config: {
         command: "",
         preCommandId: "detect-github-repo-for-cloud",
-      },
-    },
-    {
-      name: "Source Control",
-      icon: "git-branch",
-      enabled: false,
-      paneType: "terminal",
-      config: {
-        command: "git status",
       },
     },
   ];

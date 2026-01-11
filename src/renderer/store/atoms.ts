@@ -120,7 +120,14 @@ export type TabState = "running" | "idle" | "idle-unseen" | "idle-notified";
 export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
 
 /**
- * Editor sidebar open state - controls visibility of the slide-out editor panel.
+ * Sidebar open state - controls visibility of the slide-out sidebar panel.
  * Toggled via Cmd+E. Not persisted across reloads.
  */
 export const isSidebarOpenAtom = atom<boolean>(false);
+
+/**
+ * Sidebar view state - controls which view is shown in the sidebar.
+ * Not persisted across reloads.
+ */
+export type SidebarView = "editor" | "canvas";
+export const sidebarViewAtom = atom<SidebarView>("editor");

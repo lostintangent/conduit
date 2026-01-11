@@ -6,6 +6,7 @@ import type {
   LayoutSplitNode,
   NotificationKind,
   BrowserPane as SharedBrowserPane,
+  CanvasPane as SharedCanvasPane,
   EditorPane as SharedEditorPane,
   TerminalPane as SharedTerminalPane,
   SplitDirection,
@@ -55,7 +56,9 @@ export type EditorPane = Omit<SharedEditorPane, "cwd"> &
     sandboxId?: string;
   };
 
-export type Pane = TerminalPane | BrowserPane | EditorPane;
+export type CanvasPane = SharedCanvasPane;
+
+export type Pane = TerminalPane | BrowserPane | EditorPane | CanvasPane;
 
 export type Tab = TabMetadata & {
   panes: Record<string, Pane>;

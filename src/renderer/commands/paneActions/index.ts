@@ -11,6 +11,7 @@ export type {
   TerminalConfig,
   EditorConfig,
   BrowserConfig,
+  CanvasConfig,
   PaneConfig,
   Action,
   PaneActionsConfig,
@@ -21,6 +22,7 @@ export {
   isTerminalConfig,
   isEditorConfig,
   isBrowserConfig,
+  isCanvasConfig,
 } from "./core/types";
 
 // Registry

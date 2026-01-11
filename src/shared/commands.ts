@@ -66,6 +66,10 @@ export const ApplicationCommands = {
   PANE_SPLIT_RIGHT_EDITOR: "pane.splitRightEditor",
   PANE_SPLIT_TOP_EDITOR: "pane.splitTopEditor",
   PANE_SPLIT_BOTTOM_EDITOR: "pane.splitBottomEditor",
+  PANE_SPLIT_LEFT_CANVAS: "pane.splitLeftCanvas",
+  PANE_SPLIT_RIGHT_CANVAS: "pane.splitRightCanvas",
+  PANE_SPLIT_TOP_CANVAS: "pane.splitTopCanvas",
+  PANE_SPLIT_BOTTOM_CANVAS: "pane.splitBottomCanvas",
   PANE_CLONE: "pane.clone",
   PANE_VIEW_FILES: "pane.viewFiles",
 
