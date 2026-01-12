@@ -115,6 +115,7 @@ describe("gitStatus", () => {
         relativePath: "new.txt",
         stagedStatus: "renamed",
         unstagedStatus: undefined,
+        originalPath: "old.txt",
       });
     });
 
@@ -347,8 +348,9 @@ D\tdeleted.txt`,
     });
 
     it("should handle renamed files", async () => {
+      // Git format: R<score>\t<old-path>\t<new-path>
       (runGit as any).mockResolvedValueOnce({
-        stdout: "R100\tnew.txt\told.txt",
+        stdout: "R100\told.txt\tnew.txt",
       });
 
       (runGit as any).mockResolvedValueOnce({
@@ -361,6 +363,7 @@ D\tdeleted.txt`,
         status: "renamed",
         staged: true,
         relativePath: "new.txt",
+        originalPath: "old.txt",
       });
     });
 

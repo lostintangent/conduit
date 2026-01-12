@@ -1796,9 +1796,21 @@ describe("DiskGitProvider", () => {
 
   describe("getCommit()", () => {
     it("should return a single commit by hash", async () => {
-      // Format: hash|shortHash|subject|body|author|email|timestamp|parentHashes|refs
+      // Format: hash\0shortHash\0subject\0body\0author\0email\0timestamp\0parentHashes\0refs
+      // Using array join to avoid octal escape sequence issues with \0 followed by numbers
+      const NUL = "\0";
       mockGit.raw.mockResolvedValue(
-        "abc123def456|abc123d|Subject line||Test User|test@example.com|1704067200|def456|HEAD -> main\n",
+        [
+          "abc123def456",
+          "abc123d",
+          "Subject line",
+          "",
+          "Test User",
+          "test@example.com",
+          "1704067200",
+          "def456",
+          "HEAD -> main\n",
+        ].join(NUL),
       );
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
@@ -1829,8 +1841,21 @@ describe("DiskGitProvider", () => {
     });
 
     it("should include full message with body", async () => {
+      // Format: hash\0shortHash\0subject\0body\0author\0email\0timestamp\0parentHashes\0refs
+      // Using array join to avoid octal escape sequence issues with \0 followed by numbers
+      const NUL = "\0";
       mockGit.raw.mockResolvedValue(
-        "abc123|abc|Subject|Body text here|User|user@test.com|1704067200||\n",
+        [
+          "abc123",
+          "abc",
+          "Subject",
+          "Body text here",
+          "User",
+          "user@test.com",
+          "1704067200",
+          "",
+          "\n",
+        ].join(NUL),
       );
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
