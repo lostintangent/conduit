@@ -4,11 +4,8 @@
  * Handlers for view-related commands including design mode and keyboard shortcuts.
  */
 
-import {
-  sidebarStateAtom,
-  tabsAtom,
-  type ApplicationMode,
-} from "@/store/atoms";
+import { tabsAtom, type ApplicationMode } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { LayoutNode, LayoutPaneNode, LayoutSplitNode } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import { getDefaultStore } from "jotai";

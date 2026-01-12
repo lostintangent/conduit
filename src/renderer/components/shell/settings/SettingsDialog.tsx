@@ -17,10 +17,10 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import type { ICommandRegistry } from "../../../commands/core/CommandRegistry";
 import type { KeybindingRegistry } from "../../../commands/keybindings/KeybindingRegistry";
-import { AgentsTab } from "./tabs/AgentsTab";
+import { AgentsTab } from "./tabs/agents/AgentsTab";
 import { GeneralTab } from "./tabs/general/GeneralTab";
-import { KeybindingsTab } from "./tabs/KeybindingsTab";
-import { PaneActionsTab } from "./tabs/PaneActionsTab";
+import { KeybindingsTab } from "./tabs/keybindings/KeybindingsTab";
+import { PaneActionsTab } from "./tabs/paneActions/PaneActionsTab";
 
 interface SettingsDialogProps {
   onClose: () => void;
@@ -49,17 +49,8 @@ export function SettingsDialog({
         className="w-[900px] h-[80vh] max-w-none p-0 gap-0 bg-tinted flex flex-col"
         showClose={false}
       >
-        <DialogHeader>
-          <div className="flex items-center justify-between px-6 py-3 border-b border-tinted-border flex-shrink-0">
-            <DialogTitle>Settings</DialogTitle>
-            <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-tinted-foreground/10 rounded transition-colors"
-              title="Close (Esc)"
-            >
-              <X className="w-4 h-4 text-tinted-foreground/60" />
-            </button>
-          </div>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
 
         {/* Tabs - Flex container */}
@@ -68,13 +59,20 @@ export function SettingsDialog({
           onValueChange={setActiveTab}
           className="flex-1 flex flex-col min-h-0"
         >
-          <div className="px-6 py-2 border-b border-tinted-border flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-tinted-border">
             <TabsList className="flex-shrink-0 border-b-0 w-auto">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="keybindings">Keybindings</TabsTrigger>
               <TabsTrigger value="paneActions">Pane Actions</TabsTrigger>
               <TabsTrigger value="agents">Agents</TabsTrigger>
             </TabsList>
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-tinted-foreground/10 rounded transition-colors"
+              title="Close (Esc)"
+            >
+              <X className="w-4 h-4 text-tinted-foreground/60" />
+            </button>
           </div>
 
           {/* General Tab */}

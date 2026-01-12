@@ -34,10 +34,10 @@ import {
   activePaneIdAtom,
   activeTabAtom,
   applicationModeAtom,
-  sidebarStateAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type {
   EditorPane as EditorPaneType,
   LayoutNode,

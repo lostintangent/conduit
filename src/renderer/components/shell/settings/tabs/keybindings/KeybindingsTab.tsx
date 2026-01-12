@@ -15,21 +15,21 @@ import {
   Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { ICommandRegistry } from "../../../../commands/core/CommandRegistry";
-import type { CommandDescriptor } from "../../../../commands/core/types";
-import type { KeybindingRegistry } from "../../../../commands/keybindings/KeybindingRegistry";
-import type { ResolvedKeybinding } from "../../../../commands/keybindings/types";
-import { isUserKeybinding } from "../../../../commands/keybindings/types";
+import type { ICommandRegistry } from "../../../../../commands/core/CommandRegistry";
+import type { CommandDescriptor } from "../../../../../commands/core/types";
+import type { KeybindingRegistry } from "../../../../../commands/keybindings/KeybindingRegistry";
+import type { ResolvedKeybinding } from "../../../../../commands/keybindings/types";
+import { isUserKeybinding } from "../../../../../commands/keybindings/types";
 import {
   getUserKeybindingsPath,
   removeUserKeybinding,
   saveUserKeybinding,
-} from "../../../../commands/keybindings/userKeybindings";
+} from "../../../../../commands/keybindings/userKeybindings";
 import {
   detectKeybindingConflicts,
   formatKeybindingForDisplay,
-} from "../../../../commands/keybindings/utils";
-import { KeybindingRecorder } from "../../keybindings/KeybindingRecorder";
+} from "../../../../../commands/keybindings/utils";
+import { KeybindingRecorder } from "./KeybindingRecorder";
 
 interface KeybindingsTabProps {
   commandRegistry: ICommandRegistry;

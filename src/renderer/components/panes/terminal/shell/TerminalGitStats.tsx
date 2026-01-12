@@ -25,7 +25,7 @@ import {
   getCommandDisplayTitle,
 } from "@/commands/hooks/useCommand";
 import { useUncommittedDiffStats } from "@/hooks/useUncommittedDiffStats";
-import { sidebarStateAtom } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import { ApplicationCommands } from "@shared/commands";
 import { useSetAtom } from "jotai";
 import { memo, useCallback, useState } from "react";

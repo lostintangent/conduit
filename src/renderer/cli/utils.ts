@@ -1,7 +1,6 @@
 import { browserAutomate } from "@/cli/browser";
-import { sidebarPaneIds } from "@/components/shell/sidebar/utils";
 import { isHyperTerminal } from "@/store/actions/hyperTerminal";
-import type { SidebarView } from "@/store/atoms";
+import { sidebarPaneIds, type SidebarView } from "@/store/sidebarStore";
 import type { Tab, TerminalPane } from "@/types";
 import type { WebviewTag } from "electron";
 

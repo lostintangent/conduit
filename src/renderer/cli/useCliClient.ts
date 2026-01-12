@@ -6,12 +6,8 @@ import {
   resolveTerminalSessions,
 } from "@/cli/utils";
 import { useCommand } from "@/commands/hooks/useCommand";
-import {
-  activeTabAtom,
-  quickPaneAtom,
-  sidebarStateAtom,
-  tabsAtom,
-} from "@/store/atoms";
+import { activeTabAtom, quickPaneAtom, tabsAtom } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue, useSetAtom } from "jotai";

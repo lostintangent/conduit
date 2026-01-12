@@ -9,8 +9,8 @@
  * - Lock mode to freeze the sidebar at a specific CWD
  */
 
-import type { SidebarView } from "@/store/atoms";
-import { applicationModeAtom, sidebarStateAtom } from "@/store/atoms";
+import { applicationModeAtom } from "@/store/atoms";
+import { sidebarStateAtom, type SidebarView } from "@/store/sidebarStore";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ResizablePanel } from "./ResizablePanel";

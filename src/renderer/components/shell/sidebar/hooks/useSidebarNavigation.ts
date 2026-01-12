@@ -9,7 +9,7 @@
  * to prevent re-triggering on subsequent renders.
  */
 
-import { sidebarStateAtom, type SidebarNavigation } from "@/store/atoms";
+import { sidebarStateAtom, type SidebarNavigation } from "@/store/sidebarStore";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -31,14 +31,14 @@ type NavigationConsumer = (
  * useSidebarNavigation((nav) => {
  *   if (!nav.editorTreeMode && !nav.editorFile) return;
  *   if (nav.editorTreeMode) setTreeMode(nav.editorTreeMode);
- *   if (nav.editorFile) cwdCache.set(cwd, "editor-file", nav.editorFile);
+ *   if (nav.editorFile) setCwdEditorFile(cwd, nav.editorFile);
  *   return true; // Signal that we consumed something
  * });
  *
  * @example
  * // In BrowserView - single field (prefer useSidebarNavigationField):
  * useSidebarNavigationField("browserUrl", (url) => {
- *   cwdCache.set(cwd, "browser-url", url);
+ *   setCwdBrowserUrl(cwd, url);
  * });
  */
 export function useSidebarNavigation(consumer: NavigationConsumer): void {

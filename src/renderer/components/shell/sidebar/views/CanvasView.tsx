@@ -10,9 +10,9 @@
 
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { migrateCanvasState } from "@/store/canvasStore";
+import { sidebarPaneIds } from "@/store/sidebarStore";
 import { noop } from "@/utils";
 import { useEffect, useMemo, useRef } from "react";
-import { sidebarPaneIds } from "../utils";
 
 // =============================================================================
 // Types

@@ -10,12 +10,17 @@
  */
 
 import { EditorPaneAnchor } from "@/components/panes/editor-v2";
+import {
+  clearCwdEditorFile,
+  getCwdEditorFile,
+  setCwdEditorFile,
+  sidebarPaneIds,
+} from "@/store/sidebarStore";
 import type { EditorTreeMode } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import { useCallback, useMemo } from "react";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { useSidebarNavigation } from "../hooks/useSidebarNavigation";
-import { cwdCache, sidebarPaneIds } from "../utils";
 
 // =============================================================================
 // Constants
@@ -73,27 +78,27 @@ export function EditorView({ cwd }: EditorViewProps) {
   // Not useState because EditorPaneAnchor manages the open file internally;
   // this just provides the initial file to restore after view switches.
   // Re-renders are triggered by: navigation clear (atom update) or CWD change (prop).
-  const currentFile = cwdCache.get(cwd, "editor-file");
+  const currentFile = getCwdEditorFile(cwd);
 
   // Consume navigation requests (tree mode and/or file)
   useSidebarNavigation((nav) => {
     if (!nav.editorTreeMode && !nav.editorFile) return undefined;
     if (nav.editorTreeMode) setTreeMode(nav.editorTreeMode);
-    if (nav.editorFile) cwdCache.set(cwd, "editor-file", nav.editorFile);
+    if (nav.editorFile) setCwdEditorFile(cwd, nav.editorFile);
     return true;
   });
 
   // File change handler - tracks file per CWD
   const handleFileChange = useCallback(
     (fileData: { file: string; language: string; content: string }) => {
-      cwdCache.set(cwd, "editor-file", fileData.file);
+      setCwdEditorFile(cwd, fileData.file);
     },
     [cwd],
   );
 
   // Clear file handler
   const handleClearFile = useCallback(() => {
-    cwdCache.clear(cwd, "editor-file");
+    clearCwdEditorFile(cwd);
   }, [cwd]);
 
   // Construct pane object for EditorPaneAnchor
