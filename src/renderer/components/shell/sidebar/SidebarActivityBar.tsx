@@ -1,12 +1,10 @@
-/**
- * SidebarActivityBar - Vertical icon bar for switching between sidebar views
- *
- * Displays icons for editor, browser, and canvas views. Clicking an icon switches
- * the sidebar content. Also provides lock, expand, and close controls.
- */
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { SidebarView } from "@/store/sidebarStore";
 import { cn } from "@/utils";
-import type { SidebarView } from "@/store/atoms";
 import {
   FolderTree,
   Globe,
@@ -17,15 +15,6 @@ import {
   PanelRightClose,
   Unlock,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-
-// =============================================================================
-// Types
-// =============================================================================
 
 interface SidebarActivityBarProps {
   view: SidebarView;
@@ -36,10 +25,6 @@ interface SidebarActivityBarProps {
   onExpandToggle: () => void;
   onClose: () => void;
 }
-
-// =============================================================================
-// Sub-components
-// =============================================================================
 
 interface ActivityBarButtonProps {
   icon: React.ReactNode;
@@ -74,10 +59,6 @@ function ActivityBarButton({
     </Tooltip>
   );
 }
-
-// =============================================================================
-// Main Component
-// =============================================================================
 
 export function SidebarActivityBar({
   view,

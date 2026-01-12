@@ -254,8 +254,8 @@ function renderShape(
   ctx.globalCompositeOperation = "source-over";
   ctx.strokeStyle = element.style.color;
   ctx.lineWidth = element.style.width;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "miter";
 
   const hw = element.size.width / 2;
   const hh = element.size.height / 2;
@@ -285,14 +285,14 @@ function renderShape(
       ctx.lineTo(hw, 0);
       ctx.stroke();
 
-      // Draw arrowhead - size scales with stroke width for visual consistency
+      // Draw arrowhead as a connected path so the tip comes to a point
       const { length: headLength, width: headWidth } = calculateArrowHead(
         element.style.width,
       );
+      ctx.lineJoin = "miter";
       ctx.beginPath();
-      ctx.moveTo(hw, 0);
-      ctx.lineTo(hw - headLength, -headWidth);
-      ctx.moveTo(hw, 0);
+      ctx.moveTo(hw - headLength, -headWidth);
+      ctx.lineTo(hw, 0);
       ctx.lineTo(hw - headLength, headWidth);
       ctx.stroke();
       break;
@@ -424,9 +424,17 @@ export function renderLineEndpointHandles(
   const endX = (element.size.width * element.transform.scaleX) / 2;
   const endY = 0;
 
+  // Draw selection line between endpoints
+  ctx.strokeStyle = "#3b82f6"; // Blue
+  ctx.lineWidth = lineWidth;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+
   // Draw handles at both endpoints
   ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#3b82f6"; // Blue
   ctx.lineWidth = lineWidth;
 
   // Start point handle

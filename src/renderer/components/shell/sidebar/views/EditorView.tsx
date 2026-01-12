@@ -22,18 +22,10 @@ import { useCallback, useMemo } from "react";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { useSidebarNavigation } from "../hooks/useSidebarNavigation";
 
-// =============================================================================
-// Constants
-// =============================================================================
-
 const STORAGE_KEYS = {
   treeMode: "editor-sidebar-tree-mode",
   changesViewMode: "editor-sidebar-changes-view-mode",
 } as const;
-
-// =============================================================================
-// Type Guards
-// =============================================================================
 
 function isEditorTreeMode(value: string): value is EditorTreeMode {
   return value === "all" || value === "changes";
@@ -43,18 +35,10 @@ function isChangesViewMode(value: string): value is ChangesViewMode {
   return value === "flat" || value === "nested";
 }
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface EditorViewProps {
   /** The effective CWD to display (respects lock state) */
   cwd: string;
 }
-
-// =============================================================================
-// Main Component
-// =============================================================================
 
 export function EditorView({ cwd }: EditorViewProps) {
   // Persisted editor settings

@@ -1,9 +1,9 @@
-import { Maximize2, Minus, Plus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Maximize2, Minus, Plus } from "lucide-react";
 
 // =============================================================================
 // Types
@@ -15,6 +15,7 @@ type ZoomControlsProps = {
   onZoomOut: () => void;
   onResetZoom: () => void;
   onZoomToFit: () => void;
+  isEmpty?: boolean;
 };
 
 // =============================================================================
@@ -27,6 +28,7 @@ export function ZoomControls({
   onZoomOut,
   onResetZoom,
   onZoomToFit,
+  isEmpty,
 }: ZoomControlsProps) {
   const zoomPercentage = Math.round(zoom * 100);
 
@@ -76,7 +78,8 @@ export function ZoomControls({
           <button
             type="button"
             onClick={onZoomToFit}
-            className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0 ml-0.5"
+            disabled={isEmpty}
+            className="p-1 rounded hover:bg-foreground/10 transition-colors shrink-0 ml-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Maximize2 size={14} />
           </button>

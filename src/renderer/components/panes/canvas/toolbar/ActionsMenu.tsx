@@ -1,12 +1,4 @@
-import {
-  Check,
-  Copy,
-  ImagePlus,
-  Minimize2,
-  MoreHorizontal,
-  Trash2,
-  X,
-} from "lucide-react";
+import { useCommand } from "@/commands/hooks/useCommand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +11,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useCommand } from "@/commands/hooks/useCommand";
 import { ApplicationCommands } from "@shared/commands";
+import {
+  Check,
+  Copy,
+  ImagePlus,
+  Minimize2,
+  MoreHorizontal,
+  Trash2,
+  X,
+} from "lucide-react";
 
 // =============================================================================
 // Types
@@ -32,6 +32,7 @@ type ActionsMenuProps = {
   onClear: () => void;
   showCopySuccess?: boolean;
   tabId?: string;
+  isEmpty?: boolean;
 };
 
 // =============================================================================
@@ -44,6 +45,7 @@ export function ActionsMenu({
   onClear,
   showCopySuccess,
   tabId,
+  isEmpty,
 }: ActionsMenuProps) {
   const collapsePane = useCommand(ApplicationCommands.PANE_COLLAPSE);
   const closePane = useCommand(ApplicationCommands.PANE_CLOSE);
@@ -69,7 +71,7 @@ export function ActionsMenu({
       </Tooltip>
 
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onCopyToClipboard}>
+        <DropdownMenuItem onClick={onCopyToClipboard} disabled={isEmpty}>
           <Copy size={14} className="mr-2" />
           Copy to clipboard
         </DropdownMenuItem>
@@ -78,7 +80,7 @@ export function ActionsMenu({
           Insert image
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onClear}>
+        <DropdownMenuItem onClick={onClear} disabled={isEmpty}>
           <Trash2 size={14} className="mr-2" />
           Clear canvas
         </DropdownMenuItem>

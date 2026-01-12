@@ -14,18 +14,10 @@ import { sidebarPaneIds } from "@/store/sidebarStore";
 import { noop } from "@/utils";
 import { useEffect, useMemo, useRef } from "react";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface CanvasViewProps {
   cwd: string;
   isLocked: boolean;
 }
-
-// =============================================================================
-// Main Component
-// =============================================================================
 
 export function CanvasView({ cwd, isLocked }: CanvasViewProps) {
   // Determine pane ID based on lock state

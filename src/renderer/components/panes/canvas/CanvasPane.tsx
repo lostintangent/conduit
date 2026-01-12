@@ -1,3 +1,5 @@
+import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
+import { resolveColor, watchAppTheme } from "@/utils/theme";
 import type { CanvasPane as CanvasPaneType } from "@shared/types";
 import type {
   CanvasElement,
@@ -22,10 +24,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { resolveColor, watchAppTheme } from "@/utils/theme";
 import { type Position, type ShapeSize, useCanvasHistory } from "./history";
 import { useCanvasState } from "./hooks/useCanvasState";
-import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
 import { useImageDrop } from "./hooks/useImageDrop";
 import { useViewport } from "./hooks/useViewport";
 import { CanvasToolbar } from "./toolbar/CanvasToolbar";
@@ -1293,7 +1293,8 @@ export function CanvasPane({
       recordClear(elements); // Record for undo before clearing
     }
     clearCanvas();
-  }, [elements, recordClear, clearCanvas]);
+    resetZoom();
+  }, [elements, recordClear, clearCanvas, resetZoom]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -1599,6 +1600,7 @@ export function CanvasPane({
         selectedWidth={selectedStyleInfo.selectedWidth}
         isSpacePressed={isSpacePressed}
         tabId={_tabId}
+        isEmpty={elements.length === 0}
       />
 
       {/* Canvas container - fills remaining space */}
@@ -1709,6 +1711,7 @@ export function CanvasPane({
                   const { length: headLength, width: headWidth } =
                     calculateArrowHead(strokeW);
                   const rotation = shapePreview.rotation ?? 0;
+                  const tipX = screenX + screenW / 2;
                   return (
                     <g
                       {...commonProps}
@@ -1717,20 +1720,12 @@ export function CanvasPane({
                       <line
                         x1={screenX - screenW / 2}
                         y1={screenY}
-                        x2={screenX + screenW / 2}
+                        x2={tipX}
                         y2={screenY}
                       />
-                      <line
-                        x1={screenX + screenW / 2}
-                        y1={screenY}
-                        x2={screenX + screenW / 2 - headLength}
-                        y2={screenY - headWidth}
-                      />
-                      <line
-                        x1={screenX + screenW / 2}
-                        y1={screenY}
-                        x2={screenX + screenW / 2 - headLength}
-                        y2={screenY + headWidth}
+                      <polyline
+                        points={`${tipX - headLength},${screenY - headWidth} ${tipX},${screenY} ${tipX - headLength},${screenY + headWidth}`}
+                        strokeLinejoin="miter"
                       />
                     </g>
                   );

@@ -28,17 +28,9 @@ import { noop } from "@/utils";
 import { useCallback, useEffect, useState } from "react";
 import { useSidebarNavigationField } from "../hooks/useSidebarNavigation";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 interface BrowserViewProps {
   cwd: string;
 }
-
-// =============================================================================
-// Main Component
-// =============================================================================
 
 export function BrowserView({ cwd }: BrowserViewProps) {
   // Current URL state - initialized with CWD cache taking priority
