@@ -27,8 +27,7 @@
  */
 
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
-import type { GitV2API } from "@/api/GitV2API";
-import type { GitStatusChangedEvent } from "../../ipc/gitv2/types";
+import type { GitStatusChangedEvent, GitV2API } from "@/api/GitV2API";
 import { useCallback, useEffect, useRef } from "react";
 
 /** Debounce delay for file content changes (ms) */

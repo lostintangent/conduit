@@ -34,6 +34,9 @@ export type GitFileStatus = {
   staged: boolean;
   relativePath: string;
 
+  /** Original path before rename/copy (only present for renamed/copied files) */
+  originalPath?: string;
+
   // Optional separate staging statuses to handle cases like "AD" (added in index, deleted in working tree)
   stagedStatus?: "modified" | "added" | "deleted" | "renamed" | "copied";
   unstagedStatus?: "modified" | "added" | "deleted" | "untracked";

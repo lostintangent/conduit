@@ -40,6 +40,10 @@
  * - `git-v2:most-recent-dirty-file` - Get most recently modified dirty file
  * - `git-v2:most-recent-committed-file` - Get most recently modified file from commits
  * - `git-v2:revert` - Discard local file changes
+ * - `git-v2:commit-history` - Get paginated commit history
+ * - `git-v2:get-commit` - Get a single commit by hash
+ * - `git-v2:commit-files` - Get files changed in a commit
+ * - `git-v2:file-at-commit` - Get file content at a specific commit
  * - `git-v2:subscribe` - Subscribe to git events
  * - `git-v2:unsubscribe` - Unsubscribe from events
  *
@@ -55,12 +59,17 @@ import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
 import { getSandboxClient, onSessionEvent } from "../vm/store";
 import { GitProviderService } from "./GitProviderService";
 import type {
+  CommitFile,
   FileWithTime,
+  GetCommitHistoryOptions,
   GitBranch,
   GitCommit,
   GitCommitOptions,
   GitFileStatus,
+  GitFileStatusCode,
   GitStatus,
+  HistoryCommit,
+  TrackedBranchInfo,
 } from "./types";
 import { VMGitProvider } from "./VMGitProvider";
 
@@ -112,6 +121,42 @@ interface SerializedDiffStats {
   added: number;
   removed: number;
   files: number;
+}
+
+/**
+ * Serialized history commit for IPC transport.
+ */
+interface SerializedHistoryCommit {
+  id: string;
+  shortId: string;
+  subject: string;
+  message: string;
+  author: string;
+  authorEmail: string;
+  timestamp: number;
+  parentIds: string[];
+  refs?: string[];
+}
+
+/**
+ * Serialized commit file for IPC transport.
+ */
+interface SerializedCommitFile {
+  path: string;
+  status: GitFileStatusCode;
+  originalPath?: string;
+  additions: number;
+  deletions: number;
+  isBinary: boolean;
+}
+
+/**
+ * Serialized commit history result for IPC transport.
+ */
+interface SerializedCommitHistoryResult {
+  commits: SerializedHistoryCommit[];
+  hasMore: boolean;
+  totalCount?: number;
 }
 
 /**
@@ -217,6 +262,42 @@ function serializeGitBranch(branch: GitBranch): SerializedGitBranch {
     behind: branch.behind,
     lastCommitDate: branch.lastCommitDate?.getTime(),
     lastCommitMessage: branch.lastCommitMessage,
+  };
+}
+
+/**
+ * Serialize a HistoryCommit for IPC transport.
+ *
+ * HistoryCommit already uses primitive types (timestamp is already number),
+ * so this is mostly a type cast for consistency.
+ */
+function serializeHistoryCommit(
+  commit: HistoryCommit,
+): SerializedHistoryCommit {
+  return {
+    id: commit.id,
+    shortId: commit.shortId,
+    subject: commit.subject,
+    message: commit.message,
+    author: commit.author,
+    authorEmail: commit.authorEmail,
+    timestamp: commit.timestamp,
+    parentIds: commit.parentIds,
+    refs: commit.refs,
+  };
+}
+
+/**
+ * Serialize a CommitFile for IPC transport.
+ */
+function serializeCommitFile(file: CommitFile): SerializedCommitFile {
+  return {
+    path: file.path,
+    status: file.status,
+    originalPath: file.originalPath,
+    additions: file.additions,
+    deletions: file.deletions,
+    isBinary: file.isBinary,
   };
 }
 
@@ -644,6 +725,132 @@ export function initializeGitV2Handlers(): void {
         return null;
       }
       return result.provider.getFileAtRef(params.filePath, params.ref);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Commit History Operations
+  //
+  // Operations for retrieving commit history and related information.
+  // Used by the commit graph visualization.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get commit history with pagination support.
+   * Returns commits in topological order (newest first).
+   * Creates a provider if one doesn't exist (unlike most operations).
+   * Returns empty result if not a git repository.
+   */
+  ipcMain.handle(
+    "git-v2:commit-history",
+    async (
+      _,
+      params: { cwd: string; options?: GetCommitHistoryOptions },
+    ): Promise<SerializedCommitHistoryResult> => {
+      // Use getProvider (not getExistingProvider) because commit history
+      // may be called before subscription completes. This ensures the
+      // provider is created if it doesn't exist yet.
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
+        // Not a git repository
+        return { commits: [], hasMore: false };
+      }
+      const historyResult = await result.provider.getCommitHistory(
+        params.options,
+      );
+      return {
+        commits: historyResult.commits.map(serializeHistoryCommit),
+        hasMore: historyResult.hasMore,
+        totalCount: historyResult.totalCount,
+      };
+    },
+  );
+
+  /**
+   * Get a single commit by its hash.
+   * Creates a provider if one doesn't exist.
+   * Returns null if commit not found or not a git repository.
+   */
+  ipcMain.handle(
+    "git-v2:get-commit",
+    async (
+      _,
+      params: { cwd: string; commitId: string },
+    ): Promise<SerializedHistoryCommit | null> => {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
+        return null;
+      }
+      const commit = await result.provider.getCommit(params.commitId);
+      return commit ? serializeHistoryCommit(commit) : null;
+    },
+  );
+
+  /**
+   * Get files changed in a specific commit.
+   * Returns the list of files with their status and diff statistics.
+   * Creates a provider if one doesn't exist.
+   * Returns empty array if not a git repository.
+   */
+  ipcMain.handle(
+    "git-v2:commit-files",
+    async (
+      _,
+      params: { cwd: string; commitId: string },
+    ): Promise<SerializedCommitFile[]> => {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
+        return [];
+      }
+      const files = await result.provider.getCommitFiles(params.commitId);
+      return files.map(serializeCommitFile);
+    },
+  );
+
+  /**
+   * Get file content at a specific commit.
+   * Creates a provider if one doesn't exist.
+   * Returns null if file doesn't exist at that commit or not a git repository.
+   */
+  ipcMain.handle(
+    "git-v2:file-at-commit",
+    async (
+      _,
+      params: { cwd: string; commitId: string; filePath: string },
+    ): Promise<string | null> => {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
+        return null;
+      }
+      return result.provider.getFileAtCommit(params.commitId, params.filePath);
+    },
+  );
+
+  /**
+   * Get tracked branch information for the current branch.
+   * Returns the current branch, its upstream, and base branch with their commit IDs.
+   * Used for VS Code-style branch coloring in the commit graph.
+   * Creates a provider if one doesn't exist.
+   * Returns all nulls if not a git repository or in detached HEAD state.
+   */
+  ipcMain.handle(
+    "git-v2:tracked-branches",
+    async (_, params: { cwd: string }): Promise<TrackedBranchInfo> => {
+      let result;
+      try {
+        result = await service.getProvider(params.cwd);
+      } catch {
+        return { current: null, upstream: null, base: null };
+      }
+      return result.provider.getTrackedBranches();
     },
   );
 

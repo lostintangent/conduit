@@ -46,7 +46,7 @@ import { useGitDiffSubscription } from "@/hooks/useGitDiffSubscription";
 import type {
   FileDiffStat,
   SplitPerFileDiffStats,
-} from "@/../../src/ipc/gitv2/types";
+} from "@/api/GitV2API";
 
 // Re-export for convenience
 export type { FileDiffStat };

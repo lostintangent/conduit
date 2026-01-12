@@ -19,6 +19,7 @@ import type {
   FileWithTime,
   GitCommitOptions,
   GitFileStatus,
+  TrackedBranchInfo,
 } from "../../../ipc/gitv2/types";
 import { createEventListener } from "../utils";
 
@@ -74,6 +75,51 @@ export interface SerializedDiffStats {
   added: number;
   removed: number;
   files: number;
+}
+
+/**
+ * Serialized history commit for IPC transport.
+ */
+export interface SerializedHistoryCommit {
+  id: string;
+  shortId: string;
+  subject: string;
+  message: string;
+  author: string;
+  authorEmail: string;
+  timestamp: number;
+  parentIds: string[];
+  refs?: string[];
+}
+
+/**
+ * Serialized commit file for IPC transport.
+ */
+export interface SerializedCommitFile {
+  path: string;
+  status: string;
+  originalPath?: string;
+  additions: number;
+  deletions: number;
+  isBinary: boolean;
+}
+
+/**
+ * Serialized commit history result for IPC transport.
+ */
+export interface SerializedCommitHistoryResult {
+  commits: SerializedHistoryCommit[];
+  hasMore: boolean;
+  totalCount?: number;
+}
+
+/**
+ * Options for fetching commit history.
+ */
+export interface GetCommitHistoryOptions {
+  limit?: number;
+  skip?: number;
+  ref?: string;
 }
 
 /**
@@ -538,6 +584,78 @@ export default {
    */
   revert: (cwd: string, files: string[], vmId?: string) =>
     ipcRenderer.invoke("git-v2:revert", { cwd, files, vmId }) as Promise<void>,
+
+  // ---------------------------------------------------------------------------
+  // Commit History Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Get commit history with pagination support.
+   *
+   * @param cwd - Working directory
+   * @param options - Pagination options (limit, skip, ref)
+   * @returns Paginated commit history result
+   */
+  getCommitHistory: (cwd: string, options?: GetCommitHistoryOptions) =>
+    ipcRenderer.invoke("git-v2:commit-history", {
+      cwd,
+      options,
+    }) as Promise<SerializedCommitHistoryResult>,
+
+  /**
+   * Get a single commit by its hash.
+   *
+   * @param cwd - Working directory
+   * @param commitId - Full or short commit hash
+   * @returns The commit, or null if not found
+   */
+  getCommit: (cwd: string, commitId: string) =>
+    ipcRenderer.invoke("git-v2:get-commit", {
+      cwd,
+      commitId,
+    }) as Promise<SerializedHistoryCommit | null>,
+
+  /**
+   * Get files changed in a specific commit.
+   *
+   * @param cwd - Working directory
+   * @param commitId - Full or short commit hash
+   * @returns Array of files changed in the commit
+   */
+  getCommitFiles: (cwd: string, commitId: string) =>
+    ipcRenderer.invoke("git-v2:commit-files", {
+      cwd,
+      commitId,
+    }) as Promise<SerializedCommitFile[]>,
+
+  /**
+   * Get file content at a specific commit.
+   *
+   * @param cwd - Working directory
+   * @param commitId - Full or short commit hash
+   * @param filePath - Relative path from git root
+   * @returns File content, or null if file doesn't exist at that commit
+   */
+  getFileAtCommit: (cwd: string, commitId: string, filePath: string) =>
+    ipcRenderer.invoke("git-v2:file-at-commit", {
+      cwd,
+      commitId,
+      filePath,
+    }) as Promise<string | null>,
+
+  /**
+   * Get tracked branch information for the current branch.
+   *
+   * Returns the current branch, its upstream, and base branch with their commit IDs.
+   * Used for VS Code-style branch coloring in the commit graph.
+   *
+   * @param cwd - Working directory
+   * @returns Tracked branch info (current, upstream, base)
+   */
+  getTrackedBranches: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:tracked-branches", {
+      cwd,
+    }) as Promise<TrackedBranchInfo>,
 
   // ---------------------------------------------------------------------------
   // Utility

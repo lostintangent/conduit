@@ -30,7 +30,10 @@ import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
 import { isCaseInsensitiveFS } from "../fsv2/pathUtils";
 import type { Disposable, Event } from "../fsv2/types";
 import type {
+  CommitFile,
+  CommitHistoryResult,
   FileWithTime,
+  GetCommitHistoryOptions,
   GitBranch,
   GitBranchChangedEvent,
   GitCheckoutOptions,
@@ -43,6 +46,9 @@ import type {
   GitProvider,
   GitStatus,
   GitStatusChangedEvent,
+  HistoryCommit,
+  TrackedBranch,
+  TrackedBranchInfo,
 } from "./types";
 
 // ============================================================================
@@ -101,7 +107,7 @@ const IGNORED_GIT_PATHS = [
   "**/info/**",
   "**/description",
   "**/config",
-  "**/packed-refs",
+  // NOTE: packed-refs is NOT ignored - it updates on push/fetch and affects commit graph
   "**/shallow",
   "**/commondir",
   "**/gitdir",
@@ -853,6 +859,582 @@ export class DiskGitProvider implements GitProvider {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Commit History
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get commit history with pagination support.
+   *
+   * Returns commits in topological order (newest first) for correct
+   * swimlane graph computation.
+   */
+  async getCommitHistory(
+    options: GetCommitHistoryOptions = {},
+  ): Promise<CommitHistoryResult> {
+    const { limit = 50, skip = 0, ref } = options;
+
+    try {
+      // Request one extra commit to determine if there are more
+      const requestLimit = limit + 1;
+
+      // Build git log format for efficient parsing
+      // Format: hash|shortHash|subject|author|email|timestamp|parentHashes|refs
+      const format = "%H|%h|%s|%an|%ae|%at|%P|%D";
+
+      const args = [
+        "log",
+        `--format=${format}`,
+        "--topo-order", // Topological ordering for swimlane algorithm
+        `-n`,
+        String(requestLimit),
+        `--skip=${skip}`,
+      ];
+
+      if (ref) {
+        args.push(ref);
+      }
+
+      const result = await this.git.raw(args);
+      const lines = result.trim().split("\n").filter(Boolean);
+
+      // Check if there are more commits
+      const hasMore = lines.length > limit;
+      const commitLines = hasMore ? lines.slice(0, limit) : lines;
+
+      const commits: HistoryCommit[] = commitLines.map((line) => {
+        const parts = line.split("|");
+        const [
+          hash,
+          shortHash,
+          subject,
+          author,
+          email,
+          timestamp,
+          parents,
+          refs,
+        ] = parts;
+
+        return {
+          id: hash || "",
+          shortId: shortHash || "",
+          subject: subject || "",
+          message: subject || "", // Just subject for now, full message requires separate call
+          author: author || "",
+          authorEmail: email || "",
+          timestamp: parseInt(timestamp || "0", 10) * 1000, // Convert to milliseconds
+          parentIds: parents ? parents.split(" ").filter(Boolean) : [],
+          refs: refs ? refs.split(", ").filter(Boolean) : undefined,
+        };
+      });
+
+      return {
+        commits,
+        hasMore,
+      };
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get commit history:", error);
+      return {
+        commits: [],
+        hasMore: false,
+      };
+    }
+  }
+
+  /**
+   * Get a single commit by its hash.
+   */
+  async getCommit(commitId: string): Promise<HistoryCommit | null> {
+    try {
+      // Use null byte separator (%x00) to handle commit bodies that contain
+      // newlines or pipe characters. The body (%b) can contain any text.
+      // Format: hash\0shortHash\0subject\0body\0author\0email\0timestamp\0parentHashes\0refs
+      const format = "%H%x00%h%x00%s%x00%b%x00%an%x00%ae%x00%at%x00%P%x00%D";
+
+      const result = await this.git.raw([
+        "log",
+        `-1`,
+        `--format=${format}`,
+        commitId,
+      ]);
+
+      if (!result.trim()) {
+        return null;
+      }
+
+      // Split by null byte - this correctly handles bodies with newlines
+      const parts = result.split("\0");
+
+      if (parts.length < 8) {
+        return null;
+      }
+
+      const [
+        hash,
+        shortHash,
+        subject,
+        body,
+        author,
+        email,
+        timestamp,
+        parents,
+        refs,
+      ] = parts;
+
+      // Clean up body - trim trailing newlines that git adds
+      const cleanBody = body?.trim() || "";
+      const fullMessage = cleanBody
+        ? `${subject}\n\n${cleanBody}`
+        : subject || "";
+
+      return {
+        id: hash || "",
+        shortId: shortHash || "",
+        subject: subject || "",
+        message: fullMessage,
+        author: author || "",
+        authorEmail: email || "",
+        timestamp: parseInt(timestamp || "0", 10) * 1000,
+        parentIds: parents ? parents.split(" ").filter(Boolean) : [],
+        refs: refs ? refs.split(", ").filter(Boolean) : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get files changed in a specific commit.
+   *
+   * For merge commits, git diff-tree with a single commit shows a "combined diff"
+   * (files differing from ALL parents), which is usually empty for clean merges.
+   * To get the actual changes, we explicitly compare to the first parent using
+   * `commit^1 commit` syntax. This works for both regular and merge commits.
+   *
+   * For root commits (no parent), we fall back to the single-commit syntax which
+   * compares against an empty tree.
+   */
+  async getCommitFiles(commitId: string): Promise<CommitFile[]> {
+    try {
+      // Use --numstat for additions/deletions, --name-status for status codes
+      // Combine with diff-tree for accurate results
+
+      let result: string;
+      let numstatResult: string;
+
+      try {
+        // Compare to first parent (commit^1) to handle merge commits correctly
+        result = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--name-status",
+          "-r",
+          "--find-renames",
+          "-M",
+          `${commitId}^1`,
+          commitId,
+        ]);
+
+        numstatResult = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--numstat",
+          "-r",
+          "--find-renames",
+          "-M",
+          `${commitId}^1`,
+          commitId,
+        ]);
+      } catch {
+        // Root commits have no parent - fall back to single-commit syntax
+        // which compares against an empty tree
+        result = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--name-status",
+          "-r",
+          "--find-renames",
+          "-M",
+          commitId,
+        ]);
+
+        numstatResult = await this.git.raw([
+          "diff-tree",
+          "--no-commit-id",
+          "--numstat",
+          "-r",
+          "--find-renames",
+          "-M",
+          commitId,
+        ]);
+      }
+
+      // Parse numstat for additions/deletions
+      const statsMap = new Map<
+        string,
+        { additions: number; deletions: number; isBinary: boolean }
+      >();
+      const numstatLines = numstatResult.trim().split("\n").filter(Boolean);
+
+      for (const line of numstatLines) {
+        const [additions, deletions, ...pathParts] = line.split("\t");
+        const filePath = pathParts.join("\t"); // Handle renamed files with tabs
+
+        // Binary files show as "-" for additions/deletions
+        const isBinary = additions === "-" || deletions === "-";
+
+        statsMap.set(filePath, {
+          additions: isBinary ? 0 : parseInt(additions || "0", 10),
+          deletions: isBinary ? 0 : parseInt(deletions || "0", 10),
+          isBinary,
+        });
+      }
+
+      // Parse name-status for status codes
+      const files: CommitFile[] = [];
+      const statusLines = result.trim().split("\n").filter(Boolean);
+
+      for (const line of statusLines) {
+        const parts = line.split("\t");
+        if (parts.length < 2) continue;
+
+        const statusCode = parts[0]?.charAt(0) || "M";
+        let filePath: string;
+        let originalPath: string | undefined;
+
+        // Handle renamed files (R100 oldpath newpath)
+        if (statusCode === "R" || statusCode === "C") {
+          originalPath = parts[1];
+          filePath = parts[2] || parts[1] || "";
+        } else {
+          filePath = parts[1] || "";
+        }
+
+        const stats = statsMap.get(filePath) || {
+          additions: 0,
+          deletions: 0,
+          isBinary: false,
+        };
+
+        files.push({
+          path: filePath,
+          status: this.statusCodeToFileStatus(statusCode),
+          originalPath,
+          additions: stats.additions,
+          deletions: stats.deletions,
+          isBinary: stats.isBinary,
+        });
+      }
+
+      return files;
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get commit files:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get file content at a specific commit.
+   */
+  async getFileAtCommit(
+    commitId: string,
+    filePath: string,
+  ): Promise<string | null> {
+    try {
+      const relativePath = this.toRelativePath(filePath);
+      const result = await this.git.show([`${commitId}:${relativePath}`]);
+      return result;
+    } catch (error) {
+      // File might not exist at this commit
+      return null;
+    }
+  }
+
+  /**
+   * Get tracked branch information for VS Code-style graph coloring.
+   *
+   * Returns information about three special branches:
+   * 1. Current branch - where HEAD points (blue segment)
+   * 2. Upstream - remote tracking branch (purple segment)
+   * 3. Base - branch from which feature was created (orange segment)
+   */
+  async getTrackedBranches(): Promise<TrackedBranchInfo> {
+    try {
+      // Get current branch name
+      const currentBranchName = await this.getCurrentBranch();
+
+      // If detached HEAD, no tracked branches
+      if (currentBranchName === "HEAD") {
+        return { current: null, upstream: null, base: null };
+      }
+
+      // Fetch all info in parallel for performance
+      const [currentCommitId, upstreamInfo, baseInfo] = await Promise.all([
+        this.resolveRef("HEAD"),
+        this.getUpstreamInfo(currentBranchName),
+        this.getBaseBranchInfo(currentBranchName),
+      ]);
+
+      // Build current branch info
+      const current: TrackedBranch | null = currentCommitId
+        ? {
+            name: currentBranchName,
+            displayName: currentBranchName,
+            type: "current",
+            commitId: currentCommitId,
+          }
+        : null;
+
+      return {
+        current,
+        upstream: upstreamInfo,
+        base: baseInfo,
+      };
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get tracked branches:", error);
+      return { current: null, upstream: null, base: null };
+    }
+  }
+
+  /**
+   * Resolve a ref to its commit ID.
+   */
+  private async resolveRef(ref: string): Promise<string | null> {
+    try {
+      const result = await this.git.revparse([ref]);
+      return result.trim();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get upstream tracking branch info.
+   */
+  private async getUpstreamInfo(
+    branchName: string,
+  ): Promise<TrackedBranch | null> {
+    try {
+      // Get upstream branch name (e.g., "origin/feature/foo")
+      const upstreamRef = await this.git.revparse([
+        "--abbrev-ref",
+        `${branchName}@{upstream}`,
+      ]);
+      const upstreamName = upstreamRef.trim();
+
+      if (!upstreamName) {
+        return null;
+      }
+
+      // Get commit ID for upstream
+      const commitId = await this.resolveRef(upstreamName);
+      if (!commitId) {
+        return null;
+      }
+
+      // Parse remote name from "origin/branch" format
+      const slashIndex = upstreamName.indexOf("/");
+      const remote =
+        slashIndex > 0 ? upstreamName.slice(0, slashIndex) : undefined;
+
+      return {
+        name: upstreamName,
+        displayName: upstreamName,
+        type: "upstream",
+        commitId,
+        remote,
+      };
+    } catch {
+      // No upstream configured
+      return null;
+    }
+  }
+
+  /**
+   * Get base branch info (where the feature branch was created from).
+   *
+   * Strategy:
+   * 1. Check git config for cached vscode-merge-base
+   * 2. Parse reflog to find "Created from" entry
+   * 3. Fall back to default branch (origin/main or origin/master)
+   */
+  private async getBaseBranchInfo(
+    branchName: string,
+  ): Promise<TrackedBranch | null> {
+    try {
+      // Strategy 1: Check git config for cached merge base
+      const configKey = `branch.${branchName}.vscode-merge-base`;
+      try {
+        const cachedBase = await this.git.raw(["config", "--get", configKey]);
+        const baseName = cachedBase.trim();
+        if (baseName) {
+          const commitId = await this.resolveRef(baseName);
+          if (commitId) {
+            const slashIndex = baseName.indexOf("/");
+            return {
+              name: baseName,
+              displayName: baseName,
+              type: "base",
+              commitId,
+              remote:
+                slashIndex > 0 ? baseName.slice(0, slashIndex) : undefined,
+            };
+          }
+        }
+      } catch {
+        // Config not set, continue to next strategy
+      }
+
+      // Strategy 2: Parse reflog to find where branch was created from
+      const baseBranch = await this.getBaseBranchFromReflog(branchName);
+      if (baseBranch) {
+        // Cache the result for future lookups
+        try {
+          await this.git.raw(["config", configKey, baseBranch.name]);
+        } catch {
+          // Ignore config write errors
+        }
+        return baseBranch;
+      }
+
+      // Strategy 3: Fall back to default branch
+      const defaultBranch = await this.getDefaultBranch();
+      if (defaultBranch) {
+        // Cache the result
+        try {
+          await this.git.raw(["config", configKey, defaultBranch.name]);
+        } catch {
+          // Ignore config write errors
+        }
+        return defaultBranch;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("[DiskGitProvider] Failed to get base branch:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Try to determine base branch from reflog.
+   */
+  private async getBaseBranchFromReflog(
+    branchName: string,
+  ): Promise<TrackedBranch | null> {
+    try {
+      // Look for "branch: Created from" in reflog
+      const reflog = await this.git.raw([
+        "reflog",
+        "show",
+        branchName,
+        "--format=%gs",
+      ]);
+
+      const lines = reflog.trim().split("\n");
+      for (const line of lines) {
+        const match = line.match(/branch: Created from (.+)$/);
+        if (match && match[1] && match[1] !== "HEAD") {
+          const sourceBranch = match[1];
+
+          // Try to get upstream of the source branch
+          try {
+            const upstreamRef = await this.git.revparse([
+              "--abbrev-ref",
+              `${sourceBranch}@{upstream}`,
+            ]);
+            const upstreamName = upstreamRef.trim();
+            if (upstreamName) {
+              const commitId = await this.resolveRef(upstreamName);
+              if (commitId) {
+                const slashIndex = upstreamName.indexOf("/");
+                return {
+                  name: upstreamName,
+                  displayName: upstreamName,
+                  type: "base",
+                  commitId,
+                  remote:
+                    slashIndex > 0
+                      ? upstreamName.slice(0, slashIndex)
+                      : undefined,
+                };
+              }
+            }
+          } catch {
+            // Source branch has no upstream, try it directly if it's a remote
+            if (sourceBranch.includes("/")) {
+              const commitId = await this.resolveRef(sourceBranch);
+              if (commitId) {
+                const slashIndex = sourceBranch.indexOf("/");
+                return {
+                  name: sourceBranch,
+                  displayName: sourceBranch,
+                  type: "base",
+                  commitId,
+                  remote:
+                    slashIndex > 0
+                      ? sourceBranch.slice(0, slashIndex)
+                      : undefined,
+                };
+              }
+            }
+          }
+        }
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get the default branch (origin/main or origin/master).
+   */
+  private async getDefaultBranch(): Promise<TrackedBranch | null> {
+    // Try origin/main first, then origin/master
+    for (const branchName of ["origin/main", "origin/master"]) {
+      try {
+        const commitId = await this.resolveRef(branchName);
+        if (commitId) {
+          return {
+            name: branchName,
+            displayName: branchName,
+            type: "base",
+            commitId,
+            remote: "origin",
+          };
+        }
+      } catch {
+        // Branch doesn't exist, try next
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Convert git status code to GitFileStatusCode.
+   */
+  private statusCodeToFileStatus(code: string): GitFileStatusCode {
+    switch (code) {
+      case "A":
+        return "added";
+      case "D":
+        return "deleted";
+      case "M":
+        return "modified";
+      case "R":
+        return "renamed";
+      case "C":
+        return "copied";
+      case "U":
+        return "unmerged";
+      default:
+        return "modified";
+    }
+  }
+
   /**
    * Revert changes to files (discard working tree modifications).
    *
@@ -1431,10 +2013,19 @@ export class DiskGitProvider implements GitProvider {
       if (this.lastStatus) {
         const delta = this.calculateStatusDelta(this.lastStatus, currentStatus);
 
+        // Fire if files changed OR if ahead/behind counts changed (push/pull/fetch)
+        // OR if HEAD changed (new commits from pull/fetch even when already up-to-date)
+        const aheadBehindChanged =
+          this.lastStatus.ahead !== currentStatus.ahead ||
+          this.lastStatus.behind !== currentStatus.behind;
+        const headChanged = this.lastHead !== currentHead;
+
         if (
           delta.added.length > 0 ||
           delta.modified.length > 0 ||
-          delta.removed.length > 0
+          delta.removed.length > 0 ||
+          aheadBehindChanged ||
+          headChanged
         ) {
           this._onStatusChanged.fire({
             status: currentStatus,

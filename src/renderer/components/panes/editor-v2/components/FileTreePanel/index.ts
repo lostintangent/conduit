@@ -39,3 +39,6 @@ export type { BranchSwitcherProps } from "./BranchSwitcher";
 
 export { BranchSelector } from "./BranchSelector";
 export type { BranchSelectorProps } from "./BranchSelector";
+
+export { PanelResizer } from "./PanelResizer";
+export type { PanelResizerProps } from "./PanelResizer";

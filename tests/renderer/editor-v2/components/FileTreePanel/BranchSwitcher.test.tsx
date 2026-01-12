@@ -5,7 +5,7 @@
  * different branches with conflict handling.
  */
 
-import type { GitBranch } from "@/../../src/ipc/gitv2/types";
+import type { GitBranch } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { BranchSwitcher } from "@/components/panes/editor-v2/components/FileTreePanel/BranchSwitcher";
 import {

@@ -3,7 +3,7 @@ import {
   isDeletedOnRevert,
   isDiffableStatus,
 } from "../../../../src/renderer/components/panes/editor-v2/utils/gitStatusHelpers";
-import type { GitFileStatus } from "../../../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 
 // Helper to create a minimal GitFileStatus
 function createStatus(

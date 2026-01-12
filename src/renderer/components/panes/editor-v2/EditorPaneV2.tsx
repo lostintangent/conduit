@@ -3,7 +3,7 @@
  *
  * This component ties together all the editor subsystems:
  * - FileTreePanel for file navigation
- * - EditorViewPanel for file editing
+ * - EditorPane for file editing
  * - TreeResizer for panel resizing
  *
  * It handles responsive layout switching between split and single modes,
@@ -17,7 +17,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@/../../src/ipc/gitv2/types";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
@@ -38,7 +38,7 @@ import {
 } from "react";
 import {
   BranchSelector,
-  EditorViewPanel,
+  EditorPane,
   FileDiffStatsProvider,
   FileTreePanel,
   TreeResizer,
@@ -52,7 +52,11 @@ import {
   useReviewModeState,
   useUnseenTracking,
 } from "./hooks";
-import type { FileNode, TreeViewMode } from "./types";
+import type { FileNode, TreeViewMode, ViewMode } from "./types";
+import type {
+  CommitFileSelectEvent,
+  CommitViewEvent,
+} from "./components/CommitGraph/types";
 import {
   detectLanguage,
   getRelativePath,
@@ -381,6 +385,9 @@ export function EditorPaneV2({
   const [baseBranch, setBaseBranch] = useState<string | null>(
     pane.agentBaseBranch ?? null,
   );
+
+  // Previous view mode (for returning from commit diff view)
+  const previousViewModeRef = useRef<ViewMode | null>(null);
 
   // Panel view state (for single-column layout mode)
   const [panelView, setPanelView] = useState<"tree" | "editor">("tree");
@@ -758,11 +765,26 @@ export function EditorPaneV2({
   );
 
   /**
+   * Exit any commit mode (diff or review) and return to previous view.
+   */
+  const handleExitCommitMode = useCallback(() => {
+    // Return to previous view mode (or editor mode as fallback)
+    if (previousViewModeRef.current) {
+      setViewMode(previousViewModeRef.current);
+      previousViewModeRef.current = null;
+    } else {
+      setViewMode({ type: "editor" });
+    }
+  }, [setViewMode]);
+
+  /**
    * Handle tree view mode changes.
    *
    * When switching modes, we update selectedMapKey appropriately:
    * - Entering "changes" mode: compute map key based on git status (prefer unstaged)
    * - Exiting to "files" mode: clear the map key
+   *
+   * Also exits commit review modes when switching away from "changes".
    */
   const handleTreeViewModeChange = useCallback(
     (mode: TreeViewMode) => {
@@ -799,6 +821,16 @@ export function EditorPaneV2({
 
       // Handle review mode transitions (exit/restore)
       handleTreeViewModeTransition(mode);
+
+      // Also exit commit modes when switching to "files" mode
+      if (mode === "files") {
+        if (
+          viewMode.type === "commitReview" ||
+          viewMode.type === "commitFileDiff"
+        ) {
+          handleExitCommitMode();
+        }
+      }
     },
     [
       selectedFile,
@@ -806,6 +838,8 @@ export function EditorPaneV2({
       gitStatus,
       onTreeModeChange,
       handleTreeViewModeTransition,
+      viewMode,
+      handleExitCommitMode,
     ],
   );
 
@@ -1110,6 +1144,74 @@ export function EditorPaneV2({
   }, [baseBranch, enterReviewMode]);
 
   /**
+   * Handle file selection from commit graph.
+   * Opens the historical diff view for the selected file.
+   */
+  const handleCommitFileSelect = useCallback(
+    (event: CommitFileSelectEvent) => {
+      // Only save previous view mode if not already in a commit mode
+      // This prevents building a stack when clicking multiple files
+      if (
+        viewMode.type !== "commitFileDiff" &&
+        viewMode.type !== "commitReview"
+      ) {
+        previousViewModeRef.current = viewMode;
+      }
+
+      // Convert relative path to absolute path
+      const absolutePath = currentCwd.endsWith("/")
+        ? `${currentCwd}${event.file.path}`
+        : `${currentCwd}/${event.file.path}`;
+
+      // Set view mode to commit file diff
+      setViewMode({
+        type: "commitFileDiff",
+        filePath: absolutePath,
+        commitId: event.commitId,
+        parentCommitId: event.parentCommitId,
+        fileStatus: event.file.status,
+        originalPath: event.file.originalPath,
+      });
+
+      // In single layout, switch to editor view
+      if (layout === "single") {
+        setPanelView("editor");
+      }
+    },
+    [viewMode, currentCwd, layout, setViewMode],
+  );
+
+  /**
+   * Handle "view all" on a commit from commit graph.
+   * Opens the commit review pane showing all files changed in that commit.
+   */
+  const handleViewCommit = useCallback(
+    (event: CommitViewEvent) => {
+      // Only save previous view mode if not already in a commit mode
+      // This prevents building a stack when switching between commit views
+      if (
+        viewMode.type !== "commitFileDiff" &&
+        viewMode.type !== "commitReview"
+      ) {
+        previousViewModeRef.current = viewMode;
+      }
+
+      // Set view mode to commit review
+      setViewMode({
+        type: "commitReview",
+        commitId: event.commitId,
+        parentCommitId: event.parentCommitId,
+      });
+
+      // In single layout, switch to editor view
+      if (layout === "single") {
+        setPanelView("editor");
+      }
+    },
+    [viewMode, layout, setViewMode],
+  );
+
+  /**
    * Determine if the current file can show a diff view.
    * A file is diffable if its status is "modified" or "renamed".
    */
@@ -1151,6 +1253,15 @@ export function EditorPaneV2({
   }, [selectedFile, selectedGitStatus, treeViewMode]);
 
   /**
+   * Label for changes mode: "Staged" or "Unstaged".
+   * Only shown when in "changes" mode to indicate which version is being viewed.
+   */
+  const changesViewLabel = useMemo(() => {
+    if (treeViewMode !== "changes" || !selectedGitStatus) return undefined;
+    return selectedGitStatus.staged ? "Staged" : "Unstaged";
+  }, [treeViewMode, selectedGitStatus]);
+
+  /**
    * Determine if the current file has changes in the git index.
    * Used to show Index → Working Directory diff for partially staged files.
    *
@@ -1176,6 +1287,20 @@ export function EditorPaneV2({
     const baseEntry = gitStatus?.get(relativePath);
     return baseEntry?.hasIndexChanges ?? false;
   }, [selectedFile, selectedGitStatus, treeViewMode, currentCwd, gitStatus]);
+
+  /**
+   * Git status for the current file (for toolbar badge).
+   * In "changes" mode, uses selectedGitStatus from the map key.
+   * In "files" mode, looks up by relative path.
+   */
+  const currentFileGitStatus = useMemo(() => {
+    if (!selectedFile) return undefined;
+    // In changes mode, use the entry from selectedMapKey
+    if (selectedGitStatus) return selectedGitStatus;
+    // In files mode, look up by relative path
+    const relativePath = getRelativePath(selectedFile.path, currentCwd);
+    return gitStatus?.get(relativePath) ?? undefined;
+  }, [selectedFile, selectedGitStatus, currentCwd, gitStatus]);
 
   /**
    * Determine if the current file supports preview mode (e.g., markdown files, images).
@@ -1468,6 +1593,9 @@ export function EditorPaneV2({
             triggerRead={trackUnseenChanges ? triggerRead : undefined}
             // Dirty file checking (for preventing staging unsaved files)
             isFileDirty={isFileDirty}
+            // Commit graph callbacks
+            onCommitFileSelect={handleCommitFileSelect}
+            onViewCommit={handleViewCommit}
           />
         </div>
 
@@ -1489,7 +1617,7 @@ export function EditorPaneV2({
           )}
           data-testid="editor-container"
         >
-          <EditorViewPanel
+          <EditorPane
             editorId={editorId}
             cwd={currentCwd}
             sandboxId={sandboxId}
@@ -1508,9 +1636,12 @@ export function EditorPaneV2({
             isDiffMode={viewMode.type === "diff"}
             onToggleDiffMode={handleToggleDiffMode}
             onExitReview={exitReviewMode}
+            onExitCommitMode={handleExitCommitMode}
             isFileDeleted={isCurrentFileDeleted}
             isFileStaged={isCurrentFileStaged}
             hasIndexChanges={currentFileHasIndexChanges}
+            selectedGitStatus={currentFileGitStatus}
+            changesViewLabel={changesViewLabel}
             // Preview mode props
             showPreviewToggle={isPreviewSupported}
             isPreviewMode={viewMode.type === "preview"}

@@ -77,6 +77,11 @@ export { useResponsiveLayout } from "./useResponsiveLayout";
 export type { LayoutMode } from "./useResponsiveLayout";
 export { useReviewModeState } from "./useReviewModeState";
 export type { UseReviewModeStateResult } from "./useReviewModeState";
+export { usePanelHeight } from "./usePanelHeight";
+export type {
+  UsePanelHeightOptions,
+  UsePanelHeightResult,
+} from "./usePanelHeight";
 export { useScrollPersistence } from "./useScrollPersistence";
 export {
   DISABLED_TRACKING,
@@ -96,3 +101,12 @@ export type {
   UnseenTrackingResult,
   UseUnseenTrackingOptions,
 } from "./useUnseenTracking";
+export { useCommitGraph } from "./useCommitGraph";
+export type {
+  CommitGraphActions,
+  CommitGraphState,
+  UseCommitGraphOptions,
+  UseCommitGraphResult,
+} from "./useCommitGraph";
+export { useCommitDetails } from "./useCommitDetails";
+export type { CommitDetailsResult } from "./useCommitDetails";

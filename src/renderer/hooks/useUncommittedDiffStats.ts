@@ -26,10 +26,7 @@
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useGitDiffSubscription } from "@/hooks/useGitDiffSubscription";
-import type {
-  GitFileStatus,
-  GitStatusChangedEvent,
-} from "../../ipc/gitv2/types";
+import type { GitFileStatus, GitStatusChangedEvent } from "@/api/GitV2API";
 import { useCallback, useState } from "react";
 
 export interface UncommittedDiffStats {

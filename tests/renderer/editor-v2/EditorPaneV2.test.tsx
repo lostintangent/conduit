@@ -64,6 +64,7 @@ vi.mock("../../../src/renderer/components/panes/editor-v2/hooks", () => ({
     },
   }),
   useModelState: () => null, // Returns null when no model exists (file not loaded)
+  useAutoOpenFile: vi.fn(), // Auto-open file hook (does nothing in tests)
 }));
 
 // Mock registerEditorHandlers
@@ -155,12 +156,12 @@ vi.mock(
   }),
 );
 
-// Mock EditorViewPanel
+// Mock EditorPane
 vi.mock(
-  "../../../src/renderer/components/panes/editor-v2/components/EditorViewPanel",
+  "../../../src/renderer/components/panes/editor-v2/components/EditorPane",
   () => ({
-    EditorViewPanel: ({ selectedFile, viewMode }) => (
-      <div data-testid="mock-editor-view-panel">
+    EditorPane: ({ selectedFile, viewMode }) => (
+      <div data-testid="mock-editor-pane">
         <span data-testid="editor-file-path">
           {selectedFile?.path ?? "no-file"}
         </span>
@@ -278,7 +279,7 @@ describe("EditorPaneV2", () => {
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
       expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
-      expect(screen.getByTestId("mock-editor-view-panel")).toBeDefined();
+      expect(screen.getByTestId("mock-editor-pane")).toBeDefined();
     });
 
     it("should render tree resizer in split mode", () => {
@@ -450,7 +451,7 @@ describe("EditorPaneV2", () => {
       rerender(<EditorPaneV2 pane={TEST_PANE} />);
 
       // The editor panel should still be rendered (verifies ID stability)
-      expect(screen.getByTestId("mock-editor-view-panel")).toBeDefined();
+      expect(screen.getByTestId("mock-editor-pane")).toBeDefined();
     });
   });
 
@@ -531,14 +532,14 @@ describe("EditorPaneV2", () => {
       expect(onTreeModeChange).toHaveBeenCalledWith("all");
     });
 
-    it("should pass onSave to EditorViewPanel", () => {
+    it("should pass onSave to EditorPane", () => {
       const onSave = vi.fn();
 
       render(<EditorPaneV2 pane={TEST_PANE} onSave={onSave} />);
 
-      // EditorViewPanel is mocked, so we just verify the component renders
+      // EditorPane is mocked, so we just verify the component renders
       // The actual onSave pass-through is tested in the mock
-      expect(screen.getByTestId("mock-editor-view-panel")).toBeDefined();
+      expect(screen.getByTestId("mock-editor-pane")).toBeDefined();
     });
   });
 

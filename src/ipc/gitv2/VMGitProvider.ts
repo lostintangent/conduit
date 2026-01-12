@@ -35,6 +35,7 @@ import type {
   GitProvider,
   GitStatus,
   GitStatusChangedEvent,
+  TrackedBranchInfo,
 } from "./types";
 
 // ============================================================================
@@ -612,6 +613,102 @@ export class VMGitProvider implements GitProvider {
     );
 
     return result.hasUpstream;
+  }
+
+  // -------------------------------------------------------------------------
+  // Lifecycle
+  // -------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // Commit History (stub implementations - not yet implemented for VM)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get commit history.
+   * Note: Not yet implemented for VM sandbox.
+   */
+  async getCommitHistory(): Promise<{
+    commits: Array<{
+      id: string;
+      shortId: string;
+      subject: string;
+      message: string;
+      author: string;
+      authorEmail: string;
+      timestamp: number;
+      parentIds: string[];
+      refs?: string[];
+    }>;
+    hasMore: boolean;
+    totalCount?: number;
+  }> {
+    this.ensureNotDisposed();
+    // Not implemented for VM - return empty result
+    return { commits: [], hasMore: false };
+  }
+
+  /**
+   * Get a specific commit by ID.
+   * Note: Not yet implemented for VM sandbox.
+   */
+  async getCommit(): Promise<{
+    id: string;
+    shortId: string;
+    subject: string;
+    message: string;
+    author: string;
+    authorEmail: string;
+    timestamp: number;
+    parentIds: string[];
+    refs?: string[];
+  } | null> {
+    this.ensureNotDisposed();
+    return null;
+  }
+
+  /**
+   * Get files changed in a commit.
+   * Note: Not yet implemented for VM sandbox.
+   */
+  async getCommitFiles(): Promise<
+    Array<{
+      path: string;
+      status: "modified" | "added" | "deleted" | "renamed" | "copied";
+      originalPath?: string;
+      additions: number;
+      deletions: number;
+      isBinary: boolean;
+    }>
+  > {
+    this.ensureNotDisposed();
+    return [];
+  }
+
+  /**
+   * Get tracked branch information.
+   * Note: Not yet implemented for VM sandbox.
+   */
+  async getTrackedBranches(): Promise<TrackedBranchInfo> {
+    this.ensureNotDisposed();
+    return { current: null, upstream: null, base: null };
+  }
+
+  /**
+   * Create a new branch.
+   * Note: Not yet implemented for VM sandbox.
+   */
+  async createBranch(): Promise<void> {
+    this.ensureNotDisposed();
+    throw new Error("createBranch not implemented for VM sandbox");
+  }
+
+  /**
+   * Get file content at a specific commit.
+   * Note: Not yet implemented for VM sandbox.
+   */
+  async getFileAtCommit(): Promise<string | null> {
+    this.ensureNotDisposed();
+    return null;
   }
 
   // -------------------------------------------------------------------------

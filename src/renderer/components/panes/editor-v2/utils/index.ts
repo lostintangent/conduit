@@ -21,16 +21,23 @@ export {
   isDeletedOnRevert,
   computeStagedForChangesMode,
   getFileEntryPresence,
+  // FileChangeDisplay converters
+  gitStatusToFileChange,
+  commitFileToFileChange,
+  gitStatusToFileEntry,
+  commitFileToFileEntry,
 } from "./gitStatusHelpers";
 export {
   pathsEqual,
   isCaseInsensitiveFs,
+  getFileName,
   getParentPath,
+  getDirectoryPath,
   getParentPaths,
   normalizePathForKey,
   joinCwdPath,
 } from "./pathUtils";
-export { formatRelativeTime } from "./timeFormat";
+export { formatRelativeTime, formatFullDate } from "./timeFormat";
 export { forceTokenizeVisibleLines } from "./tokenization";
 export {
   filterDirtyFilesForStaging,
@@ -43,3 +50,4 @@ export {
   type SelectNextFileOptions,
   type SelectNextFileResult,
 } from "./fileSelectionHelpers";
+export { hasUnicodeBOM, isBinaryContent } from "./binaryDetection";

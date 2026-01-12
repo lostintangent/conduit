@@ -1670,4 +1670,314 @@ describe("DiskGitProvider", () => {
       expect(typeof subscription.dispose).toBe("function");
     });
   });
+
+  // ===========================================================================
+  // Commit History
+  // ===========================================================================
+
+  describe("getCommitHistory()", () => {
+    it("should return commits in topological order", async () => {
+      // Format: hash|shortHash|subject|author|email|timestamp|parentHashes|refs
+      mockGit.raw.mockResolvedValue(
+        "abc123def456789012345678901234567890abcd|abc123d|First commit|Test User|test@example.com|1704067200|def456|HEAD -> main\n" +
+          "def456abc789012345678901234567890abcdef|def456a|Second commit|Test User|test@example.com|1704067100||\n",
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getCommitHistory({ limit: 10 });
+
+      expect(result.commits).toHaveLength(2);
+      expect(result.commits[0].id).toBe(
+        "abc123def456789012345678901234567890abcd",
+      );
+      expect(result.commits[0].shortId).toBe("abc123d");
+      expect(result.commits[0].subject).toBe("First commit");
+      expect(result.commits[0].author).toBe("Test User");
+      expect(result.commits[0].authorEmail).toBe("test@example.com");
+      expect(result.commits[0].timestamp).toBe(1704067200000);
+      expect(result.commits[0].parentIds).toEqual(["def456"]);
+      expect(result.commits[0].refs).toContain("HEAD -> main");
+    });
+
+    it("should detect hasMore when more commits exist", async () => {
+      // When limit is 2, request 3 and return 3 to indicate hasMore
+      mockGit.raw.mockResolvedValue(
+        "abc123|abc|Commit 1|User|user@test.com|1704067200||\n" +
+          "def456|def|Commit 2|User|user@test.com|1704067100||\n" +
+          "ghi789|ghi|Commit 3|User|user@test.com|1704067000||\n",
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getCommitHistory({ limit: 2 });
+
+      expect(result.commits).toHaveLength(2);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it("should return hasMore=false when no more commits", async () => {
+      mockGit.raw.mockResolvedValue(
+        "abc123|abc|Commit 1|User|user@test.com|1704067200||\n",
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getCommitHistory({ limit: 10 });
+
+      expect(result.commits).toHaveLength(1);
+      expect(result.hasMore).toBe(false);
+    });
+
+    it("should handle pagination with skip parameter", async () => {
+      mockGit.raw.mockResolvedValue(
+        "def456|def|Commit 2|User|user@test.com|1704067100||\n",
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.getCommitHistory({ limit: 10, skip: 1 });
+
+      expect(mockGit.raw).toHaveBeenCalledWith(
+        expect.arrayContaining(["--skip=1"]),
+      );
+    });
+
+    it("should use default limit of 50", async () => {
+      mockGit.raw.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.getCommitHistory();
+
+      expect(mockGit.raw).toHaveBeenCalledWith(
+        expect.arrayContaining(["-n", "51"]), // limit + 1 for hasMore check
+      );
+    });
+
+    it("should handle merge commits with multiple parents", async () => {
+      mockGit.raw.mockResolvedValue(
+        "abc123|abc|Merge branch|User|user@test.com|1704067200|def456 ghi789|\n",
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getCommitHistory();
+
+      expect(result.commits[0].parentIds).toEqual(["def456", "ghi789"]);
+    });
+
+    it("should handle root commits with no parents", async () => {
+      mockGit.raw.mockResolvedValue(
+        "abc123|abc|Initial commit|User|user@test.com|1704067200||\n",
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getCommitHistory();
+
+      expect(result.commits[0].parentIds).toEqual([]);
+    });
+
+    it("should return empty result on error", async () => {
+      mockGit.raw.mockRejectedValue(new Error("git error"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const result = await provider.getCommitHistory();
+
+      expect(result.commits).toEqual([]);
+      expect(result.hasMore).toBe(false);
+    });
+
+    it("should pass ref parameter when provided", async () => {
+      mockGit.raw.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.getCommitHistory({ ref: "develop" });
+
+      expect(mockGit.raw).toHaveBeenCalledWith(
+        expect.arrayContaining(["develop"]),
+      );
+    });
+  });
+
+  describe("getCommit()", () => {
+    it("should return a single commit by hash", async () => {
+      // Format: hash\0shortHash\0subject\0body\0author\0email\0timestamp\0parentHashes\0refs
+      // Using array join to avoid octal escape sequence issues with \0 followed by numbers
+      const NUL = "\0";
+      mockGit.raw.mockResolvedValue(
+        [
+          "abc123def456",
+          "abc123d",
+          "Subject line",
+          "",
+          "Test User",
+          "test@example.com",
+          "1704067200",
+          "def456",
+          "HEAD -> main\n",
+        ].join(NUL),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const commit = await provider.getCommit("abc123");
+
+      expect(commit).not.toBeNull();
+      expect(commit?.id).toBe("abc123def456");
+      expect(commit?.subject).toBe("Subject line");
+      expect(commit?.author).toBe("Test User");
+    });
+
+    it("should return null when commit not found", async () => {
+      mockGit.raw.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const commit = await provider.getCommit("nonexistent");
+
+      expect(commit).toBeNull();
+    });
+
+    it("should return null on error", async () => {
+      mockGit.raw.mockRejectedValue(new Error("git error"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const commit = await provider.getCommit("abc123");
+
+      expect(commit).toBeNull();
+    });
+
+    it("should include full message with body", async () => {
+      // Format: hash\0shortHash\0subject\0body\0author\0email\0timestamp\0parentHashes\0refs
+      // Using array join to avoid octal escape sequence issues with \0 followed by numbers
+      const NUL = "\0";
+      mockGit.raw.mockResolvedValue(
+        [
+          "abc123",
+          "abc",
+          "Subject",
+          "Body text here",
+          "User",
+          "user@test.com",
+          "1704067200",
+          "",
+          "\n",
+        ].join(NUL),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const commit = await provider.getCommit("abc123");
+
+      expect(commit?.message).toContain("Subject");
+      expect(commit?.message).toContain("Body text here");
+    });
+  });
+
+  describe("getCommitFiles()", () => {
+    it("should return files changed in a commit", async () => {
+      // name-status format: <status>\t<path>
+      mockGit.raw
+        .mockResolvedValueOnce(
+          "A\tsrc/new.ts\nM\tsrc/modified.ts\nD\tsrc/deleted.ts\n",
+        )
+        // numstat format: <additions>\t<deletions>\t<path>
+        .mockResolvedValueOnce(
+          "10\t0\tsrc/new.ts\n5\t3\tsrc/modified.ts\n0\t20\tsrc/deleted.ts\n",
+        );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const files = await provider.getCommitFiles("abc123");
+
+      expect(files).toHaveLength(3);
+
+      const newFile = files.find((f) => f.path === "src/new.ts");
+      expect(newFile?.status).toBe("added");
+      expect(newFile?.additions).toBe(10);
+      expect(newFile?.deletions).toBe(0);
+
+      const modifiedFile = files.find((f) => f.path === "src/modified.ts");
+      expect(modifiedFile?.status).toBe("modified");
+      expect(modifiedFile?.additions).toBe(5);
+      expect(modifiedFile?.deletions).toBe(3);
+
+      const deletedFile = files.find((f) => f.path === "src/deleted.ts");
+      expect(deletedFile?.status).toBe("deleted");
+      expect(deletedFile?.additions).toBe(0);
+      expect(deletedFile?.deletions).toBe(20);
+    });
+
+    it("should handle renamed files", async () => {
+      mockGit.raw
+        .mockResolvedValueOnce("R100\told/path.ts\tnew/path.ts\n")
+        .mockResolvedValueOnce("5\t2\tnew/path.ts\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const files = await provider.getCommitFiles("abc123");
+
+      expect(files).toHaveLength(1);
+      expect(files[0].status).toBe("renamed");
+      expect(files[0].path).toBe("new/path.ts");
+      expect(files[0].originalPath).toBe("old/path.ts");
+    });
+
+    it("should handle binary files", async () => {
+      mockGit.raw
+        .mockResolvedValueOnce("A\timage.png\n")
+        .mockResolvedValueOnce("-\t-\timage.png\n");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const files = await provider.getCommitFiles("abc123");
+
+      expect(files).toHaveLength(1);
+      expect(files[0].isBinary).toBe(true);
+      expect(files[0].additions).toBe(0);
+      expect(files[0].deletions).toBe(0);
+    });
+
+    it("should return empty array on error", async () => {
+      mockGit.raw.mockRejectedValue(new Error("git error"));
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const files = await provider.getCommitFiles("abc123");
+
+      expect(files).toEqual([]);
+    });
+
+    it("should return empty array for empty result", async () => {
+      mockGit.raw.mockResolvedValue("");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const files = await provider.getCommitFiles("abc123");
+
+      expect(files).toEqual([]);
+    });
+  });
+
+  describe("getFileAtCommit()", () => {
+    it("should return file content at specified commit", async () => {
+      mockGit.show.mockResolvedValue("file content at commit");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const content = await provider.getFileAtCommit("abc123", "file.ts");
+
+      expect(content).toBe("file content at commit");
+      expect(mockGit.show).toHaveBeenCalledWith(["abc123:file.ts"]);
+    });
+
+    it("should return null when file does not exist at commit", async () => {
+      mockGit.show.mockRejectedValue(
+        new Error("pathspec 'file.ts' did not match any file(s)"),
+      );
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      const content = await provider.getFileAtCommit(
+        "abc123",
+        "nonexistent.ts",
+      );
+
+      expect(content).toBeNull();
+    });
+
+    it("should convert absolute paths to relative", async () => {
+      mockGit.show.mockResolvedValue("content");
+
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.getFileAtCommit("abc123", "/test/repo/src/file.ts");
+
+      expect(mockGit.show).toHaveBeenCalledWith(["abc123:src/file.ts"]);
+    });
+  });
 });

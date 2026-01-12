@@ -8,6 +8,7 @@
  */
 
 import type * as monaco from "monaco-editor";
+import type { GitFileStatusCode } from "@/api/GitV2API";
 
 // ============================================================================
 // Common Types
@@ -242,12 +243,45 @@ export interface FileNode {
  * The current view mode of the editor panel.
  *
  * Controls what is displayed in the main editor area.
+ *
+ * Modes are organized into categories:
+ *
+ * **Working Tree Modes** (current state):
+ * - `editor`: Standard code editor for viewing/editing files
+ * - `diff`: Side-by-side diff comparing file to a git ref
+ * - `changesReview`: Multi-file review of all working tree changes
+ *
+ * **Historical Modes** (read-only, viewing past commits):
+ * - `commitFileDiff`: Diff of a single file between commit and parent
+ * - `commitReview`: Multi-file review of all changes in a commit
  */
 export type ViewMode =
+  // Working tree modes
   | { type: "editor" }
   | { type: "preview" }
   | { type: "diff"; filePath: string; baseBranch?: string }
-  | { type: "changesReview"; baseBranch?: string };
+  | { type: "changesReview"; baseBranch?: string }
+  // Historical commit modes (read-only)
+  | {
+      type: "commitFileDiff";
+      /** Absolute path to the file */
+      filePath: string;
+      /** Commit containing the change */
+      commitId: string;
+      /** Parent commit for comparison (first parent for merges) */
+      parentCommitId: string;
+      /** File status (added, modified, deleted, etc.) */
+      fileStatus?: GitFileStatusCode;
+      /** Original path before rename/copy (for renamed/copied files) */
+      originalPath?: string;
+    }
+  | {
+      type: "commitReview";
+      /** Commit to review */
+      commitId: string;
+      /** Parent commit for comparison */
+      parentCommitId: string;
+    };
 
 /**
  * Tree view mode - what the file tree displays.
@@ -364,4 +398,55 @@ export function contentSourceToGitRef(source: ContentSource): string {
     default:
       return source;
   }
+}
+
+// ============================================================================
+// File Change Display Types
+// ============================================================================
+
+/**
+ * Display-focused representation of a changed file.
+ *
+ * This is a presentation type used by file change components. Unlike
+ * `GitFileStatus` (which includes working-tree concepts like `staged`) or
+ * `CommitFile` (which includes statistics), this type focuses on what's
+ * needed for display:
+ *
+ * - The file path and status for rendering
+ * - Optional original path for renames
+ * - No `staged` field - that's a working tree concept, not a display concept
+ *
+ * Use the converter functions to create from API types:
+ * - `gitStatusToFileChange()` - from working tree status
+ * - `commitFileToFileChange()` - from historical commit file
+ */
+export interface FileChangeDisplay {
+  /** Relative path from repository root */
+  path: string;
+
+  /** Type of change - matches GitFileStatusCode for compatibility */
+  status: GitFileStatusCode;
+
+  /** Original path before rename/copy (only present for renamed/copied files) */
+  originalPath?: string;
+}
+
+/**
+ * File change with additional context needed for rendering in a list.
+ *
+ * Extends FileChangeDisplay with:
+ * - A unique key for React rendering (handles partial staging where same path appears twice)
+ * - Context about the change (staged vs unstaged, or commit info)
+ */
+export interface FileChangeEntry {
+  /** Unique key for this entry (may differ from path for partial staging) */
+  key: string;
+
+  /** The file change display info */
+  file: FileChangeDisplay;
+
+  /** Context for working tree changes */
+  context:
+    | { type: "working"; staged: boolean; hasIndexChanges?: boolean }
+    | { type: "historical"; commitId: string; parentCommitId: string };
 }

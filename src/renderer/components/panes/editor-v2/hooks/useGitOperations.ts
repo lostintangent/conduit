@@ -33,7 +33,7 @@
  * ```
  */
 
-import type { GitCommit } from "@/../../src/ipc/gitv2/types";
+import type { GitCommit } from "@/api/GitV2API";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useCallback, useMemo, useState } from "react";
 
