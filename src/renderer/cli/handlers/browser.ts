@@ -24,34 +24,33 @@ export const browserHandlers: Partial<HandlerMap> = {
   ...automationHandlers,
 
   "browser-capture": async (args, context) => {
-    const resolvedPane = context.resolveBrowserPane(args?.paneId);
-    const webContentsId = resolvedPane.webview.getWebContentsId();
+    const { webview } = context.resolveBrowserPane(args?.paneId);
 
     context.suppressResponse();
 
     await window.conduit.cli.completeCaptureBrowserRequest({
       requestId: context.requestId,
-      webContentsId,
+      webContentsId: webview.getWebContentsId(),
     });
   },
 
   "browser-navigate": (args, context) => {
-    context.executeWebviewAction(args?.paneId, (webview) =>
-      webview.loadURL(normalizeUrl(args.url)),
-    );
+    const { webview } = context.resolveBrowserPane(args?.paneId);
+    webview.loadURL(normalizeUrl(args.url));
   },
 
   "browser-back": (args, context) => {
-    context.executeWebviewAction(args?.paneId, (webview) => webview.goBack());
+    const { webview } = context.resolveBrowserPane(args?.paneId);
+    webview.goBack();
   },
 
   "browser-forward": (args, context) => {
-    context.executeWebviewAction(args?.paneId, (webview) =>
-      webview.goForward(),
-    );
+    const { webview } = context.resolveBrowserPane(args?.paneId);
+    webview.goForward();
   },
 
   "browser-refresh": (args, context) => {
-    context.executeWebviewAction(args?.paneId, (webview) => webview.reload());
+    const { webview } = context.resolveBrowserPane(args?.paneId);
+    webview.reload();
   },
 };

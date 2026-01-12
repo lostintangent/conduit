@@ -1,16 +1,21 @@
 /**
- * EditorSidebarContent - Editor view for the sidebar
+ * EditorView - Editor view for the sidebar
  *
  * Renders the EditorPaneAnchor with file tree and editor.
- * Tracks the current file per CWD and persists editor settings.
+ * Supports locked/unlocked modes:
+ * - Unlocked: Tracks CWD changes, shows files for active terminal's directory
+ * - Locked: Frozen at lock-time CWD, ignores terminal focus changes
+ *
+ * The `effectiveCwd` prop is the CWD to use (either current or locked).
  */
 
 import { EditorPaneAnchor } from "@/components/panes/editor-v2";
 import type { EditorTreeMode } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import { useCallback, useMemo } from "react";
-import { useCwdFileTracking } from "./hooks/useCwdFileTracking";
-import { usePersistedState } from "./hooks/usePersistedState";
+import { usePersistedState } from "../hooks/usePersistedState";
+import { useSidebarNavigation } from "../hooks/useSidebarNavigation";
+import { cwdCache, sidebarPaneIds } from "../utils";
 
 // =============================================================================
 // Constants
@@ -37,7 +42,8 @@ function isChangesViewMode(value: string): value is ChangesViewMode {
 // Types
 // =============================================================================
 
-interface EditorSidebarContentProps {
+interface EditorViewProps {
+  /** The effective CWD to display (respects lock state) */
   cwd: string;
 }
 
@@ -45,7 +51,7 @@ interface EditorSidebarContentProps {
 // Main Component
 // =============================================================================
 
-export function EditorSidebarContent({ cwd }: EditorSidebarContentProps) {
+export function EditorView({ cwd }: EditorViewProps) {
   // Persisted editor settings
   const [treeMode, setTreeMode] = usePersistedState<EditorTreeMode>(
     STORAGE_KEYS.treeMode,
@@ -60,19 +66,35 @@ export function EditorSidebarContent({ cwd }: EditorSidebarContentProps) {
       isChangesViewMode,
     );
 
-  // Track current file per CWD
-  const { currentFile, setFile, clearFile } = useCwdFileTracking(cwd);
-
   // Stable pane ID based on CWD - ensures editor state is cached per directory
-  const paneId = useMemo(() => `sidebar-editor-${cwd}`, [cwd]);
+  const paneId = useMemo(() => sidebarPaneIds.editor(cwd), [cwd]);
+
+  // Current file - read from cache (survives view switches).
+  // Not useState because EditorPaneAnchor manages the open file internally;
+  // this just provides the initial file to restore after view switches.
+  // Re-renders are triggered by: navigation clear (atom update) or CWD change (prop).
+  const currentFile = cwdCache.get(cwd, "editor-file");
+
+  // Consume navigation requests (tree mode and/or file)
+  useSidebarNavigation((nav) => {
+    if (!nav.editorTreeMode && !nav.editorFile) return undefined;
+    if (nav.editorTreeMode) setTreeMode(nav.editorTreeMode);
+    if (nav.editorFile) cwdCache.set(cwd, "editor-file", nav.editorFile);
+    return true;
+  });
 
   // File change handler - tracks file per CWD
   const handleFileChange = useCallback(
     (fileData: { file: string; language: string; content: string }) => {
-      setFile(fileData.file);
+      cwdCache.set(cwd, "editor-file", fileData.file);
     },
-    [setFile],
+    [cwd],
   );
+
+  // Clear file handler
+  const handleClearFile = useCallback(() => {
+    cwdCache.clear(cwd, "editor-file");
+  }, [cwd]);
 
   // Construct pane object for EditorPaneAnchor
   const pane = useMemo(
@@ -92,7 +114,7 @@ export function EditorSidebarContent({ cwd }: EditorSidebarContentProps) {
       paneId={paneId}
       pane={pane}
       onFileChange={handleFileChange}
-      onClearFile={clearFile}
+      onClearFile={handleClearFile}
       onTreeModeChange={setTreeMode}
       onChangesViewModeChange={setChangesViewMode}
     />

@@ -134,7 +134,7 @@ export function PaneControlButtons({
     >
       {/* Center buttons (Drag grip, Move to new tab, and Close) */}
       {(showMoveToNewTab || showClose) && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[32] flex flex-col items-center gap-2 pointer-events-none">
           <div className={groupClasses.center}>
             {showMoveToNewTab && (
               <button
@@ -170,7 +170,7 @@ export function PaneControlButtons({
 
       {/* Top buttons */}
       <div
-        className={`absolute top-0 left-1/2 -translate-x-1/2 z-20 ${groupClasses.top}`}
+        className={`absolute top-0 left-1/2 -translate-x-1/2 z-[32] ${groupClasses.top}`}
       >
         <button
           className={buttonClass}
@@ -208,7 +208,7 @@ export function PaneControlButtons({
 
       {/* Bottom buttons */}
       <div
-        className={`absolute bottom-0 left-1/2 -translate-x-1/2 z-20 ${groupClasses.bottom}`}
+        className={`absolute bottom-0 left-1/2 -translate-x-1/2 z-[32] ${groupClasses.bottom}`}
       >
         <button
           className={buttonClass}
@@ -248,7 +248,7 @@ export function PaneControlButtons({
 
       {/* Left buttons */}
       <div
-        className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 ${groupClasses.left}`}
+        className={`absolute left-0 top-1/2 -translate-y-1/2 z-[32] ${groupClasses.left}`}
       >
         <button
           className={buttonClass}
@@ -288,7 +288,7 @@ export function PaneControlButtons({
 
       {/* Right buttons */}
       <div
-        className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 ${groupClasses.right}`}
+        className={`absolute right-0 top-1/2 -translate-y-1/2 z-[32] ${groupClasses.right}`}
       >
         <button
           className={buttonClass}

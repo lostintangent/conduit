@@ -43,6 +43,8 @@ export type Team = LaunchGroup;
 
 export type PlayButtonTarget = "hyper" | "newPane";
 
+export type TerminalLinkTarget = "pane" | "sidebar";
+
 export type DotfilesStatus =
   | "disabled"
   | "cloning"
@@ -66,6 +68,7 @@ export type UserSettings = {
   terminalShell?: string;
   terminalFontFamily?: string;
   terminalFontSize?: number;
+  terminalLinkTarget?: TerminalLinkTarget;
   showTerminalRuler: boolean;
   showTabState: boolean;
 

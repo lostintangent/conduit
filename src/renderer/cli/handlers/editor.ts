@@ -1,6 +1,10 @@
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
+import { sidebarStateAtom } from "@/store/atoms";
 import type { EditorPane } from "@/types";
+import { getDefaultStore } from "jotai";
 import type { HandlerMap } from "./types";
+
+const store = getDefaultStore();
 
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
 
@@ -14,21 +18,29 @@ export const editorHandlers: Partial<HandlerMap> = {
       COMMIT_EDITMSG_FILENAME,
     );
 
-    const descriptor: EditorQuickDescriptor = {
-      type: "editor",
-      cwd: commandArgs.cwd,
-      file: commandArgs.filePath,
-    };
-
+    // For commit messages, still use quick pane (needs isLocked, closeOnSave, onClose)
     if (isCommitMessageRequest) {
       return new Promise<void>((resolve) => {
-        descriptor.isLocked = true;
-        descriptor.closeOnSave = true;
-        descriptor.onClose = resolve;
+        const descriptor: EditorQuickDescriptor = {
+          type: "editor",
+          cwd: commandArgs.cwd,
+          file: commandArgs.filePath,
+          isLocked: true,
+          closeOnSave: true,
+          onClose: resolve,
+        };
         context.onOpenFile(descriptor);
       });
     }
 
-    context.onOpenFile(descriptor);
+    store.set(sidebarStateAtom, {
+      isOpen: true,
+      view: "editor",
+      navigation: {
+        cwd: commandArgs.cwd,
+        editorTreeMode: "all",
+        editorFile: commandArgs.filePath,
+      },
+    });
   },
 };

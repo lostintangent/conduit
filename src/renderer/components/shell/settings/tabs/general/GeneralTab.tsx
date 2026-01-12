@@ -9,7 +9,12 @@ import { useDotfiles } from "@/hooks/useDotfiles";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { quickPaneAtom } from "@/store/atoms";
 import { capitalize } from "@/utils";
-import type { PlayButtonTarget, ThemeMode, UserSettings } from "@shared/types";
+import type {
+  PlayButtonTarget,
+  TerminalLinkTarget,
+  ThemeMode,
+  UserSettings,
+} from "@shared/types";
 import { useSetAtom } from "jotai";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -288,6 +293,32 @@ export function GeneralTab({
               onUpdateSettings({ showTerminalRuler: checked })
             }
           />
+
+          <div>
+            <label className="text-sm text-tinted-foreground/60 block mb-2">
+              Link target
+            </label>
+            <div className="relative max-w-xs">
+              <select
+                value={userSettings.terminalLinkTarget ?? "pane"}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    terminalLinkTarget: e.target.value as TerminalLinkTarget,
+                  })
+                }
+                className="w-full px-3 py-2 bg-tinted border border-tinted-border rounded text-sm text-tinted-foreground focus:outline-none focus:border-accent appearance-none pr-10"
+              >
+                <option value="pane">Browser pane</option>
+                <option value="sidebar">Sidebar</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-tinted-foreground/60 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+            <p className="text-xs text-tinted-foreground/50 mt-2">
+              {userSettings.terminalLinkTarget === "sidebar"
+                ? "Opens clicked links in the sidebar browser view"
+                : "Opens clicked links in a browser pane within the current tab"}
+            </p>
+          </div>
         </SettingSection>
 
         {/* Editor Settings Section */}

@@ -1,6 +1,5 @@
 import {
   automateBrowser,
-  executeWebviewAction,
   findCallingTerminalTab,
   resolveBrowserPane,
   resolveCanvasPane,
@@ -9,9 +8,8 @@ import {
 import { useCommand } from "@/commands/hooks/useCommand";
 import {
   activeTabAtom,
-  isSidebarOpenAtom,
   quickPaneAtom,
-  sidebarViewAtom,
+  sidebarStateAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
@@ -56,8 +54,7 @@ function useSplitCommandMap<T extends string>(commands: SplitCommandConfig<T>) {
 export function useCliClient(activeCwd: string) {
   const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
-  const isSidebarOpen = useAtomValue(isSidebarOpenAtom);
-  const sidebarView = useAtomValue(sidebarViewAtom);
+  const sidebarState = useAtomValue(sidebarStateAtom);
   const setQuickPane = useSetAtom(quickPaneAtom);
 
   const moveCommandMap = useCommandMap({
@@ -120,10 +117,11 @@ export function useCliClient(activeCwd: string) {
         activeTab,
       } as const;
 
-      const canvasResolutionContext = {
+      // Browser and canvas need sidebar state for resolution
+      const sidebarAwareContext = {
         ...resolutionContext,
-        isSidebarOpen,
-        sidebarView,
+        isSidebarOpen: sidebarState.isOpen,
+        sidebarView: sidebarState.view,
         activeCwd,
       } as const;
 
@@ -149,13 +147,11 @@ export function useCliClient(activeCwd: string) {
         resolveTerminalSessions: (paneId?: string, all?: boolean) =>
           resolveTerminalSessions(resolutionContext, paneId, all),
         resolveBrowserPane: (paneId?: string) =>
-          resolveBrowserPane(resolutionContext, paneId),
+          resolveBrowserPane(sidebarAwareContext, paneId),
         resolveCanvasPane: (paneId?: string) =>
-          resolveCanvasPane(canvasResolutionContext, paneId),
-        executeWebviewAction: (paneId, action) =>
-          executeWebviewAction(resolutionContext, paneId, action),
+          resolveCanvasPane(sidebarAwareContext, paneId),
         automateBrowser: (command, automationArgs) =>
-          automateBrowser(resolutionContext, command, automationArgs),
+          automateBrowser(sidebarAwareContext, command, automationArgs),
         moveCommandMap,
         splitCommandMap,
         focusPaneCommand,

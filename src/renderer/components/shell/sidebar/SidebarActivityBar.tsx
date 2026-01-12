@@ -1,13 +1,22 @@
 /**
  * SidebarActivityBar - Vertical icon bar for switching between sidebar views
  *
- * Displays icons for editor and canvas views. Clicking an icon switches
- * the sidebar content. Uses elevated background with right border styling.
+ * Displays icons for editor, browser, and canvas views. Clicking an icon switches
+ * the sidebar content. Also provides lock, expand, and close controls.
  */
 
 import { cn } from "@/utils";
 import type { SidebarView } from "@/store/atoms";
-import { FolderTree, Palette, PanelRightClose } from "lucide-react";
+import {
+  FolderTree,
+  Globe,
+  Lock,
+  Maximize,
+  Minimize,
+  Palette,
+  PanelRightClose,
+  Unlock,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +30,10 @@ import {
 interface SidebarActivityBarProps {
   view: SidebarView;
   onViewChange: (view: SidebarView) => void;
+  isLocked: boolean;
+  onLockToggle: () => void;
+  isExpanded: boolean;
+  onExpandToggle: () => void;
   onClose: () => void;
 }
 
@@ -69,16 +82,26 @@ function ActivityBarButton({
 export function SidebarActivityBar({
   view,
   onViewChange,
+  isLocked,
+  onLockToggle,
+  isExpanded,
+  onExpandToggle,
   onClose,
 }: SidebarActivityBarProps) {
   return (
     <div className="flex flex-col items-center justify-between px-1.5 py-2 bg-elevated border-r border-border shrink-0">
-      <div className="flex flex-col items-center gap-1">
+      <div className="flex flex-col items-center gap-3">
         <ActivityBarButton
           icon={<FolderTree size={14} />}
           tooltip="File Explorer"
           active={view === "editor"}
           onClick={() => onViewChange("editor")}
+        />
+        <ActivityBarButton
+          icon={<Globe size={14} />}
+          tooltip="Browser"
+          active={view === "browser"}
+          onClick={() => onViewChange("browser")}
         />
         <ActivityBarButton
           icon={<Palette size={14} />}
@@ -88,12 +111,30 @@ export function SidebarActivityBar({
         />
       </div>
 
-      <ActivityBarButton
-        icon={<PanelRightClose size={14} />}
-        tooltip="Close Sidebar"
-        active={false}
-        onClick={onClose}
-      />
+      <div className="flex flex-col items-center gap-3">
+        <ActivityBarButton
+          icon={isLocked ? <Lock size={14} /> : <Unlock size={14} />}
+          tooltip={isLocked ? "Unlock from CWD" : "Lock to CWD"}
+          active={isLocked}
+          onClick={onLockToggle}
+        />
+
+        {/* Separator */}
+        <div className="w-4 h-px bg-elevated-border" />
+
+        <ActivityBarButton
+          icon={isExpanded ? <Minimize size={14} /> : <Maximize size={14} />}
+          tooltip={isExpanded ? "Collapse" : "Expand"}
+          active={false}
+          onClick={onExpandToggle}
+        />
+        <ActivityBarButton
+          icon={<PanelRightClose size={14} />}
+          tooltip="Close Sidebar"
+          active={false}
+          onClick={onClose}
+        />
+      </div>
     </div>
   );
 }

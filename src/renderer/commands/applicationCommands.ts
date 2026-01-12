@@ -588,7 +588,10 @@ export function registerApplicationCommands(
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
       if (targetTabId && targetPaneId) {
-        handleViewFileExplorer();
+        // Get the CWD from the active terminal pane
+        const pane = context.activeTab?.panes?.[targetPaneId];
+        const cwd = pane?.type === "terminal" ? pane.cwd : undefined;
+        handleViewFileExplorer(cwd);
       }
     },
   });

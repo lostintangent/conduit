@@ -4,21 +4,20 @@
  * Features:
  * - Slides in/out with animation (toggled via Cmd+E)
  * - Resizable width with drag handle (persisted to localStorage)
- * - Activity bar for switching between editor and canvas views
- * - CWD synced to active terminal/editor pane
+ * - Activity bar for switching between editor, browser, and canvas views
+ * - CWD synced to active terminal/editor pane (when unlocked)
+ * - Lock mode to freeze the sidebar at a specific CWD
  */
 
-import {
-  applicationModeAtom,
-  isSidebarOpenAtom,
-  sidebarViewAtom,
-} from "@/store/atoms";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useEffect, useRef } from "react";
-import { CanvasSidebarContent } from "./CanvasSidebarContent";
-import { EditorSidebarContent } from "./EditorSidebarContent";
+import type { SidebarView } from "@/store/atoms";
+import { applicationModeAtom, sidebarStateAtom } from "@/store/atoms";
+import { useAtom, useAtomValue } from "jotai";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ResizablePanel } from "./ResizablePanel";
 import { SidebarActivityBar } from "./SidebarActivityBar";
+import { BrowserView } from "./views/BrowserView";
+import { CanvasView } from "./views/CanvasView";
+import { EditorView } from "./views/EditorView";
 
 // =============================================================================
 // Constants
@@ -39,29 +38,75 @@ interface SidebarProps {
 // =============================================================================
 
 export function Sidebar({ cwd }: SidebarProps) {
-  // Sidebar visibility state
-  const isOpen = useAtomValue(isSidebarOpenAtom);
-  const setIsOpen = useSetAtom(isSidebarOpenAtom);
+  const [sidebarState, setSidebarState] = useAtom(sidebarStateAtom);
+  const { isOpen, view } = sidebarState;
+
   const applicationMode = useAtomValue(applicationModeAtom);
+
+  // Expanded state (full width) - not persisted, resets on close
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Locked state - freezes sidebar at current CWD
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockedCwd, setLockedCwd] = useState<string | null>(null);
 
   // Close sidebar when application mode changes (skip initial mount)
   const prevApplicationModeRef = useRef(applicationMode);
   useEffect(() => {
     if (prevApplicationModeRef.current !== applicationMode) {
-      setIsOpen(false);
+      setSidebarState((prev) => ({ ...prev, isOpen: false }));
       prevApplicationModeRef.current = applicationMode;
     }
-  }, [applicationMode, setIsOpen]);
+  }, [applicationMode, setSidebarState]);
 
-  // View selection from atom
-  const [view, setView] = useAtom(sidebarViewAtom);
+  // Reset expanded and locked state when sidebar closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsExpanded(false);
+      setIsLocked(false);
+      setLockedCwd(null);
+    }
+  }, [isOpen]);
 
-  const closeSidebar = () => setIsOpen(false);
+  // When a navigation with a CWD comes in and we're locked, update the lock target
+  useEffect(() => {
+    const navCwd = sidebarState.navigation?.cwd;
+    if (navCwd && isLocked) {
+      setLockedCwd(navCwd);
+    }
+  }, [sidebarState.navigation, isLocked]);
+
+  const setView = useCallback(
+    (newView: SidebarView) =>
+      setSidebarState((prev) => ({ ...prev, view: newView })),
+    [setSidebarState],
+  );
+
+  const closeSidebar = useCallback(
+    () => setSidebarState((prev) => ({ ...prev, isOpen: false })),
+    [setSidebarState],
+  );
+
+  const toggleExpanded = useCallback(() => setIsExpanded((prev) => !prev), []);
+
+  const toggleLocked = useCallback(() => {
+    if (isLocked) {
+      setIsLocked(false);
+      setLockedCwd(null);
+    } else {
+      setIsLocked(true);
+      setLockedCwd(cwd);
+    }
+  }, [isLocked, cwd]);
+
+  // The effective CWD: locked CWD if locked, otherwise current CWD
+  const effectiveCwd = isLocked && lockedCwd ? lockedCwd : cwd;
 
   return (
     <ResizablePanel
       storageKey={SIDEBAR_WIDTH_STORAGE_KEY}
       isOpen={isOpen}
+      isExpanded={isExpanded}
       defaultWidthPercent={0.5}
     >
       <div className="flex h-full">
@@ -69,15 +114,21 @@ export function Sidebar({ cwd }: SidebarProps) {
         <SidebarActivityBar
           view={view}
           onViewChange={setView}
+          isLocked={isLocked}
+          onLockToggle={toggleLocked}
+          isExpanded={isExpanded}
+          onExpandToggle={toggleExpanded}
           onClose={closeSidebar}
         />
 
         {/* Content */}
         <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {view === "editor" ? (
-            <EditorSidebarContent cwd={cwd} />
+            <EditorView cwd={effectiveCwd} />
+          ) : view === "browser" ? (
+            <BrowserView cwd={effectiveCwd} />
           ) : (
-            <CanvasSidebarContent cwd={cwd} />
+            <CanvasView cwd={effectiveCwd} isLocked={isLocked} />
           )}
         </div>
       </div>

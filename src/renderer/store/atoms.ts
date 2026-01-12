@@ -120,14 +120,38 @@ export type TabState = "running" | "idle" | "idle-unseen" | "idle-notified";
 export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
 
 /**
- * Sidebar open state - controls visibility of the slide-out sidebar panel.
- * Toggled via Cmd+E. Not persisted across reloads.
+ * Sidebar view types - which view is shown in the sidebar.
  */
-export const isSidebarOpenAtom = atom<boolean>(false);
+export type SidebarView = "editor" | "canvas" | "browser";
 
 /**
- * Sidebar view state - controls which view is shown in the sidebar.
- * Not persisted across reloads.
+ * One-shot navigation request for deep linking into sidebar views.
+ * Each view component consumes only the fields it cares about, then clears.
+ *
+ * - cwd: Target CWD for this navigation (updates lock target if locked)
+ * - browserUrl: Navigate the sidebar browser to this URL
+ * - editorTreeMode: Set the editor tree to "all" or "changes" mode
+ * - editorFile: Open this file in the sidebar editor
  */
-export type SidebarView = "editor" | "canvas";
-export const sidebarViewAtom = atom<SidebarView>("editor");
+export type SidebarNavigation = {
+  /** Target CWD - if sidebar is locked, updates the lock to this CWD */
+  cwd?: string;
+  browserUrl?: string;
+  editorTreeMode?: "all" | "changes";
+  editorFile?: string;
+};
+
+/**
+ * Unified sidebar state - combines open state, view, and optional navigation.
+ * Navigation is one-shot: view components consume it and clear it.
+ */
+export type SidebarState = {
+  isOpen: boolean;
+  view: SidebarView;
+  navigation?: SidebarNavigation;
+};
+
+export const sidebarStateAtom = atom<SidebarState>({
+  isOpen: false,
+  view: "editor",
+});

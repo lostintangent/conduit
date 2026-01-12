@@ -1,3 +1,10 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { AgentSessionInfo } from "@shared/types";
 import { useEffect, useMemo, useState } from "react";
 
@@ -49,24 +56,16 @@ export function AgentCleanupDialog({
     [sessions],
   );
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/60 backdrop-blur"
-      onClick={onClose}
-    >
-      <div
-        className="w-[520px] max-w-[94vw] rounded-xl border border-white/10 bg-popover p-5 text-white shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold">Manage agent sessions</h2>
-        <p className="mt-1 text-sm text-white/70">
-          Select one or more sessions to remove. Removing a session deletes its
-          temporary worktree and branch without merging the changes.
-        </p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[520px] max-w-[94vw] p-5 gap-0">
+        <DialogHeader className="space-y-1">
+          <DialogTitle>Manage agent sessions</DialogTitle>
+          <DialogDescription>
+            Select one or more sessions to remove. Removing a session deletes
+            its temporary worktree and branch without merging the changes.
+          </DialogDescription>
+        </DialogHeader>
 
         <ul className="mt-4 max-h-64 overflow-y-auto divide-y divide-white/5 rounded-lg border border-white/10">
           {sortedSessions.map((session) => {
@@ -151,7 +150,7 @@ export function AgentCleanupDialog({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

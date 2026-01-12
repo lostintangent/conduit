@@ -20,10 +20,23 @@ import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
 const { browser } = window.conduit;
 const isWindows = window.conduit.platform === "win32";
 
+/**
+ * Z-index values for webview positioning in different contexts.
+ * These ensure proper layering with overlays and other UI elements.
+ */
+const WEBVIEW_Z_INDEX = {
+  /** Preview mode: highest priority, above all overlays */
+  PREVIEW: "10001",
+  /** Sidebar mode: above sidebar panel (z-40) but below preview */
+  SIDEBAR: "50",
+  /** Normal tab mode: lowest, below design mode overlays (z-30) */
+  NORMAL: "1",
+} as const;
+
 type BrowserPaneProps = {
   url: string;
   paneId: string;
-  tabId: string;
+  tabId?: string;
 
   onUrlChange: (url: string) => void;
   onTitleChange: (title: string) => void;
@@ -65,6 +78,12 @@ export function BrowserPane({
   const previewOverlayRef = useRef<HTMLDivElement | null>(null);
   const isPreviewHoveredRef = useRef(false);
 
+  // Refs for callbacks to avoid stale closures in event listeners
+  const onUrlChangeRef = useRef(onUrlChange);
+  onUrlChangeRef.current = onUrlChange;
+  const onTitleChangeRef = useRef(onTitleChange);
+  onTitleChangeRef.current = onTitleChange;
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [pageTitle, setPageTitle] = useState<string>("");
@@ -73,6 +92,7 @@ export function BrowserPane({
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
 
   const [consoleErrors, setConsoleErrors] = useState<ConsoleMessage[]>([]);
+  const [isDomReady, setIsDomReady] = useState<boolean>(false);
 
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane
@@ -90,8 +110,10 @@ export function BrowserPane({
 
       document.body.appendChild(webview);
       setIsLoading(true);
+      setIsDomReady(false);
     } else {
-      // Attach to existing webview
+      // Attach to existing webview - it's already initialized
+      setIsDomReady(true);
       setIsLoading(webview.isLoading ? webview.isLoading() : false);
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
@@ -138,11 +160,18 @@ export function BrowserPane({
 
       ensurePreviewOverlay();
 
-      // Set z-index based on preview mode
-      currentWebview.style.zIndex = isInPreview ? "10001" : "1";
+      // Set z-index based on context
+      const zIndex = isInPreview
+        ? WEBVIEW_Z_INDEX.PREVIEW
+        : !tabId
+          ? WEBVIEW_Z_INDEX.SIDEBAR
+          : WEBVIEW_Z_INDEX.NORMAL;
+      currentWebview.style.zIndex = zIndex;
 
-      // Schedule follow-up update in preview mode
-      if (isInPreview) {
+      // Schedule follow-up updates for modes that need continuous tracking:
+      // - Preview mode: needs to track during various animations
+      // - Sidebar mode: needs to track during slide in/out animations
+      if (isInPreview || !tabId) {
         requestAnimationFrame(updatePosition);
       }
 
@@ -252,13 +281,13 @@ export function BrowserPane({
       setCanGoForward(webview.canGoForward());
 
       setConsoleErrors([]);
-      onUrlChange(url);
+      onUrlChangeRef.current(url);
     };
 
     const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) => {
       const normalizedTitle = typeof title === "string" ? title.trim() : "";
       setPageTitle(normalizedTitle);
-      onTitleChange(title);
+      onTitleChangeRef.current(title);
     };
 
     const handleWebViewContextMenu = (
@@ -284,7 +313,10 @@ export function BrowserPane({
     };
 
     const handleWebViewFocus = () => {
-      activatePane(tabId, paneId);
+      // Only activate pane when in tab mode (not sidebar mode)
+      if (tabId) {
+        activatePane(tabId, paneId);
+      }
     };
 
     const handleConsoleMessage = (
@@ -317,6 +349,9 @@ export function BrowserPane({
       ]);
     };
 
+    const handleDomReady = () => setIsDomReady(true);
+
+    webview.addEventListener("dom-ready", handleDomReady);
     webview.addEventListener("did-start-loading", handleStartLoading);
     webview.addEventListener("did-stop-loading", handleStopLoading);
     webview.addEventListener("did-finish-load", handleStopLoading);
@@ -335,6 +370,7 @@ export function BrowserPane({
     webview.addEventListener("console-message", handleConsoleMessage);
 
     return () => {
+      webview.removeEventListener("dom-ready", handleDomReady);
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);
       webview.removeEventListener("did-finish-load", handleStopLoading);
@@ -363,6 +399,21 @@ export function BrowserPane({
       ? "none"
       : "auto";
   }, [disableInteraction]);
+
+  // Respond to URL prop changes (e.g., when sidebar browser receives a new URL)
+  // Skip about:blank as that's the initial/empty state
+  useEffect(() => {
+    if (!webviewRef.current || !url || url === "about:blank") return;
+
+    // Guard webview API calls until dom-ready has fired to avoid Electron errors
+    if (!isDomReady) return;
+
+    // Only load if the URL is different from current
+    const currentWebviewUrl = webviewRef.current.getURL?.() || "";
+    if (url !== currentWebviewUrl) {
+      webviewRef.current.loadURL(url);
+    }
+  }, [url, isDomReady]);
 
   // When rendered in focus mode, we need to add
   // rounded corners to the bottom of the webview,
@@ -402,6 +453,7 @@ export function BrowserPane({
             const webContentsId = webviewRef.current?.getWebContentsId();
             browser.captureScreenshot(webContentsId);
           }}
+          tabId={tabId}
         />
       )}
 

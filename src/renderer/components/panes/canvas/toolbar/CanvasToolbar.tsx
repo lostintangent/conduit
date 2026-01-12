@@ -385,7 +385,10 @@ export function CanvasToolbar({
         />
       </div>
 
-      <Separator orientation="vertical" className="h-4 mx-1" />
+      <Separator
+        orientation="vertical"
+        className="h-4 mx-1 bg-elevated-border"
+      />
 
       {/* Selection & navigation tools */}
       <div className="flex items-center gap-0.5">
@@ -404,7 +407,10 @@ export function CanvasToolbar({
         />
       </div>
 
-      <Separator orientation="vertical" className="h-4 mx-1" />
+      <Separator
+        orientation="vertical"
+        className="h-4 mx-1 bg-elevated-border"
+      />
 
       {/* Undo/Redo buttons */}
       <div className="flex items-center gap-0.5">
@@ -446,7 +452,10 @@ export function CanvasToolbar({
         </Tooltip>
       </div>
 
-      <Separator orientation="vertical" className="h-4 mx-1" />
+      <Separator
+        orientation="vertical"
+        className="h-4 mx-1 bg-elevated-border"
+      />
 
       {/* Color and size controls - grouped with tighter spacing */}
       <div className="flex items-center gap-0.5">
@@ -482,7 +491,10 @@ export function CanvasToolbar({
         onZoomToFit={onZoomToFit}
       />
 
-      <Separator orientation="vertical" className="h-4 mx-1" />
+      <Separator
+        orientation="vertical"
+        className="h-4 mx-1 bg-elevated-border"
+      />
 
       {/* Actions menu */}
       <ActionsMenu

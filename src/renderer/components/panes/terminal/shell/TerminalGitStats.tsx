@@ -25,7 +25,7 @@ import {
   getCommandDisplayTitle,
 } from "@/commands/hooks/useCommand";
 import { useUncommittedDiffStats } from "@/hooks/useUncommittedDiffStats";
-import { isSidebarOpenAtom, sidebarViewAtom } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
 import { useSetAtom } from "jotai";
 import { memo, useCallback, useState } from "react";
@@ -45,15 +45,17 @@ const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
     cwd,
     sandboxId,
   );
-  const setIsSidebarOpen = useSetAtom(isSidebarOpenAtom);
-  const setSidebarView = useSetAtom(sidebarViewAtom);
+  const setSidebarState = useSetAtom(sidebarStateAtom);
   const toggleSidebarCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_SIDEBAR);
   const [isHovered, setIsHovered] = useState(false);
 
   const handleClick = useCallback(() => {
-    setSidebarView("editor"); // Ensure file explorer view is shown
-    setIsSidebarOpen(true);
-  }, [setSidebarView, setIsSidebarOpen]);
+    setSidebarState({
+      isOpen: true,
+      view: "editor",
+      navigation: { cwd, editorTreeMode: "changes" },
+    });
+  }, [setSidebarState, cwd]);
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
@@ -78,7 +80,7 @@ const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
           onClick={handleClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className="absolute top-3 right-3 z-15 flex items-center gap-1.5 rounded-full px-2 py-1 bg-transparent border border-transparent hover:bg-elevated/90 hover:backdrop-blur-sm hover:border-elevated-border/50 transition-all duration-200 cursor-pointer"
+          className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full px-2 py-1 bg-transparent border border-transparent hover:bg-elevated/90 hover:backdrop-blur-sm hover:border-elevated-border/50 transition-all duration-200 cursor-pointer"
         >
           <DiffStatsDisplay stats={stats} />
           {gitStatus && gitStatus.size > 0 && (

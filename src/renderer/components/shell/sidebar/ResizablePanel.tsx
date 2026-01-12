@@ -18,18 +18,18 @@
 import { cn } from "@/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// ============================================================================
+// =============================================================================
 // Constants
-// ============================================================================
+// =============================================================================
 
 const DEFAULT_MIN_WIDTH_PX = 250;
 const DEFAULT_MIN_WIDTH_PERCENT = 0.15;
 const DEFAULT_MAX_WIDTH_PERCENT = 0.75;
 const DEFAULT_WIDTH_PERCENT = 0.25;
 
-// ============================================================================
+// =============================================================================
 // Types
-// ============================================================================
+// =============================================================================
 
 interface ResizablePanelProps {
   /** localStorage key for persisting width */
@@ -37,6 +37,9 @@ interface ResizablePanelProps {
 
   /** Whether the panel is open (visible) */
   isOpen: boolean;
+
+  /** Whether the panel is expanded to full width */
+  isExpanded?: boolean;
 
   /** Panel content */
   children: React.ReactNode;
@@ -57,9 +60,9 @@ interface ResizablePanelProps {
   className?: string;
 }
 
-// ============================================================================
+// =============================================================================
 // Helpers
-// ============================================================================
+// =============================================================================
 
 function getInitialWidth(
   storageKey: string,
@@ -77,13 +80,14 @@ function getInitialWidth(
   return defaultValue;
 }
 
-// ============================================================================
+// =============================================================================
 // Component
-// ============================================================================
+// =============================================================================
 
 export function ResizablePanel({
   storageKey,
   isOpen,
+  isExpanded = false,
   children,
   defaultWidthPercent = DEFAULT_WIDTH_PERCENT,
   minWidthPercent = DEFAULT_MIN_WIDTH_PERCENT,
@@ -160,42 +164,54 @@ export function ResizablePanel({
     }
   }, [isResizing, widthPercent, storageKey]);
 
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  }, []);
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      // Don't allow resizing when expanded
+      if (isExpanded) return;
+      e.preventDefault();
+      setIsResizing(true);
+    },
+    [isExpanded],
+  );
 
   const showAccentBorder = isResizing || isHoveringHandle;
+
+  // Use full width when expanded, otherwise use the resizable width
+  const effectiveWidth = isExpanded ? 1 : widthPercent;
 
   return (
     <div
       className={cn(
         "absolute top-0 right-0 bottom-0 z-40 flex",
-        "bg-background border-l border-border shadow-2xl",
-        "transition-transform duration-200 ease-out",
+        "bg-background shadow-2xl",
+        // Only show left border when not expanded
+        !isExpanded && "border-l border-border",
+        "transition-all duration-200 ease-out",
         isOpen ? "translate-x-0" : "translate-x-full",
         className,
       )}
-      style={{ width: `${widthPercent * 100}%` }}
+      style={{ width: `${effectiveWidth * 100}%` }}
     >
-      {/* Resize handle on left edge */}
-      <div className="relative flex items-center justify-center shrink-0">
-        {/* Visible border line - thin by default, thicker accent on hover/drag */}
-        <div
-          className={cn(
-            "absolute h-full transition-all",
-            showAccentBorder ? "w-1 bg-accent" : "w-px bg-border",
-          )}
-        />
+      {/* Resize handle on left edge - hidden when expanded */}
+      {!isExpanded && (
+        <div className="relative flex items-center justify-center shrink-0">
+          {/* Visible border line - thin by default, thicker accent on hover/drag */}
+          <div
+            className={cn(
+              "absolute h-full transition-all",
+              showAccentBorder ? "w-1 bg-accent" : "w-px bg-border",
+            )}
+          />
 
-        {/* Wider invisible hit area for easier dragging */}
-        <div
-          className="absolute w-2 h-full cursor-col-resize z-10 -left-1.5"
-          onMouseDown={handleResizeStart}
-          onMouseEnter={() => setIsHoveringHandle(true)}
-          onMouseLeave={() => setIsHoveringHandle(false)}
-        />
-      </div>
+          {/* Wider invisible hit area for easier dragging */}
+          <div
+            className="absolute w-2 h-full cursor-col-resize z-10 -left-1.5"
+            onMouseDown={handleResizeStart}
+            onMouseEnter={() => setIsHoveringHandle(true)}
+            onMouseLeave={() => setIsHoveringHandle(false)}
+          />
+        </div>
+      )}
 
       {/* Panel content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">

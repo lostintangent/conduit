@@ -279,7 +279,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
 
   return (
     <div
-      className={`absolute top-2 right-7 z-[1200] flex items-center gap-2 rounded-lg border border-white/10 bg-black/80 px-3 py-2 shadow-lg transition-all duration-200 ease-out ${
+      className={`absolute top-2 right-7 z-30 flex items-center gap-2 rounded-lg border border-white/10 bg-black/80 px-3 py-2 shadow-lg transition-all duration-200 ease-out ${
         isVisible
           ? "translate-y-0 opacity-100"
           : "-translate-y-3 opacity-0 pointer-events-none"

@@ -258,7 +258,7 @@ export const FileTreePanel = memo(
       showCollapseButton = false,
       onDirectoryChange,
       // Changes View Mode Props
-      changesViewMode = "flat",
+      changesViewMode = "nested",
       onChangesViewModeChange,
       // Follow Mode Props
       isFileUnseen,

@@ -5,8 +5,7 @@
  */
 
 import {
-  isSidebarOpenAtom,
-  sidebarViewAtom,
+  sidebarStateAtom,
   tabsAtom,
   type ApplicationMode,
 } from "@/store/atoms";
@@ -138,17 +137,23 @@ export function handleResetLayout(tabId: string): void {
  * Toggle the sidebar open/closed
  */
 export function handleToggleSidebar(): void {
-  const currentState = store.get(isSidebarOpenAtom);
-  store.set(isSidebarOpenAtom, !currentState);
+  const currentState = store.get(sidebarStateAtom);
+  store.set(sidebarStateAtom, {
+    ...currentState,
+    isOpen: !currentState.isOpen,
+  });
 }
 
 /**
  * Open the sidebar and set the view to file explorer (editor view)
+ * Sets tree mode to "all" to show all files
+ *
+ * @param cwd - Optional CWD to navigate to (updates lock target if locked)
  */
-export function handleViewFileExplorer(): void {
-  // Set the sidebar view to editor (which contains the file explorer)
-  store.set(sidebarViewAtom, "editor");
-
-  // Always open the sidebar
-  store.set(isSidebarOpenAtom, true);
+export function handleViewFileExplorer(cwd?: string): void {
+  store.set(sidebarStateAtom, {
+    isOpen: true,
+    view: "editor",
+    navigation: { cwd, editorTreeMode: "all" },
+  });
 }

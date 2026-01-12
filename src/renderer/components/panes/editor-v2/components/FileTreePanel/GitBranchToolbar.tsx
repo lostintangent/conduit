@@ -183,7 +183,7 @@ export function GitBranchToolbar({
   hasStagedFiles = false,
   isCommitting = false,
   onReviewChanges,
-  changesViewMode = "flat",
+  changesViewMode = "nested",
   onChangesViewModeChange,
 }: GitBranchToolbarProps) {
   // ---------------------------------------------------------------------------

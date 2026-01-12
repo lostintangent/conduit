@@ -1,5 +1,5 @@
 import { browserAutomate } from "@/cli/browser";
-import { getSidebarCanvasPaneId } from "@/components/shell/sidebar/CanvasSidebarContent";
+import { sidebarPaneIds } from "@/components/shell/sidebar/utils";
 import { isHyperTerminal } from "@/store/actions/hyperTerminal";
 import type { SidebarView } from "@/store/atoms";
 import type { Tab, TerminalPane } from "@/types";
@@ -11,7 +11,11 @@ export type CliRequestContext = {
   activeTab?: Tab;
 };
 
-export type CanvasResolutionContext = CliRequestContext & {
+/**
+ * Extended context for operations that can fall back to sidebar views.
+ * Used by both browser and canvas resolution logic.
+ */
+export type SidebarAwareContext = CliRequestContext & {
   isSidebarOpen: boolean;
   sidebarView: SidebarView;
   activeCwd: string;
@@ -39,11 +43,26 @@ export function findCallingTerminalTab({
   return matchingTab;
 }
 
+/**
+ * Resolve a browser pane for CLI operations.
+ *
+ * Priority:
+ * 1. If paneId is explicitly provided, use it
+ * 2. If sidebar is open with browser view, use sidebar browser
+ * 3. Look for a browser pane in the calling terminal's tab
+ * 4. Throw if no browser found
+ */
 export function resolveBrowserPane(
-  context: CliRequestContext,
+  context: SidebarAwareContext,
   paneId?: string,
 ): { paneId: string; webview: WebviewTag } {
   const findBrowserPane = () => {
+    // First, check if sidebar is open with browser view
+    if (context.isSidebarOpen && context.sidebarView === "browser") {
+      return sidebarPaneIds.browser();
+    }
+
+    // Fall back to checking for a browser pane in the tab
     const matchingTab = findCallingTerminalTab(context);
 
     const browserPane = Object.entries(matchingTab.panes).find(
@@ -65,7 +84,7 @@ export function resolveBrowserPane(
     throw new Error(`Browser pane ${resolvedPaneId} not found.`);
   }
 
-  return { paneId: resolvedPaneId, webview } as const;
+  return { paneId: resolvedPaneId, webview };
 }
 
 export function resolveTerminalSessions(
@@ -114,37 +133,34 @@ export function resolveTerminalSessions(
 type BrowserAutomationCommand = Parameters<typeof browserAutomate>[0];
 
 export async function automateBrowser<T extends BrowserAutomationCommand>(
-  context: CliRequestContext,
+  context: SidebarAwareContext,
   command: T,
   args: Parameters<typeof browserAutomate<T>>[1],
 ) {
-  const resolvedPane = resolveBrowserPane(context, args?.paneId);
+  const { paneId } = resolveBrowserPane(context, args?.paneId);
 
-  const result = await browserAutomate(command, {
+  return browserAutomate(command, {
     ...args,
-    paneId: resolvedPane.paneId,
+    paneId,
   } as Parameters<typeof browserAutomate<T>>[1]);
-
-  return result;
-}
-
-export function executeWebviewAction(
-  context: CliRequestContext,
-  paneId: string | undefined,
-  action: (webview: WebviewTag) => void,
-) {
-  const resolvedPane = resolveBrowserPane(context, paneId);
-  action(resolvedPane.webview);
 }
 
 export function resolveCanvasPane(
-  context: CanvasResolutionContext,
+  context: SidebarAwareContext,
   paneId?: string,
 ): { paneId: string; canvas: HTMLCanvasElement } {
   const findCanvasPane = () => {
     // First, check if sidebar is open with canvas view
     if (context.isSidebarOpen && context.sidebarView === "canvas") {
-      return getSidebarCanvasPaneId(context.activeCwd);
+      // Try global canvas first (if sidebar is locked, this is the active one)
+      const globalId = sidebarPaneIds.canvas.global();
+      const globalCanvas = document.getElementById(`canvas-${globalId}`);
+      if (globalCanvas) {
+        return globalId;
+      }
+
+      // Fall back to per-CWD canvas (unlocked mode)
+      return sidebarPaneIds.canvas.forCwd(context.activeCwd);
     }
 
     // Fall back to checking for a canvas pane in the tab
@@ -171,5 +187,5 @@ export function resolveCanvasPane(
     throw new Error(`Canvas pane ${resolvedPaneId} not found.`);
   }
 
-  return { paneId: resolvedPaneId, canvas } as const;
+  return { paneId: resolvedPaneId, canvas };
 }

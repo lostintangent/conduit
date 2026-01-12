@@ -385,7 +385,7 @@ export function PaneControlFanButtons({
 
   return (
     <div
-      className="absolute pointer-events-none z-30"
+      className="absolute pointer-events-none z-[34]"
       style={getWrapperStyle()}
     >
       {/* Invisible semicircle hover area - always present to bridge hover from split button */}

@@ -13,6 +13,7 @@ type IntersectionHandlesProps = {
   direction: SplitDirection;
   handles: IntersectionHandleData[];
   baseHighlightKeys: string[];
+  className?: string;
   onHandleMouseDown: (
     event: React.MouseEvent<HTMLDivElement>,
     handle: IntersectionHandleData,
@@ -34,6 +35,7 @@ export function IntersectionHandles({
   direction,
   handles,
   baseHighlightKeys,
+  className,
   onHandleMouseDown,
   onHandleMouseEnter,
   onHandleMouseLeave,
@@ -57,7 +59,7 @@ export function IntersectionHandles({
         return (
           <div
             key={handle.key}
-            className={`absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transform ${cursorClass}`}
+            className={`absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transform ${cursorClass} ${className ?? ""}`}
             style={baseStyle}
             onMouseDown={(e) => {
               e.stopPropagation();

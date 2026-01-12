@@ -23,10 +23,6 @@ export type HandlerContext = {
     paneId: string;
     canvas: HTMLCanvasElement;
   };
-  executeWebviewAction: (
-    paneId: string | undefined,
-    action: (webview: Electron.WebviewTag) => void,
-  ) => void;
   automateBrowser: <T extends Parameters<typeof browserAutomate>[0]>(
     command: T,
     args: Parameters<typeof browserAutomate<T>>[1],

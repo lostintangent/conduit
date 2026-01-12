@@ -218,3 +218,32 @@ export function setViewport(paneId: string, viewport: ViewportState): void {
     viewport,
   }));
 }
+
+/**
+ * Migrate canvas state from one pane ID to another.
+ * Used when locking/unlocking the sidebar to transfer content between
+ * CWD-specific and global pane IDs.
+ *
+ * @param fromPaneId - Source pane ID to copy state from
+ * @param toPaneId - Destination pane ID to copy state to
+ * @param deleteSource - If true, delete the source state after copying
+ */
+export function migrateCanvasState(
+  fromPaneId: string,
+  toPaneId: string,
+  deleteSource = false,
+): void {
+  const sourceState = store.get(canvasStatesAtom).get(fromPaneId);
+  if (sourceState) {
+    setCanvasState(toPaneId, { ...sourceState });
+    if (deleteSource) {
+      // Don't use deleteCanvasState here as we don't want to clear image cache
+      // (the images are still in use by the destination)
+      store.set(canvasStatesAtom, (current) => {
+        const next = new Map(current);
+        next.delete(fromPaneId);
+        return next;
+      });
+    }
+  }
+}

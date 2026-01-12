@@ -606,7 +606,7 @@ export const TerminalPane = ({
     >
       {/* Image drop overlay */}
       {isImageDragOver && (
-        <div className="pointer-events-none absolute inset-0 z-30 bg-accent/40" />
+        <div className="pointer-events-none absolute inset-0 z-[35] bg-accent/40" />
       )}
 
       {/** xTerm.js container (which can't have padding applied directly to it) */}
@@ -643,7 +643,7 @@ export const TerminalPane = ({
       />
 
       {showDimensions && dimensions && !isHyperTerminal(terminalId) && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
           <div className="bg-elevated px-6 py-3 rounded-lg text-lg font-semibold border border-elevated-border shadow-lg">
             {dimensions.width} × {dimensions.height}
           </div>

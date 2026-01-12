@@ -422,7 +422,7 @@ export function FileTreeChanges({
   selectedFile: _selectedFile,
   selectedMapKey,
   onFileSelect,
-  viewMode = "flat",
+  viewMode = "nested",
   gitStatus: gitStatusFromParent,
   isComparingToBranch = false,
   baseBranchName,

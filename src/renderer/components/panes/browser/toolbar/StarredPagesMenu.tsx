@@ -1,12 +1,17 @@
 import { InputGroupButton } from "@/components/ui/input-group";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { cn } from "@/utils/index";
-import { BrowserPage } from "@shared/types";
+import type { BrowserPage } from "@shared/types";
 import { ChevronDown, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -28,8 +33,6 @@ export function StarredPagesMenu({
   } = useUserSettings();
 
   const starButtonRef = useRef<HTMLButtonElement | null>(null);
-  const starMenuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const starredDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [showStarredList, setShowStarredList] = useState<boolean>(false);
 
@@ -38,34 +41,12 @@ export function StarredPagesMenu({
     (page) => page.url === currentPage.url,
   );
 
-  useEffect(() => {
-    if (!showStarredList) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        starButtonRef.current?.contains(target) ||
-        starMenuButtonRef.current?.contains(target) ||
-        starredDropdownRef.current?.contains(target)
-      ) {
-        return;
-      }
-
-      setShowStarredList(false);
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showStarredList]);
-
+  // Close dropdown when URL changes
   useEffect(() => {
     setShowStarredList(false);
   }, [currentPage.url]);
 
+  // Close dropdown if no starred pages
   useEffect(() => {
     if (!hasStarredPages) {
       setShowStarredList(false);
@@ -101,14 +82,6 @@ export function StarredPagesMenu({
     addStarredPage,
     removeStarredPage,
   ]);
-
-  const handleStarredDropdownToggle = useCallback(() => {
-    if (!hasStarredPages) {
-      return;
-    }
-
-    setShowStarredList((value) => !value);
-  }, [hasStarredPages]);
 
   const handleStarredNavigation = useCallback(
     (pageUrl: string) => {
@@ -160,31 +133,32 @@ export function StarredPagesMenu({
           {isCurrentUrlStarred ? "Unstar page" : "Star page"}
         </TooltipContent>
       </Tooltip>
-      <InputGroupButton
-        ref={starMenuButtonRef}
-        type="button"
-        size="icon-xs"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={handleStarredDropdownToggle}
-        className={cn(
-          "hover:!bg-transparent",
-          !hasStarredPages
-            ? "text-foreground/40 cursor-not-allowed"
-            : "text-foreground/70 hover:text-foreground",
-        )}
-        aria-haspopup="listbox"
-        aria-expanded={showStarredList}
-        disabled={!hasStarredPages}
-      >
-        <ChevronDown
-          className={`w-4 h-4 transition-transform ${showStarredList ? "rotate-180" : ""}`}
-        />
-      </InputGroupButton>
-      {showStarredList && hasStarredPages && (
-        <div
-          ref={starredDropdownRef}
-          className="pointer-events-auto absolute top-full right-0 mt-1 w-72 bg-popover border border-white/10 rounded shadow-lg z-20 max-h-56 overflow-y-auto"
-          role="listbox"
+      <Popover open={showStarredList} onOpenChange={setShowStarredList}>
+        <PopoverTrigger asChild>
+          <InputGroupButton
+            type="button"
+            size="icon-xs"
+            onMouseDown={(event) => event.preventDefault()}
+            className={cn(
+              "hover:!bg-transparent",
+              !hasStarredPages
+                ? "text-foreground/40 cursor-not-allowed"
+                : "text-foreground/70 hover:text-foreground",
+            )}
+            aria-haspopup="listbox"
+            aria-expanded={showStarredList}
+            disabled={!hasStarredPages}
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${showStarredList ? "rotate-180" : ""}`}
+            />
+          </InputGroupButton>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="w-72 p-0 max-h-56 overflow-y-auto"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {starredPages.map((page) => {
             const displayTitle = page.title?.trim().length
@@ -223,8 +197,8 @@ export function StarredPagesMenu({
               </div>
             );
           })}
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </>
   );
 }

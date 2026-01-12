@@ -782,76 +782,79 @@ export function App() {
         {/* Global container for editor panes - keeps editors alive across tab switches */}
         <GlobalEditorContainer />
 
-        {/* Top positioned tabs */}
-        {tabPosition === "top" && !shouldUseDrawer && (
-          <TabStrip
-            onOpenCommandPalette={openCommandPalette}
-            onTabContextMenu={handleContextMenu}
-            position={tabPosition}
-          />
-        )}
-
-        {shouldUseDrawer && tabPosition === "top" && (
-          <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-            <DrawerContent side="top">
-              <TabStrip
-                onOpenCommandPalette={openCommandPalette}
-                onTabContextMenu={handleContextMenu}
-                position={tabPosition}
-              />
-            </DrawerContent>
-          </Drawer>
-        )}
-
-        <div className="relative flex-1 flex min-h-0">
-          <div
-            className={`flex-1 flex min-h-0 ${
-              applicationMode === "overview"
-                ? "opacity-0 pointer-events-none"
-                : ""
-            }`}
-            aria-hidden={applicationMode === "overview" ? true : undefined}
-          >
-            <TabLayout
-              handleContextMenu={handleContextMenu}
-              handleResizeStart={handleResizeStart}
-              resizingNode={resizingNode}
-              handleBrowserUpdate={handleBrowserUpdate}
-              handleEditorUpdate={handleEditorUpdate}
-              onOpenPaneActions={() => setSettingsTab("paneActions")}
+        {/* Main content area - relative container for sidebar overlay */}
+        <div className="relative flex-1 flex flex-col min-h-0">
+          {/* Top positioned tabs */}
+          {tabPosition === "top" && !shouldUseDrawer && (
+            <TabStrip
+              onOpenCommandPalette={openCommandPalette}
+              onTabContextMenu={handleContextMenu}
+              position={tabPosition}
             />
+          )}
+
+          {shouldUseDrawer && tabPosition === "top" && (
+            <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+              <DrawerContent side="top">
+                <TabStrip
+                  onOpenCommandPalette={openCommandPalette}
+                  onTabContextMenu={handleContextMenu}
+                  position={tabPosition}
+                />
+              </DrawerContent>
+            </Drawer>
+          )}
+
+          <div className="relative flex-1 flex min-h-0">
+            <div
+              className={`flex-1 flex min-h-0 ${
+                applicationMode === "overview"
+                  ? "opacity-0 pointer-events-none"
+                  : ""
+              }`}
+              aria-hidden={applicationMode === "overview" ? true : undefined}
+            >
+              <TabLayout
+                handleContextMenu={handleContextMenu}
+                handleResizeStart={handleResizeStart}
+                resizingNode={resizingNode}
+                handleBrowserUpdate={handleBrowserUpdate}
+                handleEditorUpdate={handleEditorUpdate}
+                onOpenPaneActions={() => setSettingsTab("paneActions")}
+              />
+            </div>
+
+            {applicationMode === "overview" ? (
+              <div className="absolute inset-0 flex min-h-0">
+                <TabsOverview />
+              </div>
+            ) : null}
           </div>
 
-          {applicationMode === "overview" ? (
-            <div className="absolute inset-0 flex min-h-0">
-              <TabsOverview />
-            </div>
-          ) : null}
+          {/* Bottom positioned tabs */}
+          {tabPosition === "bottom" && !shouldUseDrawer && (
+            <TabStrip
+              onOpenCommandPalette={openCommandPalette}
+              onTabContextMenu={handleContextMenu}
+              position={tabPosition}
+            />
+          )}
 
-          {/* Sidebar overlay */}
+          {shouldUseDrawer && tabPosition === "bottom" && (
+            <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
+              <DrawerContent side="bottom">
+                <TabStrip
+                  onOpenCommandPalette={openCommandPalette}
+                  onTabContextMenu={handleContextMenu}
+                  position={tabPosition}
+                />
+              </DrawerContent>
+            </Drawer>
+          )}
+
+          {/* Sidebar overlay - covers tab strip and content but not title bar */}
           <Sidebar cwd={activeCwd} />
         </div>
-
-        {/* Bottom positioned tabs */}
-        {tabPosition === "bottom" && !shouldUseDrawer && (
-          <TabStrip
-            onOpenCommandPalette={openCommandPalette}
-            onTabContextMenu={handleContextMenu}
-            position={tabPosition}
-          />
-        )}
-
-        {shouldUseDrawer && tabPosition === "bottom" && (
-          <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-            <DrawerContent side="bottom">
-              <TabStrip
-                onOpenCommandPalette={openCommandPalette}
-                onTabContextMenu={handleContextMenu}
-                position={tabPosition}
-              />
-            </DrawerContent>
-          </Drawer>
-        )}
       </TabContentPortalProvider>
 
       {/* Global UI */}

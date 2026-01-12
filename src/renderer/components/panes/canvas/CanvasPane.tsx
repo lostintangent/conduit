@@ -1609,7 +1609,7 @@ export function CanvasPane({
       >
         {/* Image drop overlay */}
         {isImageDragOver && (
-          <div className="pointer-events-none absolute inset-0 z-30 bg-accent/40" />
+          <div className="pointer-events-none absolute inset-0 z-[35] bg-accent/40" />
         )}
         <canvas
           id={`canvas-${paneId}`}

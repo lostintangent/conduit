@@ -34,6 +34,7 @@ import {
   activePaneIdAtom,
   activeTabAtom,
   applicationModeAtom,
+  sidebarStateAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
@@ -299,7 +300,11 @@ export function TabLayout({
   const setApplicationMode = useSetAtom(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
 
-  const { dimInactivePanes } = useAtomValue(userSettingsAtom);
+  const { dimInactivePanes, terminalLinkTarget } =
+    useAtomValue(userSettingsAtom);
+
+  // Sidebar state for terminal link clicks
+  const setSidebarState = useSetAtom(sidebarStateAtom);
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);
@@ -486,7 +491,17 @@ export function TabLayout({
                 isActive={isActivePane}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
-                onLinkClick={(url) => openBrowserPane(tab.id, pane.id, url)}
+                onLinkClick={(url) => {
+                  if (terminalLinkTarget === "sidebar") {
+                    setSidebarState({
+                      isOpen: true,
+                      view: "browser",
+                      navigation: { cwd: pane.cwd, browserUrl: url },
+                    });
+                  } else {
+                    openBrowserPane(tab.id, pane.id, url);
+                  }
+                }}
                 showDimensions={shouldShowTerminalDimensions && !isInPreview}
                 hideIndividualSandboxIndicator={hasUnifiedSandbox}
                 isTabSynchronized={tab.synchronized}
@@ -617,16 +632,17 @@ export function TabLayout({
             ) : null}
           </div>
 
-          {/* Pane-type-agnostic overlays... */}
-
+          {/* Design mode overlay - blocks pane interactions while allowing
+              resize handles (which are rendered outside this container) and
+              pane control buttons (which have higher z-index) to remain interactive */}
           {isInDesignMode && (
-            <div className="pointer-events-none absolute inset-0 z-10 bg-accent/20 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-auto absolute inset-0 z-[30] bg-accent/20 backdrop-blur-[0.5px]" />
           )}
 
           {/* Dim inactive panes overlay (only in normal mode) */}
           {dimInactivePanes && applicationMode === "normal" && (
             <div
-              className={`pointer-events-none absolute inset-0 z-5 bg-black/40 transition-opacity duration-150 ${
+              className={`pointer-events-none absolute inset-0 z-[5] bg-black/40 transition-opacity duration-150 ${
                 isActivePane ? "opacity-0" : "opacity-100"
               }`}
             />
@@ -637,7 +653,7 @@ export function TabLayout({
 
           {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
           {isInPreview && hoveredPreviewPaneId === pane.id && (
-            <div className="pointer-events-none absolute inset-0 z-20 bg-accent/30 backdrop-blur-[0.5px]" />
+            <div className="pointer-events-none absolute inset-0 z-[30] bg-accent/30 backdrop-blur-[0.5px]" />
           )}
 
           {/* Drop zone overlay */}
@@ -814,6 +830,7 @@ export function TabLayout({
                     <ResizeHandle
                       direction={node.direction}
                       highlightClass={highlightDividerClass}
+                      className={isInDesignMode ? "z-[31]" : undefined}
                       onMouseDown={(e) => {
                         setHoverKeys(baseHighlightKeys);
                         handleResizeStart(e, {
@@ -829,6 +846,7 @@ export function TabLayout({
                       direction={node.direction}
                       handles={intersectionHandles}
                       baseHighlightKeys={baseHighlightKeys}
+                      className={isInDesignMode ? "z-[31]" : undefined}
                       onHandleMouseDown={(e, handle, highlightKeys) => {
                         setHoverKeys(highlightKeys);
                         handleResizeStart(e, {
@@ -956,7 +974,7 @@ export function TabLayout({
           {/* Tab edge drop zone overlay for root-level splits */}
           {showTabEdgeOverlay && (
             <div
-              className="pointer-events-none absolute z-50 bg-accent/40"
+              className="pointer-events-none absolute z-[35] bg-accent/40"
               style={{
                 top: tabEdgeDropZone === "bottom" ? "auto" : 0,
                 bottom: tabEdgeDropZone === "top" ? "auto" : 0,

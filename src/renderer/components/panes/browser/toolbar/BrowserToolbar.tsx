@@ -5,13 +5,18 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { normalizeUrl } from "@/utils/browser";
-import { BrowserPage } from "@shared/types";
+import type { BrowserPage } from "@shared/types";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";
@@ -37,6 +42,7 @@ type BrowserToolbarProps = {
   onToggleDevTools: () => void;
   onHideToolbar: () => void;
   onCaptureScreenshot: () => void;
+  tabId?: string;
 };
 
 export function BrowserToolbar({
@@ -56,6 +62,7 @@ export function BrowserToolbar({
   onToggleDevTools,
   onHideToolbar,
   onCaptureScreenshot,
+  tabId,
 }: BrowserToolbarProps) {
   const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
     useUserSettings();
@@ -298,69 +305,75 @@ export function BrowserToolbar({
         </TooltipTrigger>
         <TooltipContent>{isLoading ? "Stop" : "Refresh"}</TooltipContent>
       </Tooltip>
-      <div className="relative flex-1 flex min-w-0">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleUrlSubmit();
-          }}
-          className="flex-1 flex min-w-0"
-        >
-          <InputGroup className="h-8">
-            <InputGroupInput
-              ref={inputRef}
-              value={inputUrl}
-              onChange={handleUrlInputChange}
-              onBlur={handleUrlInputBlur}
-              onFocus={handleUrlInputFocus}
-              onKeyDown={handleKeyDown}
-              className="text-sm"
-              placeholder="Enter URL..."
-            />
-            <InputGroupAddon align="inline-end" className="gap-0">
-              <StarredPagesMenu
-                currentPage={currentPage}
-                onPageSelected={handleStarredNavigation}
-                onMenuOpened={handleStarredCloseRequest}
-              />
-            </InputGroupAddon>
-          </InputGroup>
-        </form>
-
-        {showHistory && filteredHistory.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded shadow-lg z-10 max-h-48 overflow-y-auto">
-            {filteredHistory.map((historyUrl, index) => (
-              <div
-                key={historyUrl}
-                className={`group flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition ${
-                  index === selectedHistoryIndex ? "bg-accent/50" : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => handleHistoryItemClick(historyUrl)}
-                  className="flex-1 px-3 py-2 text-sm text-left transition overflow-hidden text-ellipsis whitespace-nowrap"
-                >
-                  {highlightMatch(historyUrl, inputUrl.trim())}
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleHistoryItemRemove(historyUrl);
-                  }}
-                  className="px-2 py-2 text-foreground/50 hover:text-destructive transition"
-                  aria-label="Remove from history"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+      <Popover open={showHistory && filteredHistory.length > 0}>
+        <PopoverTrigger asChild>
+          <div className="relative flex-1 flex min-w-0">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleUrlSubmit();
+              }}
+              className="flex-1 flex min-w-0"
+            >
+              <InputGroup className="h-8">
+                <InputGroupInput
+                  ref={inputRef}
+                  value={inputUrl}
+                  onChange={handleUrlInputChange}
+                  onBlur={handleUrlInputBlur}
+                  onFocus={handleUrlInputFocus}
+                  onKeyDown={handleKeyDown}
+                  className="text-sm"
+                  placeholder="Enter URL..."
+                />
+                <InputGroupAddon align="inline-end" className="gap-0">
+                  <StarredPagesMenu
+                    currentPage={currentPage}
+                    onPageSelected={handleStarredNavigation}
+                    onMenuOpened={handleStarredCloseRequest}
+                  />
+                </InputGroupAddon>
+              </InputGroup>
+            </form>
           </div>
-        )}
-      </div>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={4}
+          className="w-[--radix-popover-trigger-width] p-0 max-h-48 overflow-y-auto"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          {filteredHistory.map((historyUrl, index) => (
+            <div
+              key={historyUrl}
+              className={`group flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition ${
+                index === selectedHistoryIndex ? "bg-accent/50" : ""
+              }`}
+            >
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => handleHistoryItemClick(historyUrl)}
+                className="flex-1 px-3 py-2 text-sm text-left transition overflow-hidden text-ellipsis whitespace-nowrap"
+              >
+                {highlightMatch(historyUrl, inputUrl.trim())}
+              </button>
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleHistoryItemRemove(historyUrl);
+                }}
+                className="px-2 py-2 text-foreground/50 hover:text-destructive transition"
+                aria-label="Remove from history"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </PopoverContent>
+      </Popover>
       <ConsoleErrors
         errors={consoleErrors}
         onClear={onClearConsoleErrors}
@@ -372,6 +385,7 @@ export function BrowserToolbar({
         onToggleDevTools={onToggleDevTools}
         onHideToolbar={onHideToolbar}
         onCaptureScreenshot={onCaptureScreenshot}
+        tabId={tabId}
       />
     </div>
   );

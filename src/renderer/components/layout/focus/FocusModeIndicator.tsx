@@ -116,7 +116,7 @@ export function FocusModeIndicator() {
 
   return (
     <div
-      className={`absolute bottom-3 right-3 z-[1000] flex items-center gap-2 text-white transition-opacity duration-200 ${
+      className={`absolute bottom-3 right-3 z-[60] flex items-center gap-2 text-white transition-opacity duration-200 ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
       role="status"

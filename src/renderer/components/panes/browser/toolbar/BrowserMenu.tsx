@@ -35,6 +35,7 @@ type BrowserMenuProps = {
   onToggleDevTools: () => void;
   onHideToolbar: () => void;
   onCaptureScreenshot: () => void;
+  tabId?: string; // Optional - undefined when in sidebar mode
 };
 
 export function BrowserMenu({
@@ -43,7 +44,10 @@ export function BrowserMenu({
   onToggleDevTools,
   onHideToolbar,
   onCaptureScreenshot,
+  tabId,
 }: BrowserMenuProps) {
+  // When tabId is undefined, we're in sidebar mode
+  const isInSidebar = tabId === undefined;
   const [showCheckmark, setShowCheckmark] = useState(false);
   const checkmarkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -118,23 +122,28 @@ export function BrowserMenu({
           <Camera size={12} />
           Copy screenshot
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onToggleDevTools}>
-          <Code size={12} />
-          {isDevToolsOpen ? "Close dev tools" : "Open dev tools"}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onHideToolbar}>
-          <EyeOff size={12} />
-          Hide toolbar
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={collapsePane.execute}>
-          <Minimize2 size={12} />
-          Collapse browser
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={closePane.execute}>
-          <X size={12} />
-          Close browser
-        </DropdownMenuItem>
+        {/* Pane-specific items - hidden when in sidebar */}
+        {!isInSidebar && (
+          <>
+            <DropdownMenuItem onClick={onToggleDevTools}>
+              <Code size={12} />
+              {isDevToolsOpen ? "Close dev tools" : "Open dev tools"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onHideToolbar}>
+              <EyeOff size={12} />
+              Hide toolbar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={collapsePane.execute}>
+              <Minimize2 size={12} />
+              Collapse browser
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={closePane.execute}>
+              <X size={12} />
+              Close browser
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

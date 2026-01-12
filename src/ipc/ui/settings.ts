@@ -29,6 +29,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   starredPages: [],
   showTerminalRuler: true,
   showTabState: true,
+  terminalLinkTarget: "pane",
   autoSaveWorkspaces: true,
   useGradientBorders: false,
   dimInactivePanes: false,
