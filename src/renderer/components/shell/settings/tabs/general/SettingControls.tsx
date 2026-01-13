@@ -5,6 +5,7 @@
  */
 
 import { cn } from "@/utils";
+import { RotateCcw } from "lucide-react";
 import type React from "react";
 
 /**
@@ -75,6 +76,66 @@ export function CheckboxSetting({
  *
  * Supports both controlled text inputs and number inputs with validation.
  */
+/**
+ * ColorPickerSetting - Color input with label and optional reset button
+ *
+ * Used for theme color overrides.
+ */
+interface ColorPickerSettingProps {
+  id: string;
+  label: string;
+  value?: string;
+  defaultValue: string;
+  onChange: (value: string) => void;
+  onReset: () => void;
+}
+
+export function ColorPickerSetting({
+  id,
+  label,
+  value,
+  defaultValue,
+  onChange,
+  onReset,
+}: ColorPickerSettingProps) {
+  const hasOverride = value !== undefined;
+  const displayValue = value ?? defaultValue;
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative w-8 h-8">
+        <div
+          className="absolute inset-0 rounded-md border border-tinted-border pointer-events-none"
+          style={{ backgroundColor: displayValue }}
+        />
+        <input
+          type="color"
+          id={id}
+          value={displayValue}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        />
+      </div>
+      <label
+        htmlFor={id}
+        className="text-sm text-tinted-foreground/80 cursor-pointer"
+      >
+        {label}
+      </label>
+      <button
+        onClick={onReset}
+        className={cn(
+          "p-1 hover:bg-tinted-foreground/10 rounded text-tinted-foreground/50 hover:text-tinted-foreground/80 transition-colors",
+          !hasOverride && "invisible",
+        )}
+        title="Reset to default"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 interface TextInputSettingProps {
   id: string;
   label: string;

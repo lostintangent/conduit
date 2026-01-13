@@ -26,6 +26,7 @@ import {
 import { useState } from "react";
 import {
   CheckboxSetting,
+  ColorPickerSetting,
   SettingSection,
   TextInputSetting,
 } from "./SettingControls";
@@ -79,7 +80,7 @@ export function GeneralTab({
 
   return (
     <div className="flex flex-col overflow-y-auto p-5 gap-5">
-      <SettingSection title="Appearance">
+      <SettingSection title="Color Theme">
         <div className="grid grid-cols-3 gap-2">
           {Array.from(themeOptions.entries()).map(([value, Icon]) => (
             <button
@@ -97,6 +98,57 @@ export function GeneralTab({
           ))}
         </div>
 
+        <div>
+          <p className="text-xs text-tinted-foreground/50 mb-3">
+            Override specific colors for the selected theme:
+          </p>
+          <div className="flex justify-between gap-4">
+            {(
+              [
+                {
+                  key: "background",
+                  label: "Background",
+                  defaultValue: "#1a1a1a",
+                },
+                {
+                  key: "foreground",
+                  label: "Foreground",
+                  defaultValue: "#e0e0e0",
+                },
+                { key: "accent", label: "Accent", defaultValue: "#3b82f6" },
+                { key: "elevated", label: "Toolbars", defaultValue: "#2a2a2a" },
+                { key: "border", label: "Border", defaultValue: "#333333" },
+              ] as const
+            ).map(({ key, label, defaultValue }) => (
+              <ColorPickerSetting
+                key={key}
+                id={`color-${key}`}
+                label={label}
+                value={userSettings.themeOverrides?.[key]}
+                defaultValue={defaultValue}
+                onChange={(value) => {
+                  onUpdateSettings({
+                    themeOverrides: {
+                      ...userSettings.themeOverrides,
+                      [key]: value,
+                    },
+                  });
+                }}
+                onReset={() => {
+                  const { [key]: _, ...rest } =
+                    userSettings.themeOverrides ?? {};
+                  onUpdateSettings({
+                    themeOverrides:
+                      Object.keys(rest).length > 0 ? rest : undefined,
+                  });
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection title="Tab Appearance">
         <CheckboxSetting
           id="alwaysHighlightActivePane"
           label="Always highlight active pane"
