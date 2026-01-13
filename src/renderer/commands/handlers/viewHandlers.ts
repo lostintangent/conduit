@@ -107,6 +107,18 @@ export function handleShowCommandPalette(
 }
 
 /**
+ * Open the Quick Open dialog
+ *
+ * @param setIsQuickOpenOpen - Function to open the Quick Open dialog
+ */
+export function handleQuickOpen(
+  setIsQuickOpenOpen: (open: boolean) => void,
+): void {
+  console.log("[handleQuickOpen] Called - setting isQuickOpenOpen to true");
+  setIsQuickOpenOpen(true);
+}
+
+/**
  * Reset layout sizes for a tab
  *
  * @param tabId - ID of the tab to reset

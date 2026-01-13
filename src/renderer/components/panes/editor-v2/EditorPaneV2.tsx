@@ -44,8 +44,6 @@ import {
   TreeResizer,
   type FileTreePanelHandle,
 } from "./components";
-import { QuickOpenOverlay } from "./quick/QuickOpenOverlay";
-import { useQuickOpen } from "@/hooks/useQuickOpen";
 import {
   useAutoOpenFile,
   useEditorTheme,
@@ -336,9 +334,6 @@ export function EditorPaneV2({
     }
     return null;
   });
-
-  // Quick Open hook (V2 pattern) - must come after currentCwd state
-  const quickOpen = useQuickOpen(currentCwd);
 
   /**
    * Selected map key for "changes" mode.
@@ -1490,18 +1485,12 @@ export function EditorPaneV2({
 
   /**
    * Keyboard shortcuts for editor actions.
-   * Handles Cmd/Ctrl+S (save) and Cmd/Ctrl+P (quick open).
+   * Handles Cmd/Ctrl+S (save).
    * Monaco handles Cmd/Ctrl+F (find) internally.
+   * Cmd/Ctrl+P (quick open) is handled globally by the command system.
    */
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Cmd/Ctrl+P: Quick Open
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "p") {
-        event.preventDefault();
-        quickOpen.open();
-        return;
-      }
-
       // Cmd/Ctrl+S: Save file
       if (
         (event.ctrlKey || event.metaKey) &&
@@ -1517,7 +1506,7 @@ export function EditorPaneV2({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedFile, onSave, quickOpen]);
+  }, [selectedFile, onSave]);
 
   // Determine visibility for each panel
   // In single layout: show based on panelView toggle
@@ -1681,27 +1670,6 @@ export function EditorPaneV2({
           onSelectBranch={handleBranchSelect}
           onOpenChange={setIsBranchSelectorOpen}
         />
-
-        {/* Quick Open Overlay */}
-        {quickOpen.visible && (
-          <QuickOpenOverlay
-            visible={quickOpen.visible}
-            query={quickOpen.query}
-            results={quickOpen.results}
-            activeIndex={quickOpen.activeIndex}
-            isLoading={quickOpen.isLoading}
-            onQueryChange={quickOpen.setQuery}
-            onActiveIndexChange={quickOpen.setActiveIndex}
-            onSelect={(file) => {
-              handleFileSelect(
-                { path: file.absolutePath, name: file.filename, type: "file" },
-                null,
-              );
-              quickOpen.onSelect(file);
-            }}
-            onClose={quickOpen.close}
-          />
-        )}
 
         {/* Cloud VM / Agent Session Indicator */}
         <SandboxIndicator

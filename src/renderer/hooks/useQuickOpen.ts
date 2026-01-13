@@ -116,6 +116,7 @@ export function useQuickOpen(cwd: string) {
     results,
     activeIndex,
     isLoading,
+    hasFiles: fileList.length > 0,
 
     // Setters
     setQuery,

@@ -34,6 +34,7 @@ import {
   handleOpenSettings,
   handleOpenWebPage,
   handleOpenWorkspace,
+  handleQuickOpen,
   handleRenameWorkspace,
   handleResetLayout,
   handleSaveWorkspace,
@@ -1689,6 +1690,22 @@ export function registerApplicationCommands(
       if (context.activePaneId) {
         invokeEditorCommand(context.activePaneId, "revealActiveFile");
       }
+    },
+  });
+
+  // Editor: Quick Open
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.EDITOR_QUICK_OPEN,
+    title: "Quick Open",
+    description: "Quickly open files by name using fuzzy search",
+    category: "Editor",
+    keybinding: {
+      key: "Cmd+P",
+      win: "Ctrl+P",
+    },
+    when: activePaneType.equals("editor"),
+    run: (context) => {
+      handleQuickOpen(context.setIsQuickOpenOpen);
     },
   });
 

@@ -26,6 +26,7 @@ import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialo
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
+import { QuickOpenDialog } from "@/components/dialogs/QuickOpenDialog";
 import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
@@ -49,6 +50,7 @@ import {
   openHyperTerminal,
   updateHyperTerminalPosition,
 } from "@/store/actions/hyperTerminal";
+import { updatePaneProperty } from "@/store/actions/pane";
 import {
   dismissNotification,
   enqueueNotification,
@@ -139,6 +141,12 @@ export function App() {
   } | null>(null);
   const [quickPaneState, setQuickPaneState] = useAtom(quickPaneAtom);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
+  const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
+
+  // DEBUG: Log Quick Open state changes
+  useEffect(() => {
+    console.log("[App] isQuickOpenOpen changed to:", isQuickOpenOpen);
+  }, [isQuickOpenOpen]);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
@@ -240,6 +248,7 @@ export function App() {
       setDuplicateTabWithCwdDialogState({ tabId }),
     setTitleModal: (tabId: string, value: string) =>
       setTitleModalState({ tabId, initialValue: value }),
+    setIsQuickOpenOpen,
   });
 
   // Initialize pane actions system
@@ -917,6 +926,43 @@ export function App() {
           onClose={handleCloseQuickPane}
           onOpenAsTab={handleOpenQuickPaneAsTab}
           onOpenAsFloating={handleOpenQuickPaneAsFloating}
+        />
+      )}
+
+      {isQuickOpenOpen && (
+        <QuickOpenDialog
+          open={isQuickOpenOpen}
+          cwd={activeCwd}
+          onOpenChange={setIsQuickOpenOpen}
+          onSelectFile={(filePath) => {
+            if (!activeTab || !activeTab.activePaneId) {
+              return;
+            }
+
+            const activePane = activeTab.panes[activeTab.activePaneId];
+
+            // Only open in editor panes
+            if (activePane?.type === "editor") {
+              // Update the active editor pane's file property
+              updatePaneProperty(activeTab.id, activeTab.activePaneId, {
+                file: filePath,
+              });
+            } else {
+              // If active pane is not an editor, open in a modal as fallback
+              const cwd = path.dirname(filePath);
+              const sandboxId =
+                activePane?.type === "terminal"
+                  ? activePane.sandboxId
+                  : undefined;
+
+              setQuickPaneState({
+                type: "editor",
+                cwd,
+                file: filePath,
+                sandboxId,
+              });
+            }
+          }}
         />
       )}
 

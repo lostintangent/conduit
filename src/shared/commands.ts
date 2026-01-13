@@ -90,4 +90,5 @@ export const ApplicationCommands = {
   // Editor commands
   EDITOR_TOGGLE_SIDEBAR: "editor.toggleSidebar",
   EDITOR_FOCUS_SIDEBAR: "editor.focusSidebar",
+  EDITOR_QUICK_OPEN: "editor.quickOpen",
 } as const;
