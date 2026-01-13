@@ -1705,7 +1705,6 @@ export function registerApplicationCommands(
     },
     // No 'when' clause - works from any pane type
     run: (context) => {
-      console.log("[EDITOR_QUICK_OPEN] Command triggered");
       handleQuickOpen(context.setIsQuickOpenOpen);
     },
   });

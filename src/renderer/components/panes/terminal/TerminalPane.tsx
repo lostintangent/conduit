@@ -71,18 +71,6 @@ const registerTerminalKeyHandler = ({
 
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
-    // Debug logging for key combinations with Ctrl/Meta
-    if (isCtrlOrMeta) {
-      console.log("[TerminalKeyHandler]", {
-        key: event.key,
-        code: event.code,
-        shiftKey: event.shiftKey,
-        altKey: event.altKey,
-        ctrlKey: event.ctrlKey,
-        metaKey: event.metaKey,
-      });
-    }
-
     if (!isCtrlOrMeta && event.key === "Escape") {
       const mode = getApplicationMode();
       if (mode === "focus") {

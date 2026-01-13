@@ -936,43 +936,53 @@ export function App() {
           cwd={activeCwd}
           onOpenChange={setIsQuickOpenOpen}
           onSelectFile={(filePath) => {
-            console.log("[QuickOpen] File selected:", filePath);
-
             if (!activeTab || !activeTab.activePaneId) {
-              console.log("[QuickOpen] No active tab or pane, ignoring");
               return;
             }
 
             const activePane = activeTab.panes[activeTab.activePaneId];
-            const sidebarState = store.get(sidebarStateAtom);
-
-            console.log("[QuickOpen] Active pane type:", activePane?.type);
-            console.log("[QuickOpen] Sidebar state:", {
-              isOpen: sidebarState.isOpen,
-              view: sidebarState.view,
-            });
 
             // Strategy 1: If active pane is a tab editor, open in that editor
             if (activePane?.type === "editor") {
-              console.log("[QuickOpen] Opening in active tab editor pane");
               updatePaneProperty(activeTab.id, activeTab.activePaneId, {
                 file: filePath,
               });
             }
-            // Strategy 2: Active pane is NOT an editor (e.g., terminal) - open/use sidebar editor
+            // Strategy 2: Active pane is NOT an editor - look for editor with matching CWD
             else {
-              console.log(
-                "[QuickOpen] Active pane is not editor, opening in sidebar editor",
-              );
-              store.set(sidebarStateAtom, {
-                isOpen: true,
-                view: "editor",
-                navigation: {
-                  cwd: activeCwd,
-                  editorFile: filePath,
-                  editorTreeMode: "all",
-                },
-              });
+              // Get the active pane's CWD (if it's a terminal)
+              const activePaneCwd =
+                activePane?.type === "terminal" ? activePane.cwd : null;
+
+              // Look for editor panes in the same tab with matching CWD
+              let matchingEditorPaneId: string | null = null;
+
+              if (activePaneCwd) {
+                for (const [paneId, pane] of Object.entries(activeTab.panes)) {
+                  if (pane.type === "editor" && pane.cwd === activePaneCwd) {
+                    matchingEditorPaneId = paneId;
+                    break;
+                  }
+                }
+              }
+
+              if (matchingEditorPaneId) {
+                // Strategy 2a: Open in matching editor pane
+                updatePaneProperty(activeTab.id, matchingEditorPaneId, {
+                  file: filePath,
+                });
+              } else {
+                // Strategy 2b: No matching editor, open in sidebar
+                store.set(sidebarStateAtom, {
+                  isOpen: true,
+                  view: "editor",
+                  navigation: {
+                    cwd: activeCwd,
+                    editorFile: filePath,
+                    editorTreeMode: "all",
+                  },
+                });
+              }
             }
           }}
         />

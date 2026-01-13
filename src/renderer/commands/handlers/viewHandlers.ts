@@ -114,10 +114,7 @@ export function handleShowCommandPalette(
 export function handleQuickOpen(
   setIsQuickOpenOpen: (open: boolean) => void,
 ): void {
-  console.log("[handleQuickOpen] Called - setting isQuickOpenOpen to true");
-  console.trace("[handleQuickOpen] Call stack");
   setIsQuickOpenOpen(true);
-  console.log("[handleQuickOpen] State updated");
 }
 
 /**

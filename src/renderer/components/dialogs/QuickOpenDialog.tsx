@@ -62,16 +62,6 @@ export function QuickOpenDialog({
   onSelectFile,
 }: QuickOpenDialogProps) {
   // ---------------------------------------------------------------------------
-  // DEBUG: Track renders
-  // ---------------------------------------------------------------------------
-  const renderCount = useRef(0);
-  renderCount.current++;
-  console.log(`[QuickOpenDialog] Render #${renderCount.current}`, {
-    open,
-    cwd,
-  });
-
-  // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
 
@@ -93,10 +83,6 @@ export function QuickOpenDialog({
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    console.log("[QuickOpenDialog] Effect: Load file cache - triggered", {
-      open,
-      cwd,
-    });
     if (!open) return;
 
     // Don't scan unsafe/broad directories
@@ -105,9 +91,6 @@ export function QuickOpenDialog({
       !cwd.match(/^(\/|\/Users\/[^\/]+|\/home\/[^\/]+|C:\\Users\\[^\\]+)$/);
 
     if (!isSafeDirectory) {
-      console.log(
-        `[QuickOpenDialog] Skipping cache for unsafe/broad directory: ${cwd}`,
-      );
       setIsLoading(false);
       setFileList([]);
       return;
@@ -124,15 +107,11 @@ export function QuickOpenDialog({
       .then((files) => {
         if (files.length === 0) {
           // No cache found, warm it now
-          console.log("[QuickOpenDialog] No cache found, warming now...");
           return api.warmCache().then(() => api.getPreWarmedCache());
         }
         return files;
       })
       .then((files) => {
-        console.log(
-          `[QuickOpenDialog] Loaded ${files.length} files from cache`,
-        );
         setFileList(files);
       })
       .catch((error) => {
@@ -148,12 +127,6 @@ export function QuickOpenDialog({
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    console.log("[QuickOpenDialog] Effect: Filter files - triggered", {
-      open,
-      query,
-      fileListLength: fileList.length,
-      recentFilesLength: recentFiles.recentFiles.length,
-    });
     if (!open) return;
 
     const timeoutId = setTimeout(() => {
@@ -191,15 +164,12 @@ export function QuickOpenDialog({
 
   // Focus input when dialog opens
   useEffect(() => {
-    console.log("[QuickOpenDialog] open prop changed:", open);
     if (open) {
-      console.log("[QuickOpenDialog] Dialog opening - will focus input");
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
       return () => clearTimeout(timer);
     } else {
-      console.log("[QuickOpenDialog] Dialog closing - resetting state");
       // Reset state when dialog closes
       setQuery("");
       setActiveIndex(0);
@@ -209,9 +179,6 @@ export function QuickOpenDialog({
 
   // Reset scroll when results change
   useEffect(() => {
-    console.log("[QuickOpenDialog] Effect: Reset scroll - triggered", {
-      resultsLength: results.length,
-    });
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
@@ -220,10 +187,6 @@ export function QuickOpenDialog({
 
   // Scroll active item into view
   useEffect(() => {
-    console.log("[QuickOpenDialog] Effect: Scroll active item - triggered", {
-      activeIndex,
-      resultsLength: results.length,
-    });
     if (
       results.length > 0 &&
       activeIndex >= 0 &&
@@ -253,9 +216,6 @@ export function QuickOpenDialog({
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        console.log(
-          "[QuickOpenDialog] Escape pressed - calling onOpenChange(false)",
-        );
         onOpenChange(false);
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -299,19 +259,6 @@ export function QuickOpenDialog({
 
   // State 4: Have results to show
   const showResults = results.length > 0;
-
-  // DEBUG: Log state at render time
-  console.log("[QuickOpenDialog] Render state:", {
-    isLoading,
-    hasFiles,
-    resultsLength: results.length,
-    query,
-    fileListLength: fileList.length,
-    showSkeleton,
-    showNoMatches,
-    showEmptyState,
-    showResults,
-  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
