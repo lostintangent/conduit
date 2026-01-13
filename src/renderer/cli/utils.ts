@@ -170,7 +170,7 @@ export function resolveCanvasPane(
     );
 
     if (!canvasPane) {
-      throw new Error("No canvas pane found in the calling tab.");
+      throw new Error("No canvas pane found in the calling tab or sidebar.");
     }
 
     return canvasPane[0];

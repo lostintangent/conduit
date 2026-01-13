@@ -8,6 +8,8 @@ export type ThemeOverrides = {
   foreground?: string;
   selection?: string;
   accent?: string;
+  background?: string;
+  elevated?: string;
 };
 
 export type BrowserPage = {
