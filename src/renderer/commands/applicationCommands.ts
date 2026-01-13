@@ -174,7 +174,7 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_AGENTS,
     title: "Agent Teams",
-    description: "Configure AI agents for terminal prompt mode (Cmd+Shift+P)",
+    description: "Configure AI agents for terminal prompt mode (Cmd+/)",
     category: "View",
     run: (context) => {
       context.view.openAgents();

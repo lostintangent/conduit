@@ -71,6 +71,18 @@ const registerTerminalKeyHandler = ({
 
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
+    // Debug logging for key combinations with Ctrl/Meta
+    if (isCtrlOrMeta) {
+      console.log("[TerminalKeyHandler]", {
+        key: event.key,
+        code: event.code,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+      });
+    }
+
     if (!isCtrlOrMeta && event.key === "Escape") {
       const mode = getApplicationMode();
       if (mode === "focus") {
@@ -97,12 +109,11 @@ const registerTerminalKeyHandler = ({
       return false;
     }
 
-    // Cmd+Shift+P: Toggle agent prompt mode
+    // Cmd+/ or Cmd+?: Toggle agent prompt mode
     if (
       isCtrlOrMeta &&
-      event.shiftKey &&
       !event.altKey &&
-      event.key.toLowerCase() === "p"
+      (event.key === "/" || event.key === "?")
     ) {
       event.preventDefault();
       togglePromptMode();
