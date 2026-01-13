@@ -1,5 +1,20 @@
-import { fuzzyScore, createMatches, type IMatch } from "./fuzzy-matcher";
+/**
+ * Quick Open File Filtering using fuzzy scoring
+ *
+ * This file uses a complete fuzzy scoring implementation to provide
+ * intelligent file search with match highlighting.
+ */
+
 import path from "path-browserify";
+import {
+  prepareQuery,
+  scoreItemFuzzy,
+  compareItemsByFuzzyScore,
+  type IPreparedQuery,
+  type IItemAccessor,
+  type IMatch,
+  type FuzzyScorerCache,
+} from "./fuzzy-matcher";
 
 export interface FileMatch {
   absolutePath: string;
@@ -8,22 +23,42 @@ export interface FileMatch {
   filename: string;
   directory: string;
   score: number;
-  highlights: IMatch[];
+  highlights: IMatch[]; // Highlights for filename
+  directoryHighlights: IMatch[]; // Highlights for directory path
   isRecent: boolean;
 }
 
 export interface FilterOptions {
   maxResults?: number;
-  recentFileBoost?: number;
-  currentDirectoryBoost?: number;
   recentFiles?: Set<string>;
   currentDirectory?: string | null;
   workspaceRoot?: string;
 }
 
 /**
- * Filter and score files based on fuzzy query
- * Pure function - no side effects
+ * Accessor for FileMatch to work with VS Code's scorer
+ * This maps our file data structure to the IItemAccessor interface
+ */
+class FileMatchAccessor implements IItemAccessor<FileMatch> {
+  getItemLabel(item: FileMatch): string {
+    return item.filename;
+  }
+
+  getItemDescription(item: FileMatch): string | undefined {
+    // Use the directory as description (VS Code does this for files)
+    const dir = path.dirname(item.relativePath);
+    return dir === "." ? undefined : dir;
+  }
+
+  getItemPath(item: FileMatch): string | undefined {
+    return item.absolutePath;
+  }
+}
+
+const fileMatchAccessor = new FileMatchAccessor();
+
+/**
+ * Filter and score files based on fuzzy query using VS Code's exact algorithm
  */
 export function filterFiles(
   query: string,
@@ -32,11 +67,9 @@ export function filterFiles(
 ): FileMatch[] {
   const {
     maxResults = 1000,
-    recentFileBoost = 2.0,
-    currentDirectoryBoost = 1.3,
     recentFiles = new Set(),
     currentDirectory = null,
-    workspaceRoot = process.cwd(),
+    workspaceRoot = "", // Default to empty string (caller should always provide this)
   } = options;
 
   // Empty query: return recent files first, then all files
@@ -44,106 +77,65 @@ export function filterFiles(
     return getDefaultResults(files, maxResults, recentFiles, workspaceRoot);
   }
 
-  const queryLower = query.toLowerCase();
-  const results: FileMatch[] = [];
-  const maxFilesToProcess = 50000;
-  const filesToProcess = files.slice(0, maxFilesToProcess);
+  // Prepare query using VS Code's preparation (handles spaces, wildcards, path separators, etc.)
+  const preparedQuery = prepareQuery(query);
 
-  for (const filePath of filesToProcess) {
+  // Convert file paths to FileMatch objects
+  const fileMatches: FileMatch[] = files.map((filePath) => {
     const relativePath = getRelativePath(filePath, workspaceRoot);
     const filename = path.basename(filePath);
     const directory = path.dirname(filePath);
-
-    let bestScore = 0;
-    let bestMatches: IMatch[] = [];
-
-    // Try exact substring match first (highest priority)
-    const filenameLower = filename.toLowerCase();
-    const relativePathLower = relativePath.toLowerCase();
-
-    if (filenameLower.includes(queryLower)) {
-      const matchStart = filenameLower.indexOf(queryLower);
-      bestScore = 10000;
-      bestMatches = [
-        {
-          start: matchStart,
-          end: matchStart + query.length,
-        },
-      ];
-
-      if (matchStart === 0) bestScore *= 1.5;
-      if (filenameLower === queryLower) bestScore *= 2;
-    } else if (relativePathLower.includes(queryLower)) {
-      bestScore = 5000;
-      const filenameScore = fuzzyScore(
-        query,
-        queryLower,
-        0,
-        filename,
-        filenameLower,
-        0,
-      );
-      if (filenameScore) {
-        bestMatches = createMatches(filenameScore);
-      }
-    } else {
-      // Fuzzy matching
-      const filenameScore = fuzzyScore(
-        query,
-        queryLower,
-        0,
-        filename,
-        filenameLower,
-        0,
-      );
-      if (filenameScore) {
-        bestScore = filenameScore[0] * 2; // Boost filename matches
-        bestMatches = createMatches(filenameScore);
-      }
-
-      const pathScore = fuzzyScore(
-        query,
-        queryLower,
-        0,
-        relativePath,
-        relativePathLower,
-        0,
-      );
-      if (pathScore && pathScore[0] > bestScore) {
-        bestScore = pathScore[0];
-        bestMatches = createMatches(pathScore);
-      }
-    }
-
-    if (bestScore === 0) continue;
-
-    // Apply boosts
     const isRecent = recentFiles.has(filePath);
-    if (isRecent) bestScore *= recentFileBoost;
-    if (currentDirectory && filePath.startsWith(currentDirectory)) {
-      bestScore *= currentDirectoryBoost;
-    }
 
-    // Penalties
-    const pathDepth = relativePath.split("/").length;
-    bestScore -= relativePath.length * 0.0005;
-    bestScore -= pathDepth * 0.01;
-    bestScore -= filename.length * 0.0001;
-
-    results.push({
+    return {
       absolutePath: filePath,
       relativePath,
       displayPath: formatDisplayPath(filePath),
       filename,
       directory,
-      score: bestScore,
-      highlights: bestMatches,
+      score: 0, // Will be computed by VS Code scorer
+      highlights: [],
+      directoryHighlights: [],
       isRecent,
-    });
+    };
+  });
+
+  // Score all files using VS Code's scorer
+  const cache: FuzzyScorerCache = Object.create(null);
+  const scoredFiles: FileMatch[] = [];
+
+  for (const fileMatch of fileMatches) {
+    const itemScore = scoreItemFuzzy(
+      fileMatch,
+      preparedQuery,
+      true, // allowNonContiguousMatches
+      fileMatchAccessor,
+      cache,
+    );
+
+    if (itemScore.score > 0) {
+      // Extract highlights from the score
+      fileMatch.score = itemScore.score;
+      fileMatch.highlights = itemScore.labelMatch || [];
+      fileMatch.directoryHighlights = itemScore.descriptionMatch || [];
+
+      scoredFiles.push(fileMatch);
+    }
   }
 
-  results.sort((a, b) => b.score - a.score);
-  return results.slice(0, maxResults);
+  // Sort using VS Code's comparison function (7+ tiebreakers)
+  scoredFiles.sort((a, b) =>
+    compareItemsByFuzzyScore(
+      a,
+      b,
+      preparedQuery,
+      true, // allowNonContiguousMatches
+      fileMatchAccessor,
+      cache,
+    ),
+  );
+
+  return scoredFiles.slice(0, maxResults);
 }
 
 function getDefaultResults(
@@ -167,6 +159,7 @@ function getDefaultResults(
         directory: path.dirname(filePath),
         score: 1000,
         highlights: [],
+        directoryHighlights: [],
         isRecent: true,
       });
     }
@@ -186,6 +179,7 @@ function getDefaultResults(
           directory: path.dirname(filePath),
           score: 0,
           highlights: [],
+          directoryHighlights: [],
           isRecent: false,
         });
         if (results.length >= maxResults) break;
@@ -222,5 +216,5 @@ function formatDisplayPath(filePath: string): string {
 export async function getWorkspaceRoot(startPath?: string): Promise<string> {
   // For now, simple implementation
   // TODO: Walk up to find .git directory using FileSystemV2API
-  return startPath || process.cwd();
+  return startPath || "";
 }

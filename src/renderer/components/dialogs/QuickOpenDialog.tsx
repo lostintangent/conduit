@@ -373,7 +373,10 @@ export function QuickOpenDialog({
                         </span>
                         {/* Relative directory path - truncates */}
                         <span className="text-xs text-muted-foreground truncate min-w-0">
-                          {relativeDir || ""}
+                          {renderHighlightedText(
+                            relativeDir || "",
+                            file.directoryHighlights,
+                          )}
                         </span>
                         {/* Recent badge */}
                         {file.isRecent && (

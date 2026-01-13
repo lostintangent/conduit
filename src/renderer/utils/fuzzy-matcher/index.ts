@@ -36,3 +36,16 @@ export {
   isLowerAsciiLetter,
   isUpperAsciiLetter,
 } from "./strings";
+
+// Re-export fuzzy scorer for Quick Open
+export {
+  // Main scoring functions
+  prepareQuery,
+  scoreItemFuzzy,
+  compareItemsByFuzzyScore,
+  // Types
+  type IPreparedQuery,
+  type IItemAccessor,
+  type IItemScore,
+  type FuzzyScorerCache,
+} from "./scorer";
