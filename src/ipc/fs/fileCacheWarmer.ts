@@ -20,6 +20,20 @@ const warmingInProgressMap = new Map<string, boolean>();
  * Sets up event-based watchers for real-time updates
  */
 export async function warmFileCache(workspaceRoot: string): Promise<void> {
+  // Don't warm cache for unsafe/broad directories (root, home)
+  const isSafeDirectory =
+    workspaceRoot &&
+    !workspaceRoot.match(
+      /^(\/|\/Users\/[^\/]+|\/home\/[^\/]+|C:\\Users\\[^\\]+)$/,
+    );
+
+  if (!isSafeDirectory) {
+    console.log(
+      `[FileCacheWarmer] Refusing to scan unsafe/broad directory: ${workspaceRoot}`,
+    );
+    return;
+  }
+
   // Don't start multiple warming processes
   if (warmingInProgressMap.get(workspaceRoot)) {
     console.log("[FileCacheWarmer] Already warming cache for", workspaceRoot);
@@ -168,10 +182,14 @@ async function setupCacheWatcher(workspaceRoot: string): Promise<() => void> {
 
 /**
  * Get the pre-warmed cache if available and valid
+ * Returns only serializable data (no functions)
  */
-export function getPreWarmedCache(
-  workspaceRoot: string,
-): CachedFileData | null {
+export function getPreWarmedCache(workspaceRoot: string): {
+  root: string;
+  files: string[];
+  timestamp: number;
+  valid: boolean;
+} | null {
   const cache = fileCacheMap.get(workspaceRoot);
 
   if (!cache) {
@@ -187,7 +205,14 @@ export function getPreWarmedCache(
   console.log(
     `[FileCacheWarmer] Returning valid cache (${cache.files.length} files)`,
   );
-  return cache;
+
+  // Return only serializable data (exclude watcherCleanup function)
+  return {
+    root: cache.root,
+    files: cache.files,
+    timestamp: cache.timestamp,
+    valid: cache.valid,
+  };
 }
 
 /**

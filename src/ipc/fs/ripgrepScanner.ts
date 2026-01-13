@@ -3,9 +3,70 @@
  * Uses the same ripgrep binary that VS Code uses
  */
 
-import { rgPath } from "@vscode/ripgrep";
 import { spawn } from "child_process";
 import * as path from "path";
+
+// Resolve ripgrep path at runtime (Vite bundling breaks the import)
+function resolveRipgrepPath(): string {
+  const fs = require("fs");
+
+  try {
+    // Try the package import first
+    const { rgPath } = require("@vscode/ripgrep");
+    if (rgPath && fs.existsSync(rgPath)) {
+      console.log("[Ripgrep] Using path from @vscode/ripgrep:", rgPath);
+      return rgPath;
+    }
+    console.warn("[Ripgrep] Path from @vscode/ripgrep doesn't exist:", rgPath);
+  } catch (e) {
+    console.warn("[Ripgrep] Failed to import @vscode/ripgrep:", e);
+  }
+
+  // Fallback: try multiple possible locations
+  const possiblePaths = [
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "node_modules",
+      "@vscode",
+      "ripgrep",
+      "bin",
+      "rg",
+    ),
+    path.join(process.cwd(), "node_modules", "@vscode", "ripgrep", "bin", "rg"),
+    path.join(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "node_modules",
+      "@vscode",
+      "ripgrep",
+      "bin",
+      "rg",
+    ),
+  ];
+
+  for (const rgPath of possiblePaths) {
+    if (fs.existsSync(rgPath)) {
+      console.log("[Ripgrep] Found binary at:", rgPath);
+      return rgPath;
+    }
+  }
+
+  console.error(
+    "[Ripgrep] Could not find ripgrep binary in any expected location",
+  );
+  console.error("[Ripgrep] Tried:", possiblePaths);
+  console.error("[Ripgrep] __dirname:", __dirname);
+  console.error("[Ripgrep] process.cwd():", process.cwd());
+
+  // Return first path as fallback (will fail but with better error message)
+  return possiblePaths[0];
+}
+
+const rgPath = resolveRipgrepPath();
 
 export interface RipgrepScanOptions {
   /** Maximum depth to traverse (default: 15) */
@@ -121,6 +182,7 @@ export async function scanDirectoryWithRipgrep(
     args.push(directoryPath);
 
     console.log(`[Ripgrep] Scanning ${directoryPath} with ripgrep`);
+    console.log(`[Ripgrep] rgPath from @vscode/ripgrep:`, rgPath);
     console.log(`[Ripgrep] Command: ${rgPath} ${args.join(" ")}`);
 
     const rg = spawn(rgPath, args, {

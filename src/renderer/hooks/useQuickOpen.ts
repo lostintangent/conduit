@@ -27,10 +27,31 @@ export function useQuickOpen(cwd: string) {
     const api = new QuickOpenAPI(cwd);
     apiRef.current = api;
 
+    // Don't warm cache for home directory or root - too broad
+    const isSafeDirectory =
+      cwd &&
+      !cwd.match(/^(\/|\/Users\/[^\/]+|\/home\/[^\/]+|C:\\Users\\[^\\]+)$/);
+
+    if (!isSafeDirectory) {
+      console.log(
+        `[useQuickOpen] Skipping cache for unsafe/broad directory: ${cwd}`,
+      );
+      setIsLoading(false);
+      return;
+    }
+
     // Load pre-warmed cache
     setIsLoading(true);
     api
       .getPreWarmedCache()
+      .then((files) => {
+        if (files.length === 0) {
+          // No cache found, warm it now (only for safe directories)
+          console.log("[useQuickOpen] No cache found, warming now...");
+          return api.warmCache().then(() => api.getPreWarmedCache());
+        }
+        return files;
+      })
       .then((files) => {
         console.log(`[useQuickOpen] Loaded ${files.length} files from cache`);
         setFileList(files);

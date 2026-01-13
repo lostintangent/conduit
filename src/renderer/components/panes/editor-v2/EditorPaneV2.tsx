@@ -297,9 +297,6 @@ export function EditorPaneV2({
     await handleDeleteAgentSessionBase(agentSessionId);
   }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
 
-  // Quick Open hook (V2 pattern)
-  const quickOpen = useQuickOpen(currentCwd);
-
   // Preference for showing diff vs regular editor for git-modified files
   // This is session-local state (like changesViewMode), not persisted
   const [preferDiffForModified, setPreferDiffForModified] = useState(true);
@@ -339,6 +336,9 @@ export function EditorPaneV2({
     }
     return null;
   });
+
+  // Quick Open hook (V2 pattern) - must come after currentCwd state
+  const quickOpen = useQuickOpen(currentCwd);
 
   /**
    * Selected map key for "changes" mode.
