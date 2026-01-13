@@ -75,7 +75,9 @@ function CommitGraphHeaderComponent({
       className={cn(
         "flex items-center justify-between",
         "px-3 py-1.5",
+        "bg-elevated",
         "text-[13px]",
+        "border-b border-border",
         className,
       )}
       data-testid="commit-graph-header"

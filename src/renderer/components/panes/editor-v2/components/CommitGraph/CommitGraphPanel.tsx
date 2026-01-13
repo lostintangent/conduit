@@ -277,7 +277,7 @@ function CommitGraphPanelComponent({
       <CommitGraphHeader onRefresh={handleRefresh} isRefreshing={isLoading} />
 
       {/* Content area - flex container for proper scroll behavior */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col pt-1">
         {/* Loading state (initial load only) */}
         {isLoading && nodes.length === 0 && <LoadingState />}
 
