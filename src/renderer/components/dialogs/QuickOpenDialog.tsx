@@ -483,7 +483,7 @@ function renderHighlightedText(text: string, highlights: any[]) {
     }
     // Add highlighted text
     parts.push(
-      <span key={`match-${index}`} className="font-bold">
+      <span key={`match-${index}`} className="font-bold text-accent">
         {text.substring(match.start, match.end)}
       </span>,
     );
