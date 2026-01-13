@@ -72,6 +72,7 @@ import {
   hyperTerminalsAtom,
   keybindingsAtom,
   quickPaneAtom,
+  sidebarStateAtom,
   tabsAtom,
 } from "@/store/atoms";
 import type { EditorPane } from "@/types";
@@ -935,31 +936,42 @@ export function App() {
           cwd={activeCwd}
           onOpenChange={setIsQuickOpenOpen}
           onSelectFile={(filePath) => {
+            console.log("[QuickOpen] File selected:", filePath);
+
             if (!activeTab || !activeTab.activePaneId) {
+              console.log("[QuickOpen] No active tab or pane, ignoring");
               return;
             }
 
             const activePane = activeTab.panes[activeTab.activePaneId];
+            const sidebarState = store.get(sidebarStateAtom);
 
-            // Only open in editor panes
+            console.log("[QuickOpen] Active pane type:", activePane?.type);
+            console.log("[QuickOpen] Sidebar state:", {
+              isOpen: sidebarState.isOpen,
+              view: sidebarState.view,
+            });
+
+            // Strategy 1: If active pane is a tab editor, open in that editor
             if (activePane?.type === "editor") {
-              // Update the active editor pane's file property
+              console.log("[QuickOpen] Opening in active tab editor pane");
               updatePaneProperty(activeTab.id, activeTab.activePaneId, {
                 file: filePath,
               });
-            } else {
-              // If active pane is not an editor, open in a modal as fallback
-              const cwd = path.dirname(filePath);
-              const sandboxId =
-                activePane?.type === "terminal"
-                  ? activePane.sandboxId
-                  : undefined;
-
-              setQuickPaneState({
-                type: "editor",
-                cwd,
-                file: filePath,
-                sandboxId,
+            }
+            // Strategy 2: Active pane is NOT an editor (e.g., terminal) - open/use sidebar editor
+            else {
+              console.log(
+                "[QuickOpen] Active pane is not editor, opening in sidebar editor",
+              );
+              store.set(sidebarStateAtom, {
+                isOpen: true,
+                view: "editor",
+                navigation: {
+                  cwd: activeCwd,
+                  editorFile: filePath,
+                  editorTreeMode: "all",
+                },
               });
             }
           }}

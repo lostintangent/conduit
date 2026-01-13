@@ -452,7 +452,10 @@ export function QuickOpenDialog({
           </div>
           {results.length > 0 && (
             <span className="tabular-nums">
-              {activeIndex + 1} of {results.length}
+              {activeIndex + 1} of{" "}
+              {results.length >= 1000
+                ? `top ${results.length}`
+                : results.length}
             </span>
           )}
         </div>

@@ -174,7 +174,7 @@ export function registerApplicationCommands(
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_OPEN_AGENTS,
     title: "Agent Teams",
-    description: "Configure AI agents for terminal prompt mode (Cmd+P)",
+    description: "Configure AI agents for terminal prompt mode (Cmd+Shift+P)",
     category: "View",
     run: (context) => {
       context.view.openAgents();
@@ -1703,8 +1703,9 @@ export function registerApplicationCommands(
       key: "Cmd+P",
       win: "Ctrl+P",
     },
-    when: activePaneType.equals("editor"),
+    // No 'when' clause - works from any pane type
     run: (context) => {
+      console.log("[EDITOR_QUICK_OPEN] Command triggered");
       handleQuickOpen(context.setIsQuickOpenOpen);
     },
   });

@@ -97,9 +97,10 @@ const registerTerminalKeyHandler = ({
       return false;
     }
 
+    // Cmd+Shift+P: Toggle agent prompt mode
     if (
       isCtrlOrMeta &&
-      !event.shiftKey &&
+      event.shiftKey &&
       !event.altKey &&
       event.key.toLowerCase() === "p"
     ) {
