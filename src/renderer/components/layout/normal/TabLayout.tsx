@@ -648,8 +648,11 @@ export function TabLayout({
             />
           )}
 
-          {/* Pane highlight overlay */}
-          <PaneHighlight paneId={pane.id} isResizing={resizingNode !== null} />
+          {/* Pane highlight overlay - only render when appropriate */}
+          {Object.keys(tab.panes).length > 1 &&
+            !isInFocusMode &&
+            !isInDesignMode &&
+            resizingNode === null && <PaneHighlight paneId={pane.id} />}
 
           {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
           {isInPreview && hoveredPreviewPaneId === pane.id && (
