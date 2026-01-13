@@ -13,14 +13,12 @@
 
 import {
   type CanvasHistoryState,
-  type CanvasState,
-  DEFAULT_CANVAS_STATE,
   EMPTY_HISTORY,
-  canvasStatesAtom,
+  canvasStateAtomFamily,
 } from "@/store/canvasStore";
 import type { CanvasElement, Transform } from "@shared/types/canvas";
 import { useAtom } from "jotai";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import {
   type CanvasCommand,
   type ElementStyle,
@@ -224,26 +222,18 @@ export function useCanvasHistory({
   paneId,
   operations,
 }: UseCanvasHistoryOptions): UseCanvasHistoryResult {
-  const [canvasStates, setCanvasStates] = useAtom(canvasStatesAtom);
-
-  const history = useMemo(
-    () => canvasStates.get(paneId)?.history ?? EMPTY_HISTORY,
-    [canvasStates, paneId],
-  );
+  // Subscribe only to this pane's atom (other panes' updates won't trigger re-render)
+  const [canvasState, setCanvasState] = useAtom(canvasStateAtomFamily(paneId));
+  const history = canvasState.history;
 
   const updateHistory = useCallback(
     (fn: (h: CanvasHistoryState) => CanvasHistoryState) => {
-      setCanvasStates((map) => {
-        const newMap = new Map(map);
-        const currentState = map.get(paneId) ?? DEFAULT_CANVAS_STATE;
-        newMap.set(paneId, {
-          ...currentState,
-          history: fn(currentState.history),
-        });
-        return newMap;
-      });
+      setCanvasState((state) => ({
+        ...state,
+        history: fn(state.history),
+      }));
     },
-    [paneId, setCanvasStates],
+    [setCanvasState],
   );
 
   // ---------------------------------------------------------------------------
@@ -315,34 +305,20 @@ export function useCanvasHistory({
   // ---------------------------------------------------------------------------
 
   const undo = useCallback(() => {
-    const currentState = canvasStates.get(paneId) ?? DEFAULT_CANVAS_STATE;
-    const result = popUndo(currentState.history);
+    const result = popUndo(canvasState.history);
     if (!result) return;
 
-    setCanvasStates((map) => {
-      const newMap = new Map(map);
-      const state = map.get(paneId) ?? DEFAULT_CANVAS_STATE;
-      newMap.set(paneId, { ...state, history: result.history });
-      return newMap;
-    });
-
+    setCanvasState((state) => ({ ...state, history: result.history }));
     applyUndo(result.command, operations);
-  }, [paneId, canvasStates, setCanvasStates, operations]);
+  }, [canvasState.history, setCanvasState, operations]);
 
   const redo = useCallback(() => {
-    const currentState = canvasStates.get(paneId) ?? DEFAULT_CANVAS_STATE;
-    const result = popRedo(currentState.history);
+    const result = popRedo(canvasState.history);
     if (!result) return;
 
-    setCanvasStates((map) => {
-      const newMap = new Map(map);
-      const state = map.get(paneId) ?? DEFAULT_CANVAS_STATE;
-      newMap.set(paneId, { ...state, history: result.history });
-      return newMap;
-    });
-
+    setCanvasState((state) => ({ ...state, history: result.history }));
     applyRedo(result.command, operations);
-  }, [paneId, canvasStates, setCanvasStates, operations]);
+  }, [canvasState.history, setCanvasState, operations]);
 
   const clearHistoryFn = useCallback(() => {
     updateHistory(() => EMPTY_HISTORY);

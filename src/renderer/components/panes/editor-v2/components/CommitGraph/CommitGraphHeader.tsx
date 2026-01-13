@@ -20,8 +20,6 @@
  * ```
  */
 
-import { memo } from "react";
-import { RefreshCw } from "lucide-react";
 import { FillingIcon } from "@/components/ui/filling-icon";
 import { Toggle } from "@/components/ui/toggle";
 import {
@@ -30,6 +28,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
+import { RefreshCw } from "lucide-react";
+import { memo } from "react";
 
 // =============================================================================
 // Types

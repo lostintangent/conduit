@@ -5,10 +5,9 @@
 
 import type { CanvasElement } from "@shared/types/canvas";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import {
-  canvasStatesAtom,
-  DEFAULT_CANVAS_STATE,
+  canvasStateAtomFamily,
   addElement as storeAddElement,
   clearCanvas as storeClearCanvas,
   deleteElements as storeDeleteElements,
@@ -24,13 +23,8 @@ import {
 // =============================================================================
 
 export function useCanvasState(paneId: string) {
-  // Subscribe to the global canvas states atom
-  const statesMap = useAtomValue(canvasStatesAtom);
-
-  // Get state for this specific pane
-  const state = useMemo(() => {
-    return statesMap.get(paneId) ?? DEFAULT_CANVAS_STATE;
-  }, [statesMap, paneId]);
+  // Subscribe only to this pane's atom (other panes' updates won't trigger re-render)
+  const state = useAtomValue(canvasStateAtomFamily(paneId));
 
   // ---------------------------------------------------------------------------
   // Element Operations
