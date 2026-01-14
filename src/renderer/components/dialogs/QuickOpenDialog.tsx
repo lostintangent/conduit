@@ -25,7 +25,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { FileText } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +68,7 @@ export function QuickOpenDialog({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FileMatch[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [fileList, setFileList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -173,6 +174,7 @@ export function QuickOpenDialog({
       // Reset state when dialog closes
       setQuery("");
       setActiveIndex(0);
+      setHoveredIndex(null);
       setResults([]);
     }
   }, [open]);
@@ -210,6 +212,14 @@ export function QuickOpenDialog({
       onOpenChange(false);
     },
     [recentFiles, onSelectFile, onOpenChange],
+  );
+
+  const handleRemoveRecent = useCallback(
+    (e: React.MouseEvent, filePath: string) => {
+      e.stopPropagation(); // Prevent file selection
+      recentFiles.removeRecentFile(filePath);
+    },
+    [recentFiles],
   );
 
   const handleKeyDown = useCallback(
@@ -260,10 +270,19 @@ export function QuickOpenDialog({
   // State 4: Have results to show
   const showResults = results.length > 0;
 
+  // Find the index where recent files end (for divider placement)
+  const lastRecentIndex = useMemo(() => {
+    return results.findIndex((file, index) => {
+      // Find first non-recent file after recent files
+      if (index === 0) return false;
+      return !file.isRecent && results[index - 1].isRecent;
+    });
+  }, [results]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[min(90vw,800px)] max-h-[min(70vh,600px)] p-0 flex flex-col gap-0"
+        className="max-w-[min(90vw,800px)] max-h-[min(70vh,600px)] p-0 flex flex-col gap-0 [&>button]:top-2.5"
         onKeyDown={handleKeyDown}
         data-testid="quick-open-dialog"
       >
@@ -292,8 +311,8 @@ export function QuickOpenDialog({
           ref={scrollContainerRef}
           className="overflow-y-auto flex-1"
           style={{
-            maxHeight: "calc(min(70vh, 600px) - 90px)",
-            minHeight: "calc(min(70vh, 600px) - 90px)", // Optimistic: assume max height
+            maxHeight: "calc(min(70vh, 600px) - 45px)",
+            minHeight: "calc(min(70vh, 600px) - 45px)",
           }}
         >
           {showSkeleton ? (
@@ -355,7 +374,11 @@ export function QuickOpenDialog({
                       transform: `translateY(${virtualItem.start}px)`,
                     }}
                     onClick={() => handleSelect(file)}
-                    onMouseEnter={() => setActiveIndex(index)}
+                    onMouseEnter={() => {
+                      setActiveIndex(index);
+                      setHoveredIndex(index);
+                    }}
+                    onMouseLeave={() => setHoveredIndex(null)}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 w-full">
                       {/* File icon */}
@@ -378,36 +401,45 @@ export function QuickOpenDialog({
                             file.directoryHighlights,
                           )}
                         </span>
-                        {/* Recent badge */}
-                        {file.isRecent && (
+                        {/* Recent badge - only on first recent item */}
+                        {file.isRecent && index === 0 && (
                           <span className="text-xs bg-accent/50 px-1.5 py-0.5 rounded ml-auto shrink-0">
                             Recent
                           </span>
                         )}
                       </div>
+
+                      {/* Delete button - only for recent files on hover */}
+                      {file.isRecent && hoveredIndex === index && (
+                        <button
+                          onClick={(e) =>
+                            handleRemoveRecent(e, file.absolutePath)
+                          }
+                          className="ml-auto shrink-0 p-0.5 rounded hover:bg-accent transition-colors"
+                          aria-label="Remove from recent files"
+                        >
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               })}
+
+              {/* Divider between recent and other files */}
+              {lastRecentIndex > 0 && (
+                <div
+                  className="absolute left-0 w-full px-3 pointer-events-none"
+                  style={{
+                    height: "1px",
+                    transform: `translateY(${lastRecentIndex * 24 - 4}px)`,
+                  }}
+                >
+                  <div className="w-full h-px bg-border" />
+                </div>
+              )}
             </div>
           ) : null}
-        </div>
-
-        {/* Footer with hints */}
-        <div className="border-t border-border px-4 py-3 text-xs leading-normal text-muted-foreground flex items-center justify-between min-h-10">
-          <div className="flex items-center gap-2">
-            <span>Enter to open</span>
-            <span>•</span>
-            <span>Esc to close</span>
-          </div>
-          {results.length > 0 && (
-            <span className="tabular-nums">
-              {activeIndex + 1} of{" "}
-              {results.length >= 1000
-                ? `top ${results.length}`
-                : results.length}
-            </span>
-          )}
         </div>
       </DialogContent>
     </Dialog>

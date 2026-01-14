@@ -18,6 +18,10 @@ export function useQuickOpenRecentFiles() {
       });
     },
 
+    removeRecentFile: (filePath: string) => {
+      setRecentFiles((prev) => prev.filter((f) => f !== filePath));
+    },
+
     setRecentFiles: (files: string[]) => {
       setRecentFiles(files.slice(-20));
     },
