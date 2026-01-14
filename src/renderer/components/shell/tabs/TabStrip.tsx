@@ -163,6 +163,38 @@ export const TabStrip = ({
 
   const [isRepoDialogOpen, setIsRepoDialogOpen] = useState(false);
 
+  // Track scroll position for gradient overlays and inline tab controls
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Detect scroll position to show/hide gradient overlays
+  useEffect(() => {
+    const container = tabsContainerRef.current;
+    if (!container) return;
+
+    const updateScrollState = () => {
+      const hasOverflow = container.scrollWidth > container.clientWidth;
+      setCanScrollLeft(hasOverflow && container.scrollLeft > 0);
+      setCanScrollRight(
+        hasOverflow &&
+          container.scrollLeft <
+            container.scrollWidth - container.clientWidth - 1,
+      );
+    };
+
+    updateScrollState();
+
+    container.addEventListener("scroll", updateScrollState);
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(container);
+
+    return () => {
+      container.removeEventListener("scroll", updateScrollState);
+      resizeObserver.disconnect();
+    };
+  }, [tabLabels]);
+
   // Check if current terminal pane is in a git repository
   useEffect(() => {
     const checkGitRepo = async () => {
@@ -650,77 +682,93 @@ export const TabStrip = ({
         className={`flex items-center gap-2 px-2 bg-elevated ${marginClass} w-full min-w-0 transition-all duration-300 ease-in-out overflow-hidden`}
         style={tabStripTransitionStyle}
       >
-        {/* Tab buttons */}
-        <div
-          className="flex items-stretch align-middle content-center gap-1 flex-1 overflow-x-auto scrollbar-thin min-w-0"
-          role="tablist"
-          onDragOver={(event) => {
-            if (event.target !== event.currentTarget) {
-              return;
-            }
+        {/* Tab buttons - scrollable container with gradient fade when overflowing */}
+        <div className="relative flex-1 min-w-0 overflow-hidden">
+          <div
+            ref={tabsContainerRef}
+            className="flex items-stretch align-middle content-center gap-1 overflow-x-auto scrollbar-hide min-w-0"
+            role="tablist"
+            onDragOver={(event) => {
+              if (event.target !== event.currentTarget) {
+                return;
+              }
 
-            applyMoveDropEffect(event);
-            setDropTargetIndex(reorderableTabs.length);
-          }}
-          onDrop={(e) => {
-            if (e.target !== e.currentTarget) {
-              return;
-            }
-            handleDrop(e);
-          }}
-          onDragLeave={(e) => {
-            const relatedTarget = e.relatedTarget;
-            if (
-              relatedTarget instanceof Node &&
-              e.currentTarget.contains(relatedTarget)
-            ) {
-              return;
-            }
+              applyMoveDropEffect(event);
+              setDropTargetIndex(reorderableTabs.length);
+            }}
+            onDrop={(e) => {
+              if (e.target !== e.currentTarget) {
+                return;
+              }
+              handleDrop(e);
+            }}
+            onDragLeave={(e) => {
+              const relatedTarget = e.relatedTarget;
+              if (
+                relatedTarget instanceof Node &&
+                e.currentTarget.contains(relatedTarget)
+              ) {
+                return;
+              }
 
-            setDropTargetIndex(null);
-          }}
-        >
-          {tabsWithPlaceholders}
+              setDropTargetIndex(null);
+            }}
+          >
+            {tabsWithPlaceholders}
 
-          <Separator
-            orientation="vertical"
-            className="h-6 bg-elevated-border ml-2 mr-0.5 my-1"
-          />
+            {/* Tab controls - inline when not overflowing */}
+            {!canScrollLeft && !canScrollRight && (
+              <>
+                <Separator
+                  orientation="vertical"
+                  className="h-6 bg-elevated-border ml-2 mr-0.5 my-1"
+                />
 
-          {/* New tab button - after divider */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15"
-                aria-label={newTabCmd.title}
-                onClick={() => {
-                  void openTab();
-                }}
-              >
-                <PlusSquare size={18} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {getCommandDisplayTitle(newTabCmd)}
-            </TooltipContent>
-          </Tooltip>
+                {/* New tab button - after divider */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15 shrink-0"
+                      aria-label={newTabCmd.title}
+                      onClick={() => {
+                        void openTab();
+                      }}
+                    >
+                      <PlusSquare size={18} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {getCommandDisplayTitle(newTabCmd)}
+                  </TooltipContent>
+                </Tooltip>
 
-          {/* Overview button - only when multiple tabs */}
-          {hasMultipleTabs && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10"
-                  aria-label="View all tabs"
-                  onClick={() => setApplicationMode("overview")}
-                >
-                  <LayoutGrid size={18} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">View all tabs</TooltipContent>
-            </Tooltip>
+                {/* Overview button - only when multiple tabs */}
+                {hasMultipleTabs && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10 shrink-0"
+                        aria-label="View all tabs"
+                        onClick={() => setApplicationMode("overview")}
+                      >
+                        <LayoutGrid size={18} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">View all tabs</TooltipContent>
+                  </Tooltip>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Gradient fade overlays for truncated tabs */}
+          {canScrollLeft && (
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-elevated to-transparent" />
+          )}
+          {canScrollRight && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-elevated to-transparent" />
           )}
         </div>
 
