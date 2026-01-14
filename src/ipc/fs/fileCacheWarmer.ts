@@ -28,15 +28,11 @@ export async function warmFileCache(workspaceRoot: string): Promise<void> {
     );
 
   if (!isSafeDirectory) {
-    console.log(
-      `[FileCacheWarmer] Refusing to scan unsafe/broad directory: ${workspaceRoot}`,
-    );
     return;
   }
 
   // Don't start multiple warming processes
   if (warmingInProgressMap.get(workspaceRoot)) {
-    console.log("[FileCacheWarmer] Already warming cache for", workspaceRoot);
     return;
   }
 
@@ -46,19 +42,11 @@ export async function warmFileCache(workspaceRoot: string): Promise<void> {
     const age = Date.now() - existingCache.timestamp;
     if (age < 60000) {
       // Fresh within 1 minute
-      console.log(
-        `[FileCacheWarmer] Cache is fresh (${age}ms old), skipping scan`,
-      );
       return;
     }
   }
 
   warmingInProgressMap.set(workspaceRoot, true);
-  console.log(
-    "[FileCacheWarmer] Starting background file scan for",
-    workspaceRoot,
-  );
-  const startTime = Date.now();
 
   try {
     // Use ripgrep for ultra-fast scanning
@@ -71,9 +59,7 @@ export async function warmFileCache(workspaceRoot: string): Promise<void> {
       },
     );
 
-    const duration = Date.now() - startTime;
-
-    // Setup event-based watchers (KEY IMPROVEMENT)
+    // Setup event-based watchers
     const cleanup = await setupCacheWatcher(workspaceRoot);
 
     // Store in cache map
@@ -84,10 +70,6 @@ export async function warmFileCache(workspaceRoot: string): Promise<void> {
       valid: true, // Initially valid
       watcherCleanup: cleanup,
     });
-
-    console.log(
-      `[FileCacheWarmer] ✅ Cache warmed for ${workspaceRoot}: ${result.files.length} files in ${duration}ms`,
-    );
 
     if (result.errors.length > 0) {
       console.warn("[FileCacheWarmer] Errors during scan:", result.errors);
@@ -114,8 +96,6 @@ async function setupCacheWatcher(workspaceRoot: string): Promise<() => void> {
     const cache = fileCacheMap.get(workspaceRoot);
     if (!cache) return;
 
-    console.log(`[FileCacheWarmer] Directory changed: ${event.path}`);
-
     // Incremental update: remove old files from this directory, add new ones
     cache.files = cache.files.filter((f) => !f.startsWith(event.path));
 
@@ -127,11 +107,6 @@ async function setupCacheWatcher(workspaceRoot: string): Promise<() => void> {
         }
       }
     }
-
-    // Cache still valid! No full re-scan needed.
-    console.log(
-      `[FileCacheWarmer] Cache updated incrementally (${cache.files.length} files)`,
-    );
   });
   cleanups.push(() => dirChangeDisposable.dispose());
 
@@ -140,17 +115,10 @@ async function setupCacheWatcher(workspaceRoot: string): Promise<() => void> {
     const cache = fileCacheMap.get(workspaceRoot);
     if (!cache) return;
 
-    console.log(`[FileCacheWarmer] File deleted: ${event.path}`);
-
     const idx = cache.files.indexOf(event.path);
     if (idx !== -1) {
       cache.files.splice(idx, 1);
-      console.log(
-        `[FileCacheWarmer] Removed from cache (${cache.files.length} files)`,
-      );
     }
-
-    // Cache still valid!
   });
   cleanups.push(() => deleteDisposable.dispose());
 
@@ -159,17 +127,10 @@ async function setupCacheWatcher(workspaceRoot: string): Promise<() => void> {
     const cache = fileCacheMap.get(workspaceRoot);
     if (!cache) return;
 
-    console.log(
-      `[FileCacheWarmer] File renamed: ${event.oldPath} → ${event.newPath}`,
-    );
-
     const idx = cache.files.indexOf(event.oldPath);
     if (idx !== -1) {
       cache.files[idx] = event.newPath;
-      console.log("[FileCacheWarmer] Updated path in cache");
     }
-
-    // Cache still valid!
   });
   cleanups.push(() => renameDisposable.dispose());
 
@@ -192,19 +153,9 @@ export function getPreWarmedCache(workspaceRoot: string): {
 } | null {
   const cache = fileCacheMap.get(workspaceRoot);
 
-  if (!cache) {
-    console.log("[FileCacheWarmer] No cache found for", workspaceRoot);
+  if (!cache || !cache.valid) {
     return null;
   }
-
-  if (!cache.valid) {
-    console.log("[FileCacheWarmer] Cache invalid, needs refresh");
-    return null;
-  }
-
-  console.log(
-    `[FileCacheWarmer] Returning valid cache (${cache.files.length} files)`,
-  );
 
   // Return only serializable data (exclude watcherCleanup function)
   return {
@@ -220,7 +171,6 @@ export function getPreWarmedCache(workspaceRoot: string): {
  */
 export function clearFileCache(workspaceRoot?: string): void {
   if (workspaceRoot) {
-    console.log("[FileCacheWarmer] Clearing cache for", workspaceRoot);
     const cache = fileCacheMap.get(workspaceRoot);
     if (cache?.watcherCleanup) {
       cache.watcherCleanup();
@@ -228,7 +178,6 @@ export function clearFileCache(workspaceRoot?: string): void {
     fileCacheMap.delete(workspaceRoot);
     warmingInProgressMap.delete(workspaceRoot);
   } else {
-    console.log("[FileCacheWarmer] Clearing all caches");
     for (const cache of fileCacheMap.values()) {
       if (cache.watcherCleanup) {
         cache.watcherCleanup();
