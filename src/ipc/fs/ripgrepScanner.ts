@@ -25,11 +25,24 @@ function resolveRipgrepPath(): string {
 
   try {
     // Try the package import first
-    const { rgPath } = require("@vscode/ripgrep");
+    let { rgPath } = require("@vscode/ripgrep");
     console.log(
       "[Ripgrep] require('@vscode/ripgrep') succeeded, rgPath:",
       rgPath,
     );
+
+    // CRITICAL: In packaged Electron apps, the module returns a path inside app.asar
+    // but the binary is actually unpacked to app.asar.unpacked. We need to fix the path.
+    if (
+      rgPath &&
+      rgPath.includes("app.asar") &&
+      !rgPath.includes("app.asar.unpacked")
+    ) {
+      const fixedPath = rgPath.replace("app.asar", "app.asar.unpacked");
+      console.log("[Ripgrep] Fixing asar path:", rgPath, "→", fixedPath);
+      rgPath = fixedPath;
+    }
+
     if (rgPath && fs.existsSync(rgPath)) {
       console.log("[Ripgrep] ✅ Using path from @vscode/ripgrep:", rgPath);
       return rgPath;
