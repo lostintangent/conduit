@@ -1,8 +1,9 @@
 import type { HandlerMap } from "./types";
 
+const api = window.conduit;
+
 /**
- * Convert a canvas to a Uint8Array PNG buffer.
- * Uses toBlob() for efficiency - avoids base64 encoding overhead.
+ * Convert an HTML canvas element to a Uint8Array PNG buffer.
  */
 function canvasToBuffer(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
@@ -18,14 +19,12 @@ function canvasToBuffer(canvas: HTMLCanvasElement): Promise<Uint8Array> {
 }
 
 export const canvasHandlers: Partial<HandlerMap> = {
-  "canvas-capture": async (args, context) => {
-    const { canvas } = context.resolveCanvasPane(args?.paneId);
+  "canvas-capture": async ({ paneId }, context) => {
+    const { canvas } = context.resolveCanvasPane(paneId);
 
-    // Export canvas to PNG buffer
+    // Export the canvas to a temporary PNG file
     const buffer = await canvasToBuffer(canvas);
-
-    // Write to temp file and return the path
-    const filePath = await window.conduit.writeTempFile(buffer, "png");
+    const filePath = await api.writeTempFile(buffer, "png");
 
     return filePath;
   },

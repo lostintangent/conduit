@@ -20,8 +20,6 @@
  * ```
  */
 
-import { memo } from "react";
-import { RefreshCw } from "lucide-react";
 import { FillingIcon } from "@/components/ui/filling-icon";
 import { Toggle } from "@/components/ui/toggle";
 import {
@@ -30,6 +28,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
+import { RefreshCw } from "lucide-react";
+import { memo } from "react";
 
 // =============================================================================
 // Types
@@ -75,7 +75,9 @@ function CommitGraphHeaderComponent({
       className={cn(
         "flex items-center justify-between",
         "px-3 py-1.5",
+        "bg-elevated",
         "text-[13px]",
+        "border-b border-border",
         className,
       )}
       data-testid="commit-graph-header"

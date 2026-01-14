@@ -1,5 +1,5 @@
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
-import { sidebarStateAtom } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { EditorPane } from "@/types";
 import { getDefaultStore } from "jotai";
 import type { HandlerMap } from "./types";

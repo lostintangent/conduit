@@ -28,20 +28,26 @@ export function applyTheme(mode: ThemeMode, overrides?: ThemeOverrides): void {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
 
-  // Apply overrides if provided
-  if (overrides) {
-    const root = document.documentElement;
-    if (overrides.input)
-      root.style.setProperty("--color-input", overrides.input);
-    if (overrides.border)
-      root.style.setProperty("--color-border", overrides.border);
-    if (overrides.foreground)
-      root.style.setProperty("--color-foreground", overrides.foreground);
-    if (overrides.selection)
-      root.style.setProperty("--color-selection", overrides.selection);
-    if (overrides.accent)
-      root.style.setProperty("--color-accent", overrides.accent);
-  }
+  const root = document.documentElement;
+
+  // Helper to apply or clear an override
+  const applyOverride = (property: string, value?: string) => {
+    if (value) {
+      root.style.setProperty(property, value);
+    } else {
+      root.style.removeProperty(property);
+    }
+  };
+
+  // Apply or clear each override
+  // Using removeProperty allows the CSS-defined value to take effect
+  applyOverride("--color-input", overrides?.input);
+  applyOverride("--color-border", overrides?.border);
+  applyOverride("--color-foreground", overrides?.foreground);
+  applyOverride("--color-selection", overrides?.selection);
+  applyOverride("--color-accent", overrides?.accent);
+  applyOverride("--color-background", overrides?.background);
+  applyOverride("--color-elevated", overrides?.elevated);
 }
 
 /**

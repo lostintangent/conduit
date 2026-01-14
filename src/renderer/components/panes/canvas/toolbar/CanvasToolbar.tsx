@@ -1,4 +1,18 @@
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/utils/index";
+import type { CanvasTool, ShapeType } from "@shared/types/canvas";
+import {
   ArrowRight,
   ChevronDown,
   Circle,
@@ -12,20 +26,6 @@ import {
   Type,
   Undo2,
 } from "lucide-react";
-import type { CanvasTool, ShapeType } from "@shared/types/canvas";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/utils/index";
 import { ActionsMenu } from "./ActionsMenu";
 import { ZoomControls } from "./ZoomControls";
 
@@ -68,6 +68,8 @@ type CanvasToolbarProps = {
   isSpacePressed?: boolean;
   // Tab ID for pane commands
   tabId?: string;
+  // Whether canvas is empty (disables some actions)
+  isEmpty?: boolean;
 };
 
 // =============================================================================
@@ -341,6 +343,7 @@ export function CanvasToolbar({
   selectedWidth,
   isSpacePressed,
   tabId,
+  isEmpty,
 }: CanvasToolbarProps) {
   // When select tool is active with a stylable selection, use selected element's values
   const isEditingSelection = tool === "select" && hasStylableSelection;
@@ -489,6 +492,7 @@ export function CanvasToolbar({
         onZoomOut={onZoomOut}
         onResetZoom={onResetZoom}
         onZoomToFit={onZoomToFit}
+        isEmpty={isEmpty}
       />
 
       <Separator
@@ -503,6 +507,7 @@ export function CanvasToolbar({
         onClear={onClear}
         showCopySuccess={showCopySuccess}
         tabId={tabId}
+        isEmpty={isEmpty}
       />
     </div>
   );

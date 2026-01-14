@@ -151,6 +151,10 @@ export function BrowserPane({
       }
     };
 
+    // Sidebar and preview modes need continuous RAF-based position tracking
+    // to follow animations. Tab panes only need event-driven updates.
+    const needsRAFLoop = isInPreview || !tabId;
+
     const updatePosition = () => {
       const anchor = webviewAnchorRef.current;
       const currentWebview = webviewRef.current;
@@ -167,13 +171,6 @@ export function BrowserPane({
           ? WEBVIEW_Z_INDEX.SIDEBAR
           : WEBVIEW_Z_INDEX.NORMAL;
       currentWebview.style.zIndex = zIndex;
-
-      // Schedule follow-up updates for modes that need continuous tracking:
-      // - Preview mode: needs to track during various animations
-      // - Sidebar mode: needs to track during slide in/out animations
-      if (isInPreview || !tabId) {
-        requestAnimationFrame(updatePosition);
-      }
 
       const rect = anchor.getBoundingClientRect();
       const layoutWidth =
@@ -207,10 +204,32 @@ export function BrowserPane({
         overlay.style.borderRadius =
           getComputedStyle(anchor).borderRadius ?? "";
       }
+
+      // Continue the RAF loop only if on-screen to avoid wasting cycles
+      // when hidden (e.g., sidebar closed). The IntersectionObserver below
+      // restarts the loop when the element becomes visible again.
+      if (needsRAFLoop) {
+        const isOnScreen = rect.right > 0 && rect.left < window.innerWidth;
+        if (isOnScreen) {
+          requestAnimationFrame(updatePosition);
+        }
+      }
     };
 
     const resizeObserver = new ResizeObserver(updatePosition);
     resizeObserver.observe(webviewAnchorRef.current);
+
+    // IntersectionObserver restarts the RAF loop when the element becomes
+    // visible (e.g., sidebar slides open). Without this, the off-screen
+    // optimization above would leave the webview stuck.
+    const intersectionObserver = needsRAFLoop
+      ? new IntersectionObserver((entries) => {
+          if (entries[0]?.isIntersecting) {
+            updatePosition();
+          }
+        })
+      : null;
+    intersectionObserver?.observe(webviewAnchorRef.current);
 
     updatePosition();
 
@@ -222,6 +241,7 @@ export function BrowserPane({
       window.removeEventListener("resize", updatePosition);
 
       resizeObserver.disconnect();
+      intersectionObserver?.disconnect();
 
       if (previewOverlayRef.current) {
         previewOverlayRef.current.remove();

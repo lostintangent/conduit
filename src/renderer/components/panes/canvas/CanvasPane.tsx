@@ -1,3 +1,5 @@
+import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
+import { resolveColor, watchAppTheme } from "@/utils/theme";
 import type { CanvasPane as CanvasPaneType } from "@shared/types";
 import type {
   CanvasElement,
@@ -15,6 +17,7 @@ import {
   generateElementId,
 } from "@shared/types/canvas";
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -22,10 +25,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { resolveColor, watchAppTheme } from "@/utils/theme";
 import { type Position, type ShapeSize, useCanvasHistory } from "./history";
 import { useCanvasState } from "./hooks/useCanvasState";
-import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
 import { useImageDrop } from "./hooks/useImageDrop";
 import { useViewport } from "./hooks/useViewport";
 import { CanvasToolbar } from "./toolbar/CanvasToolbar";
@@ -137,7 +138,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 // Main Component
 // =============================================================================
 
-export function CanvasPane({
+export const CanvasPane = memo(function CanvasPane({
   pane: _pane,
   paneId,
   tabId: _tabId,
@@ -332,8 +333,38 @@ export function CanvasPane({
     rotation?: number; // For lines/arrows - angle in degrees
   } | null>(null);
 
-  // Cursor preview state (for showing pen/eraser size)
-  const [cursorPosition, setCursorPosition] = useState<Point | null>(null);
+  // Cursor preview for pen/eraser tools. We update the DOM directly (rather than via React
+  // state) to avoid triggering expensive re-renders of large canvases on every mouse move.
+  const cursorPreviewRef = useRef<HTMLDivElement>(null);
+  const updateCursorPreview = useCallback(
+    (screenX?: number, screenY?: number) => {
+      const el = cursorPreviewRef.current;
+      if (!el) return;
+
+      const shouldShow =
+        screenX !== undefined &&
+        (tool === "pen" || tool === "eraser") &&
+        !isPanning &&
+        !isSpacePressed;
+
+      if (!shouldShow) {
+        el.style.display = "none";
+        return;
+      }
+
+      const size = strokeWidth * viewport.zoom;
+      el.style.left = `${screenX - size / 2}px`;
+      el.style.top = `${screenY! - size / 2}px`;
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.borderColor =
+        tool === "eraser" ? "rgba(128, 128, 128, 0.8)" : strokeColor;
+      el.style.backgroundColor =
+        tool === "eraser" ? "rgba(128, 128, 128, 0.2)" : "";
+      el.style.display = "block";
+    },
+    [tool, isPanning, isSpacePressed, strokeWidth, strokeColor, viewport.zoom],
+  );
 
   // Track if hovering over an element (for cursor feedback)
   const [isHoveringElement, setIsHoveringElement] = useState(false);
@@ -1006,14 +1037,22 @@ export function CanvasPane({
       const point = getCanvasPoint(e);
       if (!point) return;
 
-      // Update cursor position for preview circle
+      // Update cursor preview (handles visibility, position, size, and color)
       const canvas = canvasRef.current;
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
-        setCursorPosition({
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        });
+        updateCursorPreview(e.clientX - rect.left, e.clientY - rect.top);
+      }
+
+      // Early exit when not in select mode and not actively interacting
+      if (
+        tool !== "select" &&
+        !isDragging &&
+        !isDrawing &&
+        !isDrawingShape &&
+        !activeHandle
+      ) {
+        return;
       }
 
       // Handle resize/rotate/line-endpoint dragging
@@ -1199,11 +1238,11 @@ export function CanvasPane({
       shapeType,
       selectedIds,
       elements,
-      viewport.zoom,
       getCanvasPoint,
       panBy,
       updateElement,
       updateElementPosition,
+      updateCursorPreview,
       renderCanvas,
     ],
   );
@@ -1215,10 +1254,10 @@ export function CanvasPane({
   }, [commitInteraction]);
 
   const handleMouseLeave = useCallback(() => {
-    setCursorPosition(null);
+    updateCursorPreview(); // Hide cursor preview
     setIsHoveringElement(false);
     setHoveredHandle(null);
-  }, []);
+  }, [updateCursorPreview]);
 
   // ---------------------------------------------------------------------------
   // Wheel handler for zooming
@@ -1293,7 +1332,8 @@ export function CanvasPane({
       recordClear(elements); // Record for undo before clearing
     }
     clearCanvas();
-  }, [elements, recordClear, clearCanvas]);
+    resetZoom();
+  }, [elements, recordClear, clearCanvas, resetZoom]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
@@ -1419,15 +1459,12 @@ export function CanvasPane({
     selectedElementRotation,
   ]);
 
-  // Whether to show the cursor size preview circle
-  const showCursorPreview =
-    cursorPosition &&
-    (tool === "pen" || tool === "eraser") &&
-    !isPanning &&
-    !isSpacePressed;
-
-  // Scale pen size by zoom for the preview circle
-  const previewSize = strokeWidth * viewport.zoom;
+  // Hide cursor preview when conditions change (tool switch, panning starts, etc.)
+  useEffect(() => {
+    if ((tool !== "pen" && tool !== "eraser") || isPanning || isSpacePressed) {
+      updateCursorPreview();
+    }
+  }, [tool, isPanning, isSpacePressed, updateCursorPreview]);
 
   // Calculate text input screen position from canvas position
   const textInputScreenPos = useMemo(() => {
@@ -1599,6 +1636,7 @@ export function CanvasPane({
         selectedWidth={selectedStyleInfo.selectedWidth}
         isSpacePressed={isSpacePressed}
         tabId={_tabId}
+        isEmpty={elements.length === 0}
       />
 
       {/* Canvas container - fills remaining space */}
@@ -1631,22 +1669,12 @@ export function CanvasPane({
           onContextMenu={handleContextMenu}
         />
 
-        {/* Cursor size preview circle */}
-        {showCursorPreview && (
-          <div
-            className="absolute pointer-events-none rounded-full border"
-            style={{
-              left: cursorPosition.x - previewSize / 2,
-              top: cursorPosition.y - previewSize / 2,
-              width: previewSize,
-              height: previewSize,
-              borderColor:
-                tool === "eraser" ? "rgba(128, 128, 128, 0.8)" : strokeColor,
-              backgroundColor:
-                tool === "eraser" ? "rgba(128, 128, 128, 0.2)" : undefined,
-            }}
-          />
-        )}
+        {/* Cursor preview circle - all styling controlled via DOM in updateCursorPreview */}
+        <div
+          ref={cursorPreviewRef}
+          className="absolute pointer-events-none rounded-full border"
+          style={{ display: "none" }}
+        />
 
         {/* Shape preview while drawing */}
         {isDrawingShape && shapePreview && shapePreview.width > 0 && (
@@ -1709,6 +1737,7 @@ export function CanvasPane({
                   const { length: headLength, width: headWidth } =
                     calculateArrowHead(strokeW);
                   const rotation = shapePreview.rotation ?? 0;
+                  const tipX = screenX + screenW / 2;
                   return (
                     <g
                       {...commonProps}
@@ -1717,20 +1746,12 @@ export function CanvasPane({
                       <line
                         x1={screenX - screenW / 2}
                         y1={screenY}
-                        x2={screenX + screenW / 2}
+                        x2={tipX}
                         y2={screenY}
                       />
-                      <line
-                        x1={screenX + screenW / 2}
-                        y1={screenY}
-                        x2={screenX + screenW / 2 - headLength}
-                        y2={screenY - headWidth}
-                      />
-                      <line
-                        x1={screenX + screenW / 2}
-                        y1={screenY}
-                        x2={screenX + screenW / 2 - headLength}
-                        y2={screenY + headWidth}
+                      <polyline
+                        points={`${tipX - headLength},${screenY - headWidth} ${tipX},${screenY} ${tipX - headLength},${screenY + headWidth}`}
+                        strokeLinejoin="miter"
                       />
                     </g>
                   );
@@ -1766,4 +1787,4 @@ export function CanvasPane({
       </div>
     </div>
   );
-}
+});

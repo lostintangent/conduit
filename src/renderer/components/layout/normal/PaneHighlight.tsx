@@ -1,37 +1,30 @@
 import { useUserSettings } from "@/hooks/useUserSettings";
-import {
-  activePaneIdAtom,
-  activeTabAtom,
-  applicationModeAtom,
-} from "@/store/atoms";
-import type { Tab } from "@/types";
+import { activePaneIdAtom } from "@/store/atoms";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.css @keyframes pane-highlight
 
-export const shouldShowPaneBorder = (
-  tab: Tab,
-  applicationMode: string,
-): boolean => {
-  return Object.keys(tab.panes).length > 1 && applicationMode !== "focus";
-};
-
-type PaneHighlightOptions = {
-  isResizing?: boolean;
-};
-
-function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
-  const activeTab = useAtomValue(activeTabAtom);
+/**
+ * Hook that manages pane highlight state and timing.
+ *
+ * Note: All visibility conditions (pane count, focus mode, design mode, resizing)
+ * are handled by TabLayout which conditionally renders the PaneHighlight component.
+ * This hook only manages when to trigger the highlight animation.
+ */
+function usePaneHighlight() {
   const activePaneId = useAtomValue(activePaneIdAtom);
-  const applicationMode = useAtomValue(applicationModeAtom);
   const { alwaysHighlightActivePane } = useUserSettings();
 
   const [highlightedPaneId, setHighlightedPaneId] = useState<string | null>(
     null,
   );
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isResizingRef = useRef(isResizing);
+
+  // Track the previous activePaneId to detect actual changes
+  // This prevents re-triggering the highlight when pane metadata changes
+  // (e.g., terminal cwd updates) but the active pane remains the same
+  const previousActivePaneIdRef = useRef<string | null>(null);
 
   const clearExistingTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -65,60 +58,46 @@ function usePaneHighlight({ isResizing = false }: PaneHighlightOptions = {}) {
     [clearExistingTimeout, alwaysHighlightActivePane],
   );
 
-  useEffect(() => {
-    isResizingRef.current = isResizing;
-  }, [isResizing]);
-
-  const highlightActivePane = useCallback(() => {
-    if (!activeTab || !activePaneId) {
-      return;
-    }
-
-    if (applicationMode === "design" || isResizingRef.current) {
-      return;
-    }
-
-    if (!shouldShowPaneBorder(activeTab, applicationMode)) {
-      return;
-    }
-
-    triggerHighlight(activePaneId);
-  }, [activePaneId, activeTab, applicationMode, triggerHighlight]);
-
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       clearExistingTimeout();
     };
   }, [clearExistingTimeout]);
 
+  // Trigger highlight when active pane actually changes
   useEffect(() => {
-    highlightActivePane();
-  }, [highlightActivePane]);
+    if (activePaneId !== previousActivePaneIdRef.current) {
+      previousActivePaneIdRef.current = activePaneId;
+      if (activePaneId) {
+        triggerHighlight(activePaneId);
+      }
+    }
+  }, [activePaneId, triggerHighlight]);
 
+  // Re-highlight when window receives focus
   useEffect(() => {
     const handleWindowFocus = () => {
-      highlightActivePane();
+      if (activePaneId) {
+        triggerHighlight(activePaneId);
+      }
     };
 
     window.addEventListener("focus", handleWindowFocus);
     return () => {
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, [highlightActivePane]);
+  }, [activePaneId, triggerHighlight]);
 
   return highlightedPaneId;
 }
 
 type PaneHighlightProps = {
   paneId: string;
-  isResizing?: boolean;
 };
 
-export function PaneHighlight({
-  paneId,
-  isResizing = false,
-}: PaneHighlightProps) {
-  const highlightedPaneId = usePaneHighlight({ isResizing });
+export function PaneHighlight({ paneId }: PaneHighlightProps) {
+  const highlightedPaneId = usePaneHighlight();
   const { alwaysHighlightActivePane } = useUserSettings();
 
   if (paneId !== highlightedPaneId) {

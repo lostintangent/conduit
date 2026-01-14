@@ -41,18 +41,18 @@
  * ```
  */
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { cn } from "@/utils";
 import type { GitV2API } from "@/api/GitV2API";
+import { cn } from "@/utils";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { CommitGraphHeader } from "./CommitGraphHeader";
+import { CommitGraphList } from "./CommitGraphList";
+import { useCommitGraph } from "./hooks";
+import { EmptyState, ErrorState, LoadingState } from "./states";
 import type {
   CommitFile,
   CommitFileSelectEvent,
   CommitViewEvent,
 } from "./types";
-import { useCommitGraph } from "./hooks";
-import { CommitGraphHeader } from "./CommitGraphHeader";
-import { CommitGraphList } from "./CommitGraphList";
-import { LoadingState, ErrorState, EmptyState } from "./states";
 
 // =============================================================================
 // Types
@@ -277,7 +277,7 @@ function CommitGraphPanelComponent({
       <CommitGraphHeader onRefresh={handleRefresh} isRefreshing={isLoading} />
 
       {/* Content area - flex container for proper scroll behavior */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col pt-1">
         {/* Loading state (initial load only) */}
         {isLoading && nodes.length === 0 && <LoadingState />}
 

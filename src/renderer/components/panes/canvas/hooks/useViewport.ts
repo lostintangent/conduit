@@ -1,10 +1,10 @@
 import {
   type ViewportState,
   updateCanvasState,
-  canvasStatesAtom,
+  canvasStateAtomFamily,
 } from "@/store/canvasStore";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { type Point } from "../utils/transformUtils";
 
 // =============================================================================
@@ -20,14 +20,8 @@ const ZOOM_STEP = 1.1; // 10% per step
 // =============================================================================
 
 export function useViewport(paneId: string) {
-  // Subscribe to the global canvas states to get viewport for this pane
-  const statesMap = useAtomValue(canvasStatesAtom);
-
-  // Get viewport for this specific pane
-  const viewport = useMemo(() => {
-    const state = statesMap.get(paneId);
-    return state?.viewport ?? { zoom: 1, panX: 0, panY: 0 };
-  }, [statesMap, paneId]);
+  // Subscribe only to this pane's atom (other panes' updates won't trigger re-render)
+  const { viewport } = useAtomValue(canvasStateAtomFamily(paneId));
 
   // Update viewport in the global store
   const setViewport = useCallback(

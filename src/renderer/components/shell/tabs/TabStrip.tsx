@@ -52,10 +52,10 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   ChevronDown,
   Cloud,
-  FolderTree,
   Fullscreen,
   LayoutGrid,
   MoreHorizontal,
+  PanelRightOpen,
   PlusSquare,
   Rocket,
   SquareDashedMousePointer,
@@ -126,6 +126,7 @@ export const TabStrip = ({
   const toggleDesignModeCmd = useCommand(
     ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
   );
+  const toggleSidebarCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_SIDEBAR);
   const launchAgentsCmd = useCommand(ApplicationCommands.AGENT_LAUNCH);
 
   const showCommandPaletteCmd = useCommand(
@@ -793,10 +794,10 @@ export const TabStrip = ({
                   Quick Terminal (Cloud)
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
+                {/*<DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
                   <FolderTree size={16} className="mr-3" />
                   File Explorer
-                </DropdownMenuItem>
+                </DropdownMenuItem>*/}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -850,6 +851,27 @@ export const TabStrip = ({
             </TooltipTrigger>
             <TooltipContent>
               {getCommandDisplayTitle(toggleDesignModeCmd)}
+            </TooltipContent>
+          </Tooltip>
+
+          <Separator
+            orientation="vertical"
+            className="h-6 bg-elevated-border ml-1 mr-0.5 my-1"
+          />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10"
+                aria-label={toggleSidebarCmd.title}
+                onClick={toggleSidebarCmd.execute}
+              >
+                <PanelRightOpen size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {getCommandDisplayTitle(toggleSidebarCmd)}
             </TooltipContent>
           </Tooltip>
 
