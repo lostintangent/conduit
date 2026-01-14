@@ -123,6 +123,9 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   if (useConduitAsEditor) {
     env.VISUAL = commandName;
     env.EDITOR = commandName;
+    // Store desired editor so shell integration can restore it after user's rc files run
+    // This ensures Conduit overrides any EDITOR set in .zshrc, .bashrc, etc.
+    env.CONDUIT_DESIRED_EDITOR = commandName;
   }
 
   // Expose the IPC socket path and session ID to the terminal

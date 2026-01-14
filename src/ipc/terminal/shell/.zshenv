@@ -19,10 +19,22 @@ autoload -Uz add-zsh-hook
 add-zsh-hook precmd __conduit_osc7
 add-zsh-hook chpwd __conduit_osc7
 
+# Restore EDITOR/VISUAL after shell startup completes
+# This ensures Conduit overrides any EDITOR set in user's .zshrc
+if [[ -n "$CONDUIT_DESIRED_EDITOR" ]]; then
+  __conduit_restore_editor() {
+    export EDITOR="$CONDUIT_DESIRED_EDITOR"
+    export VISUAL="$CONDUIT_DESIRED_EDITOR"
+    # Remove this hook after first run (one-shot)
+    add-zsh-hook -d precmd __conduit_restore_editor
+  }
+  add-zsh-hook precmd __conduit_restore_editor
+fi
+
 # Configure suffix aliases to open common file types in Conduit
 # when the "use Conduit as editor" setting is enabled
-if [[ "$VISUAL" == "conduit" ]]; then
-  alias -s {md,json,yaml,yml,html,css,js,ts}=conduit
+if [[ -n "$CONDUIT_DESIRED_EDITOR" ]]; then
+  alias -s {md,json,yaml,yml,html,css,js,ts}="$CONDUIT_DESIRED_EDITOR"
 fi
 
 # If the copilot command is not available, define a wrapper function
