@@ -123,19 +123,30 @@ export function filterFiles(
     }
   }
 
-  // Sort using VS Code's comparison function (7+ tiebreakers)
-  scoredFiles.sort((a, b) =>
-    compareItemsByFuzzyScore(
-      a,
-      b,
-      preparedQuery,
-      true, // allowNonContiguousMatches
-      fileMatchAccessor,
-      cache,
-    ),
-  );
+  // Separate recent and non-recent matches
+  const recentMatches = scoredFiles.filter((f) => f.isRecent);
+  const nonRecentMatches = scoredFiles.filter((f) => !f.isRecent);
 
-  return scoredFiles.slice(0, maxResults);
+  // Sort each group independently using VS Code's comparison function
+  const sortFiles = (files: FileMatch[]) =>
+    files.sort((a, b) =>
+      compareItemsByFuzzyScore(
+        a,
+        b,
+        preparedQuery,
+        true, // allowNonContiguousMatches
+        fileMatchAccessor,
+        cache,
+      ),
+    );
+
+  sortFiles(recentMatches);
+  sortFiles(nonRecentMatches);
+
+  // Recent files first, then non-recent files
+  const sortedResults = [...recentMatches, ...nonRecentMatches];
+
+  return sortedResults.slice(0, maxResults);
 }
 
 function getDefaultResults(

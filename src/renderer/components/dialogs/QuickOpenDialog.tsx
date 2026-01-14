@@ -71,10 +71,13 @@ export function QuickOpenDialog({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [fileList, setFileList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasMouseMoved, setHasMouseMoved] = useState(false);
+  const [hoverDelayPassed, setHoverDelayPassed] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<QuickOpenAPI | null>(null);
+  const initialMousePositionRef = useRef({ x: 0, y: 0 });
 
   // Recent files tracking
   const recentFiles = useQuickOpenRecentFiles();
@@ -175,8 +178,45 @@ export function QuickOpenDialog({
       setQuery("");
       setActiveIndex(0);
       setHoveredIndex(null);
+      setHasMouseMoved(false);
+      setHoverDelayPassed(false);
       setResults([]);
     }
+  }, [open]);
+
+  // Track mouse movement to prevent hover flash on dialog open
+  // Hybrid approach: enable hover after EITHER mouse movement OR 150ms delay
+  useEffect(() => {
+    if (!open) return;
+
+    // Reset states and capture initial position
+    setHasMouseMoved(false);
+    setHoverDelayPassed(false);
+    initialMousePositionRef.current = {
+      x: window.event ? (window.event as MouseEvent).clientX : 0,
+      y: window.event ? (window.event as MouseEvent).clientY : 0,
+    };
+
+    // Timer: enable hover after 150ms even if mouse hasn't moved
+    const timer = setTimeout(() => {
+      setHoverDelayPassed(true);
+    }, 150);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Enable hover immediately if mouse has moved at least 5px from initial position
+      const deltaX = Math.abs(e.clientX - initialMousePositionRef.current.x);
+      const deltaY = Math.abs(e.clientY - initialMousePositionRef.current.y);
+
+      if (deltaX > 5 || deltaY > 5) {
+        setHasMouseMoved(true);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
   }, [open]);
 
   // Reset scroll when results change
@@ -375,6 +415,8 @@ export function QuickOpenDialog({
                     }}
                     onClick={() => handleSelect(file)}
                     onMouseEnter={() => {
+                      // Only respond to hover after EITHER mouse movement OR delay
+                      if (!hasMouseMoved && !hoverDelayPassed) return;
                       setActiveIndex(index);
                       setHoveredIndex(index);
                     }}
@@ -392,6 +434,7 @@ export function QuickOpenDialog({
                           {renderHighlightedText(
                             file.filename,
                             file.highlights,
+                            index === activeIndex,
                           )}
                         </span>
                         {/* Relative directory path - truncates */}
@@ -399,6 +442,7 @@ export function QuickOpenDialog({
                           {renderHighlightedText(
                             relativeDir || "",
                             file.directoryHighlights,
+                            index === activeIndex,
                           )}
                         </span>
                         {/* Recent badge - only on first recent item */}
@@ -446,13 +490,22 @@ export function QuickOpenDialog({
   );
 }
 
-function renderHighlightedText(text: string, highlights: any[]) {
+function renderHighlightedText(
+  text: string,
+  highlights: any[],
+  isActive: boolean = false,
+) {
   if (!highlights || highlights.length === 0) {
     return <span>{text}</span>;
   }
 
   const parts: React.ReactNode[] = [];
   let lastEnd = 0;
+
+  // Use accent-foreground when row is active for better contrast
+  const highlightClass = isActive
+    ? "font-bold text-accent-foreground"
+    : "font-bold text-accent";
 
   highlights.forEach((match, index) => {
     // Add non-highlighted text before this match
@@ -465,7 +518,7 @@ function renderHighlightedText(text: string, highlights: any[]) {
     }
     // Add highlighted text
     parts.push(
-      <span key={`match-${index}`} className="font-bold text-accent">
+      <span key={`match-${index}`} className={highlightClass}>
         {text.substring(match.start, match.end)}
       </span>,
     );
