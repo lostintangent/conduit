@@ -197,6 +197,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -211,6 +212,7 @@ describe("FileTreeChanges", () => {
     it("should render changes view after loading", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -227,6 +229,7 @@ describe("FileTreeChanges", () => {
     it("should call getStatus on mount", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -251,6 +254,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -275,6 +279,7 @@ describe("FileTreeChanges", () => {
     it("should show Staged Changes section when there are staged files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -294,6 +299,7 @@ describe("FileTreeChanges", () => {
     it("should show Changes section when there are unstaged files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -315,6 +321,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -335,6 +342,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -353,6 +361,7 @@ describe("FileTreeChanges", () => {
     it("should display file count in section header", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -380,6 +389,7 @@ describe("FileTreeChanges", () => {
     it("should collapse section when toggle is clicked", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -412,6 +422,7 @@ describe("FileTreeChanges", () => {
     it("should expand collapsed section when toggle is clicked", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -457,6 +468,7 @@ describe("FileTreeChanges", () => {
     it("should call onFileSelect with file and mapKey when clicking a file", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -490,6 +502,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -516,6 +529,7 @@ describe("FileTreeChanges", () => {
     it("should show stage button for unstaged files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -541,6 +555,7 @@ describe("FileTreeChanges", () => {
     it("should call stage when stage button is clicked", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -569,6 +584,7 @@ describe("FileTreeChanges", () => {
     it("should not propagate click event to parent when stage button clicked", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -606,6 +622,7 @@ describe("FileTreeChanges", () => {
     it("should show unstage button for staged files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -629,6 +646,7 @@ describe("FileTreeChanges", () => {
     it("should call unstage when unstage button is clicked", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -663,6 +681,7 @@ describe("FileTreeChanges", () => {
     it("should show revert button for unstaged files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -685,6 +704,7 @@ describe("FileTreeChanges", () => {
     it("should call revert when revert button is clicked", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -710,6 +730,7 @@ describe("FileTreeChanges", () => {
     it("should not show revert button for staged files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -743,6 +764,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -772,6 +794,7 @@ describe("FileTreeChanges", () => {
     it("should show M badge for modified files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -791,6 +814,7 @@ describe("FileTreeChanges", () => {
     it("should show A badge for added files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -810,6 +834,7 @@ describe("FileTreeChanges", () => {
     it("should show D badge for deleted files", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -835,6 +860,7 @@ describe("FileTreeChanges", () => {
     it("should subscribe to git status changes", async () => {
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -854,6 +880,7 @@ describe("FileTreeChanges", () => {
 
       const { unmount } = render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -882,6 +909,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -915,6 +943,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -948,6 +977,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1003,6 +1033,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1044,6 +1075,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1071,6 +1103,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1104,6 +1137,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1155,6 +1189,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1200,6 +1235,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1240,6 +1276,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1306,6 +1343,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1340,6 +1378,7 @@ describe("FileTreeChanges", () => {
       // Parent passes selectedMapKey with suffix, but the file list has no suffix
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1363,6 +1402,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1400,6 +1440,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1425,6 +1466,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1450,6 +1492,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
@@ -1479,6 +1522,7 @@ describe("FileTreeChanges", () => {
 
       render(
         <FileTreeChanges
+          viewMode="flat"
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           git={mockGitAPI as any}
