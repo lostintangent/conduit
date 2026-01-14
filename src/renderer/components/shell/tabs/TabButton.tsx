@@ -6,12 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  acknowledgeTabState,
-  closeTab,
-  focusTab,
-  updateTabProperty,
-} from "@/store/actions/tab";
+import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
 import { userSettingsAtom } from "@/store/atoms";
 import type { TabDescriptor } from "@/store/tabLabels";
 import { cn } from "@/utils";
@@ -61,12 +56,25 @@ export function TabButton({
   const [editValue, setEditValue] = useState("");
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
   const showCloseButton = isHovered && !disableClick && !tab.locked;
   const showIdleIndicator =
     showTabState &&
     (tab.tabState === "idle-unseen" || tab.tabState === "idle-notified");
   const showRunningState =
     showTabState && !tab.isActive && tab.tabState === "running";
+
+  // Scroll active tab into view
+  useEffect(() => {
+    if (tab.isActive && buttonRef.current) {
+      buttonRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }
+  }, [tab.isActive]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -111,6 +119,7 @@ export function TabButton({
 
   const button = (
     <button
+      ref={buttonRef}
       type="button"
       role="tab"
       aria-selected={tab.isActive}
