@@ -55,6 +55,7 @@ export interface UseCommandSystemOptions {
   setShowDuplicateWorkspaceDialog: (show: boolean) => void;
   setShowDuplicateTabWithCwdDialog: (tabId: string) => void;
   setTitleModal: (tabId: string, value: string) => void;
+  setIsQuickOpenOpen: (open: boolean) => void;
 }
 
 /**
@@ -95,6 +96,7 @@ export function useCommandSystem(
     setShowDuplicateWorkspaceDialog,
     setShowDuplicateTabWithCwdDialog,
     setTitleModal,
+    setIsQuickOpenOpen,
   } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
@@ -219,6 +221,7 @@ export function useCommandSystem(
       setShowDuplicateWorkspaceDialog,
       setShowDuplicateTabWithCwdDialog,
       setTitleModal,
+      setIsQuickOpenOpen,
     }));
 
     // Signal that context builder is ready - this causes keyboard listener to attach on next render
@@ -244,6 +247,7 @@ export function useCommandSystem(
     setShowDuplicateWorkspaceDialog,
     setShowDuplicateTabWithCwdDialog,
     setTitleModal,
+    setIsQuickOpenOpen,
   ]);
 
   // Update context keys whenever app state changes

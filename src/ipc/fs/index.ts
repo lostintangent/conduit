@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import { FSWatcher, promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import {
+  warmFileCache,
+  getPreWarmedCache,
+  clearFileCache,
+} from "./fileCacheWarmer";
 import { listDirectory, readFile } from "./utils";
 
 // Store active file watchers
@@ -144,4 +149,20 @@ export function initializeFsHandlers() {
       }
     },
   );
+
+  // Quick Open cache handlers
+  ipcMain.handle("fs:warm-file-cache", async (_, workspaceRoot: string) => {
+    await warmFileCache(workspaceRoot);
+  });
+
+  ipcMain.handle(
+    "fs:get-pre-warmed-cache",
+    async (_, workspaceRoot: string) => {
+      return getPreWarmedCache(workspaceRoot);
+    },
+  );
+
+  ipcMain.handle("fs:clear-file-cache", async (_, workspaceRoot?: string) => {
+    clearFileCache(workspaceRoot);
+  });
 }

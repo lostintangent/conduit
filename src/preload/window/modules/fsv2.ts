@@ -301,4 +301,38 @@ export default {
    */
   onFileRenamed: (listener: (payload: FileRenamedPayload) => void) =>
     createEventListener<FileRenamedPayload>("fs-v2:file-renamed", listener),
+
+  // ---------------------------------------------------------------------------
+  // Quick Open Cache
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Trigger pre-warming of file cache for quick open.
+   *
+   * This scans the workspace directory in the background and caches
+   * all file paths for instant quick open results.
+   *
+   * @param workspaceRoot - Absolute path to workspace root
+   */
+  warmFileCache: (workspaceRoot: string) =>
+    ipcRenderer.invoke("fs:warm-file-cache", workspaceRoot),
+
+  /**
+   * Get the pre-warmed file cache if available.
+   *
+   * Returns cached file list with validity status.
+   *
+   * @param workspaceRoot - Absolute path to workspace root
+   * @returns Cached file data or null if not available
+   */
+  getPreWarmedCache: (workspaceRoot: string) =>
+    ipcRenderer.invoke("fs:get-pre-warmed-cache", workspaceRoot),
+
+  /**
+   * Clear the file cache for a workspace.
+   *
+   * @param workspaceRoot - Absolute path to workspace root (optional, clears all if not provided)
+   */
+  clearFileCache: (workspaceRoot?: string) =>
+    ipcRenderer.invoke("fs:clear-file-cache", workspaceRoot),
 };

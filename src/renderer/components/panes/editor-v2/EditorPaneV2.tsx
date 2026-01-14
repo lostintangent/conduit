@@ -393,6 +393,13 @@ export function EditorPaneV2({
   const [panelView, setPanelView] = useState<"tree" | "editor">("tree");
 
   // ---------------------------------------------------------------------------
+  // Responsive Layout Detection (must be before effects that use it)
+  // ---------------------------------------------------------------------------
+
+  // Responsive layout detection
+  const layout = useResponsiveLayout(containerRef);
+
+  // ---------------------------------------------------------------------------
   // Prop → State Sync
   // ---------------------------------------------------------------------------
 
@@ -409,7 +416,8 @@ export function EditorPaneV2({
   }, [initialCwd]);
 
   // Sync pane.file prop to selectedFile state when it changes externally.
-  // This handles cases like EditorSidebar restoring a different file when CWD changes.
+  // This handles cases like EditorSidebar restoring a different file when CWD changes,
+  // or when files are opened programmatically (Quick Open, navigation, etc.).
   const prevInitialFilePathRef = useRef(initialFilePath);
   useEffect(() => {
     // Only sync when the prop actually changed (not on every render)
@@ -419,19 +427,22 @@ export function EditorPaneV2({
     if (initialFilePath) {
       const name = initialFilePath.split("/").pop() ?? "";
       setSelectedFile({ path: initialFilePath, name, type: "file" });
+
+      // In single layout, switch to editor view when file is opened programmatically
+      // (same behavior as clicking a file in the tree)
+      if (layout === "single") {
+        setPanelView("editor");
+      }
     } else {
       setSelectedFile(null);
     }
     // Note: We intentionally exclude selectedFile from deps - we only want to sync
     // when the PROP changes, not when internal file selection changes selectedFile
-  }, [initialFilePath]);
+  }, [initialFilePath, layout]);
 
   // ---------------------------------------------------------------------------
   // Hooks
   // ---------------------------------------------------------------------------
-
-  // Responsive layout detection
-  const layout = useResponsiveLayout(containerRef);
 
   // Git API for checking file status
   const git = useGitV2(currentCwd, sandboxId);
@@ -1485,7 +1496,9 @@ export function EditorPaneV2({
 
   /**
    * Keyboard shortcuts for editor actions.
-   * Handles Cmd/Ctrl+S (save). Monaco handles Cmd/Ctrl+F (find) internally.
+   * Handles Cmd/Ctrl+S (save).
+   * Monaco handles Cmd/Ctrl+F (find) internally.
+   * Cmd/Ctrl+P (quick open) is handled globally by the command system.
    */
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

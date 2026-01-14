@@ -26,6 +26,7 @@ import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialo
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
+import { QuickOpenDialog } from "@/components/dialogs/QuickOpenDialog";
 import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
@@ -49,6 +50,7 @@ import {
   openHyperTerminal,
   updateHyperTerminalPosition,
 } from "@/store/actions/hyperTerminal";
+import { updatePaneProperty } from "@/store/actions/pane";
 import {
   dismissNotification,
   enqueueNotification,
@@ -72,6 +74,7 @@ import {
   quickPaneAtom,
   tabsAtom,
 } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
@@ -139,6 +142,12 @@ export function App() {
   } | null>(null);
   const [quickPaneState, setQuickPaneState] = useAtom(quickPaneAtom);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
+  const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
+
+  // DEBUG: Log Quick Open state changes
+  useEffect(() => {
+    console.log("[App] isQuickOpenOpen changed to:", isQuickOpenOpen);
+  }, [isQuickOpenOpen]);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
@@ -240,6 +249,7 @@ export function App() {
       setDuplicateTabWithCwdDialogState({ tabId }),
     setTitleModal: (tabId: string, value: string) =>
       setTitleModalState({ tabId, initialValue: value }),
+    setIsQuickOpenOpen,
   });
 
   // Initialize pane actions system
@@ -917,6 +927,64 @@ export function App() {
           onClose={handleCloseQuickPane}
           onOpenAsTab={handleOpenQuickPaneAsTab}
           onOpenAsFloating={handleOpenQuickPaneAsFloating}
+        />
+      )}
+
+      {isQuickOpenOpen && (
+        <QuickOpenDialog
+          open={isQuickOpenOpen}
+          cwd={activeCwd}
+          onOpenChange={setIsQuickOpenOpen}
+          onSelectFile={(filePath) => {
+            if (!activeTab || !activeTab.activePaneId) {
+              return;
+            }
+
+            const activePane = activeTab.panes[activeTab.activePaneId];
+
+            // Strategy 1: If active pane is a tab editor, open in that editor
+            if (activePane?.type === "editor") {
+              updatePaneProperty(activeTab.id, activeTab.activePaneId, {
+                file: filePath,
+              });
+            }
+            // Strategy 2: Active pane is NOT an editor - look for editor with matching CWD
+            else {
+              // Get the active pane's CWD (if it's a terminal)
+              const activePaneCwd =
+                activePane?.type === "terminal" ? activePane.cwd : null;
+
+              // Look for editor panes in the same tab with matching CWD
+              let matchingEditorPaneId: string | null = null;
+
+              if (activePaneCwd) {
+                for (const [paneId, pane] of Object.entries(activeTab.panes)) {
+                  if (pane.type === "editor" && pane.cwd === activePaneCwd) {
+                    matchingEditorPaneId = paneId;
+                    break;
+                  }
+                }
+              }
+
+              if (matchingEditorPaneId) {
+                // Strategy 2a: Open in matching editor pane
+                updatePaneProperty(activeTab.id, matchingEditorPaneId, {
+                  file: filePath,
+                });
+              } else {
+                // Strategy 2b: No matching editor, open in sidebar
+                store.set(sidebarStateAtom, {
+                  isOpen: true,
+                  view: "editor",
+                  navigation: {
+                    cwd: activeCwd,
+                    editorFile: filePath,
+                    editorTreeMode: "all",
+                  },
+                });
+              }
+            }
+          }}
         />
       )}
 
