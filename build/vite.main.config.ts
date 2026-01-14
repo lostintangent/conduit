@@ -9,6 +9,7 @@ export default defineConfig({
         "electron",
         "node-pty",
         "@parcel/watcher",
+        "@vscode/ripgrep",
         // ws optional dependencies - mark as external to avoid bundling errors
         "bufferutil",
         "utf-8-validate",
