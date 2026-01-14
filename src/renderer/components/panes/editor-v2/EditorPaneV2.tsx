@@ -23,6 +23,7 @@ import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/Sand
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
+import { enqueueNotification } from "@/store/actions/notifications";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
@@ -65,6 +66,7 @@ import {
   computeStagedForChangesMode,
   getFileEntryPresence,
   selectNextAvailableFile,
+  getFriendlyGitError,
   // MapKey helpers (centralized operations)
   makeMapKey,
   mapKeyToPath,
@@ -1030,7 +1032,13 @@ export function EditorPaneV2({
       await git.commit(commitMessage.trim());
       setCommitMessage("");
     } catch (error) {
-      console.error("[EditorPaneV2] Commit failed:", error);
+      const friendlyError = getFriendlyGitError(error);
+      console.error("[EditorPaneV2] Commit failed:", friendlyError.rawMessage);
+      enqueueNotification({
+        kind: "error",
+        message: friendlyError.message,
+        details: friendlyError.details,
+      });
     } finally {
       setIsCommitting(false);
     }
@@ -1046,7 +1054,13 @@ export function EditorPaneV2({
     try {
       await git.pull();
     } catch (error) {
-      console.error("[EditorPaneV2] Pull failed:", error);
+      const friendlyError = getFriendlyGitError(error);
+      console.error("[EditorPaneV2] Pull failed:", friendlyError.rawMessage);
+      enqueueNotification({
+        kind: "error",
+        message: friendlyError.message,
+        details: friendlyError.details,
+      });
     } finally {
       setIsPulling(false);
     }
@@ -1068,10 +1082,16 @@ export function EditorPaneV2({
         setHasUpstream(true);
       }
     } catch (error) {
+      const friendlyError = getFriendlyGitError(error);
       console.error(
         `[EditorPaneV2] ${hasUpstream ? "Push" : "Publish"} failed:`,
-        error,
+        friendlyError.rawMessage,
       );
+      enqueueNotification({
+        kind: "error",
+        message: friendlyError.message,
+        details: friendlyError.details,
+      });
     } finally {
       setIsPushing(false);
     }
