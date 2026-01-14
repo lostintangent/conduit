@@ -12,7 +12,7 @@
 import { applicationModeAtom } from "@/store/atoms";
 import { sidebarStateAtom, type SidebarView } from "@/store/sidebarStore";
 import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, useCallback, useEffect, useRef, useState } from "react";
 import { ResizablePanel } from "./ResizablePanel";
 import { SidebarActivityBar } from "./SidebarActivityBar";
 import { BrowserView } from "./views/BrowserView";
@@ -102,36 +102,52 @@ export function Sidebar({ cwd }: SidebarProps) {
   // The effective CWD: locked CWD if locked, otherwise current CWD
   const effectiveCwd = isLocked && lockedCwd ? lockedCwd : cwd;
 
+  // Content visibility for Activity - coordinates with slide animation:
+  // - Opening: show content immediately (visible during slide-in)
+  // - Closing: keep content visible until slide-out completes, then hide
+  const [isContentVisible, setIsContentVisible] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setIsContentVisible(true);
+  }, [isOpen]);
+
+  const handleTransitionEnd = useCallback(() => {
+    if (!isOpen) setIsContentVisible(false);
+  }, [isOpen]);
+
   return (
     <ResizablePanel
       storageKey={SIDEBAR_WIDTH_STORAGE_KEY}
       isOpen={isOpen}
       isExpanded={isExpanded}
       defaultWidthPercent={0.5}
+      onTransitionEnd={handleTransitionEnd}
     >
-      <div className="flex h-full">
-        {/* Activity Bar */}
-        <SidebarActivityBar
-          view={view}
-          onViewChange={setView}
-          isLocked={isLocked}
-          onLockToggle={toggleLocked}
-          isExpanded={isExpanded}
-          onExpandToggle={toggleExpanded}
-          onClose={closeSidebar}
-        />
+      <Activity mode={isContentVisible ? "visible" : "hidden"}>
+        <div className="flex h-full">
+          {/* Activity Bar */}
+          <SidebarActivityBar
+            view={view}
+            onViewChange={setView}
+            isLocked={isLocked}
+            onLockToggle={toggleLocked}
+            isExpanded={isExpanded}
+            onExpandToggle={toggleExpanded}
+            onClose={closeSidebar}
+          />
 
-        {/* Content */}
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-          {view === "editor" ? (
-            <EditorView cwd={effectiveCwd} />
-          ) : view === "browser" ? (
-            <BrowserView cwd={effectiveCwd} />
-          ) : (
-            <CanvasView cwd={effectiveCwd} isLocked={true} />
-          )}
+          {/* Content */}
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+            {view === "editor" ? (
+              <EditorView cwd={effectiveCwd} />
+            ) : view === "browser" ? (
+              <BrowserView cwd={effectiveCwd} />
+            ) : (
+              <CanvasView cwd={effectiveCwd} isLocked={true} />
+            )}
+          </div>
         </div>
-      </div>
+      </Activity>
     </ResizablePanel>
   );
 }

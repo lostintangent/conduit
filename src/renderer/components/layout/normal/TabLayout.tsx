@@ -1,3 +1,4 @@
+import { Activity } from "react";
 import { PaneControlButtons } from "@/components/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/layout/focus/FocusModeIndicator";
 import { IntersectionHandles } from "@/components/layout/normal/IntersectionHandles";
@@ -79,6 +80,7 @@ type BoundaryInfo = {
 type TabRenderContext = {
   paneCount: number;
   devToolsTargets: Set<string>;
+  isOnlyTab: boolean;
 };
 
 type IntersectionHandleConfig = {
@@ -491,6 +493,13 @@ export function TabLayout({
                 isActive={isActivePane}
                 onActivate={onPaneActivate}
                 onContextMenu={onPaneContextMenu}
+                // Resolve cloned terminal's sessionId here to avoid TerminalPane subscribing to all tabs
+                resolvedSessionId={
+                  pane.cloneOf
+                    ? ((tab.panes[pane.cloneOf] as typeof pane)?.sessionId ??
+                      pane.sessionId)
+                    : pane.sessionId
+                }
                 onLinkClick={(url) => {
                   if (terminalLinkTarget === "sidebar") {
                     setSidebarState({
@@ -671,7 +680,7 @@ export function TabLayout({
               canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
               canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
               isOnlyPane={ctx.paneCount === 1}
-              isOnlyTab={tabs.length === 1}
+              isOnlyTab={ctx.isOnlyTab}
               onOpenPaneActions={onOpenPaneActions}
               {...dragHandlers}
             />
@@ -694,7 +703,6 @@ export function TabLayout({
       shouldShowTerminalDimensions,
       resizingNode,
       setHoveredPaneId,
-      tabs,
       draggedPaneId,
       dragHoverPaneId,
       hoveredPaneId,
@@ -943,6 +951,7 @@ export function TabLayout({
             .filter((p) => p.type === "browser" && p.devToolsFor)
             .map((p) => (p as { devToolsFor: string }).devToolsFor),
         ),
+        isOnlyTab: tabs.length === 1,
       };
 
       const tabContent = renderLayout(tab.layout, tab, hasUnifiedSandbox, ctx);
@@ -1051,7 +1060,18 @@ export function TabLayout({
 
   return (
     <div className="flex-1 flex relative min-h-0 overflow-hidden">
-      {tabs.map(renderTab)}
+      {tabs.map((tab) => (
+        <Activity
+          key={tab.id}
+          mode={
+            tab.id === activeTabId || isTabInPreview(tab.id)
+              ? "visible"
+              : "hidden"
+          }
+        >
+          {renderTab(tab)}
+        </Activity>
+      ))}
 
       {isFocusModeActive && <FocusModeIndicator />}
 

@@ -12,20 +12,14 @@ import {
 } from "@/store/actions/hyperTerminal";
 import { splitPane } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
-import { applicationModeAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@/utils/terminalPrompt";
 import { broadcastTerminalInput } from "@/utils/terminalSync";
 import { generateId } from "@shared/utils";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Keyboard } from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AgentPanel } from "./shell/AgentPanel";
 import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
 import { TerminalGitStats } from "./shell/TerminalGitStats";
@@ -170,6 +164,12 @@ type TerminalPaneProps = {
   pane: TerminalPaneType;
   isActive: boolean;
   tabId?: string;
+  /**
+   * Pre-resolved sessionId for this terminal. For cloned terminals, this should
+   * be the source terminal's sessionId. Passing this from the parent avoids
+   * TerminalPane needing to subscribe to all tabs just to look up clone sources.
+   */
+  resolvedSessionId?: string;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
   onLinkClick: (url: string) => void;
@@ -183,6 +183,7 @@ export const TerminalPane = ({
   pane,
   isActive,
   tabId,
+  resolvedSessionId,
   onContextMenu,
   onActivate,
   onLinkClick,
@@ -191,9 +192,8 @@ export const TerminalPane = ({
   isTabSynchronized = false,
   fontSize,
 }: TerminalPaneProps) => {
-  const { id: paneId, sessionId: terminalId, cwd, cloneOf, sandboxId } = pane;
+  const { id: paneId, sessionId: terminalId, cwd, sandboxId } = pane;
   const settings = useAtomValue(userSettingsAtom);
-  const tabs = useAtomValue(tabsAtom);
   const { showTerminalRuler } = settings;
   const playButtonTarget = settings.playButtonTarget ?? "newPane";
   const applicationMode = useAtomValue(applicationModeAtom);
@@ -232,20 +232,8 @@ export const TerminalPane = ({
   const searchWidgetRef = useRef<SearchWidgetHandle | null>(null);
   const streamCleanupRef = useRef<(() => void) | null>(null);
 
-  const sessionId = useMemo(() => {
-    if (!cloneOf || !tabId) {
-      return terminalId;
-    }
-
-    const tab = tabs.find(({ id }) => id === tabId);
-    const sourcePane = tab?.panes[cloneOf];
-
-    if (sourcePane?.type === "terminal") {
-      return sourcePane.sessionId;
-    }
-
-    return terminalId;
-  }, [cloneOf, tabId, tabs, terminalId]);
+  // Use pre-resolved sessionId from parent (handles clone lookup), fall back to pane's own sessionId
+  const sessionId = resolvedSessionId ?? terminalId;
 
   const { isImageDragOver, dragHandlers: imageDragHandlers } = useImageDrop({
     sessionId,
@@ -446,15 +434,9 @@ export const TerminalPane = ({
     }));
   }, []);
 
-  // Find current tab for script running
-  const currentTab = useMemo(() => {
-    if (!tabId) return undefined;
-    return tabs.find((t) => t.id === tabId);
-  }, [tabs, tabId]);
-
   const handleRunScript = useCallback(
     async (scriptName: string) => {
-      if (!currentTab) return;
+      if (!tabId) return;
 
       const command = `npm i && npm run ${scriptName}`;
 
@@ -463,12 +445,12 @@ export const TerminalPane = ({
         const result = await api.createTerminal({ cwd, command });
         openHyperTerminal(result.sessionId, generateId(), result.cwd);
       } else {
-        await splitPane(currentTab.id, paneId, "row", false, {
+        await splitPane(tabId, paneId, "row", false, {
           terminalOptions: { cwd, command },
         });
       }
     },
-    [currentTab, cwd, paneId, playButtonTarget],
+    [tabId, cwd, paneId, playButtonTarget],
   );
 
   useEffect(() => {

@@ -58,6 +58,9 @@ interface ResizablePanelProps {
 
   /** Additional className for the panel container */
   className?: string;
+
+  /** Called when the slide in/out transition completes */
+  onTransitionEnd?: () => void;
 }
 
 // =============================================================================
@@ -94,6 +97,7 @@ export function ResizablePanel({
   maxWidthPercent = DEFAULT_MAX_WIDTH_PERCENT,
   minWidthPx = DEFAULT_MIN_WIDTH_PX,
   className,
+  onTransitionEnd,
 }: ResizablePanelProps) {
   // Width state - initialized from localStorage
   const [widthPercent, setWidthPercent] = useState(() =>
@@ -179,6 +183,16 @@ export function ResizablePanel({
   // Use full width when expanded, otherwise use the resizable width
   const effectiveWidth = isExpanded ? 1 : widthPercent;
 
+  const handleTransitionEnd = useCallback(
+    (e: React.TransitionEvent<HTMLDivElement>) => {
+      // Only fire for the transform transition on this element (not children)
+      if (e.target === e.currentTarget && e.propertyName === "transform") {
+        onTransitionEnd?.();
+      }
+    },
+    [onTransitionEnd],
+  );
+
   return (
     <div
       className={cn(
@@ -186,11 +200,16 @@ export function ResizablePanel({
         "bg-background shadow-2xl",
         // Only show left border when not expanded
         !isExpanded && "border-l border-border",
-        "transition-all duration-200 ease-out",
-        isOpen ? "translate-x-0" : "translate-x-full",
         className,
       )}
-      style={{ width: `${effectiveWidth * 100}%` }}
+      style={{
+        width: `${effectiveWidth * 100}%`,
+        transform: isOpen ? "translateX(0)" : "translateX(100%)",
+        transition: isResizing
+          ? "transform 200ms ease-out"
+          : "transform 200ms ease-out, width 200ms ease-out",
+      }}
+      onTransitionEnd={handleTransitionEnd}
     >
       {/* Resize handle on left edge - hidden when expanded */}
       {!isExpanded && (

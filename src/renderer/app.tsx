@@ -312,6 +312,15 @@ export function App() {
     }
   }, [tabs, openTab]);
 
+  // Keep refs to tabs/activeTab for the beforeClose handler so the effect
+  // doesn't need to re-run when tabs change (avoiding IPC listener churn)
+  const tabsRef = useRef(tabs);
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    tabsRef.current = tabs;
+    activeTabRef.current = activeTab;
+  }, [tabs, activeTab]);
+
   useEffect(() => {
     const unsubscribeExit = api.onExit(({ sessionId }) => {
       // Handle quick pane exit
@@ -342,8 +351,11 @@ export function App() {
 
     const unsubscribeBeforeClose = api.onBeforeClose(() => {
       // Save the current workspace state as "last workspace"
-      if (tabs.length > 0) {
-        void api.workspace.saveLastWorkspace(tabs, activeTab?.id);
+      if (tabsRef.current.length > 0) {
+        void api.workspace.saveLastWorkspace(
+          tabsRef.current,
+          activeTabRef.current?.id,
+        );
       }
     });
 
@@ -352,7 +364,7 @@ export function App() {
       unsubscribeNotification();
       unsubscribeBeforeClose();
     };
-  }, [tabs, activeTab]);
+  }, []);
 
   const handleTitleModalSave = useCallback(
     (title: string) => {

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "electron-playwright": {
+      "command": "npx",
+      "args": [
+        "electron-playwright-mcp",
+        "/Users/lostintangent/Desktop/conduit/out/Conduit-darwin-arm64/Conduit.app/Contents/MacOS/Conduit"
+      ]
+    }
+  }
+}

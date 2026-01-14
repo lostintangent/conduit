@@ -112,7 +112,6 @@ export function getOrCreate(
       fontSize,
       theme,
       cursorBlink: true,
-      scrollback: 2000,
       allowProposedApi: true, // Required for us to use the decorations API (for displaying search results in the terminal)
       allowTransparency: false,
     });
