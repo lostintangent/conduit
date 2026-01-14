@@ -10,11 +10,28 @@ import * as path from "path";
 function resolveRipgrepPath(): string {
   const fs = require("fs");
 
+  // Log environment info for debugging
+  const isPackaged = !!(process as any).resourcesPath;
+  console.log("[Ripgrep] === Resolving ripgrep path ===");
+  console.log("[Ripgrep] isPackaged:", isPackaged);
+  console.log("[Ripgrep] __dirname:", __dirname);
+  console.log("[Ripgrep] process.cwd():", process.cwd());
+  if (isPackaged) {
+    console.log(
+      "[Ripgrep] process.resourcesPath:",
+      (process as any).resourcesPath,
+    );
+  }
+
   try {
     // Try the package import first
     const { rgPath } = require("@vscode/ripgrep");
+    console.log(
+      "[Ripgrep] require('@vscode/ripgrep') succeeded, rgPath:",
+      rgPath,
+    );
     if (rgPath && fs.existsSync(rgPath)) {
-      console.log("[Ripgrep] Using path from @vscode/ripgrep:", rgPath);
+      console.log("[Ripgrep] ✅ Using path from @vscode/ripgrep:", rgPath);
       return rgPath;
     }
     console.warn("[Ripgrep] Path from @vscode/ripgrep doesn't exist:", rgPath);
@@ -23,7 +40,27 @@ function resolveRipgrepPath(): string {
   }
 
   // Fallback: try multiple possible locations
-  const possiblePaths = [
+  // For packaged Electron apps, unpacked native modules are in app.asar.unpacked
+  const possiblePaths: string[] = [];
+
+  // Electron packaged app paths (app.asar.unpacked)
+  if (isPackaged) {
+    const resourcesPath = (process as any).resourcesPath;
+    possiblePaths.push(
+      path.join(
+        resourcesPath,
+        "app.asar.unpacked",
+        "node_modules",
+        "@vscode",
+        "ripgrep",
+        "bin",
+        "rg",
+      ),
+    );
+  }
+
+  // Development paths
+  possiblePaths.push(
     path.join(
       __dirname,
       "..",
@@ -46,21 +83,24 @@ function resolveRipgrepPath(): string {
       "bin",
       "rg",
     ),
-  ];
+  );
+
+  console.log("[Ripgrep] Trying fallback paths:", possiblePaths);
 
   for (const rgPath of possiblePaths) {
-    if (fs.existsSync(rgPath)) {
-      console.log("[Ripgrep] Found binary at:", rgPath);
+    const exists = fs.existsSync(rgPath);
+    console.log(
+      `[Ripgrep] Checking ${rgPath}: ${exists ? "EXISTS" : "NOT FOUND"}`,
+    );
+    if (exists) {
+      console.log("[Ripgrep] ✅ Found binary at:", rgPath);
       return rgPath;
     }
   }
 
   console.error(
-    "[Ripgrep] Could not find ripgrep binary in any expected location",
+    "[Ripgrep] ❌ Could not find ripgrep binary in any expected location",
   );
-  console.error("[Ripgrep] Tried:", possiblePaths);
-  console.error("[Ripgrep] __dirname:", __dirname);
-  console.error("[Ripgrep] process.cwd():", process.cwd());
 
   // Return first path as fallback (will fail but with better error message)
   return possiblePaths[0];
@@ -182,8 +222,25 @@ export async function scanDirectoryWithRipgrep(
     args.push(directoryPath);
 
     console.log(`[Ripgrep] Scanning ${directoryPath} with ripgrep`);
-    console.log(`[Ripgrep] rgPath from @vscode/ripgrep:`, rgPath);
-    console.log(`[Ripgrep] Command: ${rgPath} ${args.join(" ")}`);
+    console.log(`[Ripgrep] Binary path:`, rgPath);
+
+    // Pre-flight check: verify binary exists and is executable
+    const fs = require("fs");
+    try {
+      fs.accessSync(rgPath, fs.constants.X_OK);
+      console.log(`[Ripgrep] ✅ Binary is executable`);
+    } catch (accessError: any) {
+      console.error(
+        `[Ripgrep] ❌ Binary access check failed:`,
+        accessError.message,
+      );
+      console.error(
+        `[Ripgrep] This usually means wrong architecture or missing permissions`,
+      );
+      result.errors.push(`Binary not executable: ${accessError.message}`);
+      resolve(result);
+      return;
+    }
 
     const rg = spawn(rgPath, args, {
       cwd: directoryPath,
@@ -207,9 +264,18 @@ export async function scanDirectoryWithRipgrep(
       stderr += data.toString();
     });
 
-    rg.on("error", (error) => {
-      console.error("[Ripgrep] Process error:", error);
-      result.errors.push(`Ripgrep process error: ${error.message}`);
+    rg.on("error", (error: any) => {
+      console.error("[Ripgrep] ❌ Process spawn error:", error.message);
+      console.error("[Ripgrep] Error code:", error.code);
+      console.error("[Ripgrep] Error path:", error.path);
+      if (error.code === "ENOENT") {
+        console.error("[Ripgrep] Binary not found at path");
+      } else if (error.code === "EACCES") {
+        console.error("[Ripgrep] Permission denied - binary not executable");
+      }
+      result.errors.push(
+        `Ripgrep process error: ${error.message} (${error.code})`,
+      );
       resolve(result);
     });
 
