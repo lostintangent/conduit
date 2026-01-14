@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "tailwind-scrollbar-hide/src/styles.css";
+@import "tailwind-scrollbar-hide/v4";
 
 @import "@xterm/xterm/css/xterm.css";
 
