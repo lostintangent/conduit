@@ -15,7 +15,7 @@ import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: "**/node_modules/{node-pty,@parcel/watcher}/**/*",
+      unpack: "**/node_modules/{node-pty,@parcel/watcher,@vscode/ripgrep}/**/*",
     },
     icon: "./build/assets/icon",
     extraResource: [
@@ -49,10 +49,13 @@ const config: ForgeConfig = {
   },
   hooks: {
     packageAfterCopy: async (_, buildPath) => {
-      execSync("npm install --omit=dev node-pty @parcel/watcher", {
-        cwd: buildPath,
-        stdio: "inherit",
-      });
+      execSync(
+        "npm install --omit=dev node-pty @parcel/watcher @vscode/ripgrep",
+        {
+          cwd: buildPath,
+          stdio: "inherit",
+        },
+      );
     },
     postPackage: async (_, options) => {
       removeUnusedLocales(options.outputPaths[0], options.platform);
