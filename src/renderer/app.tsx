@@ -72,9 +72,9 @@ import {
   hyperTerminalsAtom,
   keybindingsAtom,
   quickPaneAtom,
-  sidebarStateAtom,
   tabsAtom,
 } from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
