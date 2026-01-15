@@ -3,9 +3,9 @@
 
 # Restore EDITOR/VISUAL after user's .bashrc has run
 # This ensures Conduit overrides any EDITOR set in user's config
-if [[ -n "$CONDUIT_DESIRED_EDITOR" ]]; then
-  export EDITOR="$CONDUIT_DESIRED_EDITOR"
-  export VISUAL="$CONDUIT_DESIRED_EDITOR"
+if [[ -n "$CONDUIT_EDITOR" ]]; then
+  export EDITOR="$CONDUIT_EDITOR"
+  export VISUAL="$CONDUIT_EDITOR"
 fi
 
 __conduit_osc7() {

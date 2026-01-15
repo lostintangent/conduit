@@ -3,9 +3,9 @@
 
 # Restore EDITOR/VISUAL after user's config.fish has run
 # This ensures Conduit overrides any EDITOR set in user's config
-if set -q CONDUIT_DESIRED_EDITOR
-    set -gx EDITOR "$CONDUIT_DESIRED_EDITOR"
-    set -gx VISUAL "$CONDUIT_DESIRED_EDITOR"
+if set -q CONDUIT_EDITOR
+    set -gx EDITOR "$CONDUIT_EDITOR"
+    set -gx VISUAL "$CONDUIT_EDITOR"
 end
 
 # If the copilot command is not available, define a wrapper function
