@@ -83,6 +83,8 @@ export function useKeybindingDispatch(
           // which would break multi-key chords like Cmd+Shift+E+Left when Cmd+Shift+E
           // matches a command that's disabled in the current context
           if (!commandRegistry.isCommandEnabled(commandId)) {
+            // Clear pressed keys to prevent stale keys from blocking future keybindings
+            clearPressedKeys();
             return;
           }
 

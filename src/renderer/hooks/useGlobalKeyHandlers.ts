@@ -26,6 +26,7 @@ export function useGlobalKeyHandlers(): UseGlobalKeyHandlersResult {
       event.key === "Escape" &&
       ["focus", "overview", "design"].includes(applicationMode)
     ) {
+      event.preventDefault();
       setApplicationMode("normal");
       return;
     }

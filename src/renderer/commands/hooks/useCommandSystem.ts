@@ -106,8 +106,6 @@ export function useCommandSystem(
     contextKeyService: IContextKeyService;
   } | null>(null);
 
-  const [contextBuilderReady, setContextBuilderReady] = useState(false);
-
   // Initialize command system ONCE
   useEffect(() => {
     const initialize = async () => {
@@ -132,6 +130,48 @@ export function useCommandSystem(
       // Populate keybindings atom with initial bindings (including user overrides)
       const allKeybindings = keybindingRegistry.getAllKeybindings();
       setKeybindings(allKeybindings);
+
+      // Set up initial context builder immediately so keybinding listener can attach.
+      // The context builder will be updated with fresh state in a subsequent effect,
+      // but commands can execute with this initial context right away.
+      commandRegistry.setContextBuilder(() => ({
+        // Services (placeholder)
+        commands: null as any,
+        dialogs: null as any,
+        notifications: null as any,
+        settings: null as any,
+        contextKeys: null as any,
+        workspaces: null as any,
+        tabs: null as any,
+        panes: null as any,
+        terminals: null as any,
+        workspace: null as any,
+        view: null as any,
+        agent: null as any,
+        // State - will be updated by subsequent effect
+        activeTab: null,
+        activePaneId: null,
+        workspaceName: undefined,
+        allTabs: [],
+        applicationMode: "normal" as ApplicationMode,
+        setApplicationMode: () => {},
+        // UI state setters - no-ops until real context is set
+        setShowGeneralSettings: () => {},
+        setShowKeybindingsEditor: () => {},
+        setShowPaneActionsEditor: () => {},
+        setShowAgentsEditor: () => {},
+        setShowAgentLauncher: () => {},
+        setIsCommandPaletteOpenOverride: () => {},
+        setShowRenameWorkspaceDialog: () => {},
+        setShowWorkspacePicker: () => {},
+        setIsUrlDialogOpen: () => {},
+        setCleanupDialogSessions: () => {},
+        setShowCreateWorkspaceDialog: () => {},
+        setShowDuplicateWorkspaceDialog: () => {},
+        setShowDuplicateTabWithCwdDialog: () => {},
+        setTitleModal: () => {},
+        setIsQuickOpenOpen: () => {},
+      }));
 
       setCommandSystem({
         commandRegistry,
@@ -223,9 +263,6 @@ export function useCommandSystem(
       setTitleModal,
       setIsQuickOpenOpen,
     }));
-
-    // Signal that context builder is ready - this causes keyboard listener to attach on next render
-    setContextBuilderReady(true);
   }, [
     commandSystem,
     activeTab,
@@ -344,8 +381,8 @@ export function useCommandSystem(
     };
   }, [commandSystem, homeDirectory]);
 
-  // Return null until ready to prevent premature keyboard listener attachment
-  if (!commandSystem || !contextBuilderReady) {
+  // Return null until command system is initialized
+  if (!commandSystem) {
     return null;
   }
 
