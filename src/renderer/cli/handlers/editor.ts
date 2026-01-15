@@ -1,12 +1,6 @@
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
-import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { EditorPane } from "@/types";
-import { getDefaultStore } from "jotai";
 import type { HandlerMap } from "./types";
-
-const store = getDefaultStore();
-
-const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
 
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &
   Pick<
@@ -15,36 +9,25 @@ type EditorQuickDescriptor = Omit<EditorPane, "id"> &
   >;
 
 export const editorHandlers: Partial<HandlerMap> = {
+  /**
+   * Handle $EDITOR requests from CLI tools (git commit, Claude Code Ctrl+G, etc.).
+   * Opens the file in a quick pane that closes on save, signaling completion
+   * back to the calling tool.
+   */
   "editor-open": (args, context) => {
     const commandArgs = args ?? { cwd: "" };
-    const isCommitMessageRequest = commandArgs.filePath?.endsWith(
-      COMMIT_EDITMSG_FILENAME,
-    );
 
-    // For commit messages, still use quick pane (needs isLocked, closeOnSave, onClose)
-    if (isCommitMessageRequest) {
-      return new Promise<void>((resolve) => {
-        const descriptor: EditorQuickDescriptor = {
-          type: "editor",
-          cwd: commandArgs.cwd,
-          file: commandArgs.filePath,
-          isLocked: true,
-          closeOnSave: true,
-          hideFileTree: true,
-          onClose: resolve,
-        };
-        context.onOpenFile(descriptor);
-      });
-    }
-
-    store.set(sidebarStateAtom, {
-      isOpen: true,
-      view: "editor",
-      navigation: {
+    return new Promise<void>((resolve) => {
+      const descriptor: EditorQuickDescriptor = {
+        type: "editor",
         cwd: commandArgs.cwd,
-        editorTreeMode: "all",
-        editorFile: commandArgs.filePath,
-      },
+        file: commandArgs.filePath,
+        isLocked: true,
+        closeOnSave: true,
+        hideFileTree: true,
+        onClose: resolve,
+      };
+      context.onOpenFile(descriptor);
     });
   },
 };

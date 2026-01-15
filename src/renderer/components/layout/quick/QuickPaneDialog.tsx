@@ -157,6 +157,7 @@ export function QuickPaneDialog({
       <DialogContent
         ref={dialogContentRef}
         showClose={false}
+        overlayClassName="bg-black"
         className="flex max-w-[min(95vw,1000px)] h-[720px] min-h-[320px] max-h-[90vh] overflow-hidden p-0 bg-background border-white/10"
         aria-describedby={undefined}
         onOpenAutoFocus={handleOpenAutoFocus}

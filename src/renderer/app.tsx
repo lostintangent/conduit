@@ -144,10 +144,6 @@ export function App() {
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
 
-  // DEBUG: Log Quick Open state changes
-  useEffect(() => {
-    console.log("[App] isQuickOpenOpen changed to:", isQuickOpenOpen);
-  }, [isQuickOpenOpen]);
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
