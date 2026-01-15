@@ -86,6 +86,13 @@ export interface EditorPaneAnchorProps {
   onHover?: (isHovering: boolean) => void;
 
   /**
+   * Hide the file tree and only show the editor.
+   * Used for focused editing scenarios like commit messages.
+   * @default false
+   */
+  hideFileTree?: boolean;
+
+  /**
    * Whether this anchor is in a preview context (tab hover, overview).
    * When true, an overlay is added to prevent editor interactions.
    * @default false
@@ -115,6 +122,7 @@ export function EditorPaneAnchor({
   onChangesViewModeChange,
   onSave,
   onHover,
+  hideFileTree,
   isInPreview = false,
   className,
 }: EditorPaneAnchorProps) {
@@ -169,6 +177,7 @@ export function EditorPaneAnchor({
       callbacksRef.current.onChangesViewModeChange?.(mode),
     onSave: () => callbacksRef.current.onSave?.(),
     onHover: (isHovering) => callbacksRef.current.onHover?.(isHovering),
+    hideFileTree,
   });
 
   // Update pane in stable callbacks when it changes
@@ -177,6 +186,12 @@ export function EditorPaneAnchor({
     // Update registry with new pane config
     registry.updateConfig(paneId, { pane });
   }, [pane, paneId, registry]);
+
+  // Update hideFileTree in stable callbacks when it changes
+  useEffect(() => {
+    stableCallbacks.current.hideFileTree = hideFileTree;
+    registry.updateConfig(paneId, { hideFileTree });
+  }, [hideFileTree, paneId, registry]);
 
   // Register with registry and attach/detach
   useEffect(() => {

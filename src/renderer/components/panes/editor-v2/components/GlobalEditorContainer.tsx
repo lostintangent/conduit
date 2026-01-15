@@ -97,6 +97,7 @@ function EditorPaneWrapper({
       onChangesViewModeChange={config.onChangesViewModeChange}
       onSave={config.onSave}
       onHover={config.onHover}
+      hideFileTree={config.hideFileTree}
     />,
     wrapperElement,
   );

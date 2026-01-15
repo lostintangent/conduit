@@ -14,7 +14,7 @@ import type { FileTreeNode } from "@shared/types";
 import { generateId } from "@shared/utils";
 import { useSetAtom } from "jotai";
 import { ArrowUpRight, Cloud, PictureInPicture2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type PaneDescriptor = Omit<Pane, "id">;
 
@@ -22,6 +22,7 @@ export type QuickPaneDescriptor = PaneDescriptor & {
   isLocked?: boolean;
   closeOnSave?: boolean;
   onClose?: () => void;
+  hideFileTree?: boolean;
 };
 
 type QuickPaneDialogProps = {
@@ -44,6 +45,9 @@ export function QuickPaneDialog({
   // Generate a stable paneId for the quick pane
   const [quickPaneId] = useState(() => generateId());
 
+  // Ref to the dialog content for scoped queries
+  const dialogContentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setApplicationMode("quick");
     return () => {
@@ -52,6 +56,24 @@ export function QuickPaneDialog({
       );
     };
   }, [setApplicationMode]);
+
+  // Focus the Monaco editor when dialog opens
+  const handleOpenAutoFocus = useCallback(
+    (e: Event) => {
+      if (currentDescriptor.type === "editor") {
+        e.preventDefault();
+
+        // Wait for dialog to render, then click the editor to focus it
+        setTimeout(() => {
+          const viewLines = dialogContentRef.current?.querySelector(
+            ".monaco-editor .view-lines",
+          ) as HTMLElement;
+          viewLines?.click();
+        }, 200);
+      }
+    },
+    [currentDescriptor.type],
+  );
 
   // Handle updates from editor pane
   const handleEditorUpdate = useCallback(
@@ -133,9 +155,11 @@ export function QuickPaneDialog({
       }}
     >
       <DialogContent
+        ref={dialogContentRef}
         showClose={false}
         className="flex max-w-[min(95vw,1000px)] h-[720px] min-h-[320px] max-h-[90vh] overflow-hidden p-0 bg-background border-white/10"
         aria-describedby={undefined}
+        onOpenAutoFocus={handleOpenAutoFocus}
       >
         <DialogTitle className="sr-only">Quick Pane</DialogTitle>
         <div className="flex flex-1 w-full h-full min-h-0 min-w-0 overflow-hidden">
@@ -165,6 +189,7 @@ export function QuickPaneDialog({
               }
               onFileOpen={handleFileOpen}
               isLocked={currentDescriptor.isLocked}
+              hideFileTree={currentDescriptor.hideFileTree}
               onSave={() => {
                 if (currentDescriptor.closeOnSave) {
                   onClose();

@@ -9,7 +9,10 @@ const store = getDefaultStore();
 const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
 
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &
-  Pick<QuickPaneDescriptor, "isLocked" | "closeOnSave" | "onClose">;
+  Pick<
+    QuickPaneDescriptor,
+    "isLocked" | "closeOnSave" | "onClose" | "hideFileTree"
+  >;
 
 export const editorHandlers: Partial<HandlerMap> = {
   "editor-open": (args, context) => {
@@ -27,6 +30,7 @@ export const editorHandlers: Partial<HandlerMap> = {
           file: commandArgs.filePath,
           isLocked: true,
           closeOnSave: true,
+          hideFileTree: true,
           onClose: resolve,
         };
         context.onOpenFile(descriptor);
