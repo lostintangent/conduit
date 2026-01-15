@@ -240,7 +240,7 @@ type EditorPaneProps = {
   onCwdChange?: (cwd: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
   onTreeModeChange?: (mode: EditorTreeMode) => void;
-  isLocked?: boolean;
+  hideFileTree?: boolean;
   onSave?: () => void;
   hideIndividualSandboxIndicator?: boolean;
   /**
@@ -262,7 +262,7 @@ export function EditorPane({
   onCwdChange,
   onFileOpen,
   onTreeModeChange,
-  isLocked = false,
+  hideFileTree = false,
   onSave,
   hideIndividualSandboxIndicator = false,
   onHover,
@@ -308,15 +308,19 @@ export function EditorPane({
     const savedWidth = localStorage.getItem(`editor-pane-tree-width-${paneId}`);
     return savedWidth ? parseInt(savedWidth, 10) : DEFAULT_TREE_WIDTH;
   });
-  const [isTreeCollapsed, setIsTreeCollapsed] = useState(() => {
+  const [isTreeCollapsedState, setIsTreeCollapsed] = useState(() => {
     // Load collapsed state from localStorage
     const savedCollapsed = localStorage.getItem(
       `editor-pane-tree-collapsed-${paneId}`,
     );
     return savedCollapsed === "true";
   });
+  // hideFileTree prop overrides the collapsed state to force editor-only mode
+  const isTreeCollapsed = hideFileTree || isTreeCollapsedState;
   const [isResizing, setIsResizing] = useState(false);
-  const [activeView, setActiveView] = useState<"tree" | "editor">("tree");
+  const [activeView, setActiveView] = useState<"tree" | "editor">(
+    hideFileTree ? "editor" : "tree",
+  );
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   // Track if the user has manually toggled the tree collapse state
   // This prevents animation on initial mount and in tab previews
@@ -2060,7 +2064,7 @@ export function EditorPane({
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {canNavigateUp && !isLocked && (
+                      {canNavigateUp && (
                         <button
                           type="button"
                           onClick={handleNavigateUp}
@@ -2081,7 +2085,7 @@ export function EditorPane({
               {/* Editor header */}
               <div className="flex flex-1 items-center justify-between px-3 py-1.5 bg-elevated text-[13px]">
                 <div className="flex items-center gap-2 truncate">
-                  {isTreeCollapsed && (
+                  {isTreeCollapsed && !hideFileTree && (
                     <>
                       <button
                         type="button"
@@ -2204,7 +2208,7 @@ export function EditorPane({
           <>
             <div className="flex items-center justify-between px-3 py-1.5 bg-elevated text-[13px] border-b border-white/10">
               <div className="flex items-center gap-2 truncate">
-                {activeView === "editor" && hasOpenFile && (
+                {activeView === "editor" && hasOpenFile && !hideFileTree && (
                   <>
                     <button
                       type="button"
@@ -2270,7 +2274,7 @@ export function EditorPane({
                   <>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
                     <div className="flex items-center gap-1 shrink-0">
-                      {canNavigateUp && !isLocked && (
+                      {canNavigateUp && (
                         <button
                           type="button"
                           onClick={handleNavigateUp}

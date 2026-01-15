@@ -60,6 +60,12 @@ export interface EditorPaneConfig {
    * propagate mouse events to parent React components.
    */
   onHover?: (isHovering: boolean) => void;
+
+  /**
+   * Hide the file tree and only show the editor.
+   * Used for focused editing scenarios like commit messages.
+   */
+  hideFileTree?: boolean;
 }
 
 /**

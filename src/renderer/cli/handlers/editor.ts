@@ -6,26 +6,31 @@ import type { HandlerMap } from "./types";
 
 const store = getDefaultStore();
 
-const COMMIT_EDITMSG_FILENAME = "COMMIT_EDITMSG";
-
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &
-  Pick<QuickPaneDescriptor, "isLocked" | "closeOnSave" | "onClose">;
+  Pick<QuickPaneDescriptor, "closeOnSave" | "onClose">;
 
 export const editorHandlers: Partial<HandlerMap> = {
+  /**
+   * Handle editor-open requests from the CLI.
+   *
+   * When --quick flag is passed (used by $EDITOR for git commit, etc.):
+   * - Opens in a modal quick pane that closes on save
+   * - Blocks until the user saves and closes the editor
+   *
+   * Without --quick flag (direct CLI usage like `conduit file.txt`):
+   * - Opens in the sidebar editor
+   * - Returns immediately without blocking
+   */
   "editor-open": (args, context) => {
     const commandArgs = args ?? { cwd: "" };
-    const isCommitMessageRequest = commandArgs.filePath?.endsWith(
-      COMMIT_EDITMSG_FILENAME,
-    );
 
-    // For commit messages, still use quick pane (needs isLocked, closeOnSave, onClose)
-    if (isCommitMessageRequest) {
+    // Quick mode: open in modal dialog, block until closed
+    if (commandArgs.quick) {
       return new Promise<void>((resolve) => {
         const descriptor: EditorQuickDescriptor = {
           type: "editor",
           cwd: commandArgs.cwd,
           file: commandArgs.filePath,
-          isLocked: true,
           closeOnSave: true,
           onClose: resolve,
         };
@@ -33,6 +38,7 @@ export const editorHandlers: Partial<HandlerMap> = {
       });
     }
 
+    // Normal mode: open in sidebar, return immediately
     store.set(sidebarStateAtom, {
       isOpen: true,
       view: "editor",

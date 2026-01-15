@@ -215,6 +215,13 @@ export interface EditorPaneV2Props {
    * their own event handlers. This callback bridges that gap.
    */
   onHover?: (isHovering: boolean) => void;
+
+  /**
+   * Hide the file tree and only show the editor.
+   * Used for focused editing scenarios like commit messages.
+   * @default false
+   */
+  hideFileTree?: boolean;
 }
 
 /** Default tree panel width in pixels */
@@ -242,6 +249,7 @@ export function EditorPaneV2({
   onChangesViewModeChange,
   onSave,
   onHover,
+  hideFileTree = false,
 }: EditorPaneV2Props) {
   const {
     cwd: initialCwd,
@@ -1542,9 +1550,14 @@ export function EditorPaneV2({
   // Determine visibility for each panel
   // In single layout: show based on panelView toggle
   // In split layout: tree can be collapsed via keyboard shortcut
-  const showTree =
-    layout === "single" ? panelView === "tree" : !isTreeCollapsed;
-  const showEditor = layout === "split" || panelView === "editor";
+  // hideFileTree prop overrides all other logic to force editor-only mode
+  const showTree = hideFileTree
+    ? false
+    : layout === "single"
+      ? panelView === "tree"
+      : !isTreeCollapsed;
+  const showEditor =
+    hideFileTree || layout === "split" || panelView === "editor";
 
   return (
     <FileDiffStatsProvider git={git} fs={fs}>

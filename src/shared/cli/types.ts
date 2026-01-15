@@ -102,7 +102,10 @@ export type CliCommand =
   | DefineCommand<"browser-scroll", BrowserScrollArgs>
   | DefineCommand<"browser-wait", BrowserWaitArgs>
   // Editor commands
-  | DefineCommand<"editor-open", { cwd: string; filePath?: string }>
+  | DefineCommand<
+      "editor-open",
+      { cwd: string; filePath?: string; quick?: boolean }
+    >
   // Canvas commands
   | DefineCommand<"canvas-capture", { paneId?: string }, string>
   // Notification commands

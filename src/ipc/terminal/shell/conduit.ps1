@@ -1,3 +1,10 @@
+# Restore EDITOR/VISUAL to ensure Conduit is the default editor
+# This overrides any EDITOR set in user's PowerShell profile
+if ($env:CONDUIT_EDITOR) {
+    $env:EDITOR = $env:CONDUIT_EDITOR
+    $env:VISUAL = $env:CONDUIT_EDITOR
+}
+
 function global:Write-Osc7Cwd {
     $p = $ExecutionContext.SessionState.Path.CurrentLocation
     if ($p.Provider.Name -ne 'FileSystem') { return }
