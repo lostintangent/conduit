@@ -66,6 +66,12 @@ export interface EditorPaneConfig {
    * Used for focused editing scenarios like commit messages.
    */
   hideFileTree?: boolean;
+
+  /**
+   * Callback when close button is clicked.
+   * If provided, shows a close button in the editor toolbar.
+   */
+  onClose?: () => void;
 }
 
 /**

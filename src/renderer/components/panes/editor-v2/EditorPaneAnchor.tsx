@@ -93,6 +93,12 @@ export interface EditorPaneAnchorProps {
   hideFileTree?: boolean;
 
   /**
+   * Callback fired when the close button is clicked.
+   * If provided, shows a close button in the editor toolbar.
+   */
+  onClose?: () => void;
+
+  /**
    * Whether this anchor is in a preview context (tab hover, overview).
    * When true, an overlay is added to prevent editor interactions.
    * @default false
@@ -123,6 +129,7 @@ export function EditorPaneAnchor({
   onSave,
   onHover,
   hideFileTree,
+  onClose,
   isInPreview = false,
   className,
 }: EditorPaneAnchorProps) {
@@ -140,6 +147,7 @@ export function EditorPaneAnchor({
     onChangesViewModeChange,
     onSave,
     onHover,
+    onClose,
   });
 
   // Update callback refs when props change
@@ -153,6 +161,7 @@ export function EditorPaneAnchor({
       onChangesViewModeChange,
       onSave,
       onHover,
+      onClose,
     };
   }, [
     onFileChange,
@@ -163,6 +172,7 @@ export function EditorPaneAnchor({
     onChangesViewModeChange,
     onSave,
     onHover,
+    onClose,
   ]);
 
   // Create stable callback wrappers
@@ -177,6 +187,7 @@ export function EditorPaneAnchor({
       callbacksRef.current.onChangesViewModeChange?.(mode),
     onSave: () => callbacksRef.current.onSave?.(),
     onHover: (isHovering) => callbacksRef.current.onHover?.(isHovering),
+    onClose: () => callbacksRef.current.onClose?.(),
     hideFileTree,
   });
 

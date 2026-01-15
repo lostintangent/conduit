@@ -104,6 +104,13 @@ export interface EditorPaneSwitcherProps {
    * editor implementations.
    */
   onHover?: (isHovering: boolean) => void;
+
+  /**
+   * Callback fired when the close button is clicked.
+   * If provided, shows a close button in the editor toolbar.
+   * Only used in v2 - v1 handles close internally via command.
+   */
+  onClose?: () => void;
 }
 
 // ============================================================================
@@ -132,6 +139,7 @@ export function EditorPaneSwitcher({
   hideIndividualSandboxIndicator,
   isInPreview,
   onHover,
+  onClose,
 }: EditorPaneSwitcherProps) {
   const { useEditorV2 } = useAtomValue(userSettingsAtom);
 
@@ -185,6 +193,7 @@ export function EditorPaneSwitcher({
         onSave={onSave}
         onHover={onHover}
         hideFileTree={hideFileTree}
+        onClose={onClose}
         isInPreview={isInPreview}
         className="h-full w-full"
       />

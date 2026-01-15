@@ -220,6 +220,13 @@ export interface EditorPaneProps {
 
   /** Check if a file has unsaved changes - used to prevent staging dirty files */
   isFileDirty?: (filePath: string) => boolean;
+
+  // ---------------------------------------------------------------------------
+  // Close Handler
+  // ---------------------------------------------------------------------------
+
+  /** Handler for close button - if provided, shows close button in toolbar */
+  onClose?: () => void;
 }
 
 /**
@@ -272,6 +279,8 @@ export const EditorPane = memo(function EditorPane({
   unseenTracking,
   // Dirty file checking
   isFileDirty,
+  // Close handler
+  onClose,
 }: EditorPaneProps) {
   // Editor instance state - using state instead of ref so changes trigger re-renders
   // This ensures useEditorActions re-subscribes when the editor changes
@@ -705,6 +714,7 @@ export const EditorPane = memo(function EditorPane({
         readOnly={modifiedSource !== "workingDirectory"}
         gitStatus={selectedGitStatus}
         commitShortId={changesViewLabel}
+        onClose={onClose}
       />
 
       {/* External change warning */}

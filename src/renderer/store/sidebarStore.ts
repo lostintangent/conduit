@@ -81,6 +81,13 @@ const browserFallbackUrlAtom = atom(undefined as string | undefined);
 
 const store = getDefaultStore();
 
+// --- Sidebar Actions ---
+
+/** Close the sidebar */
+export function closeSidebar(): void {
+  store.set(sidebarStateAtom, (prev) => ({ ...prev, isOpen: false }));
+}
+
 // --- CWD Metadata (Editor) ---
 
 export function getCwdEditorFile(cwd: string): string | undefined {

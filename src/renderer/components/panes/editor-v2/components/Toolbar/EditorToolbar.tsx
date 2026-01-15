@@ -34,6 +34,7 @@ import {
   PanelLeftOpen,
   Plus,
   RotateCcw,
+  X,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { ModelState } from "../../types";
@@ -149,6 +150,9 @@ export interface EditorToolbarProps {
 
   /** Timestamp when file was last modified */
   timestamp?: number | null;
+
+  /** Handler for close button - if provided, shows close button */
+  onClose?: () => void;
 }
 
 /**
@@ -191,6 +195,8 @@ export function EditorToolbar({
   // Follow mode
   isUnseen = false,
   timestamp,
+  // Close handler
+  onClose,
 }: EditorToolbarProps) {
   const isDirty = modelState?.isDirty ?? false;
   const [copied, setCopied] = useState(false);
@@ -517,6 +523,22 @@ export function EditorToolbar({
 
         {/* Git Status Badge */}
         {gitStatus && <GitBadge status={gitStatus} />}
+
+        {/* Close button - only shown when handler is provided */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className={buttonClass}
+            title="Close"
+            data-testid="close-button"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
     </div>
   );

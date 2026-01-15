@@ -192,6 +192,7 @@ export function QuickPaneDialog({
                   onClose();
                 }
               }}
+              onClose={onClose}
             />
           )}
           {currentDescriptor.type === "browser" && (

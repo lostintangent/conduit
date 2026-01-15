@@ -569,6 +569,7 @@ export function TabLayout({
                   }}
                   hideIndividualSandboxIndicator={hasUnifiedSandbox}
                   isInPreview={isInPreview}
+                  onClose={() => closePane(tab.id, pane.id)}
                 />
               </div>
             ) : pane.type === "browser" ? (

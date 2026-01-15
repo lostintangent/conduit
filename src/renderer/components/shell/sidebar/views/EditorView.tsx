@@ -12,6 +12,7 @@
 import { EditorPaneAnchor } from "@/components/panes/editor-v2";
 import {
   clearCwdEditorFile,
+  closeSidebar,
   getCwdEditorFile,
   setCwdEditorFile,
   sidebarPaneIds,
@@ -106,6 +107,7 @@ export function EditorView({ cwd }: EditorViewProps) {
       onClearFile={handleClearFile}
       onTreeModeChange={setTreeMode}
       onChangesViewModeChange={setChangesViewMode}
+      onClose={closeSidebar}
     />
   );
 }

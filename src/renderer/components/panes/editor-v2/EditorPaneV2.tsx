@@ -222,6 +222,16 @@ export interface EditorPaneV2Props {
    * @default false
    */
   hideFileTree?: boolean;
+
+  /**
+   * Callback fired when the close button is clicked.
+   * If provided, shows a close button in the editor toolbar.
+   * The meaning of "close" depends on the context:
+   * - Tab editor: closes the pane
+   * - Quick modal: closes the modal
+   * - Sidebar: closes the sidebar
+   */
+  onClose?: () => void;
 }
 
 /** Default tree panel width in pixels */
@@ -250,6 +260,7 @@ export function EditorPaneV2({
   onSave,
   onHover,
   hideFileTree = false,
+  onClose,
 }: EditorPaneV2Props) {
   const {
     cwd: initialCwd,
@@ -1703,6 +1714,8 @@ export function EditorPaneV2({
             unseenTracking={trackUnseenChanges ? unseenTracking : undefined}
             // Dirty file checking (for preventing staging unsaved files)
             isFileDirty={isFileDirty}
+            // Close handler
+            onClose={onClose}
           />
         </div>
 
