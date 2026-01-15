@@ -192,7 +192,9 @@ export function registerApplicationCommands(
       win: "Ctrl+Shift+P",
     },
     run: (context) => {
-      handleShowCommandPalette(context.setIsCommandPaletteOpen);
+      // Open QuickOpen in command mode (with ">" prefix)
+      context.setQuickOpenInitialValue?.(">");
+      context.setIsQuickOpenOpen?.(true);
     },
   });
 

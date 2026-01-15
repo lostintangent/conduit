@@ -139,6 +139,7 @@ export function App() {
   const [quickPaneState, setQuickPaneState] = useAtom(quickPaneAtom);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
+  const [quickOpenInitialValue, setQuickOpenInitialValue] = useState("");
 
   const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
@@ -242,6 +243,7 @@ export function App() {
     setTitleModal: (tabId: string, value: string) =>
       setTitleModalState({ tabId, initialValue: value }),
     setIsQuickOpenOpen,
+    setQuickOpenInitialValue,
   });
 
   // Initialize pane actions system
@@ -941,7 +943,14 @@ export function App() {
         <QuickOpenDialog
           open={isQuickOpenOpen}
           cwd={activeCwd}
-          onOpenChange={setIsQuickOpenOpen}
+          onOpenChange={(open) => {
+            setIsQuickOpenOpen(open);
+            if (!open) {
+              setQuickOpenInitialValue("");
+            }
+          }}
+          initialValue={quickOpenInitialValue}
+          commands={commandItems}
           onSelectFile={(filePath) => {
             if (!activeTab || !activeTab.activePaneId) {
               return;

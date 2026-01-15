@@ -42,6 +42,8 @@ export interface CommandContext {
   readonly setCleanupDialogSessions?: (sessions: any[] | null) => void;
   readonly setShowDuplicateTabWithCwdDialog?: (tabId: string) => void;
   readonly setTitleModal?: (tabId: string, value: string) => void;
+  readonly setIsQuickOpenOpen?: (open: boolean) => void;
+  readonly setQuickOpenInitialValue?: (value: string) => void;
 }
 
 /**

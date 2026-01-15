@@ -1,32 +1,30 @@
 /**
- * QuickOpenDialog - Global dialog for quick file search and navigation
+ * QuickOpenDialog - Unified palette for files and commands
  *
  * Architecture:
  * - Single global instance (NOT per-pane)
  * - Controlled by props (open, onOpenChange)
- * - Uses cwd from active pane
- * - Follows BranchSelector pattern
+ * - Two modes: file mode (default) and command mode (when query starts with ">")
  *
  * Features:
- * - Fuzzy file search using ripgrep backend
- * - Recent files priority
+ * - Fuzzy search with match highlighting (VS Code algorithm)
  * - Virtual scrolling for performance
- * - Keyboard navigation (up/down/enter/escape)
+ * - Keyboard navigation (arrows/tab/enter/escape)
+ * - Recent files tracking (file mode)
  *
  * @example
  * ```tsx
- * <QuickOpenDialog
- *   open={isOpen}
- *   cwd={activePaneCwd}
- *   onOpenChange={setIsOpen}
- *   onSelectFile={handleFileOpen}
- * />
+ * // File mode (default)
+ * <QuickOpenDialog open={isOpen} cwd={cwd} onOpenChange={setIsOpen} ... />
+ *
+ * // Command mode (open with ">" prefix)
+ * <QuickOpenDialog open={isOpen} initialValue=">" commands={commands} ... />
  * ```
  */
 
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { FileText, X } from "lucide-react";
+import { FileText, X, Terminal } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,9 +33,12 @@ import {
 } from "@/components/ui/dialog";
 import { QuickOpenAPI } from "@/api/QuickOpenAPI";
 import { filterFiles, type FileMatch } from "@/utils/quickOpenFiltering";
+import { filterCommands, type CommandMatch } from "@/utils/commandFiltering";
 import { useQuickOpenRecentFiles } from "@/hooks/useQuickOpenRecentFiles";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/utils";
+import type { Command } from "@/types";
+import type { IMatch } from "@/utils/fuzzy-matcher";
 
 export interface QuickOpenDialogProps {
   /** Whether the dialog is open */
@@ -51,6 +52,12 @@ export interface QuickOpenDialogProps {
 
   /** Callback when a file is selected */
   onSelectFile: (absolutePath: string) => void;
+
+  /** Initial input value (e.g., ">" for command mode) */
+  initialValue?: string;
+
+  /** Commands to show when in command mode (input starts with ">") */
+  commands?: Command[];
 }
 
 /**
@@ -61,19 +68,32 @@ export function QuickOpenDialog({
   cwd,
   onOpenChange,
   onSelectFile,
+  initialValue = "",
+  commands = [],
 }: QuickOpenDialogProps) {
   // ---------------------------------------------------------------------------
   // State
+  // Note: query is initialized from initialValue prop, but the effect below
+  // syncs it when the dialog opens. This allows initialValue to change between
+  // opens (e.g., "" for file mode, ">" for command mode).
   // ---------------------------------------------------------------------------
 
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<FileMatch[]>([]);
+  const [query, setQuery] = useState(initialValue);
+  const [fileResults, setFileResults] = useState<FileMatch[]>([]);
+  const [commandResults, setCommandResults] = useState<CommandMatch[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [fileList, setFileList] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMouseMoved, setHasMouseMoved] = useState(false);
   const [hoverDelayPassed, setHoverDelayPassed] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Mode Detection
+  // ---------------------------------------------------------------------------
+
+  const isCommandMode = query.startsWith(">");
+  const effectiveQuery = isCommandMode ? query.slice(1) : query;
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -128,36 +148,63 @@ export function QuickOpenDialog({
   }, [open, cwd]);
 
   // ---------------------------------------------------------------------------
-  // Filter files when query or file list changes
+  // Filter files when query or file list changes (file mode only)
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || isCommandMode) return;
 
     const timeoutId = setTimeout(() => {
       // If no files yet, show only recent files
       const filesToFilter =
         fileList.length > 0 ? fileList : recentFiles.recentFiles;
 
-      const filtered = filterFiles(query, filesToFilter, {
+      const filtered = filterFiles(effectiveQuery, filesToFilter, {
         recentFiles: new Set(recentFiles.recentFiles),
         workspaceRoot: cwd,
         maxResults: 1000,
       });
 
-      setResults(filtered);
+      setFileResults(filtered);
       setActiveIndex(0);
     }, 50); // 50ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [query, fileList, open, recentFiles.recentFiles, cwd]);
+  }, [
+    effectiveQuery,
+    fileList,
+    open,
+    recentFiles.recentFiles,
+    cwd,
+    isCommandMode,
+  ]);
+
+  // ---------------------------------------------------------------------------
+  // Filter commands when query changes (command mode only)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!open || !isCommandMode) return;
+
+    const filtered = filterCommands(effectiveQuery, commands);
+    setCommandResults(filtered);
+    setActiveIndex(0);
+  }, [effectiveQuery, commands, open, isCommandMode]);
+
+  // ---------------------------------------------------------------------------
+  // Active Results (based on mode)
+  // ---------------------------------------------------------------------------
+
+  const activeResultsCount = isCommandMode
+    ? commandResults.length
+    : fileResults.length;
 
   // ---------------------------------------------------------------------------
   // Virtual scrolling setup
   // ---------------------------------------------------------------------------
 
   const virtualizer = useVirtualizer({
-    count: results.length,
+    count: activeResultsCount,
     getScrollElement: () => scrollContainerRef.current,
     estimateSize: () => 24, // Row height in pixels
     overscan: 5,
@@ -167,11 +214,18 @@ export function QuickOpenDialog({
   // Effects
   // ---------------------------------------------------------------------------
 
-  // Focus input when dialog opens
+  // Focus input and set initial value when dialog opens
   useEffect(() => {
     if (open) {
+      setQuery(initialValue);
       const timer = setTimeout(() => {
-        inputRef.current?.focus();
+        const input = inputRef.current;
+        if (input) {
+          input.focus();
+          // Position cursor at end of input (not selecting all text)
+          const len = initialValue.length;
+          input.setSelectionRange(len, len);
+        }
       }, 100);
       return () => clearTimeout(timer);
     } else {
@@ -181,9 +235,10 @@ export function QuickOpenDialog({
       setHoveredIndex(null);
       setHasMouseMoved(false);
       setHoverDelayPassed(false);
-      setResults([]);
+      setFileResults([]);
+      setCommandResults([]);
     }
-  }, [open]);
+  }, [open, initialValue]);
 
   // Track mouse movement to prevent hover flash on dialog open
   // Hybrid approach: enable hover after EITHER mouse movement OR 150ms delay
@@ -226,33 +281,42 @@ export function QuickOpenDialog({
       scrollContainerRef.current.scrollTop = 0;
     }
     virtualizer.scrollToOffset(0, { behavior: "auto" });
-  }, [results.length, virtualizer]);
+  }, [activeResultsCount, virtualizer]);
 
   // Scroll active item into view
   useEffect(() => {
     if (
-      results.length > 0 &&
+      activeResultsCount > 0 &&
       activeIndex >= 0 &&
-      activeIndex < results.length
+      activeIndex < activeResultsCount
     ) {
       virtualizer.scrollToIndex(activeIndex, {
         align: "auto",
         behavior: "smooth",
       });
     }
-  }, [activeIndex, results.length, virtualizer]);
+  }, [activeIndex, activeResultsCount, virtualizer]);
 
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
 
-  const handleSelect = useCallback(
+  const handleFileSelect = useCallback(
     (file: FileMatch) => {
       recentFiles.addRecentFile(file.absolutePath);
       onSelectFile(file.absolutePath);
       onOpenChange(false);
     },
     [recentFiles, onSelectFile, onOpenChange],
+  );
+
+  const handleCommandSelect = useCallback(
+    (command: CommandMatch) => {
+      onOpenChange(false);
+      // Run command after dialog closes
+      command.run();
+    },
+    [onOpenChange],
   );
 
   const handleRemoveRecent = useCallback(
@@ -271,55 +335,109 @@ export function QuickOpenDialog({
         onOpenChange(false);
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActiveIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+        setActiveIndex((prev) =>
+          prev < activeResultsCount - 1 ? prev + 1 : 0,
+        );
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setActiveIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+        setActiveIndex((prev) =>
+          prev > 0 ? prev - 1 : activeResultsCount - 1,
+        );
       } else if (e.key === "Tab") {
         e.preventDefault();
         if (e.shiftKey) {
-          setActiveIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+          setActiveIndex((prev) =>
+            prev > 0 ? prev - 1 : activeResultsCount - 1,
+          );
         } else {
-          setActiveIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+          setActiveIndex((prev) =>
+            prev < activeResultsCount - 1 ? prev + 1 : 0,
+          );
         }
       } else if (e.key === "Enter") {
         e.preventDefault();
-        if (results[activeIndex]) {
-          handleSelect(results[activeIndex]);
+        if (isCommandMode) {
+          const command = commandResults[activeIndex];
+          if (command) {
+            handleCommandSelect(command);
+          }
+        } else {
+          const file = fileResults[activeIndex];
+          if (file) {
+            handleFileSelect(file);
+          }
         }
       }
     },
-    [results, activeIndex, onOpenChange, handleSelect],
+    [
+      activeResultsCount,
+      activeIndex,
+      onOpenChange,
+      isCommandMode,
+      commandResults,
+      fileResults,
+      handleFileSelect,
+      handleCommandSelect,
+    ],
   );
 
   // ---------------------------------------------------------------------------
-  // Render
+  // Render State (derived, not stored)
   // ---------------------------------------------------------------------------
 
-  const hasFiles = fileList.length > 0;
+  const renderState = useMemo(() => {
+    const hasFiles = fileList.length > 0;
 
-  // Determine render state
-  // State 1: Loading initial files or waiting for results to populate after files loaded
-  const showSkeleton =
-    isLoading || (hasFiles && results.length === 0 && query === "");
+    if (isCommandMode) {
+      // Command mode render states
+      if (commands.length === 0) {
+        return { type: "empty" as const, message: "No commands available" };
+      }
+      if (commandResults.length === 0 && effectiveQuery.length > 0) {
+        return { type: "no-matches" as const, message: "No matching commands" };
+      }
+      if (commandResults.length > 0) {
+        return { type: "results" as const };
+      }
+      // Waiting for filter to run (brief moment after typing ">")
+      return { type: "results" as const };
+    } else {
+      // File mode render states
+      if (
+        isLoading ||
+        (hasFiles && fileResults.length === 0 && effectiveQuery === "")
+      ) {
+        return { type: "skeleton" as const };
+      }
+      if (hasFiles && fileResults.length === 0 && effectiveQuery !== "") {
+        return { type: "no-matches" as const, message: "No files found" };
+      }
+      if (!hasFiles && !isLoading) {
+        return { type: "empty" as const, message: "No files in workspace" };
+      }
+      if (fileResults.length > 0) {
+        return { type: "results" as const };
+      }
+      return { type: "skeleton" as const };
+    }
+  }, [
+    isCommandMode,
+    commands.length,
+    commandResults.length,
+    effectiveQuery,
+    fileList.length,
+    isLoading,
+    fileResults.length,
+  ]);
 
-  // State 2: User searched but no matches
-  const showNoMatches = hasFiles && results.length === 0 && query !== "";
-
-  // State 3: Workspace has no files (genuine empty state)
-  const showEmptyState = !hasFiles && !isLoading;
-
-  // State 4: Have results to show
-  const showResults = results.length > 0;
-
-  // Find the index where recent files end (for divider placement)
+  // Find the index where recent files end (for divider placement) - file mode only
   const lastRecentIndex = useMemo(() => {
-    return results.findIndex((file, index) => {
-      // Find first non-recent file after recent files
+    if (isCommandMode) return -1;
+    return fileResults.findIndex((file, index) => {
       if (index === 0) return false;
-      return !file.isRecent && results[index - 1].isRecent;
+      return !file.isRecent && fileResults[index - 1].isRecent;
     });
-  }, [results]);
+  }, [fileResults, isCommandMode]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -341,7 +459,11 @@ export function QuickOpenDialog({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search files by name..."
+            placeholder={
+              isCommandMode
+                ? "Type to search commands..."
+                : "Search files by name (type > for commands)..."
+            }
             className="w-full border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm py-1 px-2 h-auto outline-none"
             autoComplete="off"
             spellCheck={false}
@@ -357,34 +479,14 @@ export function QuickOpenDialog({
             minHeight: "calc(min(70vh, 600px) - 45px)",
           }}
         >
-          {showSkeleton ? (
-            // State 1: Show skeleton while loading or waiting for initial filter
-            <div className="py-1 space-y-0">
-              {Array.from({ length: 15 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-6 px-3 flex items-center gap-1.5 opacity-50"
-                  style={{ animationDelay: `${i * 30}ms` }}
-                >
-                  <div className="w-3 h-3 bg-muted rounded animate-pulse" />
-                  <div className="flex-1 flex items-center gap-2">
-                    <div className="w-32 h-3 bg-muted rounded animate-pulse" />
-                    <div className="w-48 h-2 bg-muted/50 rounded animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : showNoMatches ? (
-            // State 2: User searched but no matches
+          {renderState.type === "skeleton" ? (
+            <SkeletonRows />
+          ) : renderState.type === "no-matches" ||
+            renderState.type === "empty" ? (
             <div className="p-4 text-center text-muted-foreground">
-              No files found
+              {renderState.message}
             </div>
-          ) : showEmptyState ? (
-            // State 3: Workspace genuinely has no files
-            <div className="p-4 text-center text-muted-foreground">
-              No files in workspace
-            </div>
-          ) : showResults ? (
+          ) : renderState.type === "results" ? (
             // State 4: Show results
             <div
               className="relative py-1 w-full"
@@ -393,83 +495,146 @@ export function QuickOpenDialog({
               }}
             >
               {virtualizer.getVirtualItems().map((virtualItem) => {
-                const file = results[virtualItem.index];
                 const index = virtualItem.index;
 
-                // Extract relative directory from relative path
-                const relativeDir = file.relativePath.substring(
-                  0,
-                  file.relativePath.length - file.filename.length - 1,
-                );
-
-                return (
-                  <div
-                    key={`${virtualItem.key}-${file.absolutePath}`}
-                    data-index={index}
-                    className={cn(
-                      "absolute top-0 left-0 w-full px-3 cursor-pointer transition-all duration-150 flex items-center",
-                      "hover:bg-accent/50",
-                      index === activeIndex && "bg-accent shadow-sm",
-                    )}
-                    style={{
-                      height: `${virtualItem.size}px`,
-                      transform: `translateY(${virtualItem.start}px)`,
-                    }}
-                    onClick={() => handleSelect(file)}
-                    onMouseEnter={() => {
-                      // Only respond to hover after EITHER mouse movement OR delay
-                      if (!hasMouseMoved && !hoverDelayPassed) return;
-                      setActiveIndex(index);
-                      setHoveredIndex(index);
-                    }}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0 w-full">
-                      {/* File icon */}
-                      <FileText
-                        className="shrink-0 text-foreground"
-                        size={12}
-                      />
-                      <div className="flex-1 min-w-0 flex items-center gap-2">
-                        {/* Filename with highlights - no wrap */}
-                        <span className="text-[13px] whitespace-nowrap shrink-0">
-                          {renderHighlightedText(
-                            file.filename,
-                            file.highlights,
-                            index === activeIndex,
-                          )}
-                        </span>
-                        {/* Relative directory path - truncates */}
-                        <span className="text-xs text-muted-foreground truncate min-w-0">
-                          {renderHighlightedText(
-                            relativeDir || "",
-                            file.directoryHighlights,
-                            index === activeIndex,
-                          )}
-                        </span>
-                        {/* Recent badge - only on first recent item */}
-                        {file.isRecent && index === 0 && (
-                          <span className="text-xs bg-accent/50 px-1.5 py-0.5 rounded ml-auto shrink-0">
-                            Recent
+                if (isCommandMode) {
+                  // Render command item
+                  const command = commandResults[index];
+                  return (
+                    <div
+                      key={`${virtualItem.key}-${command.id}`}
+                      data-index={index}
+                      className={cn(
+                        "absolute top-0 left-0 w-full px-3 cursor-pointer transition-all duration-150 flex items-center",
+                        "hover:bg-accent/50",
+                        index === activeIndex && "bg-accent shadow-sm",
+                      )}
+                      style={{
+                        height: `${virtualItem.size}px`,
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }}
+                      onClick={() => handleCommandSelect(command)}
+                      onMouseEnter={() => {
+                        if (!hasMouseMoved && !hoverDelayPassed) return;
+                        setActiveIndex(index);
+                        setHoveredIndex(index);
+                      }}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0 w-full">
+                        {/* Command icon */}
+                        <Terminal
+                          className="shrink-0 text-foreground"
+                          size={12}
+                        />
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          {/* Command label with highlights */}
+                          <span className="text-[13px] whitespace-nowrap shrink-0">
+                            {renderHighlightedText(
+                              command.label,
+                              command.labelHighlights,
+                              index === activeIndex,
+                            )}
                           </span>
+                          {/* Description/category - truncates */}
+                          {(command.description || command.category) && (
+                            <span className="text-xs text-muted-foreground truncate min-w-0">
+                              {renderHighlightedText(
+                                command.description || command.category || "",
+                                command.descriptionHighlights,
+                                index === activeIndex,
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        {/* Keybinding badge */}
+                        {command.keybinding && (
+                          <kbd className="ml-auto shrink-0 px-2 py-0.5 bg-muted rounded text-xs font-sans tracking-wider text-muted-foreground">
+                            {command.keybinding}
+                          </kbd>
                         )}
                       </div>
-
-                      {/* Delete button - only for recent files on hover */}
-                      {file.isRecent && hoveredIndex === index && (
-                        <button
-                          onClick={(e) =>
-                            handleRemoveRecent(e, file.absolutePath)
-                          }
-                          className="ml-auto shrink-0 p-0.5 rounded hover:bg-accent transition-colors"
-                          aria-label="Remove from recent files"
-                        >
-                          <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      )}
                     </div>
-                  </div>
-                );
+                  );
+                } else {
+                  // Render file item
+                  const file = fileResults[index];
+
+                  // Extract relative directory from relative path
+                  const relativeDir = file.relativePath.substring(
+                    0,
+                    file.relativePath.length - file.filename.length - 1,
+                  );
+
+                  return (
+                    <div
+                      key={`${virtualItem.key}-${file.absolutePath}`}
+                      data-index={index}
+                      className={cn(
+                        "absolute top-0 left-0 w-full px-3 cursor-pointer transition-all duration-150 flex items-center",
+                        "hover:bg-accent/50",
+                        index === activeIndex && "bg-accent shadow-sm",
+                      )}
+                      style={{
+                        height: `${virtualItem.size}px`,
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }}
+                      onClick={() => handleFileSelect(file)}
+                      onMouseEnter={() => {
+                        // Only respond to hover after EITHER mouse movement OR delay
+                        if (!hasMouseMoved && !hoverDelayPassed) return;
+                        setActiveIndex(index);
+                        setHoveredIndex(index);
+                      }}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0 w-full">
+                        {/* File icon */}
+                        <FileText
+                          className="shrink-0 text-foreground"
+                          size={12}
+                        />
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          {/* Filename with highlights - no wrap */}
+                          <span className="text-[13px] whitespace-nowrap shrink-0">
+                            {renderHighlightedText(
+                              file.filename,
+                              file.highlights,
+                              index === activeIndex,
+                            )}
+                          </span>
+                          {/* Relative directory path - truncates */}
+                          <span className="text-xs text-muted-foreground truncate min-w-0">
+                            {renderHighlightedText(
+                              relativeDir || "",
+                              file.directoryHighlights,
+                              index === activeIndex,
+                            )}
+                          </span>
+                          {/* Recent badge - only on first recent item */}
+                          {file.isRecent && index === 0 && (
+                            <span className="text-xs bg-accent/50 px-1.5 py-0.5 rounded ml-auto shrink-0">
+                              Recent
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Delete button - only for recent files on hover */}
+                        {file.isRecent && hoveredIndex === index && (
+                          <button
+                            onClick={(e) =>
+                              handleRemoveRecent(e, file.absolutePath)
+                            }
+                            className="ml-auto shrink-0 p-0.5 rounded hover:bg-accent transition-colors"
+                            aria-label="Remove from recent files"
+                          >
+                            <X className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
               })}
 
               {/* Divider between recent and other files */}
@@ -492,11 +657,37 @@ export function QuickOpenDialog({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Helper Components
+// ---------------------------------------------------------------------------
+
+/** Skeleton loading state for file list */
+function SkeletonRows() {
+  return (
+    <div className="py-1 space-y-0">
+      {Array.from({ length: 15 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-6 px-3 flex items-center gap-1.5 opacity-50"
+          style={{ animationDelay: `${i * 30}ms` }}
+        >
+          <div className="w-3 h-3 bg-muted rounded animate-pulse" />
+          <div className="flex-1 flex items-center gap-2">
+            <div className="w-32 h-3 bg-muted rounded animate-pulse" />
+            <div className="w-48 h-2 bg-muted/50 rounded animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Renders text with fuzzy match highlights */
 function renderHighlightedText(
   text: string,
-  highlights: any[],
+  highlights: IMatch[],
   isActive: boolean = false,
-) {
+): React.ReactNode {
   if (!highlights || highlights.length === 0) {
     return <span>{text}</span>;
   }
@@ -504,30 +695,27 @@ function renderHighlightedText(
   const parts: React.ReactNode[] = [];
   let lastEnd = 0;
 
-  // Use accent-foreground when row is active for better contrast
   const highlightClass = isActive
     ? "font-bold text-accent-foreground"
     : "font-bold text-accent";
 
-  highlights.forEach((match, index) => {
+  highlights.forEach((match, i) => {
     // Add non-highlighted text before this match
     if (match.start > lastEnd) {
       parts.push(
-        <span key={`text-${index}`}>
-          {text.substring(lastEnd, match.start)}
-        </span>,
+        <span key={`text-${i}`}>{text.substring(lastEnd, match.start)}</span>,
       );
     }
     // Add highlighted text
     parts.push(
-      <span key={`match-${index}`} className={highlightClass}>
+      <span key={`match-${i}`} className={highlightClass}>
         {text.substring(match.start, match.end)}
       </span>,
     );
     lastEnd = match.end;
   });
 
-  // Add remaining text
+  // Add remaining text after last match
   if (lastEnd < text.length) {
     parts.push(<span key="text-end">{text.substring(lastEnd)}</span>);
   }

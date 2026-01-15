@@ -56,6 +56,7 @@ export interface UseCommandSystemOptions {
   setShowDuplicateTabWithCwdDialog: (tabId: string) => void;
   setTitleModal: (tabId: string, value: string) => void;
   setIsQuickOpenOpen: (open: boolean) => void;
+  setQuickOpenInitialValue: (value: string) => void;
 }
 
 /**
@@ -97,6 +98,7 @@ export function useCommandSystem(
     setShowDuplicateTabWithCwdDialog,
     setTitleModal,
     setIsQuickOpenOpen,
+    setQuickOpenInitialValue,
   } = options;
   const setKeybindings = useSetAtom(keybindingsAtom);
 
@@ -171,6 +173,7 @@ export function useCommandSystem(
         setShowDuplicateTabWithCwdDialog: () => {},
         setTitleModal: () => {},
         setIsQuickOpenOpen: () => {},
+        setQuickOpenInitialValue: () => {},
       }));
 
       setCommandSystem({
@@ -262,6 +265,7 @@ export function useCommandSystem(
       setShowDuplicateTabWithCwdDialog,
       setTitleModal,
       setIsQuickOpenOpen,
+      setQuickOpenInitialValue,
     }));
   }, [
     commandSystem,
@@ -285,6 +289,7 @@ export function useCommandSystem(
     setShowDuplicateTabWithCwdDialog,
     setTitleModal,
     setIsQuickOpenOpen,
+    setQuickOpenInitialValue,
   ]);
 
   // Update context keys whenever app state changes
